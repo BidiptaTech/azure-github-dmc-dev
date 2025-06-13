@@ -1,0 +1,31 @@
+name: Sync Frontend (design_staging → staging)
+
+on:
+  push:
+    branches:
+      - design_staging
+
+jobs:
+  sync-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout design_staging
+        uses: actions/checkout@v3
+        with:
+          ref: design_staging
+
+      - name: Set up Git
+        run: |
+          git config --global user.email "ci-bot@example.com"
+          git config --global user.name "CI Bot"
+
+      - name: Sync frontend files to staging
+        run: |
+          git clone https://github.com/${{ github.repository }} repo
+          rsync -av --exclude='backadm-dmc/' ./ repo/
+          cd repo
+          git checkout staging || git checkout -b staging
+          git add .
+          git commit -m "Sync design files from design_staging" || echo "No changes to commit"
+          git push origin staging
