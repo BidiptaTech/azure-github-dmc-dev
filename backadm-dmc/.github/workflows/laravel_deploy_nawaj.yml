@@ -1,0 +1,186 @@
+name: Laravel Deploy Nawaj to Staging
+
+on:
+  push:
+    branches:
+      - nawaj
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Nawaj branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: 🧰 Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: 📦 Install Composer dependencies
+        run: composer install --optimize-autoloader --no-dev || true
+
+      - name: ⚙️ Laravel optimize (preparation only)
+        run: |
+          php artisan config:clear || true
+          php artisan cache:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          echo "✅ Laravel preparation completed"
+
+      - name: 🔄 Configure Git for deployment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Fetch all branches
+          git fetch origin
+          
+          # Create a clean staging branch from current state
+          git checkout -B staging-temp
+          
+          echo "✅ Git configured for deployment"
+
+      - name: 🗂️ Prepare deployment structure for Linux
+        run: |
+          echo "📁 Creating deployment structure..."
+          
+          # Create backadm-dmc directory
+          mkdir -p backadm-dmc
+          
+          # Copy ALL Laravel files to backadm-dmc/ (except test files and root web.config)
+          rsync -av --exclude='test-*.html' --exclude='test-*.php' --exclude='web.config' --exclude='backadm-dmc/' --exclude='.git/' . backadm-dmc/
+          
+          # Ensure Laravel public directory structure is correct
+          if [ ! -d "backadm-dmc/public" ]; then
+            echo "❌ Laravel public directory missing!"
+            exit 1
+          fi
+          
+          # Copy root-level files to staging root (for Azure App Service root)
+          cp test-azure.html . 2>/dev/null || echo "test-azure.html not found"
+          cp test-php.php . 2>/dev/null || echo "test-php.php not found"
+          cp web.config . 2>/dev/null || echo "web.config not found"
+          
+          # Create a simple index.html for root
+          cat > index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>DMC Travel - Azure App Service</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 50px; text-align: center; }
+                  .container { max-width: 600px; margin: 0 auto; }
+                  .btn { display: inline-block; padding: 10px 20px; margin: 10px; background: #007cba; color: white; text-decoration: none; border-radius: 5px; }
+                  .btn:hover { background: #005a87; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🌍 DMC Travel Platform</h1>
+                  <p>Welcome to the DMC Travel management system.</p>
+                  <div>
+                      <a href="/backadm-dmc/" class="btn">🚀 Laravel Admin Panel</a>
+                      <a href="/test-azure.html" class="btn">🔧 Test Azure</a>
+                      <a href="/test-php.php" class="btn">🐘 Test PHP</a>
+                  </div>
+                  <hr>
+                  <p><small>Deployed via GitHub Actions from nawaj branch</small></p>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+          echo "✅ Deployment structure created"
+          echo "📋 Directory structure:"
+          ls -la
+          echo "📋 Laravel app structure:"
+          ls -la backadm-dmc/
+
+      - name: 🔧 Configure Laravel for Linux production
+        run: |
+          cd backadm-dmc
+          
+          # Set proper permissions for Laravel storage and cache
+          chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+          
+          # Create .env file for production (basic template)
+          cat > .env << 'EOF'
+          APP_NAME="DMC Travel Admin"
+          APP_ENV=production
+          APP_KEY=
+          APP_DEBUG=false
+          APP_URL=https://dev.travclicks.com/backadm-dmc
+          
+          LOG_CHANNEL=stack
+          LOG_DEPRECATIONS_CHANNEL=null
+          LOG_LEVEL=error
+          
+          DB_CONNECTION=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=
+          DB_USERNAME=
+          DB_PASSWORD=
+          
+          SESSION_DRIVER=file
+          SESSION_LIFETIME=120
+          
+          CACHE_DRIVER=file
+          FILESYSTEM_DISK=local
+          QUEUE_CONNECTION=sync
+          EOF
+          
+          echo "✅ Laravel configured for Linux production"
+
+      - name: 📤 Force push to staging branch
+        run: |
+          # Add all files to the staging-temp branch
+          git add .
+          git status
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            # Commit the changes
+            git commit -m "🚀 Deploy Laravel to Linux Azure App Service - nawaj branch $(date '+%Y-%m-%d %H:%M:%S')"
+            
+            # Force push to staging branch (overwrite any conflicts)
+            git push origin staging-temp:staging --force
+            
+            echo "✅ Force pushed to staging branch"
+          fi
+
+      - name: 🧹 Cleanup temporary branch
+        run: |
+          # Switch back to original branch and cleanup
+          git checkout nawaj
+          git branch -D staging-temp 2>/dev/null || true
+          echo "✅ Cleaned up temporary branch"
+
+      - name: 🎉 Deployment Summary
+        run: |
+          echo "🎯 Deployment completed successfully!"
+          echo ""
+          echo "📍 Deployment URLs:"
+          echo "   🌐 Root: https://dev.travclicks.com/"
+          echo "   🚀 Laravel App: https://dev.travclicks.com/backadm-dmc/"
+          echo "   🔧 Test Azure: https://dev.travclicks.com/test-azure.html"
+          echo "   🐘 Test PHP: https://dev.travclicks.com/test-php.php"
+          echo ""
+          echo "📁 Files deployed to Azure App Service:"
+          echo "   wwwroot/ (root files)"
+          echo "   wwwroot/backadm-dmc/ (Laravel application)"
+          echo ""
+          echo "⚡ Next steps:"
+          echo "1. Wait for Azure App Service to sync from staging branch"
+          echo "2. Test the URLs above"
+          echo "3. Configure environment variables in Azure App Service" 

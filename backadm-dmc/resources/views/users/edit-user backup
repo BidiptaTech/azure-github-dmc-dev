@@ -1,0 +1,447 @@
+@extends('layouts.layout')
+@section('title', 'Edit User')
+@section('content')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+<div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <div class="card mb-6">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                Edit User
+                <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-danger">
+                    <i class="mdi mdi-arrow-left"></i> Back
+                </a>
+            </h5>
+
+            <form action="{{ route('users.update', $users->userId) }}" method="POST" class="card-body" enctype="multipart/form-data">
+                @csrf
+                @method('PATCH')
+
+                <div class="row">
+                    <!-- Salutation -->
+                    <div class="col-md-3 mb-3">
+                        <label for="salutation" class="form-label"><strong>Salutation</strong><span class="text-danger">*</span></label>
+                        <select class="form-control" name="salutation" required>
+                            <option value="">Select Salutation</option>
+                            <option value="Mr" {{ old('salutation', $users->salutation) == 'Mr' ? 'selected' : '' }}>Mr.</option>
+                            <option value="Mrs" {{ old('salutation', $users->salutation) == 'Mrs' ? 'selected' : '' }}>Mrs.</option>
+                            <option value="Miss" {{ old('salutation', $users->salutation) == 'Miss' ? 'selected' : '' }}>Miss</option>
+                            <option value="Dear" {{ old('salutation', $users->salutation) == 'Dear' ? 'selected' : '' }}>Dear</option>
+                        </select>
+                        @error('salutation')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </div>
+
+                    <!-- Name -->
+                    <div class="col-md-4 mb-3">
+                        <label for="yourname" class="form-label"><strong>Name</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="yourname" placeholder="Enter Your Name" value="{{ old('yourname', $users->name) }}" required>
+                        @error('yourname')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </div>
+
+                    <!-- Role -->
+                    <div class="col-md-4 mb-3">
+                        <label for="role" class="form-label"><strong>Role</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="inputRoleselect" name="role" required>
+                            <option selected disabled value>Choose...</option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->role_id }}" {{ old('role', $users->role_id) == $role->role_id ? 'selected' : '' }}>{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('role')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+
+                <!-- Dynamic Sections Based on Role Selection -->
+                @if(auth()->user()->user_type == 1)
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="row">
+                            <!-- MAster Dmc Select -->
+                            <div class="col-md-3" id="inputRoleContainer">
+                                <div class="mb-3">
+                                    <label for="master" class="form-label"><strong>Master DMC</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <select class="form-select" id="master" name="master_dmc">
+                                        <option selected disabled value>Choose...</option>
+                                        @if(count($master_dmc) > 0)
+                                            @foreach($master_dmc as $mdmc)
+                                                <option value="{{ $mdmc->userId }}" {{ old('master_dmc_id', $users->master_dmc_id) == $mdmc->userId ? 'selected' : '' }}>{{ $mdmc->name }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    @error('master_dmc')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Dependent Country Select Box (Initially Hidden) -->
+                            <div class="col-md-4" id="mastercountryContainer" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="masater_country_name" class="form-label"><strong>Country Names</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <select class="form-select" id="masater_country_name" name="country_name">
+                                        <option selected disabled>Choose...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Assistant Manager Select -->
+                            <div class="col-md-4" id="assistant_manager_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="assistant_manager" class="form-label">
+                                        <strong>Assistant Manager</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <select class="form-select" id="assistant_manager" name="assistant_manager">
+                                        <option selected disabled value>Choose Assistant Manager...</option>
+                                        @if(isset($users->assistant_manager_id))
+                                            <option value="{{ $users->assistant_manager_id }}" selected>{{ $users->assistant_manager_name }}</option>
+                                        @endif
+                                    </select>
+                                    @error('assistant_manager')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <!-- Multiple country select -->
+                            <div class="col-md-4" id="country_names" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="country_names" class="form-label">
+                                        <strong>Country Names</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <select class="form-select select2" id="country_names" name="country_names[]" multiple>
+                                        <option id="default-option" disabled selected>Choose a country...</option>
+                                        @foreach($country as $c)
+                                            <option value="{{ $c->name }}" {{ in_array($c->name, old('country_names', $users->country_names ?? [])) ? 'selected' : '' }}>{{ $c->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('country_names')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <!-- Master Dmc Logo -->
+                            <div class="col-md-4" id="master_logo" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="master_logo" class="form-label">
+                                        <strong>Master Dmc Logo</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <input type="file" class="form-control" id="master_logo"
+                                        name="master_logo" placeholder="Enter Your Name">
+                                </div>
+                            </div>
+
+                            <!-- Single Country Select-->
+                            <div class="col-md-4" id="country_name" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="country_name" class="form-label">
+                                        <strong>Country Name</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <select class="form-select" id="country_name" name="country_name">
+                                        @if(count($country) > 0)
+                                            @foreach($country as $c)
+                                            <option value="{{ $c->name }}" {{ old('country_name', $users->country_name) == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Dmc Select-->
+                            <div class="col-md-4" id="inputDmcContainer" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="inputDmc" class="form-label"><strong>Dmc</strong><span
+                                            style="color: red; font-weight: bold;">*</span></label>
+                                    <select class="form-select" id="inputDmc" name="dmc">
+                                        <option selected disabled value>Choose...</option>
+                                        @foreach($dmcs as $dmcd)
+                                            <option value="{{ $dmcd->userId }}" {{ old('dmc', $users->dmc) == $dmcd->userId ? 'selected' : '' }}>{{ $dmcd->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('dmc')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            <!-- Sales Manager Admin Select--> 
+                            <div class="col-md-4" id="inputSalespersonContainerAdmin">
+                                <div class="mb-3">
+                                    <label for="inputSalesperson" class="form-label">
+                                        <strong>Sales Manager (Admin)</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <select class="form-select" id="inputSalespersonAdmin" name="salemg_admin">
+                                        <option selected disabled value>Choose...</option>
+                                        @foreach($adminSalesManager as $salesperson)
+                                            <option value="{{ $salesperson->userId }}" {{ old('salemg_admin', $users->sales_manager_admin) == $salesperson->userId ? 'selected' : '' }}>
+                                                {{ $salesperson->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                <div class="row">
+                    <!-- Country Code -->
+                    <div class="col-md-3 mb-3">
+                        <label for="code" class="form-label"><strong>Country Code</strong><span class="text-danger">*</span></label>
+                        <select class="form-select" id="code" name="code" required>
+                            <option selected disabled value>Choose...</option>
+                            @foreach($countryCodes as $key => $value)
+                                <option value="{{ $key }}" {{ old('code', $users->country_code) == $key ? 'selected' : '' }}>{{ $value }}</option>
+                            @endforeach
+                        </select>
+                        @error('code')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </div>
+
+                    <!-- Phone Number -->
+                    <div class="col-md-4 mb-3">
+                        <label for="phone" class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="phone" placeholder="Phone No" value="{{ old('phone', $users->phone) }}" required>
+                        @error('phone')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </div>
+
+                    <!-- Email Address -->
+                    <div class="col-md-4 mb-3">
+                        <label for="email" class="form-label"><strong>Email Address</strong><span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" placeholder="Email Address" value="{{ old('email', $users->email) }}" required>
+                        @error('email')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+                <div class="row d-flex">
+                    <!-- Password -->
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="input38a" class="form-label"><strong>Choose Password</strong></label>
+                            <input type="password" class="form-control" id="input38a" name="password"
+                                placeholder="Choose Password">
+                            @error('password')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Markup Type -->
+                    <div class="col-md-8" id="markuptypes" style="display:none; gap: 15px;" >
+                        <div class="col-md-6">
+                            <label for="markup_type" class="form-label"><strong>Markup Type</strong></label>
+                            <input type="text" class="form-control" name="markup_type" value="Percentage" readonly>
+                        </div>
+
+                        <!-- Markup Price -->
+                        <div class="col-md-5">
+                            <label for="markup_percentage" class="form-label"><strong>Markup Percentage</strong></label>
+                            <input type="text" class="form-control" id="markup_percentage" name="markup_percentage" value="{{ old('markup_percentage', $users->markup_percentage) }}" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agreement Checkbox -->
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="input41" name="agree" required>
+                            <label class="form-check-label" for="input41"><strong>Check me out</strong></label>
+                        </div>
+                        @error('agree')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="col-xs-12 text-center">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                    <button type="reset" class="btn btn-secondary">Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+<script>
+    const APP_URL = @json(config('app.url')); // Get APP_URL from Laravel
+</script>
+<script>
+    $(document).ready(function() {
+        // Initialize select2
+        $('.select2').select2({
+            placeholder: "Choose countries...",
+            allowClear: true
+        });
+
+        // Get DOM elements
+        var userTypeSelect = document.getElementById('inputRoleselect');
+        var inputRoleContainer = document.getElementById('inputRoleContainer');
+        var inputDmcContainer = document.getElementById('inputDmcContainer');
+        var country_name = document.getElementById('country_name');
+        var country_names = document.getElementById('country_names');
+        var master_logo = document.getElementById('master_logo');
+        var inputSalespersonContainerAdmin = document.getElementById('inputSalespersonContainerAdmin');
+        var markuptypes = document.getElementById('markuptypes');
+        var assistantManagerContainer = document.getElementById('assistant_manager_container');
+        
+        function resetHiddenFieldValues(userRole) {
+            if (userRole != 11) {
+                inputRoleContainer.querySelectorAll('input, select').forEach(function (element) {
+                    element.value = '';
+                });
+            }
+            if (userRole < 12 || userRole > 17) {
+                inputDmcContainer.querySelectorAll('input, select').forEach(function (element) {
+                    element.value = '';
+                });
+            }
+            if (userRole != 4) {
+                inputSalespersonContainerAdmin.querySelectorAll('input, select').forEach(function (element) {
+                    element.value = '';
+                });
+            }
+            if (userRole != 3) {
+                country_name.querySelectorAll('input, select').forEach(function (element) {
+                    element.value = '';
+                });
+            }
+        }
+
+        function updateFields() {
+            var userRole = userTypeSelect.value;
+            inputRoleContainer.style.display = 'none';
+            inputDmcContainer.style.display = 'none';
+            country_name.style.display = 'none';
+            country_names.style.display = 'none';
+            master_logo.style.display = 'none';
+            inputSalespersonContainerAdmin.style.display = 'none';
+            markuptypes.style.display = 'none';
+            mastercountryContainer.style.display = 'none';
+            assistantManagerContainer.style.display = 'none';
+            
+            resetHiddenFieldValues(userRole);
+            
+            if (userRole >= 5 && userRole <= 9) {
+                country_names.style.display = 'block';
+            } else if (userRole == 10) {
+                country_names.style.display = 'block';
+                master_logo.style.display = 'block';
+            } else if (userRole == 11) {
+                inputRoleContainer.style.display = 'block';
+                markuptypes.style.display = 'flex';
+            } else if (userRole >= 12 && userRole <= 17) {
+                inputDmcContainer.style.display = 'block';
+            } else if (userRole == 4) {
+                inputSalespersonContainerAdmin.style.display = 'block';
+            } else if (userRole == 3) {
+                country_name.style.display = 'block';
+            }
+        }
+
+        // Master DMC change handler
+        $('#master').on('change', function () {
+            let masterDmcId = $(this).val();
+            if (masterDmcId) {
+                $.ajax({
+                    url: `${APP_URL}/get-countries/${masterDmcId}`,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        let countrySelect = $('#masater_country_name');
+                        countrySelect.empty();
+                        countrySelect.append('<option selected disabled>Choose...</option>');
+                        if (response.countries.length > 0) {
+                            $.each(response.countries, function (key, value) {
+                                countrySelect.append(`<option value="${value}">${value}</option>`);
+                            });
+                            $('#mastercountryContainer').show();
+                        } else {
+                            $('#mastercountryContainer').hide();
+                        }
+                    },
+                    error: function () {
+                        alert('Error fetching countries. Please try again.');
+                    }
+                });
+            } else {
+                $('#mastercountryContainer').hide();
+            }
+        });
+
+        // Country change handler
+        $('#masater_country_name').on('change', function () {
+            let selectedCountry = $(this).val();
+            if (selectedCountry) {
+                // Get markup data
+                $.ajax({
+                    url: `${APP_URL}/get-markup/${encodeURIComponent(selectedCountry)}`,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.markup_percentage) {
+                            $('#markup_percentage').val(response.markup_percentage);
+                        } else {
+                            $('#markup_percentage').val('');
+                        }
+                    },
+                    error: function () {
+                        alert('Error fetching markup percentage. Please try again.');
+                    }
+                });
+
+                // Get assistant managers
+                $.ajax({
+                    url: `${APP_URL}/get-assistant-manager/${encodeURIComponent(selectedCountry)}`,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        let assistantManagerSelect = $('#assistant_manager');
+                        assistantManagerSelect.empty();
+                        assistantManagerSelect.append('<option selected disabled value>Choose Assistant Manager...</option>');
+
+                        if (response.assistant_managers) {
+                            $.each(response.assistant_managers, function(key, value) {
+                                let isSelected = value.id == '{{ $users->assistant_manager ?? "" }}';
+                                assistantManagerSelect.append(`<option value="${value.id}" ${isSelected ? 'selected' : ''}>${value.name}</option>`);
+                            });
+                            $('#assistant_manager_container').show();
+                            $('#assistant_manager').prop('required', true);
+                        } else {
+                            $('#assistant_manager_container').hide();
+                            $('#assistant_manager').prop('required', false);
+                        }
+                    },
+                    error: function() {
+                        alert('Error fetching assistant managers. Please try again.');
+                    }
+                });
+            } else {
+                $('#markup_percentage').val('');
+                $('#assistant_manager_container').hide();
+            }
+        });
+
+        // Event listeners
+        userTypeSelect.addEventListener('change', updateFields);
+        
+        // Initial setup
+        updateFields();
+        
+        // Trigger country change if pre-selected
+        if ($('#masater_country_name').val()) {
+            $('#masater_country_name').trigger('change');
+        }
+    });
+</script>
+@endsection
