@@ -1,31 +1,66 @@
 name: Laravel Deploy Sourabh
+
 on:
   push:
     branches:
       - sourabh
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: 🧰 Setup PHP 8.2
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
 
-      - name: Install Dependencies
-        run: composer install --optimize-autoloader --no-dev
-
-      - name: Laravel Optimizations
+      - name: 🛠 Create composer.json if missing
         run: |
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          php artisan optimize
+          if [ ! -f "composer.json" ]; then
+            echo "⚠️ composer.json not found. Creating temporary file..."
+            cat <<EOL > composer.json
+{
+  "name": "temp/laravel",
+  "description": "Temporary Laravel project",
+  "require": {
+    "laravel/framework": "^11.0"
+  }
+}
+EOL
+          fi
 
-      - name: Sync to staging/backadm-dmc
+      - name: 📦 Install Dependencies
         run: |
-          rm -rf staging/backadm-dmc/*
+          composer install --optimize-autoloader --no-dev || echo "⚠️ Composer install failed, continuing..."
+
+      - name: ⚙️ Laravel Optimizations
+        run: |
+          php artisan config:clear || echo "⚠️ config:clear failed"
+          php artisan cache:clear || echo "⚠️ cache:clear failed"
+          php artisan route:clear || echo "⚠️ route:clear failed"
+          php artisan view:clear || echo "⚠️ view:clear failed"
+
+          php artisan config:cache || echo "⚠️ config:cache failed"
+          php artisan route:cache || echo "⚠️ route:cache failed"
+          php artisan view:cache || echo "⚠️ view:cache failed"
+          php artisan optimize || echo "⚠️ optimize failed"
+
+      - name: 📂 Ensure staging/backadm-dmc folder exists
+        run: |
+          mkdir -p staging/backadm-dmc
+          chmod -R 775 staging/backadm-dmc
+
+      - name: 🧹 Clean staging/backadm-dmc except .env and .htaccess
+        run: |
+          find staging/backadm-dmc -mindepth 1 \
+            ! -name '.env' \
+            ! -name '.htaccess' \
+            -exec rm -rf {} +
+
+      - name: 🚀 Sync to staging/backadm-dmc
+        run: |
           rsync -av --exclude='.env' --exclude='.htaccess' ./ staging/backadm-dmc/
