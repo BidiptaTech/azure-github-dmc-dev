@@ -1,0 +1,32 @@
+
+name: Laravel Deploy Souvik
+on:
+  push:
+    branches:
+      - souvik
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install Dependencies
+        run: composer install --optimize-autoloader --no-dev
+
+      - name: Laravel Optimizations
+        run: |
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan optimize
+
+      - name: Sync to staging/backadm-dmc
+        run: |
+          rm -rf staging/backadm-dmc/*
+          rsync -av --exclude='.env' --exclude='.htaccess' ./ staging/backadm-dmc/
