@@ -51,6 +51,9 @@ jobs:
           rm -f index.php 2>/dev/null || true
           rm -f .htaccess 2>/dev/null || true
           
+          # Make startup script executable
+          chmod +x startup.sh || true
+          
           echo "✅ Laravel structure verified for Azure subdirectory deployment"
 
       - name: 🧹 Clean build artifacts
@@ -103,10 +106,10 @@ jobs:
         run: |
           echo "📁 Copying Laravel application to staging/backadm-dmc..."
           
-          # Copy all files and directories (including hidden files) except temp-staging and root web.config
+          # Copy all files and directories (including hidden files) except temp-staging, root web.config, and test files
           shopt -s dotglob
           for item in *; do
-            if [ "$item" != "temp-staging" ] && [ "$item" != "." ] && [ "$item" != ".." ] && [ "$item" != "web.config" ]; then
+            if [ "$item" != "temp-staging" ] && [ "$item" != "." ] && [ "$item" != ".." ] && [ "$item" != "web.config" ] && [[ "$item" != test-* ]]; then
               echo "Copying: $item"
               cp -r "$item" temp-staging/backadm-dmc/
             fi
@@ -115,29 +118,24 @@ jobs:
           
           echo "✅ Laravel structure copied successfully"
 
-      - name: 📄 Copy root web.config for Azure subdirectory routing
+      - name: 📄 Copy root web.config and test files for Azure subdirectory routing
         run: |
           echo "📄 Copying root web.config for Azure App Service routing..."
           if [ -f "web.config" ]; then
             cp web.config temp-staging/
             echo "✅ Root web.config copied to staging root"
           else
-            echo "⚠️ Root web.config not found - creating default"
-            cat > temp-staging/web.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <rewrite>
-                <rules>
-                  <rule name="Laravel App Route" stopProcessing="true">
-                    <match url="^backadm-dmc(/.*)?$" />
-                    <action type="Rewrite" url="backadm-dmc/public{R:1}" />
-                  </rule>
-                </rules>
-              </rewrite>
-            </system.webServer>
-          </configuration>
-          EOF
+            echo "⚠️ Root web.config not found"
+          fi
+          
+          echo "📄 Copying test files for debugging..."
+          cp test-*.* temp-staging/ 2>/dev/null || echo "No test files found"
+          
+          echo "📄 Copying startup script..."
+          if [ -f "startup.sh" ]; then
+            cp startup.sh temp-staging/
+            chmod +x temp-staging/startup.sh
+            echo "✅ Startup script copied"
           fi
 
       - name: 🔧 Verify deployment structure
@@ -162,6 +160,8 @@ jobs:
           
           cd ..
           echo "- Root web.config: $([ -f web.config ] && echo '✅ Exists' || echo '❌ Missing')"
+          echo "- Test files: $(ls test-*.* 2>/dev/null | wc -l) files found"
+          echo "- Startup script: $([ -f startup.sh ] && echo '✅ Exists' || echo '❌ Missing')"
           cd ..
 
       - name: ✅ Commit and push to staging
@@ -170,14 +170,21 @@ jobs:
           git add .
           
           # Create commit message with details
-          COMMIT_MSG="🚀 Deploy Nawaj to staging/backadm-dmc with Azure routing
+          COMMIT_MSG="🚀 Deploy Nawaj with Azure routing + debug tools
           
           Changes:
           - Laravel app deployed to backadm-dmc subdirectory
-          - Root web.config added for Azure App Service routing
+          - Root web.config with enhanced routing rules
+          - Test files added for debugging (test-azure.html, test-php.php)
+          - Startup script for Laravel optimization
           - Maintains proper Laravel structure for Azure App Service
           - Public folder preserved at backadm-dmc/public/
           - Ready for Azure deployment at https://dev.travclicks.com/backadm-dmc
+          
+          Debug URLs:
+          - https://dev.travclicks.com/test-azure.html
+          - https://dev.travclicks.com/test-php.php
+          - https://dev.travclicks.com/backadm-dmc/
           
           Source: nawaj branch ($(echo ${{ github.sha }} | cut -c1-8))"
           
@@ -185,4 +192,5 @@ jobs:
           git push origin staging
           
           echo "✅ Successfully deployed to staging branch!"
-          echo "🌐 Application will be available at: https://dev.travclicks.com/backadm-dmc" 
+          echo "🌐 Application will be available at: https://dev.travclicks.com/backadm-dmc"
+          echo "🔍 Debug at: https://dev.travclicks.com/test-azure.html" 
