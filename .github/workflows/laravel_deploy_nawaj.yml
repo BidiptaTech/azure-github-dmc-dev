@@ -36,12 +36,18 @@ jobs:
           php artisan view:clear || true
           echo "✅ Laravel preparation completed"
 
-      - name: 🔄 Configure Git and switch to staging branch
+      - name: 🔄 Configure Git for deployment
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -B staging || git checkout staging
-          git pull origin staging || echo "No existing staging branch"
+          
+          # Fetch all branches
+          git fetch origin
+          
+          # Create a clean staging branch from current state
+          git checkout -B staging-temp
+          
+          echo "✅ Git configured for deployment"
 
       - name: 🗂️ Prepare deployment structure for Linux
         run: |
@@ -135,17 +141,30 @@ jobs:
           
           echo "✅ Laravel configured for Linux production"
 
-      - name: 📤 Commit to staging branch
+      - name: 📤 Force push to staging branch
         run: |
+          # Add all files to the staging-temp branch
           git add .
           git status
+          
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "🚀 Deploy Laravel to Linux Azure App Service - nawaj branch $(date)"
-            git push origin staging
-            echo "✅ Pushed to staging branch"
+            # Commit the changes
+            git commit -m "🚀 Deploy Laravel to Linux Azure App Service - nawaj branch $(date '+%Y-%m-%d %H:%M:%S')"
+            
+            # Force push to staging branch (overwrite any conflicts)
+            git push origin staging-temp:staging --force
+            
+            echo "✅ Force pushed to staging branch"
           fi
+
+      - name: 🧹 Cleanup temporary branch
+        run: |
+          # Switch back to original branch and cleanup
+          git checkout nawaj
+          git branch -D staging-temp 2>/dev/null || true
+          echo "✅ Cleaned up temporary branch"
 
       - name: 🎉 Deployment Summary
         run: |
