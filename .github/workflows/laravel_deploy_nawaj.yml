@@ -1,0 +1,160 @@
+name: Laravel Deploy Nawaj to Staging
+
+on:
+  push:
+    branches:
+      - nawaj
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Nawaj branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: 📦 Install Composer dependencies
+        run: composer install --optimize-autoloader --no-dev || true
+
+      - name: ⚙️ Laravel optimize (preparation only)
+        run: |
+          php artisan config:clear || true
+          php artisan cache:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          echo "✅ Laravel preparation completed"
+
+      - name: 🔧 Prepare for Azure subdirectory deployment
+        run: |
+          echo "🔧 Ensuring proper Laravel structure for Azure deployment..."
+          
+          # Ensure public folder exists and has proper structure
+          if [ ! -d "public" ]; then
+            echo "❌ Error: public directory not found!"
+            exit 1
+          fi
+          
+          # Verify critical files exist
+          if [ ! -f "public/index.php" ]; then
+            echo "❌ Error: public/index.php not found!"
+            exit 1
+          fi
+          
+          # Clean up any previous incorrect structure
+          rm -f index.php 2>/dev/null || true
+          rm -f .htaccess 2>/dev/null || true
+          
+          echo "✅ Laravel structure verified for Azure subdirectory deployment"
+
+      - name: 🧹 Clean build artifacts
+        run: |
+          # Remove development files
+          rm -rf node_modules/ || true
+          rm -rf tests/ || true
+          rm -rf .git/hooks/ || true
+          rm -f .env.example || true
+          
+          # Remove any logs
+          find storage/logs -name "*.log" -delete 2>/dev/null || true
+          
+          echo "✅ Build cleanup completed"
+
+      - name: 🔀 Clone repo and checkout staging branch
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }} temp-staging
+          cd temp-staging
+          git checkout staging || git checkout -b staging
+          cd ..
+
+      - name: 📁 Ensure backadm-dmc directory exists
+        run: |
+          cd temp-staging
+          mkdir -p backadm-dmc
+          cd ..
+
+      - name: 🧹 Clean backadm-dmc (preserve important files)
+        run: |
+          cd temp-staging/backadm-dmc
+          
+          # Backup important files if they exist
+          [ -f .env ] && cp .env ../temp_env_backup || true
+          [ -f storage/app/.gitignore ] && mkdir -p ../temp_storage_backup && cp -r storage/app/.gitignore ../temp_storage_backup/ || true
+          
+          # Clean directory
+          find . -mindepth 1 ! -name '.git*' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Restore important files
+          [ -f ../temp_env_backup ] && mv ../temp_env_backup .env || true
+          [ -d ../temp_storage_backup ] && mkdir -p storage/app && cp -r ../temp_storage_backup/* storage/app/ || true
+          rm -rf ../temp_env_backup ../temp_storage_backup 2>/dev/null || true
+          
+          cd ../..
+
+      - name: 🚀 Copy complete Laravel structure to backadm-dmc
+        run: |
+          echo "📁 Copying Laravel application to staging/backadm-dmc..."
+          
+          # Copy all files and directories (including hidden files) except temp-staging
+          shopt -s dotglob
+          for item in *; do
+            if [ "$item" != "temp-staging" ] && [ "$item" != "." ] && [ "$item" != ".." ]; then
+              echo "Copying: $item"
+              cp -r "$item" temp-staging/backadm-dmc/
+            fi
+          done
+          shopt -u dotglob
+          
+          echo "✅ Laravel structure copied successfully"
+
+      - name: 🔧 Verify deployment structure
+        run: |
+          cd temp-staging/backadm-dmc
+          
+          echo "📋 Verifying deployment structure..."
+          echo "- Laravel root: $(pwd)"
+          echo "- Public folder: $([ -d public ] && echo '✅ Exists' || echo '❌ Missing')"
+          echo "- Index.php: $([ -f public/index.php ] && echo '✅ Exists' || echo '❌ Missing')"
+          echo "- .htaccess: $([ -f public/.htaccess ] && echo '✅ Exists' || echo '❌ Missing')"
+          echo "- web.config: $([ -f public/web.config ] && echo '✅ Exists' || echo '❌ Missing')"
+          echo "- App folder: $([ -d app ] && echo '✅ Exists' || echo '❌ Missing')"
+          echo "- Vendor folder: $([ -d vendor ] && echo '✅ Exists' || echo '❌ Missing')"
+          
+          # Verify helper functions exist
+          if grep -q "subdirectory_asset" app/helpers.php 2>/dev/null; then
+            echo "- Helper functions: ✅ Azure subdirectory helpers found"
+          else
+            echo "- Helper functions: ⚠️ Azure subdirectory helpers not found"
+          fi
+          
+          cd ../..
+
+      - name: ✅ Commit and push to staging
+        run: |
+          cd temp-staging
+          git add .
+          
+          # Create commit message with details
+          COMMIT_MSG="🚀 Deploy Nawaj to staging/backadm-dmc
+          
+          Changes:
+          - Laravel app deployed to backadm-dmc subdirectory
+          - Maintains proper Laravel structure for Azure App Service
+          - Public folder preserved at backadm-dmc/public/
+          - Ready for Azure deployment at https://dev.travclicks.com/backadm-dmc
+          
+          Source: nawaj branch ($(echo ${{ github.sha }} | cut -c1-8))"
+          
+          git commit -m "$COMMIT_MSG" || echo "⚠️ Nothing to commit"
+          git push origin staging
+          
+          echo "✅ Successfully deployed to staging branch!"
+          echo "🌐 Application will be available at: https://dev.travclicks.com/backadm-dmc" 
