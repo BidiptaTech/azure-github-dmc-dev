@@ -9,12 +9,6 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle subdirectory deployment - redirect root to backadm-dmc if needed
-    # This will only apply if the application is accessed at the root level
-    RewriteCond %{REQUEST_URI} ^/$
-    RewriteCond %{HTTP_HOST} ^dev\.travclicks\.com$
-    RewriteRule ^(.*)$ /backadm-dmc/ [R=301,L]
-
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$

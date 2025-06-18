@@ -103,10 +103,10 @@ jobs:
         run: |
           echo "📁 Copying Laravel application to staging/backadm-dmc..."
           
-          # Copy all files and directories (including hidden files) except temp-staging
+          # Copy all files and directories (including hidden files) except temp-staging and root web.config
           shopt -s dotglob
           for item in *; do
-            if [ "$item" != "temp-staging" ] && [ "$item" != "." ] && [ "$item" != ".." ]; then
+            if [ "$item" != "temp-staging" ] && [ "$item" != "." ] && [ "$item" != ".." ] && [ "$item" != "web.config" ]; then
               echo "Copying: $item"
               cp -r "$item" temp-staging/backadm-dmc/
             fi
@@ -114,6 +114,31 @@ jobs:
           shopt -u dotglob
           
           echo "✅ Laravel structure copied successfully"
+
+      - name: 📄 Copy root web.config for Azure subdirectory routing
+        run: |
+          echo "📄 Copying root web.config for Azure App Service routing..."
+          if [ -f "web.config" ]; then
+            cp web.config temp-staging/
+            echo "✅ Root web.config copied to staging root"
+          else
+            echo "⚠️ Root web.config not found - creating default"
+            cat > temp-staging/web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <rewrite>
+                <rules>
+                  <rule name="Laravel App Route" stopProcessing="true">
+                    <match url="^backadm-dmc(/.*)?$" />
+                    <action type="Rewrite" url="backadm-dmc/public{R:1}" />
+                  </rule>
+                </rules>
+              </rewrite>
+            </system.webServer>
+          </configuration>
+          EOF
+          fi
 
       - name: 🔧 Verify deployment structure
         run: |
@@ -135,7 +160,9 @@ jobs:
             echo "- Helper functions: ⚠️ Azure subdirectory helpers not found"
           fi
           
-          cd ../..
+          cd ..
+          echo "- Root web.config: $([ -f web.config ] && echo '✅ Exists' || echo '❌ Missing')"
+          cd ..
 
       - name: ✅ Commit and push to staging
         run: |
@@ -143,10 +170,11 @@ jobs:
           git add .
           
           # Create commit message with details
-          COMMIT_MSG="🚀 Deploy Nawaj to staging/backadm-dmc
+          COMMIT_MSG="🚀 Deploy Nawaj to staging/backadm-dmc with Azure routing
           
           Changes:
           - Laravel app deployed to backadm-dmc subdirectory
+          - Root web.config added for Azure App Service routing
           - Maintains proper Laravel structure for Azure App Service
           - Public folder preserved at backadm-dmc/public/
           - Ready for Azure deployment at https://dev.travclicks.com/backadm-dmc
