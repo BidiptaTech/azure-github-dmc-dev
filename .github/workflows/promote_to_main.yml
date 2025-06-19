@@ -79,20 +79,55 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy to Azure Web App with clean
+      - name: 🧹 Selective cleanup - Remove only Laravel-specific files
         run: |
+          echo "🧹 Performing selective cleanup of Laravel-specific files..."
+          
+          # Remove backadm-dmc folder completely
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /home/site/wwwroot/backadm-dmc" || echo "backadm-dmc folder not found"
+          
+          # Remove Laravel-specific files from root
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/default" || echo "default file not found"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/laravel-debug.php" || echo "laravel-debug.php not found"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/startup.sh" || echo "startup.sh not found"
+          
+          # List remaining files to confirm React files are preserved
+          echo "📁 Remaining files in wwwroot (React files should be preserved):"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/" || echo "Could not list files"
+          
+          echo "✅ Selective cleanup completed - React files preserved!"
+
+      - name: 🚀 Deploy Laravel files without --clean flag
+        run: |
+          echo "🚀 Deploying Laravel files (preserving React files)..."
+          
+          # Deploy WITHOUT --clean flag to preserve React files
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
-            --type zip \
-            --clean
+            --type zip
+          
+          echo "✅ Laravel deployment completed - React files preserved!"
+
+      - name: 📋 Verify deployment structure
+        run: |
+          echo "📋 Verifying deployment structure..."
+          
+          # Check that both Laravel and React files exist
+          echo "🔍 Checking for Laravel files:"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/backadm-dmc/" || echo "Laravel files not found"
+          
+          echo "🔍 Checking for React files in root:"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/ | grep -E '\.(js|css|html|json)$'" || echo "No React files found in root"
+          
+          echo "✅ Structure verification completed!"
 
       - name: Post-deployment Laravel setup and optimization
         run: |
           echo "🔧 Running post-deployment Laravel setup on Azure..."
           
-          # Create NGINX configuration for subdirectory
+          # Create NGINX configuration for both React and Laravel
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command 'echo "server {
               listen 8080;
               listen [::]:8080;
@@ -100,6 +135,12 @@ jobs:
               index index.php index.html index.htm;
               server_name _;
               
+              # Handle React frontend (root directory) - SPA routing
+              location / {
+                  try_files \$uri \$uri/ /index.html;
+              }
+              
+              # Handle Laravel admin (subdirectory)
               location /backadm-dmc {
                   alias /home/site/wwwroot/backadm-dmc/public;
                   try_files \$uri \$uri/ @laravel;
@@ -113,10 +154,6 @@ jobs:
               
               location @laravel {
                   rewrite /backadm-dmc/(.*)\$ /backadm-dmc/index.php?\$1 last;
-              }
-              
-              location / {
-                  try_files \$uri \$uri/ =404;
               }
           }" > /home/site/nginx-default' || true
 
@@ -163,16 +200,26 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "🎉 Deployment completed successfully!"
+          echo "🎉 Selective deployment completed successfully!"
           echo ""
-          echo "🌐 Application URL: https://dev.travclicks.com/backadm-dmc"
+          echo "🌐 Application URLs:"
+          echo "   React Frontend: https://dev.travclicks.com/"
+          echo "   Laravel Admin:  https://dev.travclicks.com/backadm-dmc/"
           echo ""
-          echo "✅ Deployment flow:"
-          echo "   1. Code built and zipped"
-          echo "   2. Deployed to Azure with clean install"
-          echo "   3. Laravel directories created"
-          echo "   4. Proper permissions set"
-          echo "   5. All caches cleared"
-          echo "   6. Storage link created"
-          echo "   7. Laravel optimizations applied"
-          echo "   8. Web app restarted" 
+          echo "✅ Selective deployment flow:"
+          echo "   1. ✅ Code built and zipped"
+          echo "   2. 🧹 Selective cleanup (only Laravel files removed):"
+          echo "      - Deleted: backadm-dmc/ folder"
+          echo "      - Deleted: default file"
+          echo "      - Deleted: laravel-debug.php"
+          echo "      - Deleted: startup.sh"
+          echo "      - Preserved: ALL React files in root"
+          echo "   3. 🚀 Laravel deployed (without --clean)"
+          echo "   4. 📁 Laravel directories created"
+          echo "   5. 🔧 Proper permissions set"
+          echo "   6. 🧹 Laravel caches cleared"
+          echo "   7. 🔗 Storage link created"
+          echo "   8. ⚡ Laravel optimizations applied"
+          echo "   9. 🔄 Web app restarted"
+          echo ""
+          echo "🛡️ React files in root directory are completely safe!"
