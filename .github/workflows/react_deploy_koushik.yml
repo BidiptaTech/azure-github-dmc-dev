@@ -12,6 +12,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
 
     steps:
       - name: 📥 Checkout Koushik branch
@@ -27,11 +30,18 @@ jobs:
           cache: 'npm'
 
       - name: 📦 Install React dependencies
-        run: npm ci
+        run: |
+          # Clean install with platform-specific binaries
+          npm ci
+          # Force reinstall SWC with correct platform binaries
+          npm rebuild @swc/core || npm install @swc/core-linux-x64-gnu --save-dev
 
       - name: 🏗️ Build React application
         run: |
-          npm run build
+          # Clear any existing build
+          rm -rf build dist
+          # Try building with SWC first, fallback to standard build
+          npm run build || (echo "⚠️ SWC build failed, trying fallback..." && DISABLE_SWC=true npm run build)
           echo "✅ React build completed"
 
       - name: 🗂️ Prepare deployment folder
