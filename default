@@ -11,17 +11,9 @@ server {
     }
 
     # Handle /backadm-dmc requests - route to Laravel public folder
-    location ^~ /backadm-dmc {
-        alias /home/site/wwwroot/backadm-dmc/public;
+    location ^~ /backadm-dmc/ {
+        alias /home/site/wwwroot/backadm-dmc/public/;
         try_files $uri $uri/ @backadm_dmc_fallback;
-        
-        # Handle static assets (CSS, JS, images)
-        location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-            alias /home/site/wwwroot/backadm-dmc/public;
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-            try_files $uri =404;
-        }
         
         # Handle PHP files in Laravel
         location ~ \.php$ {
@@ -34,6 +26,11 @@ server {
             fastcgi_param HTTP_X_FORWARDED_PROTO https;
             fastcgi_pass 127.0.0.1:9000;
         }
+    }
+    
+    # Handle exact /backadm-dmc (without trailing slash)
+    location = /backadm-dmc {
+        return 301 $scheme://$host/backadm-dmc/;
     }
     
     # Fallback for Laravel routing
