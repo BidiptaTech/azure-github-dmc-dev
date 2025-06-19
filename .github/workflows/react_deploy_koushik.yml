@@ -12,6 +12,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
     
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
@@ -210,17 +213,19 @@ jobs:
           
           echo "✅ React deployment info created"
 
-      - name: 🔐 Azure Login
-        uses: azure/login@v1
+      - name: 🔐 Login to Azure
+        uses: azure/login@v2
         with:
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          client-id: ${{ secrets.__clientidsecretname__ }}
+          tenant-id: ${{ secrets.__tenantidsecretname__ }}
+          subscription-id: ${{ secrets.__subscriptionidsecretname__ }}
 
       - name: 🚀 Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
+        id: deploy-to-webapp
         with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          app-name: 'dmc-app-dev'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: './deployment'
 
       - name: 🎉 Deployment Summary
@@ -245,7 +250,8 @@ jobs:
           echo "   → Files deployed using Azure Web App Deploy action"
           echo ""
           echo "🛡️ Important:"
-          echo "   → Configure Azure App Service deployment settings to preserve files"
-          echo "   → In Azure Portal: App Service → Deployment Center → Settings"
-          echo "   → Add app settings to exclude: backadm-dmc/, startup.sh, default, laravel-debug.php"
-          echo "   → Or use .deployment file to control which files are deployed" 
+          echo "   → Azure Service Principal authentication configured"
+          echo "   → Deploying to: dmc-app-dev Azure Web App"
+          echo "   → Required secrets: __clientidsecretname__, __tenantidsecretname__, __subscriptionidsecretname__"
+          echo "   → Configure Azure App Service deployment settings to preserve Laravel files"
+          echo "   → In Azure Portal: App Service → Deployment Center → Settings" 
