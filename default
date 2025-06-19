@@ -13,6 +13,7 @@ server {
     # Handle /backadm-dmc requests - route to Laravel public folder
     location ^~ /backadm-dmc/ {
         alias /home/site/wwwroot/backadm-dmc/public/;
+        index index.php;
         try_files $uri $uri/ @backadm_dmc_fallback;
         
         # Handle PHP files in Laravel
@@ -33,9 +34,9 @@ server {
         return 301 $scheme://$host/backadm-dmc/;
     }
     
-    # Fallback for Laravel routing
+    # Fallback for Laravel routing - send everything to index.php
     location @backadm_dmc_fallback {
-        rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php?/$1 last;
+        rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
     }
 
     # Handle other requests normally

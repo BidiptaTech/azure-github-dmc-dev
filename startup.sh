@@ -77,6 +77,10 @@ php artisan route:clear || echo "Route clear failed (OK if no routes cached)"
 echo "⚡ Optimizing Laravel..."
 php artisan config:cache || echo "Config cache failed (OK for development)"
 
+# Debug Laravel routes
+echo "🔍 Checking Laravel routes..."
+php artisan route:list --path=login || echo "Route list failed"
+
 # Test NGINX configuration
 echo "🔧 Testing NGINX configuration..."
 nginx -t
