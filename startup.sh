@@ -97,3 +97,25 @@ echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
 echo "🔒 HTTPS configuration applied to fix mixed content issues"
 echo "📁 Storage permissions: $(ls -la /home/site/wwwroot/backadm-dmc/storage | head -5)"
 echo "🔍 Debug URL: https://dev.travclicks.com/laravel-debug.php"
+
+# Add performance optimizations to .env
+echo "⚡ Adding performance settings to .env..."
+cat >> backadm-dmc/.env << 'PERF_EOF'
+
+# Performance optimizations
+CACHE_DRIVER=file
+SESSION_DRIVER=file
+QUEUE_CONNECTION=sync
+
+# Database connection optimizations
+DB_CONNECTION_TIMEOUT=300
+DB_READ_TIMEOUT=300
+DB_WRITE_TIMEOUT=300
+
+# Memory and execution limits
+MEMORY_LIMIT=512M
+MAX_EXECUTION_TIME=300
+
+# API optimizations
+API_RATE_LIMIT=1000
+PERF_EOF
