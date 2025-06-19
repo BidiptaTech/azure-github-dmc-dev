@@ -1,9 +1,9 @@
-<IfModule mod_rewrite.c>
-    RewriteEngine On
+RewriteEngine On
 
-    RewriteBase /
-    RewriteRule ^index.html$ - [L]
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule . /index.html [L]
-</IfModule>
+# Redirect /backadm-dmc to Laravel public directory
+RewriteRule ^backadm-dmc/?(.*)$ backadm-dmc/public/$1 [L,QSA]
+
+# Handle other requests normally
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ $1 [L,QSA]
