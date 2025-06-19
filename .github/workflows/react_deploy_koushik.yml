@@ -33,16 +33,46 @@ jobs:
         run: |
           # Clean install with platform-specific binaries
           npm ci
+          # Install standard Vite React plugin if not present
+          npm install @vitejs/plugin-react --save-dev || echo "Plugin already installed"
           # Force reinstall SWC with correct platform binaries
-          npm rebuild @swc/core || npm install @swc/core-linux-x64-gnu --save-dev
+          npm rebuild @swc/core || echo "SWC rebuild failed, will try alternative approach"
+
+      - name: 🔧 Prepare Vite config for CI
+        run: |
+          # Backup original vite config
+          cp vite.config.js vite.config.js.backup
+          # Create a CI-friendly vite config without SWC
+          cat > vite.config.js << 'EOF'
+          import { defineConfig } from 'vite'
+          import react from '@vitejs/plugin-react'
+          
+          export default defineConfig({
+            plugins: [react()],
+            build: {
+              outDir: 'build',
+              sourcemap: false,
+              minify: 'terser'
+            },
+            server: {
+              port: 3000
+            }
+          })
+          EOF
+          echo "✅ CI-friendly Vite config created"
 
       - name: 🏗️ Build React application
         run: |
           # Clear any existing build
           rm -rf build dist
-          # Try building with SWC first, fallback to standard build
-          npm run build || (echo "⚠️ SWC build failed, trying fallback..." && DISABLE_SWC=true npm run build)
+          # Build with CI-friendly config
+          npm run build
           echo "✅ React build completed"
+
+      - name: 🔄 Restore original Vite config
+        run: |
+          # Restore original config (just in case)
+          mv vite.config.js.backup vite.config.js || echo "No backup to restore"
 
       - name: 🗂️ Prepare deployment folder
         run: |
