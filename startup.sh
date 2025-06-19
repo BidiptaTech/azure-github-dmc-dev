@@ -25,6 +25,30 @@ chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 # Navigate to Laravel directory
 cd /home/site/wwwroot/backadm-dmc
 
+# Configure Laravel for HTTPS (fix mixed content issues)
+echo "🔒 Configuring Laravel for HTTPS..."
+
+# Update .env for HTTPS if APP_URL is not set to HTTPS
+if ! grep -q "APP_URL=https://" .env 2>/dev/null; then
+    echo "🔧 Setting APP_URL to HTTPS in .env..."
+    sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "Could not update APP_URL"
+fi
+
+# Ensure critical environment variables are set
+echo "🔧 Ensuring critical environment variables are set..."
+if ! grep -q "APP_ENV=" .env 2>/dev/null; then
+    echo "APP_ENV=production" >> .env
+fi
+if ! grep -q "APP_DEBUG=" .env 2>/dev/null; then
+    echo "APP_DEBUG=false" >> .env
+fi
+
+# Force HTTPS in Laravel configuration
+export APP_URL="https://dev.travclicks.com"
+export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
+export APP_ENV="production"
+export FORCE_HTTPS="true"
+
 # Generate application key if not set
 echo "🔑 Checking Laravel application key..."
 if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
@@ -56,5 +80,6 @@ else
 fi
 
 echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
+echo "🔒 HTTPS configuration applied to fix mixed content issues"
 echo "📁 Storage permissions: $(ls -la /home/site/wwwroot/backadm-dmc/storage | head -5)"
 echo "🔍 Debug URL: https://dev.travclicks.com/laravel-debug.php"
