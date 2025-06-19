@@ -210,6 +210,11 @@ jobs:
           
           echo "✅ React deployment info created"
 
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+
       - name: 🚀 Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
@@ -217,7 +222,6 @@ jobs:
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: './deployment'
-          clean: false
 
       - name: 🎉 Deployment Summary
         run: |
@@ -238,8 +242,10 @@ jobs:
           echo "⚡ Result:"
           echo "   → React app is now live on Azure App Service"
           echo "   → Available at your Azure Web App URL"
-          echo "   → Important files preserved by Azure deployment settings"
+          echo "   → Files deployed using Azure Web App Deploy action"
           echo ""
-          echo "🛡️ Note:"
-          echo "   → Set clean: false to preserve backadm-dmc folder"
-          echo "   → Configure Azure deployment settings to exclude important files" 
+          echo "🛡️ Important:"
+          echo "   → Configure Azure App Service deployment settings to preserve files"
+          echo "   → In Azure Portal: App Service → Deployment Center → Settings"
+          echo "   → Add app settings to exclude: backadm-dmc/, startup.sh, default, laravel-debug.php"
+          echo "   → Or use .deployment file to control which files are deployed" 
