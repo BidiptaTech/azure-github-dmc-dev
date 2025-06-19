@@ -5,6 +5,11 @@ server {
     index index.php index.html index.htm;
     server_name _;
 
+    # Force HTTPS for all requests
+    if ($http_x_forwarded_proto != "https") {
+        return 301 https://$host$request_uri;
+    }
+
     # Handle /backadm-dmc requests - route to Laravel public folder
     location ^~ /backadm-dmc {
         alias /home/site/wwwroot/backadm-dmc/public;
@@ -16,6 +21,9 @@ server {
             fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
             fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
             fastcgi_param REQUEST_URI $request_uri;
+            fastcgi_param HTTPS on;
+            fastcgi_param SERVER_PORT 443;
+            fastcgi_param HTTP_X_FORWARDED_PROTO https;
             fastcgi_pass 127.0.0.1:9000;
         }
     }
@@ -34,6 +42,9 @@ server {
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTPS on;
+        fastcgi_param SERVER_PORT 443;
+        fastcgi_param HTTP_X_FORWARDED_PROTO https;
         fastcgi_pass 127.0.0.1:9000;
     }
 
@@ -41,4 +52,5 @@ server {
     add_header X-Content-Type-Options nosniff;
     add_header X-Frame-Options SAMEORIGIN;
     add_header X-XSS-Protection "1; mode=block";
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 }
