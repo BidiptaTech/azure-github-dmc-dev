@@ -1,0 +1,198 @@
+name: React Deploy Koushik to Azure
+
+on:
+  push:
+    branches:
+      - koushik
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Koushik branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install React dependencies
+        run: npm ci
+
+      - name: 🏗️ Build React application
+        run: |
+          npm run build
+          echo "✅ React build completed"
+
+      - name: 🗂️ Prepare deployment folder
+        run: |
+          echo "📁 Preparing deployment folder..."
+          mkdir -p deployment
+          
+          # Copy React build files to deployment folder
+          cp -r build/* deployment/
+          
+          # Copy any additional static files from public folder if they exist
+          if [ -d public ]; then
+            cp -r public/* deployment/ 2>/dev/null || true
+          fi
+          
+          echo "✅ React build files prepared for deployment"
+
+      - name: 🔧 Create .htaccess for React routing
+        run: |
+          echo "🔧 Creating .htaccess file for React routing (solve page refresh issues)..."
+          
+          # Create .htaccess file for React SPA routing
+          cat > deployment/.htaccess << 'EOF'
+          # React.js SPA routing configuration
+          # This file solves page refresh issues in React applications
+          
+          RewriteEngine On
+          
+          # Handle Angular and React requests for static files
+          RewriteCond %{REQUEST_FILENAME} -f [OR]
+          RewriteCond %{REQUEST_FILENAME} -d
+          RewriteRule ^ - [L]
+          
+          # Fallback to index.html for client-side routing
+          # This ensures that React Router can handle the routing
+          RewriteRule ^ /index.html [L]
+          
+          # Security headers
+          <IfModule mod_headers.c>
+              Header always set X-Content-Type-Options nosniff
+              Header always set X-Frame-Options SAMEORIGIN
+              Header always set X-XSS-Protection "1; mode=block"
+              Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+          </IfModule>
+          
+          # Compression for better performance
+          <IfModule mod_deflate.c>
+              AddOutputFilterByType DEFLATE text/plain
+              AddOutputFilterByType DEFLATE text/html
+              AddOutputFilterByType DEFLATE text/xml
+              AddOutputFilterByType DEFLATE text/css
+              AddOutputFilterByType DEFLATE application/xml
+              AddOutputFilterByType DEFLATE application/xhtml+xml
+              AddOutputFilterByType DEFLATE application/rss+xml
+              AddOutputFilterByType DEFLATE application/javascript
+              AddOutputFilterByType DEFLATE application/x-javascript
+          </IfModule>
+          
+          # Cache static assets
+          <IfModule mod_expires.c>
+              ExpiresActive On
+              ExpiresByType text/css "access plus 1 year"
+              ExpiresByType application/javascript "access plus 1 year"
+              ExpiresByType image/png "access plus 1 year"
+              ExpiresByType image/jpg "access plus 1 year"
+              ExpiresByType image/jpeg "access plus 1 year"
+              ExpiresByType image/gif "access plus 1 year"
+              ExpiresByType image/svg+xml "access plus 1 year"
+              ExpiresByType application/pdf "access plus 1 month"
+              ExpiresByType text/html "access plus 0 seconds"
+          </IfModule>
+          EOF
+          
+          echo "✅ .htaccess file created for React routing"
+
+
+
+      - name: 🔍 Create React deployment info
+        run: |
+          echo "🔧 Creating React deployment information..."
+          
+          # Create a deployment info file
+          cat > deployment/react-deployment-info.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>React Deployment Info</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .info { background: #f0f8ff; padding: 15px; border-radius: 5px; }
+                  .success { color: #28a745; }
+                  .warning { color: #ffc107; }
+              </style>
+          </head>
+          <body>
+              <h2>React Deployment Information</h2>
+              <div class="info">
+                  <h3 class="success">✅ React Application Deployed Successfully</h3>
+                  <p><strong>Deployment Date:</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
+                  <p><strong>Branch:</strong> koushik</p>
+                  <p><strong>Build:</strong> Production</p>
+                  
+                  <h3>📁 Preserved Files & Folders:</h3>
+                  <ul>
+                      <li>✅ default file</li>
+                      <li>✅ laravel-debug.php file</li>
+                      <li>✅ startup.sh file</li>
+                      <li>✅ backadm-dmc folder (complete)</li>
+                  </ul>
+                  
+                  <h3>🔧 React Configuration:</h3>
+                  <ul>
+                      <li>✅ .htaccess file created for SPA routing</li>
+                      <li>✅ Page refresh issues resolved</li>
+                      <li>✅ Static assets optimized</li>
+                      <li>✅ Security headers configured</li>
+                  </ul>
+                  
+                  <h3>🎯 Access Points:</h3>
+                  <ul>
+                      <li><strong>React App:</strong> <a href="/">Main Application</a></li>
+                      <li><strong>Laravel Admin:</strong> <a href="/backadm-dmc/">Backend Admin</a></li>
+                      <li><strong>Debug Info:</strong> <a href="/laravel-debug.php">Laravel Debug</a></li>
+                  </ul>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+          echo "✅ React deployment info created"
+
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          slot-name: 'Production'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: './deployment'
+          clean: false
+
+      - name: 🎉 Deployment Summary
+        run: |
+          echo "🎯 React application deployed directly to Azure!"
+          echo ""
+          echo "📁 Deployed:"
+          echo "   → React production build to Azure Web App"
+          echo "   → .htaccess file for SPA routing"
+          echo "   → React deployment info page"
+          echo ""
+          echo "🔧 Features:"
+          echo "   → Page refresh issues resolved with .htaccess"
+          echo "   → Static assets optimized with compression"
+          echo "   → Security headers configured"
+          echo "   → Caching rules applied"
+          echo "   → Direct Azure deployment (no staging branch)"
+          echo ""
+          echo "⚡ Result:"
+          echo "   → React app is now live on Azure App Service"
+          echo "   → Available at your Azure Web App URL"
+          echo "   → Important files preserved by Azure deployment settings"
+          echo ""
+          echo "🛡️ Note:"
+          echo "   → Set clean: false to preserve backadm-dmc folder"
+          echo "   → Configure Azure deployment settings to exclude important files" 
