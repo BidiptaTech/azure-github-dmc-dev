@@ -77,18 +77,6 @@ php artisan route:clear || echo "Route clear failed (OK if no routes cached)"
 echo "⚡ Optimizing Laravel..."
 php artisan config:cache || echo "Config cache failed (OK for development)"
 
-# Run database migrations to apply performance indexes
-echo "🗄️ Running database migrations for performance improvements..."
-php artisan migrate --force || echo "Migration failed (may already be applied)"
-
-# Check migration status
-echo "📋 Checking migration status..."
-php artisan migrate:status || echo "Could not check migration status"
-
-# Verify database connection
-echo "🔌 Testing database connection..."
-php artisan tinker --execute="echo 'DB Connection: ' . (DB::connection()->getPdo() ? 'SUCCESS' : 'FAILED');" || echo "Database test failed"
-
 # Debug Laravel routes
 echo "🔍 Checking Laravel routes..."
 php artisan route:list --path=login || echo "Route list failed"

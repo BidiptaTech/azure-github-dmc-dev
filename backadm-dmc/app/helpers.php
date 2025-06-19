@@ -42,7 +42,7 @@ if (!function_exists('getUserRole')) {
         return Auth::check() ? Auth::user()->role_id : null;
     }
 }
-
+    
 if (!function_exists('subdirectory_asset')) {
     /**
      * Generate asset URL with proper subdirectory handling for Azure deployment

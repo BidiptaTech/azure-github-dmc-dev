@@ -177,9 +177,7 @@ class DriverController extends Controller
                     curl_setopt($curl, CURLOPT_HEADER, false);
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($curl, CURLOPT_HTTPGET, true);
-                    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_setopt($curl, CURLOPT_TIMEOUT, 10);
-                    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+                    curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, false);
                     $json_response = curl_exec($curl);
                     $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
                     curl_close($curl);
@@ -293,7 +291,7 @@ class DriverController extends Controller
                         $night_end_time = $cityDetails->night_end_time;
                         $isNight = false;
 
-                        $check_country = Country::where('name', $country)->first();
+                        $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
                         $country_tax = $check_country->tax_percentage ?? 0;
 
                         if ($night_start_time < $night_end_time) {
@@ -379,8 +377,6 @@ class DriverController extends Controller
             $curl = curl_init($url);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_TIMEOUT, 10);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
             $json_response = curl_exec($curl);
             $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             curl_close($curl);
@@ -471,7 +467,7 @@ class DriverController extends Controller
                         $base_price = $vehicle->cost_per_hour;
                         $base_price_night = $vehicle->night_cost_per_hour;
 
-                        $check_country = Country::where('name', $country)->first();
+                        $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
                         $country_tax = $check_country->tax_percentage ?? 0;
 
                         $isNight = false;
@@ -726,9 +722,7 @@ class DriverController extends Controller
                 curl_setopt($curl, CURLOPT_HEADER, false);
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($curl, CURLOPT_HTTPGET, true);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($curl, CURLOPT_TIMEOUT, 10);
-                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+                curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, false);
                 $json_response = curl_exec($curl);
                 $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
                 curl_close($curl);
@@ -789,7 +783,7 @@ class DriverController extends Controller
                 }
 
                 $country_tax = 0;
-                $check_country = Country::where('name', $country)->first();
+                $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
                 $country_tax = $check_country->tax_percentage ?? 0;
 
                 if($vehicle->dmc_id == $dmc_id){
@@ -840,8 +834,6 @@ class DriverController extends Controller
             $curl = curl_init($url);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_TIMEOUT, 10);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
             $json_response = curl_exec($curl);
             $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             curl_close($curl);
@@ -874,7 +866,7 @@ class DriverController extends Controller
                     $night_end_time = $cityDetails->night_end_time;
                 }
                 $country_tax = 0;
-                $check_country = Country::where('name', $country)->first();
+                $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
                 $country_tax = $check_country->tax_percentage ?? 0;
 
                 $day_private_price = $vehicle->cost_per_hour;
