@@ -1,14 +1,11 @@
 server {
     listen 8080;
-    server_name _;
+    listen [::]:8080;
     root /home/site/wwwroot;
-    index index.php index.html;
-    
-    # Only add essential timeout fixes for 504 errors
-    fastcgi_read_timeout 300s;
-    fastcgi_send_timeout 300s;
-    
-    # Force HTTPS
+    index index.php index.html index.htm;
+    server_name _;
+
+    # Force HTTPS for all requests
     if ($http_x_forwarded_proto != "https") {
         return 301 https://$host$request_uri;
     }
@@ -28,10 +25,6 @@ server {
             fastcgi_param HTTPS on;
             fastcgi_param SERVER_PORT 443;
             fastcgi_param HTTP_X_FORWARDED_PROTO https;
-            
-            # Only essential timeout for API calls
-            fastcgi_read_timeout 300s;
-            
             fastcgi_pass 127.0.0.1:9000;
         }
     }
