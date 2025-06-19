@@ -43,11 +43,21 @@ if ! grep -q "APP_DEBUG=" .env 2>/dev/null; then
     echo "APP_DEBUG=false" >> .env
 fi
 
+# Add HTTPS enforcement variables
+if ! grep -q "FORCE_HTTPS=" .env 2>/dev/null; then
+    echo "FORCE_HTTPS=true" >> .env
+fi
+if ! grep -q "ASSET_URL=" .env 2>/dev/null; then
+    echo "ASSET_URL=https://dev.travclicks.com" >> .env
+fi
+
 # Force HTTPS in Laravel configuration
 export APP_URL="https://dev.travclicks.com"
-export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
+export ASSET_URL="https://dev.travclicks.com"
 export APP_ENV="production"
 export FORCE_HTTPS="true"
+export HTTPS="on"
+export SERVER_PORT="443"
 
 # Generate application key if not set
 echo "🔑 Checking Laravel application key..."
