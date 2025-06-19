@@ -220,6 +220,33 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: 🛡️ Download existing files from Azure
+        run: |
+          echo "🔍 Downloading existing files to preserve Laravel backend..."
+          # Download existing files using Azure CLI
+          az webapp deployment source config-zip --resource-group $(az webapp show --name dmc-app-dev --query resourceGroup --output tsv) --name dmc-app-dev --src existing-files.zip || echo "No existing files to download"
+          
+          # Extract and backup important files if they exist
+          if [ -f existing-files.zip ]; then
+            unzip -q existing-files.zip -d existing-backup/ || echo "Failed to extract existing files"
+            if [ -d existing-backup/backadm-dmc ]; then
+              cp -r existing-backup/backadm-dmc deployment/
+              echo "✅ Preserved backadm-dmc folder"
+            fi
+            if [ -f existing-backup/startup.sh ]; then
+              cp existing-backup/startup.sh deployment/startup.sh.bak
+              echo "✅ Preserved startup.sh as startup.sh.bak"
+            fi
+            if [ -f existing-backup/default ]; then
+              cp existing-backup/default deployment/
+              echo "✅ Preserved default file"
+            fi
+            if [ -f existing-backup/laravel-debug.php ]; then
+              cp existing-backup/laravel-debug.php deployment/
+              echo "✅ Preserved laravel-debug.php"
+            fi
+          fi
+
       - name: 🚀 Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
