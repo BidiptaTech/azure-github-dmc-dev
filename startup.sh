@@ -77,6 +77,30 @@ php artisan route:clear || echo "Route clear failed (OK if no routes cached)"
 echo "⚡ Optimizing Laravel..."
 php artisan config:cache || echo "Config cache failed (OK for development)"
 
+# Configure PHP OPcache for better performance
+echo "⚡ Configuring PHP OPcache..."
+if [ -d "/usr/local/etc/php/conf.d" ]; then
+    echo "opcache.enable=1" > /usr/local/etc/php/conf.d/opcache.ini
+    echo "opcache.enable_cli=1" >> /usr/local/etc/php/conf.d/opcache.ini
+    echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/opcache.ini
+    echo "opcache.interned_strings_buffer=16" >> /usr/local/etc/php/conf.d/opcache.ini
+    echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/opcache.ini
+    echo "opcache.revalidate_freq=2" >> /usr/local/etc/php/conf.d/opcache.ini
+    echo "opcache.fast_shutdown=1" >> /usr/local/etc/php/conf.d/opcache.ini
+    echo "✅ OPcache configured successfully"
+elif [ -d "/etc/php/8.1/cli/conf.d" ]; then
+    echo "opcache.enable=1" > /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "opcache.enable_cli=1" >> /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "opcache.memory_consumption=256" >> /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "opcache.interned_strings_buffer=16" >> /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "opcache.max_accelerated_files=10000" >> /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "opcache.revalidate_freq=2" >> /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "opcache.fast_shutdown=1" >> /etc/php/8.1/cli/conf.d/opcache.ini
+    echo "✅ OPcache configured for PHP 8.1"
+else
+    echo "⚠️ OPcache configuration skipped - PHP conf.d directory not found"
+fi
+
 # Debug Laravel routes
 echo "🔍 Checking Laravel routes..."
 php artisan route:list --path=login || echo "Route list failed"
