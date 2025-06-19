@@ -100,8 +100,8 @@ class HotelController extends Controller
 
         if ($location) {
             $query->where(function ($q) use ($location) {
-                $q->whereRaw('LOWER(address) = ?', [strtolower($location)])
-                    ->orWhereRaw('LOWER(city) = ?', [strtolower($location)]);
+                $q->where('address', $location)
+                    ->orWhere('city', $location);
             });
         }
 
@@ -120,7 +120,7 @@ class HotelController extends Controller
 
                 $city = $firstHotel->city ?? '';
                 $country = $firstHotel->country ?? '';
-                $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
+                $check_country = Country::where('name', $country)->first();
                 $country_tax = $check_country->tax_percentage ?? 0;
 
                 $base_price = PHP_INT_MAX;
@@ -343,10 +343,8 @@ class HotelController extends Controller
         }
         // Country Tax Calculation
         $country_tax = 0;
-        if (!empty($hotel->country)) {
-            $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($hotel->country)])->first();
-            $country_tax = $check_country->tax_percentage ?? 0;
-        }
+        $check_country = Country::where('name', $hotel->country)->first();
+        $country_tax = $check_country->tax_percentage ?? 0;
 
 
         // Hotel Images
