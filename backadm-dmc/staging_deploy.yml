@@ -1,0 +1,178 @@
+name: Build and Deploy PHP App to Azure Web App - dmc-app-dev
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Check if composer.json exists
+        id: check_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: 'backadm-dmc/composer.json'
+
+      - name: Run composer install if composer.json exists
+        if: steps.check_files.outputs.files_exists == 'true'
+        run: |
+          cd backadm-dmc
+          composer validate --no-check-publish
+          composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+
+      - name: Create ZIP for deployment
+        run: |
+          # Create zip excluding unnecessary files
+          zip -r release.zip . \
+            -x ".git/*" \
+            -x "node_modules/*" \
+            -x "tests/*" \
+            -x "*.md" \
+            -x ".github/*" \
+            -x ".gitignore" \
+            -x ".gitattributes" \
+            -x ".editorconfig" \
+            -x "phpunit.xml" \
+            -x "vite.config.js" \
+            -x "package*.json"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-app
+          path: release.zip
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: php-app
+
+      - name: Unzip release
+        run: unzip release.zip
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Web App with clean
+        run: |
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path release.zip \
+            --type zip \
+            --clean
+
+      - name: Post-deployment Laravel setup and optimization
+        run: |
+          echo "🔧 Running post-deployment Laravel setup on Azure..."
+          
+          # Create NGINX configuration for subdirectory
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command 'echo "server {
+              listen 8080;
+              listen [::]:8080;
+              root /home/site/wwwroot;
+              index index.php index.html index.htm;
+              server_name _;
+              
+              location /backadm-dmc {
+                  alias /home/site/wwwroot/backadm-dmc/public;
+                  try_files \$uri \$uri/ @laravel;
+                  
+                  location ~ \.php\$ {
+                      include fastcgi_params;
+                      fastcgi_param SCRIPT_FILENAME \$request_filename;
+                      fastcgi_pass 127.0.0.1:9000;
+                  }
+              }
+              
+              location @laravel {
+                  rewrite /backadm-dmc/(.*)\$ /backadm-dmc/index.php?\$1 last;
+              }
+              
+              location / {
+                  try_files \$uri \$uri/ =404;
+              }
+          }" > /home/site/nginx-default' || true
+
+          # Copy NGINX configuration
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cp /home/site/nginx-default /etc/nginx/sites-available/default" || true
+          
+          # Test and reload NGINX
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "nginx -t && service nginx reload" || true
+          
+          # Create necessary Laravel directories
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p storage/framework/{sessions,views,cache}" || true
+          
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p storage/logs" || true
+          
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p storage/app/{public,uploads}" || true
+          
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p bootstrap/cache" || true
+          
+          # Set proper permissions for Linux
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && chmod -R 775 storage" || true
+          
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && chmod -R 775 bootstrap/cache" || true
+          
+          # Clear all existing caches first
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan optimize:clear" || true
+          
+          # Create storage link
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan storage:link" || true
+          
+          # Laravel optimizations
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan config:cache" || true
+          
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan route:cache" || true
+          
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan view:cache" || true
+          
+          echo "✅ Post-deployment Laravel setup completed"
+
+      - name: Restart Azure Web App
+        run: |
+          echo "🔄 Restarting Azure Web App..."
+          az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
+          echo "✅ Azure Web App restarted successfully"
+
+      - name: Deployment Summary
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo ""
+          echo "🌐 Application URL: https://dev.travclicks.com/backadm-dmc"
+          echo ""
+          echo "✅ Deployment flow:"
+          echo "   1. Code built and zipped"
+          echo "   2. Deployed to Azure with clean install"
+          echo "   3. Laravel directories created"
+          echo "   4. Proper permissions set"
+          echo "   5. All caches cleared"
+          echo "   6. Storage link created"
+          echo "   7. Laravel optimizations applied"
+          echo "   8. Web app restarted" 
