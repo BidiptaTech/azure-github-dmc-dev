@@ -2,7 +2,7 @@
 /node_modules
 /storage/*.key
 /vendor
-.env
+.env.local
 .env.backup
 .env.production
 .env.azure

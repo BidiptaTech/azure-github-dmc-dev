@@ -1,3 +1,8 @@
+# Complete .env File for Staging Environment
+
+Copy this content to your `.env` file in the staging branch:
+
+```env
 # ============================================================================
 # AZURE KEY VAULT CONFIGURATION (Required for authentication)
 # ============================================================================
@@ -79,3 +84,53 @@ APP_BOX_CONTAINER='false'
 # THIRD-PARTY API KEYS (Consider moving to Azure Key Vault)
 # ============================================================================
 FREECURRENCYAPI_KEY='fca_live_RHY03wHdEiYdoOqi9h7dUewwS7oDWA0VxTRaUeb2'
+```
+
+## Secrets Automatically Loaded from Azure Key Vault
+
+**DO NOT ADD THESE TO YOUR .env FILE** - They will be automatically loaded:
+
+| Azure Key Vault Secret | Environment Variable | Current Value |
+|------------------------|---------------------|---------------|
+| `APP-NAME` | `APP_NAME` | `Travclicks` |
+| `APP-ENV` | `APP_ENV` | `production` |
+| `APP-KEY` | `APP_KEY` | `base64:Tb7XcZnK34NLjyM8ILqL1P6jEWaUmI0KXpTwHMI4Xg4=` |
+| `APP-DEBUG` | `APP_DEBUG` | `true` |
+| `APP-URL` | `APP_URL` | `https://dev.travclicks.com/backadm-dmc` |
+| `DB-CONNECTION` | `DB_CONNECTION` | `pgsql` |
+| `DB-HOST` | `DB_HOST` | `173.247.245.74` |
+| `DB-PORT` | `DB_PORT` | `5432` |
+| `DB-DATABASE` | `DB_DATABASE` | `dmcdemo_nwdbdmc` |
+| `DB-USERNAME` | `DB_USERNAME` | `dmcdemo_usnwdmc` |
+| `DB-PASSWORD` | `DB_PASSWORD` | `A99FXCU1Mf43` |
+| `MAIL-MAILER` | `MAIL_MAILER` | `smtp` |
+| `MAIL-HOST` | `MAIL_HOST` | `smtp.hostinger.com` |
+| `MAIL-PORT` | `MAIL_PORT` | `465` |
+| `MAIL-USERNAME` | `MAIL_USERNAME` | `admin@travclicks.com` |
+| `MAIL-PASSWORD` | `MAIL_PASSWORD` | `CoActive@@Trav123#456` |
+| `MAIL-ENCRYPTION` | `MAIL_ENCRYPTION` | `SSL` |
+| `MAIL-FROM-ADDRESS` | `MAIL_FROM_ADDRESS` | `admin@travclicks.com` |
+| `MAIL-FROM-NAME` | `MAIL_FROM_NAME` | `Travclicks` |
+| `STORAGE-NAME` | `AZURE_STORAGE_NAME` | `stgdmcappdev` |
+| `STORAGE-KEY` | `AZURE_STORAGE_KEY` | `vUzd66ZV5V01BDgKGtgCw4jK/BvymAyW5D4fCQhz4vDNY6viawTnMPDb1R49ozsNcAqqdQKjF17O+AStdqojLA==` |
+| `STORAGE-CONTAINER` | `AZURE_STORAGE_CONTAINER` | `uploads` |
+| `STORAGE-ENDPOINT` | `AZURE_STORAGE_ENDPOINT` | `https://stgdmcappdev.blob.core.windows.net//` |
+| `FILESYSTEM-DISK` | `FILESYSTEM_DISK` | `azure` |
+
+## What You Need to Do
+
+1. **Replace your current `.env` file** with the content above
+2. **Ensure your Azure Key Vault** contains all the secrets listed in the table
+3. **Test the integration** using: `php artisan azure:test-keyvault load`
+
+## Environment Comparison
+
+| Configuration | Local Development | Staging/Production |
+|---------------|------------------|-------------------|
+| Environment File | `.env.local` | `.env` |
+| Azure Key Vault | Disabled | Enabled |
+| Database | XAMPP MySQL | PostgreSQL |
+| Storage | Local files | Azure Blob Storage |
+| Mail | Mailtrap/Local | SMTP Production |
+| App URL | `localhost/dev_dmc/public` | `https://dev.travclicks.com/backadm-dmc` |
+``` 
