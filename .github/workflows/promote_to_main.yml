@@ -84,53 +84,64 @@ jobs:
           echo "🧹 Performing enhanced selective cleanup of Laravel-specific files..."
           echo "🛡️ PRESERVING ALL REACT FILES - Only removing Laravel components"
           
-          # Stop any running PHP processes that might lock files
+          # Create cleanup script
+          cat > cleanup_script.sh << 'EOF'
+          #!/bin/bash
           echo "🔄 Stopping PHP processes to unlock files..."
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "pkill -f php || true" || echo "No PHP processes to kill"
+          pkill -f php || true
           
-          # Wait a moment for processes to stop
-          sleep 2
-          
-          # STEP 1: Remove backadm-dmc folder COMPLETELY with force
           echo "🗂️ Removing backadm-dmc folder completely..."
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /home/site/wwwroot/backadm-dmc" || echo "backadm-dmc folder not found"
+          rm -rf /home/site/wwwroot/backadm-dmc || echo "backadm-dmc folder not found"
           
-          # STEP 2: Double-check backadm-dmc is completely gone
           echo "🔍 Verifying backadm-dmc removal..."
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "[ ! -d /home/site/wwwroot/backadm-dmc ] && echo '✅ backadm-dmc successfully deleted' || echo '❌ WARNING: backadm-dmc still exists'"
+          if [ ! -d /home/site/wwwroot/backadm-dmc ]; then
+            echo "✅ backadm-dmc successfully deleted"
+          else
+            echo "❌ WARNING: backadm-dmc still exists"
+          fi
           
-          # STEP 3: Remove the 3 specific Laravel-related files from root
           echo "📄 Removing Laravel-specific files from root..."
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/default" || echo "default file not found"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/laravel-debug.php" || echo "laravel-debug.php not found"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/startup.sh" || echo "startup.sh not found"
+          rm -f /home/site/wwwroot/default || echo "default file not found"
+          rm -f /home/site/wwwroot/laravel-debug.php || echo "laravel-debug.php not found"
+          rm -f /home/site/wwwroot/startup.sh || echo "startup.sh not found"
+          rm -f /home/site/wwwroot/nginx-default || echo "nginx-default not found"
+          rm -f /home/site/wwwroot/artisan || echo "artisan not found"
+          rm -f /home/site/wwwroot/composer.json || echo "composer.json not found"
+          rm -f /home/site/wwwroot/composer.lock || echo "composer.lock not found"
           
-          # STEP 4: Remove any additional Laravel-related files that might exist
-          echo "🧹 Removing additional Laravel-related files..."
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/nginx-default" || echo "nginx-default not found"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/artisan" || echo "artisan not found"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/composer.json" || echo "composer.json not found"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/composer.lock" || echo "composer.lock not found"
-          
-          # STEP 5: Clear PHP and Laravel caches that might contain old code
           echo "💨 Clearing PHP and Laravel caches..."
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /tmp/opcache-* || true" || echo "No opcache files to remove"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /home/.composer/cache/* || true" || echo "No composer cache to clear"
+          rm -rf /tmp/opcache-* || true
+          rm -rf /home/.composer/cache/* || true
           
-          # STEP 6: List remaining files to confirm React files are preserved
           echo "📁 Listing remaining files in wwwroot (React files should be preserved):"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/" || echo "Could not list files"
+          ls -la /home/site/wwwroot/ || echo "Could not list files"
           
-          # STEP 7: Final verification
-          echo "🔍 Final verification - checking what was removed vs preserved:"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/backadm-dmc 2>/dev/null && echo '❌ ERROR: backadm-dmc still exists!' || echo '✅ SUCCESS: backadm-dmc completely removed'"
+          echo "🔍 Final verification:"
+          if [ ! -d /home/site/wwwroot/backadm-dmc ]; then
+            echo "✅ SUCCESS: backadm-dmc completely removed"
+          else
+            echo "❌ ERROR: backadm-dmc still exists!"
+          fi
           
-          # Count remaining files to ensure React files are still there
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "file_count=\$(ls -1 /home/site/wwwroot/ 2>/dev/null | wc -l); echo \"📊 Files remaining in root: \$file_count (React files should be here)\""
+          file_count=$(ls -1 /home/site/wwwroot/ 2>/dev/null | wc -l)
+          echo "📊 Files remaining in root: $file_count (React files should be here)"
           
           echo "✅ Enhanced selective cleanup completed!"
-          echo "🛡️ React files in root directory are completely preserved!"
-          echo "🗑️ Removed: backadm-dmc/ + 3 Laravel files + caches"
+          EOF
+          
+          # Upload and execute the cleanup script
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path cleanup_script.sh \
+            --type script \
+            --target-path /home/cleanup_script.sh
+          
+          # Execute the cleanup script
+          az webapp ssh \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --command "chmod +x /home/cleanup_script.sh && /home/cleanup_script.sh"
 
       - name: 🚀 Deploy Laravel files without --clean flag
         run: |
@@ -149,30 +160,48 @@ jobs:
         run: |
           echo "📋 Verifying deployment structure..."
           
-          # Check that Laravel files exist
+          # Create verification script
+          cat > verify_script.sh << 'EOF'
+          #!/bin/bash
           echo "🔍 Checking for Laravel files:"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/backadm-dmc/" || echo "Laravel files not found"
+          ls -la /home/site/wwwroot/backadm-dmc/ || echo "Laravel files not found"
           
-          # Check for React files in root
           echo "🔍 Checking for React files in root:"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/ | grep -E '\.(js|css|html|json)$'" || echo "No React files found in root"
+          ls -la /home/site/wwwroot/ | grep -E '\.(js|css|html|json)$' || echo "No React files found in root"
           
-          # CRITICAL: Check for Azure Key Vault files (should NOT exist)
           echo "🔍 Checking for Azure Key Vault files (should be NONE):"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && find . -name '*KeyVault*' -o -name '*AzureKeyVault*' 2>/dev/null && echo '❌ WARNING: Azure Key Vault files found!' || echo '✅ SUCCESS: No Azure Key Vault files found'"
+          cd /home/site/wwwroot/backadm-dmc
+          find . -name '*KeyVault*' -o -name '*AzureKeyVault*' 2>/dev/null && echo "❌ WARNING: Azure Key Vault files found!" || echo "✅ SUCCESS: No Azure Key Vault files found"
           
-          # Check for clean Laravel services directory
           echo "🔍 Checking Laravel services directory:"
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && ls -la app/Services/ 2>/dev/null || echo 'No app/Services directory (expected for clean deployment)'"
+          ls -la app/Services/ 2>/dev/null || echo "No app/Services directory (expected for clean deployment)"
           
           echo "✅ Structure verification completed!"
+          EOF
+          
+          # Upload and execute verification script
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path verify_script.sh \
+            --type script \
+            --target-path /home/verify_script.sh
+          
+          az webapp ssh \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --command "chmod +x /home/verify_script.sh && /home/verify_script.sh"
 
       - name: Post-deployment Laravel setup and optimization
         run: |
           echo "🔧 Running post-deployment Laravel setup on Azure..."
           
-          # Create NGINX configuration for both React and Laravel
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command 'echo "server {
+          # Create setup script
+          cat > setup_script.sh << 'EOF'
+          #!/bin/bash
+          echo "🔧 Creating NGINX configuration..."
+          cat > /home/site/nginx-default << 'NGINXEOF'
+          server {
               listen 8080;
               listen [::]:8080;
               root /home/site/wwwroot;
@@ -181,60 +210,70 @@ jobs:
               
               # Handle React frontend (root directory) - SPA routing
               location / {
-                  try_files \$uri \$uri/ /index.html;
+                  try_files $uri $uri/ /index.html;
               }
               
               # Handle Laravel admin (subdirectory)
               location /backadm-dmc {
                   alias /home/site/wwwroot/backadm-dmc/public;
-                  try_files \$uri \$uri/ @laravel;
+                  try_files $uri $uri/ @laravel;
                   
-                  location ~ \.php\$ {
+                  location ~ \.php$ {
                       include fastcgi_params;
-                      fastcgi_param SCRIPT_FILENAME \$request_filename;
+                      fastcgi_param SCRIPT_FILENAME $request_filename;
                       fastcgi_pass 127.0.0.1:9000;
                   }
               }
               
               location @laravel {
-                  rewrite /backadm-dmc/(.*)\$ /backadm-dmc/index.php?\$1 last;
+                  rewrite /backadm-dmc/(.*)$ /backadm-dmc/index.php?$1 last;
               }
-          }" > /home/site/nginx-default' || true
-
+          }
+          NGINXEOF
+          
           # Copy NGINX configuration
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cp /home/site/nginx-default /etc/nginx/sites-available/default" || true
+          cp /home/site/nginx-default /etc/nginx/sites-available/default || true
           
           # Test and reload NGINX
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "nginx -t && service nginx reload" || true
+          nginx -t && service nginx reload || true
           
           # Create necessary Laravel directories
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p storage/framework/{sessions,views,cache}" || true
-          
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p storage/logs" || true
-          
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p storage/app/{public,uploads}" || true
-          
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && mkdir -p bootstrap/cache" || true
+          cd /home/site/wwwroot/backadm-dmc
+          mkdir -p storage/framework/{sessions,views,cache} || true
+          mkdir -p storage/logs || true
+          mkdir -p storage/app/{public,uploads} || true
+          mkdir -p bootstrap/cache || true
           
           # Set proper permissions for Linux
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && chmod -R 775 storage" || true
-          
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && chmod -R 775 bootstrap/cache" || true
+          chmod -R 775 storage || true
+          chmod -R 775 bootstrap/cache || true
           
           # Clear all existing caches first
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan optimize:clear" || true
+          php artisan optimize:clear || true
           
           # Create storage link
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan storage:link" || true
+          php artisan storage:link || true
           
           # Laravel optimizations
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan config:cache" || true
-          
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan route:cache" || true
-          
-          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && php artisan view:cache" || true
+          php artisan config:cache || true
+          php artisan route:cache || true
+          php artisan view:cache || true
           
           echo "✅ Post-deployment Laravel setup completed"
+          EOF
+          
+          # Upload and execute setup script
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path setup_script.sh \
+            --type script \
+            --target-path /home/setup_script.sh
+          
+          az webapp ssh \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --command "chmod +x /home/setup_script.sh && /home/setup_script.sh"
 
       - name: Restart Azure Web App
         run: |
