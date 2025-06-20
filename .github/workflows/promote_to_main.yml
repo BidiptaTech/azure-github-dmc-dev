@@ -79,14 +79,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy to Azure Web App with clean
+      - name: Deploy to Azure Web App (preserving React files)
         run: |
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
-            --type zip \
-            --clean
+            --type zip
 
       - name: Create startup script for comprehensive setup
         run: |
@@ -96,13 +95,16 @@ jobs:
           #!/bin/bash
           echo "🚀 Starting comprehensive Laravel and NGINX setup..."
           
-          # Remove Azure Key Vault files completely (if they exist)
-          echo "🧹 Removing Azure Key Vault integration files..."
-          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
-          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
+          # Remove ONLY the specific files you mentioned (NOT React files)
+          echo "🧹 Removing only specific Laravel deployment files..."
           rm -f /home/site/wwwroot/default
           rm -f /home/site/wwwroot/laravel-debug.php
           rm -f /home/site/wwwroot/startup.sh
+          
+          # Remove Azure Key Vault files from Laravel directory only
+          echo "🧹 Removing Azure Key Vault files from Laravel directory..."
+          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
+          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
           
           # Clear OPcache to ensure fresh code execution
           echo "🧹 Clearing OPcache..."
