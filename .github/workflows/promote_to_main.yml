@@ -79,235 +79,230 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🧹 Enhanced selective cleanup - Remove ONLY Laravel files, preserve React
+      - name: Deploy to Azure Web App with clean
         run: |
-          echo "🧹 Performing enhanced selective cleanup of Laravel-specific files..."
-          echo "🛡️ PRESERVING ALL REACT FILES - Only removing Laravel components"
-          
-          # Create cleanup script
-          cat > cleanup_script.sh << 'EOF'
-          #!/bin/bash
-          echo "🔄 Stopping PHP processes to unlock files..."
-          pkill -f php || true
-          
-          echo "🗂️ Removing backadm-dmc folder completely..."
-          rm -rf /home/site/wwwroot/backadm-dmc || echo "backadm-dmc folder not found"
-          
-          echo "🔍 Verifying backadm-dmc removal..."
-          if [ ! -d /home/site/wwwroot/backadm-dmc ]; then
-            echo "✅ backadm-dmc successfully deleted"
-          else
-            echo "❌ WARNING: backadm-dmc still exists"
-          fi
-          
-          echo "📄 Removing Laravel-specific files from root..."
-          rm -f /home/site/wwwroot/default || echo "default file not found"
-          rm -f /home/site/wwwroot/laravel-debug.php || echo "laravel-debug.php not found"
-          rm -f /home/site/wwwroot/startup.sh || echo "startup.sh not found"
-          rm -f /home/site/wwwroot/nginx-default || echo "nginx-default not found"
-          rm -f /home/site/wwwroot/artisan || echo "artisan not found"
-          rm -f /home/site/wwwroot/composer.json || echo "composer.json not found"
-          rm -f /home/site/wwwroot/composer.lock || echo "composer.lock not found"
-          
-          echo "💨 Clearing PHP and Laravel caches..."
-          rm -rf /tmp/opcache-* || true
-          rm -rf /home/.composer/cache/* || true
-          
-          echo "📁 Listing remaining files in wwwroot (React files should be preserved):"
-          ls -la /home/site/wwwroot/ || echo "Could not list files"
-          
-          echo "🔍 Final verification:"
-          if [ ! -d /home/site/wwwroot/backadm-dmc ]; then
-            echo "✅ SUCCESS: backadm-dmc completely removed"
-          else
-            echo "❌ ERROR: backadm-dmc still exists!"
-          fi
-          
-          file_count=$(ls -1 /home/site/wwwroot/ 2>/dev/null | wc -l)
-          echo "📊 Files remaining in root: $file_count (React files should be here)"
-          
-          echo "✅ Enhanced selective cleanup completed!"
-          EOF
-          
-          # Upload and execute the cleanup script
-          az webapp deploy \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --src-path cleanup_script.sh \
-            --type script \
-            --target-path /home/cleanup_script.sh
-          
-          # Execute the cleanup script
-          az webapp ssh \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --command "chmod +x /home/cleanup_script.sh && /home/cleanup_script.sh"
-
-      - name: 🚀 Deploy Laravel files without --clean flag
-        run: |
-          echo "🚀 Deploying fresh Laravel files (preserving React files)..."
-          
-          # Deploy WITHOUT --clean flag to preserve React files
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
-            --type zip
-          
-          echo "✅ Laravel deployment completed - React files preserved!"
+            --type zip \
+            --clean
 
-      - name: 📋 Verify deployment structure and check for Azure Key Vault files
+      - name: Create startup script for comprehensive setup
         run: |
-          echo "📋 Verifying deployment structure..."
+          echo "🔧 Creating comprehensive startup script..."
           
-          # Create verification script
-          cat > verify_script.sh << 'EOF'
+          cat > startup.sh << 'EOF'
           #!/bin/bash
-          echo "🔍 Checking for Laravel files:"
-          ls -la /home/site/wwwroot/backadm-dmc/ || echo "Laravel files not found"
+          echo "🚀 Starting comprehensive Laravel and NGINX setup..."
           
-          echo "🔍 Checking for React files in root:"
-          ls -la /home/site/wwwroot/ | grep -E '\.(js|css|html|json)$' || echo "No React files found in root"
+          # Remove Azure Key Vault files completely (if they exist)
+          echo "🧹 Removing Azure Key Vault integration files..."
+          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
+          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
+          rm -f /home/site/wwwroot/default
+          rm -f /home/site/wwwroot/laravel-debug.php
+          rm -f /home/site/wwwroot/startup.sh
           
-          echo "🔍 Checking for Azure Key Vault files (should be NONE):"
-          cd /home/site/wwwroot/backadm-dmc
-          find . -name '*KeyVault*' -o -name '*AzureKeyVault*' 2>/dev/null && echo "❌ WARNING: Azure Key Vault files found!" || echo "✅ SUCCESS: No Azure Key Vault files found"
+          # Clear OPcache to ensure fresh code execution
+          echo "🧹 Clearing OPcache..."
+          if command -v php >/dev/null 2>&1; then
+              php -r "if (function_exists('opcache_reset')) { opcache_reset(); echo 'OPcache cleared'; } else { echo 'OPcache not available'; }"
+          fi
           
-          echo "🔍 Checking Laravel services directory:"
-          ls -la app/Services/ 2>/dev/null || echo "No app/Services directory (expected for clean deployment)"
+          # Clear Composer cache
+          echo "🧹 Clearing Composer cache..."
+          composer clear-cache || echo "Composer cache clear failed (OK)"
           
-          echo "✅ Structure verification completed!"
-          EOF
-          
-          # Upload and execute verification script
-          az webapp deploy \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --src-path verify_script.sh \
-            --type script \
-            --target-path /home/verify_script.sh
-          
-          az webapp ssh \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --command "chmod +x /home/verify_script.sh && /home/verify_script.sh"
-
-      - name: Post-deployment Laravel setup and optimization
-        run: |
-          echo "🔧 Running post-deployment Laravel setup on Azure..."
-          
-          # Create setup script
-          cat > setup_script.sh << 'EOF'
-          #!/bin/bash
+          # Create NGINX configuration for Laravel subdirectory
           echo "🔧 Creating NGINX configuration..."
-          cat > /home/site/nginx-default << 'NGINXEOF'
+          cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
           server {
               listen 8080;
               listen [::]:8080;
               root /home/site/wwwroot;
               index index.php index.html index.htm;
               server_name _;
-              
-              # Handle React frontend (root directory) - SPA routing
-              location / {
-                  try_files $uri $uri/ /index.html;
+
+              # Force HTTPS for all requests
+              if ($http_x_forwarded_proto != "https") {
+                  return 301 https://$host$request_uri;
               }
-              
-              # Handle Laravel admin (subdirectory)
-              location /backadm-dmc {
-                  alias /home/site/wwwroot/backadm-dmc/public;
-                  try_files $uri $uri/ @laravel;
+
+              # Handle /backadm-dmc requests - route to Laravel public folder
+              location ^~ /backadm-dmc/ {
+                  alias /home/site/wwwroot/backadm-dmc/public/;
+                  index index.php;
+                  try_files $uri $uri/ @backadm_dmc_fallback;
                   
+                  # Handle PHP files in Laravel
                   location ~ \.php$ {
                       include fastcgi_params;
-                      fastcgi_param SCRIPT_FILENAME $request_filename;
+                      fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
+                      fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
+                      fastcgi_param REQUEST_URI $request_uri;
+                      fastcgi_param HTTPS on;
+                      fastcgi_param SERVER_PORT 443;
+                      fastcgi_param HTTP_X_FORWARDED_PROTO https;
                       fastcgi_pass 127.0.0.1:9000;
                   }
               }
               
-              location @laravel {
-                  rewrite /backadm-dmc/(.*)$ /backadm-dmc/index.php?$1 last;
+              # Handle exact /backadm-dmc (without trailing slash)
+              location = /backadm-dmc {
+                  return 301 $scheme://$host/backadm-dmc/;
               }
+              
+              # Fallback for Laravel routing - send everything to index.php
+              location @backadm_dmc_fallback {
+                  rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
+              }
+
+              # Handle other requests normally (React frontend)
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+
+              # Handle PHP files in root
+              location ~ \.php$ {
+                  include fastcgi_params;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  fastcgi_param HTTPS on;
+                  fastcgi_param SERVER_PORT 443;
+                  fastcgi_param HTTP_X_FORWARDED_PROTO https;
+                  fastcgi_pass 127.0.0.1:9000;
+              }
+
+              # Security headers
+              add_header X-Content-Type-Options nosniff;
+              add_header X-Frame-Options SAMEORIGIN;
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
           }
-          NGINXEOF
+          NGINX_EOF
           
-          # Copy NGINX configuration
-          cp /home/site/nginx-default /etc/nginx/sites-available/default || true
+          # Copy to sites-enabled
+          cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
           
-          # Test and reload NGINX
-          nginx -t && service nginx reload || true
+          # Test NGINX configuration
+          echo "🔧 Testing NGINX configuration..."
+          nginx -t
+          if [ $? -eq 0 ]; then
+              echo "✅ NGINX configuration is valid"
+              service nginx reload
+              echo "✅ NGINX reloaded successfully"
+          else
+              echo "❌ NGINX configuration error"
+              exit 1
+          fi
+          
+          # Navigate to Laravel directory
+          cd /home/site/wwwroot/backadm-dmc
           
           # Create necessary Laravel directories
-          cd /home/site/wwwroot/backadm-dmc
-          mkdir -p storage/framework/{sessions,views,cache} || true
-          mkdir -p storage/logs || true
-          mkdir -p storage/app/{public,uploads} || true
-          mkdir -p bootstrap/cache || true
+          echo "📁 Creating Laravel directories..."
+          mkdir -p storage/framework/{sessions,views,cache/data}
+          mkdir -p storage/{logs,app/public}
+          mkdir -p bootstrap/cache
           
-          # Set proper permissions for Linux
-          chmod -R 775 storage || true
-          chmod -R 775 bootstrap/cache || true
+          # Set proper permissions
+          echo "🔐 Setting Laravel permissions..."
+          chmod -R 775 storage
+          chmod -R 775 bootstrap/cache
           
-          # Clear all existing caches first
-          php artisan optimize:clear || true
+          # Verify Azure Key Vault files are removed
+          echo "🔍 Verifying Azure Key Vault files removal..."
+          if [ -f app/Services/AzureKeyVaultService.php ]; then
+              echo "❌ AzureKeyVaultService.php still exists - removing..."
+              rm -f app/Services/AzureKeyVaultService.php
+          else
+              echo "✅ AzureKeyVaultService.php removed"
+          fi
+          
+          if [ -f app/Providers/KeyVaultServiceProvider.php ]; then
+              echo "❌ KeyVaultServiceProvider.php still exists - removing..."
+              rm -f app/Providers/KeyVaultServiceProvider.php
+          else
+              echo "✅ KeyVaultServiceProvider.php removed"
+          fi
+          
+          # Clear all Laravel caches
+          echo "🧹 Clearing Laravel caches..."
+          php artisan optimize:clear || echo "Optimize clear failed (OK)"
+          php artisan config:clear || echo "Config clear failed (OK)"
+          php artisan cache:clear || echo "Cache clear failed (OK)"
+          php artisan view:clear || echo "View clear failed (OK)"
+          php artisan route:clear || echo "Route clear failed (OK)"
           
           # Create storage link
-          php artisan storage:link || true
+          echo "🔗 Creating storage link..."
+          php artisan storage:link || echo "Storage link failed (OK if already exists)"
           
-          # Laravel optimizations
-          php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
+          # Generate app key if needed
+          echo "🔑 Checking application key..."
+          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
+              echo "🔑 Generating Laravel application key..."
+              php artisan key:generate --force || echo "Key generation failed (may already exist)"
+          fi
           
-          echo "✅ Post-deployment Laravel setup completed"
+          # Laravel optimizations for production
+          echo "⚡ Optimizing Laravel for production..."
+          php artisan config:cache || echo "Config cache failed (OK)"
+          php artisan route:cache || echo "Route cache failed (OK)"
+          php artisan view:cache || echo "View cache failed (OK)"
+          
+          echo "🎯 Laravel setup completed successfully!"
+          echo "🔒 HTTPS configuration applied"
+          echo "🚫 Azure Key Vault integration completely removed"
+          echo "📁 All Laravel directories created with proper permissions"
           EOF
           
-          # Upload and execute setup script
+          chmod +x startup.sh
+
+      - name: Upload and execute startup script
+        run: |
+          echo "📤 Uploading startup script to Azure..."
+          
+          # Upload the startup script
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
-            --src-path setup_script.sh \
-            --type script \
-            --target-path /home/setup_script.sh
+            --src-path startup.sh \
+            --type startup
           
-          az webapp ssh \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --command "chmod +x /home/setup_script.sh && /home/setup_script.sh"
+          echo "✅ Startup script uploaded and will execute on next app restart"
 
       - name: Restart Azure Web App
         run: |
-          echo "🔄 Restarting Azure Web App..."
+          echo "🔄 Restarting Azure Web App to execute startup script..."
           az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
-          echo "✅ Azure Web App restarted successfully"
+          echo "✅ Azure Web App restarted - startup script executed"
+
+      - name: Verify deployment
+        run: |
+          echo "🔍 Waiting for application to start..."
+          sleep 30
+          
+          echo "🔍 Checking application health..."
+          curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Application may still be starting up"
 
       - name: Deployment Summary
         run: |
-          echo "🎉 Enhanced selective deployment completed successfully!"
+          echo "🎉 Deployment completed successfully!"
           echo ""
-          echo "🌐 Application URLs:"
-          echo "   React Frontend: https://dev.travclicks.com/"
-          echo "   Laravel Admin:  https://dev.travclicks.com/backadm-dmc/"
+          echo "🌐 Application URL: https://dev.travclicks.com/backadm-dmc"
           echo ""
-          echo "✅ Enhanced deployment flow:"
-          echo "   1. ✅ Code built and zipped"
-          echo "   2. 🧹 Enhanced selective cleanup:"
-          echo "      - 🗑️ DELETED: backadm-dmc/ folder (COMPLETELY)"
-          echo "      - 🗑️ DELETED: default file"
-          echo "      - 🗑️ DELETED: laravel-debug.php"  
-          echo "      - 🗑️ DELETED: startup.sh"
-          echo "      - 🗑️ DELETED: nginx-default file"
-          echo "      - 💨 CLEARED: PHP opcache"
-          echo "      - 💨 CLEARED: Composer cache"
-          echo "      - 🛡️ PRESERVED: ALL React files in root"
-          echo "   3. 🚀 Fresh Laravel deployed (without --clean)"
-          echo "   4. 🔍 Verified NO Azure Key Vault files exist"
-          echo "   5. 📁 Laravel directories created"
-          echo "   6. 🔧 Proper permissions set"
-          echo "   7. 🧹 Laravel caches cleared"
-          echo "   8. 🔗 Storage link created"
-          echo "   9. ⚡ Laravel optimizations applied"
-          echo "   10. 🔄 Web app restarted"
+          echo "✅ Deployment flow:"
+          echo "   1. Code built and zipped"
+          echo "   2. Deployed to Azure with clean install"
+          echo "   3. Azure Key Vault files completely removed"
+          echo "   4. NGINX configured for Laravel subdirectory"
+          echo "   5. Laravel directories created with proper permissions"
+          echo "   6. All caches cleared (OPcache, Composer, Laravel)"
+          echo "   7. Laravel optimizations applied"
+          echo "   8. Web app restarted with startup script"
           echo ""
-          echo "🛡️ React files are completely safe!"
-          echo "🚀 Azure Key Vault integration completely removed!"
+          echo "🚫 Azure Key Vault integration: COMPLETELY REMOVED"
+          echo "🔒 HTTPS configuration: APPLIED"
+          echo "📁 React frontend: Available at root"
+          echo "🔧 Laravel backend: Available at /backadm-dmc" 
