@@ -1,0 +1,405 @@
+import React, { useEffect } from 'react';
+import {
+  Typography,
+  Box,
+  Modal,
+  Paper,
+  Stack,
+  Divider,
+  IconButton,
+  Card,
+  CardContent,
+  CardMedia,
+  Grid,
+  Button,
+  styled,
+  Chip
+} from '@mui/material';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PersonIcon from '@mui/icons-material/Person';
+import ChildCareIcon from '@mui/icons-material/ChildCare';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
+import FastfoodIcon from '@mui/icons-material/Fastfood';
+import CloseIcon from '@mui/icons-material/Close';
+import GroupIcon from '@mui/icons-material/Group';
+import LocalDiningIcon from '@mui/icons-material/LocalDining';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import { useSelector } from 'react-redux';
+
+// Styled components
+const StyledModal = styled(Modal)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}));
+
+const ModalContent = styled(Paper)(({ theme }) => ({
+  position: 'relative',
+  width: '90%',
+  maxWidth: 800,
+  maxHeight: '90vh',
+  overflow: 'auto',
+  padding: theme.spacing(3),
+  backgroundColor: theme.palette.background.paper,
+  borderRadius: theme.spacing(2),
+  boxShadow: theme.shadows[5],
+}));
+
+const SummarySection = styled(Box)(({ theme }) => ({
+  marginBottom: theme.spacing(3),
+}));
+
+const DetailRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  marginBottom: theme.spacing(1),
+}));
+
+const InfoCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(1)
+}));
+
+const PriceCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(1)
+}));
+
+const RestaurantBookingSummaryModal = ({ 
+  open, 
+  onClose, 
+  bookingData,
+  bookingIndex,
+  restaurantDetails 
+}) => {
+  const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
+  const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
+  const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
+
+  // Add console log for incoming data
+  useEffect(() => {
+    console.log('RestaurantBookingSummaryModal Data:', {
+      bookingData,
+      restaurantDetails
+    });
+  }, [bookingData, restaurantDetails]);
+
+  if (!bookingData) return null;
+
+  // Helper function to safely render potentially complex data
+  const renderValue = (value) => {
+    if (value === null || value === undefined) return 'Not specified';
+    if (typeof value === 'object') {
+      // If it's a meal selection object, handle it appropriately
+      if (value.items && value.specificMealType) {
+        console.log('Rendering meal selection:', value);
+        return value.items.map(item => item.name).join(', ');
+      }
+      return 'Complex data';
+    }
+    return String(value);
+  };
+
+  // Helper function to format time slots
+  const formatTimeSlot = (openTime, closeTime) => {
+    if (!openTime || !closeTime) return 'Not specified';
+    return `${openTime} - ${closeTime}`;
+  };
+
+  // Get meal time slots based on meal type
+  const getMealTimeSlot = (mealType) => {
+    if (!restaurantDetails) return 'Not specified';
+    
+    switch (mealType?.toLowerCase()) {
+      case 'breakfast':
+        return formatTimeSlot(restaurantDetails.opening_time_bf, restaurantDetails.closing_time_bf);
+      case 'lunch':
+        return formatTimeSlot(restaurantDetails.opening_time_lunch, restaurantDetails.closing_time_lunch);
+      case 'dinner':
+        return formatTimeSlot(restaurantDetails.opening_time_dinner, restaurantDetails.closing_time_dinner);
+      default:
+        return 'Not specified';
+    }
+  };
+
+  // Calculate total price based on meal selection
+  const calculateTotalPrice = () => {
+    if (!bookingData.specificMeal) return 0;
+
+    console.log('Calculating total price from:', bookingData.specificMeal);
+    
+    // If specificMeal contains the meal selection object
+    if (typeof bookingData.specificMeal === 'object' && bookingData.specificMeal.totalPrice) {
+      return bookingData.specificMeal.totalPrice;
+    }
+
+    return 0;
+  };
+
+  const totalPrice = calculateTotalPrice();
+  console.log('Final calculated price:', totalPrice);
+
+  // Format price with currency
+  const formatPrice = (price) => {
+    if (!price) return '0.00';
+    
+    const mainPrice = Math.ceil(price * exchangeRate);
+    const usdPrice = Math.ceil(price * usdExchangeRate);
+    const sgdPrice = Math.ceil(price);
+
+    return (
+      <Stack spacing={0.5}>
+        <Typography variant="h5" sx={{ fontWeight: 600, color: 'inherit' }}>
+          {currencyCode} {mainPrice.toLocaleString()}
+        </Typography>
+        {currencyCode !== 'USD' && (
+          <Typography variant="body2" sx={{ color: 'inherit', opacity: 0.9 }}>
+            USD {usdPrice.toLocaleString()}
+          </Typography>
+        )}
+        {currencyCode !== 'SGD' && (
+          <Typography variant="body2" sx={{ color: 'inherit', opacity: 0.9 }}>
+            SGD {sgdPrice.toLocaleString()}
+          </Typography>
+        )}
+      </Stack>
+    );
+  };
+
+  // Check if the meal type is buffet
+  const isBuffet = bookingData.specificMeal?.specificMealType?.toLowerCase() === 'buffet';
+
+  return (
+    <StyledModal
+      open={open}
+      onClose={onClose}
+      aria-labelledby="restaurant-booking-summary-modal"
+    >
+      <ModalContent>
+        <IconButton
+          onClick={onClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: 'grey.500',
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+
+        <Stack spacing={3}>
+          {/* Header */}
+          <Box>
+            <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
+              Restaurant Booking Summary
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Booking #{bookingIndex + 1}
+            </Typography>
+          </Box>
+
+          <Divider />
+
+          {/* Restaurant Details */}
+          <SummarySection>
+            <Card sx={{ display: 'flex', mb: 2 }}>
+              <CardMedia
+                component="img"
+                sx={{ width: 200, height: 200, objectFit: 'cover' }}
+                image={restaurantDetails?.master_image || restaurantDetails?.additional_images?.[0]}
+                alt={restaurantDetails?.name || 'Restaurant'}
+              />
+              <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="h6" gutterBottom>
+                      {restaurantDetails?.name}
+                    </Typography>
+                    <Chip 
+                      icon={<LocalDiningIcon />} 
+                      label={restaurantDetails?.cuisine || 'Cuisine not specified'} 
+                      color="primary" 
+                      variant="outlined"
+                    />
+                  </Box>
+                  
+                  <DetailRow>
+                    <LocationOnIcon color="primary" />
+                    <Typography>
+                      {restaurantDetails?.city}, {restaurantDetails?.country}
+                    </Typography>
+                  </DetailRow>
+
+                  {/* Selected Time Info */}
+                  <Box 
+                    sx={{ 
+                      mt: 2,
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                      <AccessTimeIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      Selected Time
+                    </Typography>
+                    <Typography sx={{ fontSize: '1rem', ml: 3,color: 'white', }}>
+                      {bookingData.mealType}: {bookingData.timeSlot || getMealTimeSlot(bookingData.mealType)}
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </Box>
+            </Card>
+          </SummarySection>
+
+          {/* Meal Details */}
+          <SummarySection>
+            <Typography variant="h6" gutterBottom>
+              <RestaurantIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Meal Information
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={isBuffet ? 12 : 6}>
+                <InfoCard>
+                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                    Meal Type
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FastfoodIcon color="primary" />
+                    <Typography variant="body1">
+                      {bookingData.specificMeal?.specificMealType || bookingData.mealType || 'Not selected'}
+                    </Typography>
+                  </Box>
+                </InfoCard>
+              </Grid>
+              {!isBuffet && (
+                <Grid item xs={12} md={6}>
+                  <InfoCard>
+                    <Typography variant="subtitle1" color="primary" gutterBottom>
+                      Selected Items
+                    </Typography>
+                    <Box>
+                      {bookingData.specificMeal?.items?.map((item) => (
+                        <Box 
+                          key={`meal-${item.meal_id}-${item.name}`} 
+                          sx={{ mb: 1 }}
+                        >
+                          <Typography variant="body2">
+                            {item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                          </Typography>
+                        </Box>
+                      )) || 'No items selected'}
+                    </Box>
+                  </InfoCard>
+                </Grid>
+              )}
+            </Grid>
+          </SummarySection>
+
+          {/* Guest Details */}
+          <SummarySection>
+            <Typography variant="h6" gutterBottom>
+              <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Guest Details
+            </Typography>
+            <InfoCard>
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                    <Typography>
+                      Adults: {renderValue(bookingData.pax?.Adults)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <ChildCareIcon sx={{ mr: 1, color: 'primary.main' }} />
+                    <Typography>
+                      Children: {renderValue(bookingData.pax?.Children)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </InfoCard>
+          </SummarySection>
+
+          {/* Price Details */}
+          <SummarySection>
+            <Typography variant="h6" gutterBottom>
+              <AttachMoneyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Price Details
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <InfoCard>
+                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                    Price Breakdown
+                  </Typography>
+                  {bookingData.specificMeal?.items?.map((item) => (
+                    <Box 
+                      key={`price-${item.meal_id}-${item.name}`}
+                    >
+                      {item.adult_price ? (
+                        <Box key={`buffet-${item.meal_id}`}>
+                          <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <span>Adult ({bookingData.pax.Adults}x):</span>
+                            <span>{currencyCode} {Math.ceil(item.adult_price * exchangeRate * bookingData.pax.Adults)}</span>
+                          </Typography>
+                          {bookingData.pax.Children > 0 && (
+                            <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Child ({bookingData.pax.Children}x):</span>
+                              <span>{currencyCode} {Math.ceil(item.child_price * exchangeRate * bookingData.pax.Children)}</span>
+                            </Typography>
+                          )}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{item.name} ({item.quantity}x):</span>
+                          <span>{currencyCode} {Math.ceil(item.price * exchangeRate * item.quantity)}</span>
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </InfoCard>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <PriceCard>
+                  <Typography variant="subtitle1" gutterBottom sx={{ color: 'inherit' }}>
+                    Total Price
+                  </Typography>
+                  {formatPrice(totalPrice)}
+                  {/* {restaurantDetails?.tax_percentage && (
+                    <Typography variant="caption" sx={{ color: 'inherit', opacity: 0.8 }}>
+                      *Prices are subject to {restaurantDetails.tax_percentage}% tax
+                    </Typography>
+                  )} */}
+                </PriceCard>
+              </Grid>
+            </Grid>
+          </SummarySection>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="outlined" onClick={onClose}>
+              Close
+            </Button>
+          </Box>
+        </Stack>
+      </ModalContent>
+    </StyledModal>
+  );
+};
+
+export default RestaurantBookingSummaryModal; 
