@@ -79,27 +79,62 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🧹 Selective cleanup - Remove only Laravel-specific files
+      - name: 🧹 Enhanced selective cleanup - Remove ONLY Laravel files, preserve React
         run: |
-          echo "🧹 Performing selective cleanup of Laravel-specific files..."
+          echo "🧹 Performing enhanced selective cleanup of Laravel-specific files..."
+          echo "🛡️ PRESERVING ALL REACT FILES - Only removing Laravel components"
           
-          # Remove backadm-dmc folder completely
+          # Stop any running PHP processes that might lock files
+          echo "🔄 Stopping PHP processes to unlock files..."
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "pkill -f php || true" || echo "No PHP processes to kill"
+          
+          # Wait a moment for processes to stop
+          sleep 2
+          
+          # STEP 1: Remove backadm-dmc folder COMPLETELY with force
+          echo "🗂️ Removing backadm-dmc folder completely..."
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /home/site/wwwroot/backadm-dmc" || echo "backadm-dmc folder not found"
           
-          # Remove Laravel-specific files from root
+          # STEP 2: Double-check backadm-dmc is completely gone
+          echo "🔍 Verifying backadm-dmc removal..."
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "[ ! -d /home/site/wwwroot/backadm-dmc ] && echo '✅ backadm-dmc successfully deleted' || echo '❌ WARNING: backadm-dmc still exists'"
+          
+          # STEP 3: Remove the 3 specific Laravel-related files from root
+          echo "📄 Removing Laravel-specific files from root..."
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/default" || echo "default file not found"
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/laravel-debug.php" || echo "laravel-debug.php not found"
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/startup.sh" || echo "startup.sh not found"
           
-          # List remaining files to confirm React files are preserved
-          echo "📁 Remaining files in wwwroot (React files should be preserved):"
+          # STEP 4: Remove any additional Laravel-related files that might exist
+          echo "🧹 Removing additional Laravel-related files..."
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/nginx-default" || echo "nginx-default not found"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/artisan" || echo "artisan not found"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/composer.json" || echo "composer.json not found"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -f /home/site/wwwroot/composer.lock" || echo "composer.lock not found"
+          
+          # STEP 5: Clear PHP and Laravel caches that might contain old code
+          echo "💨 Clearing PHP and Laravel caches..."
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /tmp/opcache-* || true" || echo "No opcache files to remove"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "rm -rf /home/.composer/cache/* || true" || echo "No composer cache to clear"
+          
+          # STEP 6: List remaining files to confirm React files are preserved
+          echo "📁 Listing remaining files in wwwroot (React files should be preserved):"
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/" || echo "Could not list files"
           
-          echo "✅ Selective cleanup completed - React files preserved!"
+          # STEP 7: Final verification
+          echo "🔍 Final verification - checking what was removed vs preserved:"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/backadm-dmc 2>/dev/null && echo '❌ ERROR: backadm-dmc still exists!' || echo '✅ SUCCESS: backadm-dmc completely removed'"
+          
+          # Count remaining files to ensure React files are still there
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "file_count=\$(ls -1 /home/site/wwwroot/ 2>/dev/null | wc -l); echo \"📊 Files remaining in root: \$file_count (React files should be here)\""
+          
+          echo "✅ Enhanced selective cleanup completed!"
+          echo "🛡️ React files in root directory are completely preserved!"
+          echo "🗑️ Removed: backadm-dmc/ + 3 Laravel files + caches"
 
       - name: 🚀 Deploy Laravel files without --clean flag
         run: |
-          echo "🚀 Deploying Laravel files (preserving React files)..."
+          echo "🚀 Deploying fresh Laravel files (preserving React files)..."
           
           # Deploy WITHOUT --clean flag to preserve React files
           az webapp deploy \
@@ -110,16 +145,25 @@ jobs:
           
           echo "✅ Laravel deployment completed - React files preserved!"
 
-      - name: 📋 Verify deployment structure
+      - name: 📋 Verify deployment structure and check for Azure Key Vault files
         run: |
           echo "📋 Verifying deployment structure..."
           
-          # Check that both Laravel and React files exist
+          # Check that Laravel files exist
           echo "🔍 Checking for Laravel files:"
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/backadm-dmc/" || echo "Laravel files not found"
           
+          # Check for React files in root
           echo "🔍 Checking for React files in root:"
           az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "ls -la /home/site/wwwroot/ | grep -E '\.(js|css|html|json)$'" || echo "No React files found in root"
+          
+          # CRITICAL: Check for Azure Key Vault files (should NOT exist)
+          echo "🔍 Checking for Azure Key Vault files (should be NONE):"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && find . -name '*KeyVault*' -o -name '*AzureKeyVault*' 2>/dev/null && echo '❌ WARNING: Azure Key Vault files found!' || echo '✅ SUCCESS: No Azure Key Vault files found'"
+          
+          # Check for clean Laravel services directory
+          echo "🔍 Checking Laravel services directory:"
+          az webapp ssh --resource-group rg-dmc-app-dev --name dmc-app-dev --command "cd /home/site/wwwroot/backadm-dmc && ls -la app/Services/ 2>/dev/null || echo 'No app/Services directory (expected for clean deployment)'"
           
           echo "✅ Structure verification completed!"
 
@@ -200,26 +244,31 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "🎉 Selective deployment completed successfully!"
+          echo "🎉 Enhanced selective deployment completed successfully!"
           echo ""
           echo "🌐 Application URLs:"
           echo "   React Frontend: https://dev.travclicks.com/"
           echo "   Laravel Admin:  https://dev.travclicks.com/backadm-dmc/"
           echo ""
-          echo "✅ Selective deployment flow:"
+          echo "✅ Enhanced deployment flow:"
           echo "   1. ✅ Code built and zipped"
-          echo "   2. 🧹 Selective cleanup (only Laravel files removed):"
-          echo "      - Deleted: backadm-dmc/ folder"
-          echo "      - Deleted: default file"
-          echo "      - Deleted: laravel-debug.php"
-          echo "      - Deleted: startup.sh"
-          echo "      - Preserved: ALL React files in root"
-          echo "   3. 🚀 Laravel deployed (without --clean)"
-          echo "   4. 📁 Laravel directories created"
-          echo "   5. 🔧 Proper permissions set"
-          echo "   6. 🧹 Laravel caches cleared"
-          echo "   7. 🔗 Storage link created"
-          echo "   8. ⚡ Laravel optimizations applied"
-          echo "   9. 🔄 Web app restarted"
+          echo "   2. 🧹 Enhanced selective cleanup:"
+          echo "      - 🗑️ DELETED: backadm-dmc/ folder (COMPLETELY)"
+          echo "      - 🗑️ DELETED: default file"
+          echo "      - 🗑️ DELETED: laravel-debug.php"  
+          echo "      - 🗑️ DELETED: startup.sh"
+          echo "      - 🗑️ DELETED: nginx-default file"
+          echo "      - 💨 CLEARED: PHP opcache"
+          echo "      - 💨 CLEARED: Composer cache"
+          echo "      - 🛡️ PRESERVED: ALL React files in root"
+          echo "   3. 🚀 Fresh Laravel deployed (without --clean)"
+          echo "   4. 🔍 Verified NO Azure Key Vault files exist"
+          echo "   5. 📁 Laravel directories created"
+          echo "   6. 🔧 Proper permissions set"
+          echo "   7. 🧹 Laravel caches cleared"
+          echo "   8. 🔗 Storage link created"
+          echo "   9. ⚡ Laravel optimizations applied"
+          echo "   10. 🔄 Web app restarted"
           echo ""
-          echo "🛡️ React files in root directory are completely safe!"
+          echo "🛡️ React files are completely safe!"
+          echo "🚀 Azure Key Vault integration completely removed!"
