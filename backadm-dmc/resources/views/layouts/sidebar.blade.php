@@ -192,7 +192,12 @@
     }
     
     .ri-bar-chart-box-line {
-        color: #7c2d12 !important; /* Amber */
+        color: #7c2d12 !important; 
+        background: rgba(124, 45, 18, 0.1);
+    }
+
+    .ri-file-list-3-line {
+        color: #2c54a0 !important; /* Amber */
         background: rgba(124, 45, 18, 0.1);
     }
     
@@ -411,6 +416,11 @@
         letter-spacing: 0.5px;
     }
 
+    .ri-gift-line {
+        color: #f59e0b !important; /* Amber */
+        background: rgba(245, 158, 11, 0.1);
+    }
+
 </style>
         <body>
             <div class="layout-wrapper layout-content-navbar  ">
@@ -535,13 +545,15 @@
             @endif
 
             <!-- End Enquiry -->
+
+            <!-- Packages -->
             <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Packages">Packages</span>
                 </li>
 
                 <li class="menu-item @if(Request::is('package*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-package-line"></i>
+                        <i class="menu-icon tf-icons ri-gift-line"></i>
                         <div data-i18n="Packages">Predefined Packages</div>
                     </a>
                     <ul class="menu-sub">
@@ -557,6 +569,7 @@
                         </li>
                     </ul>
                 </li>
+                <!-- End Packages -->
 
             <!-- Tour -->
             @if(hasPermission('view tour'))
@@ -580,8 +593,9 @@
                 </li>
             @endif
 
-            <!-- Tour -->
+            <!-- End Tour -->
 
+            <!-- Booking List -->
             {{-- @if(hasPermission('view booking')) --}}
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
@@ -602,8 +616,34 @@
                     </ul>
                 </li>  
             {{-- @endif --}}
+            <!-- End Booking List -->
 
-                <!-- View Jobsheets -->
+            <!-- Reports -->
+            <li class="menu-header mt-5">
+                <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
+            </li>
+            <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
+                    <div data-i18n="Reports">Reports</div>
+                </a>
+                <ul class="menu-sub">
+                    <li class="menu-item @if(Request::is('reports/sales-revenue')) active @endif">
+                        <a href="{{ route('reports.sales-revenue') }}" class="menu-link">
+                            
+                            <div data-i18n="Sales & Revenue">Sales & Revenue</div>
+                        </a>
+                    </li>
+                    <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
+                        <a href="{{ route('reports.ledger') }}" class="menu-link">
+                            <div data-i18n="Ledger">Ledger</div>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <!-- End Reports -->
+
+                <!-- Jobsheets -->
                 @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,35, 78, 120]))
                     <li class="menu-header small text-uppercase">
                         <span class="menu-header-text">View Jobsheets</span>
@@ -633,6 +673,8 @@
                         </ul>
                     </li>
                 @endif
+
+                <!-- End Jobsheets -->
 
                 <!-- JobSheet -->
                 @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108]))
@@ -667,7 +709,9 @@
                         </ul>
                     </li>
                 @endif
+                <!-- End JobSheet -->
                 
+            <!-- Port -->
             @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Port">Port</span>
@@ -694,6 +738,7 @@
                     </ul>
                 </li>
             @endif
+            <!-- End Port -->
 
             @if(Auth::user()->role_id == 11)
             <li class="menu-header mt-5">
@@ -721,6 +766,7 @@
                 </ul>
             </li>
             @endif
+            <!-- End Zone -->
 
             <!-- Booking -->
             {{-- @if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 
@@ -834,7 +880,9 @@
                 </li>
                 @endif
 
-                <!-- Hotel -->
+                <!-- End Facility -->
+
+                <!-- Hotels -->
                 @if(hasPermission('view hotel') || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || hasPermission('create hotel'))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Hotels">Hotels</span>
@@ -923,6 +971,8 @@
                 </li>
                 @endif
 
+                <!-- End Hotels -->
+
                 <!-- Attraction -->
                 @if(hasPermission('view attraction') || hasPermission('create attraction'))
                 <li class="menu-header mt-5">
@@ -963,6 +1013,7 @@
                     </ul>
                 </li>
                 @endif
+                <!-- End Attraction -->
 
                 <!-- Restaurant -->
                 @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
@@ -1006,6 +1057,8 @@
                 </li>
                 @endif
 
+                <!-- End Restaurant -->
+
                 <!-- Guide -->
                 @if(hasPermission('view guide') || hasPermission('create guide'))
                 <li class="menu-header mt-5">
@@ -1046,6 +1099,8 @@
                     </ul>
                 </li>
                 @endif
+
+                <!-- End Guide -->
 
                 <!-- Driver -->
                 @if(hasPermission('view driver') || hasPermission('create driver') || hasPermission('view vehicle') || hasPermission('create vehicle'))
@@ -1105,6 +1160,8 @@
                 </li>
                 @endif
 
+                <!-- End Driver -->
+
                 <!-- Operation Country -->
                 {{-- @if(hasPermission('view country'))
                 <li class="menu-header mt-5">
@@ -1138,7 +1195,8 @@
                         </li>
                     </ul>
                 </li>                 -->
-
+                
+                <!-- User Role Management -->
                 @if(!(auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123))
                 @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent'))
                 <li class="menu-header mt-5">
@@ -1188,6 +1246,7 @@
                 </li>
                 @endif
                 @endif
+                <!-- End User Role Management -->   
 
                 {{-- <!-- Settings -->
                 @if(hasPermission('settings') || hasPermission('edit settings'))
@@ -1249,6 +1308,7 @@
                     </ul>
                 </li>
                 @endif
+                <!-- End Settings -->
 
                 <!-- Mail -->
                 <li class="menu-header mt-5">
@@ -1356,7 +1416,8 @@
                         </li>
                     </ul>
                 </li>
-
+                <!-- End Mail -->
+                
                 <!-- Tranasaction -->
                 {{-- @if(hasPermission('transaction'))
                 <li class="menu-header mt-5">

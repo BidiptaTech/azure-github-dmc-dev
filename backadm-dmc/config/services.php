@@ -35,7 +35,12 @@ return [
         'key' => env('FREECURRENCYAPI_KEY'),
     ],
 
-
+    'azure' => [
+    'vault' => env('AZURE_KEYVAULT_NAME'),
+    'client_id' => env('AZURE_CLIENT_ID'),
+    'client_secret' => env('AZURE_CLIENT_SECRET'),
+    'tenant_id' => env('AZURE_TENANT_ID'),
+    ],
 
 
 ];

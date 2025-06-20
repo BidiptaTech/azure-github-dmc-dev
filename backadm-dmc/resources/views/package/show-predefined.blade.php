@@ -164,6 +164,108 @@
                 </div>
                 @endif
 
+                <!-- Selected Guide -->
+                @if($package->selected_guide && (is_array($package->selected_guide) && count($package->selected_guide) > 0 || !is_array($package->selected_guide)))
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="ri-user-line me-2"></i>Selected Guide
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            @php
+                                $guides = is_array($package->selected_guide) ? $package->selected_guide : [$package->selected_guide];
+                            @endphp
+                            
+                            @foreach($guides as $guide)
+                            @php
+                                $guideData = is_string($guide) ? json_decode($guide, true) : $guide;
+                                $guideData = is_array($guideData) ? $guideData : [];
+                                
+                                $guideId = $guideData['id'] ?? '';
+                                $guideName = $guideData['name'] ?? $guideId ?? 'Unnamed Guide';
+                                $guideLanguages = $guideData['languages'] ?? [];
+                                $guideContact = $guideData['contact_no'] ?? '';
+                                
+                                // Process languages
+                                $languageList = '';
+                                if (is_array($guideLanguages)) {
+                                    $languageNames = [];
+                                    foreach ($guideLanguages as $lang) {
+                                        if (is_array($lang) || is_object($lang)) {
+                                            $languageNames[] = $lang->language ?? $lang['language'] ?? '';
+                                        } else {
+                                            $languageNames[] = $lang;
+                                        }
+                                    }
+                                    $languageList = implode(', ', array_filter($languageNames));
+                                } elseif (is_string($guideLanguages)) {
+                                    $languageList = $guideLanguages;
+                                }
+                            @endphp
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="mb-1">{{ $guideName }}</h6>
+                                    @if($languageList)
+                                    <p class="text-muted mb-1">
+                                        <i class="ri-translate-2 me-1"></i>{{ $languageList }}
+                                    </p>
+                                    @endif
+                                    @if($guideContact)
+                                    <p class="text-muted mb-0">
+                                        <i class="ri-phone-line me-1"></i>{{ $guideContact }}
+                                    </p>
+                                    @endif
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                @endif
+                
+                <!-- Selected Restaurants -->
+                @if($package->selected_restaurants && count($package->selected_restaurants) > 0)
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="ri-restaurant-line me-2"></i>Selected Restaurants ({{ count($package->selected_restaurants) }})
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            @foreach($package->selected_restaurants as $restaurant)
+                            @php
+                                $restaurantData = is_string($restaurant) ? json_decode($restaurant, true) : $restaurant;
+                                $restaurantData = is_array($restaurantData) ? $restaurantData : [];
+                                
+                                $restaurantId = $restaurantData['id'] ?? '';
+                                $restaurantName = $restaurantData['name'] ?? $restaurantId ?? 'Unnamed Restaurant';
+                                $restaurantCuisine = $restaurantData['cuisine'] ?? '';
+                                $restaurantCity = $restaurantData['city'] ?? '';
+                            @endphp
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="mb-1">{{ $restaurantName }}</h6>
+                                    @if($restaurantCuisine)
+                                    <p class="text-muted mb-1">
+                                        <i class="ri-restaurant-2-line me-1"></i>{{ $restaurantCuisine }}
+                                    </p>
+                                    @endif
+                                    @if($restaurantCity)
+                                    <p class="text-muted mb-0">
+                                        <i class="ri-map-pin-line me-1"></i>{{ $restaurantCity }}
+                                    </p>
+                                    @endif
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <!-- Inclusions & Exclusions -->
                 @if($package->inclusions || $package->exclusions)
                 <div class="row">

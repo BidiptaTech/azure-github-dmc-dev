@@ -127,10 +127,13 @@ class PackageController extends Controller
                     'restaurant-select-count' => 'nullable|integer|min:1|max:5',
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
+                dd($e->validator->getMessageBag());
                 return redirect()->back()->withErrors($e->validator->getMessageBag())->withInput();
             } catch (\Exception $e) {
+                dd($e->getMessage());
                 return redirect()->back()->with('error', 'Validation error: ' . $e->getMessage())->withInput();
             }
+
 
             DB::beginTransaction();
 
@@ -158,8 +161,16 @@ class PackageController extends Controller
             $selectedGuide = json_decode($request->input('selected_guide', '{}'), true) ?: null;
             $selectedRestaurants = json_decode($request->input('selected_restaurants', '[]'), true) ?: [];
 
+            $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
+            $package_max_id = $lastPackage->package_id ?? 0;
+            $packageId = CommonHelper::createId($package_max_id);
+            while (Package::where('package_id', $packageId)->exists()) {
+                $packageId = CommonHelper::createId($packageId);
+            }
+
             // Create package
             $package = Package::create([
+                'package_id' => $packageId,
                 'title' => $validated['title'],
                 'destination' => $validated['destination'],
                 'city' => $validated['city'],
@@ -225,11 +236,18 @@ class PackageController extends Controller
      */
     public function edit($id)
     {
-        $package = Package::findOrFail($id);
+        $package = Package::where('package_id', $id)->first();
+        $city = $package->city;
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
+
+        $hotels = Hotel::where('city', $city)->get();
+        $attractions = Attraction::where('location', $city)->get();
+        $restaurants = Restaurant::where('city', $city)->get();
+        $guides = Guide::where('city', $city)->get();
+
         $categories = Package::CATEGORIES;
 
-        return view('package.edit-predefined', compact('package', 'countries', 'categories'));
+        return view('package.edit-predefined', compact('package', 'countries', 'categories', 'hotels', 'attractions', 'restaurants', 'guides'));
     }
 
     /**
@@ -237,7 +255,7 @@ class PackageController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $package = Package::findOrFail($id);
+        $package = Package::where('package_id', $id)->first();
 
         // Validation
         $validated = $request->validate([
@@ -250,6 +268,8 @@ class PackageController extends Controller
             'price_senior' => 'nullable|numeric|min:0',
             'price_child' => 'nullable|numeric|min:0',
             'max_pax' => 'required|integer|min:1',
+            'start_date' => 'required|date',
+            'expiry_date' => 'required|date|after:start_date',
             'selected_hotels' => 'nullable|array',
             'selected_attractions' => 'nullable|array',
             'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
@@ -274,10 +294,16 @@ class PackageController extends Controller
                 'price_senior' => $validated['price_senior'],
                 'price_child' => $validated['price_child'],
                 'max_pax' => $validated['max_pax'],
+                'start_date' => $validated['start_date'],
+                'expire_date' => $validated['expiry_date'],
                 'selected_hotels' => $this->processSelectedItems($request->input('selected_hotels', [])),
                 'selected_attractions' => $this->processSelectedItems($request->input('selected_attractions', [])),
+                'selected_guide' => $this->processSelectedItems($request->input('selected_guide', [])),
+                'selected_restaurants' => $this->processSelectedItems($request->input('selected_restaurants', [])),
+
                 'max_hotels' => $request->input('hotel-select-count'),
                 'max_attractions' => $request->input('attraction-select-count'),
+                'max_restaurants' => $request->input('restaurant-select-count'),
                 'available_dates' => array_filter($request->input('available_dates', [])),
                 'inclusions' => $validated['inclusions'],
                 'exclusions' => $validated['exclusions'],
@@ -322,7 +348,7 @@ class PackageController extends Controller
     public function destroy($id)
     {
         try {
-            $package = Package::findOrFail($id);
+            $package = Package::where('package_id', $id)->first();
             
             // Note: Image cleanup is handled by the storage system configured in CommonHelper
             // The actual files will be managed based on the file_storage setting (local/s3/azure)
@@ -350,7 +376,7 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name']);
+        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city']);
         return response()->json($hotels);
     }
 
@@ -359,7 +385,7 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name']);
+        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location']);
         return response()->json($attractions);
     }
 
@@ -367,35 +393,65 @@ class PackageController extends Controller
      * Get guides by city (AJAX)
      */
     public function getGuidesByCity($city)
-{
-    $guides = \App\Models\Guide::where('city', $city)
-        ->with(['languages' => function ($query) {
-            $query->select('guide_id', 'language'); // columns in guide_language table
-        }])
-        ->get(['guide_id', 'name', 'contact_no', 'city', 'status']);
+    {
+        $guides = \App\Models\Guide::where('city', $city)
+            ->with(['languages' => function ($query) {
+                $query->select('guide_id', 'language'); // columns in guide_language table
+            }])
+            ->get(['guide_id', 'name', 'contact_no', 'city', 'status']);
 
-    // Map to flatten language strings if needed
-    $guides->transform(function ($guide) {
-        return [
-            'guide_id'   => $guide->guide_id,
-            'name'       => $guide->name,
-            'contact_no' => $guide->contact_no,
-            'languages'  => $guide->languages->pluck('language')->toArray(),
-        ];
-    });
+        // Map to flatten language strings if needed
+        $guides->transform(function ($guide) {
+            return [
+                'guide_id'   => $guide->guide_id,
+                'name'       => $guide->name,
+                'contact_no' => $guide->contact_no,
+                'languages'  => $guide->languages->pluck('language')->toArray(),
+            ];
+        });
 
-    return response()->json($guides);
-}
-
+        return response()->json($guides);
+    }
 
     /**
      * Get restaurants by city (AJAX) - through hotels in that city
      */
     public function getRestaurantsByCity($city)
     {
-        $restaurants = \App\Models\Restaurant::where('city',$city)
-          ->get(['restaurant_id', 'name', 'cuisine']);
-        
-        return response()->json($restaurants);
+        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine']);
+        return response()->json(['restaurants' => $restaurants]);
+    }
+
+    /**
+     * Process selected items array from request
+     * 
+     * @param array $items Array of selected items from request
+     * @return array Processed items array
+     */
+    private function processSelectedItems($items)
+    {
+        if (empty($items)) {
+            return [];
+        }
+
+        // If items is a JSON string, decode it
+        if (is_string($items)) {
+            $items = json_decode($items, true);
+        }
+
+        // If decoding failed or items is not an array, return empty array
+        if (!is_array($items)) {
+            return [];
+        }
+
+        // Process each item
+        return array_map(function ($item) {
+            // If item is a JSON string, decode it
+            if (is_string($item)) {
+                $decodedItem = json_decode($item, true);
+                return is_array($decodedItem) ? $decodedItem : ['id' => $item];
+            }
+            return $item;
+        }, $items);
     }
 }

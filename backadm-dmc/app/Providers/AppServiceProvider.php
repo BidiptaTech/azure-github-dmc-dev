@@ -12,7 +12,6 @@ use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,17 +29,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
-
-        // Force URL scheme and subdirectory configuration for Azure deployment
-        if (config('app.env') === 'production') {
-            URL::forceScheme('https');
-            
-            // Set the subdirectory for Azure deployment
-            $appUrl = rtrim(config('app.url'), '/');
-            if (!str_contains($appUrl, '/backadm-dmc')) {
-                config(['app.url' => $appUrl . '/backadm-dmc']);
-            }
-        }
 
         Storage::extend('azure', function($app, $config) {
             try {
@@ -70,5 +58,22 @@ class AppServiceProvider extends ServiceProvider
                 throw $e;
             }
         });
+            
+            // Force HTTPS URLs everywhere
+            if (config("app.env") === "production" || isset($_SERVER["HTTPS"]) || request()->header("x-forwarded-proto") == "https") {
+                URL::forceScheme("https");
+                URL::forceRootUrl(config("app.url"));
+            }
+            
+            // Set asset URL for subdirectory
+            if (config("app.asset_url")) {
+                URL::asset("/");
+            }
+            
+            // Force HTTPS for all requests
+            if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"]) && $_SERVER["HTTP_X_FORWARDED_PROTO"] === "https") {
+                request()->server->set("HTTPS", "on");
+                request()->server->set("SERVER_PORT", 443);
+            }
     }
 }

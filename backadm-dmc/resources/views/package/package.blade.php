@@ -141,9 +141,73 @@
                             @endif
                         </div>
 
+                        <!-- Restaurants -->
                         <div class="mb-3">
-                            <span class="badge bg-{{ $package->status == 'active' ? 'success' : ($package->status == 'draft' ? 'warning' : 'secondary') }}">
-                                {{ ucfirst($package->status) }}
+                            @php
+                                $restaurants = is_string($package->selected_restaurants) ? 
+                                    json_decode($package->selected_restaurants, true) : 
+                                    (is_array($package->selected_restaurants) ? $package->selected_restaurants : []);
+                            @endphp
+                            @if(!empty($restaurants))
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach($restaurants as $restaurant)
+                                        @if(is_array($restaurant) && isset($restaurant['name']))
+                                            <span class="badge bg-light text-dark">
+                                                <i class="ri-restaurant-line me-1"></i>{{ $restaurant['name'] }}
+                                                @if(isset($restaurant['cuisine']) && !empty($restaurant['cuisine']))
+                                                    <small>({{ $restaurant['cuisine'] }})</small>
+                                                @endif
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <!-- Guides -->
+                        <div class="mb-3">
+                            @php
+                                $guides = is_string($package->selected_guide) ? 
+                                    json_decode($package->selected_guide, true) : 
+                                    (is_array($package->selected_guide) ? $package->selected_guide : []);
+                            @endphp
+                            @if(!empty($guides))
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach($guides as $guide)
+                                        @if(is_array($guide) && isset($guide['name']))
+                                            <span class="badge bg-light text-dark">
+                                                <i class="ri-user-line me-1"></i>{{ $guide['name'] }}
+                                                @if(isset($guide['languages']) && !empty($guide['languages']))
+                                                    <small>(
+                                                    @if(is_array($guide['languages']))
+                                                        @php
+                                                            $languageStrings = [];
+                                                            foreach($guide['languages'] as $lang) {
+                                                                if(is_string($lang)) {
+                                                                    $languageStrings[] = $lang;
+                                                                } elseif(is_array($lang) && isset($lang['language'])) {
+                                                                    $languageStrings[] = $lang['language'];
+                                                                } elseif(is_object($lang) && isset($lang->language)) {
+                                                                    $languageStrings[] = $lang->language;
+                                                                }
+                                                            }
+                                                            echo implode(', ', $languageStrings);
+                                                        @endphp
+                                                    @else
+                                                        {{ $guide['languages'] }}
+                                                    @endif
+                                                    )</small>
+                                                @endif
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="mb-3">
+                            <span class="badge bg-{{ $package->status == '1' ? 'success' : ($package->status == '0' ? 'warning' : 'secondary') }}">
+                                {{ ucfirst($package->status == '1' ? 'Active' : ($package->status == '0' ? 'Draft' : 'Inactive')) }}
                             </span>
                         </div>
                     </div>
@@ -152,10 +216,10 @@
                             <a href="{{ route('packages.show', $package->id) }}" class="btn btn-primary btn-sm w-100">
                                 <i class="ri-eye-line me-1"></i>View
                             </a>
-                            <a href="{{ route('packages.edit', $package->id) }}" class="btn btn-info btn-sm w-100">
+                            <a href="{{ route('packages.edit', ['id' => $package->package_id]) }}" class="btn btn-info btn-sm w-100">
                                 <i class="ri-pencil-line me-1"></i>Edit
                             </a>
-                            <form action="{{ route('packages.destroy', $package->id) }}" method="POST" class="w-100">
+                            <form action="{{ route('packages.destroy', ['id' => $package->package_id]) }}" method="POST" class="w-100">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-danger btn-sm w-100" 

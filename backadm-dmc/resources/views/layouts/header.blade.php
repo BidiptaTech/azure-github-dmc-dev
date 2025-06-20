@@ -32,17 +32,17 @@
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/css/demo.css' }}" />
 
 <!-- Vendors CSS -->
-<link rel="stylesheet" href="{{ subdirectory_asset('assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css') }}" />
-<link rel="stylesheet" href="{{ subdirectory_asset('assets/vendor/libs/typeahead-js/typeahead.css') }}" /> 
-<link rel="stylesheet" href="{{ subdirectory_asset('assets/vendor/libs/apex-charts/apex-charts.css') }}" />
-<link rel="stylesheet" href="{{ subdirectory_asset('assets/vendor/libs/swiper/swiper.css') }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/typeahead-js/typeahead.css' }}" /> 
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/apex-charts/apex-charts.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/swiper/swiper.css' }}" />
 
 <!-- Page CSS -->
-<link rel="stylesheet" href="{{ subdirectory_asset('assets/vendor/css/pages/cards-statistics.css') }}" />
-<link rel="stylesheet" href="{{ subdirectory_asset('assets/vendor/css/pages/cards-analytics.css') }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/pages/cards-statistics.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/pages/cards-analytics.css' }}" />
 
 <!-- Helpers -->
-<script src="{{ subdirectory_asset('assets/vendor/js/helpers.js') }}"></script>
-<script src="{{ subdirectory_asset('assets/vendor/js/template-customizer.js') }}"></script>
-<script src="{{ subdirectory_asset('assets/js/config.js') }}"></script>
+<script src="{{ env('APP_URL') . '/assets/vendor/js/helpers.js' }}"></script>
+<script src="{{ env('APP_URL') . '/assets/vendor/js/template-customizer.js' }}"></script>
+<script src="{{ env('APP_URL') . '/assets/js/config.js' }}"></script>
 

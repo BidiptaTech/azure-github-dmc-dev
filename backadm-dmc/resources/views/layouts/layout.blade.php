@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-navbar-fixed layout-menu-fixed layout-compact " dir="ltr"
-  data-theme="theme-bordered" data-assets-path="{{ subdirectory_asset('assets/') }}"
+  data-theme="theme-bordered" data-assets-path="{{ env('APP_URL') . '/assets/'}}"
   data-template="vertical-menu-template-bordered"
   data-style="light">
 <head>

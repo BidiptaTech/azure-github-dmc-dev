@@ -43,7 +43,9 @@ use App\Http\Controllers\ZoneController;
 use App\Http\Controllers\JobSheetController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FinanceReportController;
 use Illuminate\Support\Facades\Artisan;
+use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 
 /*
@@ -73,6 +75,12 @@ Route::group(['middleware' => ['auth']], function () {
         Artisan::call('route:clear');
         return response()->json(['message' => 'All caches cleared successfully.']);
     })->middleware('auth')->name('clear');
+
+    // Add admin middleware to the hotels endpoint
+    
+    
+    Route::resource('hotels', HotelController::class);
+    
     Route::post('/search-roles', [FeaturesController::class, 'searchRoles'])->name('search-roles');
     Route::post('/get-all-roles', [FeaturesController::class, 'getAllRoles'])->name('get-all-roles');
     Route::get('/admin/dashboard', [UserController::class, 'adminlogin'])->name('admin.dashboard');
@@ -85,9 +93,11 @@ Route::group(['middleware' => ['auth']], function () {
     Route::group(['middleware' => ['admin']], function () {
         // Predefined Packages Routes
         // Country → City
-        Route::get('/hotels/{city}', [PackageController::class, 'getHotelsByCity']);
+        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
 
-        Route::resource('hotels', HotelController::class);
+        Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
+        Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
+        
         Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry']);
         // City → Hotel
         // City → Attraction

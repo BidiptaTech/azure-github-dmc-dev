@@ -42,6 +42,7 @@ class Package extends Model
     ];
 
     protected $fillable = [
+        'package_id',
         'title',
         'destination',
         'city',

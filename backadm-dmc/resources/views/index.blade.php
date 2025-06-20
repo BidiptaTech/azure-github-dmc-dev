@@ -493,6 +493,7 @@
                     @endphp
                     <div class="progress-bar-modern" id="enquiry-progress" style="width: {{ $enquiryProgress }}%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
                 </div>
+                <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
             </div>
         </div>
 
@@ -512,11 +513,11 @@
                 <div class="progress-modern">
                     @php
                         $bookingTotal = $counts['bookings']['total'] ?? 0;
-                        $bookingActive = ($counts['bookings']['confirmed'] ?? 0) + ($counts['bookings']['pending'] ?? 0);
-                        $bookingProgress = $bookingTotal > 0 ? round(($bookingActive / $bookingTotal) * 100) : 0;
+                        $bookingProgress = min(($bookingTotal / 500) * 100, 100); // Cap at 500 bookings
                     @endphp
                     <div class="progress-bar-modern" id="booking-progress" style="width: {{ $bookingProgress }}%; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
                 </div>
+                <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
             </div>
         </div>
 
@@ -536,11 +537,11 @@
                 <div class="progress-modern">
                     @php
                         $tourTotal = $counts['tours']['total'] ?? 0;
-                        $tourActive = ($counts['tours']['active'] ?? 0) + ($counts['tours']['completed'] ?? 0);
-                        $tourProgress = $tourTotal > 0 ? round(($tourActive / $tourTotal) * 100) : 0;
+                        $tourProgress = min(($tourTotal / 500) * 100, 100); // Cap at 500 tours
                     @endphp
                     <div class="progress-bar-modern" id="tour-progress" style="width: {{ $tourProgress }}%; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
                 </div>
+                <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
             </div>
         </div>
     </div>
@@ -1466,8 +1467,7 @@ function updateProgressBars(counts) {
     
     // Update Booking Progress Bar
     const bookingTotal = counts.bookings.total || 0;
-    const bookingActive = (counts.bookings.confirmed || 0) + (counts.bookings.pending || 0);
-    const bookingProgress = bookingTotal > 0 ? Math.round((bookingActive / bookingTotal) * 100) : 0;
+    const bookingProgress = Math.min((bookingTotal / 500) * 100, 100); // Cap at 500 bookings
     
     const bookingProgressBar = document.getElementById('booking-progress');
     if (bookingProgressBar) {
@@ -1476,8 +1476,7 @@ function updateProgressBars(counts) {
     
     // Update Tour Progress Bar
     const tourTotal = counts.tours.total || 0;
-    const tourActive = (counts.tours.active || 0) + (counts.tours.completed || 0);
-    const tourProgress = tourTotal > 0 ? Math.round((tourActive / tourTotal) * 100) : 0;
+    const tourProgress = Math.min((tourTotal / 500) * 100, 100); // Cap at 500 tours
     
     const tourProgressBar = document.getElementById('tour-progress');
     if (tourProgressBar) {

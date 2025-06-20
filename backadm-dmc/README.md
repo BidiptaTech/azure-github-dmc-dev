@@ -1,15 +1,3 @@
-# DMC Laravel Backend Application
-
-## Deployment Information
-This Laravel application is configured for Azure App Service deployment in a subdirectory structure:
-- **Production URL**: `https://dev.travclicks.com/backadm-dmc`
-- **Environment**: Azure App Service (Linux Ubuntu)
-- **Structure**: Laravel backend in `/backadm-dmc` subdirectory, React frontend in root
-
-📖 **For detailed deployment instructions, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)**
-
----
-
 <a href="https://themeforest.net/collections/6544381-bootstrap-admin-dashboard-templates"><img src="http://html.matoxi.net/adv-universal/adv-bootstrap-collection-2.jpg"></a>
 <a href="https://themeforest.net/collections/6912257-angular-admin-dashboard-template"><img src="http://html.matoxi.net/adv-universal/adv-angular-collection-2.jpg"></a>
 <a href="https://themeforest.net/collections/7774628-reactjs-dashboard-template"><img src="http://html.matoxi.net/adv-universal/adv-react-collection-2.jpg"></a>

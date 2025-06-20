@@ -78,7 +78,7 @@ class FacilityController extends Controller
             'status' => $request->input('facility_status'),
             'is_chargeable' => $request->input('chargeable'),
             'chargable_comment' => $request->input('comment'),
-            'inserted_by_user' => Auth::user()->id,
+            'inserted_by_user' => Auth::user()->userId,
             'facilityId' => $facilityId,
         ]);
         return redirect()->route('facility.index')
@@ -117,7 +117,7 @@ class FacilityController extends Controller
         $facility->status = $request->input('facility_status') == 1 ? 1 : 0;
         $facility->is_chargeable = $request->input('chargeable');
         $facility->chargable_comment = $request->input('comment');
-        $facility->inserted_by_user = Auth::user()->id;
+        $facility->inserted_by_user = Auth::user()->userId;
         $facility->icon = $storage_file['master_value'] ?? $facility->icon;
         $facility->save();
         return redirect()->route('facility.index')->with('success', 'Facility updated successfully.');

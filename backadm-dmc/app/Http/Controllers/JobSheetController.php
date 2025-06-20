@@ -121,16 +121,15 @@ class JobSheetController extends Controller
                 if(!is_null($dmcId)){
                     $tomorrow = Carbon::tomorrow()->toDateString();
                     $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
-                    ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
-                    ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-                    ->get();
+                        ->where('data->0->>dmc_id', $dmcId)
+                        ->where('data->0->>pickupdate', $tomorrow)
+                        ->get();
                 }
             }
             else{
                 $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
                 ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                ->get();
-               
             }
             
             return view('CreateJobSheet.create-driver-jobsheet', compact('dmcId', 'orders', 'drivers', 'vehicles'));

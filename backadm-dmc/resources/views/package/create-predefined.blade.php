@@ -37,6 +37,7 @@
                 <div class="card-header bg-light">
                     <h5 class="mb-0"><i class="ri-information-line me-2 text-primary"></i>Basic Information</h5>
                 </div>
+                <x-alert />
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
@@ -488,16 +489,17 @@ $(document).ready(function() {
         if (city) {
             // Load hotels
             $.ajax({
-                url: `{{ env('APP_URL') }}/hotels/${encodeURIComponent(city)}`,
+                url: `{{ env('APP_URL') }}/hotel-city/${encodeURIComponent(city)}`,
                 method: 'GET',
                 success: function(response) {
                     console.log("hotel = ", response);
                     hotelSelect.prop('disabled', false);
                     response.forEach(function(hotel) {
-                        const option = new Option(hotel.name, hotel.id);
+                        const option = new Option(hotel.name, hotel.hotel_unique_id, hotel.city);
                         $(option).data('hotel-data', {
-                            id: hotel.id,
-                            name: hotel.name
+                            id: hotel.hotel_unique_id,
+                            name: hotel.name,
+                            city: hotel.city
                         });
                         hotelSelect.append(option);
                     });
@@ -511,10 +513,11 @@ $(document).ready(function() {
                 success: function(response) {
                     attractionSelect.prop('disabled', false);
                     response.forEach(function(attraction) {
-                        const option = new Option(attraction.name, attraction.id);
+                        const option = new Option(attraction.name, attraction.attraction_id, attraction.location);
                         $(option).data('attraction-data', {
-                            id: attraction.id,
-                            name: attraction.name
+                            id: attraction.attraction_id,
+                            name: attraction.name,
+                            city: attraction.location
                         });
                         attractionSelect.append(option);
                     });
@@ -547,13 +550,14 @@ $(document).ready(function() {
                 method: 'GET',
                 success: function(response) {
                     restaurantSelect.prop('disabled', false);
-                    response.forEach(function(restaurant) {
+                    response.restaurants.forEach(function(restaurant) {
                         const restaurantName = `${restaurant.name} (${restaurant.cuisine})`;
-                        const option = new Option(restaurantName, restaurant.id);
+                        const option = new Option(restaurantName, restaurant.restaurant_id);
                         $(option).data('restaurant-data', {
-                            id: restaurant.id,
+                            id: restaurant.restaurant_id,
                             name: restaurant.name,
                             cuisine: restaurant.cuisine,
+                            city: restaurant.city
                         });
                         restaurantSelect.append(option);
                     });
@@ -572,7 +576,8 @@ $(document).ready(function() {
             if (hotelData) {
                 selectedHotels.push({
                     id: hotelData.id,
-                    name: hotelData.name
+                    name: hotelData.name,
+                    city: hotelData.city
                 });
             }
         });
@@ -591,7 +596,8 @@ $(document).ready(function() {
             if (attractionData) {
                 selectedAttractions.push({
                     id: attractionData.id,
-                    name: attractionData.name
+                    name: attractionData.name,
+                    city: attractionData.city
                 });
             }
         });
@@ -641,7 +647,7 @@ $(document).ready(function() {
                     id: restaurantData.id,
                     name: restaurantData.name,
                     cuisine: restaurantData.cuisine,
-                    hotel_name: restaurantData.hotel_name
+                    city: restaurantData.city
                 });
             }
         });
