@@ -284,7 +284,7 @@ const TooltipContent = ({ hotel }) => {
   );
 };
 
-const HotelListing = ({ onSelect, initialHotels = [], searchParams }) => {
+const HotelListing = ({ onSelect, initialHotels = [], searchParams, selectedHotelId }) => {
   const dispatch = useDispatch();
   const { hotels, status, searchState } = useSelector((state) => state.hotels);
   const [searchTerm, setSearchTerm] = useState("");
@@ -430,9 +430,24 @@ const HotelListing = ({ onSelect, initialHotels = [], searchParams }) => {
         }))
     : initialHotels;
 
+  // Update selected hotel when prop changes
+  useEffect(() => {
+    if (selectedHotelId) {
+      // Find the hotel object from formattedHotels
+      const hotelObject = formattedHotels.find(h => h.id === selectedHotelId || h.name === selectedHotelId);
+      setSelectedHotel(hotelObject || null);
+    } else {
+      setSelectedHotel(null);
+    }
+  }, [selectedHotelId, formattedHotels]);
+
   // Handle hotel selection
   const handleHotelSelect = (hotel) => {
-    if (!hotel) return;
+    if (!hotel) {
+      setSelectedHotel(null);
+      if (onSelect) onSelect(null);
+      return;
+    }
     
     setSelectedHotel(hotel);
 

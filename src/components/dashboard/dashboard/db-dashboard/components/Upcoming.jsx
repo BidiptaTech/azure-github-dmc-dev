@@ -2374,31 +2374,28 @@ export default function Pending() {
                                 <button
                                   className="button h-40 px-20 text-13 fw-500 rounded-8"
                                   style={{
-                                    backgroundColor: "#FF9800",
+                                    backgroundColor: "#0c9800",
                                     color: "white",
                                     border: "none",
                                     transition: "all 0.3s ease",
-                                    boxShadow:
-                                      "0 2px 6px rgba(255, 152, 0, 0.2)",
+                                    boxShadow: "0 2px 6px rgba(53, 84, 209, 0.2)",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "8px",
                                   }}
                                   onMouseEnter={(e) => {
-                                    e.target.style.backgroundColor = "#F57C00";
+                                    e.target.style.backgroundColor = "#0d6305";
                                     e.target.style.boxShadow =
-                                      "0 4px 8px rgba(255, 152, 0, 0.3)";
-                                    e.target.querySelector(
-                                      "i"
-                                    ).style.transform = "rotate(15deg)";
+                                      "0 4px 8px rgba(53, 84, 209, 0.3)";
+                                    e.target.querySelector("i").style.transform =
+                                      "scale(1.2)";
                                   }}
                                   onMouseLeave={(e) => {
-                                    e.target.style.backgroundColor = "#FF9800";
+                                    e.target.style.backgroundColor = "#0c9800";
                                     e.target.style.boxShadow =
-                                      "0 2px 6px rgba(255, 152, 0, 0.2)";
-                                    e.target.querySelector(
-                                      "i"
-                                    ).style.transform = "rotate(0deg)";
+                                      "0 2px 6px rgba(53, 84, 209, 0.2)";
+                                    e.target.querySelector("i").style.transform =
+                                      "scale(1)";
                                   }}
                                   onClick={() => handleEdit(list)}
                                 >
@@ -2409,7 +2406,7 @@ export default function Pending() {
                                       transition: "transform 0.3s ease",
                                     }}
                                   ></i>
-                                  Edit
+                                  Add More Services
                                 </button>
                               )}
 

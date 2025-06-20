@@ -182,8 +182,8 @@ const PreDefinePackages = () => {
     
     // Format the data for API request
     const searchParams = {
-      location: selectedLocation,
-      city_id: selectedCity?.id || selectedCity?.city_id,
+      country: selectedLocation,
+      city: selectedCity,
       check_in: dateRange[0],
       check_out: dateRange[1],
       adults: guestCounts.Adults,

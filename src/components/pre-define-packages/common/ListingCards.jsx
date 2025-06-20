@@ -1,5 +1,7 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { fetchPackageDetails } from '../../../slice/tour-packages/prePackagesSlice';
 import { 
   Box, 
   Card, 
@@ -26,11 +28,30 @@ import PeopleIcon from '@mui/icons-material/People';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 
 const PackageCard = ({ packageData }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleViewDetails = () => {
+    if (packageData.package_id) {
+      // Dispatch action to fetch package details
+      dispatch(fetchPackageDetails(packageData.package_id))
+        .unwrap()
+        .then(() => {
+          // Navigate to the package details page
+          navigate(`/package-details/${packageData.package_id}`);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch package details:', error);
+          // You could add error handling here, like showing a notification
+        });
+    }
+  };
+
   return (
     <Card sx={{ 
+      height: '100%',
       display: 'flex', 
-      flexDirection: { xs: 'column', md: 'row' }, 
-      mb: 3,
+      flexDirection: 'column', 
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       borderRadius: '12px',
       overflow: 'hidden',
@@ -43,21 +64,21 @@ const PackageCard = ({ packageData }) => {
       <CardMedia
         component="img"
         sx={{ 
-          width: { xs: '100%', md: 300 },
-          height: { xs: 200, md: 'auto' },
+          width: '100%',
+          height: 200,
           objectFit: 'cover'
         }}
         image={packageData.main_image}
         alt={packageData.title}
       />
-      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         <CardContent sx={{ flex: '1 0 auto', p: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-            <Typography component="div" variant="h5" fontWeight="bold">
+            <Typography component="div" variant="h6" fontWeight="bold">
               {packageData.title}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <Typography variant="h5" color="primary" fontWeight="bold">
+              <Typography variant="h6" color="primary" fontWeight="bold">
                 ${packageData.price_adult}
               </Typography>
               <Typography variant="caption">per adult</Typography>
@@ -86,73 +107,28 @@ const PackageCard = ({ packageData }) => {
             />
           </Stack>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          {/* <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Rating value={parseFloat(packageData.rating) || 0} precision={0.5} readOnly size="small" />
             <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
               ({packageData.reviews_count} reviews)
             </Typography>
-          </Box>
+          </Box> */}
           
           <Typography variant="body2" color="text.secondary" paragraph sx={{ mb: 2 }}>
-            {packageData.description.length > 150 
-              ? `${packageData.description.substring(0, 150)}...` 
+            {packageData.description.length > 100 
+              ? `${packageData.description.substring(0, 100)}...` 
               : packageData.description}
           </Typography>
-          
-          <Grid container spacing={2}>
-            {packageData.selected_hotels && packageData.selected_hotels.length > 0 && (
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  <HotelIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Accommodations:
-                </Typography>
-                <List dense disablePadding>
-                  {packageData.selected_hotels.slice(0, 3).map((hotel, index) => (
-                    <ListItem key={index} disablePadding>
-                      <ListItemText primary={hotel.name} />
-                    </ListItem>
-                  ))}
-                </List>
-              </Grid>
-            )}
-            
-            {packageData.selected_attractions && packageData.selected_attractions.length > 0 && (
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  <AttractionsIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Attractions:
-                </Typography>
-                <List dense disablePadding>
-                  {packageData.selected_attractions.slice(0, 3).map((attraction, index) => (
-                    <ListItem key={index} disablePadding>
-                      <ListItemText primary={attraction.name} />
-                    </ListItem>
-                  ))}
-                </List>
-              </Grid>
-            )}
-            
-            {packageData.selected_restaurants && packageData.selected_restaurants?.length > 0 && (
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  <RestaurantIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Dining:
-                </Typography>
-                <List dense disablePadding>
-                  {packageData.selected_restaurants.slice(0, 2).map((restaurant, index) => (
-                    <ListItem key={index} disablePadding>
-                      <ListItemText primary={restaurant.name} />
-                    </ListItem>
-                  ))}
-                </List>
-              </Grid>
-            )}
-          </Grid>
         </CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', pl: 3, pb: 3, pr: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', pl: 3, pb: 3, pr: 3, mt: 'auto' }}>
           <Chip label={packageData.category} size="small" sx={{ mr: 1 }} />
           <Box sx={{ flexGrow: 1 }} />
-          <Button variant="contained" color="primary">
+          <Button 
+            variant="contained" 
+            color="primary" 
+            size="small"
+            onClick={handleViewDetails}
+          >
             View Details
           </Button>
         </Box>
@@ -171,30 +147,22 @@ const NoResults = () => (
 );
 
 const LoadingSkeleton = () => (
-  <Card sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, mb: 3, height: 350 }}>
-    <Skeleton variant="rectangular" sx={{ width: { xs: '100%', md: 300 }, height: { xs: 200, md: '100%' } }} />
-    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', p: 3 }}>
-      <Skeleton variant="text" width="60%" height={40} />
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', my: 2 }}>
-        <Skeleton variant="text" width="40%" />
-        <Skeleton variant="text" width="20%" />
+  <Grid item xs={12} sm={6} md={4}>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Skeleton variant="rectangular" sx={{ width: '100%', height: 200 }} />
+      <Box sx={{ p: 3 }}>
+        <Skeleton variant="text" width="60%" height={30} />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', my: 2 }}>
+          <Skeleton variant="text" width="40%" />
+          <Skeleton variant="text" width="20%" />
+        </Box>
+        <Skeleton variant="text" count={3} height={20} sx={{ my: 1 }} />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+          <Skeleton variant="rectangular" width={120} height={40} />
+        </Box>
       </Box>
-      <Skeleton variant="text" count={3} height={20} sx={{ my: 1 }} />
-      <Grid container spacing={2} sx={{ mt: 2 }}>
-        <Grid item xs={6}>
-          <Skeleton variant="text" width="90%" />
-          <Skeleton variant="text" width="70%" />
-        </Grid>
-        <Grid item xs={6}>
-          <Skeleton variant="text" width="90%" />
-          <Skeleton variant="text" width="70%" />
-        </Grid>
-      </Grid>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-        <Skeleton variant="rectangular" width={120} height={40} />
-      </Box>
-    </Box>
-  </Card>
+    </Card>
+  </Grid>
 );
 
 const ListingCards = () => {
@@ -206,9 +174,11 @@ const ListingCards = () => {
         <Typography variant="h5" gutterBottom>
           Searching for packages...
         </Typography>
-        {[1, 2, 3].map(item => (
-          <LoadingSkeleton key={item} />
-        ))}
+        <Grid container spacing={3}>
+          {[1, 2, 3].map(item => (
+            <LoadingSkeleton key={item} />
+          ))}
+        </Grid>
       </Box>
     );
   }
@@ -244,14 +214,20 @@ const ListingCards = () => {
         Found {packages.length} package{packages.length !== 1 ? 's' : ''}
       </Typography>
       
-      {Array.isArray(packages) ? (
-        packages.map(packageItem => (
-          <PackageCard key={packageItem.id} packageData={packageItem} />
-        ))
-      ) : (
-        // Handle if packages is an object rather than array
-        <PackageCard packageData={packages} />
-      )}
+      <Grid container spacing={3}>
+        {Array.isArray(packages) ? (
+          packages.map(packageItem => (
+            <Grid item xs={12} sm={6} md={4} key={packageItem.package_id}>
+              <PackageCard packageData={packageItem} />
+            </Grid>
+          ))
+        ) : (
+          // Handle if packages is an object rather than array
+          <Grid item xs={12} sm={6} md={4}>
+            <PackageCard packageData={packages} />
+          </Grid>
+        )}
+      </Grid>
     </Box>
   );
 };

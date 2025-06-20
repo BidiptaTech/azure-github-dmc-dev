@@ -96,8 +96,8 @@ const MainFilterSearchBox = ({ Location }) => {
       dispatch(setpickupdate(selectedDate1));
       dispatch(setSelectionType(selectedPort));
       // Convert the coordinate objects to strings before dispatching to Redux
-      dispatch(setPickupPlaceid1(JSON.stringify(pickUpLatLng)));
-      dispatch(setDropoffPlaceid1(JSON.stringify(dropOffLatLng)));
+      dispatch(setPickupPlaceid1(pickUpLatLng));
+      dispatch(setDropoffPlaceid1(dropOffLatLng));
 
       // Only fetch vehicles if both locations are valid
       if (locationsValid && time1) {

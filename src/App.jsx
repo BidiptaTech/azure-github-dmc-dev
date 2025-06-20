@@ -91,6 +91,7 @@ import Updatebooking from "./components/dashboard/dashboard/db-dashboard/compone
 import TourPackages from "./pages/tour-packages/index";
 import PreDefinePackagesPage from "./pages/pre-define-packages/index";
 import Packages from "./pages/packages";
+import PackageDetails from "./pages/pre-define-packages/package-details";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
 
@@ -187,6 +188,11 @@ function App() {
           <Route path="/dashboard/pre-define-packages" element={
             <ProtectedRoute>
               <PreDefinePackagesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/package-details/:id" element={
+            <ProtectedRoute>
+              <PackageDetails />
             </ProtectedRoute>
           } />
           <Route path="dashboard">

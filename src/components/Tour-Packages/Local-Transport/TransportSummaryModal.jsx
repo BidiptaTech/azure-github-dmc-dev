@@ -300,7 +300,7 @@ const TransportSummaryModal = ({
                       Pickup Date
                     </Typography>
                     <Typography variant="body1">
-                      {bookingData.pickupDate || 'Not specified'}
+                      {bookingData.bookingDate || 'Not specified'}
                     </Typography>
                   </PriceCard>
                 </Grid>

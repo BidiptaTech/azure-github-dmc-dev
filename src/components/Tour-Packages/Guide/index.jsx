@@ -18,7 +18,7 @@ import TimeSelection from './TimeSelection';
 import PackageSelection from './PackageSelection';
 import PassengerSelection from './PassengerSelection';
 import GuideBookingSummaryModal from './GuideBookingSummaryModal';
-import { addGuideBookings } from '../../../slice/tour-packages/tourPackageSlice';
+import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 
 export default function GuideComponent() {
   const dispatch = useDispatch();
@@ -34,6 +34,7 @@ export default function GuideComponent() {
     pickUpTime: '',
     pickUpTimeHour: null, // Store the hour value for calculations
     hourlyPackage: '',
+    bookingDate: searchParams?.date || new Date().toISOString().split('T')[0],
     priceBreakdown: {
       basePrice: 0,
       nightSurcharge: 0,
@@ -45,7 +46,7 @@ export default function GuideComponent() {
       Adults: searchParams?.adults || searchParams?.adult || 1,
       Children: searchParams?.children || 0
     }
-  }), [searchParams?.adults, searchParams?.adult, searchParams?.children]);
+  }), [searchParams?.adults, searchParams?.adult, searchParams?.children, searchParams?.date]);
 
   const [formSections, setFormSections] = useState([]);
   const [openModal, setOpenModal] = useState(false);
@@ -228,36 +229,67 @@ export default function GuideComponent() {
       return;
     }
     
-    // Create bookings data structure
-    const bookingsData = {
-      type: 'guide',
-      bookings: sectionsToBook.map((section, index) => {
-        const summaryData = getBookingSummary(section);
-        const selectedGuideDetails = guides.find(g => g.id === section.guide) || {};
-        
-        return {
-          id: `guide-${Date.now()}-${index}`,
-          guideId: section.guide,
-          guideName: selectedGuideDetails.guide_name || 'Guide',
-          city: selectedGuideDetails.city || searchParams?.location?.city || '',
-          country: selectedGuideDetails.country || searchParams?.location?.country || '',
-          pickUpTime: section.pickUpTime,
-          pickUpTimeHour: section.pickUpTimeHour,
-          duration: section.hourlyPackage,
-          priceBreakdown: section.priceBreakdown,
-          pax: section.pax,
-          image: selectedGuideDetails.image || '/placeholder-guide.jpg',
-          mode: currentMode,
-          languages: selectedGuideDetails.languages || [],
-          experience: selectedGuideDetails.experience_years || 'Not specified'
-        };
-      })
-    };
-    
-    console.log("Guide bookings data:", bookingsData);
-    
-    // Dispatch action to store in tour packages Redux slice
-    dispatch(addGuideBookings(bookingsData));
+    // If there's only one section, send it directly without the bookings array
+    if (sectionsToBook.length === 1) {
+      const section = sectionsToBook[0];
+      const selectedGuideDetails = guides.find(g => g.id === section.guide) || {};
+      
+      const guideBookingData = {
+        type: 'guide',
+        id: `guide-${Date.now()}-0`,
+        guideId: section.guide,
+        guideName: selectedGuideDetails.guide_name || 'Guide',
+        city: selectedGuideDetails.city || searchParams?.location?.city || '',
+        country: selectedGuideDetails.country || searchParams?.location?.country || '',
+        pickUpTime: section.pickUpTime,
+        pickUpTimeHour: section.pickUpTimeHour,
+        duration: section.hourlyPackage,
+        priceBreakdown: section.priceBreakdown,
+        pax: section.pax,
+        image: selectedGuideDetails.image || '/placeholder-guide.jpg',
+        mode: currentMode,
+        languages: selectedGuideDetails.languages || [],
+        experience: selectedGuideDetails.experience_years || 'Not specified',
+        bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log("Guide booking data:", guideBookingData);
+      
+      // Dispatch action to store in tour packages Redux slice
+      dispatch(setAllServices(guideBookingData));
+    } else {
+      // For multiple bookings, keep the array format for now
+      const bookingsData = {
+        type: 'guide',
+        bookings: sectionsToBook.map((section, index) => {
+          const summaryData = getBookingSummary(section);
+          const selectedGuideDetails = guides.find(g => g.id === section.guide) || {};
+          
+          return {
+            id: `guide-${Date.now()}-${index}`,
+            guideId: section.guide,
+            guideName: selectedGuideDetails.guide_name || 'Guide',
+            city: selectedGuideDetails.city || searchParams?.location?.city || '',
+            country: selectedGuideDetails.country || searchParams?.location?.country || '',
+            pickUpTime: section.pickUpTime,
+            pickUpTimeHour: section.pickUpTimeHour,
+            duration: section.hourlyPackage,
+            priceBreakdown: section.priceBreakdown,
+            pax: section.pax,
+            image: selectedGuideDetails.image || '/placeholder-guide.jpg',
+            mode: currentMode,
+            languages: selectedGuideDetails.languages || [],
+            experience: selectedGuideDetails.experience_years || 'Not specified',
+            bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0]
+          };
+        })
+      };
+      
+      console.log("Guide bookings data:", bookingsData);
+      
+      // Dispatch action to store in tour packages Redux slice
+      dispatch(setAllServices(bookingsData));
+    }
     
     setBookingSuccess(true);
     
@@ -355,6 +387,8 @@ export default function GuideComponent() {
                       onChange={(e) => handleFieldChange(sectionIndex, 'hourlyPackage', e)}
                       disabled={!section.guide || !section.pickUpTime || status === 'loading'}
                       pickUpTime={section.pickUpTime ? { value: section.pickUpTime, hourValue: section.pickUpTimeHour } : null}
+                      bookingDate={section.bookingDate}
+                      formSection={section}
                     />
                   </Box>
                 </Box>

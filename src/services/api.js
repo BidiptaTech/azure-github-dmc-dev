@@ -100,6 +100,8 @@ export const endpoints = {
   // Package endpoints
   fetchPackages: (params) =>
     api.get("/packages", { params: transformParams(params) }),
+  fetchPackageDetails: (params) =>
+    api.get("/package-details", { params: transformParams(params) }),
 
   // Hotel endpoints
   fetchHotels: (params) =>
@@ -135,6 +137,12 @@ export const endpoints = {
     api.get("/restaurants", { params: transformParams(params) }),
   getRestaurantDetails: (params) =>
     api.get("/restaurant-details", { params: transformParams(params) }),
+
+  // Guide endpoints
+  fetchGuides: (params) =>
+    api.get("/tour-guides", { params: transformParams(params) }),
+  getGuideDetails: (params) =>
+    api.get("/guide-details", { params: transformParams(params) }),
 
   // Tour endpoints
   getTourDetails: (params) =>

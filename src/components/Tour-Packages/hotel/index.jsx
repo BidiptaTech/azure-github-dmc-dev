@@ -30,6 +30,7 @@ import {
   updateBookingArray, 
   setTotalPrice
 } from '@/slice/hotel/HotelDetailsSlice';
+import { setAllServices } from '@/slice/tour-packages/tourPackageSlice';
 
 
 
@@ -62,6 +63,7 @@ export default function HotelComponent({ searchParams }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedNights, setSelectedNights] = useState(1);
+  const [selectedNightIndices, setSelectedNightIndices] = useState(new Set());
   const [totalPackageNights, setTotalPackageNights] = useState(0);
   const [allocatedNights, setAllocatedNights] = useState(0);
   const dropdownRef = useRef(null);
@@ -104,6 +106,9 @@ export default function HotelComponent({ searchParams }) {
   const bookingArray = useSelector(state => state.hoteldetails?.bookingArray || []);
   const totalPrice = useSelector(state => state.hoteldetails?.totalPrice || 0);
   
+  // Get existing services from Redux state (similar to vehicle dropdown)
+  const existingServices = useSelector(state => state.tourPackages.AllServices || []);
+  
   // Get hotel details for the active configuration
   const apiHotelDetails = hotelConfigurations[activeHotelIndex]?.hotelDetails || currentHotelDetails;
   
@@ -132,8 +137,16 @@ export default function HotelComponent({ searchParams }) {
   useEffect(() => {
     if (maxNights > 0) {
       setSelectedNights(maxNights); // Default to maximum nights
+      
+      // Update selected indices for consecutive range
+      const allIndices = new Set();
+      for (let i = 0; i < maxNights; i++) {
+        allIndices.add(i);
+      }
+      setSelectedNightIndices(allIndices);
     } else {
       setSelectedNights(1); // Default to 1 if no date range
+      setSelectedNightIndices(new Set([0]));
     }
   }, [maxNights]);
 
@@ -168,6 +181,13 @@ export default function HotelComponent({ searchParams }) {
   // Create initial hotel configuration
   const createInitialHotelConfiguration = () => {
     const initialGuests = parseInt(searchCriteria?.guests?.adults || 1);
+    const nightsCount = maxNights > 0 ? maxNights : 1;
+    
+    // Create initial selected night indices
+    const initialNightIndices = [];
+    for (let i = 0; i < nightsCount; i++) {
+      initialNightIndices.push(i);
+    }
     
     const initialConfig = {
       id: generateUniqueId(),
@@ -176,7 +196,8 @@ export default function HotelComponent({ searchParams }) {
       roomTypeId: '',
       bedTypeId: '',
       mealPlanId: 'self',
-      nights: maxNights > 0 ? maxNights : 1,
+      nights: nightsCount,
+      selectedNightIndices: initialNightIndices,
       babyCot: false,
       occupancyType: 'single',
       adultDistribution: { male: 0, female: 0 },
@@ -205,6 +226,19 @@ export default function HotelComponent({ searchParams }) {
     setBedType(config.bedTypeId || '');
     setMealPlan(config.mealPlanId || 'self');
     setSelectedNights(config.nights || 1);
+    
+    // Load selected night indices from configuration
+    if (config.selectedNightIndices) {
+      setSelectedNightIndices(new Set(config.selectedNightIndices));
+    } else {
+      // Fallback: generate indices based on nights count for backward compatibility
+      const indices = new Set();
+      for (let i = 0; i < (config.nights || 1); i++) {
+        indices.add(i);
+      }
+      setSelectedNightIndices(indices);
+    }
+    
     setBabyCotSelected(config.babyCot || false);
     setOccupancyType(config.occupancyType || 'single');
     setAdultDistribution(config.adultDistribution || { male: 0, female: 0 });
@@ -222,6 +256,7 @@ export default function HotelComponent({ searchParams }) {
       bedTypeId: bedType,
       mealPlanId: mealPlan,
       nights: selectedNights,
+      selectedNightIndices: Array.from(selectedNightIndices),
       babyCot: babyCotSelected,
       occupancyType: occupancyType,
       adultDistribution: adultDistribution,
@@ -299,6 +334,149 @@ export default function HotelComponent({ searchParams }) {
     });
 
     console.log("All hotel configurations synced to Redux booking array");
+  };
+
+  // Dispatch hotel configurations to Redux (similar to vehicle dropdown pattern)
+  const dispatchHotelsToRedux = () => {
+    // Filter completed hotel configurations
+    const completedConfigurations = hotelConfigurations.filter(config => 
+      config.hotelId && 
+      config.roomTypeId && 
+      config.bedTypeId && 
+      config.nights > 0 &&
+      config.selectedGuests > 0
+    );
+
+    console.log("Hotel - Completed configurations:", completedConfigurations);
+
+    if (completedConfigurations.length > 0) {
+      // Format the bookings for setAllServices
+      const hotelsForRedux = completedConfigurations.map(config => {
+        const hotel = config.hotelDetails || {};
+        const roomType = roomTypes.find(r => r.id === config.roomTypeId);
+        const bedType = bedTypes.find(b => b.id === config.bedTypeId);
+        
+        // Calculate total meal plan cost
+        const totalMealCost = (config.guestMealPlans || []).reduce((total, mealPlanId) => {
+          const plan = mealPlans.find(p => p.id === mealPlanId);
+          return total + (plan?.price || 0);
+        }, 0);
+
+        // Calculate date range from selected checkboxes (simple array format)
+        const selectedIndices = config.selectedNightIndices || [];
+        let bookingDates = [];
+        
+        if (selectedIndices.length > 0) {
+          // Sort the selected indices to find the range
+          const sortedIndices = [...selectedIndices].sort((a, b) => a - b);
+          const firstIndex = sortedIndices[0];
+          const lastIndex = sortedIndices[sortedIndices.length - 1];
+          
+          // Calculate start date (first selected night) and end date (day after last selected night)
+          const startDate = dates[firstIndex];
+          const endDate = dates[lastIndex + 1]; // +1 because night index refers to the start date
+          
+          if (startDate && endDate) {
+            bookingDates = [
+              startDate.format('YYYY-MM-DD'),
+              endDate.format('YYYY-MM-DD')
+            ];
+          }
+        }
+
+        // Prepare selected meals object for the bed
+        const selectedMeals = {};
+        const mealTypes = [];
+        let bedTotalPrice = bedType?.price || 0;
+        
+        (config.guestMealPlans || []).forEach((mealPlanId, index) => {
+          const mealPlan = mealPlans.find(m => m.id === mealPlanId);
+          if (mealPlan) {
+            mealTypes.push(mealPlan.title);
+            selectedMeals[`meal_${index + 1}`] = {
+              type: mealPlan.title,
+              price: bedTotalPrice + (mealPlan.price || 0)
+            };
+            bedTotalPrice += (mealPlan.price || 0);
+          }
+        });
+
+        return {
+          type: "hotel",
+          bookingDate: bookingDates, // Simple array: ["start_date", "end_date"]
+          hotelDetails: {
+            hotel_id: config.hotelId,
+            hotel_name: hotel.hotel_name || hotel.name || 'Selected Hotel',
+            checkInTime: hotel.checkInTime || hotel.check_in_time || "15:00:00",
+            checkOutTime: hotel.checkOutTime || hotel.check_out_time || "12:00:00",
+            image: hotel.image || hotel.main_image || '',
+            location: hotel.address || hotel.location || '',
+            phone: hotel.phone || hotel.contact_number || '',
+            cancellation_charge: hotel.cancellation_charge || '',
+            priceMode: "dmc", // You can modify this based on your logic
+            priceModeId: 4, // You can modify this based on your logic
+            rooms: [{
+              room_id: parseInt(config.roomTypeId) || 0,
+              room_type: roomType?.name || 'Unknown Room',
+              beds: [{
+                bed_id: parseInt(config.bedTypeId) || 0,
+                bed_type: bedType?.name || 'Unknown Bed',
+                max_occupancy: bedType?.max_occupancy || 1,
+                head_count: config.selectedGuests || 1,
+                baby_cot: config.babyCot ? 1 : 0,
+                mealTypes: mealTypes.length > 0 ? mealTypes : ["Room Only"],
+                selectedMeals: Object.keys(selectedMeals).length > 0 ? selectedMeals : {
+                  meal_1: { type: "Room Only", price: bedTotalPrice }
+                },
+                price: bedTotalPrice,
+                room_type: roomType?.name || 'Unknown Room'
+              }]
+            }]
+          },
+          totalPrice: bedTotalPrice * (config.nights || 1), // Total price for all nights
+          tour_id: parseInt(searchCriteria?.tourId) || 0, // Get tour ID from search criteria
+        };
+      });
+
+      console.log("Hotel - Formatted bookings for Redux:", hotelsForRedux);
+
+      // Create a map of existing services by ID for faster lookup
+      const existingServicesMap = {};
+      existingServices.forEach(service => {
+        if (service.id) {
+          existingServicesMap[service.id] = service;
+        }
+      });
+
+      // First, filter out any existing hotel bookings
+      const nonHotelServices = existingServices.filter(service => service.type !== "hotel");
+
+      // Then create a final list of services
+      const finalServices = [...nonHotelServices];
+
+      // Add the new hotel bookings
+      let hasChanges = false;
+      hotelsForRedux.forEach(booking => {
+        // Only add if it doesn't already exist or if it has been updated
+        const existingService = existingServicesMap[booking.id];
+        if (!existingService || JSON.stringify(existingService) !== JSON.stringify(booking)) {
+          // Remove existing if it exists and add the new/updated one
+          const filteredServices = finalServices.filter(service => service.id !== booking.id);
+          filteredServices.push(booking);
+          finalServices.length = 0;
+          finalServices.push(...filteredServices);
+          hasChanges = true;
+        }
+      });
+
+      // Only dispatch if there are actual changes
+      if (hasChanges) {
+        console.log("Hotel - Dispatching finalServices to Redux:", finalServices);
+        dispatch(setAllServices(finalServices));
+      } else {
+        console.log("Hotel - No changes detected, skipping Redux dispatch");
+      }
+    }
   };
 
   // Add a new hotel/room using the Redux pattern (similar to your updateBookingArray)
@@ -396,44 +574,82 @@ export default function HotelComponent({ searchParams }) {
   };
 
   // Add a new similar hotel (new hotel but keep room type and other settings)
-  const handleAddSimilarHotel = () => {
-    // Get current configuration
-    const currentConfig = hotelConfigurations[activeHotelIndex];
+  // Add New Hotel (completely new hotel - resets everything)
+  const handleAddNewHotel = () => {
+    // Create a completely fresh hotel configuration
+    const initialGuests = parseInt(searchCriteria?.guests?.adults || 1);
+    const nightsCount = maxNights > 0 ? maxNights : 1;
     
-    // Create new configuration with empty hotel (user will need to select)
-    const newConfig = {
-      ...currentConfig,
+    // Create initial selected night indices
+    const initialNightIndices = [];
+    for (let i = 0; i < nightsCount; i++) {
+      initialNightIndices.push(i);
+    }
+    
+    const newHotelConfig = {
       id: generateUniqueId(),
-      hotelId: '', // Reset hotel ID - user will select from HotelListing
-      hotelDetails: {}, // Reset hotel details since it's a new hotel
-      roomTypeId: '', // Reset room type since it's a new hotel
-      bedTypeId: '', // Reset bed type since it's a new hotel
-      expanded: true
+      hotelId: '', // Empty - user will select from HotelListing
+      hotelDetails: {}, // Empty - will be populated on hotel selection
+      roomTypeId: '',
+      bedTypeId: '',
+      mealPlanId: 'self',
+      nights: nightsCount,
+      selectedNightIndices: initialNightIndices,
+      babyCot: false,
+      occupancyType: 'single',
+      adultDistribution: { male: 0, female: 0 },
+      expanded: true,
+      selectedGuests: initialGuests,
+      guestMealPlans: Array(initialGuests).fill('self')
     };
     
     // Add to configurations array
     const updatedConfigurations = [...hotelConfigurations];
-    updatedConfigurations.push(newConfig);
+    updatedConfigurations.push(newHotelConfig);
     
     setHotelConfigurations(updatedConfigurations);
     setActiveHotelIndex(updatedConfigurations.length - 1);
     
-    // Reset selections for the new configuration
-    setSelectedHotel('');
+    // Reset ALL selections for the new hotel (including hotel selection state)
+    setSelectedHotel(''); // Reset selected hotel state
     setRoomType('');
     setBedType('');
+    setMealPlan('self');
+    setSelectedNights(nightsCount);
+    
+    // Reset selected night indices
+    const allIndices = new Set();
+    for (let i = 0; i < nightsCount; i++) {
+      allIndices.add(i);
+    }
+    setSelectedNightIndices(allIndices);
+    
+    setBabyCotSelected(false);
+    setOccupancyType('single');
+    setAdultDistribution({ male: 0, female: 0 });
+    setSelectedGuests(initialGuests);
+    setGuestMealPlans(Array(initialGuests).fill('self'));
+    
+    // Reset search term and dropdown state for hotel selection
+    setSearchTerm('');
+    setIsDropdownOpen(false);
     
     // Show success message
     setAlert({
       show: true,
-      message: 'New hotel configuration added - please select a hotel',
-      severity: 'info'
+      message: 'New hotel configuration created - please select a hotel from the list',
+      severity: 'success'
     });
     
     // Hide message after 3 seconds
     setTimeout(() => {
       setAlert({ ...alert, show: false });
     }, 3000);
+  };
+
+  const handleAddSimilarHotel = () => {
+    // Just call the new handleAddNewHotel function
+    handleAddNewHotel();
   };
 
   // Remove the current hotel configuration
@@ -925,7 +1141,7 @@ export default function HotelComponent({ searchParams }) {
 
   // Replace Bed Type Section to use the dynamic bed types
   const renderBedTypeSection = () => (
-    <Grid item xs={12} md={2.5}>
+    <Grid item xs={12} md={2}>
       <Typography variant="subtitle1" fontWeight={500}>Select Bed Type</Typography>
       <FormControl fullWidth sx={{ mt: 2 }} disabled={!roomType}>
         <InputLabel id="bed-type-select-label">Bed Type</InputLabel>
@@ -1086,11 +1302,11 @@ export default function HotelComponent({ searchParams }) {
             endIcon={<ExpandMoreIcon />}
           >
             {(() => {
-              const totalTourGuests = parseInt(searchCriteria?.guests?.adults || 1);
-              const selectedBed = bedTypes.find(bed => bed.id === bedType);
-              const maxBedOccupancy = selectedBed?.max_occupancy || totalTourGuests;
-              
-              if (selectedGuests === 0) {
+            const totalTourGuests = parseInt(searchCriteria?.guests?.adults || 1);
+            const selectedBed = bedTypes.find(bed => bed.id === bedType);
+            const maxBedOccupancy = selectedBed?.max_occupancy || totalTourGuests;
+            
+            if (selectedGuests === 0) {
                 return <Typography variant="body2" color="text.secondary">
                   Select number of guests (Tour: {totalTourGuests}{bedType ? `, Bed: ${maxBedOccupancy}` : ''})
                 </Typography>;
@@ -1099,11 +1315,11 @@ export default function HotelComponent({ searchParams }) {
                 return <Typography variant="body2">
                   {selectedGuests}/{totalTourGuests} guest{selectedGuests > 1 ? 's' : ''} - Select meal plans
                 </Typography>;
-              }
-              const summary = guestMealPlans.map((plan, index) => {
-                const planName = mealPlans.find(p => p.id === plan)?.title || 'Room Only';
-                return `Guest ${index + 1}: ${planName}`;
-              }).join(', ');
+            }
+            const summary = guestMealPlans.map((plan, index) => {
+              const planName = mealPlans.find(p => p.id === plan)?.title || 'Room Only';
+              return `Guest ${index + 1}: ${planName}`;
+            }).join(', ');
               return <Typography variant="body2" noWrap>
                 {summary.length > 50 ? `${selectedGuests}/${totalTourGuests} guests with meal plans` : summary}
               </Typography>;
@@ -1130,8 +1346,8 @@ export default function HotelComponent({ searchParams }) {
             transformOrigin={{
               vertical: 'top',
               horizontal: 'left',
-            }}
-          >
+          }}
+        >
                      {/* Guest count section */}
            <MenuItem disabled sx={{ bgcolor: '#e3f2fd', fontWeight: 'bold' }}>
              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -1259,20 +1475,20 @@ export default function HotelComponent({ searchParams }) {
             </Box>
           ))}
           </Menu>
-          
-          {/* Summary */}
-          {guestMealPlans.length > 0 && guestMealPlans.some(plan => plan && plan !== 'self') && (
-            <Box sx={{ mt: 2, p: 1, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                <strong>Total Cost:</strong> ${guestMealPlans.reduce((total, mealPlanId) => {
-                  const plan = mealPlans.find(p => p.id === mealPlanId);
-                  return total + (plan?.price || 0);
-                }, 0).toFixed(2)}
-              </Typography>
-            </Box>
-          )}
+      
+      {/* Summary */}
+      {guestMealPlans.length > 0 && guestMealPlans.some(plan => plan && plan !== 'self') && (
+        <Box sx={{ mt: 2, p: 1, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            <strong>Total Cost:</strong> ${guestMealPlans.reduce((total, mealPlanId) => {
+              const plan = mealPlans.find(p => p.id === mealPlanId);
+              return total + (plan?.price || 0);
+            }, 0).toFixed(2)}
+          </Typography>
         </Box>
-      </Grid>
+      )}
+        </Box>
+    </Grid>
   );
 
   // Add room data loading indicator
@@ -1565,6 +1781,45 @@ export default function HotelComponent({ searchParams }) {
     }
   }, [hotelConfigurations.length, roomTypes.length, bedTypes.length]); // Only trigger on significant changes
 
+  // Monitor hotel configurations and dispatch to tour packages Redux when complete (similar to vehicle dropdown)
+  useEffect(() => {
+    // Only proceed if we have room types and bed types data (prevents early triggers)
+    if (roomTypes.length === 0 || bedTypes.length === 0 || dates.length === 0) {
+      return;
+    }
+
+    // Check completion status for all configurations
+    const completedConfigurations = hotelConfigurations.filter(config => 
+      config.hotelId && 
+      config.roomTypeId && 
+      config.bedTypeId && 
+      config.nights > 0 &&
+      config.selectedGuests > 0
+    );
+
+    console.log("Hotel - Checking completion status for configurations:", hotelConfigurations);
+    console.log("Hotel - Completed configurations count:", completedConfigurations.length);
+
+    if (completedConfigurations.length > 0) {
+      // Use setTimeout to debounce the dispatch and prevent rapid successive calls
+      const timeoutId = setTimeout(() => {
+        dispatchHotelsToRedux();
+      }, 300);
+
+      // Cleanup function to clear timeout if effect runs again
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    hotelConfigurations, 
+    roomTypes.length, // Use length instead of the full array to reduce sensitivity
+    bedTypes.length,  // Use length instead of the full array to reduce sensitivity
+    mealPlans.length, // Use length instead of the full array to reduce sensitivity
+    dates.length,     // Use length instead of the full array to reduce sensitivity
+    selectedCity, 
+    selectedCountry
+    // Removed existingServices to prevent infinite loop
+  ]);
+
   // Render room configuration indicators
   const renderRoomConfigIndicators = () => {
     if (hotelConfigurations.length <= 1) return null;
@@ -1656,6 +1911,7 @@ export default function HotelComponent({ searchParams }) {
         bedTypeId: bedType,
         mealPlanId: mealPlan,
         nights: selectedNights,
+        selectedNightIndices: Array.from(selectedNightIndices),
         babyCot: babyCotSelected,
         occupancyType: occupancyType,
         adultDistribution: adultDistribution,
@@ -1671,6 +1927,9 @@ export default function HotelComponent({ searchParams }) {
       
       // Auto-sync to Redux after updating configuration
       syncToBookingArrayDebounced();
+      
+      // The useEffect will handle dispatching to tour packages Redux automatically
+      // No need for manual dispatch here to prevent double dispatching
     }, 100);
   };
 
@@ -1717,7 +1976,7 @@ export default function HotelComponent({ searchParams }) {
     
     console.log(`Hotel ${hotelData.hotel_name || 'Unknown'} assigned to configuration ${activeHotelIndex}`);
   };
-
+  
   // Handle meal plan change for a specific guest
   const handleGuestMealPlanChange = (guestIndex, newMealPlan) => {
     // Check if the meal plan actually changed to prevent unnecessary updates
@@ -1729,14 +1988,14 @@ export default function HotelComponent({ searchParams }) {
     
     // Manually update the configuration to avoid useEffect loops
     if (hotelConfigurations[activeHotelIndex]) {
-      const updatedConfig = {
-        ...hotelConfigurations[activeHotelIndex],
-        guestMealPlans: updatedGuestMealPlans
-      };
-      
-      const updatedConfigurations = [...hotelConfigurations];
-      updatedConfigurations[activeHotelIndex] = updatedConfig;
-      setHotelConfigurations(updatedConfigurations);
+    const updatedConfig = {
+      ...hotelConfigurations[activeHotelIndex],
+      guestMealPlans: updatedGuestMealPlans
+    };
+    
+    const updatedConfigurations = [...hotelConfigurations];
+    updatedConfigurations[activeHotelIndex] = updatedConfig;
+    setHotelConfigurations(updatedConfigurations);
     }
   };
   
@@ -2215,14 +2474,14 @@ export default function HotelComponent({ searchParams }) {
           </CardContent>
         </Card>
       )} */}
-      {/* Hotel Configurations List */}
-      {hotelConfigurations.length > 0 && (
+      {/* Hotel Configurations List - Only show configurations with hotels selected */}
+      {hotelConfigurations.filter(config => config.hotelId).length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            {hotelConfigurations.length === 1 ? 'Hotel Selection Summary' : 'Your Hotel Selections'}
+            {hotelConfigurations.filter(config => config.hotelId).length === 1 ? 'Hotel Selection Summary' : 'Your Hotel Selections'}
           </Typography>
           <Grid container spacing={2}>
-            {hotelConfigurations.map((config, index) => {
+            {hotelConfigurations.filter(config => config.hotelId).map((config, index) => {
               // Use hotel data from individual configuration
               const hotel = config.hotelDetails || {};
               const roomType = roomTypes.find(r => r.id === config.roomTypeId);
@@ -2234,24 +2493,24 @@ export default function HotelComponent({ searchParams }) {
               const configIndex = hotelConfigs.findIndex(c => c.id === config.id) + 1;
               const totalConfigsForHotel = hotelConfigs.length;
               
-                          return (
-              <Grid item xs={12} key={config.id}>
-                <Card 
-                  variant="outlined" 
-                  sx={{ 
-                    borderColor: activeHotelIndex === index ? '#3554D1' : 'divider',
-                    bgcolor: activeHotelIndex === index ? 'rgba(53, 84, 209, 0.05)' : 'transparent'
-                  }}
-                >
-                  <CardContent sx={{ p: 2, '&:last-child': { pb: config.expanded ? 2 : 2 } }}>
-                    {/* Header Section */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => selectHotelConfiguration(index)}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-                          <HotelIcon sx={{ color: '#3554D1', mr: 1 }} />
-                          <Typography variant="subtitle1" fontWeight={600}>
+              return (
+                <Grid item xs={12} key={config.id}>
+                  <Card 
+                    variant="outlined" 
+                    sx={{ 
+                      borderColor: activeHotelIndex === index ? '#3554D1' : 'divider',
+                      bgcolor: activeHotelIndex === index ? 'rgba(53, 84, 209, 0.05)' : 'transparent'
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: config.expanded ? 2 : 2 } }}>
+                      {/* Header Section */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flex: 1 }} onClick={() => selectHotelConfiguration(index)}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+                            <HotelIcon sx={{ color: '#3554D1', mr: 1 }} />
+                            <Typography variant="subtitle1" fontWeight={600}>
                             {config.hotelDetails?.hotel_name || config.hotelDetails?.name || 'Hotel'}
-                          </Typography>
+                            </Typography>
                             {activeHotelIndex === index && (
                               <Chip label="Active" size="small" color="primary" sx={{ ml: 1 }} />
                             )}
@@ -2337,20 +2596,20 @@ export default function HotelComponent({ searchParams }) {
                                   <HotelIcon sx={{ mr: 1, fontSize: 18 }} />
                                   Hotel Details
                                 </Typography>
-                                                        <Typography variant="body2" fontWeight={500}>
+                                <Typography variant="body2" fontWeight={500}>
                           {config.hotelDetails?.hotel_name || config.hotelDetails?.name || 'Hotel Name'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
                           {config.hotelDetails?.address || config.hotelDetails?.location || 'Hotel Location'}
-                        </Typography>
+                                </Typography>
                                                         {config.hotelDetails?.hotel_star_rating && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                            <StarIcon sx={{ fontSize: 14, color: '#FFD700' }} />
-                            <Typography variant="caption" sx={{ ml: 0.5 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                    <StarIcon sx={{ fontSize: 14, color: '#FFD700' }} />
+                                    <Typography variant="caption" sx={{ ml: 0.5 }}>
                               {config.hotelDetails.hotel_star_rating} Star
-                            </Typography>
-                          </Box>
-                        )}
+                                    </Typography>
+                                  </Box>
+                                )}
                               </Box>
                             </Grid>
 
@@ -2471,6 +2730,51 @@ export default function HotelComponent({ searchParams }) {
         </Box>
       )}
 
+      {/* Workflow Information Panel */}
+      {/* {hotelConfigurations.filter(config => config.hotelId).length === 0 && (
+        <Card elevation={2} sx={{ mb: 3, bgcolor: 'rgba(33, 150, 243, 0.05)' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', display: 'flex', alignItems: 'center' }}>
+              <HotelIcon sx={{ mr: 1 }} />
+              Hotel Booking Workflow
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 1, border: '1px solid #e3f2fd' }}>
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    1️⃣ Select Hotel
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Choose a hotel from the list below. This will show detailed configuration options.
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 1, border: '1px solid #e3f2fd' }}>
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    2️⃣ Configure Room & Guests
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Select room type, bed type, guest count, meal plans, and nights.
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 1, border: '1px solid #e3f2fd' }}>
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    3️⃣ Add More Options
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Add Room:</strong> Same hotel, different room configuration<br/>
+                    <strong>Add Hotel:</strong> Completely new hotel booking
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      )} */}
+
       {/* Hotel Selection & Room Configuration */}
       {/* {hotelConfigurations[activeHotelIndex]?.expanded && ( */}
         <>
@@ -2482,6 +2786,7 @@ export default function HotelComponent({ searchParams }) {
                   handleHotelSelection(hotel);
                 }}
                 searchParams={searchCriteria}
+                selectedHotelId={selectedHotel} // Pass selected hotel ID to control the component
               />
               {renderRoomDataLoadingIndicator()}
             </Grid>
@@ -2495,651 +2800,309 @@ export default function HotelComponent({ searchParams }) {
             {/* Dynamic Meal Plan Section */}
             {renderMealPlanSection()}
             
-            {/* Add/Remove Room Button */}
-            <Grid item xs={12} md={2}>
+            {/* Action Buttons Section */}
+            <Grid item xs={12} md={2.5}>
               <Typography variant="subtitle1" fontWeight={500} sx={{ visibility: 'hidden' }}>Hidden Label</Typography>
               <Box sx={{ 
                 width: '100%', 
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mt: 2,
-                cursor: 'pointer'
-              }}
-              onClick={() => {
-                // Check if this is an empty configuration that should be removed
-                const currentConfig = hotelConfigurations[activeHotelIndex];
-                const isEmptyConfig = !currentConfig.roomTypeId && !currentConfig.bedTypeId;
-                const isSameHotelConfig = hotelConfigurations.filter(c => c.hotelId === currentConfig.hotelId).length > 1;
+                gap: 1,
+                mt: 2
+              }}>
+                {/* Add Room Button - Only show if hotel is selected */}
+                {hotelConfigurations[activeHotelIndex]?.hotelId && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleAddMoreRooms}
+                    sx={{ 
+                      borderColor: '#3554D1',
+                      color: '#3554D1',
+                      '&:hover': {
+                        borderColor: '#2a43a8',
+                        bgcolor: 'rgba(53, 84, 209, 0.05)'
+                      }
+                    }}
+                  >
+                    Add Room
+                  </Button>
+                )}
                 
-                if (isEmptyConfig && isSameHotelConfig) {
-                  // Remove this empty configuration
-                  handleRemoveHotel();
-                } else {
-                  // Add a new room configuration
-                  handleAddMoreRooms();
-                }
-              }}
-              >
-                {(() => {
-                  // Check if this is an empty configuration that should be removed
-                  const currentConfig = hotelConfigurations[activeHotelIndex];
-                  const isEmptyConfig = !currentConfig?.roomTypeId && !currentConfig?.bedTypeId;
-                  const isSameHotelConfig = hotelConfigurations.filter(c => c.hotelId === currentConfig?.hotelId).length > 1;
-                  
-                  if (isEmptyConfig && isSameHotelConfig) {
-                    // Show remove button
-                    return (
-                      <>
-                        <Avatar sx={{ bgcolor: '#f44336', width: 30, height: 30, mb: 1 }}>
-                          <RemoveIcon fontSize="small" />
-                        </Avatar>
-                        <Typography variant="body1" fontWeight={500} color="error" align="center">
-                          Remove Room
-                        </Typography>
-                      </>
-                    );
-                  } else {
-                    // Show add button
-                    return (
-                      <>
-                        <Avatar sx={{ bgcolor: '#3554D1', width: 30, height: 30, mb: 1 }}>
-                          <AddIcon fontSize="small" />
-                        </Avatar>
-                        <Typography variant="body1" fontWeight={500} color="primary" align="center">
-                          Add Room
-                        </Typography>
-                      </>
-                    );
-                  }
-                })()}
+                {/* Add Hotel Button */}
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<HotelIcon />}
+                  onClick={handleAddNewHotel}
+                  sx={{ 
+                    bgcolor: '#4caf50',
+                    '&:hover': {
+                      bgcolor: '#45a049'
+                    }
+                  }}
+                >
+                  Add Hotel
+                </Button>
+                
+                {/* Remove Configuration Button - Only show if multiple configurations */}
+                {hotelConfigurations.length > 1 && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    startIcon={<RemoveIcon />}
+                    onClick={handleRemoveHotel}
+                    sx={{ 
+                      borderColor: '#f44336',
+                      '&:hover': {
+                        borderColor: '#d32f2f',
+                        bgcolor: 'rgba(244, 67, 54, 0.05)'
+                      }
+                    }}
+                  >
+                    Remove
+                  </Button>
+                )}
               </Box>
             </Grid>
           </Grid>
           
          
           
-          {/* Hotel Details Card */}
-          <Card elevation={3} sx={{ mb: 3 }}>
-            <Grid container>
-              <Grid item xs={12} md={4}>
-                <CardMedia
-                  component="img"
-                  height={200}
-                  image={
-                    (hotelConfigurations[activeHotelIndex]?.hotelDetails?.image || 
-                     hotelConfigurations[activeHotelIndex]?.hotelDetails?.main_image || 
-                     apiHotelDetails?.image || 
-                     apiHotelDetails?.main_image) || 
-                    'https://via.placeholder.com/400x200?text=Select+Hotel'
-                  }
-                  alt={
-                    hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_name || 
-                    apiHotelDetails?.hotel_name || 
-                    'Hotel Image'
-                  }
-                />
-              </Grid>
-              <Grid item xs={12} md={8}>
-                <CardContent>
-                  <Typography variant="h5" gutterBottom>
-                    {hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_name || 
-                     apiHotelDetails?.hotel_name || 
-                     'Select a Hotel'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {hotelConfigurations[activeHotelIndex]?.hotelDetails?.address || 
-                     hotelConfigurations[activeHotelIndex]?.hotelDetails?.location || 
-                     apiHotelDetails?.address || 
-                     apiHotelDetails?.location || 
-                     'Hotel Location'}
-                  </Typography>
-                  
-                  <Divider sx={{ my: 2 }} />
-                  
-                  {/* Room, Bed & Meal Selection Summary */}
-                  <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid item xs={12} sm={4}>
-                      <Box sx={{ 
-                        bgcolor: 'rgba(53, 84, 209, 0.05)', 
-                        p: 1.5, 
-                        borderRadius: 1,
-                        height: '100%'
-                      }}>
-                        <Typography variant="subtitle2" fontWeight={500} color="primary">
-                          Room Type
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          {roomType ? roomTypes.find(room => room.id === roomType)?.name || 'Not selected' : 'Not selected'}
-                        </Typography>
-                        
-                        {/* Display room pricing if available */}
-                        {roomType && roomDatas?.room_data && Array.isArray(roomDatas.room_data) && (
-                          <Box mt={1}>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              {(() => {
-                                const selectedRoom = roomDatas.room_data.find(room => room.room_id.toString() === roomType);
-                                if (selectedRoom) {
-                                  return `Single: $${parseFloat(selectedRoom.single_price || '0').toFixed(2)} • Double: $${parseFloat(selectedRoom.double_price || '0').toFixed(2)}`;
-                                }
-                                return '';
-                              })()}
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={4}>
-                      <Box sx={{ 
-                        bgcolor: 'rgba(53, 84, 209, 0.05)', 
-                        p: 1.5, 
-                        borderRadius: 1,
-                        height: '100%'
-                      }}>
-                        <Typography variant="subtitle2" fontWeight={500} color="primary">
-                          Bed Type
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          {bedType ? bedTypes.find(bed => bed.id === bedType)?.name || 'Not selected' : 'Not selected'}
-                        </Typography>
-                        
-                        {/* Display bed occupancy if available */}
-                        {bedType && (
-                          <Box mt={1}>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              {(() => {
-                                const selectedBed = bedTypes.find(bed => bed.id === bedType);
-                                if (selectedBed) {
-                                  let occupancyText = `Max Occupancy: ${selectedBed.max_occupancy || '1'}`;
-                                  if (selectedBed.adult_count) occupancyText += ` (${selectedBed.adult_count} adults`;
-                                  if (selectedBed.child_count) occupancyText += `, ${selectedBed.child_count} children`;
-                                  if (selectedBed.adult_count) occupancyText += ')';
-                                  
-                                  return occupancyText;
-                                }
-                                return '';
-                              })()}
-                            </Typography>
-                            {(() => {
-                              const selectedBed = bedTypes.find(bed => bed.id === bedType);
-                              if (selectedBed && (selectedBed.extra_bed || selectedBed.baby_cot)) {
-                                return (
-                                  <Typography variant="caption" color="text.secondary" display="block">
-                                    {selectedBed.extra_bed ? `Extra Bed: $${parseFloat(selectedBed.extra_bed_price || '0').toFixed(2)}` : ''}
-                                    {selectedBed.extra_bed && selectedBed.baby_cot ? ' • ' : ''}
-                                    {selectedBed.baby_cot ? `Baby Cot: $${parseFloat(selectedBed.baby_cot_price || '0').toFixed(2)}` : ''}
-                                  </Typography>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </Box>
-                        )}
-                      </Box>
-                    </Grid>
-
-                    {/* Guest Meal Plans Section */}
-                    <Grid item xs={12} sm={4}>
-                      <Box sx={{ 
-                        bgcolor: 'rgba(255, 152, 0, 0.05)', 
-                        p: 1.5, 
-                        borderRadius: 1,
-                        height: '100%'
-                      }}>
-                        <Typography variant="subtitle2" fontWeight={500} color="warning.main">
-                          Guest Meal Plans
-                        </Typography>
-                        
-                        {selectedGuests > 0 && guestMealPlans.length > 0 ? (
-                          <Box sx={{ mt: 1 }}>
-                            {guestMealPlans.map((mealPlanId, guestIndex) => {
-                              const mealPlan = mealPlans.find(m => m.id === mealPlanId);
-                              return (
-                                <Box key={guestIndex} sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center',
-                                  mb: 0.5,
-                                  fontSize: '0.875rem'
-                                }}>
-                                  <Avatar sx={{ 
-                                    width: 16, 
-                                    height: 16, 
-                                    fontSize: '0.6rem', 
-                                    bgcolor: '#3554D1', 
-                                    mr: 0.5 
-                                  }}>
-                                    {guestIndex + 1}
-                                  </Avatar>
-                                  <Typography variant="caption" sx={{ flex: 1 }}>
-                                    {mealPlan?.title || 'Room Only'}
-                                  </Typography>
-                                  {mealPlan?.price > 0 && (
-                                    <Typography variant="caption" color="success.main" fontWeight={500}>
-                                      ${parseFloat(mealPlan.price).toFixed(2)}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              );
-                            })}
-                            
-                            {/* Total Cost */}
-                            <Divider sx={{ my: 1 }} />
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="caption" fontWeight={600}>
-                                Total:
-                              </Typography>
-                              <Typography variant="caption" fontWeight={600} color="success.main">
-                                ${guestMealPlans.reduce((total, mealPlanId) => {
-                                  const plan = mealPlans.find(p => p.id === mealPlanId);
-                                  return total + (plan?.price || 0);
-                                }, 0).toFixed(2)}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            No meal plans selected
-                          </Typography>
-                        )}
-                      </Box>
-                    </Grid>
-                  </Grid>
-                  
-                  {/* Enhanced Nights Selection */}
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2" fontWeight={500} color="primary" gutterBottom>
-                      Select Stay Nights ({selectedNights} of {dates.length - 1} nights selected)
+          {/* Hotel Details Card - Only show when hotel is selected */}
+          {hotelConfigurations[activeHotelIndex]?.hotelId && (
+            <Card elevation={3} sx={{ mb: 3 }}>
+              <Grid container>
+                
+                <Grid item xs={12} md={8}>
+                  <CardContent>
+                    <Typography variant="h5" gutterBottom>
+                      {hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_name || 
+                       hotelConfigurations[activeHotelIndex]?.hotelDetails?.name ||
+                       apiHotelDetails?.hotel_name || 
+                       'Select a Hotel'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {hotelConfigurations[activeHotelIndex]?.hotelDetails?.address || 
+                       hotelConfigurations[activeHotelIndex]?.hotelDetails?.location || 
+                       apiHotelDetails?.address || 
+                       apiHotelDetails?.location || 
+                       'Hotel Location'}
                     </Typography>
                     
-                    {/* Horizontal Night Selection */}
-                    <Box sx={{ 
-                      display: 'flex', 
-                      flexWrap: 'wrap', 
-                      gap: 1, 
-                      mt: 2,
-                      p: 2,
-                      bgcolor: 'rgba(53, 84, 209, 0.02)',
-                      borderRadius: 2,
-                      border: '1px solid rgba(53, 84, 209, 0.1)'
-                    }}>
-                      {dates.slice(0, dates.length - 1).map((date, nightIndex) => {
-                        const isSelected = nightIndex < selectedNights;
-                        const nextDate = dates[nightIndex + 1];
-                        
-                        return (
-                          <Box
-                            key={nightIndex}
-                            onClick={() => {
-                              // Toggle night selection
-                              const newSelectedNights = isSelected && nightIndex + 1 === selectedNights 
-                                ? nightIndex  // Deselect this night
-                                : nightIndex + 1; // Select up to this night
-                              
-                              if (newSelectedNights >= 0 && newSelectedNights <= dates.length - 1) {
-                                setSelectedNights(newSelectedNights);
-                                
-                                // Update the active hotel configuration
-                                const updatedConfig = {
-                                  ...hotelConfigurations[activeHotelIndex],
-                                  nights: newSelectedNights
-                                };
-                                
-                                const updatedConfigurations = [...hotelConfigurations];
-                                updatedConfigurations[activeHotelIndex] = updatedConfig;
-                                setHotelConfigurations(updatedConfigurations);
-                              }
-                            }}
-                            sx={{
-                              minWidth: 120,
-                              p: 2,
-                              borderRadius: 2,
-                              cursor: 'pointer',
-                              textAlign: 'center',
-                              border: '2px solid',
-                              borderColor: isSelected ? '#4caf50' : '#e0e0e0',
-                              bgcolor: isSelected ? '#e8f5e8' : '#ffffff',
-                              transition: 'all 0.3s ease',
-                              '&:hover': {
-                                borderColor: isSelected ? '#2e7d32' : '#3554D1',
-                                bgcolor: isSelected ? '#c8e6c9' : 'rgba(53, 84, 209, 0.05)',
-                                transform: 'translateY(-2px)',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                              }
-                            }}
-                          >
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Night {nightIndex + 1}
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600} sx={{ 
-                              color: isSelected ? '#2e7d32' : '#666',
-                              mt: 0.5
-                            }}>
-                              {date.format('MMM DD')}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              to
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600} sx={{ 
-                              color: isSelected ? '#2e7d32' : '#666'
-                            }}>
-                              {nextDate.format('MMM DD')}
-                            </Typography>
-                            
-                            {/* Selection Indicator */}
-                            {isSelected && (
-                              <Box sx={{ 
-                                display: 'flex', 
-                                justifyContent: 'center', 
-                                mt: 1 
-                              }}>
-                                <Box sx={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: '50%',
-                                  bgcolor: '#4caf50',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center'
-                                }}>
-                                  <Typography variant="caption" sx={{ 
-                                    color: 'white', 
-                                    fontSize: '10px',
-                                    fontWeight: 'bold'
-                                  }}>
-                                    ✓
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
+                    {/* Hotel Star Rating */}
+                    {(hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_star_rating || 
+                      hotelConfigurations[activeHotelIndex]?.hotelDetails?.category) && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <StarIcon sx={{ color: '#FFD700', mr: 0.5 }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_star_rating || 
+                           hotelConfigurations[activeHotelIndex]?.hotelDetails?.category} Star Hotel
+                        </Typography>
+                      </Box>
+                    )}
                     
-                    {/* Summary */}
-                    <Box sx={{ 
-                      mt: 2, 
-                      p: 1.5, 
-                      bgcolor: 'rgba(76, 175, 80, 0.05)', 
-                      borderRadius: 1,
-                      border: '1px solid rgba(76, 175, 80, 0.2)'
-                    }}>
-                      <Typography variant="body2" color="success.main" fontWeight={600}>
-                        Selected: {selectedNights} night{selectedNights !== 1 ? 's' : ''} 
-                        {selectedNights > 0 && (
-                          <span> from {dates[0].format('MMM DD')} to {dates[selectedNights].format('MMM DD')}</span>
-                        )}
+                    <Divider sx={{ my: 2 }} />
+                    
+                    {/* Night Selection Section */}
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="h6" gutterBottom sx={{ color: 'primary.main' }}>
+                        Select Nights
                       </Typography>
+                      
+                      {/* Select All / Deselect All Buttons */}
+                      {/* <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                        <Button 
+                          size="small" 
+                          variant="outlined" 
+                          color="primary"
+                          onClick={() => {
+                            const allIndices = new Set();
+                            for (let i = 0; i < dates.length - 1; i++) {
+                              allIndices.add(i);
+                            }
+                            setSelectedNightIndices(allIndices);
+                            setSelectedNights(allIndices.size);
+                            
+                            // Update the active hotel configuration
+                            const updatedConfig = {
+                              ...hotelConfigurations[activeHotelIndex],
+                              nights: allIndices.size,
+                              selectedNightIndices: Array.from(allIndices)
+                            };
+                            
+                            const updatedConfigurations = [...hotelConfigurations];
+                            updatedConfigurations[activeHotelIndex] = updatedConfig;
+                            setHotelConfigurations(updatedConfigurations);
+                          }}
+                        >
+                          Select All
+                        </Button>
+                        <Button 
+                          size="small" 
+                          variant="outlined" 
+                          color="secondary"
+                          onClick={() => {
+                            setSelectedNightIndices(new Set());
+                            setSelectedNights(0);
+                            
+                            // Update the active hotel configuration
+                            const updatedConfig = {
+                              ...hotelConfigurations[activeHotelIndex],
+                              nights: 0,
+                              selectedNightIndices: []
+                            };
+                            
+                            const updatedConfigurations = [...hotelConfigurations];
+                            updatedConfigurations[activeHotelIndex] = updatedConfig;
+                            setHotelConfigurations(updatedConfigurations);
+                          }}
+                        >
+                          Deselect All
+                        </Button>
+                      </Box> */}
+                      
+                      {/* Checkbox Night Selection */}
+                      <Box sx={{ 
+                        p: 2,
+                        bgcolor: 'rgba(53, 84, 209, 0.02)',
+                        borderRadius: 2,
+                        border: '1px solid rgba(53, 84, 209, 0.1)'
+                      }}>
+                        <Grid container spacing={1}>
+                          {dates.slice(0, dates.length - 1).map((date, nightIndex) => {
+                            const isSelected = selectedNightIndices.has(nightIndex);
+                            const nextDate = dates[nightIndex + 1];
+                            
+                            return (
+                              <Grid item xs={12} sm={6} md={4} key={nightIndex}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onChange={(event) => {
+                                        const newSelectedIndices = new Set(selectedNightIndices);
+                                        
+                                        if (event.target.checked) {
+                                          newSelectedIndices.add(nightIndex);
+                                        } else {
+                                          newSelectedIndices.delete(nightIndex);
+                                        }
+                                        
+                                        setSelectedNightIndices(newSelectedIndices);
+                                        setSelectedNights(newSelectedIndices.size);
+                                        
+                                        // Update the active hotel configuration
+                                        const updatedConfig = {
+                                          ...hotelConfigurations[activeHotelIndex],
+                                          nights: newSelectedIndices.size,
+                                          selectedNightIndices: Array.from(newSelectedIndices)
+                                        };
+                                        
+                                        const updatedConfigurations = [...hotelConfigurations];
+                                        updatedConfigurations[activeHotelIndex] = updatedConfig;
+                                        setHotelConfigurations(updatedConfigurations);
+                                      }}
+                                      sx={{
+                                        color: '#3554D1',
+                                        '&.Mui-checked': {
+                                          color: '#4caf50',
+                                        },
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ ml: 1 }}>
+                                      <Typography variant="body2" fontWeight={600} sx={{ 
+                                        color: isSelected ? '#2e7d32' : '#666'
+                                      }}>
+                                        Night {nightIndex + 1}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary" display="block">
+                                        {date.format('MMM DD')} to {nextDate.format('MMM DD')}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary" display="block">
+                                        {date.format('dddd')} to {nextDate.format('dddd')}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  sx={{
+                                    width: '100%',
+                                    margin: 0,
+                                    padding: 1.5,
+                                    borderRadius: 2,
+                                    border: '1px solid',
+                                    borderColor: isSelected ? '#4caf50' : '#e0e0e0',
+                                    bgcolor: isSelected ? 'rgba(76, 175, 80, 0.05)' : '#ffffff',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                      borderColor: isSelected ? '#2e7d32' : '#3554D1',
+                                      bgcolor: isSelected ? 'rgba(76, 175, 80, 0.1)' : 'rgba(53, 84, 209, 0.05)',
+                                    }
+                                  }}
+                                />
+                              </Grid>
+                            );
+                          })}
+                        </Grid>
+                      </Box>
+                      
+                      {/* Summary */}
+                      <Box sx={{ 
+                        mt: 2, 
+                        p: 1.5, 
+                        bgcolor: 'rgba(76, 175, 80, 0.05)', 
+                        borderRadius: 1,
+                        border: '1px solid rgba(76, 175, 80, 0.2)'
+                      }}>
+                        <Typography variant="body2" color="success.main" fontWeight={600}>
+                          Selected: {selectedNightIndices.size} night{selectedNightIndices.size !== 1 ? 's' : ''} 
+                          {selectedNightIndices.size > 0 && (
+                            <>
+                              <br />
+                              <Typography variant="caption" color="text.secondary" component="span">
+                                Nights: {Array.from(selectedNightIndices).sort((a, b) => a - b).map(index => index + 1).join(', ')}
+                              </Typography>
+                              {(() => {
+                                // Calculate date range from selected checkboxes
+                                const sortedIndices = Array.from(selectedNightIndices).sort((a, b) => a - b);
+                                if (sortedIndices.length > 0) {
+                                  const firstIndex = sortedIndices[0];
+                                  const lastIndex = sortedIndices[sortedIndices.length - 1];
+                                  const startDate = dates[firstIndex];
+                                  const endDate = dates[lastIndex + 1]; // +1 because night index refers to the start date
+                                  
+                                  if (startDate && endDate) {
+                                    return (
+                                      <>
+                                        <br />
+                                        <Typography variant="caption" color="success.main" component="span" fontWeight={600}>
+                                          Range: {startDate.format('MMM DD')} to {endDate.format('MMM DD, YYYY')}
+                                        </Typography>
+                                      </>
+                                    );
+                                  }
+                                }
+                                return null;
+                              })()}
+                            </>
+                          )}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                </CardContent>
+                  </CardContent>
+                </Grid>
               </Grid>
-            </Grid>
-          </Card>
+            </Card>
+          )}
         </>
       {/* )} */}
       
-      {/* Redux Booking Array Summary (following your HotelDetailsSlice pattern) */}
-      {/* {bookingArray.length > 0 && (
-        <Card elevation={3} sx={{ mb: 3, bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-              🎯 Booking Summary (Redux Store)
-              <Chip 
-                label={`${bookingArray.length} ${bookingArray.length === 1 ? 'Room' : 'Rooms'}`} 
-                size="small" 
-                color="success" 
-                sx={{ ml: 2 }} 
-              />
-            </Typography>
-            
-            <Grid container spacing={2}>
-              {bookingArray.map((room, roomIndex) => (
-                <Grid item xs={12} md={6} key={roomIndex}>
-                  <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                    <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                      {room.hotel_details?.hotel_name || 'Hotel'} - {room.room_type}
-                    </Typography>
-                    
-                    {room.beds.map((bed, bedIndex) => (
-                      <Box key={bedIndex} sx={{ mt: 1, p: 1, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 1 }}>
-                        <Typography variant="body2">
-                          <strong>Bed:</strong> {bed.bed_type} ({bed.head_count} guest{bed.head_count > 1 ? 's' : ''})
-                        </Typography>
-                        {bed.selectedMeals && Object.keys(bed.selectedMeals).length > 0 && (
-                          <Typography variant="caption" display="block" color="text.secondary">
-                            Meals: {Object.values(bed.selectedMeals).map(meal => meal.name).join(', ')}
-                          </Typography>
-                        )}
-                        {bed.baby_cot && (
-                          <Typography variant="caption" display="block" color="text.secondary">
-                            Baby Cot: ${bed.baby_cot_price || 0}
-                          </Typography>
-                        )}
-                      </Box>
-                    ))}
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-            
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, textAlign: 'center' }}>
-              <Typography variant="h5" fontWeight={600} color="success.main">
-                Total Price: ${totalPrice.toFixed(2)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                (Calculated automatically by your HotelDetailsSlice)
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      )} */}
+     
 
-      {/* <Card elevation={3} sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-            <Box>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                startIcon={<AddIcon />}
-                onClick={handleAddMoreRooms}
-              >
-                Add More Rooms
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                startIcon={<AddIcon />}
-                onClick={handleAddSimilarHotel}
-                sx={{ ml: 1 }}
-              >
-                Add Similar Hotel
-              </Button>
-           
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={updateCurrentConfiguration}
-                sx={{ ml: 2 }}
-                startIcon={<AddIcon />}
-              >
-                Save Changes
-              </Button>
-              
-
-              <Button 
-                variant="contained" 
-                color="success" 
-                onClick={syncToBookingArray}
-                sx={{ ml: 1 }}
-                startIcon={<RestaurantMenuIcon />}
-              >
-                Sync to Redux Store
-              </Button>
-            </Box>
-            
-            <Box>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                startIcon={<ContentCopyIcon />}
-                onClick={handleDuplicateHotel}
-              >
-                Duplicate
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="error" 
-                startIcon={<DeleteIcon />} 
-                sx={{ ml: 1 }}
-                onClick={handleRemoveHotel}
-              >
-                Remove
-              </Button>
-            </Box>
-          </Box>
-        </CardContent>
-              </Card> */}
-        
-        {/* Submit Section */}
-        {/* <Card elevation={3} sx={{ mb: 3, bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-              🎯 Hotel Booking Summary
-              <Chip 
-                label={`${bookingArray.length} ${bookingArray.length === 1 ? 'Room' : 'Rooms'}`} 
-                size="small" 
-                color="success" 
-                sx={{ ml: 2 }} 
-              />
-            </Typography>
-            
-          
-            {bookingArray.length > 0 ? (
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                {bookingArray.map((room, roomIndex) => (
-                  <Grid item xs={12} md={6} key={roomIndex}>
-                    <Paper sx={{ p: 2, bgcolor: 'white' }}>
-                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                        {room.hotel_details?.hotel_name || 'Hotel'} - {room.room_type}
-                      </Typography>
-                      
-                      {room.beds.map((bed, bedIndex) => (
-                        <Box key={bedIndex} sx={{ mt: 1, p: 1, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 1 }}>
-                          <Typography variant="body2">
-                            <strong>Bed:</strong> {bed.bed_type} ({bed.head_count} guest{bed.head_count > 1 ? 's' : ''})
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Nights:</strong> {bed.nights || 1}
-                          </Typography>
-                          {bed.selectedMeals && Object.keys(bed.selectedMeals).length > 0 && (
-                            <Typography variant="caption" display="block" color="text.secondary">
-                              Meals: {Object.values(bed.selectedMeals).map(meal => meal.name).join(', ')}
-                            </Typography>
-                          )}
-                          {bed.baby_cot && (
-                            <Typography variant="caption" display="block" color="text.secondary">
-                              Baby Cot: ${bed.baby_cot_price || 0}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Paper>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                Please complete your hotel selections above to see the booking summary.
-              </Alert>
-            )}
-            
-           
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              p: 3,
-              bgcolor: 'rgba(76, 175, 80, 0.1)', 
-              borderRadius: 2,
-              border: '2px solid rgba(76, 175, 80, 0.3)'
-            }}>
-              <Box>
-                <Typography variant="h4" fontWeight={600} color="success.main">
-                  Total Price: ${totalPrice.toFixed(2)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Automatically calculated from all selections
-                </Typography>
-              </Box>
-              
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button 
-                  variant="outlined" 
-                  color="primary" 
-                  size="large"
-                  onClick={() => {
-                    // Force sync to make sure Redux is up to date
-                    syncToBookingArray();
-                    console.log('Manual sync completed');
-                  }}
-                  sx={{ minWidth: 120 }}
-                >
-                  Refresh Summary
-                </Button>
-                
-                <Button 
-                  variant="contained" 
-                  color="success" 
-                  size="large"
-                  onClick={() => {
-                    // Ensure latest data is synced to Redux
-                    syncToBookingArray();
-                    
-                    // The bookingArray in Redux already contains all the booking details
-                    // No need for separate submission - just use the existing bookingArray
-                    console.log('=== CURRENT BOOKING ARRAY (READY FOR SUBMISSION) ===');
-                    console.log('Total Price:', totalPrice);
-                    console.log('Booking Array:', JSON.stringify(bookingArray, null, 2));
-                    console.log('Search Criteria:', JSON.stringify(searchCriteria, null, 2));
-                    
-                    // Here you can make your API call or further processing using:
-                    // - bookingArray (contains all hotel/room/meal selections)
-                    // - totalPrice (automatically calculated total)
-                    // - searchCriteria (original search parameters)
-                    
-                    // Example API call structure:
-                    // const submissionData = {
-                    //   bookingArray: bookingArray,
-                    //   totalPrice: totalPrice,
-                    //   searchCriteria: searchCriteria,
-                    //   submittedAt: new Date().toISOString()
-                    // };
-                    // await submitBookingAPI(submissionData);
-                    
-                    setAlert({
-                      show: true,
-                      message: `Hotel booking ready! ${bookingArray.length} room(s) selected with total price $${totalPrice.toFixed(2)}`,
-                      severity: 'success'
-                    });
-                    
-                    setTimeout(() => {
-                      setAlert({ show: false });
-                    }, 5000);
-                  }}
-                  disabled={bookingArray.length === 0}
-                  sx={{ minWidth: 150 }}
-                  startIcon={<HotelIcon />}
-                >
-                  Submit Booking
-                </Button>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card> */}
-        </Box>
-      );
+    
+      </Box>
+    );
 } 

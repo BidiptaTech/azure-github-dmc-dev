@@ -7,6 +7,7 @@ import LanguageMegaMenu from "../LanguageMegaMenu";
 import Cookies from "js-cookie";
 import { useDispatch, useSelector } from "react-redux";
 import { logout, logoutUser } from "@/slice/common/authSlices";
+import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
 import LogoutIcon from '@mui/icons-material/Logout';
 
 import MobileMenu from "../MobileMenu";
@@ -19,6 +20,7 @@ const Header1 = () => {
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
 
   const handleLogout = async () => {
+    dispatch(resetPackages());
     const result = await dispatch(logoutUser());
     if (logoutUser.fulfilled.match(result)) {
       navigate("/login");

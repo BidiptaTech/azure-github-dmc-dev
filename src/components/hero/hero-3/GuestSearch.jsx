@@ -46,9 +46,13 @@ const Counter = ({
       const currentFemale = femaleCount || 0;
       const totalGender = currentMale + currentFemale;
       
+      // If no gender has been selected yet, automatically set male count equal to new adult count
+      if (totalGender === 0) {
+        onGenderCountChange("Male", newCount, null);
+      }
       // If gender total equals current count, we need to keep them in sync
       // This allows incrementing Adults without breaking gender validation
-      if (totalGender === count && totalGender > 0) {
+      else if (totalGender === count && totalGender > 0) {
         // Maintain the same ratio
         const maleRatio = currentMale / count;
         // Distribute the new count proportionally

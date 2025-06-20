@@ -16,6 +16,8 @@ export const fetchVehicles = createAsyncThunk(
       const state = getState(); // ✅ Get Redux state
       const { PickupPlaceid, DropoffPlaceid, pickupdate, entrytime, PickupPlaceid1, DropoffPlaceid1, selectionType } =
         state.pickupDrop;
+        console.log("PickupPlaceid", PickupPlaceid);
+        console.log("DropoffPlaceid", DropoffPlaceid);
         console.log("PickupPlaceid1exit", PickupPlaceid1);
         console.log("DropoffPlaceid1exit", DropoffPlaceid1);
         console.log("entrytimeexit", entrytime);

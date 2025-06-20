@@ -512,8 +512,7 @@ const SearchLocationTransport = ({ Location }) => {
   return (
     <>
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className={`button-grid-v2 items-center ${selectedPort === "Point To Point" ? "point-to-point-layout" : ""}`}>
-          {/* First Section - Port Selection */}
+        <div className={`button-grid-v2-transport items-center ${selectedPort === "Point To Point" ? "point-to-point-layout" : ""}`}>
           <div className="port-selection-wrapper">
             <label className="text-15 fw-500 ls-2 lh-16">
               Select Journey Type:
@@ -544,7 +543,6 @@ const SearchLocationTransport = ({ Location }) => {
             </select>
           </div>
 
-          {/* Second Section - Location Search */}
           <div className={`location-search-wrapper ${selectedPort === "Point To Point" ? "location-full-width" : ""}`}>
             {selectedPort === "Point To Point" ? (
               <LocationSearch
@@ -594,8 +592,7 @@ const SearchLocationTransport = ({ Location }) => {
             )}
           </div>
 
-          {/* Third Section - Time Selection */}
-          <div className="time-selection-wrapper">
+          <div className="time-selection-wrapper1">
             {selectedPort === "Point To Point" ? (
               <Pickuptime
                 entryytime={entryytime}
@@ -617,8 +614,7 @@ const SearchLocationTransport = ({ Location }) => {
             )}
           </div>
 
-          {/* Fourth Section - Date Selection */}
-          <div className={`date-selection-wrapper ${selectedPort === "Point To Point" ? "date-selection-wrapper-point-to-point" : ""}`}>
+          <div className={`date-selection-wrapper1 ${selectedPort === "Point To Point" ? "date-selection-wrapper-point-to-point" : ""}`}>
             <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">
               {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
             </h4>
@@ -683,8 +679,7 @@ const SearchLocationTransport = ({ Location }) => {
             )}
           </div>
 
-          {/* Fifth Section - Search Button */}
-          <div className={`search-button-wrapper ${selectedPort === "Point To Point" ? "search-button-full-width" : ""}`}>
+          <div className={`search-button-wrapper1 `}>
             <button
               className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
               onClick={buttonsearch}
@@ -697,7 +692,7 @@ const SearchLocationTransport = ({ Location }) => {
       </div>
 
       <style jsx>{`
-        .button-grid-v2 {
+        .button-grid-v2-transport {
           display: grid;
           grid-template-columns:
             160px minmax(300px, ${selectedPort === "Hourly" ? "3fr" : "4fr"})
@@ -757,20 +752,21 @@ const SearchLocationTransport = ({ Location }) => {
         }
 
         .location-search-wrapper,
-        .time-selection-wrapper,
-        .date-selection-wrapper,
-        .search-button-wrapper {
+        .time-selection-wrapper1,
+        .search-button-wrapper1 {
           width: 100%;
         }
-        
+        .date-selection-wrapper1{
+          width: 100%;
+        }
 
-        .search-button-wrapper button {
+        .search-button-wrapper1 button {
           width: 100%;
           max-width: 250px;
         }
 
         @media (max-width: 1199px) {
-          .button-grid-v2:not(.point-to-point-layout) {
+          .button-grid-v2-transport:not(.point-to-point-layout) {
             grid-template-columns: 1fr 1fr;
             gap: 20px;
           }
@@ -779,18 +775,18 @@ const SearchLocationTransport = ({ Location }) => {
             max-width: 100%;
           }
 
-          .button-grid-v2:not(.point-to-point-layout) .location-search-wrapper {
+          .button-grid-v2-transport:not(.point-to-point-layout) .location-search-wrapper {
             grid-column: span 2;
           }
 
-          .button-grid-v2:not(.point-to-point-layout) .search-button-wrapper {
+          .button-grid-v2-transport:not(.point-to-point-layout) .search-button-wrapper {
             grid-column: span 2;
             text-align: center;
           }
         }
 
         @media (max-width: 767px) {
-          .button-grid-v2, .point-to-point-layout {
+          .button-grid-v2-transport, .point-to-point-layout {
             grid-template-columns: 1fr !important;
             grid-template-rows: auto !important;
             gap: 15px;
@@ -826,7 +822,7 @@ const SearchLocationTransport = ({ Location }) => {
             padding: 10px !important;
           }
 
-          .button-grid-v2 {
+          .button-grid-v2-transport {
             gap: 10px;
           }
 

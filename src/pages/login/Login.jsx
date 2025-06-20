@@ -9,6 +9,7 @@ import { loginUser } from "../../slice/common/authSlices";
 import { setUserRole } from "@/slice/common/authSlices";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -30,7 +31,7 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
+    dispatch(resetPackages());
     const result = await dispatch(loginUser({ email, password }));
 
     if (loginUser.fulfilled.match(result)) {

@@ -106,9 +106,9 @@ const EntryPortSearch = ({ Location }) => {
   };
 
   return (
-    <div className="entry-port-search-grid">
-      {/* Location Search */}
-      <div className="location-search-wrapper">
+    <div className="entry-port-search-container">
+      {/* First row - Location Search */}
+      <div className="search-row location-row">
         <LocationSearch
           pickUpLocation={pickUpLocation}
           setPickUpLocation={setPickUpLocation}
@@ -125,84 +125,108 @@ const EntryPortSearch = ({ Location }) => {
         />
       </div>
 
-      {/* Time Selection */}
-      <div className="time-selection-wrapper">
-        <Pickuptime
-          entryytime={entryytime}
-          setentryytime={setentryytime}
-          setTime={setTime}
-        />
-      </div>
+      {/* Second row - Time, Date, Button */}
+      <div className="search-row controls-row">
+        {/* Time Selection */}
+        <div className="time-selection-wrapper">
+          <Pickuptime
+            entryytime={entryytime}
+            setentryytime={setentryytime}
+            setTime={setTime}
+          />
+        </div>
 
-      {/* Date Selection */}
-      <div className="date-selection-wrapper">
-        <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">Pick Up Date</h4>
-        <DateSearch1
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-        />
-      </div>
+        {/* Date Selection */}
+        <div className="date-selection-wrapper">
+          <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">Pick Up Date</h4>
+          <DateSearch1
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+          />
+        </div>
 
-      {/* Search Button */}
-      <div className="search-button-wrapper">
-        <button
-          className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
-          onClick={buttonsearch}
-        >
-          <i className="icon-search text-20 mr-10" />
-          Search
-        </button>
+        {/* Search Button */}
+        <div className="search-button-wrapper">
+          <button
+            className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
+            onClick={buttonsearch}
+          >
+            <i className="icon-search text-20 mr-10" />
+            Search
+          </button>
+        </div>
       </div>
 
       <style jsx>{`
-        .entry-port-search-grid {
-          display: grid;
-          grid-template-columns: 4fr 1.93fr 140px 1fr;
-          gap: 5px;
+        .entry-port-search-container {
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
           width: 100%;
         }
-
-        .location-search-wrapper,
-        .time-selection-wrapper,
-        .date-selection-wrapper,
-        .search-button-wrapper {
+        
+        .search-row {
           width: 100%;
+        }
+        
+        .location-row {
+          /* First row with just location */
+        }
+        
+        .controls-row {
+          /* Second row with controls */
+          display: flex;
+          flex-wrap: wrap;
+          align-items: flex-end;
+          gap: 15px;
+        }
+        
+        .time-selection-wrapper {
+          width: 20%;
+        }
+        
+        .date-selection-wrapper {
+          width: 20%;
+        }
+        
+        .search-button-wrapper {
+          width: 20%;
+          margin-left: 5%;
         }
 
         .search-button-wrapper button {
           width: 100%;
-          max-width: 250px;
+          max-width: 160px;
         }
 
         @media (max-width: 1199px) {
-          .entry-port-search-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+          .controls-row {
+            flex-direction: column;
+            gap: 15px;
           }
-
-          .location-search-wrapper {
-            grid-column: span 2;
-          }
-
+          
+          .time-selection-wrapper,
+          .date-selection-wrapper,
           .search-button-wrapper {
-            grid-column: span 2;
+            margin-left: 0;
+          }
+          
+          .search-button-wrapper {
             text-align: center;
+          }
+          
+          .search-button-wrapper button {
+            max-width: 100%;
           }
         }
 
         @media (max-width: 767px) {
-          .entry-port-search-grid {
-            grid-template-columns: 1fr;
-            gap: 15px;
+          .entry-port-search-container {
+            gap: 10px;
           }
-
-          .time-selection-wrapper,
-          .date-selection-wrapper {
-            margin-bottom: 10px;
-          }
-
-          .search-button-wrapper button {
-            max-width: 100%;
+          
+          .controls-row {
+            gap: 10px;
           }
         }
       `}</style>

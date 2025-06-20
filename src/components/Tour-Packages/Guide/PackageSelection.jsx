@@ -42,12 +42,16 @@ const PackageButton = styled(Button)(({ theme, isSelected }) => ({
   textTransform: 'none'
 }));
 
-const PackageSelection = ({ value, onChange, disabled, pickUpTime }) => {
+const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, formSection }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const selectedGuide = useSelector(state => state.tourguide.selectedGuide);
   const exchangeRate = useSelector(state => state.auth.exchangeRate) || 1;
   const currencyCode = useSelector(state => state.auth.currencyCode) || 'USD';
   const PriceHide = useSelector(state => state.auth.PriceHide) || '1';
+  
+  // Get booking date from section if not provided as prop
+  const sectionBookingDate = formSection?.bookingDate || formSection?.date;
+  const effectiveBookingDate = bookingDate || sectionBookingDate;
   
   // Parse night time limits from guide data
   const nightStartTime = selectedGuide?.night_start_time || "21:00"; // Default to 9 PM
@@ -174,10 +178,11 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime }) => {
     
     onChange({ 
       value: hours,
-      priceBreakdown: priceBreakdown 
+      priceBreakdown: priceBreakdown,
+      bookingDate: effectiveBookingDate || new Date().toISOString().split('T')[0]
     });
     handleClose();
-  }, [onChange, handleClose, calculatePackagePriceBreakdown]);
+  }, [onChange, handleClose, calculatePackagePriceBreakdown, effectiveBookingDate]);
 
   const open = Boolean(anchorEl);
   const id = open ? 'package-popover' : undefined;

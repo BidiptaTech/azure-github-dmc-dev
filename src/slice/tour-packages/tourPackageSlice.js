@@ -24,11 +24,10 @@ const initialState = {
   },
   packageEnquiryId: null,
   selectedPackages: [],
-  attractionBookings: null,
-  guideBookings: null,
-  restaurantBookings: null,
   AllServices: [],
 };
+
+console.log("%c REDUX: Initial AllServices state created", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;", initialState.AllServices);
 
 // Async thunk for fetching tour packages
 export const fetchTourPackages = createAsyncThunk(
@@ -123,13 +122,16 @@ const tourPackageSlice = createSlice({
       if (Array.isArray(action.payload)) {
         console.log("%c REDUX: Setting ALL services in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");
         console.log("Previous services count:", state.AllServices.length);
+        console.log("Previous services:", [...state.AllServices]);
         console.log("New services count:", action.payload.length);
         console.log("New services:", action.payload);
         
         // Replace the entire state with the new array
         state.AllServices = action.payload;
+        console.log("%c AllServices array replaced", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;");
       } else {
         console.log("%c REDUX: Adding a service in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");
+        console.log("Current services:", [...state.AllServices]);
         console.log("Service to add:", action.payload);
         
         // If it's a single item, add it to the array if it doesn't exist already
@@ -139,16 +141,18 @@ const tourPackageSlice = createSlice({
         
         if (!exists) {
           state.AllServices.push(action.payload);
-          console.log("Service added. New count:", state.AllServices.length);
+          console.log("%c Service added successfully. New count:", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;", state.AllServices.length);
         } else {
-          console.log("Service already exists, not added.");
+          console.log("%c Service already exists, not added.", "background: #e74c3c; color: #ffffff; padding: 2px; font-weight: bold;");
         }
       }
     },
 
     // Clear all services
     clearAllServices: (state) => {
+      console.log("%c REDUX: Clearing ALL services in tourPackageSlice", "background: #c0392b; color: #ffffff; padding: 4px; font-weight: bold;", "Previous count:", state.AllServices.length);
       state.AllServices = [];
+      console.log("Services cleared. New count:", state.AllServices.length);
     },
 
     // Update search criteria
@@ -187,39 +191,6 @@ const tourPackageSlice = createSlice({
     // Reset the enquiry ID
     resetPackageEnquiryId: (state) => {
       state.packageEnquiryId = null;
-    },
-    
-    // Add attraction bookings
-    addAttractionBookings: (state, action) => {
-      state.attractionBookings = action.payload;
-      console.log("Attraction bookings added to tourPackage slice:", action.payload);
-    },
-    
-    // Clear attraction bookings
-    clearAttractionBookings: (state) => {
-      state.attractionBookings = null;
-    },
-
-    // Add guide bookings
-    addGuideBookings: (state, action) => {
-      state.guideBookings = action.payload;
-      console.log("Guide bookings added to tourPackage slice:", action.payload);
-    },
-    
-    // Clear guide bookings
-    clearGuideBookings: (state) => {
-      state.guideBookings = null;
-    },
-
-    // Add restaurant bookings
-    addRestaurantBookings: (state, action) => {
-      state.restaurantBookings = action.payload;
-      console.log("Restaurant bookings added to tourPackage slice:", action.payload);
-    },
-    
-    // Clear restaurant bookings
-    clearRestaurantBookings: (state) => {
-      state.restaurantBookings = null;
     },
   },
   extraReducers: (builder) => {
@@ -262,19 +233,13 @@ export const {
   togglePackageSelection,
   clearSelectedPackages,
   resetPackageEnquiryId,
-  addAttractionBookings,
-  clearAttractionBookings,
-  addGuideBookings,
-  clearGuideBookings,
-  addRestaurantBookings,
-  clearRestaurantBookings,
   setAllServices,
   clearAllServices,
 } = tourPackageSlice.actions;
 
 // Export selectors
-export const selectAttractionBookings = (state) => state.tourPackages.attractionBookings;
-export const selectGuideBookings = (state) => state.tourPackages.guideBookings;
-export const selectRestaurantBookings = (state) => state.tourPackages.restaurantBookings;
+export const selectAttractionBookings = (state) => state.tourPackages.AllServices.filter(service => service.type === 'attraction');
+export const selectGuideBookings = (state) => state.tourPackages.AllServices.filter(service => service.type === 'guide');
+export const selectRestaurantBookings = (state) => state.tourPackages.AllServices.filter(service => service.type === 'restaurant');
 
 export default tourPackageSlice.reducer; 

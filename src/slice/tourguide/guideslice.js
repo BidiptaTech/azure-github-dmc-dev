@@ -493,9 +493,6 @@ const Localguideslice = createSlice({
     setGuideDetails: (state, action) => {
       state.guideDetails = action.payload;
     },
-    addGuideBookings: (state, action) => {
-      state.guideBookings = action.payload;
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -597,7 +594,6 @@ export const {
   resetguide,
   setSearchParams,
   setGuideDetails,
-  addGuideBookings,
 } = Localguideslice.actions;
 
 export const selectFilteredGuides = (state) => {

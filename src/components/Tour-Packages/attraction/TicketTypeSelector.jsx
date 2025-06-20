@@ -13,7 +13,7 @@ import {
   Alert
 } from '@mui/material';
 import { useSelector, useDispatch } from 'react-redux';
-import { addAttractionBookings } from '../../../slice/tour-packages/tourPackageSlice';
+import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import CloseIcon from '@mui/icons-material/Close';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -22,7 +22,7 @@ import GavelIcon from '@mui/icons-material/Gavel';
 import CommentIcon from '@mui/icons-material/Comment';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
-const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections }) => {
+const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate }) => {
   const dispatch = useDispatch();
   // States
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -41,6 +41,10 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
+  
+  // Get booking date from section if not provided as prop
+  const sectionBookingDate = formSections && formSections[sectionIndex] ? formSections[sectionIndex].bookingDate : null;
+  const effectiveBookingDate = bookingDate || sectionBookingDate;
 
   // Get tickets from attraction details
   const tickets = attractionDetails?.ticket_prices || [];
@@ -346,51 +350,45 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
       priceType: nriStatus
     });
     
-    // Then create bookings data structure for all sections
-    const bookingsData = {
+    // Get the current section and update with selected ticket
+    const updatedSection = { ...section, ticketType: selectedTicket?.ticket_id, priceType: nriStatus };
+    const summaryData = getBookingSummary(updatedSection);
+    
+    // Calculate total price
+    const adultTotal = summaryData.adultPrice * updatedSection.pax.Adults;
+    const childTotal = summaryData.childPrice * updatedSection.pax.Children;
+    const seniorTotal = summaryData.seniorPrice * updatedSection.pax.Seniors;
+    const totalPrice = adultTotal + childTotal + seniorTotal;
+    
+    // Create the attraction booking data - format as requested with type at same level
+    const bookingData = {
       type: 'attraction',
-      bookings: formSections.map((section, index) => {
-        // For the current section, use the selected ticket and price type
-        const updatedSection = index === sectionIndex 
-          ? { ...section, ticketType: selectedTicket?.ticket_id, priceType: nriStatus }
-          : section;
-          
-        const summaryData = getBookingSummary(updatedSection);
-        
-        // Calculate total price
-        const adultTotal = summaryData.adultPrice * updatedSection.pax.Adults;
-        const childTotal = summaryData.childPrice * updatedSection.pax.Children;
-        const seniorTotal = summaryData.seniorPrice * updatedSection.pax.Seniors;
-        const totalPrice = adultTotal + childTotal + seniorTotal;
-        
-        return {
-          id: `attraction-${Date.now()}-${index}`,
-          attractionId: updatedSection.attraction,
-          attractionName: summaryData.attraction,
-          location: summaryData.location,
-          city: summaryData.city,
-          country: summaryData.country,
-          timeSlot: updatedSection.timeSlot,
-          ticketType: updatedSection.ticketType,
-          ticketName: summaryData.ticketType,
-          priceType: updatedSection.priceType || 'residential',
-          pax: updatedSection.pax,
-          prices: {
-            adult: summaryData.adultPrice,
-            child: summaryData.childPrice,
-            senior: summaryData.seniorPrice,
-          },
-          totalPrice: totalPrice,
-          image: summaryData.image,
-          mode: currentMode,
-        };
-      })
+      id: `attraction-${Date.now()}-${sectionIndex}`,
+      attractionId: updatedSection.attraction,
+      attractionName: summaryData.attraction,
+      location: summaryData.location,
+      city: summaryData.city,
+      country: summaryData.country,
+      timeSlot: updatedSection.timeSlot,
+      ticketType: updatedSection.ticketType,
+      ticketName: summaryData.ticketType,
+      priceType: updatedSection.priceType || 'residential',
+      pax: updatedSection.pax,
+      prices: {
+        adult: summaryData.adultPrice,
+        child: summaryData.childPrice,
+        senior: summaryData.seniorPrice,
+      },
+      totalPrice: totalPrice,
+      image: summaryData.image,
+      mode: currentMode,
+      bookingDate: effectiveBookingDate || formSections[sectionIndex]?.date || new Date().toISOString().split('T')[0]
     };
     
-    console.log("Attraction bookings data:", bookingsData);
+    console.log("Attraction booking data:", bookingData);
     
     // Dispatch action to store in Redux (tourPackage slice)
-    dispatch(addAttractionBookings(bookingsData));
+    dispatch(setAllServices(bookingData));
     
     setBookingSuccess(true);
     setModalOpen(false);

@@ -63,6 +63,7 @@ const DateSearch = ({ onDateChange }) => {
           zIndex: 9999,
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
         }}
+        className="light-blue-theme"
       />
       <Snackbar
         open={openSnackbar}
@@ -85,6 +86,39 @@ const DateSearch = ({ onDateChange }) => {
         }
         .rmdp-container {
           z-index: 9999 !important;
+        }
+      `}</style>
+
+      <style jsx global>{`
+        /* Light blue theme for date picker */
+        .light-blue-theme .rmdp-range {
+          background-color: #e6f4ff !important; 
+          box-shadow: none !important;
+        }
+        
+        .light-blue-theme .rmdp-selected {
+          background-color: #4dabf7 !important;
+          box-shadow: none !important;
+        }
+        
+        .light-blue-theme .rmdp-range-hover {
+          background-color: #e6f4ff !important;
+          color: #333 !important;
+        }
+        
+        .light-blue-theme .rmdp-day:not(.rmdp-disabled, .rmdp-day-hidden):hover {
+          background-color: #c5e4ff !important;
+          color: #333 !important;
+        }
+        
+        .light-blue-theme .rmdp-arrow {
+          border: solid #4dabf7 !important;
+          border-width: 0 2px 2px 0 !important;
+        }
+        
+        .light-blue-theme .rmdp-arrow-container:hover {
+          background-color: #e6f4ff !important;
+          box-shadow: none !important;
         }
       `}</style>
     </div>

@@ -44,7 +44,7 @@ const SearchLocation = ({ Location, portType, portType1 }) => {
   return (
     <>
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className="button-grid-v2 items-center">
+        <div className="items-center">
           {/* Render Entry Port component if portType is "Entry Port" */}
           {portType === "Entry Port" && (
             <div className="entry-port-container">

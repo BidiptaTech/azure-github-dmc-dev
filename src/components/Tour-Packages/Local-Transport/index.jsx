@@ -13,7 +13,9 @@ import {
   Alert,
   Tooltip,
   Chip,
+  IconButton,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AlternateFilterSearchBox from './TransportSearchLocation';
 import SearchLocationTransport from './SearchLocationTransport';
 import { useSelector, useDispatch } from 'react-redux';
@@ -44,7 +46,7 @@ const initialFormState = {
   pickupLocation: '', // Store pickup location
   dropoffLocation: '', // Store dropoff location
   pickupTime: '', // Store pickup time
-  pickupDate: '', // Store pickup date
+  bookingDate: '', // Store pickup date
   price: 0, // Store the calculated price for the booking
 };
 
@@ -146,7 +148,7 @@ export default function LocalTransportComponent() {
       country: booking.country,
       pickupLocation: booking.pickupLocation,
       dropoffLocation: booking.dropoffLocation,
-      pickupDate: booking.pickupDate,
+      bookingDate: booking.bookingDate,
       pickupTime: booking.pickupTime,
       adults: booking.adults,
       children: booking.children,
@@ -326,18 +328,18 @@ export default function LocalTransportComponent() {
           newBookingData.pickupLocation = pickupLocation;
           newBookingData.dropoffLocation = dropoffLocation;
           newBookingData.pickupTime = pickupTime;
-          newBookingData.pickupDate = pickupDate;
+          newBookingData.bookingDate = pickupDate;
           console.log("Creating Point to Point booking with date:", pickupDate);
         } else if (selectedPort === "Hourly") {
           newBookingData.pickupLocation = exitPickupLocation;
           newBookingData.pickupTime = pickupTime1;
-          newBookingData.pickupDate = exitPickupDate;
+          newBookingData.bookingDate = exitPickupDate;
           console.log("Creating Hourly booking with date:", exitPickupDate);
         } else if (selectedPort === "Local Transfer") {
           newBookingData.pickupLocation = pickupLocation;
           newBookingData.dropoffLocation = dropoffLocation;
           newBookingData.pickupTime = pickupTimeZone;
-          newBookingData.pickupDate = pickupDate;
+          newBookingData.bookingDate = pickupDate;
           console.log("Creating Local Transfer booking with date:", pickupDate);
         }
         
@@ -366,23 +368,23 @@ export default function LocalTransportComponent() {
       const transportType = newBookings[sectionIndex].transportType;
       
       // Store appropriate location data based on transport type
-      let updatedPickupLocation, updatedDropoffLocation, updatedPickupTime, updatedPickupDate;
+      let updatedPickupLocation, updatedDropoffLocation, updatedPickupTime, updatedBookingDate;
       
       if (transportType === "Point To Point") {
         updatedPickupLocation = pickupLocation;
         updatedDropoffLocation = dropoffLocation;
         updatedPickupTime = pickupTime;
-        updatedPickupDate = pickupDate;
+        updatedBookingDate = pickupDate;
       } else if (transportType === "Hourly") {
         updatedPickupLocation = exitPickupLocation;
         updatedDropoffLocation = ''; // No dropoff for hourly
         updatedPickupTime = pickupTime1;
-        updatedPickupDate = exitPickupDate;
+        updatedBookingDate = exitPickupDate;
       } else if (transportType === "Local Transfer") {
         updatedPickupLocation = pickupLocation;
         updatedDropoffLocation = dropoffLocation;
         updatedPickupTime = pickupTimeZone;
-        updatedPickupDate = pickupDate;
+        updatedBookingDate = pickupDate;
       }
       
       // Update booking with vehicle details including all properties needed for display
@@ -400,7 +402,7 @@ export default function LocalTransportComponent() {
         pickupLocation: updatedPickupLocation,
         dropoffLocation: updatedDropoffLocation,
         pickupTime: updatedPickupTime,
-        pickupDate: updatedPickupDate
+        bookingDate: updatedBookingDate
       };
       
       return newBookings;
@@ -536,24 +538,73 @@ export default function LocalTransportComponent() {
       newBookingData.pickupLocation = pickupLocation;
       newBookingData.dropoffLocation = dropoffLocation;
       newBookingData.pickupTime = pickupTime;
-      newBookingData.pickupDate = pickupDate;
+      newBookingData.bookingDate = pickupDate;
     } else if (selectedPort === "Hourly") {
       newBookingData.pickupLocation = exitPickupLocation;
       newBookingData.pickupTime = pickupTime1;
-      newBookingData.pickupDate = exitPickupDate;
+      newBookingData.bookingDate = exitPickupDate;
     } else if (selectedPort === "Local Transfer") {
       newBookingData.pickupLocation = pickupLocation;
       newBookingData.dropoffLocation = dropoffLocation;
       newBookingData.pickupTime = pickupTimeZone;
-      newBookingData.pickupDate = pickupDate;
+      newBookingData.bookingDate = pickupDate;
     }
     
     setAllBookings(prev => [...prev, newBookingData]);
   }, [selectedPort, pickupLocation, dropoffLocation, pickupTime, pickupDate, exitPickupLocation, pickupTime1, exitPickupDate, pickupTimeZone]);
 
   const handleRemoveSection = useCallback((indexToRemove) => {
-    setAllBookings(allBookings => allBookings.filter((_, index) => index !== indexToRemove));
-  }, []);
+    // Get the booking that's being removed to find it in Redux
+    const bookingToRemove = allBookings[indexToRemove];
+    
+    if (bookingToRemove) {
+      // First, remove from local state
+      setAllBookings(prevBookings => {
+        const updatedBookings = prevBookings.filter((_, index) => index !== indexToRemove);
+        
+        // If this was the last booking of its type, update the search performed state
+        if (!updatedBookings.some(booking => booking.transportType === bookingToRemove.transportType)) {
+          setSearchPerformed(prev => ({
+            ...prev,
+            [bookingToRemove.transportType]: false
+          }));
+        }
+        
+        return updatedBookings;
+      });
+      
+      // Then, remove from Redux state
+      if (bookingToRemove.vehicleId) {
+        // Clone the existing services array
+        const currentServices = [...allServices];
+        
+        // Filter out the booking with matching type and vehicleId or matching ID
+        const filteredServices = currentServices.filter(service => {
+          // If the booking has an ID, use that for exact matching
+          if (bookingToRemove.id && service.id === bookingToRemove.id) {
+            return false;
+          }
+          
+          // Otherwise match by type and vehicleId
+          if (service.type === bookingToRemove.transportType && 
+              service.vehicleId === bookingToRemove.vehicleId) {
+            return false;
+          }
+          
+          return true;
+        });
+        
+        // Only dispatch if there's an actual change
+        if (filteredServices.length !== currentServices.length) {
+          console.log(`Removing ${bookingToRemove.transportType} booking from Redux:`, bookingToRemove);
+          dispatch(setAllServices(filteredServices));
+          
+          // Update our reference to the current services
+          prevServicesRef.current = filteredServices;
+        }
+      }
+    }
+  }, [allBookings, allServices, dispatch]);
   
   const handleOpenModal = useCallback((index) => {
     // Make sure the data is in Redux before showing the modal
@@ -647,19 +698,23 @@ export default function LocalTransportComponent() {
                     />
                   )}
                 </Box>
-                {sectionIndex > 0 && (
-                  <Button 
-                    color="error" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveSection(sectionIndex);
-                    }}
-                    size="small"
-                    variant="outlined"
-                  >
-                    Remove
-                  </Button>
-                )}
+                <IconButton
+                  color="error"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveSection(sectionIndex);
+                  }}
+                  size="small"
+                  aria-label="delete booking"
+                  sx={{ 
+                    borderRadius: '4px', 
+                    '&:hover': { 
+                      bgcolor: 'rgba(211, 47, 47, 0.04)' 
+                    } 
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </Box>
               
               {/* Render the appropriate component based on the booking's transport type */}

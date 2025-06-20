@@ -19,7 +19,7 @@ import SpecificMealSelect from './SpecificMealSelect';
 import TimeSlotSelect from './TimeSlotSelect';
 import PaxSelector from './PaxSelector';
 import RestaurantBookingSummaryModal from './RestaurantBookingSummaryModal';
-import { addRestaurantBookings } from '../../../slice/tour-packages/tourPackageSlice';
+import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 
 export default function RestaurantComponent() {
   const dispatch = useDispatch();
@@ -40,11 +40,12 @@ export default function RestaurantComponent() {
     mealType: '',
     specificMeal: '',
     timeSlot: '',
+    bookingDate: searchParams?.date || new Date().toISOString().split('T')[0],
     pax: {
       Adults: searchParams?.adults || 1,
       Children: searchParams?.children || 0
     }
-  }), [searchParams?.adults, searchParams?.children]);
+  }), [searchParams?.adults, searchParams?.children, searchParams?.date]);
   
   // Debug logs
   useEffect(() => {
@@ -86,6 +87,7 @@ export default function RestaurantComponent() {
           mealType: '', // Reset meal type
           specificMeal: '', // Reset specific meal
           timeSlot: '', // Reset time slot
+          bookingDate: searchParams?.date || new Date().toISOString().split('T')[0],
           pax: {
             Adults: searchParams?.adults || 1,
             Children: searchParams?.children || 0
@@ -225,7 +227,8 @@ export default function RestaurantComponent() {
       sectionsToValidate = [...sectionsToBook];
       sectionsToValidate[overrideSection.sectionIndex] = {
         ...sectionsToValidate[overrideSection.sectionIndex],
-        timeSlot: overrideSection.timeSlot
+        timeSlot: overrideSection.timeSlot?.timeSlot || overrideSection.timeSlot,
+        bookingDate: overrideSection.timeSlot?.bookingDate || sectionsToValidate[overrideSection.sectionIndex].bookingDate
       };
     }
     
@@ -233,34 +236,64 @@ export default function RestaurantComponent() {
       return;
     }
     
-    // Create bookings data structure
-    const bookingsData = {
-      type: 'restaurant',
-      bookings: sectionsToValidate.map((section, index) => {
-        const restaurant = restaurants.find(r => r.id === section.restaurant) || {};
-        
-        return {
-          id: `restaurant-${Date.now()}-${index}`,
-          restaurantId: section.restaurant,
-          restaurantName: restaurant.name || 'Restaurant',
-          city: restaurant.city || searchParams?.location?.city || '',
-          country: restaurant.country || searchParams?.location?.country || '',
-          mealType: section.mealType,
-          specificMeal: section.specificMeal,
-          timeSlot: section.timeSlot,
-          pax: section.pax,
-          image: restaurant.image || '/placeholder-restaurant.jpg',
-          mode: currentMode,
-          cuisine: restaurant.cuisine_type || 'Not specified',
-          price: restaurant.price_range || 'Not specified'
-        };
-      })
-    };
-    
-    console.log("Restaurant bookings data:", bookingsData);
-    
-    // Dispatch action to store in Redux
-    dispatch(addRestaurantBookings(bookingsData));
+    // If there's only one section, send it directly without the bookings array
+    if (sectionsToValidate.length === 1) {
+      const section = sectionsToValidate[0];
+      const restaurant = restaurants.find(r => r.id === section.restaurant) || {};
+      
+      const restaurantBookingData = {
+        type: 'restaurant',
+        id: `restaurant-${Date.now()}-0`,
+        restaurantId: section.restaurant,
+        restaurantName: restaurant.name || 'Restaurant',
+        city: restaurant.city || searchParams?.location?.city || '',
+        country: restaurant.country || searchParams?.location?.country || '',
+        mealType: section.mealType,
+        specificMeal: section.specificMeal,
+        timeSlot: section.timeSlot,
+        pax: section.pax,
+        image: restaurant.image || '/placeholder-restaurant.jpg',
+        mode: currentMode,
+        cuisine: restaurant.cuisine_type || 'Not specified',
+        price: restaurant.price_range || 'Not specified',
+        bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log("Restaurant booking data:", restaurantBookingData);
+      
+      // Dispatch action to store in Redux
+      dispatch(setAllServices(restaurantBookingData));
+    } else {
+      // For multiple bookings, keep the array format for now
+      const bookingsData = {
+        type: 'restaurant',
+        bookings: sectionsToValidate.map((section, index) => {
+          const restaurant = restaurants.find(r => r.id === section.restaurant) || {};
+          
+          return {
+            id: `restaurant-${Date.now()}-${index}`,
+            restaurantId: section.restaurant,
+            restaurantName: restaurant.name || 'Restaurant',
+            city: restaurant.city || searchParams?.location?.city || '',
+            country: restaurant.country || searchParams?.location?.country || '',
+            mealType: section.mealType,
+            specificMeal: section.specificMeal,
+            timeSlot: section.timeSlot,
+            pax: section.pax,
+            image: restaurant.image || '/placeholder-restaurant.jpg',
+            mode: currentMode,
+            cuisine: restaurant.cuisine_type || 'Not specified',
+            price: restaurant.price_range || 'Not specified',
+            bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0]
+          };
+        })
+      };
+      
+      console.log("Restaurant bookings data:", bookingsData);
+      
+      // Dispatch action to store in Redux
+      dispatch(setAllServices(bookingsData));
+    }
     
     setBookingSuccess(true);
     
@@ -398,6 +431,8 @@ export default function RestaurantComponent() {
                       restaurantDetails={restaurantDetails}
                       disabled={!section.restaurant || !section.mealType || !section.specificMeal}
                       onTimeSlotSelected={(timeSlotValue) => handleTimeSlotSelected(sectionIndex, timeSlotValue)}
+                      bookingDate={section.bookingDate}
+                      formSection={section}
                     />
                   </Box>
                 </Box>

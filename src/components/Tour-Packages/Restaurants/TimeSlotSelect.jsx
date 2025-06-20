@@ -9,7 +9,11 @@ import {
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
-const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, disabled, onTimeSlotSelected }) => {
+const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, disabled, onTimeSlotSelected, bookingDate, formSection }) => {
+  // Get booking date from section if not provided as prop
+  const sectionBookingDate = formSection?.bookingDate || formSection?.date;
+  const effectiveBookingDate = bookingDate || sectionBookingDate || new Date().toISOString().split('T')[0];
+
   // Generate time slots based on meal type and restaurant details
   const getTimeSlots = useCallback(() => {
     if (!selectedMealType || !restaurantDetails) return [];
@@ -77,16 +81,19 @@ const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, 
   const handleTimeSlotChange = useCallback((e) => {
     const selectedValue = e.target.value;
     
-    // First call the regular onChange handler
+    // First call the regular onChange handler with the original event
+    // This maintains compatibility with the parent component
     onChange(e);
     
     // Then trigger the booking process if a callback is provided
     if (onTimeSlotSelected && selectedValue) {
-      // Pass the actual selected value directly to the callback
-      // This ensures the value is available immediately, without waiting for state updates
-      onTimeSlotSelected(selectedValue);
+      // For the callback, we can provide the structured data with booking date
+      onTimeSlotSelected({
+        timeSlot: selectedValue,
+        bookingDate: effectiveBookingDate
+      });
     }
-  }, [onChange, onTimeSlotSelected]);
+  }, [onChange, onTimeSlotSelected, effectiveBookingDate]);
 
   return (
     <FormControl fullWidth disabled={!selectedMealType || disabled}>

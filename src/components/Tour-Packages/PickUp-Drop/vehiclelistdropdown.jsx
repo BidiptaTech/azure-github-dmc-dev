@@ -15,12 +15,14 @@ import {
   Select,
   MenuItem,
   InputLabel,
-  Button
+  Button,
+  IconButton
 } from '@mui/material';
 import { useSelector } from "react-redux";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useDispatch } from 'react-redux';
 
 import { fetchVehicleDetails } from '../../../slice/port/pickupDropSlice';
@@ -348,6 +350,46 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     setBookings([...bookings, newBooking]);
   };
   
+  // Remove a booking
+  const handleRemoveBooking = (indexToRemove) => {
+    const bookings = getBookings();
+    const bookingToRemove = bookings[indexToRemove];
+    
+    if (bookingToRemove) {
+      // Remove from local state
+      const updatedBookings = bookings.filter((_, index) => index !== indexToRemove);
+      setBookings(updatedBookings);
+      
+      // Remove from Redux state if it has a vehicleId
+      if (bookingToRemove.vehicle && bookingToRemove.vehicle.id) {
+        // Clone the existing services array
+        const currentServices = [...existingServices];
+        
+        // Filter out the booking with matching ID or type+vehicleId
+        const filteredServices = currentServices.filter(service => {
+          // If the booking has an ID, use that for exact matching
+          if (bookingToRemove.id && service.id === bookingToRemove.id) {
+            return false;
+          }
+          
+          // Otherwise match by type and vehicleId
+          if (service.type === "Entry Port" && 
+              service.vehicleId === bookingToRemove.vehicle.id) {
+            return false;
+          }
+          
+          return true;
+        });
+        
+        // Only dispatch if there's an actual change
+        if (filteredServices.length !== currentServices.length) {
+          console.log(`Removing Entry Port booking from Redux:`, bookingToRemove);
+          dispatch(setAllServices(filteredServices));
+        }
+      }
+    }
+  };
+  
   // Filter vehicles that have at least one pricing mode
   const filteredVehicles = vehicles.filter(vehicle => {
     const hasDmcPrice = vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0;
@@ -448,7 +490,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
             country: vehicle.country,
             pickupLocation: entryPickup,
             dropoffLocation: entryDropoff,
-            pickupDate: pickupDate,
+            bookingDate: pickupDate,
             pickupTime: entryTime,
             adults: bookingAdultCount,
             children: bookingChildCount,
@@ -639,7 +681,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
       country: vehicle.country,
       pickupLocation: entryPickup,
       dropoffLocation: entryDropoff,
-      pickupDate: pickupDate,
+      bookingDate: pickupDate,
       pickupTime: entryTime,
       adults: bookingAdultCount,
       children: bookingChildCount,
@@ -717,7 +759,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
       country: vehicle.country,
       pickupLocation: entryPickup,
       dropoffLocation: entryDropoff,
-      pickupDate: pickupDate,
+      bookingDate: pickupDate,
       pickupTime: entryTime,
       adults: bookingAdultCount,
       children: bookingChildCount,
@@ -750,13 +792,28 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
             bgcolor: 'background.paper',
             boxShadow: 1
           }}>
-            {index > 0 && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" gutterBottom fontWeight="500">
-                  Additional Entry Vehicle #{index + 1}
-                </Typography>
-              </Grid>
-            )}
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="500">
+                {index === 0 ? "Entry Vehicle" : `Additional Entry Vehicle #${index + 1}`}
+              </Typography>
+              <IconButton
+                color="error"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveBooking(index);
+                }}
+                size="small"
+                aria-label="delete booking"
+                sx={{ 
+                  borderRadius: '4px', 
+                  '&:hover': { 
+                    bgcolor: 'rgba(211, 47, 47, 0.04)' 
+                  } 
+                }}
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Grid>
             
             <Grid item xs={12} sm={6} md={3}>
               <Autocomplete

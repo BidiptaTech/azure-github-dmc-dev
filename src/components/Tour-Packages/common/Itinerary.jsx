@@ -51,6 +51,8 @@ import RestaurantComponent from '../../Tour-Packages/Restaurants';
 import GuideComponent from '../../Tour-Packages/Guide';
 import TransportComponent from '../../Tour-Packages/Local-Transport';
 import PickupDropComponent from '../../Tour-Packages/PickUp-Drop';
+import SimpleCustomerInfo from './SimpleCustomerInfo';
+import ServicesSummaryModal from './ServicesSummaryModal';
 
 export default function Itinerary() {
   // Get data from Redux store
@@ -63,6 +65,9 @@ export default function Itinerary() {
   
   // State for active service tab
   const [activeServiceTab, setActiveServiceTab] = useState(0);
+  
+  // State for summary modal
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   
   // Generate dates array from the selected date range
   const dates = useMemo(() => {
@@ -118,7 +123,7 @@ export default function Itinerary() {
           <Typography variant="h5">Hotels</Typography>
         </Box>
         
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Please add hotels details (if included in package) with services provided for each hotels and the selling cost price.
         </Typography>
         
@@ -130,7 +135,7 @@ export default function Itinerary() {
           <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>or</Typography>
           <Button size="small" variant="text" color="primary">Duplicate</Button>
           <Typography variant="body2" color="text.secondary">actions.</Typography>
-        </Box>
+        </Box> */}
         
         {/* Hotel Component */}
         <HotelComponent />
@@ -377,6 +382,9 @@ export default function Itinerary() {
         ))}
       </Paper>
       
+      {/* Customer Information Section - Added just before Trip Summary */}
+      <SimpleCustomerInfo />
+      
       {/* Summary section */}
       <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
         <Typography variant="h6" gutterBottom>Trip Summary</Typography>
@@ -391,13 +399,27 @@ export default function Itinerary() {
               {dates.length - 1} Night{dates.length - 1 !== 1 ? 's' : ''}
             </Typography>
           </Grid>
-          <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+          <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+            <Button 
+              variant="outlined" 
+              color="primary" 
+              size="large"
+              onClick={() => setSummaryModalOpen(true)}
+            >
+              View Summary
+            </Button>
             <Button variant="contained" color="primary" size="large">
               Save Itinerary
             </Button>
           </Grid>
         </Grid>
       </Paper>
+      
+      {/* Services Summary Modal */}
+      <ServicesSummaryModal 
+        open={summaryModalOpen} 
+        onClose={() => setSummaryModalOpen(false)} 
+      />
     </Box>
   );
 } 
