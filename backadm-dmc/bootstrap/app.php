@@ -26,10 +26,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
-    ->withProviders([
-        // Register Azure Key Vault provider early to load secrets
-        App\Providers\AzureKeyVaultServiceProvider::class,
-    ])
     ->withExceptions(function (Exceptions $exceptions) {
         // Add your exception handling logic here
     })

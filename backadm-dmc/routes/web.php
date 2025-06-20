@@ -44,7 +44,7 @@ use App\Http\Controllers\JobSheetController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Artisan;
-use App\Services\AzureKeyVaultService;
+
 use Illuminate\Support\Facades\Mail;
 
 /*
@@ -57,38 +57,6 @@ use Illuminate\Support\Facades\Mail;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
-// Health check route for debugging (no authentication required)
-Route::get('/health', function () {
-    try {
-        return response()->json([
-            'status' => 'ok',
-            'timestamp' => now(),
-            'app_env' => config('app.env'),
-            'app_debug' => config('app.debug'),
-            'azure_keyvault_enabled' => env('USE_AZURE_KEYVAULT', false),
-            'php_version' => PHP_VERSION,
-            'laravel_version' => app()->version(),
-            'database_connection' => config('database.default'),
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => $e->getMessage(),
-            'timestamp' => now(),
-        ], 500);
-    }
-});
-
-// Simple debug route to test basic Laravel functionality
-Route::get('/debug', function () {
-    return response()->json([
-        'message' => 'Laravel is working!',
-        'timestamp' => now()->toDateTimeString(),
-        'memory_usage' => memory_get_usage(true),
-        'memory_peak' => memory_get_peak_usage(true),
-    ]);
-});
-
 Auth::routes();
 Route::group(['middleware' => ['auth']], function () {
     Route::get('/', function () {
@@ -531,8 +499,6 @@ Route::get('/test-booking-email', function() {
         ];
     }
 });
-
-
 
 
 
