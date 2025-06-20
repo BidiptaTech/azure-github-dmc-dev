@@ -18,7 +18,17 @@ class AzureKeyVaultServiceProvider extends ServiceProvider
         });
 
         // Load secrets from Azure Key Vault early in the application lifecycle
-        $this->loadSecretsFromKeyVault();
+        // Wrap in try-catch to prevent 500 errors during application startup
+        try {
+            $this->loadSecretsFromKeyVault();
+        } catch (\Exception $e) {
+            // Log the error but don't break the application
+            Log::error('Critical error during Azure Key Vault initialization: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Continue application startup without Key Vault
+            Log::warning('Application starting without Azure Key Vault due to initialization error');
+        }
     }
 
     /**

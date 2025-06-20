@@ -500,6 +500,19 @@ Route::get('/test-booking-email', function() {
     }
 });
 
+// Health check route for debugging
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now(),
+        'app_env' => config('app.env'),
+        'app_debug' => config('app.debug'),
+        'azure_keyvault_enabled' => env('USE_AZURE_KEYVAULT', false),
+        'php_version' => PHP_VERSION,
+        'laravel_version' => app()->version(),
+    ]);
+});
+
 
 
 
