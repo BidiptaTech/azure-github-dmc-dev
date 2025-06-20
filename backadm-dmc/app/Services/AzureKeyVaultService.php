@@ -15,19 +15,24 @@ class AzureKeyVaultService
 
     public function __construct()
     {
-        $this->client = new Client();
-        $this->isEnabled = env('USE_AZURE_KEYVAULT', false);
-        
-        if ($this->isEnabled) {
-            $vaultName = config('services.azure.vault');
-            if (empty($vaultName)) {
-                Log::warning('Azure Key Vault name not configured');
-                $this->isEnabled = false;
-                return;
-            }
+        try {
+            $this->client = new Client();
+            $this->isEnabled = env('USE_AZURE_KEYVAULT', false);
             
-            $this->vaultBaseUrl = 'https://' . $vaultName . '.vault.azure.net';
-            $this->authenticate();
+            if ($this->isEnabled) {
+                $vaultName = config('services.azure.vault');
+                if (empty($vaultName)) {
+                    Log::warning('Azure Key Vault name not configured');
+                    $this->isEnabled = false;
+                    return;
+                }
+                
+                $this->vaultBaseUrl = 'https://' . $vaultName . '.vault.azure.net';
+                $this->authenticate();
+            }
+        } catch (\Exception $e) {
+            Log::error('Azure Key Vault Service construction failed: ' . $e->getMessage());
+            $this->isEnabled = false;
         }
     }
 

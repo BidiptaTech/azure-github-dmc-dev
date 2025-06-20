@@ -91,12 +91,17 @@ class AzureKeyVaultServiceProvider extends ServiceProvider
      */
     protected function loadLocalEnvironmentFile(): void
     {
-        $localEnvPath = base_path('.env.local');
-        
-        if (file_exists($localEnvPath)) {
-            $dotenv = \Dotenv\Dotenv::createImmutable(base_path(), '.env.local');
-            $dotenv->safeLoad();
-            Log::info('Loaded .env.local file for local development');
+        try {
+            $localEnvPath = base_path('.env.local');
+            
+            if (file_exists($localEnvPath)) {
+                $dotenv = \Dotenv\Dotenv::createImmutable(base_path(), '.env.local');
+                $dotenv->safeLoad();
+                Log::info('Loaded .env.local file for local development');
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to load .env.local file: ' . $e->getMessage());
+            // Continue without local env file
         }
     }
 
