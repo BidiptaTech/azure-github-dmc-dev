@@ -14,10 +14,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 */
 
 $app = Application::configure(basePath: dirname(__DIR__))
-    ->withEnvironmentFile(function () {
-        // Use .env.local for local development if it exists, otherwise use .env
-        return file_exists(dirname(__DIR__) . '/.env.local') ? '.env.local' : '.env';
-    })
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',

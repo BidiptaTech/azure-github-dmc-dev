@@ -35,6 +35,9 @@ class AzureKeyVaultServiceProvider extends ServiceProvider
     protected function loadSecretsFromKeyVault(): void
     {
         try {
+            // Load .env.local if it exists (for local development)
+            $this->loadLocalEnvironmentFile();
+            
             // Check if Azure Key Vault is enabled
             if (!env('USE_AZURE_KEYVAULT', false)) {
                 Log::info('Azure Key Vault is disabled, using .env file only');
@@ -70,6 +73,20 @@ class AzureKeyVaultServiceProvider extends ServiceProvider
         } catch (\Exception $e) {
             Log::error('Failed to load secrets from Azure Key Vault: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
+        }
+    }
+
+    /**
+     * Load .env.local file if it exists (for local development)
+     */
+    protected function loadLocalEnvironmentFile(): void
+    {
+        $localEnvPath = base_path('.env.local');
+        
+        if (file_exists($localEnvPath)) {
+            $dotenv = \Dotenv\Dotenv::createImmutable(base_path(), '.env.local');
+            $dotenv->safeLoad();
+            Log::info('Loaded .env.local file for local development');
         }
     }
 
