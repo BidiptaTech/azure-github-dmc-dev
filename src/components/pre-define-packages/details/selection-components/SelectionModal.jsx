@@ -131,6 +131,8 @@ const SelectionModal = ({
                     <Card 
                       elevation={0}
                       sx={{ 
+                        top: '10px',
+                        // height: '250px',
                         border: '1px solid',
                         borderColor: isSelected(item) ? 'primary.main' : 'divider',
                         borderRadius: '4px',
