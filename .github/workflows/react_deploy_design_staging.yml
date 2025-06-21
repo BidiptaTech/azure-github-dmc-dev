@@ -1,9 +1,9 @@
-name: React Deploy Koushik to Azure
+name: React Deploy Design Staging to Azure
 
 on:
   push:
     branches:
-      - koushik
+      - design_staging
 
 permissions:
   contents: write
@@ -20,7 +20,7 @@ jobs:
       NODE_OPTIONS: '--max-old-space-size=4096'
 
     steps:
-      - name: 📥 Checkout Koushik branch
+      - name: 📥 Checkout Design Staging branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -157,8 +157,6 @@ jobs:
           
           echo "✅ .htaccess file created for React routing"
 
-
-
       - name: 🔍 Create React deployment info
         run: |
           echo "🔧 Creating React deployment information..."
@@ -181,7 +179,7 @@ jobs:
               <div class="info">
                   <h3 class="success">✅ React Application Deployed Successfully</h3>
                   <p><strong>Deployment Date:</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
-                  <p><strong>Branch:</strong> koushik</p>
+                  <p><strong>Branch:</strong> design_staging</p>
                   <p><strong>Build:</strong> Production</p>
                   
                   <h3>📁 Preserved Files & Folders:</h3>
@@ -257,7 +255,7 @@ jobs:
 
       - name: 🎉 Deployment Summary
         run: |
-          echo "🎯 React application deployed directly to Azure!"
+          echo "🎯 React application deployed directly to Azure from design_staging branch!"
           echo ""
           echo "📁 Deployed:"
           echo "   → React production build to Azure Web App"
@@ -269,16 +267,18 @@ jobs:
           echo "   → Static assets optimized with compression"
           echo "   → Security headers configured"
           echo "   → Caching rules applied"
-          echo "   → Direct Azure deployment (no staging branch)"
+          echo "   → Deployed from tracked design_staging branch"
           echo ""
           echo "⚡ Result:"
           echo "   → React app is now live on Azure App Service"
           echo "   → Available at your Azure Web App URL"
           echo "   → Files deployed using Azure Web App Deploy action"
+          echo "   → Source code tracked in design_staging branch"
           echo ""
           echo "🛡️ Important:"
           echo "   → Azure Service Principal authentication configured"
           echo "   → Deploying to: dmc-app-dev Azure Web App"
           echo "   → Required secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID"
           echo "   → Configure Azure App Service deployment settings to preserve Laravel files"
-          echo "   → In Azure Portal: App Service → Deployment Center → Settings" 
+          echo "   → In Azure Portal: App Service → Deployment Center → Settings"
+          echo "   → Code changes can be tracked via design_staging branch history" 

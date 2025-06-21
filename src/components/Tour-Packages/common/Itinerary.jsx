@@ -328,7 +328,7 @@ export default function Itinerary() {
             {index === 0 && (
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Entry Port</Typography>
+      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
       <PickupDropComponent portType={portType} setPortType={() => setPortType("Entry Port")} />
     </Paper>
   </Box>
@@ -371,7 +371,7 @@ export default function Itinerary() {
             {index === dates.length - 1 && (
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-      <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Exit Port</Typography>
+      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Departure</Typography> */}
       <PickupDropComponent portType1={portType1} setPortType1={() => setPortType1("Exit Port")} />
     </Paper>
   </Box>

@@ -336,7 +336,8 @@ const restaurantsSlice = createSlice({
       })
       .addCase(fetchRestaurantsDetails.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.restaurantDetails = action.payload; // Store fetched restaurant details in restaurantDetails
+        state.selectedRestaurant = action.payload; // Store fetched restaurant details in selectedRestaurant
+        state.restaurantDetails = action.payload; // Also store in restaurantDetails for backward compatibility
       })
       .addCase(fetchRestaurantsDetails.rejected, (state, action) => {
         state.status = "failed";

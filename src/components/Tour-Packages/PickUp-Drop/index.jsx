@@ -46,9 +46,9 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   let headerText = "Pickup & Drop Services";
   
   if (showEntryPort && !showExitPort) {
-    headerText = "Entry Port Services";
+    headerText = "Arrival";
   } else if (portType === "Exit Port") {
-    headerText = "Exit Port Services";
+    headerText = "Departure";
   }
   
   const dispatch = useDispatch();
