@@ -144,7 +144,7 @@ const ExitPortSearch = ({ Location }) => {
   return (
     <div className="entry-port-search-container">
       {/* First row - Location Search */}
-      <div className="search-row location-row">
+      <div className="search-row1 location-row">
         <SearchBar
           exitpickUpLocation={exitpickUpLocation}
           setexitPickUpLocation={setexitPickUpLocation}
@@ -159,11 +159,6 @@ const ExitPortSearch = ({ Location }) => {
           setPickupFromAutocomplete={setExitPickupFromAutocomplete}
           setDropoffFromAutocomplete={setExitDropoffFromAutocomplete}
         />
-      </div>
-
-      {/* Second row - Time, Date, Button */}
-      <div className="search-row controls-row">
-        {/* Time Selection */}
         <div className="time-selection-wrapper">
           <Pickuptime1
             entryytime={entryytime1}
@@ -180,7 +175,10 @@ const ExitPortSearch = ({ Location }) => {
             setSelectedDate1={setSelectedDate1}
           />
         </div>
+      </div>
 
+      {/* Search Button Row */}
+      <div className="search-row controls-row">
         {/* Search Button */}
         <div className="search-button-wrapper">
           <button
@@ -201,12 +199,17 @@ const ExitPortSearch = ({ Location }) => {
           width: 100%;
         }
         
-        .search-row {
+        .search-row1 {
           width: 100%;
+          margin-left: -10px;
         }
         
         .location-row {
-          /* First row with just location */
+          display: flex;
+          flex-direction: row;
+          align-items: flex-end;
+          flex-wrap: nowrap;
+          gap: 10px;
         }
         
         .controls-row {
@@ -217,17 +220,25 @@ const ExitPortSearch = ({ Location }) => {
           gap: 15px;
         }
         
+        .searchMenu-loc {
+          width: 58%;
+          flex-shrink: 0;
+          margin-right: 0;
+        }
+        
         .time-selection-wrapper {
-          width: 20%;
+          width: 15%;
+          flex-shrink: 0;
         }
         
         .date-selection-wrapper {
           width: 20%;
+          flex-shrink: 0;
         }
         
         .search-button-wrapper {
           width: 20%;
-          margin-left: 5%;
+          margin-left: auto;
         }
 
         .search-button-wrapper button {
@@ -235,7 +246,38 @@ const ExitPortSearch = ({ Location }) => {
           max-width: 250px;
         }
 
+        @media (max-width: 1400px) {
+          .searchMenu-loc {
+            width: 50%;
+          }
+          
+          .time-selection-wrapper {
+            width: 20%;
+          }
+          
+          .date-selection-wrapper {
+            width: 25%;
+          }
+        }
+
         @media (max-width: 1199px) {
+          .location-row {
+            flex-wrap: wrap;
+          }
+          
+          .searchMenu-loc {
+            width: 100%;
+            margin-bottom: 15px;
+          }
+          
+          .time-selection-wrapper {
+            width: 48%;
+          }
+          
+          .date-selection-wrapper {
+            width: 48%;
+          }
+          
           .controls-row {
             flex-direction: column;
             gap: 15px;
@@ -249,6 +291,7 @@ const ExitPortSearch = ({ Location }) => {
           
           .search-button-wrapper {
             text-align: center;
+            width: 100%;
           }
           
           .search-button-wrapper button {
@@ -261,13 +304,18 @@ const ExitPortSearch = ({ Location }) => {
             gap: 10px;
           }
           
-          .controls-row {
-            gap: 10px;
+          .location-row {
+            flex-direction: column;
+            gap: 15px;
           }
           
           .time-selection-wrapper,
           .date-selection-wrapper {
-            margin-bottom: 10px;
+            width: 100%;
+          }
+          
+          .controls-row {
+            gap: 10px;
           }
         }
       `}</style>
