@@ -1,0 +1,515 @@
+import React, { useEffect } from 'react';
+import { 
+  Grid, 
+  Autocomplete, 
+  TextField, 
+  Tooltip, 
+  Box,
+  Typography,
+  Stack,
+  Chip,
+  Paper,
+  styled,
+  FormControl,
+  FormLabel,
+  Select,
+  MenuItem,
+  InputLabel
+} from '@mui/material';
+import { useSelector } from "react-redux";
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import EventSeatIcon from '@mui/icons-material/EventSeat';
+import { useDispatch } from 'react-redux';
+import { useState } from 'react';
+import { fetchVehicleDetails } from '../../../slice/localtour/Localslice';
+import Passenger from './Passenger';
+import HourlyPackage from './HourlyPackage';
+
+// Custom styled tooltip
+const CustomTooltip = styled(({ className, ...props }) => (
+  <Tooltip {...props} classes={{ popper: className }} />
+))(({ theme }) => ({
+  '& .MuiTooltip-tooltip': {
+    backgroundColor: 'white',
+    color: 'rgba(0, 0, 0, 0.87)',
+    maxWidth: 400,
+    border: '1px solid #dadde9',
+    borderRadius: '12px',
+    padding: 0,
+    boxShadow: theme.shadows[3]
+  },
+}));
+
+// Tooltip content component
+const TooltipContent = ({ vehicle }) => {
+  return (
+    <Box>
+      {/* Header Image Section */}
+      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+        <Box
+          component="img"
+          src={vehicle.image}
+          alt={vehicle.vehicle_name}
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            borderTopLeftRadius: '12px',
+            borderTopRightRadius: '12px',
+          }}
+        />
+      </Box>
+
+      {/* Content Section */}
+      <Box sx={{ p: 2 }}>
+        {/* Title and Location */}
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+          {vehicle.vehicle_name}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
+          <Typography variant="body2" color="text.secondary">
+            {vehicle.city}, {vehicle.country}
+          </Typography>
+        </Box>
+
+        {/* Vehicle Details */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+            Vehicle Details
+          </Typography>
+          <Stack spacing={1.5}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
+              <Typography variant="body2">
+                <strong>Type:</strong> {vehicle.vehicle_type}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
+              <Typography variant="body2">
+                <strong>Model:</strong> {vehicle.vehicle_model}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <DirectionsCarIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
+              <Typography variant="body2">
+                <strong>Year:</strong> {vehicle.model_year}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <EventSeatIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
+              <Typography variant="body2">
+                <strong>Seating Capacity:</strong> {vehicle.seating_capacity}
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
+
+        {/* Pricing Section */}
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+            Pricing Details
+          </Typography>
+          <Grid container spacing={2}>
+            {/* DMC Prices */}
+            {(vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0) && (
+              <Grid item xs={6}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 1.5,
+                    bgcolor: 'rgba(25, 118, 210, 0.02)',
+                    borderColor: 'rgba(25, 118, 210, 0.1)'
+                  }}
+                >
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500 }}>
+                    DMC Prices
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {vehicle.dmc_private_price > 0 && (
+                      <Typography variant="body2">Private: ${vehicle.dmc_private_price}</Typography>
+                    )}
+                    {vehicle.dmc_sharable_price > 0 && (
+                      <Typography variant="body2">Sharable: ${vehicle.dmc_sharable_price}</Typography>
+                    )}
+                  </Stack>
+                </Paper>
+              </Grid>
+            )}
+
+            {/* Travclicks Prices */}
+            {(vehicle.trav_private_price > 0 || vehicle.trav_sharable_price > 0) && (
+              <Grid item xs={6}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 1.5,
+                    bgcolor: 'rgba(76, 175, 80, 0.02)',
+                    borderColor: 'rgba(76, 175, 80, 0.1)'
+                  }}
+                >
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500 }}>
+                    Travclicks Prices
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {vehicle.trav_private_price > 0 && (
+                      <Typography variant="body2">Private: ${vehicle.trav_private_price}</Typography>
+                    )}
+                    {vehicle.trav_sharable_price > 0 && (
+                      <Typography variant="body2">Sharable: ${vehicle.trav_sharable_price}</Typography>
+                    )}
+                  </Stack>
+                </Paper>
+              </Grid>
+            )}
+          </Grid>
+
+          {/* Tax Information */}
+          {vehicle.tax_percentage && (
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                display: 'block',
+                mt: 1,
+                color: 'text.secondary',
+                fontStyle: 'italic'
+              }}
+            >
+              *Prices are subject to {vehicle.tax_percentage}% tax
+            </Typography>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+// Updated Mode component with dropdown instead of radio buttons
+const Mode = ({ pricemode, setpricemode, vehicles }) => {
+  // Return null if no vehicle data is available
+  if (!vehicles || !vehicles.prices) return null;
+  
+  // Check which price modes are available
+  const hasPrivatePrice = vehicles.prices.privatePrice > 0;
+  const hasSharablePrice = vehicles.prices.sharablePrice > 0;
+  
+  // If no pricing options available, return null
+  if (!hasPrivatePrice && !hasSharablePrice) return null;
+  
+  // State to control dropdown open/close
+  const [open, setOpen] = useState(false);
+  
+  const handleOpen = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setOpen(true);
+  };
+  
+  const handleClose = (e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setOpen(false);
+  };
+  
+  const handleChange = (e) => {
+    e.stopPropagation();
+    setpricemode(e.target.value);
+  };
+  
+  // Set default mode on first render
+  useEffect(() => {
+    // If no mode is selected yet, set a default
+    if (!pricemode) {
+      if (hasPrivatePrice) {
+        setpricemode("Private");
+      } else if (hasSharablePrice) {
+        setpricemode("Sharable");
+      }
+    }
+  }, [vehicles, pricemode, setpricemode, hasPrivatePrice, hasSharablePrice]);
+  
+  return (
+    <Grid item xs={12} sm={6} md={3}>
+      {/* Mount the component directly without Box wrapping */}
+      <div style={{ isolation: 'isolate' }}>
+        <FormControl fullWidth>
+          <InputLabel id="price-mode-label">Price Mode</InputLabel>
+          <Select
+            labelId="price-mode-label"
+            id="price-mode-select"
+            value={pricemode}
+            label="Price Mode"
+            open={open}
+            onOpen={handleOpen}
+            onClose={handleClose}
+            onChange={handleChange}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            MenuProps={{
+              disableScrollLock: true,
+              slotProps: {
+                paper: {
+                  onMouseDown: (e) => e.stopPropagation(),
+                  onClick: (e) => e.stopPropagation(),
+                  style: { zIndex: 9999 }
+                }
+              }
+            }}
+          >
+            {hasPrivatePrice && (
+              <MenuItem value="Private" onClick={(e) => e.stopPropagation()}>Private</MenuItem>
+            )}
+            {hasSharablePrice && (
+              <MenuItem value="Sharable" onClick={(e) => e.stopPropagation()}>Sharable</MenuItem>
+            )}
+          </Select>
+        </FormControl>
+      </div>
+    </Grid>
+  ); 
+};
+
+const VehicleListDropdown = ({ 
+  selectedVehicle, 
+  onVehicleChange, 
+  onPaxChange, 
+  onPriceModeChange, 
+  onPriceChange,
+  sectionIndex, 
+  isNewBooking,
+  cachedVehicles,
+  cachedVehicleName
+}) => {
+  const vehicles = useSelector((state) => state.localtour.vehicles || []);
+  const portZoneType = useSelector((state) => state.localtour.portZoneType);
+  const dispatch = useDispatch();
+  const tourDetails = useSelector((state) => state.hotels?.tourdetails);
+  
+  // Use cached vehicles if provided, otherwise use Redux vehicles
+  const vehiclesToUse = cachedVehicles && cachedVehicles.length > 0 ? cachedVehicles : vehicles;
+  
+  // Find the currently selected vehicle from our list
+  const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
+
+  // Use optional chaining for safe access to nested properties
+  const adultsMax = tourDetails?.data?.adult ?? 1;
+  const childrenMax = tourDetails?.data?.child ?? 0;
+
+  // Get initial passenger counts from parent component if available
+  const [adults, setAdults] = useState(adultsMax);
+  const [children, setChildren] = useState(childrenMax);
+  const [seatingCapacity, setSeatingCapacity] = useState(0);
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Define totalGuests for price calculation
+  const totalGuests = adults + children;
+  
+  // Update parent component with passenger info when it changes
+  useEffect(() => {
+    if (onPaxChange) {
+      onPaxChange(adults, children);
+    }
+  }, [adults, children, onPaxChange]);
+  
+  // Filter vehicles that have at least one pricing mode
+  const filteredVehicles = vehiclesToUse.filter(vehicle => {
+    const hasDmcPrice = vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0;
+    const hasTravclicksPrice = vehicle.trav_private_price > 0 || vehicle.trav_sharable_price > 0;
+    return hasDmcPrice || hasTravclicksPrice;
+  });
+  
+  const handleVehicleClick = (vehicle) => {
+    if (!vehicle || !onVehicleChange) return;
+  
+    const hasDmcPrice = vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0;
+    const hasTravclicksPrice = vehicle.trav_private_price > 0 || vehicle.trav_sharable_price > 0;
+  
+    const mode = (hasDmcPrice && !hasTravclicksPrice) ? "dmc" : "travclicks";
+    const dmcId = (hasDmcPrice && !hasTravclicksPrice) ? vehicle.dmc_id : vehicle.travclicks_dmc_id;
+  
+    onVehicleChange(vehicle.id, mode, dmcId, vehicle.city, vehicle.country);
+  
+    // Reset states
+    setData(null);
+    setError(null);
+    setIsLoading(true);
+  
+    setTimeout(() => {
+      dispatch(fetchVehicleDetails({ city: vehicle.city, country: vehicle.country, type: portZoneType }))
+      .unwrap() // Unwrap the promise to handle the payload directly
+      .then((data) => {
+        console.log("data", data);
+        setSeatingCapacity(data.seating_capacity || 0);
+        setData(data);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching vehicle details:", err);
+        setError(err.message || "Failed to load vehicle details");
+        setIsLoading(false);
+      });
+    }, 300); // 300ms delay
+  };
+
+  const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
+  
+  // Notify parent when price mode changes
+  useEffect(() => {
+    if (onPriceModeChange && pricemode) {
+      onPriceModeChange(pricemode);
+    }
+  }, [pricemode, onPriceModeChange]);
+  
+  // Add null check for data and data.prices
+  const Price = data && data.prices 
+    ? (pricemode === "Sharable"
+      ? data.prices.sharablePrice * totalGuests
+      : data.prices.privatePrice)
+    : 0;
+  
+  // Pass price to parent component when it changes
+  useEffect(() => {
+    if (onPriceChange && Price > 0) {
+      onPriceChange(Price);
+    }
+  }, [Price, onPriceChange, pricemode, totalGuests]);
+  
+  // Handle adult count change for this specific booking
+  const handleAdultChange = (value) => {
+    setAdults(value);
+  };
+  
+  // Handle child count change for this specific booking
+  const handleChildChange = (value) => {
+    setChildren(value);
+  };
+
+  return (
+    <Grid container spacing={2} sx={{ mt: 3 }}>
+      <Grid item xs={12}>
+        <Typography variant="h6" gutterBottom>
+          Select Vehicle
+        </Typography>
+      </Grid>
+      <Grid item xs={12} sm={6} md={3}>
+        {/* Mount the component directly without Box wrapping */}
+        <div style={{ isolation: 'isolate' }}>
+          <Autocomplete
+            key={`vehicle-autocomplete-${sectionIndex}`}
+            value={selectedVehicleObj}
+            onChange={(event, newValue) => {
+              event.stopPropagation();
+              handleVehicleClick(newValue);
+            }}
+            options={filteredVehicles}
+            getOptionLabel={(option) => option.vehicle_name || cachedVehicleName || ''}
+            renderOption={(props, option) => (
+              <CustomTooltip
+                key={`tooltip-${option.id}`}
+                title={<TooltipContent vehicle={option} />}
+                placement="right"
+                arrow
+              >
+                <Box 
+                  key={`option-${option.id}`}
+                  component="li" 
+                  {...props} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onClick(e);
+                  }}
+                >
+                  {option.vehicle_name}
+                  {/* Add a small indicator for available pricing modes */}
+                  <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+                    {(option.dmc_private_price > 0 || option.dmc_sharable_price > 0) && (
+                      <Chip 
+                        key={`dmc-${option.id}`}
+                        size="small" 
+                        label="DMC"
+                        sx={{ 
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: 'rgba(25, 118, 210, 0.08)',
+                          color: 'primary.main'
+                        }}
+                      />
+                    )}
+                    {(option.trav_private_price > 0 || option.trav_sharable_price > 0) && (
+                      <Chip 
+                        key={`travclicks-${option.id}`}
+                        size="small" 
+                        label="Travclicks"
+                        sx={{ 
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: 'rgba(76, 175, 80, 0.08)',
+                          color: '#2e7d32'
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              </CustomTooltip>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Select Vehicle"
+                fullWidth
+                // Display cached vehicle name if we have it but the vehicle isn't in the list
+                {...(cachedVehicleName && !selectedVehicleObj && {
+                  InputProps: {
+                    ...params.InputProps,
+                    startAdornment: (
+                      <Typography 
+                        color="textSecondary" 
+                        sx={{ mr: 1, fontStyle: 'italic' }}
+                      >
+                        {cachedVehicleName}
+                      </Typography>
+                    )
+                  }
+                })}
+              />
+            )}
+            componentsProps={{
+              popper: {
+                sx: { zIndex: 9999 },
+                onClick: (e) => e.stopPropagation(),
+                onMouseDown: (e) => e.stopPropagation()
+              },
+              paper: {
+                onClick: (e) => e.stopPropagation(),
+                onMouseDown: (e) => e.stopPropagation()
+              }
+            }}
+          />
+        </div>
+      </Grid>
+      <Passenger 
+        adultsMax={adultsMax} 
+        childrenMax={childrenMax} 
+        seatingCapacity={seatingCapacity} 
+        initialAdults={adults}
+        initialChildren={children}
+        onAdultChange={handleAdultChange}
+        onChildChange={handleChildChange}
+      />
+      {data && <Mode pricemode={pricemode} setpricemode={setpricemode} vehicles={data}/>}
+      
+    </Grid>
+  );
+};
+
+export default VehicleListDropdown;
+
+
+
+
