@@ -24,17 +24,35 @@ jobs:
 
       - name: 🔄 Push to Design Staging branch
         run: |
-          echo "🔄 Pushing code from koushik to design_staging branch..."
+          echo "🔄 Pushing code from koushik to design_staging branch (excluding .github folder)..."
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           
-          # Create or switch to design_staging branch
-          git checkout -B design_staging
+          # Fetch design_staging branch if it exists
+          git fetch origin design_staging:design_staging || echo "design_staging branch doesn't exist yet"
+          
+          # Switch to design_staging branch
+          git checkout design_staging || git checkout -b design_staging
+          
+          # Remove all files except .github folder
+          find . -maxdepth 1 -not -name '.github' -not -name '.git' -not -name '.' -exec rm -rf {} + || true
+          
+          # Copy all files from koushik branch except .github folder
+          git checkout koushik -- .
+          git reset HEAD .github/ || true
+          git checkout HEAD -- .github/ || true
+          
+          # Stage all changes except .github folder
+          git add .
+          git reset HEAD .github/ || true
+          
+          # Commit changes
+          git commit -m "Auto-sync from koushik branch (excluding .github folder)" || echo "No changes to commit"
           
           # Push to design_staging branch
-          git push origin design_staging --force
+          git push origin design_staging
           
-          echo "✅ Code pushed to design_staging branch successfully"
+          echo "✅ Code pushed to design_staging branch successfully (excluding .github folder)"
 
       - name: 🎉 Push Summary
         run: |
