@@ -13,7 +13,13 @@ import {
   MenuItem
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
-import { Search as SearchIcon } from '@mui/icons-material';
+import { 
+  Search as SearchIcon,
+  LocationOn as LocationIcon,
+  CalendarToday as CalendarIcon,
+  People as PeopleIcon,
+  Person as PersonIcon
+} from '@mui/icons-material';
 import LocationSearch from './LocationSearch';
 import DateRangePicker from './DateRangePicker';
 import PaxSelector from './PaxSelector';
@@ -428,85 +434,322 @@ export default function SearchForm({ onNext, setActiveTab }) {
 
   return (
     <Box component="form" onSubmit={handleSearch} sx={{ width: '100%' }}>
-      <Paper 
-        elevation={3} 
-        sx={{ 
-          p: 3, 
-          borderRadius: 2,
-          background: 'white',
-        }}
-      >
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={12} md={12}>
-            <LocationSearch 
-              onLocationSelect={handleLocationSelect}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4}>
-            <DateRangePicker 
-              onDateChange={handleDateChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4}>
-            <PaxSelector 
-              guestCounts={guestCounts}
-              onGuestChange={handleGuestChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl 
-              fullWidth 
-              variant="outlined"
-              sx={{ 
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
-            >
-              <InputLabel id="agent-select-label">Select Agent *</InputLabel>
-              <Select
-                labelId="agent-select-label"
-                id="agent-select"
-                value={selectedAgent}
-                onChange={handleAgentChange}
-                label="Select Agent *"
-                required
+      <Grid container spacing={1.5}>
+        {/* Single Row: All Form Fields */}
+        <Grid item xs={12}>
+          <Grid container spacing={1.5}>
+            {/* Location Search - 4 columns */}
+            <Grid item xs={12} sm={6} md={4}>
+              <Box
+                sx={{
+                  p: 1,
+                  borderRadius: 1.5,
+                  bgcolor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  height: '100%',
+                  minHeight: '60px',
+                  position: 'relative',
+                  zIndex: 1,
+                  '&:hover': {
+                    borderColor: '#3b82f6',
+                    bgcolor: '#f1f5f9'
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
               >
-                <MenuItem value="">
-                  <em>Choose an agent</em>
-                </MenuItem>
-                {agents && agents.map((agent) => (
-                  <MenuItem key={agent.id} value={agent.agent_id}>
-                    {agent.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    mb: 0.5, 
+                    fontWeight: 600, 
+                    color: '#374151',
+                    textTransform: 'uppercase',
+                    fontSize: '0.65rem',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <LocationIcon sx={{ color: '#ef4444', fontSize: 14 }} />
+                  Destination
+                </Typography>
+                <LocationSearch 
+                  onLocationSelect={handleLocationSelect}
+                />
+              </Box>
+            </Grid>
+
+            {/* Date Range - 3 columns */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Box
+                sx={{
+                  p: 1,
+                  borderRadius: 1.5,
+                  bgcolor: 'white',
+                  border: '1px solid #e2e8f0',
+                  height: '100%',
+                  minHeight: '60px',
+                  position: 'relative',
+                  zIndex: 10,
+                  overflow: 'visible',
+                  '&:hover': {
+                    borderColor: '#3b82f6',
+                    boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    mb: 0.5, 
+                    fontWeight: 600, 
+                    color: '#374151',
+                    textTransform: 'uppercase',
+                    fontSize: '0.65rem',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <CalendarIcon sx={{ color: '#10b981', fontSize: 14 }} />
+                  Travel Dates
+                </Typography>
+                <DateRangePicker 
+                  onDateChange={handleDateChange}
+                />
+              </Box>
+            </Grid>
+
+            {/* Guest Selection - 3 columns */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Box
+                sx={{
+                  p: 1,
+                  borderRadius: 1.5,
+                  bgcolor: 'white',
+                  border: '1px solid #e2e8f0',
+                  height: '100%',
+                  minHeight: '60px',
+                  position: 'relative',
+                  zIndex: 9,
+                  overflow: 'visible',
+                  '&:hover': {
+                    borderColor: '#3b82f6',
+                    boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    mb: 0.5, 
+                    fontWeight: 600, 
+                    color: '#374151',
+                    textTransform: 'uppercase',
+                    fontSize: '0.65rem',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <PeopleIcon sx={{ color: '#f59e0b', fontSize: 14 }} />
+                  Guests
+                </Typography>
+                <PaxSelector 
+                  guestCounts={guestCounts}
+                  onGuestChange={handleGuestChange}
+                />
+              </Box>
+            </Grid>
+
+            {/* Agent Selection - 2 columns */}
+            <Grid item xs={12} sm={6} md={2}>
+              <Box
+                // sx={{
+                //   p: 1,
+                //   borderRadius: 1.5,
+                //   bgcolor: 'white',
+                //   border: '1px solid #e2e8f0',
+                //   height: '100%',
+                //   minHeight: '60px',
+                //   position: 'relative',
+                //   zIndex: 8,
+                //   overflow: 'visible',
+                //   '&:hover': {
+                //     borderColor: '#3b82f6',
+                //     boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
+                //   },
+                //   transition: 'all 0.2s ease-in-out'
+                // }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    mb: 0.5, 
+                    fontWeight: 600, 
+                    color: '#374151',
+                    textTransform: 'uppercase',
+                    fontSize: '0.65rem',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <PersonIcon sx={{ color: '#8b5cf6', fontSize: 14 }} />
+                  Agent
+                </Typography>
+                <FormControl 
+                  fullWidth 
+                  size="small"
+                  variant="outlined"
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      bgcolor: '#f8fafc',
+                      fontSize: '0.8rem',
+                      minHeight: '32px',
+                      '&:hover': {
+                        bgcolor: 'white'
+                      },
+                      '&.Mui-focused': {
+                        bgcolor: 'white'
+                      }
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontWeight: 500,
+                      fontSize: '0.8rem'
+                    },
+                    '& .MuiSelect-select': {
+                      overflow: 'visible'
+                    }
+                  }}
+                >
+              
+                  <Select
+                    labelId="agent-select-label"
+                    id="agent-select"
+                    value={selectedAgent}
+                    onChange={handleAgentChange}
+                    label="Select Agent *"
+                    required
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          maxHeight: 200,
+                          mt: 1,
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                          borderRadius: 2
+                        }
+                      }
+                    }}
+                  >
+                    <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
+                      Choose an agent
+                    </MenuItem>
+                    {agents && agents.map((agent) => (
+                      <MenuItem 
+                        key={agent.id} 
+                        value={agent.agent_id}
+                        sx={{
+                          '&:hover': {
+                            bgcolor: '#f3f4f6'
+                          }
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                            {agent.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
+                            ID: {agent.agent_id}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Grid>
           </Grid>
-          
-          <Grid item xs={12} sx={{ mt: 2, textAlign: 'center' }}>
+        </Grid>
+        
+        {/* Attractive Search Button Section */}
+        <Grid item xs={12}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              alignItems: 'center',
+              mt: 2,
+              mb: 1
+            }}
+          >
             <Button 
               type="submit"
               variant="contained" 
-              color="primary" 
               size="large"
-              startIcon={<SearchIcon />}
+              startIcon={<SearchIcon sx={{ fontSize: 24 }} />}
               sx={{ 
-                borderRadius: 2,
-                px: 4,
-                py: 1.5,
-                fontSize: '1rem',
-                textTransform: 'none'
+                borderRadius: 3,
+                px: 6,
+                py: 2.5,
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                textTransform: 'none',
+                minWidth: '280px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                  transition: 'left 0.5s ease'
+                },
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                  boxShadow: '0 12px 40px rgba(102, 126, 234, 0.6)',
+                  transform: 'translateY(-3px) scale(1.02)',
+                  '&::before': {
+                    left: '100%'
+                  }
+                },
+                '&:active': {
+                  transform: 'translateY(-1px) scale(1.01)'
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
             >
-              Search Tour Packages
+              🚀 Create Amazing Tour Package
             </Button>
-          </Grid>
+          </Box>
+          
+          {/* Optional: Add helpful text below button */}
+          <Box sx={{ textAlign: 'center', mt: 1 }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: '#6b7280',
+                fontSize: '0.75rem',
+                fontStyle: 'italic'
+              }}
+            >
+              ✨ Build personalized travel experiences in seconds
+            </Typography>
+          </Box>
         </Grid>
-      </Paper>
+      </Grid>
       
       <Snackbar
         open={openSnackbar}
@@ -517,6 +760,13 @@ export default function SearchForm({ onNext, setActiveTab }) {
         <Alert 
           onClose={handleCloseSnackbar} 
           severity={snackbarSeverity}
+          sx={{
+            borderRadius: 1.5,
+            '& .MuiAlert-message': {
+              fontWeight: 500,
+              fontSize: '0.8rem'
+            }
+          }}
         >
           {snackbarMessage}
         </Alert>
