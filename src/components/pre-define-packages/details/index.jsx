@@ -1125,7 +1125,7 @@ const PackageDetailsContainer = () => {
         {mainTab === 2 && (
           <Box sx={{ mt: 3 }}>
             <PackageOverview packageData={packageDetails} />
-            <Box sx={{ mt: 3 }}>
+            {/* <Box sx={{ mt: 3 }}>
               <PackagePricing 
                 packageData={packageDetails} 
                 selectedHotels={selectedHotels}
@@ -1133,7 +1133,7 @@ const PackageDetailsContainer = () => {
                 selectedRestaurants={selectedRestaurants}
                 selectedGuides={selectedGuides}
               />
-            </Box>
+            </Box> */}
           </Box>
         )}
       </Box>
