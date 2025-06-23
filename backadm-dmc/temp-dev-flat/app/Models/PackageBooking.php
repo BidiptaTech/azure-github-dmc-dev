@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Package;
 use App\Models\User;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PackageBooking extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     
     protected $table = 'package_bookings';
     protected $guarded = [];
