@@ -271,4 +271,68 @@ class PackageController extends Controller
 
         return response()->json(['message' => 'All orders saved successfully.']);
     }
+
+    public function booking(Request $request){
+        // Extract booking data from request
+        $data = $request->json()->all();
+        $package_id = $data['package']['package_id'];
+        $totalPrice = $data['booking_details']['total_price'];
+        
+        // Extract passenger counts
+        $adult_count = $data['booking_details']['adult_count'];
+        $child_count = $data['booking_details']['child_count'] ?? 0;
+        $senior_count = 0; // Not specified in the provided data
+        
+        $totalPax = $adult_count + $child_count + $senior_count;
+        
+        // Validate package exists
+        $package = Package::select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'price_senior', 'price_child', 'max_pax', 'main_image', 'city')->where('package_id', $package_id)->first();
+        if (!$package) {
+            return response()->json(['message' => 'Package not found'], 404);
+        }
+
+        // Verify price calculation
+        $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
+
+        if($package_price != $totalPrice){
+            return response()->json(['message' => 'Total price is not correct'], 400);
+        }
+
+        $lastBooking = PackageBooking::withTrashed()->orderBy('created_at', 'desc')->first();
+        $booking_max_id = $lastBooking->booking_id ?? 0;
+        $bookingId = CommonHelper::createId($booking_max_id);
+        while (PackageBooking::where('booking_id', $bookingId)->exists()) {
+            $attractionId = CommonHelper::createId($attractionId);
+        }
+
+        $user = Auth::user();
+        $booking = new PackageBooking();
+        $booking->booking_id = $bookingId;
+        $booking->package_id = $package_id;
+        $booking->adult_count = $adult_count;
+        $booking->child_count = $child_count;
+        $booking->senior_count = $senior_count;
+        $booking->total_price = $totalPrice;
+        $booking->currency = $data['booking_details']['currency'];
+        $booking->booking_details = json_encode($data['booking_details']);
+        $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
+        
+        // Extract only IDs from selected services
+        $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
+        $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
+        $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
+        $restaurantIds = collect($data['selected']['restaurants'])->pluck('id')->toArray();
+        
+        $booking->selected_hotels = json_encode($hotelIds);
+        $booking->selected_attractions = json_encode($attractionIds);
+        $booking->selected_guides = json_encode($guideIds);
+        $booking->selected_restaurants = json_encode($restaurantIds);
+
+        $booking->status = 'pending';
+        $booking->booked_by = $user->id;
+        // Add other required fields and save the booking
+        $booking->save();
+        
+        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->id], 201);
+    }
 }
