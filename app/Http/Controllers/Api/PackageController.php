@@ -40,7 +40,7 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city')->get();
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date')->get();
         // Format the response
         return response()->json($packages);
     }
@@ -282,31 +282,28 @@ class PackageController extends Controller
             $attractionId = CommonHelper::createId($attractionId);
         }
 
-        $user = Auth::user();
-        $booking = new PackageBooking();
-        $booking->booking_id = $bookingId;
-        $booking->package_id = $package_id;
-        $booking->adult_count = $adult_count;
-        $booking->child_count = $child_count;
-        $booking->senior_count = $senior_count;
-        $booking->total_price = $totalPrice;
-        $booking->currency = $data['booking_details']['currency'];
-        $booking->booking_details = json_encode($data['booking_details']);
-        $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
-        
+                
         // Extract only IDs from selected services
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
         $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
         $restaurantIds = collect($data['selected']['restaurants'])->pluck('id')->toArray();
+
+        $user = Auth::user();
+        $booking = new PackageBooking();
+        $booking->booking_id = $bookingId;
+        $booking->package_id = $package_id;
+        $booking->booking_details = json_encode($data['booking_details']);
+        $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
+
         
         $booking->selected_hotels = json_encode($hotelIds);
         $booking->selected_attractions = json_encode($attractionIds);
         $booking->selected_guides = json_encode($guideIds);
         $booking->selected_restaurants = json_encode($restaurantIds);
 
-        $booking->status = 'pending';
-        $booking->booked_by = $user->id;
+        $booking->status = '0';
+        $booking->booked_by = $user->userId ?? $user->agent_id;
         // Add other required fields and save the booking
         $booking->save();
         

@@ -25,10 +25,6 @@ class PackageBooking extends Model
     /**
      * Get the user who made the booking
      */
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
     
     /**
      * Get the total number of travelers
