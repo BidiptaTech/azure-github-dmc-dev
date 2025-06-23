@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Typography, 
-  Container 
+  Box
 } from '@mui/material';
 import { useSelector, useDispatch } from 'react-redux';
 import SearchLocation from './SearchLocation';
@@ -130,8 +130,14 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   };
   
   return (
-    <Container>
-      <Typography variant="h5" gutterBottom>{headerText}</Typography>
+    <Box sx={{ width: '100%' }}>
+      {/* Only show header if it's not already handled by parent */}
+      {!showEntryPort && !showExitPort && (
+        <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
+          {headerText}
+        </Typography>
+      )}
+      
       {zone_on ? (
         <CombinedSearchLocationZone 
           Location={Location}
@@ -148,21 +154,25 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
       
       {/* Show first vehicle dropdown for Entry Port */}
       {showEntryPort && hasVehicles && (
-        <VehicleListDropdown 
-          selectedVehicle={selectedVehicleId} 
-          onVehicleChange={handleVehicleChange}
-          entryVehicles={entryVehicles}
-        />
+        <Box sx={{ mt: 2 }}>
+          <VehicleListDropdown 
+            selectedVehicle={selectedVehicleId} 
+            onVehicleChange={handleVehicleChange}
+            entryVehicles={entryVehicles}
+          />
+        </Box>
       )}
       
       {/* Show second vehicle dropdown for Exit Port */}
       {showExitPort && hasVehicles1 && (
-        <VehicleListDropdown1
-          selectedVehicle={selectedVehicleId1}
-          onVehicleChange={handleVehicleChange1}
-          exitVehicles={exitVehicles}
-        />
+        <Box sx={{ mt: 2 }}>
+          <VehicleListDropdown1
+            selectedVehicle={selectedVehicleId1}
+            onVehicleChange={handleVehicleChange1}
+            exitVehicles={exitVehicles}
+          />
+        </Box>
       )}
-    </Container>
+    </Box>
   );
 } 
