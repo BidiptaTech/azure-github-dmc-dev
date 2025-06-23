@@ -3,7 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
+<<<<<<< HEAD
+use App\Http\Controllers\Api\LoginControllerApi;
+=======
 
+>>>>>>> 20dbf7026bc6f1e9f34c2280fe227b4de58cb664
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -15,7 +19,7 @@ use Illuminate\Support\Facades\Http;
 |
 */
 
-Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
+Route::post('/v1/login', [LoginControllerApi::class, 'login']);
 
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/zone-lists', 'App\Http\Controllers\Api\ZoneController@zone_lists');
