@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -60,13 +61,14 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/tour-details', 'App\Http\Controllers\Api\TourController@tourDetails');
     Route::post('/tour-delete', 'App\Http\Controllers\Api\TourController@deleteTour');
     Route::get('/rate-exchange', 'App\Http\Controllers\Api\RateExchange@exchangeRate');
-
+    Route::post('/store/custom-booking', 'App\Http\Controllers\Api\PackageController@storeMultipleOrders');
     Route::get('/vehicles-list', 'App\Http\Controllers\Api\DriverController@vehicleListing');
     Route::get('/vehicle-details', 'App\Http\Controllers\Api\DriverController@vehicleDetails');
     Route::get('/hotels/{hotelId}/facilities', [App\Http\Controllers\RoomtypeController::class, 'getHotelFacilities']);
     Route::post('/logout', 'App\Http\Controllers\Api\LoginControllerApi@logout');
     Route::get('/packages', 'App\Http\Controllers\Api\PackageController@index');
     Route::get('/package-details', 'App\Http\Controllers\Api\PackageController@package_details');
+    Route::post('/package-booking', 'App\Http\Controllers\Api\PackageController@booking');
     Route::get('/cities', function (Request $request) {
         $input = $request->query('input');
         $response = Http::get("https://maps.googleapis.com/maps/api/place/autocomplete/json", [
