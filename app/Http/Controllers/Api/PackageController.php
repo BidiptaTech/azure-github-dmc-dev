@@ -275,6 +275,13 @@ class PackageController extends Controller
             return response()->json(['message' => 'Total price is not correct'], 400);
         }
 
+        $lastBooking = PackageBooking::withTrashed()->orderBy('created_at', 'desc')->first();
+        $booking_max_id = $lastBooking->booking_id ?? 0;
+        $bookingId = CommonHelper::createId($booking_max_id);
+        while (PackageBooking::where('booking_id', $bookingId)->exists()) {
+            $attractionId = CommonHelper::createId($attractionId);
+        }
+
         $user = Auth::user();
         $booking = new PackageBooking();
         $booking->booking_id = $bookingId;
