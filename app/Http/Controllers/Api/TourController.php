@@ -51,6 +51,7 @@ class TourController extends Controller
             'children_ages' => 'nullable|string',
         ]);
         $countryNames = request()->input('destination');
+        $agent_id = request()->input('agent-id');
         $countryArray = array_map('trim', explode(',', $countryNames));
 
         $cities = City::whereIn('country', $countryArray)
@@ -58,8 +59,8 @@ class TourController extends Controller
               ->get()
               ->map(fn($city) => "{$city->name}, ({$city->country})")
               ->toArray();
-        $user = auth()->user();
-        $agent_id = $user->agent_id;
+        // $user = Agent::where('agent_id',);
+        // $agent_id = $user->agent_id;
 
         try {
             // Parse the dates
@@ -413,8 +414,6 @@ class TourController extends Controller
                 'order_from' => $order_from,
             ];
         }
-
-        
 
         return response()->json([
             'message' => 'Tour list retrieved successfully',

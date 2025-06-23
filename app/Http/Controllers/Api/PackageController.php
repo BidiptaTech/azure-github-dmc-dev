@@ -245,4 +245,9 @@ class PackageController extends Controller
         
         return response()->json($package);
     }
+
+    public function store_custom_package(Request $request){
+        $data = $request->data();
+        
+    }
 }

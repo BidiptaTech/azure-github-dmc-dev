@@ -3,6 +3,7 @@
 /storage/*.key
 /vendor
 .env
+.github
 .env.backup
 .env.production
 .env.azure
