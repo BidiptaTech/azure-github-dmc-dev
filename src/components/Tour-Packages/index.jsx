@@ -23,7 +23,7 @@ export default function TourPackages() {
   };
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh' }}>
+    <Box sx={{ bgcolor: '#f8fafc', minHeight: '102vh' }}>
       <Container maxWidth="lg" sx={{ py: 2 }}>
         {/* Compact Header */}
         <Box 
@@ -127,7 +127,7 @@ export default function TourPackages() {
           {/* Search Form Section */}
           <Box sx={{ 
             p: 2, 
-            bgcolor: 'white',
+            bgcolor: '#ffffff',
             overflow: 'visible',
             position: 'relative'
           }}>
