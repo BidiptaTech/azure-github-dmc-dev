@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
-use App\Http\Controllers\Api\LoginControllerApi;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\LoginControllerApi;
 |
 */
 
-Route::post('/v1/login', [LoginControllerApi::class, 'login']);
+Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/zone-lists', 'App\Http\Controllers\Api\ZoneController@zone_lists');
@@ -61,7 +61,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/tour-details', 'App\Http\Controllers\Api\TourController@tourDetails');
     Route::post('/tour-delete', 'App\Http\Controllers\Api\TourController@deleteTour');
     Route::get('/rate-exchange', 'App\Http\Controllers\Api\RateExchange@exchangeRate');
-
+    Route::post('/store/custom-booking', 'App\Http\Controllers\Api\PackageController@storeMultipleOrders');
     Route::get('/vehicles-list', 'App\Http\Controllers\Api\DriverController@vehicleListing');
     Route::get('/vehicle-details', 'App\Http\Controllers\Api\DriverController@vehicleDetails');
     Route::get('/hotels/{hotelId}/facilities', [App\Http\Controllers\RoomtypeController::class, 'getHotelFacilities']);

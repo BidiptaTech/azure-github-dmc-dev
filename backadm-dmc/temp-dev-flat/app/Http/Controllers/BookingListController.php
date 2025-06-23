@@ -357,21 +357,38 @@ class BookingListController extends Controller
 
     public function approveBooking(Request $request)
     {
-        $booking_id = $request->booking_id;
-        $order = Order::where('booking_id', $booking_id)->first();
+        $request->validate([
+            'booking_id' => 'required|integer|exists:orders,booking_id',
+            'reference_id' => 'required|string|max:255',
+            'actual_due_date' => 'required|date',
+            'display_due_date' => 'nullable|date',
+            'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png'
+        ]);
+
+        $order = Order::where('booking_id', $request->booking_id)->first();
+
         if (!$order) {
             return response()->json(['message' => 'Order not found.'], 404);
         }
-        $order->is_approve = 1; // Approved
+
+        $order->is_approve = 1;
         $order->approval_id = $request->reference_id;
-        $reference_file = null;
+
         if ($request->hasFile('reference_file')) {
-           $referenceFile = $request->file('reference_file');
+            $referenceFile = $request->file('reference_file');
             $pathData = CommonHelper::image_path('approval_file', $referenceFile);
-            $reference_file = $pathData['master_value'] ?? null;
+            $order->approval_file = $pathData['master_value'] ?? null;
         }
-        $order->approval_file = $reference_file;
+
+        $order->actual_due_date = $request->actual_due_date;
+
+        // Use frontend-calculated value, fallback to actual_due_date if empty
+        $order->display_due_date = $request->filled('display_due_date')
+            ? $request->display_due_date
+            : $request->actual_due_date;
+
         $order->save();
+
         return redirect()->back()->with('success', 'Booking approved successfully.');
     }
 
