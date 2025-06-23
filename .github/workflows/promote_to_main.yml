@@ -28,6 +28,11 @@ jobs:
         with:
           files: 'backadm-dmc/composer.json'
 
+      - name: 🔧 Install Composer Globally
+        run: |
+          curl -sS https://getcomposer.org/installer | php
+          mv composer.phar /usr/local/bin/composer
+          
       - name: 📦 Run composer install if composer.json exists
         if: steps.check_files.outputs.files_exists == 'true'
         run: |
@@ -143,17 +148,6 @@ jobs:
           nginx -t && service nginx reload
 
           cd /home/site/wwwroot/backadm-dmc
-
-          # Run composer install
-          if [ -f composer.json ]; then
-              echo "📦 Running composer install..."
-              composer install --prefer-dist --no-progress --no-dev --optimize-autoloader || true
-          fi
-          
-          # Clear route cache
-          echo "🧹 Clearing Laravel route cache..."
-          php artisan route:clear || true
-
 
           mkdir -p storage/framework/{sessions,views,cache/data}
           mkdir -p storage/{logs,app/public} bootstrap/cache
