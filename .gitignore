@@ -40,9 +40,48 @@ deploy.cmd
 /storage/*.key
 /vendor
 .env
+.github
 .env.backup
 .env.production
 .env.azure
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+/config/app.php
+/config/database.php
+
+# Storage link (should be created during deployment, not committed)
+/public/storage
+
+# Deployment logs
+deploy.log
+
+# Azure deployment artifacts
+.deployment
+deploy.cmd
+
+# Laravel storage and cache
+/storage/logs/*.log
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/bootstrap/cache/*.php
+.github
+/.phpunit.cache
+/node_modules
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.env.azure
+.github
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
