@@ -335,4 +335,6 @@ class PackageController extends Controller
         
         return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->id], 201);
     }
+
+    
 }
