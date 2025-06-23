@@ -60,6 +60,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/tour-details', 'App\Http\Controllers\Api\TourController@tourDetails');
     Route::post('/tour-delete', 'App\Http\Controllers\Api\TourController@deleteTour');
     Route::get('/rate-exchange', 'App\Http\Controllers\Api\RateExchange@exchangeRate');
+    Route::post('/store/custom-booking', 'App\Http\Controllers\Api\PackageController@storeMultipleOrders');
 
     Route::get('/vehicles-list', 'App\Http\Controllers\Api\DriverController@vehicleListing');
     Route::get('/vehicle-details', 'App\Http\Controllers\Api\DriverController@vehicleDetails');
