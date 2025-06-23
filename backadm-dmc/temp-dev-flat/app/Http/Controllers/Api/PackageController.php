@@ -328,7 +328,7 @@ class PackageController extends Controller
         $booking->selected_guides = json_encode($guideIds);
         $booking->selected_restaurants = json_encode($restaurantIds);
 
-        $booking->status = '0';
+        $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
         // Add other required fields and save the booking
         $booking->save();
