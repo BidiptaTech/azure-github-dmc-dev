@@ -344,13 +344,13 @@ const LocationSearch = ({ onLocationSelect }) => {
       width: '100%',
       marginBottom: '20px'
     }}>
-      <h4 className="text-15 fw-500 ls-2 lh-16" style={{
+      {/* <h4 className="text-15 fw-500 ls-2 lh-16" style={{
         fontSize: '15px',
         fontWeight: 500,
         letterSpacing: '2px',
         lineHeight: '16px',
         marginBottom: '10px'
-      }}>Location</h4>
+      }}>Location</h4> */}
       <div className="d-flex" style={{ display: 'flex' }}>
         <div className="mr-20 w-50" style={{ 
           marginRight: '20px', 
@@ -382,25 +382,6 @@ const LocationSearch = ({ onLocationSelect }) => {
               onKeyDown={handleCountryKeyDown}
               readOnly={selectedCountry !== null}
             />
-            
-            {selectedCountry && (
-              <button 
-                className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent cursor-pointer" 
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  border: 0,
-                  background: 'transparent',
-                  cursor: 'pointer'
-                }}
-                onClick={handleClearCountrySelection}
-                type="button"
-              >
-                <i className="icon-close text-12" style={{ fontSize: '12px' }}>✕</i>
-              </button>
-            )}
             
             {isCountryDropdownOpen && countrySuggestions.length > 0 && (
               <div className="shadow-2 dropdown-menu min-width-200 show" style={{
@@ -519,25 +500,6 @@ const LocationSearch = ({ onLocationSelect }) => {
                   <span className="visually-hidden">Loading...</span>
                 </div>
               </div>
-            )}
-            
-            {selectedCity && (
-              <button 
-                className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent cursor-pointer" 
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  border: 0,
-                  background: 'transparent',
-                  cursor: 'pointer'
-                }}
-                onClick={handleClearCitySelection}
-                type="button"
-              >
-                <i className="icon-close text-12" style={{ fontSize: '12px' }}>✕</i>
-              </button>
             )}
             
             {isCityDropdownOpen && citySuggestions.length > 0 && (

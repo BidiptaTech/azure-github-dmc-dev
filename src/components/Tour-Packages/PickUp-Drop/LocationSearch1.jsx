@@ -168,12 +168,12 @@ const SearchBar = ({
     validationTriggered && exitdropOffLocation && !isDropoffValid;
 
   return (
-    <div className="searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
+    <div className="searchMenu-loc lg:py-10 lg:px-0 js-form-dd js-liverSearch">
       <div className="d-flex justify-between">
         {/* Pick-up Location */}
-        <div className="flex-1 mr-10">
+        <div className="flex-1">
           <div>
-            <div className="d-flex">
+            <div className="d-flex ml-10">
               <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
               <div className="ml-10 flex-grow-1">
                 <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">
@@ -241,6 +241,10 @@ const SearchBar = ({
   width: 100% !important; /* Expands dropdown width */
   min-width: 200px !important; /* Ensures it's not too small */
   max-width: 250px !important; /* Adjust as needed */
+}
+
+.searchMenu-loc {
+  width: 100%;
 }
 
 .pac-item {
