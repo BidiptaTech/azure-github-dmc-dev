@@ -34,15 +34,13 @@ class MailController extends Controller
         $templates = EmailTemplate::orderBy('created_at', 'desc')->first();
 
 
-        return view('mails.index', compact('templates'))
-                ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
+       
 
         try {
-
             // Prepare dynamic data for the booking confirmation email
             $data = [
                 "booking_id" => "BK-" . rand(10000, 99999),
-                "customer_name" => "Mr. Kousik Alam",
+                "customer_name" => "Mr. Saurabh Singh",
                 "type" => "Hotel Booking",
                 "booking_date" => date('Y-m-d'),
                 "check_in_date" => date('Y-m-d', strtotime('+7 days')),
@@ -96,7 +94,7 @@ class MailController extends Controller
                 $emailHtml = '<!DOCTYPE html><html><head><title>Booking Details</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
                 
                 // Send just this part
-                Mail::to("kousikalam786@gmail.com")->send(new DmcMail($emailHtml, "Your Booking Details"));
+                Mail::to("saurabh.coactive@gmail.com")->send(new DmcMail($emailHtml, "Your Booking Details"));
                 return view('mails.index', compact('templates'))
                 ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
             } else {
@@ -117,6 +115,9 @@ class MailController extends Controller
             return view('mails.index', compact('templates'))
                 ->with('error', 'Failed to send email: ' . $e->getMessage());
         }
+
+        return view('mails.index', compact('templates'))
+        ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
     }
 
     public function syncTemplates()
