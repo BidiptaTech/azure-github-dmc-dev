@@ -108,7 +108,7 @@ export default function TourPackages() {
                     fontSize: '1.1rem'
                   }}
                 >
-                  Create Tour Package
+                  Create Tour Packages
                 </Typography>
                 <Typography 
                   variant="caption" 
@@ -118,7 +118,7 @@ export default function TourPackages() {
                     fontWeight: 400
                   }}
                 >
-                  Search and customize packages
+                  Search and customize your packages
                 </Typography>
               </Box>
             </Box>
