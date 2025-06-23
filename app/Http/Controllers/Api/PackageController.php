@@ -333,7 +333,7 @@ class PackageController extends Controller
         // Add other required fields and save the booking
         $booking->save();
         
-        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->id], 201);
+        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->booking_id], 201);
     }
 
 }
