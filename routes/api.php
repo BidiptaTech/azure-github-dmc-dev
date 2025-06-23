@@ -3,7 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
+<<<<<<< HEAD
 use App\Http\Controllers\Api\LoginControllerApi;
+=======
+
+>>>>>>> 20dbf7026bc6f1e9f34c2280fe227b4de58cb664
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -61,7 +65,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/tour-details', 'App\Http\Controllers\Api\TourController@tourDetails');
     Route::post('/tour-delete', 'App\Http\Controllers\Api\TourController@deleteTour');
     Route::get('/rate-exchange', 'App\Http\Controllers\Api\RateExchange@exchangeRate');
-
+    Route::post('/store/custom-booking', 'App\Http\Controllers\Api\PackageController@storeMultipleOrders');
     Route::get('/vehicles-list', 'App\Http\Controllers\Api\DriverController@vehicleListing');
     Route::get('/vehicle-details', 'App\Http\Controllers\Api\DriverController@vehicleDetails');
     Route::get('/hotels/{hotelId}/facilities', [App\Http\Controllers\RoomtypeController::class, 'getHotelFacilities']);

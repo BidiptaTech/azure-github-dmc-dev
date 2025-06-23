@@ -9,6 +9,7 @@ use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\Guide;
 use App\Models\PackageBooking;
+use App\Helpers\CommonHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -247,11 +248,36 @@ class PackageController extends Controller
         return response()->json($package);
     }
 
+   
+        
+    public function storeMultipleOrders(Request $request)
+    {
+        $items = $request->all(); // Entire payload
+        foreach ($items as $item) {
+            validator($item, [
+                'type' => 'required|string',
+                'tour_id' => 'required|integer',
+                'agent_id' => 'required|integer',
+            ])->validate();
+            $max_book_id = Order::max('booking_id') ?? 0;
+            $bookId = CommonHelper::createId($max_book_id);
+            Order::create([
+                'agent_id' => $item['agent_id'],
+                'tour_id' => $item['tour_id'],
+                'data' => $item['data'], // data is JSON column
+                'type' => $item['type'],
+                'bookingType' => 'enquiry',
+                'booking_id' => $bookId,
+                'status' => 1, // default or as needed
+            ]);
+        }
+
+        return response()->json(['message' => 'All orders saved successfully.']);
+    }
+
     public function booking(Request $request){
         // Extract booking data from request
         $data = $request->json()->all();
-        return response()->json($data['booking_details']['adult_count']);
-        
         $package_id = $data['package']['package_id'];
         $totalPrice = $data['booking_details']['total_price'];
         

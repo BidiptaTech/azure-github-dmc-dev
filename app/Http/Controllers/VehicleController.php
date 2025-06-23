@@ -623,7 +623,7 @@ class VehicleController extends Controller
             'shared_prices' => 'required|array',
             'mapping_type' => 'required|string',
         ]);
-        
+
         $vehicleId = $request->vehicle_id;
         $privatePrices = $request->private_prices;
         $sharedPrices = $request->shared_prices;
@@ -671,21 +671,46 @@ class VehicleController extends Controller
         foreach ($privatePrices as $fromZoneId => $toZones) {
             foreach ($toZones as $toZoneId => $privatePrice) {
                 $sharedPrice = $sharedPrices[$fromZoneId][$toZoneId] ?? 0;
-                
-                // Update or create the mapping
-                VehicleZoneMapping::updateOrCreate(
-                    [
-                        'vehicle_id' => $vehicleId,
-                        'from_zone_id' => $fromZoneId,
-                        'to_zone_id' => $toZoneId,
-                    ],
-                    [
+
+                // Find existing mapping (including soft deleted)
+                $mapping = VehicleZoneMapping::withTrashed()
+                    ->where('vehicle_id', $vehicleId)
+                    ->where('from_zone_id', $fromZoneId)
+                    ->where('to_zone_id', $toZoneId)
+                    ->first();
+
+                if ($mapping) {
+                    // If soft deleted, restore it
+                    if ($mapping->trashed()) {
+                        $mapping->restore();
+                    }
+                    // Update prices and types
+                    $mapping->update([
                         'private_price' => $privatePrice,
                         'shared_price' => $sharedPrice,
                         'from_zone_type' => $fromZoneType,
                         'to_zone_type' => $toZoneType,
-                    ]
-                );
+                    ]);
+                } else {
+                    // Generate a new mapping_id
+                    $lastMapping = VehicleZoneMapping::withTrashed()->orderBy('created_at', 'desc')->first();
+                    $mapping_max_id = $lastMapping->mapping_id ?? 0;
+                    $mappingId = \App\Helpers\CommonHelper::createId($mapping_max_id);
+                    while (VehicleZoneMapping::where('mapping_id', $mappingId)->exists()) {
+                        $mappingId = \App\Helpers\CommonHelper::createId($mappingId);
+                    }
+                    // Create new mapping
+                    VehicleZoneMapping::create([
+                        'mapping_id' => $mappingId,
+                        'vehicle_id' => $vehicleId,
+                        'from_zone_id' => $fromZoneId,
+                        'to_zone_id' => $toZoneId,
+                        'from_zone_type' => $fromZoneType,
+                        'to_zone_type' => $toZoneType,
+                        'private_price' => $privatePrice,
+                        'shared_price' => $sharedPrice,
+                    ]);
+                }
             }
         }
         
@@ -718,7 +743,7 @@ class VehicleController extends Controller
             return response()->json([
                 'exists' => true,
                 'was_deleted' => $mapping->trashed(),
-                'mapping_id' => $mapping->id
+                'mapping_id' => $mapping->mapping_id
             ]);
         }
         
@@ -743,7 +768,47 @@ class VehicleController extends Controller
                 $toZoneType = 'Port';
             }
 
+            // Check if mapping already exists (including soft deleted)
+            $existingMapping = VehicleZoneMapping::withTrashed()
+                ->where('vehicle_id', $vehicleId)
+                ->where('from_zone_id', $fromZoneId)
+                ->where('to_zone_id', $toZoneId)
+                ->first();
+
+            if ($existingMapping) {
+                if ($existingMapping->trashed()) {
+                    // Restore the soft-deleted mapping
+                    $existingMapping->restore();
+                    $existingMapping->update([
+                        'from_zone_type' => $fromZoneType,
+                        'to_zone_type' => $toZoneType,
+                    ]);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'mapping_id' => $existingMapping->mapping_id,
+                        'message' => 'Mapping restored successfully'
+                    ]);
+                } else {
+                    // Mapping already exists and is active
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This mapping already exists'
+                    ], 409);
+                }
+            }
+
+            // Generate mapping_id
+            $lastMapping = VehicleZoneMapping::withTrashed()->orderBy('created_at', 'desc')->first();
+            $mapping_max_id = $lastMapping->mapping_id ?? 0;
+            $mappingId = \App\Helpers\CommonHelper::createId($mapping_max_id);
+            while (VehicleZoneMapping::where('mapping_id', $mappingId)->exists()) {
+                $mappingId = \App\Helpers\CommonHelper::createId($mappingId);
+            }
+
+            // Create new mapping
             $mapping = VehicleZoneMapping::create([
+                'mapping_id' => $mappingId,
                 'vehicle_id' => $vehicleId,
                 'from_zone_id' => $fromZoneId,
                 'to_zone_id' => $toZoneId,
@@ -755,7 +820,7 @@ class VehicleController extends Controller
 
             return response()->json([
                 'success' => true,
-                'mapping_id' => $mapping->id,
+                'mapping_id' => $mapping->mapping_id,
                 'message' => 'Mapping added successfully'
             ]);
         } catch (\Exception $e) {
@@ -771,14 +836,62 @@ class VehicleController extends Controller
  */
     public function deleteMappingAjax(Request $request)
     {
-        $validated = $request->validate([
-            'mapping_id' => 'required|integer',
-        ]);
-        
-        $mapping = VehicleZoneMapping::findOrFail($validated['mapping_id']);
-        $mapping->delete();
-        
-        return response()->json(['success' => true]);
+        try {
+            $validated = $request->validate([
+                'mapping_id' => 'required|string',
+            ]);
+            
+            // Debug: Log the mapping_id being searched for
+            \Log::info('Attempting to delete mapping_id: ' . $validated['mapping_id']);
+            
+            // Find the mapping by mapping_id (including soft deleted)
+            $mapping = VehicleZoneMapping::withTrashed()
+                ->where('mapping_id', $validated['mapping_id'])
+                ->first();
+            
+            // Debug: Log what we found
+            if ($mapping) {
+                \Log::info('Found mapping: ', [
+                    'mapping_id' => $mapping->mapping_id,
+                    'vehicle_id' => $mapping->vehicle_id,
+                    'from_zone_id' => $mapping->from_zone_id,
+                    'to_zone_id' => $mapping->to_zone_id,
+                    'deleted_at' => $mapping->deleted_at
+                ]);
+            } else {
+                \Log::info('No mapping found for mapping_id: ' . $validated['mapping_id']);
+                
+                // Let's also check what mappings exist for debugging
+                $allMappings = VehicleZoneMapping::withTrashed()->get(['mapping_id', 'vehicle_id', 'from_zone_id', 'to_zone_id']);
+                \Log::info('All existing mappings: ', $allMappings->toArray());
+            }
+            
+            if (!$mapping) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mapping not found for ID: ' . $validated['mapping_id']
+                ], 404);
+            }
+            
+            // Soft delete the mapping
+            $mapping->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mapping deleted successfully'
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error: ' . $e->getMessage()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting mapping: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 /**
@@ -787,15 +900,15 @@ class VehicleController extends Controller
     public function restoreMappingAjax(Request $request)
     {
         $validated = $request->validate([
-            'mapping_id' => 'required|integer',
+            'mapping_id' => 'required|string',
         ]);
         
-        $mapping = VehicleZoneMapping::withTrashed()->findOrFail($validated['mapping_id']);
+        $mapping = VehicleZoneMapping::withTrashed()->where('mapping_id', $validated['mapping_id'])->firstOrFail();
         $mapping->restore();
         
         return response()->json([
             'success' => true,
-            'mapping_id' => $mapping->id,
+            'mapping_id' => $mapping->mapping_id,
             'private_price' => $mapping->private_price,
             'shared_price' => $mapping->shared_price
         ]);

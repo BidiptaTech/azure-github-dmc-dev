@@ -1243,7 +1243,7 @@
                                                 data-to="{{ $mapping->to_zone_id }}" 
                                                 data-from-type="{{ $fromType }}" 
                                                 data-to-type="{{ $toType }}"
-                                                data-mapping-id="{{ $mapping->id }}">
+                                                data-mapping-id="{{ $mapping->mapping_id }}">
                                                 
                                                 @if(request()->get('mapping_type') == 'port_port')
                                                     @php
@@ -1300,7 +1300,7 @@
                                                         class="form-control" value="{{ $mapping->shared_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->id }}">
+                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
                                                 </td>

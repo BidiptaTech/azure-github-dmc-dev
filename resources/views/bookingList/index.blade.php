@@ -796,6 +796,29 @@
                         <input type="file" class="form-control" id="reference_file" name="reference_file">
                         <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
                     </div>
+                    <div class="mb-3">
+                        <label for="actual_due_date" class="form-label">Actual Due Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="actual_due_date" name="actual_due_date" required>
+                        <div class="form-text">Select the actual due date for this booking</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="display_days_before" class="form-label">Display Due Date (Days Before) <span class="text-danger">*</span></label>
+                        <select class="form-control" id="display_days_before" name="display_days_before" required>
+                            <option value="">Select days before actual due date</option>
+                            <option value="1">1 day before</option>
+                            <option value="2">2 days before</option>
+                            <option value="3">3 days before</option>
+                            <option value="4">4 days before</option>
+                            <option value="5">5 days before</option>
+                            <option value="6">6 days before</option>
+                        </select>
+                        <div class="form-text">Select how many days before the actual due date to display</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="display_due_date" class="form-label">Display Due Date</label>
+                        <input type="date" class="form-control" id="display_due_date" name="display_due_date" readonly>
+                        <div class="form-text">This will be calculated automatically based on your selection above</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -4271,5 +4294,40 @@ function formatDate(dateString) {
         return "Date not available";
     }
 }
+
+// Calculate display due date function
+function calculateDisplayDueDate() {
+    const actualDueDate = document.getElementById('actual_due_date').value;
+    const daysBefore = document.getElementById('display_days_before').value;
+    const displayDueDateField = document.getElementById('display_due_date');
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format date as YYYY-MM-DD for input field
+        const formattedDate = displayDate.toISOString().split('T')[0];
+        displayDueDateField.value = formattedDate;
+    } else {
+        displayDueDateField.value = '';
+    }
+}
+
+// Add event listeners for due date calculation
+$(document).ready(function() {
+    // Add event listeners for the approve modal due date calculations
+    $('#actual_due_date').on('change', calculateDisplayDueDate);
+    $('#display_days_before').on('change', calculateDisplayDueDate);
+    
+    // Clear fields when modal is closed/opened
+    $('#approveModal').on('hidden.bs.modal', function () {
+        $('#actual_due_date').val('');
+        $('#display_days_before').val('');
+        $('#display_due_date').val('');
+        $('#reference_id').val('');
+        $('#reference_file').val('');
+    });
+});
 </script>
 @endsection
