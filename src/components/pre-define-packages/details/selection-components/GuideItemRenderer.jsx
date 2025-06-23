@@ -17,14 +17,22 @@ const defaultGuideImage = '/img/team/1.png';
  */
 const GuideItemRenderer = (guide) => (
   <>
-    <CardMedia
-      component="img"
-      height="140"
-      image={guide.image || defaultGuideImage}
-      alt={guide.name || 'Tour Guide'}
-      sx={{ objectFit: 'cover' }}
-    />
-    <CardContent sx={{ p: 1.5, pb: '16px !important' }}>
+    <Box sx={{ height: '200px', overflow: 'hidden', position: 'relative' }}>
+      <CardMedia
+        component="img"
+        height="200"
+        width="100%"
+        image={guide.image || defaultGuideImage}
+        alt={guide.name || 'Tour Guide'}
+        sx={{ 
+          objectFit: 'cover',
+          objectPosition: 'center',
+          height: '200px !important',
+          maxHeight: '200px !important'
+        }}
+      />
+    </Box>
+    <CardContent sx={{ p: 1.5, pb: '16px !important', flex: 1, minHeight: 0 }}>
       <Typography variant="subtitle2" fontWeight="medium" noWrap>
         {guide.name || 'Unnamed Guide'}
       </Typography>

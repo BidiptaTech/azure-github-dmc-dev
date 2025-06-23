@@ -14,13 +14,22 @@ const defaultRestaurantImage = '/img/restaurants/1.png';
  */
 const RestaurantItemRenderer = (restaurant) => (
   <>
-    <CardMedia
-      component="img"
-      height="120"
-      image={restaurant.image || defaultRestaurantImage}
-      alt={restaurant.name}
-    />
-    <CardContent sx={{ p: 1.5, pb: '16px !important' }}>
+    <Box sx={{ height: '200px', overflow: 'hidden', position: 'relative' }}>
+      <CardMedia
+        component="img"
+        height="100"
+        width="100%"
+        image={restaurant.image || defaultRestaurantImage}
+        alt={restaurant.name}
+        sx={{ 
+          objectFit: 'cover',
+          objectPosition: 'center',
+          height: '200px !important',
+          maxHeight: '200px !important'
+        }}
+      />
+    </Box>
+    <CardContent sx={{ p: 1.5, pb: '16px !important', flex: 1, minHeight: 0 }}>
       <Typography variant="subtitle2" fontWeight="medium" noWrap>
         {restaurant.name}
       </Typography>

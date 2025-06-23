@@ -132,7 +132,7 @@ const SelectionModal = ({
                       elevation={0}
                       sx={{ 
                         top: '10px',
-                        // height: '250px',
+                        height: '280px',
                         border: '1px solid',
                         borderColor: isSelected(item) ? 'primary.main' : 'divider',
                         borderRadius: '4px',
@@ -140,6 +140,13 @@ const SelectionModal = ({
                         position: 'relative',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        '& .MuiCardContent-root': {
+                          overflow: 'hidden',
+                          display: 'flex',
+                          flexDirection: 'column'
+                        },
                         '&:hover': {
                           borderColor: 'primary.main',
                           boxShadow: '0 0 0 1px rgba(25, 118, 210, 0.3)'

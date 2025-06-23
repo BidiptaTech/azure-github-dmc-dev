@@ -1096,7 +1096,13 @@ const PackageDetailsContainer = () => {
                       }}
                     >
                       {/* Price Summary */}
-                      <PackagePricing packageData={packageDetails} />
+                      <PackagePricing 
+                        packageData={packageDetails} 
+                        selectedHotels={selectedHotels}
+                        selectedAttractions={selectedAttractions}
+                        selectedRestaurants={selectedRestaurants}
+                        selectedGuides={selectedGuides}
+                      />
                     </Box>
                   </Grid>
                 </Grid>
@@ -1120,7 +1126,13 @@ const PackageDetailsContainer = () => {
           <Box sx={{ mt: 3 }}>
             <PackageOverview packageData={packageDetails} />
             <Box sx={{ mt: 3 }}>
-              <PackagePricing packageData={packageDetails} />
+              <PackagePricing 
+                packageData={packageDetails} 
+                selectedHotels={selectedHotels}
+                selectedAttractions={selectedAttractions}
+                selectedRestaurants={selectedRestaurants}
+                selectedGuides={selectedGuides}
+              />
             </Box>
           </Box>
         )}

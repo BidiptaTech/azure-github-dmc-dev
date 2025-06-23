@@ -4,7 +4,13 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PersonIcon from '@mui/icons-material/Person';
 import { useSelector } from 'react-redux';
 
-const PackagePricing = ({ packageData }) => {
+const PackagePricing = ({ 
+  packageData, 
+  selectedHotels = [], 
+  selectedAttractions = [], 
+  selectedRestaurants = [], 
+  selectedGuides = [] 
+}) => {
   // Get search params from Redux store
   const { searchParams } = useSelector(state => state.prePackages);
   
@@ -24,6 +30,91 @@ const PackagePricing = ({ packageData }) => {
   
   // Check if child price is available
   const hasChildPrice = packageData.price_child && parseFloat(packageData.price_child) > 0;
+  
+  // Handle booking button click
+  const handleBookPackage = () => {
+    // Ensure we use ONLY ONE item from each category 
+    // If user selected items via modal, use the first selected item
+    // Otherwise use the first item from the package data
+    
+    // For Hotels
+    let hotelToUse = null;
+    if (selectedHotels.length > 0) {
+      // User made a selection via modal, use the first selected hotel
+      hotelToUse = selectedHotels[0]; 
+    } else if (packageData.selected_hotels && packageData.selected_hotels.length > 0) {
+      // No modal selection, use the first hotel from package data
+      hotelToUse = packageData.selected_hotels[0];
+    }
+    
+    // For Attractions
+    let attractionToUse = null;
+    if (selectedAttractions.length > 0) {
+      // User made a selection via modal, use the first selected attraction
+      attractionToUse = selectedAttractions[0];
+    } else if (packageData.selected_attractions && packageData.selected_attractions.length > 0) {
+      // No modal selection, use the first attraction from package data
+      attractionToUse = packageData.selected_attractions[0];
+    }
+    
+    // For Restaurants
+    let restaurantToUse = null;
+    if (selectedRestaurants.length > 0) {
+      // User made a selection via modal, use the first selected restaurant
+      restaurantToUse = selectedRestaurants[0];
+    } else if (packageData.selected_restaurants && packageData.selected_restaurants.length > 0) {
+      // No modal selection, use the first restaurant from package data
+      restaurantToUse = packageData.selected_restaurants[0];
+    }
+    
+    // For Guides
+    let guideToUse = null;
+    if (selectedGuides.length > 0) {
+      // User made a selection via modal, use the first selected guide
+      guideToUse = selectedGuides[0];
+    } else if (packageData.selected_guides && packageData.selected_guides.length > 0) {
+      // No modal selection, use the first guide from package data (selected_guides)
+      guideToUse = packageData.selected_guides[0];
+    } else if (packageData.selected_guide && packageData.selected_guide.length > 0) {
+      // No modal selection, use the first guide from package data (selected_guide)
+      guideToUse = packageData.selected_guide[0];
+    }
+    
+    // Create a structured data object with all selections and their types
+    const bookingData = {
+      package: {
+        // Exclude the package's selected_hotels/attractions/etc as we want to use only what the user selected
+        ...packageData,
+        selected_hotels: undefined,
+        selected_attractions: undefined,
+        selected_restaurants: undefined,
+        selected_guides: undefined,
+        selected_guide: undefined,
+        type: 'package'
+      },
+      selected: {
+        hotels: hotelToUse ? [{ ...hotelToUse, type: 'hotel' }] : [],
+        attractions: attractionToUse ? [{ ...attractionToUse, type: 'attraction' }] : [],
+        restaurants: restaurantToUse ? [{ ...restaurantToUse, type: 'restaurant' }] : [],
+        guides: guideToUse ? [{ ...guideToUse, type: 'guide' }] : []
+      },
+      booking_details: {
+        adult_count: adultCount,
+        child_count: childCount,
+        male_count: maleCount,
+        female_count: femaleCount,
+        total_price: totalPrice,
+        currency: 'USD',
+        travel_dates: searchParams?.check_in && searchParams?.check_out ? {
+          check_in: searchParams.check_in,
+          check_out: searchParams.check_out
+        } : null
+      }
+    };
+    
+    // Log the data to console
+    console.log('Booking data:', JSON.stringify(bookingData, null, 2));
+  };
   
   return (
     <Paper elevation={2} sx={{ borderRadius: '12px', overflow: 'hidden', height: '100%' }}>
@@ -177,6 +268,7 @@ const PackagePricing = ({ packageData }) => {
           fullWidth 
           size="large"
           sx={{ py: 1.5, mt: 2 }}
+          onClick={handleBookPackage}
         >
           Book This Package
         </Button>
