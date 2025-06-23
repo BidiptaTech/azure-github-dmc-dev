@@ -31,6 +31,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CloseIcon from '@mui/icons-material/Close';
 import PrintIcon from '@mui/icons-material/Print';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import moment from 'moment';
 
 const ServicesSummaryModal = ({ open, onClose }) => {
@@ -273,45 +274,113 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                       />
                     </Box>
 
-                    <Grid container spacing={1.5}>
+                    <Grid container spacing={2}>
                       {hotelServices.map((service, index) => (
-                        <Grid item xs={12} sm={6} key={index}>
-                          <Box 
-                            sx={{ 
-                              p: 2, 
-                              bgcolor: 'rgba(25, 118, 210, 0.1)',
-                              borderLeft: '3px solid #1976d2',
-                              borderRadius: 1
-                            }}
-                          >
-                            <Stack spacing={0.5}>
-                              <Typography variant="subtitle2" fontWeight={600}>
-                                {service.hotelDetails?.hotel_name || 'Hotel'}
-                              </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <LocationOnIcon sx={{ fontSize: 12, mr: 0.5, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {service.hotelDetails?.location || 'Location not specified'}
-                                </Typography>
-                              </Box>
-                              <Typography variant="caption" color="text.secondary">
-                                {formatDateRange(service.bookingDate)} ({calculateNights(service.bookingDate)} nights)
-                              </Typography>
-                              {service.hotelDetails?.rooms && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {service.hotelDetails.rooms.length} room{service.hotelDetails.rooms.length !== 1 ? 's' : ''}
-                                </Typography>
-                              )}
-                              {(service.totalPrice || service.price) && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                  <AttachMoneyIcon sx={{ fontSize: 12, mr: 0.5, color: 'success.main' }} />
-                                  <Typography variant="caption" color="success.main" fontWeight={600}>
-                                    ${(service.totalPrice || service.price).toLocaleString()}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Stack>
-                          </Box>
+                        <Grid item xs={12} key={index}>
+                          <Card variant="outlined" sx={{ mb: 1 }}>
+                            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                              <Grid container spacing={2}>
+                                {/* Hotel Image and Main Info */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                  <Box sx={{ position: 'relative', height: '100%', minHeight: 140 }}>
+                                    {service.hotelDetails?.image ? (
+                                      <Box component="img" 
+                                        src={service.hotelDetails?.image} 
+                                        alt={service.hotelDetails?.hotel_name}
+                                        sx={{
+                                          width: '100%',
+                                          height: '100%',
+                                          objectFit: 'cover',
+                                          borderRadius: 1
+                                        }}
+                                      />
+                                    ) : (
+                                      <Box 
+                                        sx={{
+                                          width: '100%', 
+                                          height: '100%', 
+                                          bgcolor: 'rgba(25, 118, 210, 0.1)',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderRadius: 1
+                                        }}
+                                      >
+                                        <HotelIcon sx={{ fontSize: 40, color: '#1976d2' }} />
+                                      </Box>
+                                    )}
+                                  </Box>
+                                </Grid>
+                                
+                                {/* Hotel Details */}
+                                <Grid item xs={12} sm={8} md={9}>
+                                  <Stack spacing={1}>
+                                    {/* Hotel Name and Location */}
+                                    <Box>
+                                      <Typography variant="h6" fontWeight={600}>
+                                        {service.hotelDetails?.hotel_name || 'Hotel'}
+                                      </Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <LocationOnIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+                                        <Typography variant="body2" color="text.secondary">
+                                          {service.hotelDetails?.location || 'Location not specified'}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                    
+                                    {/* Date and Check-in/out Times */}
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <CalendarTodayIcon sx={{ fontSize: 16, mr: 0.5, color: 'primary.main' }} />
+                                        <Typography variant="body2">
+                                          {formatDateRange(service.bookingDate)} ({calculateNights(service.bookingDate)} nights)
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5, color: 'primary.main' }} />
+                                        <Typography variant="body2">
+                                          Check-in: {service.hotelDetails?.checkInTime ? service.hotelDetails.checkInTime.substring(0, 5) : 'N/A'} | 
+                                          Check-out: {service.hotelDetails?.checkOutTime ? service.hotelDetails.checkOutTime.substring(0, 5) : 'N/A'}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                    
+                                    {/* Room Details */}
+                                    {service.hotelDetails?.rooms && service.hotelDetails.rooms.map((room, roomIndex) => (
+                                      <Box key={roomIndex} sx={{ bgcolor: 'rgba(25, 118, 210, 0.05)', p: 1.5, borderRadius: 1, mt: 1 }}>
+                                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                                          {room.room_type || 'Standard'} Room
+                                        </Typography>
+                                        
+                                        {/* Bed Information */}
+                                        <Box sx={{ mb: 1 }}>
+                                          <Typography variant="body2" color="text.secondary">
+                                            <strong>Beds:</strong> {room.beds?.map(bed => `${bed.bed_type} (Max: ${bed.max_occupancy})`).join(', ')}
+                                          </Typography>
+                                        </Box>
+                                        
+                                        {/* Meal Information */}
+                                        <Box sx={{ mb: 1 }}>
+                                          <Typography variant="body2" color="text.secondary">
+                                            <strong>Meal Plan:</strong> {room.selectedMeals?.meal_1?.type || 'Room Only'}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    ))}
+                                    
+                                    {/* Price */}
+                                    {(service.totalPrice !== undefined || service.price !== undefined) && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mt: 1 }}>
+                                        <Typography variant="subtitle1" color="primary" fontWeight={600}>
+                                          Total: ${(service.totalPrice || service.price || 0).toLocaleString()}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Grid>
+                              </Grid>
+                            </CardContent>
+                          </Card>
                         </Grid>
                       ))}
                     </Grid>
