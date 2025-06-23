@@ -58,6 +58,10 @@ jobs:
 
           cd temp-dev-flat
 
+          # Set Git identity in temp-dev-flat repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git add .
           if git diff --cached --quiet; then
             echo "No changes to commit to dev_staging"
@@ -66,6 +70,7 @@ jobs:
             git push origin dev_staging
             echo "✅ dev_staging updated with flat Laravel code"
           fi
+
 
       - name: 🔄 Setup Git and clone staging
         run: |
