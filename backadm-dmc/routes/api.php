@@ -3,11 +3,6 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
-<<<<<<< HEAD
-use App\Http\Controllers\Api\LoginControllerApi;
-=======
-
->>>>>>> 20dbf7026bc6f1e9f34c2280fe227b4de58cb664
 /*
 |--------------------------------------------------------------------------
 | API Routes
