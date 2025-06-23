@@ -679,13 +679,13 @@
                 <!-- JobSheet -->
                 @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108]))
                     <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Job Sheet">Job Sheet</span>
+                        <span class="menu-header-text" data-i18n="Assigned Job">Assigned Job</span>
                     </li>
 
                     <li class="menu-item @if(Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) active open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-task-line"></i>
-                            <div data-i18n="Job Sheet">Job Sheet</div>
+                            <div data-i18n="Assigned Job">Assigned Job</div>
                         </a>
                         <ul class="menu-sub">
                             @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108]))
