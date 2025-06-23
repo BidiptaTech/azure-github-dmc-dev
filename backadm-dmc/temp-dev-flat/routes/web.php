@@ -1,0 +1,519 @@
+<?php
+
+use App\Http\Controllers\AgentController;
+use App\Http\Controllers\BedsController;
+use App\Http\Controllers\RoomsController;
+use App\Http\Controllers\RoomtypeController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\FeaturesController;
+use App\Http\Controllers\MasterSettingController;
+use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\HotelController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\FacilityController;
+use App\Http\Controllers\RestaurantController;
+use App\Http\Controllers\HotelRestaurantController;
+use App\Http\Controllers\MealController;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\AttractionController;
+use App\Http\Controllers\CountryController;
+use App\Http\Controllers\GuideController;
+use App\Http\Controllers\EnquiryController;
+use App\Http\Controllers\TransportController;
+use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\DriverController;
+use App\Http\Controllers\PackageController;
+use App\Http\Controllers\HotelCategoryController;
+use App\Http\Controllers\OperationalCountryController;
+use App\Http\Controllers\TourController;
+use App\Http\Controllers\BookingAttractionController;
+use App\Http\Controllers\BookingListController;
+use App\Http\Controllers\CityController;
+use App\Http\Controllers\EnquiryListController;
+use App\Http\Controllers\ReportController;
+use Illuminate\Http\Request;
+use App\Models\City;
+use App\Http\Controllers\SpecialDiscountController;
+use App\Http\Controllers\TicketController;
+use App\Http\Controllers\PortController;
+use App\Http\Controllers\ZoneController;
+use App\Http\Controllers\JobSheetController;
+use App\Http\Controllers\MailController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FinanceReportController;
+use Illuminate\Support\Facades\Artisan;
+use App\Services\AzureKeyVaultService;
+use Illuminate\Support\Facades\Mail;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register web routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "web" middleware group. Make something great!
+|
+*/
+Auth::routes();
+Route::group(['middleware' => ['auth']], function () {
+    Route::get('/', function () {
+        return redirect()->route('dashboard'); // Redirects root to /index
+    });
+    
+    // Updated dashboard routes to use the controller
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
+
+    Route::get('/clear', function () {
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
+        Artisan::call('view:clear');
+        Artisan::call('route:clear');
+        return response()->json(['message' => 'All caches cleared successfully.']);
+    })->middleware('auth')->name('clear');
+
+    // Add admin middleware to the hotels endpoint
+    
+    
+    Route::resource('hotels', HotelController::class);
+    
+    Route::post('/search-roles', [FeaturesController::class, 'searchRoles'])->name('search-roles');
+    Route::post('/get-all-roles', [FeaturesController::class, 'getAllRoles'])->name('get-all-roles');
+    Route::get('/admin/dashboard', [UserController::class, 'adminlogin'])->name('admin.dashboard');
+    Route::get('transaction', [UserController::class, 'transaction'])->name('transaction');
+    Route::get('/admin/login-as/{userId}', [UserController::class, 'loginAsUser'])->name('admin.loginAsUser');
+    Route::post('/update-price-comment', [EnquiryController::class, 'update'])->name('update-price-comment');
+    //currency exchange rate
+    Route::get('/exchange-rate', [CurrencyController::class, 'showExchangeRate']);
+    // authentication check for admin
+    Route::group(['middleware' => ['admin']], function () {
+        // Predefined Packages Routes
+        // Country → City
+        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
+
+        Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
+        Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
+        
+        Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry']);
+        // City → Hotel
+        // City → Attraction
+        Route::get('/attractions/{city}', [PackageController::class, 'getAttractionsByCity']);
+        // City → Guide
+        Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity']);
+        // City → Restaurant
+        Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity']);
+        Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
+        Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
+        Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
+        Route::get('/packages/{id}', [PackageController::class, 'show'])->name('packages.show');
+        Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        Route::put('/packages/{id}', [PackageController::class, 'update'])->name('packages.update');
+        Route::delete('/packages/{id}', [PackageController::class, 'destroy'])->name('packages.destroy');
+        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
+        // Legacy route for backward compatibility
+        Route::get('/package', [PackageController::class, 'index'])->name('package');
+
+        Route::resource('zones', ZoneController::class);
+        Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
+        Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::get('/get-ports', [HotelController::class, 'getPorts'])->name('get.ports');
+        Route::POST('/cancel-book', [BookingListController::class, 'cancelBooking'])->name('booking.cancel');
+        Route::POST('/approve-book', [BookingListController::class, 'approveBooking'])->name('booking.approve');
+        Route::POST('/update-booking-dates', [BookingListController::class, 'updateBookingDates'])->name('booking.update.dates');
+
+        Route::get('/get-tours-by-country/{country}', [ReportController::class, 'getToursByCountry'])->name('get.tours.by.country');
+        Route::get('/get-tours-by-status', [ReportController::class, 'getToursByStatus'])->name('get.tours.by.status');
+
+        Route::get('/countries/get-active', [ReportController::class, 'getActiveCountries'])->name('countries.get-active');
+        Route::get('/reports/get-filtered-data', [ReportController::class, 'getFilteredData'])->name('reports.get-filtered-data');
+        Route::post('/countries/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle-status');
+        Route::get('get-dmc-countries/{id}', [ReportController::class, 'getDmcCountries'])->name('get.dmc.countries');
+        Route::get('get-master-dmc-countries/{id}', [ReportController::class, 'getMasterDmcCountries'])->name('get.master.dmc.countries');
+        Route::get('/get-master-dmc', [ReportController::class, 'getMasterDmc'])->name('get.master.dmc');
+        Route::get('/get-dmc', [ReportController::class, 'getDmc'])->name('get.dmc');
+        Route::get('/enquiry', [EnquiryController::class, 'index'])->name('enquiry');
+        Route::post('/enquiry/assign-manager', [EnquiryController::class, 'assignManager'])->name('enquiry.assign-manager');
+        Route::post('/enquiry/remove-manager', [EnquiryController::class, 'removeManager'])->name('enquiry.remove-manager');
+        Route::get('/revert-previous-user', [UserController::class, 'revertToPreviousUser'])->name('admin.revertPreviousUser');
+
+        Route::post('/logout', [UserController::class, 'logout'])->name('logout');
+        Route::post('/get-hotel-rooms', [HotelController::class, 'getHotelRooms'])->name('getHotelRooms');
+        Route::post('bed/update', [BedsController::class, 'update'])->name('beds.update');
+        Route::get('/get-bed-type-data', [HotelController::class, 'getBedTypeData'])->name('bed.type.data');
+        Route::get('/get-user-details/{id}', [DriverController::class, 'getUserDetails']);
+
+        Route::get('/tours', [TourController::class, 'index'])->name('tours');
+        Route::post('/tour/add-payment/{tourId}', [TourController::class, 'addPayment'])->name('tour.add-payment');
+        Route::post('/tour/approve-booking/{tourId}', [TourController::class, 'approveBooking'])->name('tour.approve-booking');
+        Route::post('/tour/assign-guide', [TourController::class, 'assignGuide'])->name('tour.assign-guide');
+        Route::post('/tour/remove-guide', [TourController::class, 'removeGuide'])->name('tour.remove-guide');
+        Route::post('/tour/assign-driver', [TourController::class, 'assignDriver'])->name('tour.assign-driver');
+        Route::post('/tour/remove-driver', [TourController::class, 'removeDriver'])->name('tour.remove-driver');
+        Route::get('/guides/search', [GuideController::class, 'search'])->name('guides.search');
+        Route::get('/drivers/search', [GuideController::class, 'search'])->name('drivers.search');
+        
+        Route::get('/get-cities', [OperationalCountryController::class, 'getCities'])->name('getCities');
+        Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
+        Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
+        Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        
+        // Country and City API routes
+        Route::get('/get-cities-by-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
+        Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
+
+        Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms']);
+        Route::get('/api/get-dmc-cities/{dmcId}', [DriverController::class, 'getDmcCities'])->name('get.dmc.cities');
+        Route::get('/features', [FeaturesController::class, 'index'])->name('features'); 
+        Route::post('/save-feature-roles/{id}', [FeaturesController::class, 'saveFeatureRoles'])->name('save-feature-roles');
+        Route::post('/update-status', [FeaturesController::class, 'statusUpdate']);
+        Route::get('master-setting', action: [MasterSettingController::class, 'index'])->name('master-setting');
+        Route::post('store-setting', [MasterSettingController::class, 'store'])->name('store-setting');
+        Route::resource('category', CategoryController::class);
+        Route::resource('hotel-category', HotelCategoryController::class);
+        Route::resource('facility', FacilityController::class);
+        Route::resource('roomType', RoomtypeController::class);
+
+        Route::get('/get-room-categories/{hotel_id}', [BedsController::class, 'getRoomCategories']);
+        Route::get('beds/index', [BedsController::class, 'index'])->name('beds.index');
+        Route::get('beds/create/{id}', [BedsController::class, 'create'])->name('beds.create');
+        Route::post('beds/store', [BedsController::class, 'store'])->name('beds.store');
+        Route::get('beds/edit/{id}', [BedsController::class, 'edit'])->name('beds.edit');
+        Route::delete('beds/delete/{id}', [BedsController::class, 'destroy'])->name('beds.destroy');
+        Route::resource('meals', MealController::class);
+        Route::get('restaurant-meals/{restaurant_id}', [RestaurantController::class, 'restaurant_create'])->name('meals.restaurant_create');
+        Route::get('restaurant/calendar/{restaurant_id}', [RestaurantController::class, 'restaurantCalendar'])->name('restaurant.calendar');
+        Route::resource('restaurant', RestaurantController::class);
+        Route::get('hotel-restaurant/{id}', [HotelRestaurantController::class, 'create'])->name('hotel-restaurant-create');
+
+        Route::get('hotel-restaurant-edit/{id}', [HotelRestaurantController::class, 'edit'])->name('hotel-restaurant-edit');
+        Route::post('hotel-restaurant-update/{id}', [HotelRestaurantController::class, 'update'])->name('hotel-restaurant-update');
+
+        Route::get('hotel-restaurant-destroy/{id}', [HotelRestaurantController::class, 'destroy'])->name('hotel-restaurant-destroy');
+        Route::post('hotel-restaurant/store', [HotelRestaurantController::class, 'store'])->name('hotel-restaurant-store');
+        
+
+        Route::get('hotel-meals/{dmc_id}/{hotel_id}', [HotelRestaurantController::class, 'mealsCreate'])->name('hotel-meals-create');
+        Route::get('hotel-meal-edit/{id}', [HotelRestaurantController::class, 'mealEdit'])->name('hotel-meal-edit');
+        Route::post('hotel-meals/store', [HotelRestaurantController::class, 'mealStore'])->name('hotel-meals-store');
+        Route::post('hotel-meal-update/{id}', [HotelRestaurantController::class, 'mealUpdate'])->name('hotel-meal-update');
+        Route::get('hotel-meal-destroy/{id}', [HotelRestaurantController::class, 'mealDestroy'])->name('hotel-meal-destroy');
+
+        
+        Route::get('attraction/calendar/{attraction_id}', [AttractionController::class, 'attractionCalendar'])->name('attraction.calendar');
+        Route::resource('attraction', AttractionController::class);
+        Route::get('guide/calendar/{guide_id}', [GuideController::class, 'guideCalendar'])->name('guide.calendar');
+
+        Route::get('guide/guide-approval', [GuideController::class, 'guideApproval'])->name('guide.approval');
+        Route::get('/edit-guide-approval/{guide}', [GuideController::class, 'editGuideApproval'])->name('guide.edit.approval');
+        Route::put('/update-guide-approval/{guide}', [GuideController::class, 'updateGuideApproval'])->name('guide.update.approval');
+
+        //job sheet
+        Route::get('jobsheet/drivers', [JobSheetController::class, 'index'])->name('jobsheet.drivers');
+        Route::get('jobsheet/create-driver-jobsheet', [JobSheetController::class, 'createDriverJobsheet'])->name('jobsheet.create.driver');
+        Route::get('jobsheet/create-guide-jobsheet', [JobSheetController::class, 'createGuideJobsheet'])->name('jobsheet.create.guide');
+        Route::get('jobsheet/view', [JobSheetController::class, 'viewJobsheets'])->name('jobsheet.view');
+
+        Route::get('get-dmcs/{masterDmcId}', [JobSheetController::class, 'getDmcsByMaster'])->name('get.dmcs');
+        Route::get('get-drivers/{dmcId}', [JobSheetController::class, 'getDriversByDmc'])->name('get.drivers');
+        Route::get('get-driver-schedule/{driverId}', [JobSheetController::class, 'getDriverSchedule'])->name('get.driver.schedule');
+        Route::get('get-tour-details/{tourId}', [JobSheetController::class, 'getTourDetails'])->name('get.tour.details');
+        Route::get('get-tour-orders/{tourId}/{date}', [JobSheetController::class, 'getTourOrders'])->name('get.tour.orders');
+        Route::get('get-orders-by-date/{date}', [JobSheetController::class, 'getOrdersByDate'])->name('get.orders.by.date');
+        Route::get('get-tour-guide-orders/{tourId}/{date}', [JobSheetController::class, 'getTourGuideOrders'])->name('get.tour.guide.orders');
+        Route::post('jobsheet/store/driver', [JobSheetController::class, 'storeDriverJobsheet'])->name('jobsheet.store.driver');
+        Route::post('jobsheet/store/driver/assignments', [JobSheetController::class, 'storeDriverAssignments'])->name('jobsheet.store.driver.assignments');
+        Route::post('jobsheet/store/guide', [JobSheetController::class, 'storeGuideJobsheet'])->name('jobsheet.store.guide');
+        Route::post('update-driver-vehicle-assignment', [JobSheetController::class, 'updateDriverVehicleAssignment'])->name('update.driver.vehicle.assignment');
+        Route::post('update-guide-jobsheet', [JobSheetController::class, 'updateGuideJobsheet'])->name('update.guide.jobsheet');
+        
+        // View jobsheets page and related endpoints
+        Route::get('jobsheets/data', [JobSheetController::class, 'getJobsheetData'])->name('jobsheets.data');
+        Route::get('jobsheets/export', [JobSheetController::class, 'exportJobsheets'])->name('jobsheets.export');
+
+        Route::get('jobsheets/{id}', [JobSheetController::class, 'getJobsheetDetails'])->name('jobsheets.details');
+        Route::get('get-tours', [JobSheetController::class, 'getAllTours'])->name('get.all.tours');
+        
+        //job sheet - guides
+        Route::get('jobsheet/guides', [JobSheetController::class, 'indexGuide'])->name('jobsheet.guides');
+        Route::get('get-guides/{dmcId}', [JobSheetController::class, 'getGuidesByDmc'])->name('get.guides');
+        Route::get('get-guide-schedule/{guideId}', [JobSheetController::class, 'getGuideSchedule'])->name('get.guide.schedule');
+
+        // Restaurant Approval
+        Route::get('restaurants/restaurant-approval', [RestaurantController::class, 'restaurantApproval'])->name('restaurants.approval');
+        Route::get('/edit-restaurant-approval/{restaurant}', [RestaurantController::class, 'editRestaurantApproval'])->name('restaurants.edit.approval');
+        Route::put('/update-restaurant-approval/{restaurant}', [RestaurantController::class, 'updateRestaurantApproval'])->name('restaurant.update.approval');
+
+        Route::resource('guide', GuideController::class);
+        Route::resource('transport', TransportController::class);
+
+        // Special Discount
+        Route::resource('discount', SpecialDiscountController::class);
+        // Vehicles
+        Route::resource('vehicle', VehicleController::class);
+
+        // In web.php routes
+        Route::post('/vehicle/map-zones', [VehicleController::class, 'mapZones'])->name('vehicle.map_zones');
+
+        Route::post('/vehicle/check-mapping-exists', [VehicleController::class, 'checkMappingExists'])->name('vehicle.check_mapping_exists');
+        Route::post('/vehicle/add-mapping', [VehicleController::class, 'addMappingAjax'])->name('vehicle.add_mapping');
+        Route::post('/vehicle/delete-mapping', [VehicleController::class, 'deleteMappingAjax'])->name('vehicle.delete_mapping');
+        Route::post('/vehicle/restore-mapping', [VehicleController::class, 'restoreMappingAjax'])->name('vehicle.restore_mapping');
+
+        // tickets
+        Route::resource('tickets', TicketController::class);
+        Route::get('tickets/add_ticket/{attraction_id}', [TicketController::class, 'add_ticket'])->name('tickets.add_ticket');
+
+        // reports
+        Route::resource('report', ReportController::class);
+
+        //Country
+        Route::resource('countries', CountryController::class);
+        Route::resource('cities', CityController::class);
+
+
+        // Mail Routes
+        Route::prefix('mail')->name('mail.')->group(function () {
+            // Main mail index
+            Route::get('/', [MailController::class, 'index'])->name('index');
+            
+            // Template management
+            Route::get('sync', [MailController::class, 'syncTemplates'])->name('sync');
+            Route::get('templates/{type}/preview', [MailController::class, 'previewTemplate'])->name('templates.preview');
+            
+            // Email template previews
+            Route::get('booking-confirmation', [MailController::class, 'bookingConfirmation'])->name('booking-confirmation');
+            Route::get('booking-reminder', [MailController::class, 'bookingReminder'])->name('booking-reminder');
+            Route::get('booking-cancellation', [MailController::class, 'bookingCancellation'])->name('booking-cancellation');
+            Route::get('payment-confirmation', [MailController::class, 'paymentConfirmation'])->name('payment-confirmation');
+            Route::get('tour-itinerary', [MailController::class, 'tourItinerary'])->name('tour-itinerary');
+            Route::get('welcome-email', [MailController::class, 'welcomeEmail'])->name('welcome-email');
+            Route::get('job-assignment', [MailController::class, 'jobAssignment'])->name('job-assignment');
+            Route::get('enquiry-response', [MailController::class, 'enquiryResponse'])->name('enquiry-response');
+            Route::get('feedback-request', [MailController::class, 'feedbackRequest'])->name('feedback-request');
+            
+            // Email sending
+            Route::post('send-booking-confirmation', [MailController::class, 'sendBookingConfirmation'])->name('send-booking-confirmation');
+            
+            // Settings management
+            Route::get('settings', [MailController::class, 'settings'])->name('settings');
+            Route::post('settings', [MailController::class, 'saveSettings'])->name('settings.save');
+            Route::post('store-settings', [MailController::class, 'storeSettings'])->name('store-settings');
+            
+            // Test email
+            Route::post('test', [MailController::class, 'testEmail'])->name('test');
+        });
+
+        //operational country
+        Route::resource('country', OperationalCountryController::class);
+
+        //Port management
+        Route::get('/ports', [PortController::class, 'index'])->name('ports.index');
+        Route::get('/ports/create', [PortController::class, 'create'])->name('ports.create');
+        Route::post('/ports', [PortController::class, 'store'])->name('ports.store');
+        Route::get('/ports/{port_id}', [PortController::class, 'show'])->name('ports.show');
+        Route::get('/ports/{port_id}/edit', [PortController::class, 'edit'])->name('ports.edit');
+        Route::put('/ports/{port_id}', [PortController::class, 'update'])->name('ports.update');
+        Route::delete('/ports/{port_id}', [PortController::class, 'destroy'])->name('ports.destroy');
+        Route::get('/port/get-cities', [PortController::class, 'getCities'])->name('port.getCities');
+        Route::post('/port/toggle-status/{port_id}', [PortController::class, 'toggleStatus'])->name('port.toggle-status');
+
+        Route::get('/fetch-cities', [OperationalCountryController::class, 'fetchCities'])->name('fetch.cities');
+        Route::get('/get-existing-cities', [OperationalCountryController::class, 'getExistingCities'])->name('get.existing.cities');
+        Route::get('/fetch-cities-countries', [GuideController::class, 'fetchCitiesCountries'])->name('fetch.cities_countries');
+        Route::get('/fetch-dmc-cities', [VehicleController::class, 'fetchCities'])->name('fetch.dmc_cities');
+        Route::get('/fetch-dmc-drivers', [VehicleController::class, 'fetchDrivers'])->name('fetch.dmc_drivers');
+
+        //Booking List
+        Route::resource('bookinglist', BookingListController::class);
+        Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+
+        Route::resource('enquirylist', EnquiryListController::class);
+
+        //Drivers Approval
+        Route::get('driver/driver-approval', [DriverController::class, 'driverApproval'])->name('driver.approval');
+        Route::get('/edit-driver-approval/{driver}', [DriverController::class, 'editdriverApproval'])->name('driver.edit.approval');
+        Route::put('/update-driver-approval/{driver}', [DriverController::class, 'updateDriverApproval'])->name('driver.update.approval');
+
+        //Drivers
+        Route::get('driver/calendar/{driver_id}', [DriverController::class, 'driverCalendar'])->name('driver.calendar');
+        Route::resource('driver', DriverController::class);
+        
+        Route::get('/hotels/search', [RoomtypeController::class, 'search'])->name('hotels.search');
+        Route::get('/hotels/{hotelId}/facilities', [RoomtypeController::class, 'getHotelFacilities']);
+        // Route::get('/booking', [BookingController::class, 'index'])->name('booking');
+        // Route::post('/booking/approve', [BookingController::class, 'approve'])->name('booking.approve');
+        // Route::post('/booking/decline', [BookingController::class, 'decline'])->name('booking.decline');
+
+        Route::get('/booking', [BookingController::class, 'index'])->name('booking.index');
+        Route::post('/approve-booking', [BookingController::class, 'approve'])->name('bookings.approve');
+        Route::post('/decline-booking', [BookingController::class, 'decline'])->name('bookings.decline');
+
+        // Route::get('/approve-attraction', [BookingAttractionController::class, 'index'])->name('booking.attraction');
+        // Route::post('/booking-attraction/approve', [BookingAttractionController::class, 'approve'])->name('booking.attraction.approve');
+        // Route::post('/booking-attraction/decline', [BookingAttractionController::class, 'decline'])->name('booking.attraction.decline');
+
+        Route::get('/hotel/conference/{id}', [HotelController::class, 'conference'])->name('hotel.conference');
+        Route::post('/update/conference', [HotelController::class, 'updateConference'])->name('update.conference');
+        Route::get('hotel_details/{hotel}', [HotelController::class, 'hotelDetails'])->name('hotel_details');
+        Route::get('hotel_brand_details/{brand}', [HotelController::class, 'hotelBrandDetails'])->name('hotel_brand_details');
+        
+        Route::post('/roomType/toggle', [RoomTypeController::class, 'toggle'])->name('roomType.toggle');
+        Route::get('hotel/facility/{id}', [HotelController::class, 'hotelfacility'])->name('hotels.facility');
+        Route::POST('facility/store', [HotelController::class, 'storeFacility'])->name('store.facility.image');
+        Route::POST('facility/image', [HotelController::class, 'updateFacility'])->name('upload.facility.image');
+        Route::get('/facility/{facilityId}/edit/{hotelId}', [HotelController::class, 'editfacility'])->name('edit.facility');
+        Route::post('/hotel/{hotelId}/facility/{facilityId}', [HotelController::class, 'destroyfacility'])->name('facilities.destroy');
+        Route::get('/hotelport/{id}', [HotelController::class, 'showPorts'])->name('hotelp');
+
+        Route::post('updateports', [HotelController::class, 'updateports'])->name('updateports');
+        Route::get('policy/{id}', [HotelController::class, 'policy'])->name('policy');
+        // Route::get('cancellation/policy/{id}', [HotelController::class, 'cancellationPolicy'])->name('cancellation.policy');
+        // Route::get('refund/policy/{id}', [HotelController::class, 'refundPolicy'])->name('refund.policy');
+
+        Route::get('hotels/hotel-approval', [HotelController::class, 'hotelApproval'])->name('hotels.approval');
+        Route::get('/edit-hotel-approval/{hotel}', [HotelController::class, 'editHotelApproval'])->name('hotels.edit.approval');
+        Route::put('/update-hotel-approval/{hotel}', [HotelController::class, 'updateHotelApproval'])->name('hotels.update.approval');
+        
+        Route::post('/update/refundPolicy', [HotelController::class, 'updateRefundPolicy'])->name('updaterefund.policy');
+        Route::post('/update/cancellationPolicy', [HotelController::class, 'updatecancellationPolicy'])->name('updatecancellation.policy');
+        Route::post('/update/policy', [HotelController::class, 'updatepolicy'])->name('update.policy');
+        Route::post('/update/child-policy', [HotelController::class, 'updateChildPolicy'])->name('updatechild.policy');
+        Route::post('/update/pet-policy', [HotelController::class, 'updatePetPolicy'])->name('updatepet.policy');
+        Route::post('/update/terms-policy', [HotelController::class, 'updateTermsPolicy'])->name('updateterms.policy');
+        Route::get('hotel/calendar/{hotel_unique_id}', [HotelController::class, 'hotelCalendar'])->name('hotels.viewcalendar');
+        
+        Route::get('calender/{hotel}', [HotelController::class, 'calender'])->name('hotels.calender');
+        Route::get('yearly/calender', [HotelController::class, 'yearlycalender'])->name('hotels.yearlycalender');
+        Route::get('/hotel/rooms', [HotelController::class, 'hotelrooms'])->name('hotels.room');
+        Route::get('/hotel/create/rooms/{id}', [HotelController::class, 'createHotelRooms'])->name('hotels.createroom');
+
+
+        Route::get('/hotels/{hotel}/contact', [HotelController::class, 'hotelcontacts'])->name('hotels.contact');
+        Route::post('/updatecontacts', [HotelController::class, 'updatecontacts'])->name('hotels.createcontacts');
+
+        Route::get('/hotels/{hotel}/events', [HotelController::class, 'hotelrates'])->name('hotels.rates');
+        Route::post('storeEvents', [HotelController::class, 'storerates'])->name('storerates');
+        Route::get('editevents/{id}/{hotel_id}', [HotelController::class, 'editrate'])->name('rates.edit');
+        Route::post('updaterates', [HotelController::class, 'updaterates'])->name('rates.update');
+
+        Route::get('/hotels/{hotel}/season', [HotelController::class, 'hotelseason'])->name('hotels.season');
+        Route::post('storeseason', [HotelController::class, 'storeseason'])->name('storeseason');
+        Route::get('editseason/{id}/{hotel_id}', [HotelController::class, 'editseason'])->name('season.edit');
+        Route::post('updateseason', [HotelController::class, 'updateseason'])->name('season.update');
+        Route::delete('deleteseason/{hotel_id}/{id}', [HotelController::class, 'deleteSeason'])->name('season.destroy');
+
+        Route::get('/editcontacts/{hotel}', [HotelController::class, 'editcontacts'])->name('contactdetails.edit');
+        
+        Route::post('storeroom', [HotelController::class, 'storeroom'])->name('storeroom');
+        Route::get('editroom/{id}', [HotelController::class, 'editroom'])->name('rooms.edit');
+        Route::post('updateroom', [HotelController::class, 'updateroom'])->name('room.update');
+        Route::delete('deleteroom/{id}', [HotelController::class, 'deleteroom'])->name('rooms.destroy');
+        Route::post('update-base-room', [RoomtypeController::class, 'updateBaseRoom'])->name('rooms.update-base-room');
+
+        Route::get('/hotels/{hotel}/beds', [HotelController::class, 'hotelbeds'])->name('hotels.beds');
+        Route::post('storebeds', [HotelController::class, 'storebeds'])->name('storebed');
+        Route::get('edit_bed/{id}/{hotel_id}', [HotelController::class, 'editbed'])->name('bed.edit');
+        Route::post('updatebed', [HotelController::class, 'updatebed'])->name('bed.update');
+        Route::delete('deletebed/{hotelId}/{bedId}', [HotelController::class, 'deletebed'])->name('bed.destroy');
+        
+        // Route::get('/pending-attractions', [AttractionController::class, 'pendingAttraction'])->name('attraction.pending');
+        Route::get('attractions/attraction-approval', [AttractionController::class, 'attractionApproval'])->name('attractions.approval');
+        Route::get('/edit-attraction-approval/{attraction}', [AttractionController::class, 'editAttractionApproval'])->name('attractions.edit.approval');
+        Route::put('/update-attraction-approval/{attraction}', [AttractionController::class, 'updateAttractionApproval'])->name('attraction.update.approval');
+
+        Route::post('attractionCloseDate', [AttractionController::class, 'attractionCloseDate'])->name('attraction_close_dates');
+        Route::post('driverCloseDate', [DriverController::class, 'driverCloseDate'])->name('driver_close_dates');
+        Route::post('guideCloseDate', [GuideController::class, 'guideCloseDate'])->name('guide_close_dates');
+        Route::post('restaurantCloseDate', [RestaurantController::class, 'restaurantCloseDate'])->name('restaurant_close_dates');
+        Route::post('hotelCloseDate', [HotelController::class, 'hotelCloseDate'])->name('hotel_close_dates');
+
+        Route::resource('agents', AgentController::class);
+        Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails']);
+
+        Route::resource('users', UserController::class);
+        Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
+        Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
+        Route::get('/get-assistant-manager/{country}', [UserController::class, 'getAssistantManagers']);
+
+        Route::resource('roles', RoleController::class);  
+        Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType']);
+        Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']);
+        Route::post('add-money/{id}', [UserController::class, 'add_money'])->name('add-money');
+        // Route::post('/guide/approve-or-decline/{guideId}', [GuideController::class, 'approveOrDecline']);
+        // Route::post('/driver/approve-or-decline/{driverId}', [DriverController::class, 'approveOrDecline']);
+
+        //Enquiry
+        
+        Route::post('/zones/{zone}/settings', [ZoneController::class, 'saveSettings'])->name('zones.settings');
+        // Route::post('/cities/store', [PortController::class, 'store'])->name('cities.store');
+
+        
+    });
+
+    //authentication check for manager (route can access admin & manager)
+    Route::group(['middleware' => ['manager']], function () {
+        Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
+        Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+    });
+
+});    
+
+// Job Sheet routes added to the admin middleware group above
+
+// Package Routes
+
+// Add this route for testing booking confirmation email
+Route::get('/test-booking-email', function() {
+    try {
+        // Prepare dynamic data for the booking confirmation email
+        $data = [
+            "booking_id" => "BK-" . rand(10000, 99999),
+            "customer_name" => "John Doe",
+            "type" => "Hotel Booking",
+            "booking_date" => date('Y-m-d'),
+            "check_in_date" => date('Y-m-d', strtotime('+7 days')),
+            "check_out_date" => date('Y-m-d', strtotime('+10 days')),
+            "location" => "Paris, France",
+            "guests" => "2 Adults, 1 Child",
+            "reference_number" => "REF-" . rand(1000, 9999),
+            "total_price" => 1250.00,
+            "payment_status" => "Paid"
+        ];
+        
+        // Send email using CommonHelper
+        $email = "saurabh.coactive@gmail.com";
+        $type = "confirmation";
+        $subject = "Your Booking Confirmation #" . $data['booking_id'];
+        $body = "Thank you for your booking with us!";
+        
+        \App\Helpers\CommonHelper::sendEmail($email, $type, $subject, $body, $data);
+        
+        return [
+            'success' => true,
+            'message' => 'Booking confirmation email sent successfully!',
+            'booking_id' => $data['booking_id']
+        ];
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Email error: ' . $e->getMessage());
+        
+        return [
+            'success' => false,
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ];
+    }
+});
+
+
+
+
+
+
+
+
+
