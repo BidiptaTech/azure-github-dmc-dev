@@ -1,6 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Paper,
+  Divider,
+  Container,
+} from "@mui/material";
+import {
+  LocationOn,
+  FlightTakeoff,
+  FlightLand,
+  Schedule,
+  CalendarToday,
+  Search,
+  Business,
+} from "@mui/icons-material";
+import {
   fetchVehicles,
   setexitpickup,
   setexitdropoff,
@@ -227,170 +247,210 @@ const ExitPortSearchZone = ({ Location, portType}) => {
   };
 
   return (
-    <>
-      <div className="exit-port-zone-container">
-        <h4 className="text-18 fw-500 mb-10">Exit Port Services</h4>
-        <div className="search-row">
-          {/* City Selection Section */}
-          <div className="search-item location-search city-selection">
-            <h4 className={`text-15 fw-500 ls-2 lh-16 mb-20 ml-10`}>
-              City
-            </h4>
-            <PortCity
-              onLocationSelect={handleCitySelect}
-              hasError={cityError}
-              setError={setCityError}
-              disabled={!isCityEnabled}
-            />
-          </div>
-
-          {/* Pick Up Location */}
-          <div className="search-item location-search pickup-location">
-            <h4
-              className={`text-15 fw-500 ls-2 lh-16 mb-20 ml-10 ${
-                !isPickupLocationEnabled ? "text-gray-400" : ""
-              }`}
-            >
-              Pick Up Location
-            </h4>
-            <SearchBar
-              exitpickUpLocation={exitpickUpLocation}
-              setexitPickUpLocation={setexitPickUpLocation}
-              setType={setType}
-              setPickdropType={setPickdropType}
-              setId={setId}
-              setpickId={setpickId}
-              setdropId={setdropId}
-              validationTriggered={validationTriggered}
-              setPickupFromAutocomplete={setExitPickupFromAutocomplete}
-              setDropoffFromAutocomplete={setExitPickupFromAutocomplete}
-              disabled={!isPickupLocationEnabled}
-              portType={portType}
-            />
-          </div>
-
-          {/* Drop Off Location */}
-          <div className="search-item location-search dropoff-location">
-            <h4
-              className={`text-15 fw-500 ls-2 lh-16 mb-20 ml-10 ${
-                !isDropoffLocationEnabled ? "text-gray-400" : ""
-              }`}
-            >
-              Drop Off Location
-            </h4>
-            <LocationSearch
-              pickUpLocation={pickUpLocation}
-              setPickUpLocation={setPickUpLocation}
-              setType={setType}
-              portType={portType}
-              setId={setId}
-              setpickId={setpickId}
-              setdropId={setdropId}
-              validationTriggered={validationTriggered}
-              setPickupFromAutocomplete={setPickupFromAutocomplete}
-              setDropoffFromAutocomplete={setPickupFromAutocomplete}
-              disabled={!isDropoffLocationEnabled}
-            />
-          </div>
-
-          {/* Time Selection */}
-          <div className="search-item time-selection">
-            <Pickuptime1
-              entryytime={entryytime1}
-              setentryytime={setentryytime1}
-              setTime={setTime1}
-              disabled={!isDropoffLocationEnabled}
-            />
-          </div>
-
-          {/* Date Selection */}
-          <div className="search-item date-selection">
-            <h4
-              className={`text-15 fw-500 ls-2 lh-16 mt-15 ${
-                !isDropoffLocationEnabled ? "text-gray-400" : ""
-              }`}
-            >
-              Exit Date
-            </h4>
-            <DateSearch2
-              selectedDate1={selectedDate1}
-              setSelectedDate1={setSelectedDate1}
-              disabled={!isDropoffLocationEnabled}
-            />
-          </div>
-
-          {/* Search Button */}
-          <div className="search-item search-button">
-            <button
-              className={`mainSearch__submit button -dark-1 py-15 px-35 rounded-4 ${
-                isSearchButtonEnabled
-                  ? "bg-blue-1 text-white"
-                  : "bg-blue-1/50 text-white/80"
-              }`}
-              onClick={buttonsearch}
-            >
-              <i className="icon-search text-20 mr-10" />
-              Search
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <style jsx>{`
-        .exit-port-zone-container {
-          width: 100%;
-          padding-bottom: 20px;
-          margin-bottom: 20px;
-        }
+    <Card 
+      elevation={3}
+      sx={{
+        borderRadius: 3,
+        background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        color: 'white',
+        mb: 2,
+        mx: 'auto',
+        maxWidth: '100%'
+      }}
+    >
+      <CardContent sx={{ py: 3 }}>
+        <Box display="flex" alignItems="center" mb={3}>
+          <FlightLand sx={{ mr: 2, fontSize: 28, color: '#FFD700' }} />
+          <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+            Exit Port Services
+          </Typography>
+        </Box>
         
-        .search-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 15px;
-          align-items: flex-end;
-        }
-        
-        .search-item {
-          flex: 1;
-          min-width: 150px;
-        }
+        <Paper 
+          elevation={2} 
+          sx={{ 
+            p: 3, 
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <Grid container spacing={2} alignItems="flex-end">
+            {/* City Selection */}
+            <Grid item xs={12} sm={6} md={2.2}>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
+                  <Business sx={{ mr: 1, color: '#1976d2', fontSize: 20 }} />
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="600"
+                    color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                  >
+                    City
+                  </Typography>
+                </Box>
+                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center' }}>
+                  <PortCity
+                    onLocationSelect={handleCitySelect}
+                    hasError={cityError}
+                    setError={setCityError}
+                    disabled={!isCityEnabled}
+                  />
+                </Box>
+              </Box>
+            </Grid>
 
-        .city-selection {
-          flex: 1.5;
-        }
-        
-        .location-search {
-          flex: 2;
-        }
-        
-        .time-selection, 
-        .date-selection {
-          min-width: 120px;
-          flex: 1;
-        }
-        
-        .search-button {
-          min-width: 120px;
-          display: flex;
-          align-items: flex-end;
-        }
-        
-        .search-button button {
-          width: 100%;
-          height: 50px;
-        }
-        
-        @media (max-width: 991px) {
-          .search-row {
-            flex-direction: column;
-          }
-          
-          .search-item {
-            width: 100%;
-          }
-        }
-      `}</style>
-    </>
+            {/* Pick Up Location */}
+            <Grid item xs={12} sm={6} md={2.2}>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
+                  <LocationOn sx={{ mr: 1, color: '#2e7d32', fontSize: 20 }} />
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="600"
+                    color={!isPickupLocationEnabled ? "text.disabled" : "text.primary"}
+                  >
+                    Pick Up Location
+                  </Typography>
+                </Box>
+                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center' }}>
+                  <SearchBar
+                    exitpickUpLocation={exitpickUpLocation}
+                    setexitPickUpLocation={setexitPickUpLocation}
+                    setType={setType}
+                    setPickdropType={setPickdropType}
+                    setId={setId}
+                    setpickId={setpickId}
+                    setdropId={setdropId}
+                    validationTriggered={validationTriggered}
+                    setPickupFromAutocomplete={setExitPickupFromAutocomplete}
+                    setDropoffFromAutocomplete={setExitPickupFromAutocomplete}
+                    disabled={!isPickupLocationEnabled}
+                    portType={portType}
+                  />
+                </Box>
+              </Box>
+            </Grid>
+
+            {/* Drop Off Location */}
+            <Grid item xs={12} sm={6} md={2.2}>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
+                  <FlightTakeoff sx={{ mr: 1, color: '#d32f2f', fontSize: 20 }} />
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="600"
+                    color={!isDropoffLocationEnabled ? "text.disabled" : "text.primary"}
+                  >
+                    Drop Off Location
+                  </Typography>
+                </Box>
+                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center' }}>
+                  <LocationSearch
+                    pickUpLocation={pickUpLocation}
+                    setPickUpLocation={setPickUpLocation}
+                    setType={setType}
+                    portType={portType}
+                    setId={setId}
+                    setpickId={setpickId}
+                    setdropId={setdropId}
+                    validationTriggered={validationTriggered}
+                    setPickupFromAutocomplete={setPickupFromAutocomplete}
+                    setDropoffFromAutocomplete={setPickupFromAutocomplete}
+                    disabled={!isDropoffLocationEnabled}
+                  />
+                </Box>
+              </Box>
+            </Grid>
+
+            {/* Time Selection */}
+            <Grid item xs={12} sm={6} md={2.2}>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
+                  <Schedule sx={{ mr: 1, color: '#ff9800', fontSize: 20 }} />
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="600"
+                    color={!isDropoffLocationEnabled ? "text.disabled" : "text.primary"}
+                  >
+                    Time
+                  </Typography>
+                </Box>
+                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center' }}>
+                  <Pickuptime1
+                    entryytime={entryytime1}
+                    setentryytime={setentryytime1}
+                    setTime={setTime1}
+                    disabled={!isDropoffLocationEnabled}
+                  />
+                </Box>
+              </Box>
+            </Grid>
+
+            {/* Date Selection */}
+            <Grid item xs={12} sm={6} md={2.2}>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
+                  <CalendarToday sx={{ mr: 1, color: '#9c27b0', fontSize: 20 }} />
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="600"
+                    color={!isDropoffLocationEnabled ? "text.disabled" : "text.primary"}
+                  >
+                    Exit Date
+                  </Typography>
+                </Box>
+                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center' }}>
+                  <DateSearch2
+                    selectedDate1={selectedDate1}
+                    setSelectedDate1={setSelectedDate1}
+                    disabled={!isDropoffLocationEnabled}
+                  />
+                </Box>
+              </Box>
+            </Grid>
+
+            {/* Search Button */}
+            <Grid item xs={12} md={1}>
+              <Box sx={{ height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={buttonsearch}
+                  disabled={!isSearchButtonEnabled}
+                  startIcon={<Search />}
+                  sx={{
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.5,
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    minHeight: '40px',
+                    background: isSearchButtonEnabled 
+                      ? 'linear-gradient(45deg, #11998e 30%, #38ef7d 90%)'
+                      : undefined,
+                    boxShadow: isSearchButtonEnabled 
+                      ? '0 3px 5px 2px rgba(17, 153, 142, .3)'
+                      : undefined,
+                    '&:hover': {
+                      background: isSearchButtonEnabled 
+                        ? 'linear-gradient(45deg, #0d8978 30%, #2dd65a 90%)'
+                        : undefined,
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 10px 4px rgba(17, 153, 142, .3)',
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  Search
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      </CardContent>
+    </Card>
   );
 };
 

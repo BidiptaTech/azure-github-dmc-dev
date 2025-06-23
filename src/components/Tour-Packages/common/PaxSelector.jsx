@@ -382,7 +382,7 @@ const PaxSelector = ({ onGuestChange, guestCounts = { Adults: 1, Children: 0, In
         aria-expanded="false"
         data-bs-offset="0,22"
       >
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Guest</Typography>
+        {/* <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Guest</Typography> */}
         <Typography variant="body2" color="text.secondary">
           {guestCounts.Adults} adults
           ({guestCounts.maleCount || 0} male, {guestCounts.femaleCount || 0} female) -
