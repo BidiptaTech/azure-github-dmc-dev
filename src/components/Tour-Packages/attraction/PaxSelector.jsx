@@ -255,7 +255,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   const adultsAgeDescription = `Ages ${parseInt(childMaxAge) + 1} - ${parseInt(seniorMinAge) - 1}`;
 
   return (
-    <Grid item xs={12} sm={6} md={3}>
+    <Grid item xs={12} sm={12} md={12}>
       <StyledCard 
         variant="outlined" 
         onClick={handleClick}

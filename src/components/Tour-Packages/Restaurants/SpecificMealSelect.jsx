@@ -42,25 +42,25 @@ const StyledMenuItem = styled(MenuItem)(({ theme }) => ({
   padding: '10px 16px',
   display: 'flex',
   alignItems: 'center',
-  backgroundColor: 'rgba(237, 242, 255, 0.85)',
-  color: '#1E3A8A',
+  backgroundColor: 'rgba(232, 245, 233, 0.85)',
+  color: '#2e7d32',
   borderRadius: '6px',
   margin: '4px 8px',
   transition: 'all 0.2s ease',
 
   '&:hover': {
-    backgroundColor: 'rgba(237, 242, 255, 1)',
+    backgroundColor: 'rgba(232, 245, 233, 1)',
     transform: 'translateY(-2px) scale(1.02)',
     boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
   },
 
   '&.Mui-selected': {
-    backgroundColor: 'rgba(219, 234, 254, 1)',
+    backgroundColor: 'rgba(200, 230, 201, 1)',
     fontWeight: 'bold',
   },
 
   '&.Mui-selected:hover': {
-    backgroundColor: 'rgba(191, 219, 254, 1)',
+    backgroundColor: 'rgba(165, 214, 167, 1)',
   },
 }));
 
@@ -109,12 +109,12 @@ const MealDescription = ({ description, expanded, onToggle }) => {
                 padding: '2px 8px',
                 fontSize: '12px',
                 marginLeft: '4px',
-                color: '#3554D1',
+                color: '#4caf50',
                 textTransform: 'none',
                 display: 'inline-flex',
                 alignItems: 'center',
                 '&:hover': {
-                  backgroundColor: 'rgba(53, 84, 209, 0.04)',
+                  backgroundColor: 'rgba(76, 175, 80, 0.04)',
                 },
               }}
             >
@@ -456,7 +456,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                       borderColor: 'divider',
                       borderRadius: 1,
                       p: 2,
-                      backgroundColor: selectedMealIndex === index ? 'rgba(53, 84, 209, 0.04)' : 'transparent',
+                      backgroundColor: selectedMealIndex === index ? 'rgba(76, 175, 80, 0.04)' : 'transparent',
                     }}
                   >
                     <ListItemText
@@ -514,7 +514,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                                       border: '1px solid',
                                       borderColor: 'divider',
                                       '&:hover': {
-                                        backgroundColor: 'rgba(53, 84, 209, 0.04)',
+                                        backgroundColor: 'rgba(76, 175, 80, 0.04)',
                                       },
                                     }}
                                   >
@@ -537,7 +537,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                                       border: '1px solid',
                                       borderColor: 'divider',
                                       '&:hover': {
-                                        backgroundColor: 'rgba(53, 84, 209, 0.04)',
+                                        backgroundColor: 'rgba(76, 175, 80, 0.04)',
                                       },
                                     }}
                                   >
@@ -545,8 +545,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                                   </IconButton>
                                   <Typography 
                                     variant="body2" 
-                                    color="primary"
-                                    sx={{ ml: 2, fontWeight: 500 }}
+                                    sx={{ ml: 2, fontWeight: 500, color: '#4caf50' }}
                                   >
                                     = {formatCurrency(meal.price * meal.quantity)}
                                   </Typography>
@@ -571,13 +570,13 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                 py: 2
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <ShoppingCartIcon sx={{ mr: 2, color: 'primary.main' }} />
+                  <ShoppingCartIcon sx={{ mr: 2, color: '#4caf50' }} />
                   <Typography variant="h6" component="div">
                     Total Price:
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h5" color="primary" sx={{ fontWeight: 600 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 600, color: '#4caf50' }}>
                     {formatCurrency(totalPrice)}
                   </Typography>
                   {specificMealType.toLowerCase() === 'buffet' && (
@@ -611,6 +610,12 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                 onClick={handleConfirm}
                 disabled={isConfirmDisabled}
                 startIcon={<ShoppingCartIcon />}
+                sx={{
+                  bgcolor: '#4caf50',
+                  '&:hover': {
+                    bgcolor: '#388e3c'
+                  }
+                }}
               >
                 Confirm Selection
               </Button>

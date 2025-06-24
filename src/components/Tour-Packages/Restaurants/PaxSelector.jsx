@@ -68,9 +68,9 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
               onClick={() => onCounterChange(name, Math.max(value - 1, minValue))}
               disabled={value <= minValue || disabled}
               sx={{ 
-                color: (value <= minValue || disabled) ? 'text.disabled' : 'primary.main',
+                color: (value <= minValue || disabled) ? 'text.disabled' : '#2e7d32',
                 '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.04)'
+                  backgroundColor: 'rgba(46, 125, 50, 0.04)'
                 }
               }}
             >
@@ -95,9 +95,9 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
               onClick={() => onCounterChange(name, value + 1)}
               disabled={value >= maxValue || disabled}
               sx={{ 
-                color: (value >= maxValue || disabled) ? 'text.disabled' : 'primary.main',
+                color: (value >= maxValue || disabled) ? 'text.disabled' : '#2e7d32',
                 '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.04)'
+                  backgroundColor: 'rgba(46, 125, 50, 0.04)'
                 }
               }}
             >
@@ -217,14 +217,14 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled }) => {
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <PersonIcon sx={{ color: 'primary.main' }} />
+              <PersonIcon sx={{ color: '#2e7d32' }} />
               <Typography>
                 {guestCounts.Adults}
               </Typography>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ChildCareIcon sx={{ color: 'primary.main' }} />
+              <ChildCareIcon sx={{ color: '#2e7d32' }} />
               <Typography>
                 {guestCounts.Children}
               </Typography>
@@ -275,7 +275,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled }) => {
               <Typography variant="caption" color="text.secondary">
                 Total:
               </Typography>
-              <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" color="#2e7d32" sx={{ fontWeight: 600 }}>
                 {guestCounts.Adults + guestCounts.Children}
               </Typography>
             </Box>
@@ -288,7 +288,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled }) => {
             maxValue={maxLimits.Adults}
             onCounterChange={handleCounterChange}
             ageDescription={adultsAgeDescription}
-            icon={<PersonIcon sx={{ color: 'primary.main' }} />}
+            icon={<PersonIcon sx={{ color: '#2e7d32' }} />}
           />
 
           <Counter
@@ -298,7 +298,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled }) => {
             maxValue={maxLimits.Children}
             onCounterChange={handleCounterChange}
             ageDescription={childrenAgeDescription}
-            icon={<ChildCareIcon sx={{ color: 'primary.main' }} />}
+            icon={<ChildCareIcon sx={{ color: '#2e7d32' }} />}
           />
 
           <Divider sx={{ my: 2 }} />
@@ -311,7 +311,11 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled }) => {
               mt: 2,
               py: 1.5,
               textTransform: 'none',
-              fontSize: '1rem'
+              fontSize: '1rem',
+              bgcolor: '#4caf50',
+              '&:hover': {
+                bgcolor: '#388e3c'
+              }
             }}
           >
             Done

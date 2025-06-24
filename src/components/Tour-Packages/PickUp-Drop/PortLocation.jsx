@@ -141,7 +141,16 @@ const PortLocation = ({
                 disabled={disabled}
               />
               {showDropdown && !disabled && (
-                <div className="absolute bg-white border rounded shadow mt-2 max-h-60 overflow-auto z-50 w-full" style={{ minWidth: "250px" }}>
+                <div 
+                  className="absolute bg-white border rounded shadow mt-2 z-50 w-full location-dropdown" 
+                  style={{ 
+                    minWidth: "250px",
+                    maxHeight: "280px",
+                    overflowY: "auto",
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#bbb #f1f1f1"
+                  }}
+                >
                   {Object.entries(filteredPorts).map(([type, ports]) => (
                     <div key={type}>
                       <div className="category-heading">
@@ -150,7 +159,7 @@ const PortLocation = ({
                       {ports.map((port) => (
                         <div
                           key={port.port_id}
-                          className="px-3 py-2 hover:bg-gray-200 cursor-pointer"
+                          className="px-3 py-2 hover:bg-gray-200 cursor-pointer transition-colors duration-200"
                           onClick={() => handleSelect(port)}
                         >
                           {port.port_name}
@@ -187,6 +196,26 @@ const PortLocation = ({
         .disabled-input {
           opacity: 0.8;
           cursor: not-allowed;
+        }
+        
+        /* Custom scrollbar for location dropdown */
+        .location-dropdown::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .location-dropdown::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        
+        .location-dropdown::-webkit-scrollbar-thumb {
+          background: #bbb;
+          border-radius: 4px;
+          transition: background 0.3s ease;
+        }
+        
+        .location-dropdown::-webkit-scrollbar-thumb:hover {
+          background: #888;
         }
       `}</style>
     </div>

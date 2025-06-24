@@ -96,12 +96,12 @@ const Pickuptime = ({
 
   return (
     <FormControl>
-      <label
+      {/* <label
         htmlFor="pickup-time-select"
         className={`text-15 fw-500 ls-2 lh-16 mt-5 mb-10 ${disabled ? "text-gray-400" : ""}`}
       >
         Select the Pick Up Time
-      </label>
+      </label> */}
       <StyledSelect
         id="pickup-time-select"
         value={entryytime}
@@ -138,12 +138,34 @@ const Pickuptime = ({
         MenuProps={{
           PaperProps: {
             style: {
-              maxHeight: 300,
+              maxHeight: 280,
               borderRadius: "10px",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
               boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
             },
+            sx: {
+              /* Custom scrollbar for time picker */
+              "&::-webkit-scrollbar": {
+                width: "8px",
+              },
+              "&::-webkit-scrollbar-track": {
+                background: "#f1f1f1",
+                borderRadius: "4px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                background: "#ff9800",
+                borderRadius: "4px",
+                transition: "background 0.3s ease",
+                "&:hover": {
+                  background: "#f57c00",
+                },
+              },
+              /* Firefox scrollbar */
+              scrollbarWidth: "thin",
+              scrollbarColor: "#ff9800 #f1f1f1",
+            },
           },
+          className: "time-dropdown",
         }}
       >
         {/* Only show the placeholder when no time is selected */}

@@ -273,7 +273,7 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
   };
 
   return (
-    <Grid item xs={12} sm={6} md={3}>
+    <Grid item xs={12} sm={12} md={12}>
       <Autocomplete
         value={filteredAttractions.find(a => a.id === selectedAttraction) || null}
         onChange={(event, newValue) => {
