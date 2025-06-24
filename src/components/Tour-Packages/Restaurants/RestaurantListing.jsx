@@ -131,7 +131,7 @@ const TooltipContent = ({ restaurant }) => {
             <Stack spacing={0.5}>
               {restaurant.breakfast_available === 1 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <AccessTimeIcon sx={{ fontSize: 16, color: '#4caf50' }} />
                   <Typography variant="body2" color="text.secondary">
                     Breakfast: {restaurant.breakfast_open_time} - {restaurant.breakfast_close_time}
                   </Typography>
@@ -139,7 +139,7 @@ const TooltipContent = ({ restaurant }) => {
               )}
               {restaurant.lunch_available === 1 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <AccessTimeIcon sx={{ fontSize: 16, color: '#4caf50' }} />
                   <Typography variant="body2" color="text.secondary">
                     Lunch: {restaurant.lunch_open_time} - {restaurant.lunch_close_time}
                   </Typography>
@@ -147,7 +147,7 @@ const TooltipContent = ({ restaurant }) => {
               )}
               {restaurant.dinner_available === 1 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <AccessTimeIcon sx={{ fontSize: 16, color: '#4caf50' }} />
                   <Typography variant="body2" color="text.secondary">
                     Dinner: {restaurant.dinner_open_time} - {restaurant.dinner_close_time}
                   </Typography>
@@ -174,7 +174,7 @@ const TooltipContent = ({ restaurant }) => {
                     borderColor: 'rgba(25, 118, 210, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#4caf50', fontWeight: 500 }}>
                     DMC Prices
                   </Typography>
                   <Typography variant="body2">Available</Typography>
@@ -310,7 +310,7 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
             >
               <Box component="li" {...otherProps}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <RestaurantIcon sx={{ mr: 1, fontSize: 20, color: 'text.secondary' }} />
+                  <RestaurantIcon sx={{ mr: 1, fontSize: 20, color: '#4caf50' }} />
                   <Box>
                     <Typography variant="body2">{option.restaurant_name}</Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -331,8 +331,8 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
                       sx={{ 
                         height: 20,
                         fontSize: '0.7rem',
-                        bgcolor: 'rgba(25, 118, 210, 0.08)',
-                        color: 'primary.main'
+                        bgcolor: 'rgba(76, 175, 80, 0.08)',
+                        color: '#4caf50'
                       }}
                     />
                   )}
@@ -360,6 +360,13 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
             fullWidth
           />
         )}
+        slotProps={{
+          popper: {
+            sx: {
+              zIndex: 999999
+            }
+          }
+        }}
       />
     </Box>
   );

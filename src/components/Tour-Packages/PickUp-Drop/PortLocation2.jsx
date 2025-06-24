@@ -1,5 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import {
+  TextField,
+  Box,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+  Divider,
+  InputAdornment,
+  Fade,
+} from "@mui/material";
+import { LocationOn } from "@mui/icons-material";
 
 const PortLocation2 = ({
   exitpickUpLocation,
@@ -145,363 +158,531 @@ const PortLocation2 = ({
   }, []);
 
   return (
-    <div
-      className={`searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0 relative ${
-        disabled ? "disabled-input" : ""
-      }`}
-    >
-      <div className="d-flex justify-between">
-        <div className="flex-1 mr-10">
-          <div className="d-flex relative">
-            <i
-              className={`icon-location-2 text-20 ${
-                disabled ? "text-gray-400" : "text-light-1"
-              } `}
-            ></i>
-            <div
-              className="ml-5 flex-grow-1 w-full"
-              style={{ minWidth: "160px" }}
-            >
-              <input
-                id="pick-up-input"
-                autoComplete="off"
-                type="search"
-                placeholder={
-                  portType === "Entry Port"
-                    ? "Where is your drop off?"
-                    : "Where is your pick up?"
-                }
-                className={`js-search js-dd-focus w-full text-15 ${
-                  disabled
-                    ? "bg-gray-100 border-gray-200 text-gray-400"
-                    : "border-gray-300"
-                } rounded `}
-                style={{ minWidth: "160px" }}
-                value={searchText}
-                onChange={(e) => {
-                  if (disabled) return;
-
-                  const newValue = e.target.value;
-                  setSearchText(newValue);
-                  setShowDropdown(true);
-
-                  // If we had a selection but now we're editing it
-                  if (exitpickUpLocation && newValue !== exitpickUpLocation) {
-                    setPickupFromAutocomplete(false);
-                    // Don't clear the exitpickUpLocation yet - only when selection is confirmed
-                  }
-                }}
-                onFocus={() => {
-                  if (disabled) return;
-
-                  setShowDropdown(true);
-                  // If empty on focus, show all options
-                  if (!searchText && zonesData) {
-                    console.log("Showing all options on focus");
-                  }
-                }}
-                disabled={
-                  disabled ||
-                  !portType ||
-                  (portType !== "Entry Port" && portType !== "Exit Port")
-                }
+    <Box sx={{ position: 'relative', width: '100%' }}>
+      <TextField
+        id="pick-up-input"
+        fullWidth
+        variant="outlined"
+        size="small"
+        placeholder={
+          portType === "Entry Port"
+            ? "Where is your drop off?"
+            : "Where is your pick up?"
+        }
+        value={searchText}
+        disabled={
+          disabled ||
+          !portType ||
+          (portType !== "Entry Port" && portType !== "Exit Port")
+        }
+        error={validationTriggered && !exitpickUpLocation && !disabled}
+        helperText={
+          validationTriggered && !exitpickUpLocation && !disabled
+            ? "*Select location from dropdown"
+            : ""
+        }
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LocationOn 
+                sx={{ 
+                  color: disabled ? 'action.disabled' : 'action.active',
+                  fontSize: 20 
+                }} 
               />
-              {showDropdown && !disabled && (
-                <div className="location-dropdown">
-                  {portType === "Exit Port" ? (
-                    // For Exit Port, show categorized dropdown just like Entry Port
-                    <>
-                      {zonesData &&
-                        zonesData.hotels &&
-                        zonesData.hotels.length > 0 && (
-                          <div className="location-category">
-                            <div className="category-heading">Hotel</div>
-                            {filterItems(zonesData.hotels, searchText).map(
-                              (hotel) => (
-                                <div
-                                  key={`hotel-${
-                                    hotel.hotel_unique_id || hotel.id
-                                  }`}
-                                  className="location-item"
-                                  onClick={() => handleSelect(hotel, "hotel")}
-                                >
-                                  {hotel.name}
-                                </div>
-                              )
-                            )}
-                            {filterItems(zonesData.hotels, searchText)
-                              .length === 0 &&
-                              searchText && (
-                                <div className="no-results">
-                                  No matching hotels
-                                </div>
-                              )}
-                          </div>
-                        )}
+            </InputAdornment>
+          ),
+          sx: {
+            backgroundColor: disabled ? 'action.hover' : 'background.paper',
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: disabled ? 'action.disabled' : 'divider',
+              },
+            },
+          }
+        }}
+        onChange={(e) => {
+          if (disabled) return;
 
-                      {zonesData &&
-                        zonesData.attractions &&
-                        zonesData.attractions.length > 0 && (
-                          <div className="location-category">
-                            <div className="category-heading">Attraction</div>
-                            {filterItems(zonesData.attractions, searchText).map(
-                              (attraction) => (
-                                <div
-                                  key={`attraction-${
-                                    attraction.attraction_id || attraction.id
-                                  }`}
-                                  className="location-item"
-                                  onClick={() =>
-                                    handleSelect(attraction, "attraction")
-                                  }
-                                >
-                                  {attraction.name}
-                                </div>
-                              )
-                            )}
-                            {filterItems(zonesData.attractions, searchText)
-                              .length === 0 &&
-                              searchText && (
-                                <div className="no-results">
-                                  No matching attractions
-                                </div>
-                              )}
-                          </div>
-                        )}
+          const newValue = e.target.value;
+          setSearchText(newValue);
+          setShowDropdown(true);
 
-                      {zonesData &&
-                        zonesData.restaurants &&
-                        zonesData.restaurants.length > 0 && (
-                          <div className="location-category">
-                            <div className="category-heading">Restaurant</div>
-                            {filterItems(zonesData.restaurants, searchText).map(
-                              (restaurant) => (
-                                <div
-                                  key={`restaurant-${
-                                    restaurant.restaurant_id || restaurant.id
-                                  }`}
-                                  className="location-item"
-                                  onClick={() =>
-                                    handleSelect(restaurant, "restaurant")
-                                  }
-                                >
-                                  {restaurant.name}
-                                </div>
-                              )
-                            )}
-                            {filterItems(zonesData.restaurants, searchText)
-                              .length === 0 &&
-                              searchText && (
-                                <div className="no-results">
-                                  No matching restaurants
-                                </div>
-                              )}
-                          </div>
-                        )}
+          // If we had a selection but now we're editing it
+          if (exitpickUpLocation && newValue !== exitpickUpLocation) {
+            setPickupFromAutocomplete(false);
+            // Don't clear the exitpickUpLocation yet - only when selection is confirmed
+          }
+        }}
+        onFocus={() => {
+          if (disabled) return;
 
-                      {(!zonesData ||
-                        ((!zonesData.hotels || zonesData.hotels.length === 0) &&
-                          (!zonesData.attractions ||
-                            zonesData.attractions.length === 0) &&
-                          (!zonesData.restaurants ||
-                            zonesData.restaurants.length === 0))) && (
-                        <div className="no-results">
-                          {initialHotelsLoaded && cachedHotels.length > 0
-                            ? "Type to search..."
-                            : "No options found"}
-                        </div>
+          setShowDropdown(true);
+          // If empty on focus, show all options
+          if (!searchText && zonesData) {
+            console.log("Showing all options on focus");
+          }
+        }}
+      />
+
+      {/* Material UI Dropdown */}
+      <Fade in={showDropdown && !disabled}>
+        <Paper
+          elevation={8}
+          sx={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            maxHeight: '280px',
+            overflowY: 'auto',
+            zIndex: 15000, // Very high z-index
+            mt: 0.5,
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            /* Custom scrollbar styles */
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#f1f1f1',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#bbb',
+              borderRadius: '4px',
+              transition: 'background 0.3s ease',
+              '&:hover': {
+                background: '#888',
+              },
+            },
+            /* Firefox scrollbar */
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#bbb #f1f1f1',
+          }}
+          className="location-dropdown"
+        >
+          {portType === "Exit Port" ? (
+            // For Exit Port, show categorized dropdown just like Entry Port
+            <>
+              {zonesData &&
+                zonesData.hotels &&
+                zonesData.hotels.length > 0 && (
+                  <Box>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Hotel
+                    </Typography>
+                    <List dense sx={{ py: 0 }}>
+                      {filterItems(zonesData.hotels, searchText).map(
+                        (hotel) => (
+                          <ListItem
+                            key={`hotel-${hotel.hotel_unique_id || hotel.id}`}
+                            button
+                            onClick={() => handleSelect(hotel, "hotel")}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <ListItemText 
+                              primary={hotel.name}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        )
                       )}
-                    </>
-                  ) : (
-                    // For Entry Port, keep the existing categorized dropdown
-                    <>
-                      {zonesData &&
-                        zonesData.hotels &&
-                        zonesData.hotels.length > 0 && (
-                          <div className="location-category">
-                            <div className="category-heading">Hotel</div>
-                            {filterItems(zonesData.hotels, searchText).map(
-                              (hotel) => (
-                                <div
-                                  key={`hotel-${
-                                    hotel.hotel_unique_id || hotel.id
-                                  }`}
-                                  className="location-item"
-                                  onClick={() => handleSelect(hotel, "hotel")}
-                                >
-                                  {hotel.name}
-                                </div>
-                              )
-                            )}
-                            {filterItems(zonesData.hotels, searchText)
-                              .length === 0 &&
-                              searchText && (
-                                <div className="no-results">
-                                  No matching hotels
-                                </div>
-                              )}
-                          </div>
+                      {filterItems(zonesData.hotels, searchText).length === 0 &&
+                        searchText && (
+                          <ListItem>
+                            <ListItemText 
+                              primary="No matching hotels"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary',
+                                fontStyle: 'italic',
+                              }}
+                            />
+                          </ListItem>
                         )}
+                    </List>
+                  </Box>
+                )}
 
-                      {zonesData &&
-                        zonesData.attractions &&
-                        zonesData.attractions.length > 0 && (
-                          <div className="location-category">
-                            <div className="category-heading">Attraction</div>
-                            {filterItems(zonesData.attractions, searchText).map(
-                              (attraction) => (
-                                <div
-                                  key={`attraction-${
-                                    attraction.attraction_id || attraction.id
-                                  }`}
-                                  className="location-item"
-                                  onClick={() =>
-                                    handleSelect(attraction, "attraction")
-                                  }
-                                >
-                                  {attraction.name}
-                                </div>
-                              )
-                            )}
-                            {filterItems(zonesData.attractions, searchText)
-                              .length === 0 &&
-                              searchText && (
-                                <div className="no-results">
-                                  No matching attractions
-                                </div>
-                              )}
-                          </div>
-                        )}
-
-                      {zonesData &&
-                        zonesData.restaurants &&
-                        zonesData.restaurants.length > 0 && (
-                          <div className="location-category">
-                            <div className="category-heading">Restaurant</div>
-                            {filterItems(zonesData.restaurants, searchText).map(
-                              (restaurant) => (
-                                <div
-                                  key={`restaurant-${
-                                    restaurant.restaurant_id || restaurant.id
-                                  }`}
-                                  className="location-item"
-                                  onClick={() =>
-                                    handleSelect(restaurant, "restaurant")
-                                  }
-                                >
-                                  {restaurant.name}
-                                </div>
-                              )
-                            )}
-                            {filterItems(zonesData.restaurants, searchText)
-                              .length === 0 &&
-                              searchText && (
-                                <div className="no-results">
-                                  No matching restaurants
-                                </div>
-                              )}
-                          </div>
-                        )}
-
-                      {(!zonesData ||
-                        ((!zonesData.hotels || zonesData.hotels.length === 0) &&
-                          (!zonesData.attractions ||
-                            zonesData.attractions.length === 0) &&
-                          (!zonesData.restaurants ||
-                            zonesData.restaurants.length === 0))) && (
-                        <div className="no-results">
-                          {initialHotelsLoaded && cachedHotels.length > 0
-                            ? "Type to search..."
-                            : "No options found"}
-                        </div>
+              {zonesData &&
+                zonesData.attractions &&
+                zonesData.attractions.length > 0 && (
+                  <Box>
+                    <Divider />
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Attraction
+                    </Typography>
+                    <List dense sx={{ py: 0 }}>
+                      {filterItems(zonesData.attractions, searchText).map(
+                        (attraction) => (
+                          <ListItem
+                            key={`attraction-${attraction.attraction_id || attraction.id}`}
+                            button
+                            onClick={() => handleSelect(attraction, "attraction")}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <ListItemText 
+                              primary={attraction.name}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        )
                       )}
-                    </>
-                  )}
-                </div>
+                      {filterItems(zonesData.attractions, searchText).length === 0 &&
+                        searchText && (
+                          <ListItem>
+                            <ListItemText 
+                              primary="No matching attractions"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary',
+                                fontStyle: 'italic',
+                              }}
+                            />
+                          </ListItem>
+                        )}
+                    </List>
+                  </Box>
+                )}
+
+              {zonesData &&
+                zonesData.restaurants &&
+                zonesData.restaurants.length > 0 && (
+                  <Box>
+                    <Divider />
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Restaurant
+                    </Typography>
+                    <List dense sx={{ py: 0 }}>
+                      {filterItems(zonesData.restaurants, searchText).map(
+                        (restaurant) => (
+                          <ListItem
+                            key={`restaurant-${restaurant.restaurant_id || restaurant.id}`}
+                            button
+                            onClick={() => handleSelect(restaurant, "restaurant")}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <ListItemText 
+                              primary={restaurant.name}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        )
+                      )}
+                      {filterItems(zonesData.restaurants, searchText).length === 0 &&
+                        searchText && (
+                          <ListItem>
+                            <ListItemText 
+                              primary="No matching restaurants"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary',
+                                fontStyle: 'italic',
+                              }}
+                            />
+                          </ListItem>
+                        )}
+                    </List>
+                  </Box>
+                )}
+
+              {(!zonesData ||
+                ((!zonesData.hotels || zonesData.hotels.length === 0) &&
+                  (!zonesData.attractions ||
+                    zonesData.attractions.length === 0) &&
+                  (!zonesData.restaurants ||
+                    zonesData.restaurants.length === 0))) && (
+                <ListItem>
+                  <ListItemText 
+                    primary={
+                      initialHotelsLoaded && cachedHotels.length > 0
+                        ? "Type to search..."
+                        : "No options found"
+                    }
+                    primaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.secondary',
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                    }}
+                  />
+                </ListItem>
               )}
-              {validationTriggered && !exitpickUpLocation && !disabled && (
-                <div className="text-red-500 mt-1 text-sm">
-                  *Select location from dropdown
-                </div>
+            </>
+          ) : (
+            // For Entry Port, keep the existing categorized dropdown
+            <>
+              {zonesData &&
+                zonesData.hotels &&
+                zonesData.hotels.length > 0 && (
+                  <Box>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Hotel
+                    </Typography>
+                    <List dense sx={{ py: 0 }}>
+                      {filterItems(zonesData.hotels, searchText).map(
+                        (hotel) => (
+                          <ListItem
+                            key={`hotel-${hotel.hotel_unique_id || hotel.id}`}
+                            button
+                            onClick={() => handleSelect(hotel, "hotel")}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <ListItemText 
+                              primary={hotel.name}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        )
+                      )}
+                      {filterItems(zonesData.hotels, searchText).length === 0 &&
+                        searchText && (
+                          <ListItem>
+                            <ListItemText 
+                              primary="No matching hotels"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary',
+                                fontStyle: 'italic',
+                              }}
+                            />
+                          </ListItem>
+                        )}
+                    </List>
+                  </Box>
+                )}
+
+              {zonesData &&
+                zonesData.attractions &&
+                zonesData.attractions.length > 0 && (
+                  <Box>
+                    <Divider />
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Attraction
+                    </Typography>
+                    <List dense sx={{ py: 0 }}>
+                      {filterItems(zonesData.attractions, searchText).map(
+                        (attraction) => (
+                          <ListItem
+                            key={`attraction-${attraction.attraction_id || attraction.id}`}
+                            button
+                            onClick={() => handleSelect(attraction, "attraction")}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <ListItemText 
+                              primary={attraction.name}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        )
+                      )}
+                      {filterItems(zonesData.attractions, searchText).length === 0 &&
+                        searchText && (
+                          <ListItem>
+                            <ListItemText 
+                              primary="No matching attractions"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary',
+                                fontStyle: 'italic',
+                              }}
+                            />
+                          </ListItem>
+                        )}
+                    </List>
+                  </Box>
+                )}
+
+              {zonesData &&
+                zonesData.restaurants &&
+                zonesData.restaurants.length > 0 && (
+                  <Box>
+                    <Divider />
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Restaurant
+                    </Typography>
+                    <List dense sx={{ py: 0 }}>
+                      {filterItems(zonesData.restaurants, searchText).map(
+                        (restaurant) => (
+                          <ListItem
+                            key={`restaurant-${restaurant.restaurant_id || restaurant.id}`}
+                            button
+                            onClick={() => handleSelect(restaurant, "restaurant")}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <ListItemText 
+                              primary={restaurant.name}
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        )
+                      )}
+                      {filterItems(zonesData.restaurants, searchText).length === 0 &&
+                        searchText && (
+                          <ListItem>
+                            <ListItemText 
+                              primary="No matching restaurants"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                color: 'text.secondary',
+                                fontStyle: 'italic',
+                              }}
+                            />
+                          </ListItem>
+                        )}
+                    </List>
+                  </Box>
+                )}
+
+              {(!zonesData ||
+                ((!zonesData.hotels || zonesData.hotels.length === 0) &&
+                  (!zonesData.attractions ||
+                    zonesData.attractions.length === 0) &&
+                  (!zonesData.restaurants ||
+                    zonesData.restaurants.length === 0))) && (
+                <ListItem>
+                  <ListItemText 
+                    primary={
+                      initialHotelsLoaded && cachedHotels.length > 0
+                        ? "Type to search..."
+                        : "No options found"
+                    }
+                    primaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.secondary',
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                    }}
+                  />
+                </ListItem>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* CSS Fixes for Google Autocomplete and Custom Dropdown */}
-      <style jsx>{`
-        .pac-container {
-          z-index: 10000 !important;
-          background-color: #fff !important;
-          border: 1px solid #ccc !important;
-          width: 100% !important;
-          min-width: 200px !important;
-        }
-
-        .pac-item {
-          font-size: 15px !important;
-          font-weight: 500 !important;
-          color: #000 !important;
-          white-space: normal !important;
-          overflow: visible !important;
-        }
-
-        .pac-item-query {
-          font-weight: bold !important;
-          color: #000 !important;
-        }
-
-        .disabled-input {
-          opacity: 0.8;
-          cursor: not-allowed;
-        }
-
-        /* Custom dropdown styles */
-        .location-dropdown {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          width: 100%;
-          max-height: 300px;
-          overflow-y: auto;
-          background-color: #fff;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-          z-index: 10001;
-          display: block !important; /* Force display */
-        }
-
-        .location-category {
-          margin-bottom: 10px;
-        }
-
-        .category-heading {
-          padding: 8px 12px;
-          font-weight: 600;
-          background-color: #f5f5f5;
-          color: #333;
-          border-bottom: 1px solid #eee;
-        }
-
-        .location-item {
-          padding: 8px 12px;
-          cursor: pointer;
-          transition: background-color 0.2s;
-        }
-
-        .location-item:hover {
-          background-color: #f0f7ff;
-        }
-
-        .no-results {
-          padding: 8px 12px;
-          color: #888;
-          font-style: italic;
-        }
-      `}</style>
-    </div>
+            </>
+          )}
+        </Paper>
+      </Fade>
+    </Box>
   );
 };
 

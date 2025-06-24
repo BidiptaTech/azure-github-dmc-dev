@@ -202,8 +202,14 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
 
       {isDropdownOpen && searchValue && !disabled && (
         <div
-          className="absolute bg-white border rounded shadow mt-2 z-50 w-full"
-          style={{ maxHeight: "300px", overflowY: "auto", minWidth: "250px" }}
+          className="absolute bg-white border rounded shadow mt-2 z-50 w-full city-dropdown"
+          style={{ 
+            maxHeight: "280px", 
+            overflowY: "auto", 
+            minWidth: "250px",
+            scrollbarWidth: "thin",
+            scrollbarColor: "#bbb #f1f1f1"
+          }}
         >
           <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
             <ul className="y-gap-5 js-results">
@@ -245,6 +251,26 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
         .disabled-input {
           opacity: 0.8;
           cursor: not-allowed;
+        }
+        
+        /* Custom scrollbar for city dropdown */
+        .city-dropdown::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .city-dropdown::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        
+        .city-dropdown::-webkit-scrollbar-thumb {
+          background: #bbb;
+          border-radius: 4px;
+          transition: background 0.3s ease;
+        }
+        
+        .city-dropdown::-webkit-scrollbar-thumb:hover {
+          background: #888;
         }
       `}</style>
     </div>
