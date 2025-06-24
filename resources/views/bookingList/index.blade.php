@@ -241,10 +241,18 @@
                             
                             $groupedBookings[$booking->tour_id]['types'][$type]['services'][] = $booking;
                         }
-                        @endphp
+
+                        // Calculate starting number for pagination
+                        $currentPage = request()->get('page', 1);
+                        $perPage = 10;
+                        $startingNumber = ($currentPage - 1) * $perPage;
+                    @endphp
                     
                     @forelse ($groupedBookings as $index => $tour)
                         @php
+                            // Calculate tour number with pagination
+                            $tourNumber = $startingNumber + $loop->iteration;
+                            
                             // Calculate total pax
                             $totalPax = ($tour['infant'] ?? 0) + ($tour['child'] ?? 0) + ($tour['male_count'] ?? 0) + ($tour['female_count'] ?? 0);
                             
@@ -333,6 +341,19 @@
                                         aria-expanded="{{ $index === array_key_first($groupedBookings) ? 'true' : 'false' }}" 
                                         aria-controls="collapse{{ $tour['tour_id'] }}">
                                     <div>
+                                        <!-- ADDED: Tour numbering badge -->
+                                        @php
+                                            $numberColor = match(true) {
+                                                $tourNumber <= 5 => 'bg-dark',
+                                                $tourNumber <= 10 => 'bg-dark', 
+                                                $tourNumber <= 15 => 'bg-dark',
+                                                default => 'bg-dark'
+                                            };
+                                        @endphp
+
+                                        <span class="badge {{ $numberColor }} rounded-pill me-2" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                                            #{{ $tourNumber }}
+                                        </span>
                                         <span class="badge bg-primary me-2">Tour #{{ $tour['tour_id'] }}</span>
                                         <span class="badge bg-secondary">{{ count($tour['types']) }} Types</span>
                                         <span class="badge bg-info">
@@ -613,78 +634,27 @@
                             </div>
                         </div>
                     @empty
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i> No tour bookings available.
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-circle text-muted" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3 text-muted">No bookings found</h5>
+                            <p class="text-muted">There are no tour bookings to display at the moment.</p>
                         </div>
                     @endforelse
                 </div>
-                
-                <!-- Hidden table for export functionality -->
-                <div class="d-none">
-                    <table class="datatables-basic table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Sl No</th>
-                                <th>Tour Id</th>
-                                <th>Booking Id</th>
-                                <th>Country</th> 
-                                <th>Total Pax</th>
-                                @if(auth()->user()->role_id == 10)
-                                    <th>DMC</th>
-                                    <th>Agent Name</th>
-                                @elseif(auth()->user()->role_id == 11)
-                                    <th>Agent Name</th>
-                                @else
-                                    <th>Master Dmc</th>
-                                    <th>DMC</th>
-                                    <th>Agent Name</th>
-                                @endif
-                                <th>Type</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($bookings as $key => $booking)
-                                @php
-                                    // Fetch tour details
-                                    $tourDetails = DB::table('tours')->where('tour_id', $booking->tour_id)->first();
-                                    
-                                    // Calculate total pax
-                                    $totalPax = ($tourDetails->infant ?? 0) + ($tourDetails->child ?? 0) + 
-                                                ($tourDetails->male_count ?? 0) + ($tourDetails->female_count ?? 0);
-                                    
-                                    // Extract country from destination
-                                    $destinationParts = explode(',', $tourDetails->destination ?? '');
-                                    $country = trim(end($destinationParts));
-                                    // Remove parentheses if present
-                                    $country = trim(preg_replace('/[\(\)]/', '', $country));
 
-                                    
-                                @endphp
-                                <tr>
-                                    <td>{{ $key + 1 }}</td>
-                                    <td>{{ $booking->tour_id }}</td>
-                                    <td>{{ $booking->booking_id }}</td>
-                                    <td>{{ $country }}</td>
-                                    <td>{{ $totalPax }}</td>
-                                    @if(auth()->user()->role_id == 10)
-                                        <td>{{ $booking->dmc_company }}</td>
-                                        <td>{{ $booking->agent_name ?? 'N/A' }}</td>
-                                    @elseif(auth()->user()->role_id == 11)
-                                        <td>{{ $booking->agent_name ?? 'N/A' }}</td>
-                                    @else
-                                        <td>{{ $booking->master_dmc_company }}</td>
-                                        <td>{{ $booking->dmc_company }}</td>
-                                        <td>{{ $booking->agent_name ?? 'N/A' }}</td>
-                                    @endif
-                                    <td>{{ $booking->type }}</td>
-                                    <td>View</td>
-                                </tr>
-                            @empty
-                            @endforelse
-                        </tbody>
-                    </table>
+                <!-- Pagination (keep existing) -->
+                @if(isset($pagination) && $pagination->hasPages())
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div>
+                        <p class="text-sm text-gray-700 leading-5">
+                            Showing {{ $pagination->firstItem() }} to {{ $pagination->lastItem() }} of {{ $pagination->total() }} tours
+                        </p>
+                    </div>
+                    <div>
+                        {{ $pagination->links('pagination::bootstrap-4') }}
+                    </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -2392,7 +2362,7 @@ function formatSGD(amount) {
         function renderExitPortDetails(details, container) {
             // Check if details exists and is not empty
             if (!details || (Array.isArray(details) && details.length === 0)) {
-                container.html('<div class="alert alert-warning">No exit port details available</div>');
+                container.html('<div class="alert alert-warning">No departure details available</div>');
                 return;
             }
             
@@ -2453,7 +2423,7 @@ function formatSGD(amount) {
                                     <div class="card-header bg-light py-3">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-route text-primary me-2 fa-lg"></i>
-                                            <h5 class="mb-0 fw-bold">Exit Journey Details</h5>
+                                            <h5 class="mb-0 fw-bold">Departure Information</h5>
                                         </div>
                                     </div>
                                     <div class="card-body">
