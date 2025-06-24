@@ -59,7 +59,7 @@ use Illuminate\Support\Facades\Mail;
 |
 */
 Auth::routes();
-Route::group(['middleware' => ['auth']], function () {
+Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
     });
