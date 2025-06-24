@@ -2,7 +2,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 // Base URL for all API requests
-export const BASE_URL = "https://dmcdemo.coactivehub.com/backadm-dmc/api/v1";
+export const BASE_URL = "https://dev.travclicks.com/backadm-dmc/api/v1";
 
 // Create an axios instance with default configuration
 const api = axios.create({
@@ -102,6 +102,8 @@ export const endpoints = {
     api.get("/packages", { params: transformParams(params) }),
   fetchPackageDetails: (params) =>
     api.get("/package-details", { params: transformParams(params) }),
+  packageBooking: (data) => 
+    api.post("/package-booking", data),
 
   // Hotel endpoints
   fetchHotels: (params) =>

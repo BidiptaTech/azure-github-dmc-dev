@@ -8,6 +8,7 @@ import {
   Container,
   Paper,
   styled,
+  Divider,
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import LocationSearch from '../hero/hero-3/LocationSearch';
@@ -16,6 +17,8 @@ import DateSearch from '../hero/DateSearch';
 import CitySearch from '../hero/hero-3/CitySearch';
 import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
+import LuggageIcon from '@mui/icons-material/Luggage';
+import ExploreIcon from '@mui/icons-material/Explore';
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -44,6 +47,21 @@ const StyledContainer = styled(Container)(({ theme }) => ({
   '& .counter-box': {
     zIndex: 1050,
   }
+}));
+
+// Styled title section
+const TitleSection = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  marginTop: theme.spacing(4),
+  marginBottom: theme.spacing(4),
+}));
+
+const IconContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  marginBottom: theme.spacing(2),
 }));
 
 const PreDefinePackages = () => {
@@ -213,10 +231,31 @@ const PreDefinePackages = () => {
 
   return (
     <StyledContainer maxWidth="lg">
-    <Box p={4}>
-        <Typography variant="h4" gutterBottom className="text-center" sx={{ mt: 4 }}>
-        Pre Define Packages
-      </Typography>
+      <Box p={4}>
+        <TitleSection>
+          <IconContainer>
+            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1 }} />
+            <Typography 
+              variant="h3" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 700, 
+                color: 'primary.main',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              Pre Define Packages
+              <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
+            </Typography>
+          </IconContainer>
+          <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
+          <Typography variant="subtitle1" color="text.secondary" textAlign="center">
+            Discover our exclusive pre-arranged travel experiences
+          </Typography>
+        </TitleSection>
 
         <Paper elevation={3} sx={{ borderRadius: '8px', overflow: 'visible', mb: 4 }}>
           <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">

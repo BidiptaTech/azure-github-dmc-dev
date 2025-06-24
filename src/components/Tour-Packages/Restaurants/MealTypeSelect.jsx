@@ -79,8 +79,8 @@ const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled }) => {
                     label={timeSlot}
                     sx={{
                       ml: 'auto',
-                      bgcolor: 'rgba(25, 118, 210, 0.08)',
-                      color: 'primary.main',
+                      bgcolor: 'rgba(76, 175, 80, 0.08)',
+                      color: '#4caf50',
                     }}
                   />
                 )}

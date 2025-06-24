@@ -194,16 +194,16 @@ export default function Itinerary() {
 
             {/* Attraction Component */}
             <Box sx={{ mb: 2 }}>
-              <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #f44336' }}>
-                <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Attraction</Typography>
+              <Paper elevation={1} sx={{ p: 0, borderLeft: '4px solid #f44336' }}>
+                
                 <AttractionComponent />
               </Paper>
             </Box>
 
             {/* Guide Component */}
             <Box sx={{ mb: 2 }}>
-              <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #4caf50' }}>
-                <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography>
+              <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
+                {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography> */}
                 <GuideComponent />
               </Paper>
             </Box>
