@@ -17,6 +17,7 @@ const SearchZone = ({
   setDropoffLatLng,
   setPickUpLocation,
   validationTriggered,
+  dayIndex = 0,
 }) => {
   const dispatch = useDispatch();
   const autocompletePickUpRef = useRef(null);
@@ -32,6 +33,9 @@ const SearchZone = ({
   console.log("restaurants", restaurants);
   const [displayValue, setDisplayValue] = useState("");
   console.log("zone", zone);
+  
+  const dropoffInputId = `drop-off-input-day-${dayIndex}`;
+  
   useEffect(() => {
     if (picktype === "hotel") {
       setPickUpLocation(currentbooking?.hotelDetails?.hotel_id);
@@ -45,93 +49,6 @@ const SearchZone = ({
     }
   });
 
-  // useEffect(() => {
-  //   if (!window.google || !window.google.maps || !window.google.maps.places) {
-  //     console.error("Google Maps API not loaded.");
-  //     return;
-  //   }
-
-  //   const initializeAutocomplete = (
-  //     inputId,
-  //     ref,
-  //     setLocation,
-  //     setLatLng,
-  //     setIsValid,
-  //     setParentValid
-  //   ) => {
-  //     const inputElement = document.getElementById(inputId);
-  //     if (!inputElement) return;
-
-  //     ref.current = new window.google.maps.places.Autocomplete(inputElement, {
-  //       types: [], // Allow all locations
-  //       componentRestrictions: {
-  //         country: Array.isArray(Location) ? Location : [Location],
-  //       },
-  //     });
-
-  //     ref.current.addListener("place_changed", () => {
-  //       const place = ref.current.getPlace();
-  //       if (place && place.geometry && place.geometry.location) {
-  //         const lat = place.geometry.location.lat();
-  //         const lng = place.geometry.location.lng();
-
-  //         // Extract only the main name (highlighted) or first part of the address
-  //         let formattedLocation =
-  //           place.name ||
-  //           place.address_components?.[0]?.long_name ||
-  //           "Unknown Location";
-
-  //         setLocation(formattedLocation);
-  //         setLatLng({ lat, lng });
-  //         setIsValid(true); // Mark as selected from autocomplete
-  //         setParentValid(true); // Update parent state
-  //       }
-  //     });
-  //   };
-
-  //   initializeAutocomplete(
-  //     "pick-up-input",
-  //     autocompletePickUpRef,
-  //     setPickUpLocation,
-  //     setPickupLatLng,
-  //     setIsPickupValid,
-  //     setPickupFromAutocomplete
-  //   );
-  //   initializeAutocomplete(
-  //     "drop-off-input",
-  //     autocompleteDropOffRef,
-  //     setDropOffLocation,
-  //     setDropoffLatLng,
-  //     setIsDropoffValid,
-  //     setDropoffFromAutocomplete
-  //   );
-
-  //   return () => {
-  //     if (autocompletePickUpRef.current)
-  //       window.google.maps.event.clearInstanceListeners(
-  //         autocompletePickUpRef.current
-  //       );
-  //     if (autocompleteDropOffRef.current)
-  //       window.google.maps.event.clearInstanceListeners(
-  //         autocompleteDropOffRef.current
-  //       );
-  //   };
-  // }, [
-  //   Location,
-  //   setPickUpLocation,
-  //   setDropOffLocation,
-  //   setPickupLatLng,
-  //   setDropoffLatLng,
-  //   setPickupFromAutocomplete,
-  //   setDropoffFromAutocomplete,
-  // ]);
-
-  // const handlePickupChange = (e) => {
-  //   setPickUpLocation(e.target.value);
-  //   setIsPickupValid(false);
-  //   setPickupFromAutocomplete(false);
-  // };
-
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleDropoffChange = (e) => {
@@ -144,7 +61,6 @@ const SearchZone = ({
     console.log("Dropdown should show:", showDropdown, "Zone data:", zone);
   };
 
-  // Filter function to search across all options
   const filterItems = (items, term) => {
     if (!term) return items;
     return items.filter((item) => item.name.toLowerCase().includes(term));
@@ -167,11 +83,10 @@ const SearchZone = ({
     setShowDropdown(false);
   };
 
-  // Add this function to close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
-        event.target.id !== "drop-off-input" &&
+        event.target.id !== dropoffInputId &&
         !event.target.closest(".location-dropdown")
       ) {
         setShowDropdown(false);
@@ -182,7 +97,7 @@ const SearchZone = ({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [dropoffInputId]);
 
   return (
     <div className="searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
@@ -200,16 +115,15 @@ const SearchZone = ({
                     }
                   };
                   
-                  // Call the handleBookTransfer functions directly
                   dispatch(fetchLocalZone({ id: selected.id, type: selected.type }));
                   dispatch(setSelectbooking(booking));
                   dispatch(setPicktype(selected.type));
                   
-                  // Update local state
                   setPickUpLocation(selected.id);
                   setPickupLatLng(selected.name);
                 }
               }}
+              dayIndex={dayIndex}
             />
           </div>
         </div>
@@ -225,7 +139,7 @@ const SearchZone = ({
                 </h4>
                 <div className="text-15 text-light-1 ls-2 lh-16 position-relative">
                   <input
-                    id="drop-off-input"
+                    id={dropoffInputId}
                     autoComplete="off"
                     type="search"
                     placeholder="Where is your drop off?"
@@ -238,12 +152,6 @@ const SearchZone = ({
                     }}
                     disabled={picktype === ""}
                   />
-
-                  {/* {!isDropoffValid && validationTriggered && (
-                    <div className="text-red-500 mt-5 text-14">
-                      *Please select a drop-off location
-                    </div>
-                  )} */}
 
                   {showDropdown && zone && zone.data && (
                     <div className="location-dropdown">
@@ -347,23 +255,21 @@ const SearchZone = ({
         </div>
       </div>
 
-      {/* CSS Fixes for Google Autocomplete and Custom Dropdown */}
       <style>
         {`
           .pac-container {
             z-index: 10000 !important;
             background-color: #fff !important;
             border: 1px solid #ccc !important;
-            width: 100% !important; /* Expands dropdown width */
-            min-width: 200px !important; /* Ensures it's not too small */
-            max-width: 250px !important; /* Adjust as needed */
+            width: 100% !important;
+            min-width: 200px !important;
+            max-width: 250px !important;
           }
 
           .pac-item {
             font-size: 15px !important;
             font-weight: 520 !important;
             color: #000 !important;
-            // padding: 10px !important;
             white-space: normal !important;
             overflow: visible !important;
             text-overflow: ellipsis !important;
@@ -387,7 +293,6 @@ const SearchZone = ({
             font-size: 14px !important;
           }
 
-          /* Custom dropdown styles */
           .position-relative {
             position: relative !important;
           }
@@ -404,7 +309,7 @@ const SearchZone = ({
             border-radius: 4px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             z-index: 10001;
-            display: block !important; /* Force display */
+            display: block !important;
           }
 
           .location-category {

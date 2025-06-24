@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  Paper, 
-  Button
-} from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, Button } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import SearchForm from './common/SearchForm';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 
+
 // Import service components
 import Itinerary from './common/Itinerary';
+
+// Import icons
+import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
 
 export default function TourPackages() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -75,20 +73,15 @@ export default function TourPackages() {
           <Box sx={{ width: '70px' }}></Box>
         </Box>
 
-        {/* Main Search Section - Very Compact */}
+      <Box sx={{ mb: 5 }}>
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 2,
-            overflow: 'visible',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e2e8f0',
-            mt: 2,
-            position: 'relative',
-            zIndex: 1
+            borderRadius: 3,
+            overflow: 'hidden',
+            backgroundColor: 'transparent'
           }}
         >
-          {/* Minimal Header */}
           <Box
             sx={{
               background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
@@ -134,43 +127,18 @@ export default function TourPackages() {
             <SearchForm onNext={handleNext} />
           </Box>
         </Paper>
+      </Box>
 
-        {/* Results Section - Compact */}
-        {currentStep > 1 && (
-          <Box sx={{ mt: 2 }}>
-            <Paper 
-              sx={{ 
-                borderRadius: 2,
-                overflow: 'hidden',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                border: '1px solid #e2e8f0'
-              }}
-            >
-              <Box 
-                sx={{ 
-                  p: 1.5, 
-                  bgcolor: '#f8fafc',
-                  borderBottom: '1px solid #e2e8f0'
-                }}
-              >
-                <Typography 
-                  variant="subtitle1" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1e293b',
-                    fontSize: '1rem'
-                  }}
-                >
-                  Package Details
-                </Typography>
-              </Box>
-              <Box sx={{ p: 1.5 }}>
-                <Itinerary />
-              </Box>
-            </Paper>
+      {/* Render services when search is completed */}
+      {currentStep > 1 && (
+        <Box sx={{ mt: 4 }}>
+          {/* Service content area */}
+          <Box sx={{ py: 2 }}>
+            <Itinerary />
           </Box>
-        )}
-      </Container>
+        </Box>
+      )}
+    </Container>
     </Box>
   );
 } 

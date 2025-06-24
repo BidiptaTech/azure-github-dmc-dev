@@ -14,13 +14,22 @@ const defaultAttractionImage = '/img/attractions/1.png';
  */
 const AttractionItemRenderer = (attraction) => (
   <>
-    <CardMedia
-      component="img"
-      height="120"
-      image={attraction.image || defaultAttractionImage}
-      alt={attraction.name}
-    />
-    <CardContent sx={{ p: 1.5, pb: '16px !important' }}>
+    <Box sx={{ height: '200px', overflow: 'hidden', position: 'relative' }}>
+      <CardMedia
+        component="img"
+        height="100"
+        width="100%"
+        image={attraction.image || defaultAttractionImage}
+        alt={attraction.name}
+        sx={{ 
+          objectFit: 'cover',
+          objectPosition: 'center',
+          height: '200px !important',
+          maxHeight: '200px !important'
+        }}
+      />
+    </Box>
+    <CardContent sx={{ p: 1.5, pb: '16px !important', flex: 1, minHeight: 0 }}>
       <Typography variant="subtitle2" fontWeight="medium" noWrap>
         {attraction.name}
       </Typography>

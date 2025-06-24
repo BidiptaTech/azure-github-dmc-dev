@@ -340,16 +340,24 @@ const PackageDetailsContainer = () => {
     }[sectionId];
     
     if (sectionRef && sectionRef.current && contentRef.current) {
-      // Get the current scroll position of the content container
+      // Get the content container
       const contentContainer = contentRef.current;
       const sectionElement = sectionRef.current;
       
-      // Calculate position relative to the scrollable container
-      const topPosition = sectionElement.offsetTop;
+      // Calculate the section's position relative to the content container
+      const sectionRect = sectionElement.getBoundingClientRect();
+      const containerRect = contentContainer.getBoundingClientRect();
       
-      // Scroll the content container
+      // Calculate the correct scroll position
+      // This accounts for the section's position relative to the container
+      const scrollPosition = contentContainer.scrollTop + (sectionRect.top - containerRect.top);
+      
+      // Add a small offset to account for any sticky headers (20px padding)
+      const scrollOffset = -20;
+      
+      // Scroll to the calculated position
       contentContainer.scrollTo({
-        top: topPosition,
+        top: scrollPosition + scrollOffset,
         behavior: 'smooth'
       });
     }
@@ -362,12 +370,19 @@ const PackageDetailsContainer = () => {
       const contentContainer = contentRef.current;
       const dayElement = dayRefs.current[dayIndex].current;
       
-      // Calculate position relative to the scrollable container
-      const topPosition = dayElement.offsetTop;
+      // Calculate the day element's position relative to the content container
+      const dayRect = dayElement.getBoundingClientRect();
+      const containerRect = contentContainer.getBoundingClientRect();
       
-      // Scroll the content container
+      // Calculate the correct scroll position
+      const scrollPosition = contentContainer.scrollTop + (dayRect.top - containerRect.top);
+      
+      // Add a small offset for better visibility
+      const scrollOffset = -20;
+      
+      // Scroll to the calculated position
       contentContainer.scrollTo({
-        top: topPosition,
+        top: scrollPosition + scrollOffset,
         behavior: 'smooth'
       });
     }
@@ -380,7 +395,7 @@ const PackageDetailsContainer = () => {
     { id: 'attractions', label: 'Attractions', icon: <AttractionsIcon /> },
     { id: 'restaurants', label: 'Restaurants', icon: <RestaurantIcon /> },
     { id: 'guides', label: 'Tour Guide', icon: <PersonIcon /> },
-    { id: 'policies', label: 'Policies', icon: <GavelIcon /> }
+    // { id: 'policies', label: 'Policies', icon: <GavelIcon /> }
   ];
   
   // Render horizontal section tabs
@@ -1037,11 +1052,11 @@ const PackageDetailsContainer = () => {
                                   onClick={() => scrollToSection('restaurants')}
                                   label="Restaurants"
                                 />
-                                <NavigationArrow
+                                {/* <NavigationArrow
                                   direction="next"
                                   onClick={() => scrollToSection('policies')}
                                   label="Policies"
-                                />
+                                /> */}
                               </>
                             );
                           })()}
@@ -1049,7 +1064,7 @@ const PackageDetailsContainer = () => {
                       </Box>
                       
                       {/* Policies Section */}
-                      <Box ref={policiesRef} id="policies" sx={{ mb: 2 }}>
+                      {/* <Box ref={policiesRef} id="policies" sx={{ mb: 2 }}>
                         <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
                           <SectionHeader 
                             icon={GavelIcon} 
@@ -1063,7 +1078,7 @@ const PackageDetailsContainer = () => {
                           </ContentSection>
                         </Card>
                         
-                        {/* Bottom navigation */}
+                        
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
                           {(() => {
                             const nav = getNavigationDetails('policies');
@@ -1083,7 +1098,7 @@ const PackageDetailsContainer = () => {
                             );
                           })()}
                         </Box>
-                      </Box>
+                      </Box> */}
                     </Box>
                   </Grid>
                   
@@ -1096,7 +1111,13 @@ const PackageDetailsContainer = () => {
                       }}
                     >
                       {/* Price Summary */}
-                      <PackagePricing packageData={packageDetails} />
+                      <PackagePricing 
+                        packageData={packageDetails} 
+                        selectedHotels={selectedHotels}
+                        selectedAttractions={selectedAttractions}
+                        selectedRestaurants={selectedRestaurants}
+                        selectedGuides={selectedGuides}
+                      />
                     </Box>
                   </Grid>
                 </Grid>
@@ -1119,9 +1140,15 @@ const PackageDetailsContainer = () => {
         {mainTab === 2 && (
           <Box sx={{ mt: 3 }}>
             <PackageOverview packageData={packageDetails} />
-            <Box sx={{ mt: 3 }}>
-              <PackagePricing packageData={packageDetails} />
-            </Box>
+            {/* <Box sx={{ mt: 3 }}>
+              <PackagePricing 
+                packageData={packageDetails} 
+                selectedHotels={selectedHotels}
+                selectedAttractions={selectedAttractions}
+                selectedRestaurants={selectedRestaurants}
+                selectedGuides={selectedGuides}
+              />
+            </Box> */}
           </Box>
         )}
       </Box>
