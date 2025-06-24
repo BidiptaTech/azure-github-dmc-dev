@@ -81,7 +81,7 @@
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary me-2">
                     <i class="ri-arrow-left-line me-1"></i>Back to Packages
                 </a>
-                <a href="{{ route('packages.show', $package->id) }}" class="btn btn-outline-info">
+                <a href="{{ route('packages.show', $package->package_id) }}" class="btn btn-outline-info">
                     <i class="ri-eye-line me-1"></i>Preview
                 </a>
             </div>

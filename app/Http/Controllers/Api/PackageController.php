@@ -8,6 +8,10 @@ use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\Guide;
+use App\Models\Tour;
+use App\Models\Order;
+use App\Models\PackageBooking;
+use App\Models\GuideLanguage;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -40,7 +44,7 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city')->get();
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date')->get();
         // Format the response
         return response()->json($packages);
     }
@@ -245,8 +249,10 @@ class PackageController extends Controller
         }
         
         return response()->json($package);
-    }
+    } 
 
+   
+        
     public function storeMultipleOrders(Request $request)
     {
         $items = $request->all(); // Entire payload
@@ -305,34 +311,123 @@ class PackageController extends Controller
             $attractionId = CommonHelper::createId($attractionId);
         }
 
-        $user = Auth::user();
-        $booking = new PackageBooking();
-        $booking->booking_id = $bookingId;
-        $booking->package_id = $package_id;
-        $booking->adult_count = $adult_count;
-        $booking->child_count = $child_count;
-        $booking->senior_count = $senior_count;
-        $booking->total_price = $totalPrice;
-        $booking->currency = $data['booking_details']['currency'];
-        $booking->booking_details = json_encode($data['booking_details']);
-        $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
-        
+                
         // Extract only IDs from selected services
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
         $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
         $restaurantIds = collect($data['selected']['restaurants'])->pluck('id')->toArray();
+
+        $user = Auth::user();
+        $booking = new PackageBooking();
+        $booking->booking_id = $bookingId;
+        $booking->package_id = $package_id;
+        $booking->booking_details = json_encode($data['booking_details']);
+        $booking->package = json_encode($data['package']);
+        $booking->user_info = json_encode($data['user_info']);
+        $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
+
         
         $booking->selected_hotels = json_encode($hotelIds);
         $booking->selected_attractions = json_encode($attractionIds);
         $booking->selected_guides = json_encode($guideIds);
         $booking->selected_restaurants = json_encode($restaurantIds);
 
-        $booking->status = 'pending';
-        $booking->booked_by = $user->id;
+        $booking->status = '1';
+        $booking->booked_by = $user->userId ?? $user->agent_id;
         // Add other required fields and save the booking
         $booking->save();
         
-        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->id], 201);
+        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->booking_id], 201);
     }
+
+    public function editCustomPackage(Request $request){
+        $tour_id = $request->tour_id;
+        if(!$tour_id){
+            return response()->json(['message' => 'Please add tour_id'], 400);
+        }
+        
+        $tour = Tour::with('booking')->where('tour_id', $tour_id)->first();
+        
+        if(!$tour){
+            return response()->json(['message' => 'Tour not found'], 404);
+        }
+        
+        return response()->json([
+            'tour' => $tour,
+        ]);
+    }
+
+    public function getBookingLists(Request $request){
+        $user = Auth::user();
+        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')->where('booked_by', $user->userId ?? $user->agent_id)->get();
+       
+        $hotelIds = [];
+        $attractionIds = [];
+        $guideIds = [];
+        $restaurantIds = [];
+        $data = [];
+        
+        foreach ($booking as $b) {
+            $hotelIds = array_merge($hotelIds, json_decode($b->selected_hotels) ?? []);
+            $attractionIds = array_merge($attractionIds, json_decode($b->selected_attractions) ?? []);
+            $guideIds = array_merge($guideIds, json_decode($b->selected_guides) ?? []);
+            $restaurantIds = array_merge($restaurantIds, json_decode($b->selected_restaurants) ?? []);
+
+            $hotelIds = array_unique($hotelIds);
+            $attractionIds = array_unique($attractionIds);
+            $guideIds = array_unique($guideIds);
+            $restaurantIds = array_unique($restaurantIds);
+
+            $hotels = Hotel::select(
+                'hotel_unique_id', 'name', 'main_image', 'images', 'address',
+                'phone', 'email', 'latitude', 'longitude'
+            )->whereIn('hotel_unique_id', $hotelIds)->get();
+            
+            $attractions = Attraction::select(
+                'attraction_id', 'name', 'master_image', 'additional_image',
+                'location', 'latitude', 'longitude'
+            )->whereIn('attraction_id', $attractionIds)->get();
+            
+            // Get guides with languages
+            $selected_guides = Guide::select(
+                'guide_id', 'name', 'image', 'contact_no', 'email'
+            )->whereIn('guide_id', $guideIds)->get();
+            
+            $guides = $selected_guides->map(function ($guide) {
+                $languages = GuideLanguage::where('guide_id', $guide->guide_id)->pluck('language');
+                return [
+                    'guide_id' => $guide->guide_id,
+                    'name' => $guide->name,
+                    'image' => $guide->image,
+                    'contact_no' => $guide->contact_no,
+                    'email' => $guide->email,
+                    'languages' => $languages,
+                ];
+            });
+                
+            
+            $restaurants = Restaurant::select(
+                'restaurant_id', 'name', 'master_image', 'images', 'city',
+                 'latitude', 'longitude'
+            )->whereIn('restaurant_id', $restaurantIds)->get();
+
+            $data[] = [
+                'booking_id' => $b->booking_id,
+                'package_id' => $b->package_id,
+                'booking_details' => $b->booking_details,
+                'travel_dates' => $b->travel_dates,
+                'hotels' => $hotels,
+                'attractions' => $attractions,
+                'guides' => $guides,
+                'restaurants' => $restaurants,
+                'package' => $b->package,
+                'user_info' => $b->user_info,
+                'status' => $b->status
+            ];
+        }
+        
+        return response()->json(['booking_lists' => $data]);
+    }
+
 }

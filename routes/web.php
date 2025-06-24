@@ -59,7 +59,7 @@ use Illuminate\Support\Facades\Mail;
 |
 */
 Auth::routes();
-Route::group(['middleware' => ['auth']], function () {
+Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
     });
@@ -110,7 +110,7 @@ Route::group(['middleware' => ['auth']], function () {
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
         Route::get('/packages/{id}', [PackageController::class, 'show'])->name('packages.show');
-        Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        // Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{id}', [PackageController::class, 'update'])->name('packages.update');
         Route::delete('/packages/{id}', [PackageController::class, 'destroy'])->name('packages.destroy');
         Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');

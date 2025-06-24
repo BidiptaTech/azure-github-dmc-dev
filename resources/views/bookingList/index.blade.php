@@ -9,7 +9,7 @@
         color: #566a7f;
     }
     .accordion-button.collapsed{
-    opacity: 0.2 !important;
+        opacity: 0.2 !important;
     }
     
     /* Itinerary link styling */
