@@ -51,9 +51,8 @@ class TourController extends Controller
             'children_ages' => 'nullable|string',
         ]);
         $countryNames = request()->input('destination');
-        $agent_id = request()->input('agent-id');
+        $agent_id = request()->header('agent-id') ?? request()->header('agent_id');
         $countryArray = array_map('trim', explode(',', $countryNames));
-
         $cities = City::whereIn('country', $countryArray)
               ->select('name', 'country')
               ->get()

@@ -26,6 +26,7 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         'impersonate' => \App\Http\Middleware\ImpersonateUser::class,
         'hierarchy' => \App\Http\Middleware\HierarchyMiddleware::class,
+        'no.cache' => \App\Http\Middleware\NoCacheHeaders::class,
     ];
 
     /**
