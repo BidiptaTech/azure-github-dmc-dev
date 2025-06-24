@@ -668,43 +668,72 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
           ? vehicleData.prices.privatePrice 
           : (vehicleData.private_price ? parseFloat(vehicleData.private_price) : 0));
     
-    const bookingForRedux = {
-      id: booking.id,
-      type: "Entry Port",
-      vehicleName: vehicle.vehicle_name,
-      vehicleType: vehicle.vehicle_type,
-      vehicleModel: vehicle.vehicle_model,
-      modelYear: vehicle.model_year,
-      seatingCapacity: vehicle.seating_capacity,
-      vehicleImage: vehicle.image,
+    // Find any existing customer info in current services
+    const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
+    
+    // Create booking data, including any customer info fields if available
+    const bookingData = {
+      vehicle_id: vehicle.id,
+      vehicle_name: vehicle.vehicle_name,
+      vehicle_type: vehicle.vehicle_type,
+      vehicle_model: vehicle.vehicle_model,
+      model_year: vehicle.model_year,
+      seating_capacity: vehicle.seating_capacity,
+      vehicle_image: vehicle.image,
       city: vehicle.city,
       country: vehicle.country,
-      pickupLocation: entryPickup,
-      dropoffLocation: entryDropoff,
-      bookingDate: pickupDate,
-      pickupTime: entryTime,
+      pickup_location: entryPickup,
+      dropoff_location: entryDropoff,
+      booking_date: pickupDate,
+      pickup_time: entryTime,
       adults: bookingAdultCount,
       children: bookingChildCount,
       price: price,
-      taxPercentage: vehicle.tax_percentage,
-      priceMode: booking.priceMode,
+      tax_percentage: vehicle.tax_percentage,
+      transport_type: booking.priceMode === "Sharable" ? "shared" : "private",
       mode: booking.mode,
-      dmcId: booking.dmcId,
-      vehicleId: vehicle.id
+      dmc_id: booking.dmcId,
+      id: booking.id,
+      // If we have customer info, spread it into the booking data
+      ...(customerInfoService ? { 
+        fullName: customerInfoService.fullName, 
+        email: customerInfoService.email,
+        phone: customerInfoService.phone,
+        address1: customerInfoService.address1,
+        address2: customerInfoService.address2,
+        state: customerInfoService.state,
+        zip: customerInfoService.zip,
+        specialRequests: customerInfoService.specialRequests,
+        countryCode: customerInfoService.countryCode
+      } : {})
     };
     
-    console.log("Entry Vehicle - Formatted booking for Redux:", bookingForRedux);
+    console.log("Entry Vehicle - Formatted booking data for Redux:", bookingData);
     
     // Clone the existing services array
     const allCurrentServices = [...existingServices];
     
-    // First, filter out any existing Entry Port bookings with this ID
-    const filteredServices = allCurrentServices.filter(
-      service => !(service.type === "Entry Port" && service.id === booking.id)
-    );
+    // Remove any existing Entry Port service with the same booking ID
+    const filteredServices = allCurrentServices.filter(service => {
+      if (service.type === "Entry Port") {
+        // If this is an Entry Port service, check if it contains our booking ID
+        if (service.data && service.data.some(item => item.id === booking.id)) {
+          // This service contains our booking ID, so filter it out
+          return false;
+        }
+      }
+      // Keep all other services
+      return true;
+    });
     
-    // Add the new booking
-    filteredServices.push(bookingForRedux);
+    // Create a new Entry Port entry for this vehicle
+    const newEntryPortService = {
+      type: "Entry Port",
+      data: [bookingData]
+    };
+    
+    // Add the new Entry Port service to the filtered services array
+    filteredServices.push(newEntryPortService);
     
     console.log("Entry Vehicle - Dispatching updated services to Redux:", filteredServices);
     

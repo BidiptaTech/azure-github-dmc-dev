@@ -21,43 +21,57 @@ export default function TourPackages() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 5 }}>
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          mt: 6, 
-          mb: 4 
-        }}
-      >
-        <Button 
-          component={Link}
-          to="/dashboard/db-dashboard/tour-packages"
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
+    <Box sx={{ bgcolor: '#f8fafc', minHeight: '102vh' }}>
+      <Container maxWidth="lg" sx={{ py: 2 }}>
+        {/* Compact Header */}
+        <Box 
           sx={{ 
-            bgcolor: 'primary.main', 
-            '&:hover': { bgcolor: 'primary.dark' },
-            borderRadius: '8px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            mb: 2,
+            bgcolor: 'white',
+            p: 1.5,
+            borderRadius: 2,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
           }}
         >
-          Back
-        </Button>
-        
-        <Typography
-          variant="h3"
-          component="h1"
-          align="center"
-          sx={{ flex: 1 }}
-        >
-          Tour Packages
-        </Typography>
-        
-        <Box sx={{ width: '140px' }}></Box> {/* Spacer to balance the layout */}
-      </Box>
-
+          <Button 
+            component={Link}
+            to="/dashboard/db-dashboard/tour-packages"
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            size="small"
+            sx={{ 
+              borderColor: '#e2e8f0',
+              color: '#64748b',
+              fontSize: '0.875rem',
+              '&:hover': { 
+                borderColor: '#cbd5e1',
+                bgcolor: '#f8fafc'
+              }
+            }}
+          >
+            Back
+          </Button>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TravelExploreIcon sx={{ color: '#3b82f6', fontSize: 24 }} />
+            <Typography
+              variant="h6"
+              component="h1"
+              sx={{ 
+                mt: 1,
+                fontWeight: 600,
+                color: '#1e293b'
+              }}
+            >
+              Tour Packages
+            </Typography>
+          </Box>
+          
+          <Box sx={{ width: '70px' }}></Box>
+        </Box>
 
       <Box sx={{ mb: 5 }}>
         <Paper
@@ -103,7 +117,13 @@ export default function TourPackages() {
             </Box>
           </Box>
 
-          <Box sx={{ p: 2 }}>
+          {/* Search Form Section */}
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: '#ffffff',
+            overflow: 'visible',
+            position: 'relative'
+          }}>
             <SearchForm onNext={handleNext} />
           </Box>
         </Paper>
@@ -119,5 +139,6 @@ export default function TourPackages() {
         </Box>
       )}
     </Container>
+    </Box>
   );
 } 
