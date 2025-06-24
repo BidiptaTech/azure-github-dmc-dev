@@ -15,7 +15,7 @@ class BookingListController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
         $agent_ids = collect(); // for filtering bookings
@@ -111,6 +111,25 @@ class BookingListController extends Controller
                 $agent_ids = Agent::where('sales_manager_dmc', $user->userId)->pluck('agent_id');
                 break;
         }
+
+        // **FIX: Create a separate query just for getting unique tour_ids**
+        $uniqueTourIdsQuery = DB::table('orders')
+            ->select('orders.tour_id') // Only select tour_id, not the JSON data column
+            ->where('orders.bookingType', '=', 'booking')
+            ->where('orders.status', 1)
+            ->when($agent_ids->isNotEmpty(), function ($query) use ($agent_ids) {
+                $query->whereIn('orders.agent_id', $agent_ids);
+            });
+
+        // Now get unique tour IDs - this will work because we're not selecting JSON columns
+        $uniqueTourIds = $uniqueTourIdsQuery->distinct()->pluck('tour_id');
+        
+        // Paginate the tour IDs (10 tours per page)
+        $perPage = 10;
+        $currentPage = $request->get('page', 1);
+        $paginatedTourIds = $uniqueTourIds->forPage($currentPage, $perPage);
+        
+        // Now get all bookings for the current page's tour IDs
         $bookings = DB::table('orders')
             ->select([
                 'orders.id',
@@ -125,12 +144,10 @@ class BookingListController extends Controller
             ->leftJoin('agents', 'orders.agent_id', '=', 'agents.agent_id')
             ->where('orders.bookingType', '=', 'booking')
             ->where('orders.status', 1)
-            // ->where('orders.is_approve', 0)
+            ->whereIn('orders.tour_id', $paginatedTourIds)
             ->when($agent_ids->isNotEmpty(), function ($query) use ($agent_ids) {
                 $query->whereIn('orders.agent_id', $agent_ids);
             })
-            ->where('status', 1)
-            // ->where('orders.is_approve', 0)
             ->orderBy('orders.id', 'desc')
             ->get();
 
@@ -284,6 +301,19 @@ class BookingListController extends Controller
             return $booking;
         });
 
+        // Create pagination manually
+        $pagination = new \Illuminate\Pagination\LengthAwarePaginator(
+            $bookings, // Current page items
+            $uniqueTourIds->count(), // Total items count
+            $perPage, // Items per page
+            $currentPage, // Current page
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+        $pagination->appends($request->except('page'));
+
         // For use in JavaScript, etc.
         $dmcUsers = DB::table('users')
             ->select('userId', 'name', 'company_name')
@@ -291,7 +321,7 @@ class BookingListController extends Controller
             ->keyBy('userId')
             ->toArray();
 
-        return view('bookingList.index', compact('bookings', 'dmcUsers'));
+        return view('bookingList.index', compact('bookings', 'dmcUsers', 'pagination'));
     }
 
     /**
