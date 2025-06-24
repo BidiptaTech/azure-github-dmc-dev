@@ -589,8 +589,17 @@ class TourController extends Controller
             return redirect()->back()->with('error', 'Tour not found!');
         }
         
+        // Get currency data from request
+        $selectedCurrency = $request->input('selected_currency', 'SGD');
+        $exchangeRate = $request->input('exchange_rate', 1);
+        $originalAmount = $request->input('original_amount', $request->amount);
+        $sgdAmount = $request->input('sgd_amount', $request->amount);
+        
         $paymentData = [
-            'amount' => $request->amount,
+            'amount' => $sgdAmount, // Store SGD converted amount
+            'original_amount' => $originalAmount, // Store original amount in selected currency
+            'currency' => $selectedCurrency, // Store selected currency
+            'exchange_rate' => $exchangeRate, // Store exchange rate used
             'transaction_id' => $request->transaction_id,
             'remarks' => $request->remarks,
             'date' => now()->format('Y-m-d H:i:s'),
@@ -609,7 +618,14 @@ class TourController extends Controller
         $tour->payment_details = json_encode($paymentDetails);
         $tour->save();
         
-        return redirect()->back()->with('success', 'Payment of ' . $request->amount . ' SGD has been successfully added to Tour #' . $tourId);
+        // Create success message with currency information
+        $successMessage = 'Payment of ' . number_format($sgdAmount, 2) . ' SGD';
+        if ($selectedCurrency !== 'SGD') {
+            $successMessage .= ' (converted from ' . number_format($originalAmount, 2) . ' ' . $selectedCurrency . ')';
+        }
+        $successMessage .= ' has been successfully added to Tour #' . $tourId;
+        
+        return redirect()->back()->with('success', $successMessage);
     }
 
     public function approveBooking(Request $request, $tourId)
