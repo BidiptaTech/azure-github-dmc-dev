@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useState, useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { setAllServices } from '@/slice/tour-packages/tourPackageSlice';
 import {
   TextField,
@@ -13,6 +13,8 @@ import {
 
 const SimpleCustomerInfo = () => {
   const dispatch = useDispatch();
+  const allServices = useSelector(state => state.tourPackages?.AllServices || []);
+  console.log("allServicesssd", allServices);
   
   // Form state with the same mandatory fields as the original component
   const [form, setForm] = useState({
@@ -31,6 +33,10 @@ const SimpleCustomerInfo = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [formValid, setFormValid] = useState(false);
+  
+  // Use refs to track the previous values and prevent infinite loops
+  const prevFormRef = useRef({});
+  const formUpdatedRef = useRef(false);
   
   // Function to validate a single field
   const validateField = (field, value) => {
@@ -94,6 +100,9 @@ const SimpleCustomerInfo = () => {
       ...prevForm,
       [name]: value,
     }));
+    
+    // Mark that the form has been updated
+    formUpdatedRef.current = true;
 
     if (touched[name]) {
       setErrors((prevErrors) => ({
@@ -113,20 +122,54 @@ const SimpleCustomerInfo = () => {
       [name]: validateField(name, value),
     }));
   };
+  
+  // Check if form has changed since last update
+  const hasFormChanged = () => {
+    return JSON.stringify(form) !== JSON.stringify(prevFormRef.current);
+  };
 
-  // Check form validity when form changes
+  // Effect to update services when form changes
   useEffect(() => {
+    // Only proceed if the form has actually been updated by user input
+    if (!formUpdatedRef.current) {
+      return;
+    }
+    
     const isValid = validateForm();
     
-    if (isValid && Object.values(touched).some(t => t)) {
-      // Generate customer info object and dispatch to Redux
+    // Only proceed if form is valid, has been touched, and has changed since last update
+    if (isValid && Object.values(touched).some(t => t) && hasFormChanged()) {
+      // Get customer info 
       const customerInfo = {
-        ...form,
-        type: 'CustomerInfo',
-        id: `customer-info-${Date.now()}`, // Generate a unique ID
+        ...form
       };
       
-      dispatch(setAllServices(customerInfo));
+      // Remember the current form state to avoid redundant updates
+      prevFormRef.current = {...form};
+      
+      // Create a new array with customer info embedded in each service type
+      if (allServices.length > 0) {
+        const updatedServices = allServices.map(service => {
+          if (Array.isArray(service.data)) {
+            // If service has a data array, update each item in the data array
+            return {
+              ...service,
+              data: service.data.map(item => ({
+                ...item,
+                ...customerInfo
+              }))
+            };
+          }
+          return service;
+        });
+        
+        // Reset the form updated flag before dispatching
+        formUpdatedRef.current = false;
+        
+        // Dispatch updated services to Redux
+        dispatch(setAllServices(updatedServices));
+      }
+      
       setFormValid(true);
     } else {
       setFormValid(false);

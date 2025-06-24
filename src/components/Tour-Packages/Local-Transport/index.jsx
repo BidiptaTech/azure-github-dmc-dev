@@ -136,57 +136,78 @@ export default function LocalTransportComponent() {
     // Generate a unique ID for this booking if it doesn't have one
     const bookingId = booking.id || `${booking.transportType.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
     
-    // Format booking data for Redux
-    const bookingForRedux = {
+    // Find any existing customer info in current services
+    const customerInfoService = allServices.find(service => service.type === 'CustomerInfo');
+    
+    // Prepare booking data in the new format
+    const bookingData = {
       id: bookingId,
-      type: booking.transportType, // This is the key field requested - exact transport type
-      vehicleName: booking.vehicleName,
-      vehicleType: booking.vehicleType,
-      vehicleModel: booking.vehicleModel,
-      vehicleImage: booking.vehicleImage,
+      vehicle_id: booking.vehicleId,
+      vehicle_name: booking.vehicleName,
+      vehicle_type: booking.vehicleType,
+      vehicle_model: booking.vehicleModel,
+      vehicle_image: booking.vehicleImage,
       city: booking.city,
       country: booking.country,
-      pickupLocation: booking.pickupLocation,
-      dropoffLocation: booking.dropoffLocation,
-      bookingDate: booking.bookingDate,
-      pickupTime: booking.pickupTime,
+      pickup_location: booking.pickupLocation,
+      dropoff_location: booking.dropoffLocation,
+      booking_date: booking.bookingDate,
+      pickup_time: booking.pickupTime,
       adults: booking.adults,
       children: booking.children,
       price: booking.price,
-      priceMode: booking.priceMode,
+      transport_type: booking.priceMode === "Sharable" ? "shared" : "private",
       mode: booking.mode,
-      dmcId: booking.dmcId,
-      vehicleId: booking.vehicleId
+      dmc_id: booking.dmcId,
+      // If we have customer info, spread it into the booking data
+      ...(customerInfoService ? { 
+        fullName: customerInfoService.fullName, 
+        email: customerInfoService.email,
+        phone: customerInfoService.phone,
+        address1: customerInfoService.address1,
+        address2: customerInfoService.address2,
+        state: customerInfoService.state,
+        zip: customerInfoService.zip,
+        specialRequests: customerInfoService.specialRequests,
+        countryCode: customerInfoService.countryCode
+      } : {})
     };
     
     // Add hours only for hourly bookings
     if (booking.transportType === "Hourly") {
-      bookingForRedux.hours = booking.hours;
+      bookingData.hours = booking.hours;
     }
     
     // Add zoneId only for Local Transfer bookings if it exists
     if (booking.transportType === "Local Transfer" && booking.zoneId) {
-      bookingForRedux.zoneId = booking.zoneId;
+      bookingData.zone_id = booking.zoneId;
     }
     
     // Clone the existing services array
     const currentServices = [...allServices];
     
-    // Check if this booking already exists in the services
-    const existingBookingIndex = currentServices.findIndex(
-      service => service.id === bookingId || 
-                (service.type === booking.transportType && service.vehicleId === booking.vehicleId)
-    );
+    // Check if this booking already exists in the services (with the new structure)
+    const existingServiceIndex = currentServices.findIndex(service => {
+      if (service.type === booking.transportType) {
+        // Check if this service has data array with our booking ID
+        return service.data && service.data.some(item => item.id === bookingId || 
+          (item.vehicle_id === booking.vehicleId));
+      }
+      return false;
+    });
     
     // If the booking already exists with the same data, don't dispatch again
-    if (existingBookingIndex >= 0) {
-      const existingBooking = currentServices[existingBookingIndex];
+    if (existingServiceIndex >= 0) {
+      const existingService = currentServices[existingServiceIndex];
+      const existingBookingItem = existingService.data && existingService.data.find(item => 
+        item.id === bookingId || (item.vehicle_id === booking.vehicleId)
+      );
       
-      // Check if the important fields are the same
-      if (existingBooking.price === bookingForRedux.price && 
-          existingBooking.priceMode === bookingForRedux.priceMode &&
-          existingBooking.adults === bookingForRedux.adults &&
-          existingBooking.children === bookingForRedux.children) {
+      if (existingBookingItem && 
+          existingBookingItem.price === bookingData.price && 
+          existingBookingItem.transport_type === bookingData.transport_type &&
+          existingBookingItem.adults === bookingData.adults &&
+          existingBookingItem.children === bookingData.children) {
         
         // Update local state to include the ID if needed
         if (!booking.id) {
@@ -200,32 +221,43 @@ export default function LocalTransportComponent() {
           });
         }
         
-        return bookingForRedux;
+        // Return the existing service structure
+        return {
+          type: booking.transportType,
+          data: [existingBookingItem]
+        };
       }
     }
     
-    // Filter out any existing bookings with the same ID or matching the same type + vehicle ID combination
+    // Filter out any existing services with the same transport type that contain our vehicle ID
     const filteredServices = currentServices.filter(service => {
-      // Keep all services that don't match this booking's ID
-      if (service.id === bookingId) return false;
-      
-      // Also filter out services that have the same type and vehicle ID (potential duplicates)
-      if (service.type === booking.transportType && service.vehicleId === booking.vehicleId) {
-        return false;
+      if (service.type === booking.transportType) {
+        // If this is the same type service, check if it contains our vehicle ID
+        if (service.data && service.data.some(item => 
+          item.id === bookingId || (item.vehicle_id === booking.vehicleId))) {
+          // This service contains our booking ID or vehicle, so filter it out
+          return false;
+        }
       }
-      
+      // Keep all other services
       return true;
     });
     
-    // Add the new booking
-    filteredServices.push(bookingForRedux);
+    // Create a new service entry for this transport type
+    const newServiceEntry = {
+      type: booking.transportType,
+      data: [bookingData]
+    };
+    
+    // Add the new service entry
+    filteredServices.push(newServiceEntry);
     
     // Check if the services array has actually changed
     const hasChanged = JSON.stringify(filteredServices) !== JSON.stringify(prevServicesRef.current);
     
     if (hasChanged) {
       console.log(`${booking.transportType} - Dispatching booking to Redux:`, booking);
-      console.log(`${booking.transportType} - Formatted booking for Redux:`, bookingForRedux);
+      console.log(`${booking.transportType} - Formatted booking data for Redux:`, bookingData);
       console.log(`${booking.transportType} - Dispatching updated services to Redux:`, filteredServices);
       
       // Set the dispatching flag to prevent recursive updates
@@ -255,7 +287,8 @@ export default function LocalTransportComponent() {
       });
     }
     
-    return bookingForRedux;
+    // Return the service entry in the new format
+    return newServiceEntry;
   }, [allBookings, allServices, dispatch]);
 
   // Add function to dispatch all valid bookings to Redux 

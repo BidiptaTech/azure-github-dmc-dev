@@ -23,7 +23,7 @@ export default function TourPackages() {
   };
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh' }}>
+    <Box sx={{ bgcolor: '#f8fafc', minHeight: '102vh' }}>
       <Container maxWidth="lg" sx={{ py: 2 }}>
         {/* Compact Header */}
         <Box 
@@ -108,7 +108,7 @@ export default function TourPackages() {
                     fontSize: '1.1rem'
                   }}
                 >
-                  Create Tour Package
+                  Create Tour Packages
                 </Typography>
                 <Typography 
                   variant="caption" 
@@ -118,7 +118,7 @@ export default function TourPackages() {
                     fontWeight: 400
                   }}
                 >
-                  Search and customize packages
+                  Search and customize your packages
                 </Typography>
               </Box>
             </Box>
@@ -127,7 +127,7 @@ export default function TourPackages() {
           {/* Search Form Section */}
           <Box sx={{ 
             p: 2, 
-            bgcolor: 'white',
+            bgcolor: '#ffffff',
             overflow: 'visible',
             position: 'relative'
           }}>
