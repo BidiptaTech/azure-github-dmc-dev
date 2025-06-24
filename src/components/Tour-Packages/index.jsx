@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import SearchForm from './common/SearchForm';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+
 
 // Import service components
 import Itinerary from './common/Itinerary';
@@ -68,24 +70,37 @@ export default function TourPackages() {
         >
           <Box
             sx={{
-              backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("https://source.unsplash.com/random/1200x400/?travel,landscape")',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              minHeight: '300px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              p: 4,
-              mb: 3
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              p: 2,
+              position: 'relative'
             }}
           >
-            <Typography variant="h2" component="div" align="center" sx={{ color: 'white', mb: 2 }}>
-              Find Your Dream Tour Package
-            </Typography>
-            <Typography variant="h6" component="div" align="center" sx={{ color: 'white' }}>
-              Discover the world with our curated tour packages
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <TravelExploreIcon sx={{ color: 'white', fontSize: 24 }} />
+              <Box>
+                <Typography 
+                  variant="h6" 
+                  component="div" 
+                  sx={{ 
+                    color: 'white', 
+                    fontWeight: 600,
+                    fontSize: '1.1rem'
+                  }}
+                >
+                  Create Tour Packages
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  component="div" 
+                  sx={{ 
+                    color: 'rgba(255,255,255,0.9)', 
+                    fontWeight: 400
+                  }}
+                >
+                  Search and customize your packages
+                </Typography>
+              </Box>
+            </Box>
           </Box>
 
           <Box sx={{ p: 2 }}>

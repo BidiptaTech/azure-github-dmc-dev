@@ -31,6 +31,21 @@ export const fetchPackageDetails = createAsyncThunk(
   }
 );
 
+// Async thunk for booking a package
+export const bookPackage = createAsyncThunk(
+  'prePackages/bookPackage',
+  async (bookingData, { rejectWithValue }) => {
+    try {
+      const response = await endpoints.packageBooking(bookingData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to book package'
+      );
+    }
+  }
+);
+
 const initialState = {
   packages: [],
   loading: false,
@@ -39,6 +54,10 @@ const initialState = {
   packageDetails: null,
   loadingDetails: false,
   errorDetails: null,
+  bookingLoading: false,
+  bookingSuccess: false,
+  bookingError: null,
+  bookingData: null,
 };
 
 const prePackagesSlice = createSlice({
@@ -56,6 +75,11 @@ const prePackagesSlice = createSlice({
     resetPackageDetails: (state) => {
       state.packageDetails = null;
       state.errorDetails = null;
+    },
+    resetBookingStatus: (state) => {
+      state.bookingSuccess = false;
+      state.bookingError = null;
+      state.bookingData = null;
     },
   },
   extraReducers: (builder) => {
@@ -83,9 +107,24 @@ const prePackagesSlice = createSlice({
       .addCase(fetchPackageDetails.rejected, (state, action) => {
         state.loadingDetails = false;
         state.errorDetails = action.payload;
+      })
+      // Handle package booking states
+      .addCase(bookPackage.pending, (state) => {
+        state.bookingLoading = true;
+        state.bookingSuccess = false;
+        state.bookingError = null;
+      })
+      .addCase(bookPackage.fulfilled, (state, action) => {
+        state.bookingLoading = false;
+        state.bookingSuccess = true;
+        state.bookingData = action.payload;
+      })
+      .addCase(bookPackage.rejected, (state, action) => {
+        state.bookingLoading = false;
+        state.bookingError = action.payload;
       });
   },
 });
 
-export const { setSearchParams, resetPackages, resetPackageDetails } = prePackagesSlice.actions;
+export const { setSearchParams, resetPackages, resetPackageDetails, resetBookingStatus } = prePackagesSlice.actions;
 export default prePackagesSlice.reducer;
