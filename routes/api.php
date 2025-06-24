@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/packages', 'App\Http\Controllers\Api\PackageController@index');
     Route::get('/package-details', 'App\Http\Controllers\Api\PackageController@package_details');
     Route::post('/package-booking', 'App\Http\Controllers\Api\PackageController@booking');
+    Route::get('/package-booking-lists', 'App\Http\Controllers\Api\PackageController@getBookingLists');
     Route::get('/cities', function (Request $request) {
         $input = $request->query('input');
         $response = Http::get("https://maps.googleapis.com/maps/api/place/autocomplete/json", [
