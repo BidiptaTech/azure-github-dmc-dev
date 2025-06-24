@@ -50,7 +50,7 @@ const initialFormState = {
   price: 0, // Store the calculated price for the booking
 };
 
-export default function LocalTransportComponent() {
+export default function LocalTransportComponent({ dayIndex = 0 }) {
   const Location = useSelector((state) => {
     return state.bookings?.searchLocation || {};
   });
@@ -686,7 +686,7 @@ export default function LocalTransportComponent() {
   return (
     <Container>
       <Typography variant="h5" gutterBottom>Local Transport Options</Typography>
-      <SearchLocationTransport Location={Location} />
+      <SearchLocationTransport Location={Location} dayIndex={dayIndex} />
       
       {validationError && (
         <Alert severity="error" sx={{ mb: 2 }}>

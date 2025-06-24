@@ -34,7 +34,7 @@ import SearchZone from "@/components/Tour-Packages/Local-Transport/LocationZoneS
 import Pickuptimezone from "@/components/activity-list/activity-list-v3/Pickuptimezone";
 import DateSearchZone from "@/components/activity-list/activity-list-v3/DateSearchZone";
 
-const SearchLocationTransport = ({ Location }) => {
+const SearchLocationTransport = ({ Location, dayIndex = 0 }) => {
   const dispatch = useDispatch();
 
   // Get values from Redux store to persist state
@@ -560,6 +560,7 @@ const SearchLocationTransport = ({ Location }) => {
                 setDropoffFromAutocomplete={setDropoffFromAutocomplete}
                 pickupFromAutocomplete={pickupFromAutocomplete}
                 dropoffFromAutocomplete={dropoffFromAutocomplete}
+                dayIndex={dayIndex}
               />
             ) : selectedPort === "Hourly" ? (
               <SearchBar1
@@ -571,6 +572,7 @@ const SearchLocationTransport = ({ Location }) => {
                 validationTriggered={validationTriggered}
                 setPickupFromAutocomplete={setExitPickupFromAutocomplete}
                 pickupFromAutocomplete={exitPickupFromAutocomplete}
+                dayIndex={dayIndex}
               />
             ) : selectedPort === "Local Transfer" ? (
               <SearchZone
@@ -584,6 +586,7 @@ const SearchLocationTransport = ({ Location }) => {
                 dropOffLocation={dropOffLatLng}
                 validationTriggered={validationTriggered}
                 setDropOffLocation={setDropOffZone}
+                dayIndex={dayIndex}
               />
             ) : (
               <div className="text-center p-20">

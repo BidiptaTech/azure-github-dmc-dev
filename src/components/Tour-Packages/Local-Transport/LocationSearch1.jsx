@@ -8,21 +8,25 @@ const SearchBar1 = ({
   Location,
   validationTriggered = false,
   setPickupFromAutocomplete,
+  dayIndex = 0,
 }) => {
   const autocompletePickUpRef1 = useRef(null);
   const [isPickupValid, setIsPickupValid] = useState(true);
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
+  
+  // Create unique ID for input based on day index
+  const pickupInputId = `local-transport-hourly-pick-up-input-day-${dayIndex}`;
   
   // Add reference to track if we're in the middle of a selection
   const isSelectingRef = useRef(false);
 
   // Keep input value in sync with state
   useEffect(() => {
-    const inputElement = document.getElementById("local-transport-hourly-pick-up-input");
+    const inputElement = document.getElementById(pickupInputId);
     if (inputElement && exitpickUpLocation && !isSelectingRef.current) {
       inputElement.value = exitpickUpLocation;
     }
-  }, [exitpickUpLocation]);
+  }, [exitpickUpLocation, pickupInputId]);
 
   useEffect(() => {
     if (!window.google || !window.google.maps || !window.google.maps.places) {
@@ -117,7 +121,7 @@ const SearchBar1 = ({
     };
 
     initializeAutocomplete(
-      "local-transport-hourly-pick-up-input",
+      pickupInputId,
       autocompletePickUpRef1,
       setexitPickUpLocation,
       setPickupLatLng,
@@ -136,6 +140,7 @@ const SearchBar1 = ({
     setexitPickUpLocation,
     setPickupLatLng,
     setPickupFromAutocomplete,
+    pickupInputId,
   ]);
   
   const handlePickupChange = (e) => {
@@ -174,7 +179,7 @@ const SearchBar1 = ({
                 </h4>
                 <div className="text-15 text-light-1 ls-2 lh-20">
                   <input
-                    id="local-transport-hourly-pick-up-input"
+                    id={pickupInputId}
                     autoComplete="off"
                     type="search"
                     placeholder="Where is your pick up?"
