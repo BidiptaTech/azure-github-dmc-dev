@@ -68,8 +68,8 @@ const InfoCard = styled(Paper)(({ theme }) => ({
 
 const PriceCard = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
+  backgroundColor: '#4caf50',
+  color: 'white',
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
@@ -230,13 +230,17 @@ const RestaurantBookingSummaryModal = ({
                     <Chip 
                       icon={<LocalDiningIcon />} 
                       label={restaurantDetails?.cuisine || 'Cuisine not specified'} 
-                      color="primary" 
+                      sx={{ 
+                        color: '#4caf50', 
+                        borderColor: '#4caf50',
+                        '& .MuiChip-icon': { color: '#4caf50' }
+                      }}
                       variant="outlined"
                     />
                   </Box>
                   
                   <DetailRow>
-                    <LocationOnIcon color="primary" />
+                    <LocationOnIcon sx={{ color: '#4caf50' }} />
                     <Typography>
                       {restaurantDetails?.city}, {restaurantDetails?.country}
                     </Typography>
@@ -248,12 +252,12 @@ const RestaurantBookingSummaryModal = ({
                       mt: 2,
                       p: 1.5,
                       borderRadius: 1,
-                      bgcolor: 'primary.main',
+                      bgcolor: '#4caf50',
                       color: 'white',
                     }}
                   >
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      <AccessTimeIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      <AccessTimeIcon sx={{ mr: 1, verticalAlign: 'middle', color: 'white' }} />
                       Selected Time
                     </Typography>
                     <Typography sx={{ fontSize: '1rem', ml: 3,color: 'white', }}>
@@ -268,17 +272,17 @@ const RestaurantBookingSummaryModal = ({
           {/* Meal Details */}
           <SummarySection>
             <Typography variant="h6" gutterBottom>
-              <RestaurantIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              <RestaurantIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#4caf50' }} />
               Meal Information
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={isBuffet ? 12 : 6}>
                 <InfoCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                  <Typography variant="subtitle1" sx={{ color: '#4caf50' }} gutterBottom>
                     Meal Type
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FastfoodIcon color="primary" />
+                    <FastfoodIcon sx={{ color: '#4caf50' }} />
                     <Typography variant="body1">
                       {bookingData.specificMeal?.specificMealType || bookingData.mealType || 'Not selected'}
                     </Typography>
@@ -288,7 +292,7 @@ const RestaurantBookingSummaryModal = ({
               {!isBuffet && (
                 <Grid item xs={12} md={6}>
                   <InfoCard>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
+                    <Typography variant="subtitle1" sx={{ color: '#4caf50' }} gutterBottom>
                       Selected Items
                     </Typography>
                     <Box>
@@ -312,20 +316,20 @@ const RestaurantBookingSummaryModal = ({
           {/* Guest Details */}
           <SummarySection>
             <Typography variant="h6" gutterBottom>
-              <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              <GroupIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#4caf50' }} />
               Guest Details
             </Typography>
             <InfoCard>
               <Box sx={{ display: 'flex', gap: 3 }}>
                 <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                    <PersonIcon sx={{ mr: 1, color: '#4caf50' }} />
                     <Typography>
                       Adults: {renderValue(bookingData.pax?.Adults)}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <ChildCareIcon sx={{ mr: 1, color: 'primary.main' }} />
+                    <ChildCareIcon sx={{ mr: 1, color: '#4caf50' }} />
                     <Typography>
                       Children: {renderValue(bookingData.pax?.Children)}
                     </Typography>
@@ -338,13 +342,13 @@ const RestaurantBookingSummaryModal = ({
           {/* Price Details */}
           <SummarySection>
             <Typography variant="h6" gutterBottom>
-              <AttachMoneyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              <AttachMoneyIcon sx={{ mr: 1, verticalAlign: 'middle', color: '#4caf50' }} />
               Price Details
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <InfoCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                  <Typography variant="subtitle1" sx={{ color: '#4caf50' }} gutterBottom>
                     Price Breakdown
                   </Typography>
                   {bookingData.specificMeal?.items?.map((item) => (
@@ -392,7 +396,18 @@ const RestaurantBookingSummaryModal = ({
 
           {/* Action Buttons */}
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
-            <Button variant="outlined" onClick={onClose}>
+            <Button 
+              variant="outlined" 
+              onClick={onClose}
+              sx={{ 
+                borderColor: '#4caf50', 
+                color: '#4caf50',
+                '&:hover': {
+                  borderColor: '#388e3c',
+                  backgroundColor: 'rgba(76, 175, 80, 0.04)'
+                }
+              }}
+            >
               Close
             </Button>
           </Box>

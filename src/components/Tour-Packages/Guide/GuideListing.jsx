@@ -379,7 +379,7 @@ const GuideListing = ({ value, onChange, disabled }) => {
   }, []);
 
   return (
-    <Grid item xs={12} sm={6} md={3}>
+    <Grid item xs={12} sm={6} md={12}>
       <Autocomplete
         value={selectedGuide}
         onChange={handleGuideSelect}
@@ -399,14 +399,13 @@ const GuideListing = ({ value, onChange, disabled }) => {
         slotProps={{
           popper: {
             sx: {
-              zIndex: 1300
+              zIndex: 999999
             }
           },
           option: {
             key: getOptionKey
           }
         }}
-        disablePortal
         forcePopupIcon={false}
       />
     </Grid>
