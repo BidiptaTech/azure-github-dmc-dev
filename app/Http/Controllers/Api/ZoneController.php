@@ -17,6 +17,9 @@ class ZoneController extends Controller
     public function zone_lists(Request $request)
     {
         $agent = auth()->user()->sales_manager_dmc;
+        if(!$agent){
+        $agent = auth()->user()->userId;
+        }
         $user = User::where('userId', $agent)->first();
         $id = $request->id;
         $type = $request->type;
@@ -86,7 +89,6 @@ class ZoneController extends Controller
                     break;
             }
         }
-        
         switch ($type) {
             case 'hotel':
                 $city = Hotel::where('hotel_unique_id', $id)->value('city');
@@ -254,7 +256,6 @@ class ZoneController extends Controller
             ],
         ]);
     }
-
 
     public function vehicleLists(Request $request)
     {
