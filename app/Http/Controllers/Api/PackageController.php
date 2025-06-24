@@ -8,6 +8,9 @@ use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\Guide;
+use App\Models\Tour;
+use App\Models\Order;
+use App\Models\PackageBooking;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -336,5 +339,20 @@ class PackageController extends Controller
         return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->id], 201);
     }
 
-    
+    public function editCustomPackage(Request $request){
+        $tour_id = $request->tour_id;
+        if(!$tour_id){
+            return response()->json(['message' => 'Please add tour_id'], 400);
+        }
+        
+        $tour = Tour::with('booking')->where('tour_id', $tour_id)->first();
+        
+        if(!$tour){
+            return response()->json(['message' => 'Tour not found'], 404);
+        }
+        
+        return response()->json([
+            'tour' => $tour,
+        ]);
+    }
 }
