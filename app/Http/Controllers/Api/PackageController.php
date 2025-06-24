@@ -323,8 +323,8 @@ class PackageController extends Controller
         $booking->booking_id = $bookingId;
         $booking->package_id = $package_id;
         $booking->booking_details = json_encode($data['booking_details']);
-        $booking->package = $data['package'];
-        $booking->user_info = $data['user_info'];
+        $booking->package = json_encode($data['package']);
+        $booking->user_info = json_encode($data['user_info']);
         $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
 
         
