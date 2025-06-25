@@ -29,6 +29,7 @@ use App\Models\OperationalCountry;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Validator;
 use DB;
+use Illuminate\Support\Facades\Log;
 
 
 class TourController extends Controller
@@ -970,6 +971,101 @@ class TourController extends Controller
                 //         'number_of_nights' => $numberOfNights
                 //     ], 409);
                 // }
+
+                if($flag == 1){
+                    // Properly format order data for the email
+                    $hotelData = $order;
+                    // $hotel_id = $hotelData->hotelDetails->hotel_id;
+                    // $hotel_email = Hotel::where('hotel_id', $hotel_id)->value('email');
+
+                    $hotel_email = "saurabh.coactive@gmail.com";
+                    $totalGuests = 0;
+                    $data = $validatedData['data'][0];
+                    $roomInfo = [];
+                    $bedInfo = [];
+                    $mealInfo = "";
+                    
+                    foreach ($validatedData['data'] as $entry) {
+                        if (isset($entry['rooms']) && is_array($entry['rooms'])) {
+                            foreach ($entry['rooms'] as $room) {
+                                // Get room information
+                                $roomInfo = $room;
+                                
+                                if (isset($room['beds']) && is_array($room['beds'])) {
+                                    foreach ($room['beds'] as $bed) {
+                                        $totalGuests += $bed['head_count'] ?? 0;
+                                        // Get bed information
+                                        $bedInfo = $bed;
+                                        
+                                        // Get meal information if available
+                                        if (isset($bed['selectedMeals']) && !empty($bed['selectedMeals'])) {
+                                            foreach ($bed['selectedMeals'] as $meal) {
+                                                if (isset($meal['type'])) {
+                                                    $mealInfo = $meal['type'];
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    $orderData = [
+                        "booking_id" => 'BK-' . rand(10000, 99999), // fallback ID
+                        "customer_name" => $data['fullName'] ?? "Guest",
+                        "type" => "Hotel Booking",
+                        "booking_date" => date('Y-m-d'),
+                        "check_in_date" => $data['bookingDate'][0] ?? date('Y-m-d', strtotime('+7 days')),
+                        "check_out_date" => $data['bookingDate'][1] ?? date('Y-m-d', strtotime('+10 days')),
+                        "location" => $data['hotelDetails']['location'] ?? "Unknown",
+                        "guests" => $totalGuests . " Guests",
+                        "reference_number" => 'REF-' . rand(1000, 9999),
+                        "total_price" => $data['totalPrice'] ?? 0,
+                        "payment_status" => "Confirmed", // or fetch from elsewhere if needed
+                        // Room information
+                        "room_type" => $roomInfo['room_type'] ?? "Standard",
+                        "bed_type" => $bedInfo['bed_type'] ?? "Queen Size",
+                        "max_occupancy" => $bedInfo['max_occupancy'] ?? 1,
+                        "head_count" => $bedInfo['head_count'] ?? 1,
+                        "baby_cot" => $bedInfo['baby_cot'] ?? 0,
+                        "meal_plan" => $mealInfo,
+                        "hotel_name" => $data['hotelDetails']['hotel_name'] ?? "Hotel",
+                        "check_in_time" => $data['hotelDetails']['checkInTime'] ?? "15:00",
+                        "check_out_time" => $data['hotelDetails']['checkOutTime'] ?? "11:00",
+                        "mealTypes" => $bedInfo['mealTypes'] ?? [],
+                        "selectedMeals" => isset($bedInfo['selectedMeals']) ? json_encode($bedInfo['selectedMeals']) : "",
+                        // Customer information fields
+                        "fullName" => $data['fullName'] ?? null,
+                        "email" => $data['email'] ?? null,
+                        "phone" => $data['phone'] ?? null,
+                        "countryCode" => $data['countryCode'] ?? null,
+                        "address1" => $data['address1'] ?? null,
+                        "address2" => $data['address2'] ?? null,
+                        "state" => $data['state'] ?? null,
+                        "zip" => $data['zip'] ?? null,
+                        "specialRequests" => $data['specialRequests'] ?? null
+                    ];
+                    
+                    $sendEmail = CommonHelper::sendEmail(
+                        $hotel_email, 
+                        'hotel', 
+                        'Hotel Booking Confirmation', 
+                        'Your hotel booking has been confirmed', 
+                        $orderData
+                    );
+                    
+                    if($sendEmail){
+                        // Email sent successfully
+                        return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
+                        Log::info('Booking confirmation email sent to: ' . $orderData->email);
+                    }
+                    else{
+                        // Failed to send email
+                        Log::error('Failed to send booking confirmation email to: ' . $orderData->email);
+                    }
+                }
             }
             else if ($type == 'zone') {
                 $flag = 1;
