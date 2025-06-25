@@ -150,8 +150,8 @@ class TourController extends Controller
             $query->where('is_approve', 1);
         }
         
-        // Step 4: Execute the query and get results
-        $tours = $query->get();
+        // Step 4: Execute the query with pagination
+        $tours = $query->paginate(10);
         
         // Step 5: Enrich tour data with additional info
         $toursQuery = [];
@@ -252,12 +252,19 @@ class TourController extends Controller
         $guides = Guide::where('status', 1)->get();
         $drivers = Driver::where('status', 1)->get();
 
+        // Get only the tour IDs from the current page
+        $currentPageTourIds = $tours->pluck('tour_id')->toArray();
+        
+        // If no tours on current page, set empty array to avoid unnecessary queries
+        if (empty($currentPageTourIds)) {
+            $currentPageTourIds = [0]; // Use 0 to ensure empty results
+        }
+
         $hotelss = Order::where('type', 'hotel')
-                        
                         ->where('bookingType', 'booking')
                         ->whereIn('status', [1, 2, 3])
-                        ->whereNotNull('tour_id') // Ensure tour_id exists
-                        ->orderBy('created_at', 'desc') // Order by latest created_at
+                        ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
+                        ->orderBy('created_at', 'desc')
                         ->get();
         $hotels = [];
 
@@ -280,11 +287,10 @@ class TourController extends Controller
 
         //Attractions Details Fetch From Orders Table
         $attractionss = Order::where('type', 'attraction')
-            
             ->where('bookingType', 'booking')
             ->whereIn('status', [1, 2, 3])
-            ->whereNotNull('tour_id') // Ensure tour_id exists
-            ->orderBy('created_at', 'desc') // Order by latest created_at
+            ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
+            ->orderBy('created_at', 'desc')
             ->get();
 
         $attractions = [];
@@ -309,10 +315,9 @@ class TourController extends Controller
 
         //Guides Details Fetch From Orders Table
         $guidess = Order::where('type', 'guide')
-            
             ->where('bookingType', 'booking')
             ->whereIn('status', [1,2, 3])
-            ->whereNotNull('tour_id')
+            ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
             ->get();
 
         $tour_guides = [];
@@ -337,10 +342,9 @@ class TourController extends Controller
 
         //Restaurants Details Fetch From Orders Table
         $restaurantss = Order::where('type', 'restaurant')
-            
             ->where('bookingType', 'booking')
             ->whereIn('status', [1, 2,3])
-            ->whereNotNull('tour_id')
+            ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
             ->get();
 
         $restaurants = [];
@@ -365,10 +369,9 @@ class TourController extends Controller
 
         // Travels Details Fetch From Orders Table
         $travelss = Order::whereIn('type', ['travel_hourly', 'travel_point'])
-            
             ->where('bookingType', 'booking')
             ->whereIn('status', [1,2, 3])
-            ->whereNotNull('tour_id')
+            ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
             ->get()
             ->groupBy('tour_id'); // Group orders by 'tour_id'
 
@@ -396,10 +399,9 @@ class TourController extends Controller
 
         // Pick Up & Drop Details Fetch From Orders Table
         $entrypickupss = Order::where('type', 'entry_port')
-            
             ->where('bookingType', 'booking')
             ->whereIn('status', [1,2, 3])
-            ->whereNotNull('tour_id')
+            ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
             ->get();
 
         $entrypickups = [];
@@ -423,10 +425,9 @@ class TourController extends Controller
         // dd($entrypickups);
 
        $exitdropoffss = Order::where('type', 'exit_port')
-        
         ->where('bookingType', 'booking')
         ->whereIn('status', [1, 2, 3])
-        ->whereNotNull('tour_id')
+        ->whereIn('tour_id', $currentPageTourIds) // Only load for current page tours
         ->get();
 
         $exitdropoffs = [];
