@@ -106,6 +106,8 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity']);
         // City → Restaurant
         Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity']);
+        // City → Transport
+        Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity']);
         Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');

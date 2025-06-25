@@ -25,6 +25,9 @@ class PackageController extends Controller
         $city = $request->input('city');
         $country = $request->input('country');
         $today = Carbon::today();
+        $date = $request->input('date');
+
+        
 
         $dmc_id = $this->getDmcIdForCurrentUser();
 
@@ -33,9 +36,8 @@ class PackageController extends Controller
         }
 
         $query = Package::where('status', 1)
-            // ->where('created_by', $dmc_id)
-            // ->whereDate('start_date', '<=', $today)
-            ->whereDate('expire_date', '>=', $today);
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('expire_date', '>=', $date);
         if (!empty($city)) {
             $query->where('city', $city);
         }

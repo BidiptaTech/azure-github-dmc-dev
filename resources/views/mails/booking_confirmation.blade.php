@@ -1,4 +1,3 @@
-
 <style>
         /* Add Font Awesome for better icons */
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -656,15 +655,7 @@
                     <div class="detail-value">{{ \Carbon\Carbon::parse($booking_date ?? now())->format('l, jS F Y') }}</div>
                 </div>
                 
-                <div class="detail-row">
-                    <div class="detail-label">
-                        <i class="fas fa-check-circle detail-icon"></i>
-                        Status:
-                    </div>
-                    <div class="detail-value status-confirmed">
-                        <i class="fas fa-check-circle"></i> Confirmed
-                    </div>
-                </div>
+                
                 
                 @if(isset($location))
                 <div class="detail-row">
@@ -682,9 +673,84 @@
                         <i class="fas fa-users detail-icon"></i>
                         Guests:
                     </div>
-                    <div class="detail-value">{{ $guests }} {{ $guests == 1 ? 'Guest' : 'Guests' }}</div>
+                    <div class="detail-value">{{ $guests }}</div>
                 </div>
                 @endif
+                
+                @if(isset($room_type))
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-door-open detail-icon"></i>
+                        Room Type:
+                    </div>
+                    <div class="detail-value">{{ $room_type }}</div>
+                </div>
+                @endif
+                
+                @if(isset($bed_type))
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-bed detail-icon"></i>
+                        Bed Type:
+                    </div>
+                    <div class="detail-value">{{ $bed_type }}</div>
+                </div>
+                @endif
+                
+                
+                
+                @if(isset($hotel_name))
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-hotel detail-icon"></i>
+                        Hotel:
+                    </div>
+                    <div class="detail-value">{{ $hotel_name }}</div>
+                </div>
+                @endif
+                
+                @if(isset($check_in_time) || isset($check_out_time))
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-clock detail-icon"></i>
+                        Check-In/Out Time:
+                    </div>
+                    <div class="detail-value">
+                        Check-in: {{ $check_in_time ?? '15:00' }} / Check-out: {{ $check_out_time ?? '11:00' }}
+                    </div>
+                </div>
+                @endif
+                
+                @if(isset($max_occupancy))
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-users detail-icon"></i>
+                        Max Occupancy:
+                    </div>
+                    <div class="detail-value">{{ $max_occupancy }} person(s)</div>
+                </div>
+                @endif
+                
+                @if(isset($baby_cot) && $baby_cot > 0)
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-baby detail-icon"></i>
+                        Baby Cot:
+                    </div>
+                    <div class="detail-value">{{ $baby_cot }}</div>
+                </div>
+                @endif
+                
+                @if(isset($mealTypes) && is_array($mealTypes) && count($mealTypes) > 0)
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-concierge-bell detail-icon"></i>
+                        Meal Options:
+                    </div>
+                    <div class="detail-value">{{ implode(", ", $mealTypes) }}</div>
+                </div>
+                @endif
+                
                 
                 {{-- @if(isset($booking->reference_number))
                 <div class="detail-row">
@@ -697,18 +763,69 @@
                 @endif --}}
             </div>
             
-            <!-- Enhanced Price Section -->
-            <div class="price-section">
-                <p class="price-label">
-                    <i class="fas fa-dollar-sign"></i> Total Amount
-                </p>
-                <p class="total-price">SGD {{ number_format($total_price ?? 750, 2) }}</p>
-                @if(isset($payment_status) && $payment_status == 'Paid')
-                <div class="payment-status">
-                    <i class="fas fa-check-circle"></i> Payment Completed Successfully
+            <!-- Customer Information Section -->
+            <div class="booking-details">
+                <h3 class="section-title">
+                    <i class="fas fa-user"></i> Customer Information
+                </h3>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-user detail-icon"></i>
+                        Full Name:
+                    </div>
+                    <div class="detail-value">{{ $fullName ?? $customer_name ?? 'Not provided' }}</div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-envelope detail-icon"></i>
+                        Email:
+                    </div>
+                    <div class="detail-value">{{ $email ?? 'Not provided' }}</div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-phone detail-icon"></i>
+                        Phone:
+                    </div>
+                    <div class="detail-value">{{ ($countryCode ?? '') . ' ' . ($phone ?? 'Not provided') }}</div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-home detail-icon"></i>
+                        Address:
+                    </div>
+                    <div class="detail-value">
+                        {{ $address1 ?? 'Not provided' }}
+                        @if(isset($address2) && !empty($address2))
+                            <br>{{ $address2 }}
+                        @endif
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-map detail-icon"></i>
+                        State/ZIP:
+                    </div>
+                    <div class="detail-value">{{ ($state ?? 'Not provided') . ', ' . ($zip ?? '') }}</div>
+                </div>
+                
+                @if(isset($specialRequests) && !empty($specialRequests))
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-clipboard-list detail-icon"></i>
+                        Special Requests:
+                    </div>
+                    <div class="detail-value">{{ $specialRequests }}</div>
                 </div>
                 @endif
             </div>
+            
+            <!-- Price section removed as requested -->
             
             <!-- Call to Action Button -->
             {{-- <a href="{{ route('bookinglist.index') }}" class="cta-button">
