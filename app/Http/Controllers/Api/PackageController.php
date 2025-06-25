@@ -253,39 +253,40 @@ class PackageController extends Controller
         
     public function storeMultipleOrders(Request $request)
     {
-        // Validate the outer fields
-        $validated = $request->validate([
-            'type' => 'required|string',
-            'tour_id' => 'required|integer',
-            'agent_id' => 'required|integer',
-            'data' => 'required|array',
-        ]);
+        $payload = $request->all(); // this is the outer array
 
-        $type = $validated['type'];
-        $tourId = $validated['tour_id'];
-        $agentId = $validated['agent_id'];
-        $dataItems = $validated['data']; // array of order data
+        foreach ($payload as $entry) {
+            // Validate each entry
+            validator($entry, [
+                'type' => 'required|string',
+                'tour_id' => 'required|integer',
+                'agent_id' => 'required|integer',
+                'data' => 'required|array',
+            ])->validate();
 
-        foreach ($dataItems as $item) {
-            // Optional: Validate each data item if needed
-            // validator($item, [ ... ])->validate();
+            $type = $entry['type'];
+            $tourId = $entry['tour_id'];
+            $agentId = $entry['agent_id'];
 
-            $max_book_id = Order::max('booking_id') ?? 0;
-            $bookId = CommonHelper::createId($max_book_id);
+            foreach ($entry['data'] as $item) {
+                $max_book_id = Order::max('booking_id') ?? 0;
+                $bookId = CommonHelper::createId($max_book_id);
 
-            Order::create([
-                'agent_id' => $agentId,
-                'tour_id' => $tourId,
-                'data' => $item, // each $item is a JSON structure
-                'type' => $type,
-                'bookingType' => 'enquiry',
-                'booking_id' => $bookId,
-                'status' => 1,
-            ]);
+                Order::create([
+                    'agent_id' => $agentId,
+                    'tour_id' => $tourId,
+                    'data' => $item,
+                    'type' => $type,
+                    'bookingType' => 'enquiry',
+                    'booking_id' => $bookId,
+                    'status' => 1,
+                ]);
+            }
         }
 
         return response()->json(['message' => 'All orders saved successfully.']);
     }
+
 
     public function booking(Request $request){
         // Extract booking data from request
