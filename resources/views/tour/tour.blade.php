@@ -10,6 +10,7 @@
 
 
 
+
 <!-- Add in the head section of your layout -->
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1506,6 +1507,14 @@
     </div>
 </div>
 
+<!-- Payment Processing Overlay -->
+<div id="paymentProcessingOverlay" class="payment-processing-overlay">
+    <div class="payment-spinner"></div>
+    <div style="text-align: center; font-size: 1.2rem; font-weight: 500;">
+        Processing Payment...
+    </div>
+</div>
+
 <!-- Move modals outside the table -->
 @foreach($tours as $tour)
     <!-- Payment History Modal -->
@@ -1535,6 +1544,10 @@
                                         <th class="text-center">Original Amount</th>
                                         <th class="text-center">Currency</th>
                                         <th class="text-center">Exchange Rate</th>
+                                        <th class="text-center">Amount (SGD)</th>
+                                        <th class="text-center">Original Amount</th>
+                                        <th class="text-center">Currency</th>
+                                        <th class="text-center">Exchange Rate</th>
                                         <th class="text-center">Payment Mode</th>
                                         <th class="text-center">Transaction ID</th>
                                         <th class="text-center">Remarks</th>
@@ -1549,7 +1562,25 @@
                                         <tr>
                                             <td class="text-center">{{ \App\Helpers\CommonHelper::DateFormatAdmin($payment['payment_date'] ?? '') }}</td>
                                             <td class="text-center">{{ \App\Helpers\CommonHelper::DateFormatAdmin($payment['date'] ?? '') }}</td>
+                                            <td class="text-center">{{ \App\Helpers\CommonHelper::DateFormatAdmin($payment['date'] ?? '') }}</td>
                                             <td class="text-center">{{ number_format($payment['amount'] ?? 0, 2) }}</td>
+                                            <td class="text-center">
+                                                @if(isset($payment['original_amount']) && isset($payment['currency']) && $payment['currency'] !== 'SGD')
+                                                    {{ number_format($payment['original_amount'], 2) }}
+                                                @else
+                                                    {{ number_format($payment['amount'] ?? 0, 2) }}
+                                                @endif
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-info">{{ $payment['currency'] ?? 'SGD' }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if(isset($payment['exchange_rate']) && $payment['currency'] !== 'SGD')
+                                                    1 SGD = {{ number_format($payment['exchange_rate'], 4) }} {{ $payment['currency'] }}
+                                                @else
+                                                    1.0000
+                                                @endif
+                                            </td>
                                             <td class="text-center">
                                                 @if(isset($payment['original_amount']) && isset($payment['currency']) && $payment['currency'] !== 'SGD')
                                                     {{ number_format($payment['original_amount'], 2) }}
@@ -1647,6 +1678,7 @@
                     <div class="mb-4">
                         <label for="amount{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-dollar-sign text-success me-2"></i>Due Amount (SGD)
+                                <i class="fas fa-dollar-sign text-success me-2"></i>Due Amount (SGD)
                         </label>
                                     
                             @php
@@ -1693,6 +1725,8 @@
                                     oninput="validateAmount(this, {{ $remainingAmount }})"
                                     onkeypress="return event.charCode >= 48 && event.charCode <= 57"
                                     readonly>
+                                    onkeypress="return event.charCode >= 48 && event.charCode <= 57"
+                                    readonly>
                         </div>
                             <div class="mt-2">
                                 <small class="text-muted">
@@ -1702,6 +1736,83 @@
                                 </small>
                             </div>
                         </div>
+                        
+                        <!-- Currency Selection -->
+                        <div class="mb-4">
+                            <label for="currency{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-coins text-warning me-2"></i>Select Currency
+                            </label>
+                            <select class="form-select form-control-lg" 
+                                id="currency{{ $tour->tour_id }}" 
+                                name="currency" 
+                                onchange="updatePaymentAmountEnhanced({{ $tour->tour_id }}, this.value)"
+                                required>
+                                <option value="">Select Currency</option>
+                                @foreach(\App\Models\Setting::getCurrencyCodes() as $currency)
+                                    <option value="{{ $currency }}" {{ $currency == 'SGD' ? 'selected' : '' }}>
+                                        {{ $currency }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <!-- Exchange Rate (Editable) -->
+                        <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">
+                            <label for="exchange_rate{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">1 SGD =</span>
+                                <input type="number" 
+                                    class="form-control form-control-lg" 
+                                    id="exchange_rate{{ $tour->tour_id }}" 
+                                    name="exchange_rate" 
+                                    value="1.00" 
+                                    min="0" 
+                                    step="0.0001"
+                                    oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
+                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">SGD</span>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
+                                    <i class="fas fa-globe me-1"></i>
+                                    Rate Source: <span id="rateSourceText{{ $tour->tour_id }}">API</span>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <!-- Payment Amount in Selected Currency -->
+                        <div class="mb-4">
+                            <label for="payment_amount{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">SGD</span>
+                                <input type="number" 
+                                    class="form-control form-control-lg" 
+                                    id="payment_amount{{ $tour->tour_id }}" 
+                                    name="payment_amount" 
+                                    value="{{ $remainingAmount }}" 
+                                    required
+                                    min="0" 
+                                    step="0.01"
+                                    oninput="validatePaymentAmountInput({{ $tour->tour_id }})"
+                                    onblur="validatePaymentAmountInput({{ $tour->tour_id }})">
+                            </div>
+                            <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
+                                <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Amount in SGD: {{ number_format($remainingAmount, 2) }}
+                                </small>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-danger" id="paymentValidationError{{ $tour->tour_id }}" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <span id="validationMessage{{ $tour->tour_id }}"></span>
+                                </small>
+                            </div>
+                        </div>
+
                         
                         <!-- Currency Selection -->
                         <div class="mb-4">
@@ -2373,6 +2484,24 @@ function checkPendingPayments(tourId) {
     console.log('Checking pending payments for tour:', tourId);
     return true;
 }
+
+// Enhanced form submission validation
+function validateBeforeSubmit(tourId) {
+    const isValid = validatePaymentAmountInput(tourId);
+    if (!isValid) {
+        toastr.error('Please correct the payment amount before submitting.');
+        return false;
+    }
+    return true;
+}
+
+// Check for pending payments before allowing new payment
+function checkPendingPayments(tourId) {
+    // This function can be used to check for pending payments
+    // For now, it's just a placeholder since the condition is already checked in the PHP code
+    console.log('Checking pending payments for tour:', tourId);
+    return true;
+}
 </script>
 <!-- Add this JavaScript for payment verification -->
 <script>
@@ -2627,6 +2756,357 @@ function checkPendingPayments(tourId) {
                     console.error('Error:', error);
                 }
             });
+        });
+    });
+</script>
+
+<!-- Currency Conversion Script -->
+<script>
+    // Store exchange rates cache
+    let exchangeRatesCache = {};
+    
+    // Currency symbols mapping
+    const currencySymbols = {
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'JPY': '¥',
+        'CNY': '¥',
+        'INR': '₹',
+        'SGD': 'S$',
+        'AUD': 'A$',
+        'CAD': 'C$',
+        'CHF': 'CHF',
+        'KRW': '₩',
+        'THB': '฿',
+        'MYR': 'RM',
+        'IDR': 'Rp',
+        'PHP': '₱',
+        'VND': '₫',
+        'HKD': 'HK$',
+        'NZD': 'NZ$',
+        'SEK': 'kr',
+        'NOK': 'kr',
+        'DKK': 'kr',
+        'PLN': 'zł',
+        'CZK': 'Kč',
+        'HUF': 'Ft',
+        'RON': 'lei',
+        'BGN': 'лв',
+        'HRK': 'kn',
+        'RUB': '₽',
+        'TRY': '₺',
+        'ZAR': 'R',
+        'BRL': 'R$',
+        'MXN': '$',
+        'ILS': '₪',
+        'ISK': 'kr'
+    };
+    
+    async function updatePaymentAmount(tourId, selectedCurrency) {
+        if (!selectedCurrency) {
+            return;
+        }
+        
+        const amountField = document.getElementById(`payment_amount${tourId}`);
+                const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
+        const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
+        const exchangeRateSection = document.getElementById(`exchangeRateSection${tourId}`);
+        const exchangeRateField = document.getElementById(`exchange_rate${tourId}`);
+        const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
+        const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+        const dueAmountSGD = parseFloat(document.getElementById(`amount${tourId}`).value);
+        
+        // Update currency symbol and exchange rate currency display
+        currencySymbol.textContent = currencySymbols[selectedCurrency] || selectedCurrency;
+        exchangeRateCurrency.textContent = selectedCurrency;
+        
+        if (selectedCurrency === 'SGD') {
+            // If SGD is selected, hide exchange rate and conversion info
+            amountField.value = dueAmountSGD.toFixed(2);
+            document.getElementById(`conversionInfoContainer${tourId}`).style.display = 'none';
+            exchangeRateSection.style.display = 'none';
+            return;
+        } else {
+            // Show exchange rate section for non-SGD currencies
+            exchangeRateSection.style.display = 'block';
+        }
+        
+        // Show loading state
+        conversionInfo.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>Fetching exchange rate...`;
+        exchangeRateSection.style.display = 'block';
+        
+        try {
+            // Check cache first
+            const cacheKey = `SGD_${selectedCurrency}`;
+            let exchangeRate;
+            
+            if (exchangeRatesCache[cacheKey] && exchangeRatesCache[cacheKey].timestamp > Date.now() - 300000) { // 5 minutes cache
+                exchangeRate = exchangeRatesCache[cacheKey].rate;
+            } else {
+                // Fetch exchange rate from your currency service
+                const response = await fetch(`{{ route('get-exchange-rate') }}?from=SGD&to=${selectedCurrency}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch exchange rate');
+                }
+                
+                const data = await response.json();
+                exchangeRate = data.rate;
+                
+                // Cache the rate
+                exchangeRatesCache[cacheKey] = {
+                    rate: exchangeRate,
+                    timestamp: Date.now()
+                };
+            }
+            
+            if (exchangeRate) {
+                const convertedAmount = (dueAmountSGD * exchangeRate).toFixed(2);
+                amountField.value = convertedAmount;
+                
+                // Update exchange rate field and show conversion info
+                exchangeRateField.value = exchangeRate.toFixed(4);
+                rateSourceText.textContent = 'API';
+                document.getElementById(`conversionInfoContainer${tourId}`).style.display = 'block';
+                conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${dueAmountSGD.toFixed(2)}`;
+                
+                // Add validation for the converted amount
+                amountField.setAttribute('data-sgd-equivalent', dueAmountSGD);
+                amountField.setAttribute('data-exchange-rate', exchangeRate);
+            } else {
+                throw new Error('Exchange rate not available');
+            }
+        } catch (error) {
+            console.error('Error fetching exchange rate:', error);
+            
+            // Fallback to manual entry
+            amountField.value = '';
+            exchangeRateField.value = '1.00';
+            rateSourceText.textContent = 'Manual';
+            document.getElementById(`conversionInfoContainer${tourId}`).style.display = 'block';
+            conversionInfo.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i>Exchange rate unavailable. Please enter rate and amount manually.`;
+            
+            // Show a toast notification
+            toastr.warning(`Unable to fetch exchange rate for ${selectedCurrency}. Please enter the amount manually.`);
+        }
+    }
+    
+    // Add validation for payment amount changes
+    function validatePaymentAmount(tourId) {
+        const amountField = document.getElementById(`payment_amount${tourId}`);
+        const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+        const sgdEquivalent = parseFloat(amountField.getAttribute('data-sgd-equivalent'));
+        const exchangeRate = parseFloat(amountField.getAttribute('data-exchange-rate'));
+        
+        if (selectedCurrency !== 'SGD' && sgdEquivalent && exchangeRate) {
+            const enteredAmount = parseFloat(amountField.value);
+            const calculatedSGD = enteredAmount / exchangeRate;
+            const dueAmountSGD = parseFloat(document.getElementById(`amount${tourId}`).value);
+            
+            if (calculatedSGD > dueAmountSGD + 0.01) { // Allow small rounding differences
+                toastr.warning(`The entered amount exceeds the due amount when converted to SGD.`);
+                amountField.value = (dueAmountSGD * exchangeRate).toFixed(2);
+            }
+        }
+    }
+    
+    // Update form submission to handle currency conversion
+    function updateSubmitPaymentForm(tourId) {
+        const originalFunction = window.submitPaymentForm;
+        
+        window.submitPaymentForm = function(tourId) {
+            // Validate before submission
+            if (!validateBeforeSubmit(tourId)) {
+                return false;
+            }
+            
+            // Get the form
+            const form = document.getElementById('paymentForm' + tourId);
+            
+            // Get currency conversion data
+            const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+            const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value);
+            const exchangeRate = parseFloat(document.getElementById(`payment_amount${tourId}`).getAttribute('data-exchange-rate')) || 1;
+            
+            // Calculate SGD converted amount
+            let sgdConvertedAmount = paymentAmount;
+            if (selectedCurrency !== 'SGD' && exchangeRate > 0) {
+                sgdConvertedAmount = paymentAmount / exchangeRate;
+            }
+            
+            // Remove any existing hidden currency fields to avoid duplicates
+            const existingFields = form.querySelectorAll('input[name="selected_currency"], input[name="exchange_rate"], input[name="converted_amount"], input[name="sgd_amount"], input[name="original_amount"], input[name="original_currency"]');
+            existingFields.forEach(field => field.remove());
+            
+            // Add hidden inputs for currency data
+            const currencyInput = document.createElement('input');
+            currencyInput.type = 'hidden';
+            currencyInput.name = 'selected_currency';
+            currencyInput.value = selectedCurrency;
+            form.appendChild(currencyInput);
+            
+            const rateInput = document.createElement('input');
+            rateInput.type = 'hidden';
+            rateInput.name = 'exchange_rate';
+            rateInput.value = exchangeRate.toFixed(4);
+            form.appendChild(rateInput);
+            
+            const originalAmountInput = document.createElement('input');
+            originalAmountInput.type = 'hidden';
+            originalAmountInput.name = 'original_amount';
+            originalAmountInput.value = paymentAmount.toFixed(2);
+            form.appendChild(originalAmountInput);
+            
+            const originalCurrencyInput = document.createElement('input');
+            originalCurrencyInput.type = 'hidden';
+            originalCurrencyInput.name = 'original_currency';
+            originalCurrencyInput.value = selectedCurrency;
+            form.appendChild(originalCurrencyInput);
+            
+            const sgdAmountInput = document.createElement('input');
+            sgdAmountInput.type = 'hidden';
+            sgdAmountInput.name = 'sgd_amount';
+            sgdAmountInput.value = sgdConvertedAmount.toFixed(2);
+            form.appendChild(sgdAmountInput);
+            
+            // Update the main amount field to SGD converted amount for backend processing
+            document.getElementById(`amount${tourId}`).value = sgdConvertedAmount.toFixed(2);
+            
+            // Call original function
+            if (originalFunction) {
+                originalFunction(tourId);
+            }
+        };
+    }
+    
+
+    
+         // Validation function for payment amount
+    function validatePaymentAmountInput(tourId) {
+        const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
+        const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+        const exchangeRate = parseFloat(document.getElementById(`payment_amount${tourId}`).getAttribute('data-exchange-rate')) || 1;
+        const originalDueAmount = parseFloat(document.getElementById(`amount${tourId}`).getAttribute('data-original-due')) || parseFloat(document.getElementById(`amount${tourId}`).value);
+        
+        let sgdEquivalent = paymentAmount;
+        
+        // Convert to SGD if different currency
+        if (selectedCurrency !== 'SGD' && exchangeRate > 0) {
+            sgdEquivalent = paymentAmount / exchangeRate;
+        }
+        
+        // Update the SGD equivalent display
+        updateSGDEquivalentDisplay(tourId, sgdEquivalent, selectedCurrency);
+        
+        const validationError = document.getElementById(`paymentValidationError${tourId}`);
+        const validationMessage = document.getElementById(`validationMessage${tourId}`);
+        const paymentField = document.getElementById(`payment_amount${tourId}`);
+        
+        if (sgdEquivalent > originalDueAmount) {
+            // Show validation error
+            validationMessage.textContent = `Payment amount exceeds due amount. Maximum allowed: ${(originalDueAmount * exchangeRate).toFixed(2)} ${selectedCurrency}`;
+            validationError.style.display = 'block';
+            paymentField.classList.add('is-invalid');
+            
+            // Auto-correct to maximum allowed
+            const maxAllowed = (originalDueAmount * exchangeRate).toFixed(2);
+            paymentField.value = maxAllowed;
+            
+            // Recalculate SGD equivalent for corrected amount
+            const correctedSGD = parseFloat(maxAllowed) / exchangeRate;
+            updateSGDEquivalentDisplay(tourId, correctedSGD, selectedCurrency);
+            
+            // Show toast notification
+            toastr.warning(`Payment amount adjusted to maximum allowed: ${maxAllowed} ${selectedCurrency}`);
+            
+            return false;
+        } else {
+            // Hide validation error
+            validationError.style.display = 'none';
+            paymentField.classList.remove('is-invalid');
+            return true;
+        }
+    }
+    
+    // Function to update SGD equivalent display
+    function updateSGDEquivalentDisplay(tourId, sgdAmount, selectedCurrency) {
+        const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
+        const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
+        
+        if (selectedCurrency !== 'SGD') {
+            conversionInfoContainer.style.display = 'block';
+            conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${sgdAmount.toFixed(2)}`;
+        } else {
+            conversionInfoContainer.style.display = 'none';
+        }
+    }
+
+
+    
+         // Recalculate payment amount when exchange rate is changed (new simplified function)
+    function recalculateFromExchangeRate(tourId) {
+        const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
+        const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+        const dueAmountSGD = parseFloat(document.getElementById(`amount${tourId}`).value);
+        const paymentAmountField = document.getElementById(`payment_amount${tourId}`);
+        const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+        
+        if (selectedCurrency !== 'SGD') {
+            const convertedAmount = (dueAmountSGD * exchangeRate).toFixed(2);
+            paymentAmountField.value = convertedAmount;
+            
+            // Update rate source to manual
+            rateSourceText.textContent = 'Manual';
+            
+            // Update SGD equivalent display
+            updateSGDEquivalentDisplay(tourId, dueAmountSGD, selectedCurrency);
+        }
+        
+        // Update data attributes
+        paymentAmountField.setAttribute('data-exchange-rate', exchangeRate);
+        
+        // Validate the final payment amount
+        validatePaymentAmountInput(tourId);
+    }
+
+     // Legacy function for backward compatibility (updated)
+    function recalculateFromRate(tourId) {
+        recalculateFromExchangeRate(tourId);
+    }
+    
+         // Enhanced updatePaymentAmount function (simplified)
+    async function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
+        // Use the original automatic function
+        await updatePaymentAmount(tourId, selectedCurrency);
+    }
+
+    // Initialize currency conversion on page load
+    $(document).ready(function() {
+        // Apply to all payment modals
+        $('[id^="currency"]').each(function() {
+            const tourId = this.id.replace('currency', '');
+            if (tourId) {
+                updateSubmitPaymentForm(tourId);
+                
+                // Add event listener for amount validation
+                $(`#payment_amount${tourId}`).on('blur', function() {
+                    validatePaymentAmount(tourId);
+                });
+                
+                // Initialize exchange rate field
+                $(`#exchange_rate${tourId}`).val('1.00');
+                
+                // Store original due amount for validation
+                const originalAmount = parseFloat($(`#amount${tourId}`).val());
+                $(`#amount${tourId}`).attr('data-original-due', originalAmount);
+            }
         });
     });
 </script>
