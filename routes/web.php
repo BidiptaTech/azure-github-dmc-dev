@@ -89,6 +89,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::post('/update-price-comment', [EnquiryController::class, 'update'])->name('update-price-comment');
     //currency exchange rate
     Route::get('/exchange-rate', [CurrencyController::class, 'showExchangeRate']);
+    Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
         // Predefined Packages Routes
@@ -347,7 +348,6 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('/hotels/search', [RoomtypeController::class, 'search'])->name('hotels.search');
         Route::get('/hotels/{hotelId}/facilities', [RoomtypeController::class, 'getHotelFacilities']);
         // Route::get('/booking', [BookingController::class, 'index'])->name('booking');
-        // Route::post('/booking/approve', [BookingController::class, 'approve'])->name('booking.approve');
         // Route::post('/booking/decline', [BookingController::class, 'decline'])->name('booking.decline');
 
         Route::get('/booking', [BookingController::class, 'index'])->name('booking.index');
