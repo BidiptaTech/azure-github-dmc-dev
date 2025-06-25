@@ -250,28 +250,37 @@ class PackageController extends Controller
         
         return response()->json($package);
     } 
-
-   
         
     public function storeMultipleOrders(Request $request)
     {
-        $items = $request->all(); // Entire payload
-        foreach ($items as $item) {
-            validator($item, [
-                'type' => 'required|string',
-                'tour_id' => 'required|integer',
-                'agent_id' => 'required|integer',
-            ])->validate();
+        // Validate the outer fields
+        $validated = $request->validate([
+            'type' => 'required|string',
+            'tour_id' => 'required|integer',
+            'agent_id' => 'required|integer',
+            'data' => 'required|array',
+        ]);
+
+        $type = $validated['type'];
+        $tourId = $validated['tour_id'];
+        $agentId = $validated['agent_id'];
+        $dataItems = $validated['data']; // array of order data
+
+        foreach ($dataItems as $item) {
+            // Optional: Validate each data item if needed
+            // validator($item, [ ... ])->validate();
+
             $max_book_id = Order::max('booking_id') ?? 0;
             $bookId = CommonHelper::createId($max_book_id);
+
             Order::create([
-                'agent_id' => $item['agent_id'],
-                'tour_id' => $item['tour_id'],
-                'data' => $item['data'], // data is JSON column
-                'type' => $item['type'],
+                'agent_id' => $agentId,
+                'tour_id' => $tourId,
+                'data' => $item, // each $item is a JSON structure
+                'type' => $type,
                 'bookingType' => 'enquiry',
                 'booking_id' => $bookId,
-                'status' => 1, // default or as needed
+                'status' => 1,
             ]);
         }
 

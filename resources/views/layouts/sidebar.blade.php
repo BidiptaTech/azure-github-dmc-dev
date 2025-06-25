@@ -1208,12 +1208,16 @@
                         <div data-i18n="All Users">All Users</div>
                     </a>
                     <ul class="menu-sub">
-                        @if(hasPermission('view users'))
-                        <li class="menu-item @if(Request::is('users')) active @endif">
-                            <a href="{{ route('users.index') }}" class="menu-link">
-                                <div data-i18n="Users">Users</div>
-                            </a>
-                        </li>
+                        @php
+                            $excludedRoles = [81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127];
+                        @endphp
+
+                        @if(hasPermission('view users') && !in_array(auth()->user()->role_id, $excludedRoles))
+                            <li class="menu-item @if(Request::is('users')) active @endif">
+                                <a href="{{ route('users.index') }}" class="menu-link">
+                                    <div data-i18n="Users">Users</div>
+                                </a>
+                            </li>
                         @endif
                        
                         @if(hasPermission('view agent'))
