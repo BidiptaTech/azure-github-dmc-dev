@@ -161,6 +161,13 @@ jobs:
               php artisan key:generate --force || true
           fi
 
+          # 💡 Insert clear and optimize commands here
+          php artisan cache:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          php artisan optimize || true
+
+          
           php artisan config:cache || true
           php artisan route:cache || true
           php artisan view:cache || true
