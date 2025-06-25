@@ -1001,58 +1001,116 @@ class CommonHelper
         }
     }
 
-    public static function sendEmail($email, $type, $subject, $body, $data)
+    public static function sendEmail($email, $type, $subject, $body, $orderData)
     {
         try {
-            if($type == 'confirmation'){
-                // Get company settings for the email
-                $logoSetting = self::masterSettingsName('logo');
-                $nameSetting = self::masterSettingsName('name');
-                
-                // Add company info to the data array if not already present
-                if (!isset($data['company'])) {
-                    $data['company'] = [
-                        "companyName" => $nameSetting['master_value'] ?? config('app.name'),
-                        "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
-                    ];
-                }
-                
-                // Add mail settings if not already present
-                if (!isset($data['mail_settings'])) {
-                    $data['mail_settings'] = (object)[
-                        "support_email" => "support@yourdomain.com",
-                        "support_phone" => "+1 (555) 123-4567",
-                        "facebook_url" => "https://facebook.com/yourcompany",
-                        "twitter_url" => "https://twitter.com/yourcompany",
-                        "instagram_url" => "https://instagram.com/yourcompany",
-                        "linkedin_url" => "https://linkedin.com/company/yourcompany"
-                    ];
-                }
-                
-                // Render the email template with all data
-                $html = view('mails.booking_confirmation', array_merge($data, ['body' => $body]))->render();
-                Mail::to($email)->send(new DmcMail($html, $subject));
-                Log::info("Confirmation email sent to: {$email}");
+            // Process order data to prepare template data
+            $data = [];
+            
+            // Extract data from order object if it's an object
+            if (is_object($orderData)) {
+                // If it's an Order model object, extract what we need
+                $data = [
+                    "booking_id" => $orderData->booking_id ?? ('BK-' . ($orderData->id ?? rand(10000, 99999))),
+                    "customer_name" => $orderData->customer_name ?? $orderData->name ?? "Guest",
+                    "type" => $type,
+                    "booking_date" => $orderData->booking_date ?? date('Y-m-d'),
+                    "check_in_date" => $orderData->check_in_date ?? date('Y-m-d'),
+                    "check_out_date" => $orderData->check_out_date ?? date('Y-m-d', strtotime('+1 day')),
+                    "location" => $orderData->location ?? $orderData->city ?? "Unknown",
+                    "guests" => $orderData->guests ?? "Not specified",
+                    "reference_number" => $orderData->reference_number ?? ('REF-' . rand(1000, 9999)),
+                    "total_price" => $orderData->total_price ?? 0,
+                    "payment_status" => $orderData->payment_status ?? "Pending",
+                    "room_type" => $orderData->room_type ?? "Standard",
+                    "bed_type" => $orderData->bed_type ?? "Queen Size",
+                    
+                    "check_in_time" => $orderData->check_in_time ?? "15:00",
+                    "check_out_time" => $orderData->check_out_time ?? "11:00",
+                    "max_occupancy" => $orderData->max_occupancy ?? "Not specified",
+                    "baby_cot" => $orderData->baby_cot ?? "Not specified",
+                    "fullName" => $orderData->fullName ?? null,
+                    "email" => $orderData->email ?? null,
+                    "phone" => $orderData->phone ?? null,
+                    "countryCode" => $orderData->countryCode ?? null,
+                    "address1" => $orderData->address1 ?? null,
+                    "address2" => $orderData->address2 ?? null,
+                    "state" => $orderData->state ?? null,
+                    "zip" => $orderData->zip ?? null,
+                    "specialRequests" => $orderData->specialRequests ?? null
+                ];
             }
-            elseif($type == 'cancellation'){
-                $html = view('mails.booking_cancellation', compact('body', 'data'))->render();
-                Mail::to($email)->send(new DmcMail($html, $subject));
-                Log::info("Cancellation email sent to: {$email}");
-            }
-            elseif($type == 'invoice'){
-                $html = view('mails.booking_invoice', compact('body', 'data'))->render();
-                Mail::to($email)->send(new DmcMail($html, $subject));
-                Log::info("Invoice email sent to: {$email}");
-            }
-            else {
-                Log::warning("Unknown email type: {$type}");
-                throw new \Exception("Unknown email type: {$type}");
+            // If it's already an array, use it directly
+            else if (is_array($orderData)) {
+                $data = $orderData;
             }
             
-            return true;
+            // Get company settings for the email
+            $logoSetting = self::masterSettingsName('logo');
+            $nameSetting = self::masterSettingsName('name');
+            
+            // Add company info to the data array
+            $companyData = [
+                "company" => [
+                    "companyName" => $nameSetting['master_value'] ?? config('app.name'),
+                    "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
+                ]
+            ];
+            
+            // Add mail settings for the template
+            $mailSettings = (object)[
+                "support_email" => "support@yourdomain.com",
+                "support_phone" => "+1 (555) 123-4567",
+                "facebook_url" => "https://facebook.com/yourcompany",
+                "twitter_url" => "https://twitter.com/yourcompany",
+                "instagram_url" => "https://instagram.com/yourcompany",
+                "linkedin_url" => "https://linkedin.com/company/yourcompany"
+            ];
+            
+            // Merge all data
+            $viewData = array_merge($data, $companyData);
+            $viewData['mail_settings'] = $mailSettings;
+            
+            // Determine which template to use based on the type
+            $template = 'mails.' . $type;
+            if (!view()->exists($template)) {
+                $template = 'mails.booking_confirmation'; // Default template
+            }
+            
+            // Render the email template
+            $html = view($template, $viewData)->render();
+            
+            // Extract the entire style tag content
+            preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+            $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+            
+            // Extract the email-container div with all its contents
+            preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
+            if (!empty($matches[0])) {
+                $extractedHtml = $matches[0];
+                
+                // Add minimal HTML structure with the extracted styles
+                $emailHtml = '<!DOCTYPE html><html><head><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+                
+                // Send the email to the actual recipient
+                Mail::to($email)->send(new DmcMail($emailHtml, $subject));
+                
+                // Log successful email sending
+                Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
+                
+                return true;
+            } else {
+                // Handle case where the div is not found
+                Log::error("Email container div not found in email template");
+                return false;
+            }
         } catch (\Exception $e) {
-            Log::error("Failed to send {$type} email to {$email}: " . $e->getMessage());
-            throw $e;
+            \Log::error('Email sending failed: ' . $e->getMessage(), [
+                'recipient' => $email,
+                'type' => $type,
+                'error' => $e->getMessage()
+            ]);
+            return false;
         }
     }
 }
