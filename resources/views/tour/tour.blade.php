@@ -305,6 +305,45 @@
         padding: 8px 12px;
         margin-top: 5px;
     }
+
+    /* Custom pagination styles to match DataTables */
+    .dataTables_info {
+        color: #6c757d;
+        font-size: 0.875rem;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+    
+    .dataTables_paginate .pagination {
+        margin-bottom: 0;
+    }
+    
+    .dataTables_paginate .page-link {
+        color: #6c757d;
+        padding: 0.375rem 0.75rem;
+        margin-left: -1px;
+        line-height: 1.25;
+        border: 1px solid #dee2e6;
+        background-color: #fff;
+    }
+    
+    .dataTables_paginate .page-link:hover {
+        color: #495057;
+        background-color: #e9ecef;
+        border-color: #dee2e6;
+    }
+    
+    .dataTables_paginate .page-item.active .page-link {
+        color: #fff;
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    
+    .dataTables_paginate .page-item.disabled .page-link {
+        color: #6c757d;
+        background-color: #fff;
+        border-color: #dee2e6;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -1437,6 +1476,24 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Pagination Links -->
+            @if($tours->hasPages())
+                <div class="d-flex justify-content-between align-items-center mt-4 px-3">
+                    <div class="dataTables_info">
+                        Showing {{ $tours->firstItem() }} to {{ $tours->lastItem() }} of {{ $tours->total() }} entries
+                    </div>
+                    <div class="dataTables_paginate">
+                        {{ $tours->links('pagination::bootstrap-4') }}
+                    </div>
+                </div>
+            @elseif($tours->count() > 0)
+                <div class="d-flex justify-content-start mt-4 px-3">
+                    <div class="dataTables_info">
+                        Showing {{ $tours->count() }} {{ $tours->count() === 1 ? 'entry' : 'entries' }}
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -1918,9 +1975,14 @@
 <!-- DataTables Initialization Script -->
 <script>
  $(document).ready(function() {
-    // Initialize DataTable with export buttons
+    // Initialize DataTable with export buttons but disable pagination and length changing
     $('.datatables-basic').DataTable({
         responsive: true,
+        paging: false, // Disable DataTables pagination
+        lengthChange: false, // Disable length changing
+        info: false, // Disable info display ("Showing 1 to 10 of X entries")
+        searching: true, // Keep search functionality
+        ordering: true, // Keep column sorting
         buttons: [
             'copy',
             'csv',
@@ -1932,8 +1994,6 @@
             search: "_INPUT_",
             searchPlaceholder: "Search...",
         },
-        lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
-        pageLength: 10, // Default number of entries per page
         drawCallback: function() {
             // Reinitialize Select2 for guide and driver dropdowns after each draw
             $('.guideSelect').select2({

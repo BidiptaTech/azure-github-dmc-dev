@@ -402,6 +402,7 @@ class BookingListController extends Controller
         }
 
         $order->is_approve = 1;
+        $order->status = 3;
         $order->approval_id = $request->reference_id;
 
         if ($request->hasFile('reference_file')) {

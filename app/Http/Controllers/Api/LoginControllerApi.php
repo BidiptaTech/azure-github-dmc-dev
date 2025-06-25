@@ -279,9 +279,15 @@ class LoginControllerApi extends Controller
             foreach ($countries as $countryName) {
                 $countryCode = CountryHelper::getCountryCode($countryName);
                 if ($countryCode) {
+                    $countryInfos = Country::where('name', $countryName)->first();
+                    $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
+                    $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
                     $userCountryData[] = [
                         'name' => $countryName,
-                        'code' => $countryCode
+                        'code' => $countryCode,
+                        'country_code' => $countryInfos->country_code,
+                        'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
+                        'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
                     ];
                 }
             }
@@ -290,11 +296,6 @@ class LoginControllerApi extends Controller
         $countryInfo = Country::where('name', $country)->first();
 
         $agent_country_tax = $countryInfo->tax_percentage ?? 0;
-
-        // Get max_length and min_length with default value of 10 if null
-        $agent_country_max_length = $countryInfo->max_length ?? 10;  // Default to 10 if null
-        $agent_country_min_length = $countryInfo->min_length ?? 10;  // Default to 10 if null
-
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
         return response()->json([
@@ -323,8 +324,7 @@ class LoginControllerApi extends Controller
                 'usd_tax' => $usd_tax,
                 'sgd_tax' => $sgd_tax,
                 'agent_country_tax' => $agent_country_tax,
-                'agent_country_max_length' => $agent_country_max_length, // Will be 10 if null in database
-                'agent_country_min_length' => $agent_country_min_length, // Will be 10 if null in database
+                
                 'price_hide' => $dmc_users->price_hide ?? 0,
                 'user_role' => $userRole,
                 'zone_on' => $dmc_users->zone_on ?? 0,

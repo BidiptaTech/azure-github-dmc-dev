@@ -346,7 +346,6 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('/hotels/search', [RoomtypeController::class, 'search'])->name('hotels.search');
         Route::get('/hotels/{hotelId}/facilities', [RoomtypeController::class, 'getHotelFacilities']);
         // Route::get('/booking', [BookingController::class, 'index'])->name('booking');
-        // Route::post('/booking/approve', [BookingController::class, 'approve'])->name('booking.approve');
         // Route::post('/booking/decline', [BookingController::class, 'decline'])->name('booking.decline');
 
         Route::get('/booking', [BookingController::class, 'index'])->name('booking.index');
