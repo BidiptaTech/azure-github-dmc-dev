@@ -423,6 +423,15 @@ class PackageController extends Controller
     }
 
     /**
+     * Get transport by city (AJAX)
+     */
+    public function getTransportByCity($city)
+    {
+        $transport = Vehicles::where('city', $city)->get(['vehicle_id', 'name', 'city','vehicle_type','vehicle_capacity','vehicle_image','vehicle_description','vehicle_price','vehicle_status']);
+        return response()->json($transport);
+    }
+
+    /**
      * Process selected items array from request
      * 
      * @param array $items Array of selected items from request

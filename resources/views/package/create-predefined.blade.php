@@ -312,6 +312,25 @@
 
             </div>
 
+            <!-- Transport Selection -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="ri-bus-line me-2 text-primary"></i>Transport Selection</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Transport</label>
+                            <select class="form-select" id="transport-select" disabled>
+                                <option value="">Select Transport</option>
+                            </select>
+                            <input type="hidden" name="selected_transport">
+                        </div>
+                    </div>
+                </div>
+                <div id="selected-transport" class="mt-3"></div>
+            </div>
+
             <!-- Inclusions & Exclusions -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -436,7 +455,7 @@
 $(document).ready(function() {
     // Initialize Select2
     $('#country-select, #city-select').select2();
-    $('#hotel-select, #attraction-select, #restaurant-select').select2({
+    $('#hotel-select, #attraction-select, #restaurant-select, #transport-select').select2({
         multiple: true,
         placeholder: 'Select options'
     });
@@ -480,11 +499,13 @@ $(document).ready(function() {
         const attractionSelect = $('#attraction-select');
         const guideSelect = $('#guide-select');
         const restaurantSelect = $('#restaurant-select');
-        
+        const transportSelect = $('#transport-select');
+
         hotelSelect.empty().prop('disabled', true);
         attractionSelect.empty().prop('disabled', true);
         guideSelect.empty().prop('disabled', true);
         restaurantSelect.empty().prop('disabled', true);
+        transportSelect.empty().prop('disabled', true);
         
         if (city) {
             // Load hotels
@@ -560,6 +581,23 @@ $(document).ready(function() {
                             city: restaurant.city
                         });
                         restaurantSelect.append(option);
+                    });
+                }
+            });
+
+            // Load transport
+            $.ajax({
+                url: `{{ env('APP_URL') }}/get-transport/${encodeURIComponent(city)}`,
+                method: 'GET',
+                success: function(response) {
+                    transportSelect.prop('disabled', false);
+                    response.forEach(function(transport) {
+                        const option = new Option(transport.name, transport.transport_id);
+                        $(option).data('transport-data', {
+                            id: transport.transport_id,
+                            name: transport.name
+                        });
+                        transportSelect.append(option);
                     });
                 }
             });
