@@ -94,6 +94,8 @@ export default function HotelComponent({ searchParams }) {
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria || {});
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
   
   // Get hotel room data from Redux store
   const { roomDatas, status: roomDataStatus } = useSelector(state => state.rooms);
@@ -456,27 +458,9 @@ export default function HotelComponent({ searchParams }) {
           };
         });
 
-        // Create the hotel booking data with both hotel details and customer info
+        // Create the hotel booking data matching the exact payload structure from booking-page
         const hotelBookingData = {
-          id: hotelBookingId,
-          bookingDate: bookingDates,
-          hotelDetails: {
-            hotel_id: group.hotelId,
-            hotel_name: hotel.hotel_name || hotel.name || 'Selected Hotel',
-            checkInTime: hotel.checkInTime || hotel.check_in_time || "15:00:00",
-            checkOutTime: hotel.checkOutTime || hotel.check_out_time || "12:00:00",
-            image: hotel.image || hotel.main_image || '',
-            location: hotel.address || hotel.location || '',
-            phone: hotel.phone || hotel.contact_number || '',
-            cancellation_charge: hotel.cancellation_charge || '',
-            priceMode: "dmc",
-            priceModeId: 4,
-            rooms: consolidatedRooms
-          },
-          totalPrice: group.totalPrice,
-          tour_id: parseInt(searchCriteria?.tourId) || 0,
-          
-          // If we have customer info, add these fields to the hotel booking data
+          // Add all formData properties (spread from customer info if available)
           ...(customerInfoService ? {
             customer_name: customerInfoService.fullName || customerInfoService.name,
             customer_email: customerInfoService.email,
@@ -487,7 +471,28 @@ export default function HotelComponent({ searchParams }) {
             zip: customerInfoService.zip,
             specialRequests: customerInfoService.specialRequests,
             countryCode: customerInfoService.countryCode
-          } : {})
+          } : {}),
+          
+          // Core payload structure from booking-page/index.jsx
+          rooms: consolidatedRooms,
+          totalPrice: group.totalPrice || 0,
+          bookingType: "booking",
+          priceMode: "dmc",
+          priceModeId: 4,
+          hotelDetails: {
+            hotel_id: group.hotelId || "",
+            hotel_name: hotel.hotel_name || hotel.name || 'Selected Hotel',
+            checkInTime: hotel.checkInTime || hotel.check_in_time || "15:00:00",
+            checkOutTime: hotel.checkOutTime || hotel.check_out_time || "12:00:00",
+            location: hotel.address || hotel.location || "",
+            image: hotel.image || hotel.main_image || "",
+            cancellation_charge: hotel.cancellation_charge || ""
+          },
+          bookingDate: bookingDates,
+          
+          // Additional fields for tour package context
+          id: hotelBookingId,
+          tour_id: parseInt(searchCriteria?.tourId) || 0
         };
         
         return hotelBookingData;
@@ -537,7 +542,8 @@ export default function HotelComponent({ searchParams }) {
       hotelBookingsData.forEach(hotelData => {
         updatedHotelServices.push({
           type: "Hotel", 
-          tour_id: parseInt(searchCriteria?.tourId) || 0,
+          agent_id: agentId,
+          tour_id: tourId,
           data: [hotelData]
         });
       });

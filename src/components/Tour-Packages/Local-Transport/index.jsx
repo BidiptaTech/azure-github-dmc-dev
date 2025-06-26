@@ -106,6 +106,8 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
   const [openModal, setOpenModal] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
   
   // Keep track of previous vehicles to avoid unnecessary rerenders
   const prevVehicles = useRef([]);
@@ -224,6 +226,8 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
         // Return the existing service structure
         return {
           type: booking.transportType,
+          agent_id: agentId,
+          tour_id: tourId,
           data: [existingBookingItem]
         };
       }
@@ -246,6 +250,8 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
     // Create a new service entry for this transport type
     const newServiceEntry = {
       type: booking.transportType,
+      agent_id: agentId,
+      tour_id: tourId,
       data: [bookingData]
     };
     
@@ -287,9 +293,13 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
       });
     }
     
-    // Return the service entry in the new format
-    return newServiceEntry;
-  }, [allBookings, allServices, dispatch]);
+    // Make sure the returned service entry includes agent_id and tour_id
+    return {
+      ...newServiceEntry,
+      agent_id: agentId,
+      tour_id: tourId
+    };
+  }, [allBookings, allServices, dispatch, agentId, tourId]);
 
   // Add function to dispatch all valid bookings to Redux 
   const dispatchAllValidBookings = useCallback(() => {

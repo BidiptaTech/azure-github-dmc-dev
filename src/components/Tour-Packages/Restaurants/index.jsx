@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Typography,
   Container,
@@ -63,11 +63,23 @@ export default function RestaurantComponent() {
   const searchParams = useSelector((state) => state.restaurants.searchParams);
   const status = useSelector((state) => state.restaurants.status);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
+  
+  // Get existing services from Redux state
+  const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   
   // State for validation and success messages
   const [validationError, setValidationError] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [expandedSections, setExpandedSections] = useState([0]);
+  
+  // Use a ref to track restaurant bookings to prevent them from being lost during re-renders
+  const restaurantBookingsRef = useRef([]);
+  // State to trigger re-renders when bookings change
+  const [bookingsVersion, setBookingsVersion] = useState(0);
+  // Track which sections have already been saved to Redux
+  const [savedSectionIds, setSavedSectionIds] = useState([]);
   
   // Initialize form sections with stable default values
   const defaultSection = useMemo(() => ({
@@ -82,6 +94,37 @@ export default function RestaurantComponent() {
   const [formSections, setFormSections] = useState([{ ...defaultSection }]);
   const [openModal, setOpenModal] = useState(false);
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
+  
+  // Getter and setter for bookings
+  const getRestaurantBookings = () => restaurantBookingsRef.current;
+  
+  const setRestaurantBookings = (newBookings) => {
+    // Check if the bookings array has actually changed before updating
+    const currentBookings = restaurantBookingsRef.current;
+    if (JSON.stringify(currentBookings) !== JSON.stringify(newBookings)) {
+      restaurantBookingsRef.current = newBookings;
+      setBookingsVersion(prev => prev + 1); // Trigger re-render
+    }
+  };
+  
+  // Check if existing restaurant bookings exist in Redux and load them
+  useEffect(() => {
+    // Find existing restaurant bookings
+    if (existingServices && existingServices.length > 0) {
+      const existingRestaurantServices = existingServices.filter(service => 
+        service.type === "restaurant" && service.data && Array.isArray(service.data)
+      );
+      
+      // Flatten all restaurant data into one array
+      const allRestaurants = existingRestaurantServices.flatMap(service => service.data);
+      
+      // Set to the ref
+      if (allRestaurants && allRestaurants.length > 0) {
+        restaurantBookingsRef.current = allRestaurants;
+        setBookingsVersion(prev => prev + 1);
+      }
+    }
+  }, [existingServices]);
   
   // Initialize form with one section when component mounts or searchParams changes
   useEffect(() => {
@@ -104,11 +147,21 @@ export default function RestaurantComponent() {
   };
 
   const handleRemoveSection = (indexToRemove) => {
+    // Get the section being removed
+    const sectionToRemove = formSections[indexToRemove];
+    
+    // Remove the section from formSections
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
+    
+    // Update expanded sections
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
+    
+    // Remove section signature from saved IDs
+    if (sectionToRemove) {
+      const sectionSignature = `${sectionToRemove.restaurant}-${sectionToRemove.mealType}-${sectionToRemove.specificMeal}-${sectionToRemove.timeSlot}`;
+      setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
+    }
   };
-
-
 
   const toggleSectionExpand = (index) => {
     if (expandedSections.includes(index)) {
@@ -151,6 +204,31 @@ export default function RestaurantComponent() {
     
     console.log('Updated form sections:', newFormSections);
     setFormSections(newFormSections);
+    
+    // Check if the current section is now complete
+    const updatedSection = newFormSections[sectionIndex];
+    const isComplete = 
+      updatedSection.restaurant && 
+      updatedSection.mealType && 
+      updatedSection.specificMeal && 
+      updatedSection.timeSlot && 
+      (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
+    
+    // Generate signature for this section
+    const oldSectionSignature = formSections[sectionIndex] ? 
+      `${formSections[sectionIndex].restaurant}-${formSections[sectionIndex].mealType}-${formSections[sectionIndex].specificMeal}-${formSections[sectionIndex].timeSlot}` : '';
+    
+    const newSectionSignature = 
+      `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}`;
+    
+    // If the data changed, remove the old signature from saved list
+    if (oldSectionSignature !== newSectionSignature) {
+      setSavedSectionIds(prev => 
+        prev.filter(signature => signature !== oldSectionSignature)
+      );
+      
+      console.log(`Restaurant booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+    }
   };
 
   // Alias for backward compatibility with existing component calls
@@ -177,109 +255,189 @@ export default function RestaurantComponent() {
     return completed;
   };
 
+  // Get booking summary for a specific section
+  const getBookingSummary = useCallback((booking) => {
+    const selectedRestaurantDetails = restaurants.find(r => r.id === booking.restaurant) || {};
+    
+    return {
+      restaurant: selectedRestaurantDetails,
+      restaurantName: selectedRestaurantDetails.restaurant_name || 'Restaurant',
+      city: selectedRestaurantDetails.city || searchParams?.location?.city || '',
+      country: selectedRestaurantDetails.country || searchParams?.location?.country || '',
+      mealType: booking.mealType,
+      specificMeal: booking.specificMeal,
+      timeSlot: booking.timeSlot,
+      pax: booking.pax,
+      mode: currentMode,
+      image: selectedRestaurantDetails.image || '/placeholder-restaurant.jpg',
+      cuisine: selectedRestaurantDetails.cuisine_type || 'Not specified',
+      bookingDate: booking.bookingDate
+    };
+  }, [restaurants, searchParams, currentMode]);
+
   // Validate bookings before submission
-  const validateBookings = () => {
+  const validateBookings = useCallback(() => {
     if (formSections.length === 0) {
       setValidationError("Please add at least one restaurant booking.");
       return false;
     }
     
-    for (let i = 0; i < formSections.length; i++) {
-      const section = formSections[i];
-      
-      if (!section.restaurant) {
-        setValidationError(`Booking #${i + 1}: Please select a restaurant.`);
-        return false;
-      }
-      
-      if (!section.mealType) {
-        setValidationError(`Booking #${i + 1}: Please select a meal type.`);
-        return false;
-      }
-      
-      if (!section.specificMeal) {
-        setValidationError(`Booking #${i + 1}: Please select a specific meal.`);
-        return false;
-      }
-      
-      if (!section.timeSlot) {
-        setValidationError(`Booking #${i + 1}: Please select a time slot.`);
-        return false;
-      }
-      
-      const totalPax = section.pax.Adults + section.pax.Children;
-      if (totalPax <= 0) {
-        setValidationError(`Booking #${i + 1}: Please select at least one person.`);
-        return false;
-      }
+    // Only validate complete sections
+    const completeSections = formSections.filter(section => 
+      section.restaurant && 
+      section.mealType && 
+      section.specificMeal && 
+      section.timeSlot && 
+      (section.pax.Adults + section.pax.Children > 0)
+    );
+    
+    if (completeSections.length === 0) {
+      // Don't show error when auto-validating
+      return false;
     }
     
     setValidationError(null);
     return true;
-  };
+  }, [formSections, setValidationError]);
 
   // Function to handle booking creation
-  const handleBookNow = () => {
+  const handleBookNow = useCallback(() => {
     if (!validateBookings()) {
       return;
     }
-
-    if (formSections.length === 1) {
-      const section = formSections[0];
+    
+    // Filter out incomplete sections
+    const completeSections = formSections.filter(section => 
+      section.restaurant && 
+      section.mealType && 
+      section.specificMeal && 
+      section.timeSlot && 
+      (section.pax.Adults + section.pax.Children > 0)
+    );
+    
+    if (completeSections.length === 0) {
+      return; // No complete sections to save
+    }
+    
+    // Clone the existing services array, but remove ALL previous restaurant services
+    const servicesWithoutRestaurants = existingServices.filter(service => service.type !== "restaurant");
+    
+    // Create new restaurant services for the current complete sections
+    const restaurantServices = completeSections.map((section, index) => {
+      const summaryData = getBookingSummary(section);
       const restaurant = restaurants.find(r => r.id === section.restaurant) || {};
       
-      const restaurantBookingData = {
-        type: 'restaurant',
-        id: `restaurant-${Date.now()}-0`,
+      // Create unique booking ID - use formSections index to maintain identity
+      const sectionIndex = formSections.indexOf(section);
+      const bookingId = `restaurant-${Date.now()}-${sectionIndex}`;
+      
+      // Create the restaurant booking data matching CustomerInfo bookingDetails structure
+      const bookingData = {
+        // Add formData properties (customer info will be added when available)
+        // Customer information will be spread here when available from CustomerInfo service
+        
+        // Core booking details matching CustomerInfo structure
+        bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0],
+        visitTime: section.timeSlot,
+        adultCount: section.pax?.Adults || 0,
+        childCount: section.pax?.Children || 0,
         restaurantId: section.restaurant,
         restaurantName: restaurant.restaurant_name || 'Restaurant',
+        mealType: section.mealType,
+        mealSpecificType: section.specificMeal,
+        MealDescription: restaurant.description || '',
+        totalPrice: 0, // Will be calculated based on meal and transport
+        mealPrice: 0, // Will be calculated based on selected meal
+        transport: null, // Transport options if any
+        transportPrice: 0,
+        priceTypes: [], // Price types for different categories
+        dmc_id: restaurant.dmc_id || null,
+        bookingType: "booking",
+        
+        // Additional fields for tour package context
+        id: bookingId,
         city: restaurant.city || searchParams?.location?.city || '',
         country: restaurant.country || searchParams?.location?.country || '',
-        mealType: section.mealType,
-        specificMeal: section.specificMeal,
-        timeSlot: section.timeSlot,
-        pax: section.pax,
         image: restaurant.image || '/placeholder-restaurant.jpg',
         mode: currentMode,
-        cuisine: restaurant.cuisine_type || 'Not specified',
-        bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0]
+        cuisine: restaurant.cuisine_type || 'Not specified'
       };
       
-      dispatch(setAllServices(restaurantBookingData));
-    } else {
-      const bookingsData = {
-        type: 'restaurant',
-        bookings: formSections.map((section, index) => {
-          const restaurant = restaurants.find(r => r.id === section.restaurant) || {};
-          
-          return {
-            id: `restaurant-${Date.now()}-${index}`,
-            restaurantId: section.restaurant,
-            restaurantName: restaurant.restaurant_name || 'Restaurant',
-            city: restaurant.city || searchParams?.location?.city || '',
-            country: restaurant.country || searchParams?.location?.country || '',
-            mealType: section.mealType,
-            specificMeal: section.specificMeal,
-            timeSlot: section.timeSlot,
-            pax: section.pax,
-            image: restaurant.image || '/placeholder-restaurant.jpg',
-            mode: currentMode,
-            cuisine: restaurant.cuisine_type || 'Not specified',
-            bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0]
-          };
-        })
-      };
+      console.log(`Restaurant booking data for section ${index}:`, bookingData);
       
-      dispatch(setAllServices(bookingsData));
-    }
+      // Create a new restaurant service entry matching CustomerInfo bookingDetails structure
+      return {
+        agent_id: agentId,
+        data: [bookingData],
+        tour_id: tourId,
+        type: "restaurant",
+        bookingType: "booking"
+      };
+    });
+    
+    // Combine non-restaurant services with new restaurant services
+    const updatedServices = [...servicesWithoutRestaurants, ...restaurantServices];
+    
+    console.log("Restaurant - Dispatching updated services to Redux:", updatedServices);
+    
+    // Dispatch the updated services
+    dispatch(setAllServices(updatedServices));
     
     setBookingSuccess(true);
     setTimeout(() => {
       setBookingSuccess(false);
     }, 5000);
+  }, [formSections, existingServices, validateBookings, dispatch, getBookingSummary, restaurants, searchParams, currentMode]);
+
+  // Effect to automatically dispatch completed restaurant bookings to Redux
+  useEffect(() => {
+    // Skip if no form sections or during loading
+    if (formSections.length === 0 || status === 'loading') return;
+    
+    // Find sections that are complete but not yet saved
+    const newCompleteSections = formSections.filter((section) => {
+      // Check if all required fields are filled
+      const isComplete = (
+        section.restaurant && 
+        section.mealType && 
+        section.specificMeal && 
+        section.timeSlot && 
+        (section.pax.Adults + section.pax.Children > 0)
+      );
+      
+      // Generate a unique ID for this section based on its contents
+      const sectionSignature = `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}`;
+      
+      // Check if this section has already been saved
+      const isSaved = savedSectionIds.includes(sectionSignature);
+      
+      // Return true if this section is complete and not yet saved
+      return isComplete && !isSaved;
+    });
+    
+    // If we found new complete sections, update Redux
+    if (newCompleteSections.length > 0) {
+      // Get signatures for the new sections
+      const newSectionSignatures = newCompleteSections.map(section => 
+        `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}`
+      );
+      
+      // Wait a bit to avoid too many Redux updates
+      const timeoutId = setTimeout(() => {
+        // Call handleBookNow
+        handleBookNow();
+        
+        // Mark these sections as saved
+        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formSections, handleBookNow, status, savedSectionIds]);
+
+  const getSelectedRestaurant = (restaurantId) => {
+    return restaurants.find(r => r.id === restaurantId) || null;
   };
-
-
 
   if (status === 'failed') {
     return (
@@ -300,10 +458,6 @@ export default function RestaurantComponent() {
       </Container>
     );
   }
-
-  const getSelectedRestaurant = (restaurantId) => {
-    return restaurants.find(r => r.id === restaurantId) || null;
-  };
 
   const totalBookings = formSections.length;
 

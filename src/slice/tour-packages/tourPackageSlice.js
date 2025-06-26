@@ -77,14 +77,15 @@ export const fetchTourPackages = createAsyncThunk(
 );
 
 // Async thunk for creating a tour package enquiry
-export const createPackageEnquiry = createAsyncThunk(
-  "tourPackages/createPackageEnquiry",
-  async (enquiryData, { rejectWithValue, getState }) => {
+export const BookPackageEnquiry = createAsyncThunk(
+  "tourPackages/BookPackageEnquiry",
+  async (_, { rejectWithValue, getState }) => {
     const state = getState();
     try {
       const authToken = Cookies.get("authToken");
       const AgentId = state.editing?.agentId;
       console.log("AgentIdpackage", AgentId);
+      const bookingData = state.tourPackages.AllServices;
 
       if (!authToken || !AgentId) {
         throw new Error("Authorization and AgentId are missing.");
@@ -92,8 +93,8 @@ export const createPackageEnquiry = createAsyncThunk(
 
       // Make API request to create tour package enquiry
       const response = await axios.post(
-        `${BASE_URL}/create-package-enquiry`,
-        enquiryData,
+        `${BASE_URL}/store/custom-booking`,
+        bookingData,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -216,16 +217,16 @@ const tourPackageSlice = createSlice({
       })
       
       // Handle createPackageEnquiry states
-      .addCase(createPackageEnquiry.pending, (state) => {
+      .addCase(BookPackageEnquiry.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createPackageEnquiry.fulfilled, (state, action) => {
+      .addCase(BookPackageEnquiry.fulfilled, (state, action) => {
         state.loading = false;
         // Store the enquiry ID from the response
         state.packageEnquiryId = action.payload.data?.enquiry_id || action.payload.enquiry_id;
       })
-      .addCase(createPackageEnquiry.rejected, (state, action) => {
+      .addCase(BookPackageEnquiry.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
