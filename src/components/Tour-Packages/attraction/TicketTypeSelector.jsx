@@ -52,6 +52,14 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   const [nriStatus, setNriStatus] = useState("residential");
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [validationError, setValidationError] = useState(null);
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
+
+
+  // Use a ref to store attraction bookings to prevent them from being lost during re-renders
+  const attractionBookingsRef = useRef([]);
+  // State to trigger re-renders when bookings change
+  const [bookingsVersion, setBookingsVersion] = useState(0);
 
   // Get data from Redux store
   const attractions = useSelector((state) => state.attractions.attractions);
@@ -60,6 +68,8 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
+  // Get existing services from Redux state
+  const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   
   // Get booking date from section if not provided as prop
   const sectionBookingDate = formSections && formSections[sectionIndex] ? formSections[sectionIndex].bookingDate : null;
@@ -67,6 +77,37 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
 
   // Get tickets from attraction details
   const tickets = attractionDetails?.ticket_prices || [];
+
+  // Getter and setter for bookings
+  const getAttractionBookings = () => attractionBookingsRef.current;
+  
+  const setAttractionBookings = (newBookings) => {
+    // Check if the bookings array has actually changed before updating
+    const currentBookings = attractionBookingsRef.current;
+    if (JSON.stringify(currentBookings) !== JSON.stringify(newBookings)) {
+      attractionBookingsRef.current = newBookings;
+      setBookingsVersion(prev => prev + 1); // Trigger re-render
+    }
+  };
+
+  // Check if a booking already exists for this section and load it
+  useEffect(() => {
+    // Find existing attraction booking for this section
+    if (existingServices && existingServices.length > 0) {
+      const existingAttractionServices = existingServices.filter(service => 
+        service.type === "attraction" && service.data && Array.isArray(service.data)
+      );
+      
+      // Flatten all attraction data into one array
+      const allAttractions = existingAttractionServices.flatMap(service => service.data);
+      
+      // Set to the ref
+      if (allAttractions && allAttractions.length > 0) {
+        attractionBookingsRef.current = allAttractions;
+        setBookingsVersion(prev => prev + 1);
+      }
+    }
+  }, [existingServices]);
 
   // Format price in different currencies
   const formatPrice = (price, type) => {
@@ -366,6 +407,28 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
     };
   };
   
+  // New function to check if a booking is already in the bookings ref
+  const isBookingInRef = (bookingId) => {
+    const bookings = getAttractionBookings();
+    return bookings.some(booking => booking.id === bookingId);
+  };
+  
+  // New function to add or update a booking in the ref
+  const addOrUpdateBookingInRef = (booking) => {
+    const bookings = getAttractionBookings();
+    const existingIndex = bookings.findIndex(b => b.id === booking.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing booking
+      const updatedBookings = [...bookings];
+      updatedBookings[existingIndex] = booking;
+      setAttractionBookings(updatedBookings);
+    } else {
+      // Add new booking
+      setAttractionBookings([...bookings, booking]);
+    }
+  };
+
   const handleBookNow = () => {
     if (!validateBooking()) {
       return;
@@ -394,35 +457,71 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
     const seniorTotal = summaryData.seniorPrice * updatedSection.pax.Seniors;
     const totalPrice = adultTotal + childTotal + seniorTotal;
     
-    // Create the attraction booking data - format as requested with type at same level
+    // Create unique booking ID
+    const bookingId = `attraction-${Date.now()}-${sectionIndex}`;
+    
+    // Create the attraction booking data
     const bookingData = {
-      type: 'attraction',
-      id: `attraction-${Date.now()}-${sectionIndex}`,
-      attractionId: updatedSection.attraction,
-      attractionName: summaryData.attraction,
+      id: bookingId,
+      AttractionId: updatedSection.attraction,
+      AttractionName: summaryData.attraction,
       location: summaryData.location,
       city: summaryData.city,
       country: summaryData.country,
-      timeSlot: updatedSection.timeSlot,
-      ticketType: updatedSection.ticketType,
+      visitTime: updatedSection.timeSlot,
+      ticketId: updatedSection.ticketType,
       ticketName: summaryData.ticketType,
-      priceType: updatedSection.priceType || 'residential',
-      pax: updatedSection.pax,
-      prices: {
-        adult: summaryData.adultPrice,
-        child: summaryData.childPrice,
-        senior: summaryData.seniorPrice,
+      adultCount: updatedSection.pax.Adults,
+      childCount: updatedSection.pax.Children || 0,
+      seniorCount: updatedSection.pax.Seniors || 0,
+      ticket_details: {
+        adult_price: summaryData.adultPrice,
+        child_price: summaryData.childPrice,
+        senior_price: summaryData.seniorPrice,
+        description: ""
       },
+      nri: updatedSection.priceType || 'residential',
       totalPrice: totalPrice,
       image: summaryData.image,
       mode: currentMode,
-      bookingDate: effectiveBookingDate || formSections[sectionIndex]?.date || new Date().toISOString().split('T')[0]
+      dmc_id: agentId,
+      bookingDate: effectiveBookingDate || formSections[sectionIndex]?.date || new Date().toISOString().split('T')[0],
+      bookingType: "booking"
     };
+    
+    // Add the booking to our ref
+    addOrUpdateBookingInRef(bookingData);
     
     console.log("Attraction booking data:", bookingData);
     
-    // Dispatch action to store in Redux (tourPackage slice)
-    dispatch(setAllServices(bookingData));
+    // Clone the existing services array
+    const allCurrentServices = [...existingServices];
+    
+    // Filter out any service with the same ID as our current booking
+    const filteredServices = allCurrentServices.filter(service => {
+      // Check if this service's data array contains our booking ID
+      if (service.type === "attraction" && service.data && Array.isArray(service.data)) {
+        const matchingItem = service.data.find(item => item.id === bookingData.id);
+        return !matchingItem; // Filter out if found
+      }
+      return true; // Keep all other services
+    });
+    
+    // Create a new attraction service entry for each booking
+    const newAttractionService = {
+      type: "attraction",
+      agent_id: agentId,
+      tour_id: tourId,
+      data: [bookingData]
+    };
+      
+      // Add the new attraction service to the filtered services array
+      filteredServices.push(newAttractionService);
+    
+    console.log("Attraction - Dispatching updated services to Redux:", filteredServices);
+    
+    // Dispatch the updated services
+    dispatch(setAllServices(filteredServices));
     
     setBookingSuccess(true);
     setModalOpen(false);

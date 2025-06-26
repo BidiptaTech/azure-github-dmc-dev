@@ -26,9 +26,12 @@ import {
   TableHead,
   TableRow,
   Tabs,
-  Tab
+  Tab,
+  CircularProgress,
+  Snackbar,
+  Alert
 } from '@mui/material';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import moment from 'moment';
 import HotelIcon from '@mui/icons-material/Hotel';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
@@ -43,6 +46,8 @@ import CommentIcon from '@mui/icons-material/Comment';
 import RoomIcon from '@mui/icons-material/Room';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import { BookPackageEnquiry } from '../../../slice/tour-packages/tourPackageSlice';
 
 // Import all service components
 import HotelComponent from '../../Tour-Packages/hotel';
@@ -62,12 +67,19 @@ export default function Itinerary() {
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
   const [portType,setPortType] = useState("Entry Port");
   const [portType1,setPortType1] = useState("Exit Port");
+  const dispatch = useDispatch();
   
   // State for active service tab
   const [activeServiceTab, setActiveServiceTab] = useState(0);
   
   // State for summary modal
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  
+  // State for snackbar
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const { loading, error, packageEnquiryId } = useSelector((state) => state.tourPackages);
   
   // Generate dates array from the selected date range
   const dates = useMemo(() => {
@@ -102,6 +114,26 @@ export default function Itinerary() {
       </Paper>
     );
   }
+
+  // Function to handle booking
+  const handleBookPackage = () => {
+    dispatch(BookPackageEnquiry())
+      .unwrap()
+      .then((result) => {
+        setSnackbarMessage('Package booked successfully!');
+        setSnackbarSeverity('success');
+        setOpenSnackbar(true);
+      })
+      .catch((error) => {
+        setSnackbarMessage(error?.message || 'Failed to book package. Please try again.');
+        setSnackbarSeverity('error');
+        setOpenSnackbar(true);
+      });
+  };
+  
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
 
   return (
     <Box>
@@ -270,6 +302,76 @@ export default function Itinerary() {
           </Grid>
         </Grid>
       </Paper>
+      
+      {/* Book Package Button Section - Improved */}
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          mt: 4, 
+          p: 4, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          borderRadius: 2,
+          background: 'linear-gradient(to right, rgba(255,255,255,0.95), rgba(245,245,255,0.95))',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+        }}
+      >
+        <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+          Ready to book this amazing package?
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          size="large" 
+          disabled={loading}
+          startIcon={loading ? null : <ShoppingCartIcon />}
+          onClick={handleBookPackage}
+          sx={{
+            py: 1.5,
+            px: 4,
+            fontSize: '1.1rem',
+            fontWeight: 600,
+            borderRadius: '50px',
+            background: 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
+            boxShadow: '0 10px 20px rgba(53, 84, 209, 0.3)',
+            transition: 'all 0.3s ease',
+            textTransform: 'none',
+            '&:hover': {
+              transform: 'translateY(-3px)',
+              boxShadow: '0 15px 30px rgba(53, 84, 209, 0.4)',
+            },
+            minWidth: 200,
+          }}
+        >
+          {loading ? <CircularProgress size={24} color="inherit" /> : 'Book Package Now'}
+        </Button>
+        {packageEnquiryId && (
+          <Typography variant="body1" sx={{ mt: 2, color: 'success.main', fontWeight: 500 }}>
+            Booking ID: {packageEnquiryId}
+          </Typography>
+        )}
+      </Paper>
+      
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={openSnackbar} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbarSeverity} 
+          sx={{ 
+            width: '100%',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            borderRadius: 2
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
       
       {/* Services Summary Modal */}
       <ServicesSummaryModal 

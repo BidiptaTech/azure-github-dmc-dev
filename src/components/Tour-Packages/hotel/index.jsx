@@ -94,6 +94,8 @@ export default function HotelComponent({ searchParams }) {
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria || {});
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
   
   // Get hotel room data from Redux store
   const { roomDatas, status: roomDataStatus } = useSelector(state => state.rooms);
@@ -456,27 +458,9 @@ export default function HotelComponent({ searchParams }) {
           };
         });
 
-        // Create the hotel booking data with both hotel details and customer info
+        // Create the hotel booking data matching the exact payload structure from booking-page
         const hotelBookingData = {
-          id: hotelBookingId,
-          bookingDate: bookingDates,
-          hotelDetails: {
-            hotel_id: group.hotelId,
-            hotel_name: hotel.hotel_name || hotel.name || 'Selected Hotel',
-            checkInTime: hotel.checkInTime || hotel.check_in_time || "15:00:00",
-            checkOutTime: hotel.checkOutTime || hotel.check_out_time || "12:00:00",
-            image: hotel.image || hotel.main_image || '',
-            location: hotel.address || hotel.location || '',
-            phone: hotel.phone || hotel.contact_number || '',
-            cancellation_charge: hotel.cancellation_charge || '',
-            priceMode: "dmc",
-            priceModeId: 4,
-            rooms: consolidatedRooms
-          },
-          totalPrice: group.totalPrice,
-          tour_id: parseInt(searchCriteria?.tourId) || 0,
-          
-          // If we have customer info, add these fields to the hotel booking data
+          // Add all formData properties (spread from customer info if available)
           ...(customerInfoService ? {
             customer_name: customerInfoService.fullName || customerInfoService.name,
             customer_email: customerInfoService.email,
@@ -487,7 +471,28 @@ export default function HotelComponent({ searchParams }) {
             zip: customerInfoService.zip,
             specialRequests: customerInfoService.specialRequests,
             countryCode: customerInfoService.countryCode
-          } : {})
+          } : {}),
+          
+          // Core payload structure from booking-page/index.jsx
+          rooms: consolidatedRooms,
+          totalPrice: group.totalPrice || 0,
+          bookingType: "booking",
+          priceMode: "dmc",
+          priceModeId: 4,
+          hotelDetails: {
+            hotel_id: group.hotelId || "",
+            hotel_name: hotel.hotel_name || hotel.name || 'Selected Hotel',
+            checkInTime: hotel.checkInTime || hotel.check_in_time || "15:00:00",
+            checkOutTime: hotel.checkOutTime || hotel.check_out_time || "12:00:00",
+            location: hotel.address || hotel.location || "",
+            image: hotel.image || hotel.main_image || "",
+            cancellation_charge: hotel.cancellation_charge || ""
+          },
+          bookingDate: bookingDates,
+          
+          // Additional fields for tour package context
+          id: hotelBookingId,
+          tour_id: parseInt(searchCriteria?.tourId) || 0
         };
         
         return hotelBookingData;
@@ -537,7 +542,8 @@ export default function HotelComponent({ searchParams }) {
       hotelBookingsData.forEach(hotelData => {
         updatedHotelServices.push({
           type: "Hotel", 
-          tour_id: parseInt(searchCriteria?.tourId) || 0,
+          agent_id: agentId,
+          tour_id: tourId,
           data: [hotelData]
         });
       });
@@ -1146,6 +1152,9 @@ export default function HotelComponent({ searchParams }) {
               if (hotelConfigurations[activeHotelIndex]) {
                 const currentConfig = hotelConfigurations[activeHotelIndex];
                 
+                
+                
+                
                 // Find the selected room type details to store the name
                 const selectedRoomType = roomTypes.find(r => r.id === selected);
                 
@@ -1153,7 +1162,9 @@ export default function HotelComponent({ searchParams }) {
                   ...currentConfig,
                   roomTypeId: selected, // Use the selected value directly
                   roomTypeName: selectedRoomType?.name || 'Unknown Room', // Store the name directly
+                  roomTypeName: selectedRoomType?.name || 'Unknown Room', // Store the name directly
                   bedTypeId: '', // Reset bed type
+                  bedTypeName: '', // Reset bed type name
                   bedTypeName: '', // Reset bed type name
                 };
                 
@@ -1161,6 +1172,7 @@ export default function HotelComponent({ searchParams }) {
                 updatedConfigurations[activeHotelIndex] = updatedConfig;
                 setHotelConfigurations(updatedConfigurations);
                 
+                console.log('Room type saved:', selected, 'with name:', selectedRoomType?.name);
                 console.log('Room type saved:', selected, 'with name:', selectedRoomType?.name);
               }
             }, 50);
@@ -1183,7 +1195,9 @@ export default function HotelComponent({ searchParams }) {
                           ...currentConfig,
                           roomTypeId: '',
                           roomTypeName: '',
+                          roomTypeName: '',
                           bedTypeId: '',
+                          bedTypeName: '',
                           bedTypeName: '',
                         };
                         
@@ -1254,6 +1268,9 @@ export default function HotelComponent({ searchParams }) {
               if (hotelConfigurations[activeHotelIndex]) {
                 const currentConfig = hotelConfigurations[activeHotelIndex];
                 
+                
+                
+                
                 // Find the selected bed type details to store the name
                 const selectedBedType = bedTypes.find(b => b.id === selected);
                 
@@ -1261,7 +1278,10 @@ export default function HotelComponent({ searchParams }) {
                   ...currentConfig,
                   bedTypeId: selected, // Use the selected value directly
                   bedTypeName: selectedBedType?.name || 'Unknown Bed', // Store the name directly
+                  bedTypeName: selectedBedType?.name || 'Unknown Bed', // Store the name directly
                   roomTypeId: roomType, // Keep the current room type
+                  max_occupancy: selectedBedType?.max_occupancy || 1, // Store max occupancy
+                  bedPrice: selectedBedType?.price || 0, // Store the bed price
                   max_occupancy: selectedBedType?.max_occupancy || 1, // Store max occupancy
                   bedPrice: selectedBedType?.price || 0, // Store the bed price
                 };
@@ -1270,6 +1290,7 @@ export default function HotelComponent({ searchParams }) {
                 updatedConfigurations[activeHotelIndex] = updatedConfig;
                 setHotelConfigurations(updatedConfigurations);
                 
+                console.log('Bed type saved:', selected, 'with name:', selectedBedType?.name, 'price:', selectedBedType?.price);
                 console.log('Bed type saved:', selected, 'with name:', selectedBedType?.name, 'price:', selectedBedType?.price);
               }
             }, 50);
@@ -1290,6 +1311,8 @@ export default function HotelComponent({ searchParams }) {
                         const updatedConfig = {
                           ...currentConfig,
                           bedTypeId: '',
+                          bedTypeName: '',
+                          bedPrice: 0, // Reset the bed price
                           bedTypeName: '',
                           bedPrice: 0, // Reset the bed price
                         };
@@ -1316,6 +1339,7 @@ export default function HotelComponent({ searchParams }) {
             bedTypes.map((bed) => (
               <MenuItem key={bed.id} value={bed.id}>
                 {bed.name} {bed.max_occupancy && `(Max: ${bed.max_occupancy} person${bed.max_occupancy > 1 ? 's' : ''})`}
+                {bed.price > 0 && ` - $${parseFloat(bed.price).toFixed(2)}`}
                 {bed.price > 0 && ` - $${parseFloat(bed.price).toFixed(2)}`}
               </MenuItem>
             ))
@@ -1997,6 +2021,8 @@ export default function HotelComponent({ searchParams }) {
     setTimeout(() => {
       const currentConfig = hotelConfigurations[activeHotelIndex];
       
+     
+      
       // Find room and bed details to store names
       const selectedRoomType = roomTypes.find(r => r.id === roomType);
       const selectedBedType = bedTypes.find(b => b.id === bedType);
@@ -2007,7 +2033,11 @@ export default function HotelComponent({ searchParams }) {
         hotelDetails: currentConfig.hotelDetails || {},
         roomTypeId: roomType,
         roomTypeName: selectedRoomType?.name || currentConfig.roomTypeName || 'Unknown Room',
+        roomTypeName: selectedRoomType?.name || currentConfig.roomTypeName || 'Unknown Room',
         bedTypeId: bedType,
+        bedTypeName: selectedBedType?.name || currentConfig.bedTypeName || 'Unknown Bed',
+        max_occupancy: selectedBedType?.max_occupancy || currentConfig.max_occupancy || 1,
+        bedPrice: selectedBedType?.price || currentConfig.bedPrice || 0,
         bedTypeName: selectedBedType?.name || currentConfig.bedTypeName || 'Unknown Bed',
         max_occupancy: selectedBedType?.max_occupancy || currentConfig.max_occupancy || 1,
         bedPrice: selectedBedType?.price || currentConfig.bedPrice || 0,
