@@ -635,7 +635,8 @@
         </div>
     </div>
 
-    <!-- Agents Row (Separate) -->
+    <!-- Agents Row (Separate) - Show only for specific roles -->
+    @if(in_array(Auth::user()->role_id, [1, 10, 11, 33, 12, 37, 38]))
     <div class="row">
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -647,10 +648,21 @@
                 <div class="stats-detail">
                     Active: {{ $counts['agents']['active'] ?? 0 }} | 
                     Recent: {{ $counts['agents']['recent'] ?? 0 }}
+                    <!-- DEBUG: Show current user info -->
+                    {{-- @if(config('app.debug'))
+                    <br><small style="color: #999;">
+                        Role: {{ Auth::user()->role_id }} | 
+                        User: {{ Auth::user()->userId }}
+                        @if(Auth::user()->role_id == 10)
+                            | Master DMC
+                        @endif
+                    </small>
+                    @endif --}}
                 </div>
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Enhanced Charts and Activity Section -->
     <div class="row">
@@ -840,6 +852,7 @@
             </a>
         </div>
 
+        @if(Auth::user()->role_id == 1)
         <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('master-setting') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
@@ -848,6 +861,7 @@
                 <span>Settings</span>
             </a>
         </div>
+        @endif
     </div>
 
     <!-- Additional Stats Row -->
@@ -969,25 +983,55 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeEnhancedChart() {
     const ctx = document.getElementById('businessAnalyticsChart').getContext('2d');
     
-    // Get initial data from PHP variables
+    // Get initial data from PHP variables - conditionally include Agents based on user role
+    @php
+        $canViewAgents = in_array(Auth::user()->role_id, [1, 10, 11, 33, 12, 37, 38]);
+        $chartLabels = ['Enquiries', 'Bookings', 'Tours', 'Hotels', 'Restaurants', 'Guides', 'Drivers', 'Vehicles'];
+        $totalData = [
+            $counts['enquiries']['total'] ?? 0,
+            $counts['bookings']['total'] ?? 0,
+            $counts['tours']['total'] ?? 0,
+            $counts['hotels']['total'] ?? 0,
+            $counts['restaurants']['total'] ?? 0,
+            $counts['guides']['total'] ?? 0,
+            $counts['drivers']['total'] ?? 0,
+            $counts['vehicles']['total'] ?? 0
+        ];
+        $monthData = [
+            $counts['enquiries']['new'] ?? 0,
+            $counts['bookings']['confirmed'] ?? 0,
+            $counts['tours']['active'] ?? 0,
+            $counts['hotels']['active'] ?? 0,
+            $counts['restaurants']['active'] ?? 0,
+            $counts['guides']['available'] ?? 0,
+            $counts['drivers']['available'] ?? 0,
+            $counts['vehicles']['available'] ?? 0
+        ];
+        
+        if ($canViewAgents) {
+            $chartLabels[] = 'Agents';
+            $totalData[] = $counts['agents']['total'] ?? 0;
+            $monthData[] = $counts['agents']['active'] ?? 0;
+        }
+        
+        $chartLabels = array_merge($chartLabels, ['Attractions', 'Ports', 'Zones']);
+        $totalData = array_merge($totalData, [
+            $counts['attractions']['total'] ?? 0,
+            $counts['ports']['total'] ?? 0,
+            $counts['zones']['total'] ?? 0
+        ]);
+        $monthData = array_merge($monthData, [
+            $counts['attractions']['active'] ?? 0,
+            $counts['ports']['active'] ?? 0,
+            $counts['zones']['active'] ?? 0
+        ]);
+    @endphp
+    
     currentData = {
-        labels: ['Enquiries', 'Bookings', 'Tours', 'Hotels', 'Restaurants', 'Guides', 'Drivers', 'Vehicles', 'Agents', 'Attractions', 'Ports', 'Zones'],
+        labels: {!! json_encode($chartLabels) !!},
         datasets: [{
             label: 'Total Count',
-            data: [
-                {{ $counts['enquiries']['total'] ?? 0 }},
-                {{ $counts['bookings']['total'] ?? 0 }},
-                {{ $counts['tours']['total'] ?? 0 }},
-                {{ $counts['hotels']['total'] ?? 0 }},
-                {{ $counts['restaurants']['total'] ?? 0 }},
-                {{ $counts['guides']['total'] ?? 0 }},
-                {{ $counts['drivers']['total'] ?? 0 }},
-                {{ $counts['vehicles']['total'] ?? 0 }},
-                {{ $counts['agents']['total'] ?? 0 }},
-                {{ $counts['attractions']['total'] ?? 0 }},
-                {{ $counts['ports']['total'] ?? 0 }},
-                {{ $counts['zones']['total'] ?? 0 }}
-            ],
+            data: {!! json_encode($totalData) !!},
             backgroundColor: colorSchemes.gradient,
             borderColor: colorSchemes.border,
             borderWidth: 2,
@@ -998,20 +1042,7 @@ function initializeEnhancedChart() {
             tension: 0.4
         }, {
             label: 'This Month',
-            data: [
-                {{ $counts['enquiries']['new'] ?? 0 }},
-                {{ $counts['bookings']['confirmed'] ?? 0 }},
-                {{ $counts['tours']['active'] ?? 0 }},
-                {{ $counts['hotels']['active'] ?? 0 }},
-                {{ $counts['restaurants']['active'] ?? 0 }},
-                {{ $counts['guides']['available'] ?? 0 }},
-                {{ $counts['drivers']['available'] ?? 0 }},
-                {{ $counts['vehicles']['available'] ?? 0 }},
-                {{ $counts['agents']['active'] ?? 0 }},
-                {{ $counts['attractions']['active'] ?? 0 }},
-                {{ $counts['ports']['active'] ?? 0 }},
-                {{ $counts['zones']['active'] ?? 0 }}
-            ],
+            data: {!! json_encode($monthData) !!},
             backgroundColor: colorSchemes.gradient.map(color => color.replace('0.8', '0.4')),
             borderColor: colorSchemes.border.map(color => color.replace('1', '0.8')),
             borderWidth: 1,
@@ -1320,22 +1351,35 @@ function updateChart(counts) {
     if (businessChart) {
         document.getElementById('chartLoading').style.display = 'block';
         
-        // Update current data
-        currentData.datasets[0].data = [
+        // Build data arrays conditionally based on user role
+        const canViewAgents = {{ in_array(Auth::user()->role_id, [1, 10, 11, 33, 12, 37, 38]) ? 'true' : 'false' }};
+        
+        let totalData = [
             counts.enquiries.total, counts.bookings.total, counts.tours.total,
             counts.hotels.total, counts.restaurants.total, counts.guides.total,
-            counts.drivers.total, counts.vehicles.total, counts.agents.total,
-            counts.attractions.total, counts.ports.total, counts.zones.total
+            counts.drivers.total, counts.vehicles.total
         ];
         
-        currentData.datasets[1].data = [
+        let monthData = [
             counts.enquiries.new || counts.enquiries.active || 0,
             counts.bookings.confirmed || counts.bookings.active || 0,
             counts.tours.active, counts.hotels.active, counts.restaurants.active,
-            counts.guides.available, counts.drivers.available, counts.vehicles.available,
-            counts.agents.active, counts.attractions.active, counts.ports.active,
-            counts.zones.active
+            counts.guides.available, counts.drivers.available, counts.vehicles.available
         ];
+        
+        // Add agents data if user can view it
+        if (canViewAgents) {
+            totalData.push(counts.agents.total);
+            monthData.push(counts.agents.active);
+        }
+        
+        // Add remaining data
+        totalData.push(counts.attractions.total, counts.ports.total, counts.zones.total);
+        monthData.push(counts.attractions.active, counts.ports.active, counts.zones.active);
+        
+        // Update current data
+        currentData.datasets[0].data = totalData;
+        currentData.datasets[1].data = monthData;
         
         businessChart.update('active');
         

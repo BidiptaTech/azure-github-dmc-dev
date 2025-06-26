@@ -26,13 +26,18 @@ class FinanceReportController extends Controller
         );
 
         // Filter results by agent names if not admin (since function returns agent_name, not agent_id)
-        if ($user->role_id !== 1 && !empty($agentIds)) {
-            // Get agent names for the accessible agent IDs
-            $agentNames = Agent::whereIn('agent_id', $agentIds)->pluck('name')->toArray();
-            
-            $rawResults = collect($rawResults)->filter(function ($row) use ($agentNames) {
-                return in_array($row->agent_name, $agentNames);
-            });
+        if ($user->role_id !== 1) {
+            if (!empty($agentIds)) {
+                // User has accessible agents - filter by them
+                $agentNames = Agent::whereIn('agent_id', $agentIds)->pluck('name')->toArray();
+                
+                $rawResults = collect($rawResults)->filter(function ($row) use ($agentNames) {
+                    return in_array($row->agent_name, $agentNames);
+                });
+            } else {
+                // User has no accessible agents - show no results
+                $rawResults = collect(); // Empty collection
+            }
         }
 
         // Group results by period and agent
@@ -60,7 +65,7 @@ class FinanceReportController extends Controller
         return view('reports.sales-revenue', compact('groupedResults', 'startDate', 'endDate', 'groupBy'));
     }
 
-    public function ledger(Request $request)
+        public function ledger(Request $request)
     {
         $user = auth()->user();
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -71,21 +76,32 @@ class FinanceReportController extends Controller
         // Get accessible agent IDs
         $agentIds = $this->getAccessibleAgentIds($user);
 
-        // Build the query based on filters
-        $query = "SELECT 
-                    o.id,
-                    o.booking_id,
-                    o.agent_id,
-                    o.type as service_type,
-                    o.status,
-                    o.created_at,
-                    a.name as agent_name,
-                    (elem->>'totalPrice')::NUMERIC as amount,
-                    (elem->>'fullName') as customer_name,
-                    (elem->>'email') as customer_email
+                // Build the query based on filters - handle both JSON objects and arrays
+                $query = "SELECT 
+                o.id,
+                o.booking_id,
+                o.agent_id,
+                o.type as service_type,
+                o.status,
+                o.created_at,
+                a.name as agent_name,
+                COALESCE(
+                    (o.data->>'totalPrice')::NUMERIC,
+                    (o.data->0->>'totalPrice')::NUMERIC,
+                    0
+                ) as amount,
+                COALESCE(
+                    o.data->>'fullName',
+                    o.data->0->>'fullName',
+                    'N/A'
+                ) as customer_name,
+                COALESCE(
+                    o.data->>'email',
+                    o.data->0->>'email',
+                    'N/A'
+                ) as customer_email
                   FROM orders o
-                  LEFT JOIN agents a ON o.agent_id = a.agent_id,
-                  LATERAL jsonb_array_elements(o.data::jsonb) AS elem
+                  LEFT JOIN agents a ON o.agent_id = a.agent_id
                   WHERE o.status = 1
                     AND o.type IN ('hotel', 'attraction', 'guide', 'driver', 'entry_port', 'exit_port', 'travel_point', 'travel_hourly')
                     AND o.created_at BETWEEN ? AND ?";
@@ -93,9 +109,15 @@ class FinanceReportController extends Controller
         $params = [$startDate, $endDate];
 
         // Filter by accessible agents if not admin
-        if ($user->role_id !== 1 && !empty($agentIds)) {
-            $query .= " AND o.agent_id = ANY(?)";
-            $params[] = '{' . implode(',', $agentIds) . '}';
+        if ($user->role_id !== 1) {
+            if (!empty($agentIds)) {
+                // User has accessible agents - filter by them
+                $query .= " AND o.agent_id = ANY(?)";
+                $params[] = '{' . implode(',', $agentIds) . '}';
+            } else {
+                // User has no accessible agents - show no results
+                $query .= " AND o.agent_id = -1"; // This will match no records
+            }
         }
 
         if ($agentId) {
@@ -124,6 +146,39 @@ class FinanceReportController extends Controller
     private function getAccessibleAgentIds($user)
     {
         switch ($user->role_id) {
+            case 10: // Master DMC
+                $masterDmcId = $user->userId;
+                
+                // Get all DMCs under this Master DMC
+                $dmcs = User::where('master_dmc_id', $masterDmcId)
+                           ->where('role_id', 11)
+                           ->pluck('userId');
+                            
+                // Get all sales heads under these DMCs
+                $salesHeads = User::whereIn('created_by', $dmcs)
+                                 ->where('role_id', 33)
+                                 ->pluck('userId');
+                                
+                // Get all sales managers under these sales heads
+                $salesManagers = User::whereIn('created_by', $salesHeads)
+                                   ->whereIn('role_id', [12, 37])
+                                   ->pluck('userId');
+                                
+                // Get all assistant managers under these sales managers
+                $assistantManagers = User::whereIn('created_by', $salesManagers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                                
+                $all_ids = collect([$masterDmcId])
+                    ->merge($dmcs)
+                    ->merge($salesHeads)
+                    ->merge($salesManagers)
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
+
+                return Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id')->toArray();
+
             case 11: // DMC
                 $dmc_id = $user->userId;
 
@@ -199,6 +254,41 @@ class FinanceReportController extends Controller
     private function getAccessibleAgentsForDropdown($user)
     {
         switch ($user->role_id) {
+            case 10: // Master DMC
+                $masterDmcId = $user->userId;
+                
+                // Get all DMCs under this Master DMC
+                $dmcs = User::where('master_dmc_id', $masterDmcId)
+                           ->where('role_id', 11)
+                           ->pluck('userId');
+                            
+                // Get all sales heads under these DMCs
+                $salesHeads = User::whereIn('created_by', $dmcs)
+                                 ->where('role_id', 33)
+                                 ->pluck('userId');
+                                
+                // Get all sales managers under these sales heads
+                $salesManagers = User::whereIn('created_by', $salesHeads)
+                                   ->whereIn('role_id', [12, 37])
+                                   ->pluck('userId');
+                                
+                // Get all assistant managers under these sales managers
+                $assistantManagers = User::whereIn('created_by', $salesManagers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                                
+                $all_ids = collect([$masterDmcId])
+                    ->merge($dmcs)
+                    ->merge($salesHeads)
+                    ->merge($salesManagers)
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
+
+                return Agent::whereIn('sales_manager_dmc', $all_ids)
+                    ->select('agent_id', 'name')
+                    ->get();
+
             case 11: // DMC
                 $dmc_id = $user->userId;
 

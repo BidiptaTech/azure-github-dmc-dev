@@ -97,6 +97,18 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Package Type <span class="text-danger">*</span></label>
+                            <select class="form-select @error('package_type') is-invalid @enderror" name="package_type" required>
+                                <option value="">Select Package Type</option>
+                                <option value="single" {{ old('package_type') == 'single' ? 'selected' : '' }}>Single Person</option>
+                                <option value="double" {{ old('package_type') == 'double' ? 'selected' : '' }}>Two Person</option>
+                                
+                            </select>
+                            @error('package_type')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
                         
                         <div class="col-12">
                             <label class="form-label">Description</label>
