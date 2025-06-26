@@ -48,6 +48,7 @@ class Package extends Model
         'city',
         'category',
         'duration_days',
+        'package_type',
         'description',
         'price_adult',
         'price_senior',

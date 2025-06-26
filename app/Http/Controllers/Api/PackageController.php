@@ -26,6 +26,7 @@ class PackageController extends Controller
         $country = $request->query('country');
         $today = Carbon::today();
         $date = $request->query('date');
+        $pax = $request->query('adults');
 
         // Format the date properly for comparison with database date fields
         if (empty($date)) {
@@ -72,7 +73,7 @@ class PackageController extends Controller
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
 
-        $query = Package::where('status', 1)
+        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)
             ->whereDate('start_date', '<=', $date)
             ->whereDate('expire_date', '>=', $date);
         if (!empty($city)) {
@@ -351,7 +352,7 @@ class PackageController extends Controller
         
         // Format dates to Y-m-d
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
-        $check_out = Carbon::parse($end_date)->format('Y-m-d');
+        $check_out = Carbon::parse($end_date)->format('Y-m-d'); 
 
         // Verify price calculation
         $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
