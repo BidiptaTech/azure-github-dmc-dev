@@ -270,23 +270,7 @@ const PackagePricing = ({
             </Typography>
           </Box>
           
-          {/* Travel Dates */}
-          {searchParams?.check_in && searchParams?.check_out && (
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              py: 1,
-              borderBottom: '1px dashed #e0e0e0'
-            }}>
-              <Typography variant="body1" fontWeight="medium">
-                Travel Dates
-              </Typography>
-              <Typography variant="body2" fontWeight="medium">
-                {new Date(searchParams.check_in).toLocaleDateString()} - {new Date(searchParams.check_out).toLocaleDateString()}
-              </Typography>
-            </Box>
-          )}
+          
           
           {/* Total Price */}
           <Box sx={{ 

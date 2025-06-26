@@ -1,117 +1,194 @@
-import React, { useState } from 'react';
-import { 
-  Paper, 
-  Typography, 
-  Box, 
-  Stepper, 
-  Step, 
-  StepLabel, 
-  StepContent, 
-  Button, 
-  Alert
+import React, { useRef } from 'react';
+import {
+  Box,
+  Typography,
+  Divider,
+  Paper,
+  Chip
 } from '@mui/material';
-import MapIcon from '@mui/icons-material/Map';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
-const PackageItinerary = ({ packageData }) => {
-  const [activeStep, setActiveStep] = useState(0);
-  
-  // If there's no specific itinerary data, create a simple one based on duration
-  const generateDefaultItinerary = (days) => {
-    const itinerary = [];
-    for (let i = 0; i < days; i++) {
-      itinerary.push({
-        title: `Day ${i + 1} - ${i === 0 ? 'Arrival' : i === days - 1 ? 'Departure' : 'Exploration'}`,
-        description: `Day ${i + 1} of your ${packageData.destination} adventure.`
-      });
-    }
-    return itinerary;
-  };
-  
-  // Use provided itinerary or generate a default one based on duration
-  const itinerary = packageData.itinerary || generateDefaultItinerary(packageData.duration_days);
-  
-  const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
-  };
-
-  const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
-
-  const handleReset = () => {
-    setActiveStep(0);
-  };
-  
-  if (!itinerary || itinerary.length === 0) {
-    return (
-      <Paper elevation={1} sx={{ p: 3, borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <MapIcon sx={{ mr: 1 }} />
-          <Typography variant="h5" fontWeight="bold">
-            Itinerary
-          </Typography>
-        </Box>
-        <Alert severity="info">
-          No detailed itinerary is available for this package at the moment.
-        </Alert>
-      </Paper>
-    );
-  }
-  
+// Compact day item component for sidebar
+const DayItem = ({ day, isActive, onClick }) => {
   return (
-    <Paper elevation={1} sx={{ p: 3, borderRadius: '12px' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <MapIcon sx={{ mr: 1 }} />
-        <Typography variant="h5" fontWeight="bold">
-          {packageData.duration_days}-Day Itinerary
+    <Box 
+      onClick={onClick}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        py: 0.8,
+        px: 1,
+        mb: 0.5,
+        borderRadius: '6px',
+        cursor: 'pointer',
+        backgroundColor: isActive ? 'primary.light' : 'transparent',
+        color: isActive ? 'primary.contrastText' : 'text.primary',
+        '&:hover': {
+          backgroundColor: isActive ? 'primary.main' : 'action.hover',
+        },
+        transition: 'background-color 0.2s'
+      }}
+    >
+      <FiberManualRecordIcon 
+        sx={{ 
+          fontSize: 12, 
+          color: isActive ? 'inherit' : 'primary.main',
+          mr: 1
+        }} 
+      />
+      
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Typography 
+          variant="body2" 
+          fontWeight={isActive ? 'bold' : 'medium'}
+          sx={{ lineHeight: 1.2 }}
+        >
+          {`Day ${day.day}`}
+        </Typography>
+        
+        <Typography 
+          variant="caption" 
+          color={isActive ? 'inherit' : 'text.secondary'}
+          sx={{ lineHeight: 1.1 }}
+        >
+          {day.description}
+        </Typography>
+
+        <Typography 
+          variant="caption" 
+          fontWeight="bold"
+          color={isActive ? 'inherit' : 'text.secondary'}
+          sx={{ lineHeight: 1.2, mt: 0.2 }}
+        >
+          {day.date}
         </Typography>
       </Box>
       
-      <Stepper activeStep={activeStep} orientation="vertical">
-        {itinerary.map((day, index) => (
-          <Step key={index}>
-            <StepLabel>
-              <Typography variant="subtitle1" fontWeight="medium">
-                {day.title || `Day ${index + 1}`}
-              </Typography>
-            </StepLabel>
-            <StepContent>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {day.description}
-              </Typography>
-              <Box sx={{ mb: 2 }}>
-                <div>
-                  <Button
-                    variant="contained"
-                    onClick={handleNext}
-                    sx={{ mt: 1, mr: 1 }}
-                  >
-                    {index === itinerary.length - 1 ? 'Finish' : 'Continue'}
-                  </Button>
-                  <Button
-                    disabled={index === 0}
-                    onClick={handleBack}
-                    sx={{ mt: 1, mr: 1 }}
-                  >
-                    Back
-                  </Button>
-                </div>
-              </Box>
-            </StepContent>
-          </Step>
-        ))}
-      </Stepper>
+      <Chip
+        size="small"
+        label={`D${day.day}`}
+        color={isActive ? "primary" : "default"}
+        variant={isActive ? "filled" : "outlined"}
+        sx={{ 
+          height: 20, 
+          '& .MuiChip-label': { 
+            px: 0.8, 
+            fontSize: '0.65rem' 
+          }
+        }}
+      />
+    </Box>
+  );
+};
+
+const formatDate = (date) => {
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit'
+  }).replace(',', '');
+};
+
+const PackageItinerary = ({ packageDetails, activeDay, setActiveDay, contentRef, dayRefs }) => {
+  // Generate day items for sidebar navigation
+  const generateDayItems = () => {
+    const days = packageDetails.duration_days || 1;
+    
+      // Prioritize using the date from search or fall back to package start_date
+  // This ensures the itinerary uses the user-selected date
+  const startDate = packageDetails.date ? new Date(packageDetails.date) : 
+                   packageDetails.start_date ? new Date(packageDetails.start_date) : new Date();
+  
+  // Log for debugging to confirm which date is being used
+  console.log('PackageItinerary - Dates:', { 
+    date: packageDetails.date,
+    start_date: packageDetails.start_date,
+    using: packageDetails.date ? 'date' : packageDetails.start_date ? 'start_date' : 'current date'
+  });
+    
+    return Array(days).fill().map((_, index) => {
+      // Calculate date for this day (start date + index days)
+      const dayDate = new Date(startDate);
+      dayDate.setDate(startDate.getDate() + index);
       
-      {activeStep === itinerary.length && (
-        <Paper square elevation={0} sx={{ p: 3 }}>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            All steps completed - you've finished exploring the itinerary!
-          </Typography>
-          <Button onClick={handleReset} sx={{ mt: 1, mr: 1 }}>
-            View Itinerary Again
-          </Button>
-        </Paper>
-      )}
+      return {
+        day: index + 1,
+        label: `Day ${index + 1}`,
+        date: formatDate(dayDate),
+        description: packageDetails.itinerary && packageDetails.itinerary[index] 
+          ? packageDetails.itinerary[index].title.split(' - ')[1] 
+          : index === 0 ? 'Arrival' : index === days - 1 ? 'Departure' : 'Exploration'
+      };
+    });
+  };
+
+  const dayItems = generateDayItems();
+
+  // Scroll to specific day in itinerary
+  const scrollToDay = (dayIndex) => {
+    setActiveDay(dayIndex);
+    if (dayRefs.current[dayIndex] && dayRefs.current[dayIndex].current && contentRef.current) {
+      const contentContainer = contentRef.current;
+      const dayElement = dayRefs.current[dayIndex].current;
+      
+      // Calculate the day element's position relative to the content container
+      const dayRect = dayElement.getBoundingClientRect();
+      const containerRect = contentContainer.getBoundingClientRect();
+      
+      // Calculate the correct scroll position
+      const scrollPosition = contentContainer.scrollTop + (dayRect.top - containerRect.top);
+      
+      // Add a small offset for better visibility
+      const scrollOffset = -20;
+      
+      // Scroll to the calculated position
+      contentContainer.scrollTo({
+        top: scrollPosition + scrollOffset,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  return (
+    <Paper 
+      elevation={1} 
+      sx={{ 
+        p: 1.5, 
+        position: 'sticky', 
+        top: 20,
+        borderRadius: '12px',
+        maxHeight: 'calc(100vh - 40px)',
+        overflowY: 'auto'
+      }}
+    >
+      <Typography 
+        variant="subtitle1" 
+        sx={{ 
+          mb: 1, 
+          display: 'flex', 
+          alignItems: 'center',
+          fontSize: '0.9rem',
+          fontWeight: 'bold' 
+        }}
+      >
+        <CalendarTodayIcon sx={{ mr: 0.5, fontSize: 16 }} />
+        Day by Day Journey
+      </Typography>
+      <Divider sx={{ mb: 1.5 }} />
+      
+      {/* Compact day navigation */}
+      <Box>
+        {dayItems.map((item, index) => (
+          <DayItem
+            key={index}
+            day={item}
+            isActive={activeDay === index}
+            onClick={() => scrollToDay(index)}
+          />
+        ))}
+      </Box>
     </Paper>
   );
 };

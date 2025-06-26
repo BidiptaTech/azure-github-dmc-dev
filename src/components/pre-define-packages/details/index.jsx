@@ -80,70 +80,6 @@ import GuideItemRenderer from './selection-components/GuideItemRenderer';
 // Import API endpoints
 import { endpoints } from '../../../services/api';
 
-// Compact day item component for sidebar
-const DayItem = ({ day, isActive, onClick }) => {
-  return (
-    <Box 
-      onClick={onClick}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        py: 0.8,
-        px: 1,
-        mb: 0.5,
-        borderRadius: '6px',
-        cursor: 'pointer',
-        backgroundColor: isActive ? 'primary.light' : 'transparent',
-        color: isActive ? 'primary.contrastText' : 'text.primary',
-        '&:hover': {
-          backgroundColor: isActive ? 'primary.main' : 'action.hover',
-        },
-        transition: 'background-color 0.2s'
-      }}
-    >
-      <FiberManualRecordIcon 
-        sx={{ 
-          fontSize: 12, 
-          color: isActive ? 'inherit' : 'primary.main',
-          mr: 1
-        }} 
-      />
-      
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <Typography 
-          variant="body2" 
-          fontWeight={isActive ? 'bold' : 'medium'}
-          sx={{ lineHeight: 1.2 }}
-        >
-          {`Day ${day.day}`}
-        </Typography>
-        
-        <Typography 
-          variant="caption" 
-          color={isActive ? 'inherit' : 'text.secondary'}
-          sx={{ lineHeight: 1.1 }}
-        >
-          {day.description}
-        </Typography>
-      </Box>
-      
-      <Chip
-        size="small"
-        label={`D${day.day}`}
-        color={isActive ? "primary" : "default"}
-        variant={isActive ? "filled" : "outlined"}
-        sx={{ 
-          height: 20, 
-          '& .MuiChip-label': { 
-            px: 0.8, 
-            fontSize: '0.65rem' 
-          }
-        }}
-      />
-    </Box>
-  );
-};
-
 // Navigation arrow for section navigation
 const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label }) => {
   const Icon = direction === 'next' ? KeyboardArrowRightIcon : KeyboardArrowLeftIcon;
@@ -291,6 +227,7 @@ const PackageDetailsContainer = () => {
   const [mainTab, setMainTab] = useState(0);
   const [activeSection, setActiveSection] = useState('hotels');
   const [activeDay, setActiveDay] = useState(0); // Track active day in itinerary
+  const [currentPackageDetails, setCurrentPackageDetails] = useState(null); // Track updated package details
   
   // State for modals
   const [hotelsModalOpen, setHotelsModalOpen] = useState(false);
@@ -427,7 +364,7 @@ const PackageDetailsContainer = () => {
     </Paper>
   );
   
-  const { packageDetails, loadingDetails, errorDetails } = useSelector(state => state.prePackages);
+  const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
   
   useEffect(() => {
     if (id) {
@@ -438,20 +375,26 @@ const PackageDetailsContainer = () => {
   // Initialize day refs and selected items when package details load
   useEffect(() => {
     if (packageDetails) {
+      // Create a memoized version of packageDetails with date from searchParams
+      const updatedPackageDetails = {
+        ...packageDetails,
+        date: searchParams?.date || packageDetails.date
+      };
+      
       // Create refs for each day in the itinerary
-      if (packageDetails.duration_days) {
-        dayRefs.current = Array(packageDetails.duration_days)
+      if (updatedPackageDetails.duration_days) {
+        dayRefs.current = Array(updatedPackageDetails.duration_days)
           .fill()
           .map((_, i) => dayRefs.current[i] || React.createRef());
       }
       
       // Set selected items from package details
-      setSelectedHotels(packageDetails.selected_hotels || []);
-      setSelectedAttractions(packageDetails.selected_attractions || []);
-      setSelectedRestaurants(packageDetails.selected_restaurants || []);
+      setSelectedHotels(updatedPackageDetails.selected_hotels || []);
+      setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
+      setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []);
       
       // Check for both property names for guides (selected_guides or selected_guide)
-      const guides = packageDetails.selected_guides || packageDetails.selected_guide || [];
+      const guides = updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || [];
       
       // If no guides are found, add a sample guide for testing
       if (!guides.length) {
@@ -472,8 +415,11 @@ const PackageDetailsContainer = () => {
       } else {
         setSelectedGuides(guides);
       }
+      
+      // Update PackageItinerary component props with the updated package details including date
+      setCurrentPackageDetails(updatedPackageDetails);
     }
-  }, [packageDetails]);
+  }, [packageDetails, searchParams]);
   
   // Add loading state
   const [isLoading, setIsLoading] = useState(false);
@@ -717,6 +663,25 @@ const PackageDetailsContainer = () => {
     }
   };
   
+  // Helper to get navigation details for sections
+  const getNavigationDetails = (currentSection) => {
+    const sections = sectionTabs.map(tab => tab.id);
+    const currentIndex = sections.findIndex(s => s === currentSection);
+    
+    return {
+      prev: currentIndex > 0 ? {
+        id: sections[currentIndex - 1],
+        label: sectionTabs[currentIndex - 1].label,
+        icon: sectionTabs[currentIndex - 1].icon
+      } : null,
+      next: currentIndex < sections.length - 1 ? {
+        id: sections[currentIndex + 1],
+        label: sectionTabs[currentIndex + 1].label,
+        icon: sectionTabs[currentIndex + 1].icon
+      } : null
+    };
+  };
+  
   if (loadingDetails) {
     return (
       <Container>
@@ -764,39 +729,6 @@ const PackageDetailsContainer = () => {
     );
   }
   
-  // Generate day items for sidebar navigation
-  const generateDayItems = () => {
-    const days = packageDetails.duration_days || 1;
-    return Array(days).fill().map((_, index) => ({
-      day: index + 1,
-      label: `Day ${index + 1}`,
-      description: packageDetails.itinerary && packageDetails.itinerary[index] 
-        ? packageDetails.itinerary[index].title.split(' - ')[1] 
-        : index === 0 ? 'Arrival' : index === days - 1 ? 'Departure' : 'Exploration'
-    }));
-  };
-  
-  const dayItems = generateDayItems();
-  
-  // Helper to get navigation details for sections
-  const getNavigationDetails = (currentSection) => {
-    const sections = sectionTabs.map(tab => tab.id);
-    const currentIndex = sections.findIndex(s => s === currentSection);
-    
-    return {
-      prev: currentIndex > 0 ? {
-        id: sections[currentIndex - 1],
-        label: sectionTabs[currentIndex - 1].label,
-        icon: sectionTabs[currentIndex - 1].icon
-      } : null,
-      next: currentIndex < sections.length - 1 ? {
-        id: sections[currentIndex + 1],
-        label: sectionTabs[currentIndex + 1].label,
-        icon: sectionTabs[currentIndex + 1].icon
-      } : null
-    };
-  };
-  
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Button 
@@ -837,44 +769,13 @@ const PackageDetailsContainer = () => {
             <Grid container spacing={3}>
               {/* Left sidebar with day-by-day navigation - Sticky */}
               <Grid item xs={12} md={3} lg={2}>
-                <Paper 
-                  elevation={1} 
-                  sx={{ 
-                    p: 1.5, 
-                    position: 'sticky', 
-                    top: 20,
-                    borderRadius: '12px',
-                    maxHeight: 'calc(100vh - 40px)',
-                    overflowY: 'auto'
-                  }}
-                >
-                  <Typography 
-                    variant="subtitle1" 
-                    sx={{ 
-                      mb: 1, 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      fontSize: '0.9rem',
-                      fontWeight: 'bold' 
-                    }}
-                  >
-                    <CalendarTodayIcon sx={{ mr: 0.5, fontSize: 16 }} />
-                    Day by Day Journey
-                  </Typography>
-                  <Divider sx={{ mb: 1.5 }} />
-                  
-                  {/* Compact day navigation */}
-                  <Box>
-                    {dayItems.map((item, index) => (
-                      <DayItem
-                        key={index}
-                        day={item}
-                        isActive={activeDay === index}
-                        onClick={() => scrollToDay(index)}
-                      />
-                    ))}
-                  </Box>
-                </Paper>
+                <PackageItinerary 
+                  packageDetails={currentPackageDetails || packageDetails}
+                  activeDay={activeDay}
+                  setActiveDay={setActiveDay}
+                  contentRef={contentRef}
+                  dayRefs={dayRefs}
+                />
               </Grid>
               
               {/* Content Columns - Container for main content and price */}
