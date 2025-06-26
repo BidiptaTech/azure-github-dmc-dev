@@ -114,8 +114,8 @@
                                     <option value="attraction" {{ $serviceType == 'attraction' ? 'selected' : '' }}>Attraction</option>
                                     <option value="guide" {{ $serviceType == 'guide' ? 'selected' : '' }}>Guide</option>
                                     <option value="driver" {{ $serviceType == 'driver' ? 'selected' : '' }}>Driver</option>
-                                    <option value="entry_port" {{ $serviceType == 'entry_port' ? 'selected' : '' }}>Entry Port</option>
-                                    <option value="exit_port" {{ $serviceType == 'exit_port' ? 'selected' : '' }}>Exit Port</option>
+                                    <option value="entry_port" {{ $serviceType == 'entry_port' ? 'selected' : '' }}>Arrival</option>
+                                    <option value="exit_port" {{ $serviceType == 'exit_port' ? 'selected' : '' }}>Departure</option>
                                     <option value="travel_point" {{ $serviceType == 'travel_point' ? 'selected' : '' }}>Travel Point</option>
                                     <option value="travel_hourly" {{ $serviceType == 'travel_hourly' ? 'selected' : '' }}>Travel Hourly</option>
                                 </select>
@@ -172,7 +172,23 @@
                                             <td>{{ $row->booking_id }}</td>
                                             <td>{{ $row->agent_name }}</td>
                                             <td>
-                                                <span class="badge bg-primary">{{ ucfirst($row->service_type) }}</span>
+                                                @if($row->service_type == 'entry_port')
+                                                    <span class="badge text-white bg-primary">Arrival</span>
+                                                @elseif($row->service_type == 'exit_port')
+                                                    <span class="badge text-white bg-primary">Departure</span>
+                                                @elseif($row->service_type == 'travel_point')
+                                                    <span class="badge text-white bg-primary">Travel Point</span>
+                                                @elseif($row->service_type == 'travel_hourly')
+                                                    <span class="badge text-white bg-primary">Travel Hourly</span>
+                                                @elseif($row->service_type == 'guide')
+                                                    <span class="badge text-white bg-primary">Guide</span>
+                                                @elseif($row->service_type == 'driver')
+                                                    <span class="badge text-white bg-primary">Driver</span>
+                                                @elseif($row->service_type == 'attraction')
+                                                    <span class="badge text-white bg-primary">Attraction</span>
+                                                @elseif($row->service_type == 'hotel')
+                                                    <span class="badge text-white bg-primary">Hotel</span>
+                                                @endif
                                             </td>
                                             <td>{{ $row->customer_name ?? 'N/A' }}</td>
                                             <td>{{ $row->customer_email ?? 'N/A' }}</td>
