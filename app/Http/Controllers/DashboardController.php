@@ -524,7 +524,7 @@ class DashboardController extends Controller
         $query = Agent::query();
         
         // Apply role-based filtering
-        if (in_array($user->role_id, [11, 33, 12, 37, 38])) {
+        if (in_array($user->role_id, [10, 11, 33, 12, 37, 38])) {
             $allIds = $this->getAllRelatedUserIds($user);
             if ($allIds->isNotEmpty()) {
                 $query->whereIn('sales_manager_dmc', $allIds);
@@ -791,7 +791,65 @@ class DashboardController extends Controller
      */
     private function getAllRelatedUserIds($user)
     {
+        // Add debugging
+        \Log::info("DEBUG: getAllRelatedUserIds called for user", [
+            'userId' => $user->userId,
+            'role_id' => $user->role_id,
+            'name' => $user->name
+        ]);
+
         switch ($user->role_id) {
+            case 10: // Master DMC
+                $masterDmcId = $user->userId;
+                
+                // Get all DMCs under this Master DMC
+                $dmcs = User::where('master_dmc_id', $masterDmcId)
+                           ->where('role_id', 11)
+                           ->pluck('userId');
+                
+                \Log::info("DEBUG: Master DMC found DMCs", [
+                    'master_dmc_id' => $masterDmcId,
+                    'dmcs_found' => $dmcs->toArray()
+                ]);
+                
+                // Get all sales heads under these DMCs
+                $salesHeads = User::whereIn('created_by', $dmcs)
+                                 ->where('role_id', 33)
+                                 ->pluck('userId');
+                
+                \Log::info("DEBUG: Sales heads found", [
+                    'sales_heads' => $salesHeads->toArray()
+                ]);
+                
+                // Continue with other hierarchy levels...
+                $salesManagers = User::whereIn('created_by', $salesHeads)
+                                   ->whereIn('role_id', [12, 37])
+                                   ->pluck('userId');
+                
+                $assistantManagers = User::whereIn('created_by', $salesManagers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                
+                $allIds = collect([$masterDmcId])
+                    ->merge($dmcs)
+                    ->merge($salesHeads)
+                    ->merge($salesManagers)
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
+                
+                \Log::info("DEBUG: Final all IDs", [
+                    'all_ids' => $allIds->toArray()
+                ]);
+                
+                // Check how many agents this returns
+                $agentCount = Agent::whereIn('sales_manager_dmc', $allIds)->count();
+                \Log::info("DEBUG: Agent count for these IDs", [
+                    'agent_count' => $agentCount
+                ]);
+                
+                return $allIds;
+                
             case 11: // DMC
                 $dmcId = $user->userId;
                 
@@ -815,11 +873,34 @@ class DashboardController extends Controller
                     ->filter();
                     
             case 33: // Sales Head
-                return collect([$user->userId]);
+                $salesHeadId = $user->userId;
+                
+                $salesManagers = User::where('created_by', $salesHeadId)
+                                   ->whereIn('role_id', [12, 37])
+                                   ->pluck('userId');
+                
+                $assistantManagers = User::whereIn('created_by', $salesManagers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                
+                return collect([$salesHeadId])
+                    ->merge($salesManagers)
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
                 
             case 12:
             case 37: // Sales Manager
-                return collect([$user->userId]);
+                $salesManagerId = $user->userId;
+                
+                $assistantManagers = User::where('created_by', $salesManagerId)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                
+                return collect([$salesManagerId])
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
                 
             case 38: // Assistant Sales Manager
                 return collect([$user->userId]);

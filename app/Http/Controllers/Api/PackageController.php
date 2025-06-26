@@ -354,6 +354,7 @@ class PackageController extends Controller
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
         $check_out = Carbon::parse($end_date)->format('Y-m-d'); 
 
+
         // Verify price calculation
         $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
 

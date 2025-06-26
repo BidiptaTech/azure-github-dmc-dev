@@ -14,6 +14,13 @@
     .table-striped > tbody > tr:nth-of-type(odd) {
         --bs-table-accent-bg: #f8f9fa;
     }
+    
+    /* Custom text colors for service icons */
+    .text-purple { color: #8b5cf6 !important; }
+    .text-indigo { color: #6366f1 !important; }
+    .text-orange { color: #f97316 !important; }
+    .text-cyan { color: #06b6d4 !important; }
+    
     /* Simple 3D Period Display - More Reliable */
     .period-display-simple {
         font-size: 0.85rem;
@@ -302,27 +309,56 @@
                                                         <div class="service-item d-flex justify-content-between align-items-center py-1">
                                                             <div class="d-flex align-items-center">
                                                                 <div class="service-icon me-2">
-                                                                    @switch(strtolower($service['service_type']))
-                                                                        @case('hotel')
-                                                                            <i class="ri-hotel-line text-primary"></i>
-                                                                            @break
-                                                                        @case('tour')
-                                                                            <i class="ri-route-line text-success"></i>
-                                                                            @break
-                                                                        @case('transport')
-                                                                            <i class="ri-steering-2-line text-warning"></i>
-                                                                            @break
-                                                                        @case('restaurant')
-                                                                            <i class="ri-restaurant-2-line text-info"></i>
-                                                                            @break
-                                                                        @case('attraction')
-                                                                            <i class="ri-landscape-line text-danger"></i>
-                                                                            @break
-                                                                        @default
-                                                                            <i class="ri-service-line text-secondary"></i>
-                                                                    @endswitch
+                                                                    @php
+                                                                        $serviceType = strtolower($service['service_type']);
+                                                                        $serviceDisplayName = '';
+                                                                        $iconClass = '';
+                                                                        
+                                                                        switch($serviceType) {
+                                                                            case 'hotel':
+                                                                                $serviceDisplayName = 'Hotel Booking';
+                                                                                $iconClass = 'ri-hotel-line text-primary';
+                                                                                break;
+                                                                            case 'attraction':
+                                                                                $serviceDisplayName = 'Tourist Attraction';
+                                                                                $iconClass = 'ri-landscape-line text-danger';
+                                                                                break;
+                                                                            case 'guide':
+                                                                                $serviceDisplayName = 'Tour Guide';
+                                                                                $iconClass = 'ri-user-star-line text-cyan';
+                                                                                break;
+                                                                            case 'driver':
+                                                                                $serviceDisplayName = 'Driver Service';
+                                                                                $iconClass = 'ri-steering-2-line text-orange';
+                                                                                break;
+                                                                            case 'exit_port':
+                                                                                $serviceDisplayName = 'Arrival Service';
+                                                                                $iconClass = 'ri-plane-line text-success';
+                                                                                break;
+                                                                            case 'entry_port':
+                                                                                $serviceDisplayName = 'Departure Service';
+                                                                                $iconClass = 'ri-flight-takeoff-line text-purple';
+                                                                                break;
+                                                                            case 'travel_point':
+                                                                                $serviceDisplayName = 'Point-to-Point Transfer';
+                                                                                $iconClass = 'ri-route-line text-indigo';
+                                                                                break;
+                                                                            case 'travel_hourly':
+                                                                                $serviceDisplayName = 'Hourly Vehicle Rental';
+                                                                                $iconClass = 'ri-time-line text-orange';
+                                                                                break;
+                                                                            case 'restaurant':
+                                                                                $serviceDisplayName = 'Restaurant Booking';
+                                                                                $iconClass = 'ri-restaurant-2-line text-cyan';
+                                                                                break;
+                                                                            default:
+                                                                                $serviceDisplayName = ucfirst(str_replace('_', ' ', $serviceType));
+                                                                                $iconClass = 'ri-service-line text-secondary';
+                                                                        }
+                                                                    @endphp
+                                                                    <i class="{{ $iconClass }}"></i>
                                                                 </div>
-                                                                <span class="small">{{ ucfirst($service['service_type']) }}</span>
+                                                                <span class="small">{{ $serviceDisplayName }}</span>
                                                             </div>
                                                             <span class="text-muted small">₹{{ number_format($service['revenue'], 2) }}</span>
                                                         </div>
