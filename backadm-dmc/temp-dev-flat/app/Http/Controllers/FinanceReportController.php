@@ -76,21 +76,32 @@ class FinanceReportController extends Controller
         // Get accessible agent IDs
         $agentIds = $this->getAccessibleAgentIds($user);
 
-        // Build the query based on filters
-        $query = "SELECT 
-                    o.id,
-                    o.booking_id,
-                    o.agent_id,
-                    o.type as service_type,
-                    o.status,
-                    o.created_at,
-                    a.name as agent_name,
-                    (elem->>'totalPrice')::NUMERIC as amount,
-                    (elem->>'fullName') as customer_name,
-                    (elem->>'email') as customer_email
+                // Build the query based on filters - handle both JSON objects and arrays
+                $query = "SELECT 
+                o.id,
+                o.booking_id,
+                o.agent_id,
+                o.type as service_type,
+                o.status,
+                o.created_at,
+                a.name as agent_name,
+                COALESCE(
+                    (o.data->>'totalPrice')::NUMERIC,
+                    (o.data->0->>'totalPrice')::NUMERIC,
+                    0
+                ) as amount,
+                COALESCE(
+                    o.data->>'fullName',
+                    o.data->0->>'fullName',
+                    'N/A'
+                ) as customer_name,
+                COALESCE(
+                    o.data->>'email',
+                    o.data->0->>'email',
+                    'N/A'
+                ) as customer_email
                   FROM orders o
-                  LEFT JOIN agents a ON o.agent_id = a.agent_id,
-                  LATERAL jsonb_array_elements(o.data::jsonb) AS elem
+                  LEFT JOIN agents a ON o.agent_id = a.agent_id
                   WHERE o.status = 1
                     AND o.type IN ('hotel', 'attraction', 'guide', 'driver', 'entry_port', 'exit_port', 'travel_point', 'travel_hourly')
                     AND o.created_at BETWEEN ? AND ?";
