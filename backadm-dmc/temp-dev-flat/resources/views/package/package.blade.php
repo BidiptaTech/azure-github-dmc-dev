@@ -213,7 +213,7 @@
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
                         <div class="d-flex gap-2">
-                            <a href="{{ route('packages.show', $package->package_id) }}" class="btn btn-primary btn-sm w-100">
+                            <a href="{{ route('packages.show', ['id' => $package->package_id]) }}" class="btn btn-primary btn-sm w-100">
                                 <i class="ri-eye-line me-1"></i>View
                             </a>
                             <!-- edit field -->

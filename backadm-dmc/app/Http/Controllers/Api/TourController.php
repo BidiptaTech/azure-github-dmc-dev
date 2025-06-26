@@ -1059,11 +1059,11 @@ class TourController extends Controller
                     if($sendEmail){
                         // Email sent successfully
                         return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
-                        Log::info('Booking confirmation email sent to: ' . $orderData->email);
+                        Log::info('Booking confirmation email sent to: ' . $hotel_email);
                     }
                     else{
                         // Failed to send email
-                        Log::error('Failed to send booking confirmation email to: ' . $orderData->email);
+                        Log::error('Failed to send booking confirmation email to: ' . $hotel_email);
                     }
                 }
             }

@@ -105,6 +105,7 @@ class PackageController extends Controller
                     'city' => 'required|string|max:255',
                     'category' => 'required|string|max:255',
                     'duration_days' => 'required|integer|min:1',
+                    'package_type' => 'required|string|max:255',
                     'description' => 'nullable|string',
                     'price_adult' => 'required|numeric|min:0',
                     'price_senior' => 'nullable|numeric|min:0',
@@ -176,6 +177,7 @@ class PackageController extends Controller
                 'city' => $validated['city'],
                 'category' => $validated['category'],
                 'duration_days' => $validated['duration_days'],
+                'package_type' => $validated['package_type'],
                 'description' => $validated['description'],
                 'price_adult' => $validated['price_adult'],
                 'price_senior' => $validated['price_senior'],
@@ -223,7 +225,7 @@ class PackageController extends Controller
      */
     public function show($id)
     {
-        $package = Package::with(['creator', 'updater'])->findOrFail($id);
+        $package = Package::with(['creator', 'updater'])->where('package_id', $id)->firstOrFail();
         
         // Increment views
         $package->incrementViews();
