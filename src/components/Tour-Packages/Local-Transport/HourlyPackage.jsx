@@ -104,7 +104,7 @@ const HourlyPackage = ({
   const id = open ? 'hours-popover' : undefined;
 
   return (
-    <Grid item xs={12} sm={6} md={3}>
+    <Grid item xs={12} sm={6} md={12}>
       <StyledCard 
         variant="outlined" 
         onClick={handleClick}

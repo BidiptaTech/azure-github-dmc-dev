@@ -219,7 +219,6 @@ export default function Itinerary() {
             {/* Transport Component */}
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
-                <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Transport</Typography>
                 <TransportComponent dayIndex={index} />
               </Paper>
             </Box>
