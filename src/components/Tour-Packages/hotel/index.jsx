@@ -194,7 +194,11 @@ export default function HotelComponent({ searchParams }) {
       hotelId: '',
       hotelDetails: {}, // Store hotel details within each configuration
       roomTypeId: '',
+      roomTypeName: '', // Initialize room type name
       bedTypeId: '',
+      bedTypeName: '', // Initialize bed type name
+      max_occupancy: 1, // Initialize max occupancy
+      bedPrice: 0, // Initialize bed price
       mealPlanId: 'self',
       nights: nightsCount,
       selectedNightIndices: initialNightIndices,
@@ -350,62 +354,114 @@ export default function HotelComponent({ searchParams }) {
     console.log("Hotel - Completed configurations:", completedConfigurations);
 
     if (completedConfigurations.length > 0) {
-      // Format the bookings for setAllServices
-      const hotelsForRedux = completedConfigurations.map(config => {
+      // Find any existing customer info in current services
+      const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
+
+      // Group configurations by hotel ID to consolidate rooms
+      const hotelGroups = {};
+      
+      completedConfigurations.forEach(config => {
         const hotel = config.hotelDetails || {};
-        const roomType = roomTypes.find(r => r.id === config.roomTypeId);
-        const bedType = bedTypes.find(b => b.id === config.bedTypeId);
+        const hotelId = config.hotelId;
+        const hotelName = hotel.hotel_name || hotel.name || 'Selected Hotel';
+        const hotelKey = `${hotelId}_${hotelName}`;
         
-        // Calculate total meal plan cost
-        const totalMealCost = (config.guestMealPlans || []).reduce((total, mealPlanId) => {
-          const plan = mealPlans.find(p => p.id === mealPlanId);
-          return total + (plan?.price || 0);
-        }, 0);
-
-        // Calculate date range from selected checkboxes (simple array format)
-        const selectedIndices = config.selectedNightIndices || [];
-        let bookingDates = [];
-        
-        if (selectedIndices.length > 0) {
-          // Sort the selected indices to find the range
-          const sortedIndices = [...selectedIndices].sort((a, b) => a - b);
-          const firstIndex = sortedIndices[0];
-          const lastIndex = sortedIndices[sortedIndices.length - 1];
-          
-          // Calculate start date (first selected night) and end date (day after last selected night)
-          const startDate = dates[firstIndex];
-          const endDate = dates[lastIndex + 1]; // +1 because night index refers to the start date
-          
-          if (startDate && endDate) {
-            bookingDates = [
-              startDate.format('YYYY-MM-DD'),
-              endDate.format('YYYY-MM-DD')
-            ];
-          }
+        if (!hotelGroups[hotelKey]) {
+          hotelGroups[hotelKey] = {
+            hotelId: hotelId,
+            hotelDetails: hotel,
+            configs: [],
+            totalPrice: 0,
+            firstConfig: config // Keep the first config for common hotel data
+          };
         }
-
-        // Prepare selected meals object for the bed
-        const selectedMeals = {};
-        const mealTypes = [];
-        let bedTotalPrice = bedType?.price || 0;
         
-        (config.guestMealPlans || []).forEach((mealPlanId, index) => {
-          const mealPlan = mealPlans.find(m => m.id === mealPlanId);
-          if (mealPlan) {
-            mealTypes.push(mealPlan.title);
-            selectedMeals[`meal_${index + 1}`] = {
-              type: mealPlan.title,
-              price: bedTotalPrice + (mealPlan.price || 0)
-            };
-            bedTotalPrice += (mealPlan.price || 0);
+        hotelGroups[hotelKey].configs.push(config);
+      });
+      
+      // Format hotel data with consolidated rooms
+      const hotelBookingsData = Object.values(hotelGroups).map(group => {
+        const firstConfig = group.firstConfig;
+        const hotel = group.hotelDetails;
+        
+        // Generate a stable ID for this hotel
+        const hotelBookingId = firstConfig.id || `hotel-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+        
+        // Create a date range covering all configurations for this hotel
+        const allDates = [];
+        group.configs.forEach(config => {
+          const selectedIndices = config.selectedNightIndices || [];
+          if (selectedIndices.length > 0) {
+            selectedIndices.forEach(index => {
+              if (dates[index] && !allDates.includes(dates[index].format('YYYY-MM-DD'))) {
+                allDates.push(dates[index].format('YYYY-MM-DD'));
+              }
+            });
           }
         });
+        
+        // Sort dates and get first and last
+        allDates.sort();
+        const bookingDates = allDates.length >= 2 ? 
+          [allDates[0], allDates[allDates.length-1]] : 
+          [];
+        
+        // Consolidate all rooms from all configurations for this hotel
+        const consolidatedRooms = group.configs.map(config => {
+          // Use stored names directly from the configuration, instead of looking up from arrays
+          // which might not have the correct data for all hotels at this point
+          const roomTypeName = config.roomTypeName || 'Unknown Room';
+          const bedTypeName = config.bedTypeName || 'Unknown Bed';
+          const maxOccupancy = config.max_occupancy || 1;
+          
+          // Prepare selected meals object for the bed
+          const selectedMeals = {};
+          const mealTypes = [];
+          let bedTotalPrice = config.bedPrice || bedTypes.find(b => b.id === config.bedTypeId)?.price || 0;
+          
+          (config.guestMealPlans || []).forEach((mealPlanId, index) => {
+            const mealPlan = mealPlans.find(m => m.id === mealPlanId);
+            if (mealPlan) {
+              mealTypes.push(mealPlan.title);
+              selectedMeals[`meal_${index + 1}`] = {
+                type: mealPlan.title,
+                price: mealPlan.price || 0
+              };
+              bedTotalPrice += (mealPlan.price || 0);
+            }
+          });
+          
+          // Calculate room price based on bed price and nights
+          const roomPrice = bedTotalPrice * (config.nights || 1);
+          
+          // Add to total hotel price
+          group.totalPrice += roomPrice;
+          
+          return {
+            room_id: parseInt(config.roomTypeId) || 0,
+            room_type: roomTypeName, // Use stored name directly from configuration
+            beds: [{
+              bed_id: parseInt(config.bedTypeId) || 0,
+              bed_type: bedTypeName, // Use stored name directly from configuration
+              max_occupancy: maxOccupancy,
+              head_count: config.selectedGuests || 1,
+              baby_cot: config.babyCot ? 1 : 0,
+              mealTypes: mealTypes.length > 0 ? mealTypes : ["Room Only"],
+              selectedMeals: Object.keys(selectedMeals).length > 0 ? selectedMeals : {
+                meal_1: { type: "Room Only", price: bedTotalPrice }
+              },
+              price: bedTotalPrice,
+              room_type: roomTypeName // Use stored name directly from configuration
+            }]
+          };
+        });
 
-        return {
-          type: "hotel",
-          bookingDate: bookingDates, // Simple array: ["start_date", "end_date"]
+        // Create the hotel booking data with both hotel details and customer info
+        const hotelBookingData = {
+          id: hotelBookingId,
+          bookingDate: bookingDates,
           hotelDetails: {
-            hotel_id: config.hotelId,
+            hotel_id: group.hotelId,
             hotel_name: hotel.hotel_name || hotel.name || 'Selected Hotel',
             checkInTime: hotel.checkInTime || hotel.check_in_time || "15:00:00",
             checkOutTime: hotel.checkOutTime || hotel.check_out_time || "12:00:00",
@@ -413,69 +469,84 @@ export default function HotelComponent({ searchParams }) {
             location: hotel.address || hotel.location || '',
             phone: hotel.phone || hotel.contact_number || '',
             cancellation_charge: hotel.cancellation_charge || '',
-            priceMode: "dmc", // You can modify this based on your logic
-            priceModeId: 4, // You can modify this based on your logic
-            rooms: [{
-              room_id: parseInt(config.roomTypeId) || 0,
-              room_type: roomType?.name || 'Unknown Room',
-              beds: [{
-                bed_id: parseInt(config.bedTypeId) || 0,
-                bed_type: bedType?.name || 'Unknown Bed',
-                max_occupancy: bedType?.max_occupancy || 1,
-                head_count: config.selectedGuests || 1,
-                baby_cot: config.babyCot ? 1 : 0,
-                mealTypes: mealTypes.length > 0 ? mealTypes : ["Room Only"],
-                selectedMeals: Object.keys(selectedMeals).length > 0 ? selectedMeals : {
-                  meal_1: { type: "Room Only", price: bedTotalPrice }
-                },
-                price: bedTotalPrice,
-                room_type: roomType?.name || 'Unknown Room'
-              }]
-            }]
+            priceMode: "dmc",
+            priceModeId: 4,
+            rooms: consolidatedRooms
           },
-          totalPrice: bedTotalPrice * (config.nights || 1), // Total price for all nights
-          tour_id: parseInt(searchCriteria?.tourId) || 0, // Get tour ID from search criteria
+          totalPrice: group.totalPrice,
+          tour_id: parseInt(searchCriteria?.tourId) || 0,
+          
+          // If we have customer info, add these fields to the hotel booking data
+          ...(customerInfoService ? {
+            customer_name: customerInfoService.fullName || customerInfoService.name,
+            customer_email: customerInfoService.email,
+            customer_phone: customerInfoService.phone,
+            address1: customerInfoService.address1,
+            address2: customerInfoService.address2,
+            state: customerInfoService.state,
+            zip: customerInfoService.zip,
+            specialRequests: customerInfoService.specialRequests,
+            countryCode: customerInfoService.countryCode
+          } : {})
         };
+        
+        return hotelBookingData;
       });
 
-      console.log("Hotel - Formatted bookings for Redux:", hotelsForRedux);
+      console.log("Hotel - Formatted bookings with consolidated rooms:", hotelBookingsData);
 
-      // Create a map of existing services by ID for faster lookup
-      const existingServicesMap = {};
-      existingServices.forEach(service => {
-        if (service.id) {
-          existingServicesMap[service.id] = service;
+      // Get existing hotel services and non-hotel services
+      const existingHotelServices = existingServices.filter(service => service.type === "Hotel");
+      const nonHotelServices = existingServices.filter(service => service.type !== "Hotel");
+
+      // Create a map of existing hotel data by hotel ID for reference
+      const existingHotelMap = {};
+      existingHotelServices.forEach(service => {
+        if (service.data && service.data.length > 0) {
+          const hotelData = service.data[0];
+          if (hotelData && hotelData.hotelDetails && hotelData.hotelDetails.hotel_id) {
+            existingHotelMap[hotelData.hotelDetails.hotel_id] = hotelData;
+          }
         }
       });
 
-      // First, filter out any existing hotel bookings
-      const nonHotelServices = existingServices.filter(service => service.type !== "hotel");
-
-      // Then create a final list of services
-      const finalServices = [...nonHotelServices];
-
-      // Add the new hotel bookings
-      let hasChanges = false;
-      hotelsForRedux.forEach(booking => {
-        // Only add if it doesn't already exist or if it has been updated
-        const existingService = existingServicesMap[booking.id];
-        if (!existingService || JSON.stringify(existingService) !== JSON.stringify(booking)) {
-          // Remove existing if it exists and add the new/updated one
-          const filteredServices = finalServices.filter(service => service.id !== booking.id);
-          filteredServices.push(booking);
-          finalServices.length = 0;
-          finalServices.push(...filteredServices);
-          hasChanges = true;
+      // Build the new list of hotel services - preserving existing ones not in current config
+      let updatedHotelServices = [];
+      
+      // First, add all existing hotels that aren't in the current configurations
+      existingHotelServices.forEach(service => {
+        if (service.data && service.data.length > 0) {
+          const hotelData = service.data[0];
+          if (hotelData && hotelData.hotelDetails && hotelData.hotelDetails.hotel_id) {
+            const hotelId = hotelData.hotelDetails.hotel_id;
+            
+            // Check if this hotel is in the current configurations
+            const isInCurrentConfigs = completedConfigurations.some(
+              config => config.hotelId === hotelId
+            );
+            
+            // If not in current configs, keep it as is
+            if (!isInCurrentConfigs) {
+              updatedHotelServices.push(service);
+            }
+          }
         }
       });
+      
+      // Then, add all hotels from the current configurations
+      hotelBookingsData.forEach(hotelData => {
+        updatedHotelServices.push({
+          type: "Hotel", 
+          tour_id: parseInt(searchCriteria?.tourId) || 0,
+          data: [hotelData]
+        });
+      });
 
-      // Only dispatch if there are actual changes
-      if (hasChanges) {
-        console.log("Hotel - Dispatching finalServices to Redux:", finalServices);
-        dispatch(setAllServices(finalServices));
-      } else {
-        console.log("Hotel - No changes detected, skipping Redux dispatch");
-      }
+      // Create the final list of services combining non-hotel services with updated hotel services
+      const updatedServices = [...nonHotelServices, ...updatedHotelServices];
+      
+      console.log("Hotel - Dispatching finalServices to Redux:", updatedServices);
+      dispatch(setAllServices(updatedServices));
     }
   };
 
@@ -591,7 +662,11 @@ export default function HotelComponent({ searchParams }) {
       hotelId: '', // Empty - user will select from HotelListing
       hotelDetails: {}, // Empty - will be populated on hotel selection
       roomTypeId: '',
+      roomTypeName: '', // Initialize room type name
       bedTypeId: '',
+      bedTypeName: '', // Initialize bed type name
+      max_occupancy: 1, // Initialize max occupancy
+      bedPrice: 0, // Initialize bed price
       mealPlanId: 'self',
       nights: nightsCount,
       selectedNightIndices: initialNightIndices,
@@ -1070,17 +1145,23 @@ export default function HotelComponent({ searchParams }) {
             setTimeout(() => {
               if (hotelConfigurations[activeHotelIndex]) {
                 const currentConfig = hotelConfigurations[activeHotelIndex];
+                
+                // Find the selected room type details to store the name
+                const selectedRoomType = roomTypes.find(r => r.id === selected);
+                
                 const updatedConfig = {
                   ...currentConfig,
                   roomTypeId: selected, // Use the selected value directly
+                  roomTypeName: selectedRoomType?.name || 'Unknown Room', // Store the name directly
                   bedTypeId: '', // Reset bed type
+                  bedTypeName: '', // Reset bed type name
                 };
                 
                 const updatedConfigurations = [...hotelConfigurations];
                 updatedConfigurations[activeHotelIndex] = updatedConfig;
                 setHotelConfigurations(updatedConfigurations);
                 
-                console.log('Room type saved:', selected);
+                console.log('Room type saved:', selected, 'with name:', selectedRoomType?.name);
               }
             }, 50);
           }}
@@ -1101,7 +1182,9 @@ export default function HotelComponent({ searchParams }) {
                         const updatedConfig = {
                           ...currentConfig,
                           roomTypeId: '',
+                          roomTypeName: '',
                           bedTypeId: '',
+                          bedTypeName: '',
                         };
                         
                         const updatedConfigurations = [...hotelConfigurations];
@@ -1170,17 +1253,24 @@ export default function HotelComponent({ searchParams }) {
             setTimeout(() => {
               if (hotelConfigurations[activeHotelIndex]) {
                 const currentConfig = hotelConfigurations[activeHotelIndex];
+                
+                // Find the selected bed type details to store the name
+                const selectedBedType = bedTypes.find(b => b.id === selected);
+                
                 const updatedConfig = {
                   ...currentConfig,
                   bedTypeId: selected, // Use the selected value directly
+                  bedTypeName: selectedBedType?.name || 'Unknown Bed', // Store the name directly
                   roomTypeId: roomType, // Keep the current room type
+                  max_occupancy: selectedBedType?.max_occupancy || 1, // Store max occupancy
+                  bedPrice: selectedBedType?.price || 0, // Store the bed price
                 };
                 
                 const updatedConfigurations = [...hotelConfigurations];
                 updatedConfigurations[activeHotelIndex] = updatedConfig;
                 setHotelConfigurations(updatedConfigurations);
                 
-                console.log('Bed type saved:', selected);
+                console.log('Bed type saved:', selected, 'with name:', selectedBedType?.name, 'price:', selectedBedType?.price);
               }
             }, 50);
           }}
@@ -1200,6 +1290,8 @@ export default function HotelComponent({ searchParams }) {
                         const updatedConfig = {
                           ...currentConfig,
                           bedTypeId: '',
+                          bedTypeName: '',
+                          bedPrice: 0, // Reset the bed price
                         };
                         
                         const updatedConfigurations = [...hotelConfigurations];
@@ -1224,6 +1316,7 @@ export default function HotelComponent({ searchParams }) {
             bedTypes.map((bed) => (
               <MenuItem key={bed.id} value={bed.id}>
                 {bed.name} {bed.max_occupancy && `(Max: ${bed.max_occupancy} person${bed.max_occupancy > 1 ? 's' : ''})`}
+                {bed.price > 0 && ` - $${parseFloat(bed.price).toFixed(2)}`}
               </MenuItem>
             ))
           ) : (
@@ -1903,12 +1996,21 @@ export default function HotelComponent({ searchParams }) {
     // Use setTimeout to ensure state has been updated
     setTimeout(() => {
       const currentConfig = hotelConfigurations[activeHotelIndex];
+      
+      // Find room and bed details to store names
+      const selectedRoomType = roomTypes.find(r => r.id === roomType);
+      const selectedBedType = bedTypes.find(b => b.id === bedType);
+      
       const updatedConfig = {
         ...currentConfig,
         hotelId: selectedHotel,
         hotelDetails: currentConfig.hotelDetails || {},
         roomTypeId: roomType,
+        roomTypeName: selectedRoomType?.name || currentConfig.roomTypeName || 'Unknown Room',
         bedTypeId: bedType,
+        bedTypeName: selectedBedType?.name || currentConfig.bedTypeName || 'Unknown Bed',
+        max_occupancy: selectedBedType?.max_occupancy || currentConfig.max_occupancy || 1,
+        bedPrice: selectedBedType?.price || currentConfig.bedPrice || 0,
         mealPlanId: mealPlan,
         nights: selectedNights,
         selectedNightIndices: Array.from(selectedNightIndices),
