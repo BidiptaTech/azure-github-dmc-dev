@@ -22,12 +22,49 @@ class PackageController extends Controller
 {
     public function index(Request $request)
     {
-        $city = $request->input('city');
-        $country = $request->input('country');
+        $city = $request->query('city');
+        $country = $request->query('country');
         $today = Carbon::today();
-        $date = $request->input('date');
+        $date = $request->query('date');
 
-        
+        // Format the date properly for comparison with database date fields
+        if (empty($date)) {
+            $date = $today->format('Y-m-d');
+        } else {
+            try {
+                // Trim whitespace and remove quotes
+                $date = trim($date, " \t\n\r\0\x0B\"'");
+                
+                // Handle the specific case of d-m-Y format like "25-06-2025"
+                if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $date, $matches)) {
+                    $day = (int)$matches[1];
+                    $month = (int)$matches[2];
+                    $year = (int)$matches[3];
+                    
+                    // Validate date components
+                    if ($day >= 1 && $day <= 31 && $month >= 1 && $month <= 12) {
+                        // Create a valid Y-m-d format
+                        $date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+                    } else {
+                        return response()->json(['message' => 'Invalid date components. Day must be 1-31 and month must be 1-12.'], 400);
+                    }
+                }
+                // If already in Y-m-d format
+                else if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                    // Already in the right format, just validate it
+                    $date = Carbon::createFromFormat('Y-m-d', $date)->format('Y-m-d');
+                }
+                // For any other format, try Carbon's parsing
+                else {
+                    $date = Carbon::parse($date)->format('Y-m-d');
+                }
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => 'Invalid date format. Please use d-m-Y (like 25-06-2025) or Y-m-d (like 2025-06-25) format.',
+                    'error' => $e->getMessage()
+                ], 400);
+            }
+        }
 
         $dmc_id = $this->getDmcIdForCurrentUser();
 
@@ -295,6 +332,7 @@ class PackageController extends Controller
         $package_id = $data['package']['package_id'];
         $totalPrice = $data['booking_details']['total_price'];
         
+        
         // Extract passenger counts
         $adult_count = $data['booking_details']['adult_count'];
         $child_count = $data['booking_details']['child_count'] ?? 0;
@@ -307,6 +345,12 @@ class PackageController extends Controller
         if (!$package) {
             return response()->json(['message' => 'Package not found'], 404);
         }
+        $start_date = $request->input('date');
+        $end_date = Carbon::parse($start_date)->addDays($package->duration_days - 1);
+        
+        // Format dates to Y-m-d
+        $check_in = Carbon::parse($start_date)->format('Y-m-d');
+        $check_out = Carbon::parse($end_date)->format('Y-m-d');
 
         // Verify price calculation
         $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
@@ -336,7 +380,7 @@ class PackageController extends Controller
         $booking->booking_details = json_encode($data['booking_details']);
         $booking->package = json_encode($data['package']);
         $booking->user_info = json_encode($data['user_info']);
-        $booking->travel_dates = json_encode($data['booking_details']['travel_dates']);
+        $booking->travel_dates = json_encode(["check_in" => $check_in, "check_out" => $check_out]);
 
         
         $booking->selected_hotels = json_encode($hotelIds);
@@ -372,14 +416,14 @@ class PackageController extends Controller
     public function getBookingLists(Request $request){
         $user = Auth::user();
         $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')->where('booked_by', $user->userId ?? $user->agent_id)->get();
-       
-        $hotelIds = [];
-        $attractionIds = [];
-        $guideIds = [];
-        $restaurantIds = [];
+        
         $data = [];
         
         foreach ($booking as $b) {
+            $hotelIds = [];
+            $attractionIds = [];
+            $guideIds = [];
+            $restaurantIds = [];
             $hotelIds = array_merge($hotelIds, json_decode($b->selected_hotels) ?? []);
             $attractionIds = array_merge($attractionIds, json_decode($b->selected_attractions) ?? []);
             $guideIds = array_merge($guideIds, json_decode($b->selected_guides) ?? []);
