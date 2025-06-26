@@ -1152,6 +1152,9 @@ export default function HotelComponent({ searchParams }) {
               if (hotelConfigurations[activeHotelIndex]) {
                 const currentConfig = hotelConfigurations[activeHotelIndex];
                 
+                
+                
+                
                 // Find the selected room type details to store the name
                 const selectedRoomType = roomTypes.find(r => r.id === selected);
                 
@@ -1159,7 +1162,9 @@ export default function HotelComponent({ searchParams }) {
                   ...currentConfig,
                   roomTypeId: selected, // Use the selected value directly
                   roomTypeName: selectedRoomType?.name || 'Unknown Room', // Store the name directly
+                  roomTypeName: selectedRoomType?.name || 'Unknown Room', // Store the name directly
                   bedTypeId: '', // Reset bed type
+                  bedTypeName: '', // Reset bed type name
                   bedTypeName: '', // Reset bed type name
                 };
                 
@@ -1167,6 +1172,7 @@ export default function HotelComponent({ searchParams }) {
                 updatedConfigurations[activeHotelIndex] = updatedConfig;
                 setHotelConfigurations(updatedConfigurations);
                 
+                console.log('Room type saved:', selected, 'with name:', selectedRoomType?.name);
                 console.log('Room type saved:', selected, 'with name:', selectedRoomType?.name);
               }
             }, 50);
@@ -1189,7 +1195,9 @@ export default function HotelComponent({ searchParams }) {
                           ...currentConfig,
                           roomTypeId: '',
                           roomTypeName: '',
+                          roomTypeName: '',
                           bedTypeId: '',
+                          bedTypeName: '',
                           bedTypeName: '',
                         };
                         
@@ -1260,6 +1268,9 @@ export default function HotelComponent({ searchParams }) {
               if (hotelConfigurations[activeHotelIndex]) {
                 const currentConfig = hotelConfigurations[activeHotelIndex];
                 
+                
+                
+                
                 // Find the selected bed type details to store the name
                 const selectedBedType = bedTypes.find(b => b.id === selected);
                 
@@ -1267,7 +1278,10 @@ export default function HotelComponent({ searchParams }) {
                   ...currentConfig,
                   bedTypeId: selected, // Use the selected value directly
                   bedTypeName: selectedBedType?.name || 'Unknown Bed', // Store the name directly
+                  bedTypeName: selectedBedType?.name || 'Unknown Bed', // Store the name directly
                   roomTypeId: roomType, // Keep the current room type
+                  max_occupancy: selectedBedType?.max_occupancy || 1, // Store max occupancy
+                  bedPrice: selectedBedType?.price || 0, // Store the bed price
                   max_occupancy: selectedBedType?.max_occupancy || 1, // Store max occupancy
                   bedPrice: selectedBedType?.price || 0, // Store the bed price
                 };
@@ -1276,6 +1290,7 @@ export default function HotelComponent({ searchParams }) {
                 updatedConfigurations[activeHotelIndex] = updatedConfig;
                 setHotelConfigurations(updatedConfigurations);
                 
+                console.log('Bed type saved:', selected, 'with name:', selectedBedType?.name, 'price:', selectedBedType?.price);
                 console.log('Bed type saved:', selected, 'with name:', selectedBedType?.name, 'price:', selectedBedType?.price);
               }
             }, 50);
@@ -1296,6 +1311,8 @@ export default function HotelComponent({ searchParams }) {
                         const updatedConfig = {
                           ...currentConfig,
                           bedTypeId: '',
+                          bedTypeName: '',
+                          bedPrice: 0, // Reset the bed price
                           bedTypeName: '',
                           bedPrice: 0, // Reset the bed price
                         };
@@ -1322,6 +1339,7 @@ export default function HotelComponent({ searchParams }) {
             bedTypes.map((bed) => (
               <MenuItem key={bed.id} value={bed.id}>
                 {bed.name} {bed.max_occupancy && `(Max: ${bed.max_occupancy} person${bed.max_occupancy > 1 ? 's' : ''})`}
+                {bed.price > 0 && ` - $${parseFloat(bed.price).toFixed(2)}`}
                 {bed.price > 0 && ` - $${parseFloat(bed.price).toFixed(2)}`}
               </MenuItem>
             ))
@@ -2003,6 +2021,8 @@ export default function HotelComponent({ searchParams }) {
     setTimeout(() => {
       const currentConfig = hotelConfigurations[activeHotelIndex];
       
+     
+      
       // Find room and bed details to store names
       const selectedRoomType = roomTypes.find(r => r.id === roomType);
       const selectedBedType = bedTypes.find(b => b.id === bedType);
@@ -2013,7 +2033,11 @@ export default function HotelComponent({ searchParams }) {
         hotelDetails: currentConfig.hotelDetails || {},
         roomTypeId: roomType,
         roomTypeName: selectedRoomType?.name || currentConfig.roomTypeName || 'Unknown Room',
+        roomTypeName: selectedRoomType?.name || currentConfig.roomTypeName || 'Unknown Room',
         bedTypeId: bedType,
+        bedTypeName: selectedBedType?.name || currentConfig.bedTypeName || 'Unknown Bed',
+        max_occupancy: selectedBedType?.max_occupancy || currentConfig.max_occupancy || 1,
+        bedPrice: selectedBedType?.price || currentConfig.bedPrice || 0,
         bedTypeName: selectedBedType?.name || currentConfig.bedTypeName || 'Unknown Bed',
         max_occupancy: selectedBedType?.max_occupancy || currentConfig.max_occupancy || 1,
         bedPrice: selectedBedType?.price || currentConfig.bedPrice || 0,

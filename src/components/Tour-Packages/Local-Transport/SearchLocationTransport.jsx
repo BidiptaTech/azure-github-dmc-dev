@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
+import {
+  Box,
+  Button,
+  Container,
+  Grid,
+  Paper,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  Typography,
+  useTheme,
+  alpha,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 
 import LocationSearch from "./LocationSearch";
 import {
@@ -509,332 +524,325 @@ const SearchLocationTransport = ({ Location, dayIndex = 0 }) => {
     }
   };
 
+    const theme = useTheme();
+
   return (
-    <>
-      <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className={`button-grid-v2-transport items-center ${selectedPort === "Point To Point" ? "point-to-point-layout" : ""}`}>
-          <div className="port-selection-wrapper">
-            <label className="text-15 fw-500 ls-2 lh-16">
-              Select Journey Type:
-            </label>
-            <select
-              className="form-control"
-              value={selectedPort}
+    <Paper 
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        bgcolor: 'white',
+        p: { xs: 2, md: 3 },
+        mt: 2,
+      }}
+    >
+      <Box sx={{ width: '100%', maxWidth: 1730 }}>
+        {/* Radio Button Selection */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <FormControl component="fieldset">
+            <RadioGroup
+              row
+              value={selectedPort || ""}
               onChange={(e) => {
                 dispatch(setSelectedPort(e.target.value));
-                dispatch(resetVehicles1()); // Reset vehicles when port type changes
-                setValidationTriggered(false); // Reset validation when port type changes
+                dispatch(resetVehicles1());
+                setValidationTriggered(false);
               }}
+              sx={{ gap: 2 }}
             >
-              {selectedPort === "" && (
-                <option value="" disabled>
-                  Select the type..
-                </option>
+              <FormControlLabel
+                value="Point To Point"
+                control={
+                  <Radio
+                    sx={{
+                      color: '#e0e0e0',
+                      '&.Mui-checked': {
+                        color: '#ff6b6b',
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={selectedPort === "Point To Point" ? 600 : 400}
+                    color={selectedPort === "Point To Point" ? '#ff6b6b' : 'text.primary'}
+                  >
+                    Point To Point
+                  </Typography>
+                }
+                sx={{
+                  border: `2px solid ${selectedPort === "Point To Point" ? '#ff6b6b' : '#e0e0e0'}`,
+                  borderRadius: 2,
+                  px: 2,
+                  py: 0.5,
+                  m: 0,
+                  bgcolor: selectedPort === "Point To Point" ? alpha('#ff6b6b', 0.05) : 'transparent',
+                  '&:hover': {
+                    borderColor: '#ff6b6b',
+                    bgcolor: alpha('#ff6b6b', 0.05),
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              />
+              <FormControlLabel
+                value="Hourly"
+                control={
+                  <Radio
+                    sx={{
+                      color: '#e0e0e0',
+                      '&.Mui-checked': {
+                        color: '#ff6b6b',
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={selectedPort === "Hourly" ? 600 : 400}
+                    color={selectedPort === "Hourly" ? '#ff6b6b' : 'text.primary'}
+                  >
+                    Hourly
+                  </Typography>
+                }
+                sx={{
+                  border: `2px solid ${selectedPort === "Hourly" ? '#ff6b6b' : '#e0e0e0'}`,
+                  borderRadius: 2,
+                  px: 2,
+                  py: 0.5,
+                  m: 0,
+                  bgcolor: selectedPort === "Hourly" ? alpha('#ff6b6b', 0.05) : 'transparent',
+                  '&:hover': {
+                    borderColor: '#ff6b6b',
+                    bgcolor: alpha('#ff6b6b', 0.05),
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              />
+              {zone_on === 1 && (
+                <FormControlLabel
+                  value="Local Transfer"
+                  control={
+                    <Radio
+                      sx={{
+                        color: '#e0e0e0',
+                        '&.Mui-checked': {
+                          color: '#ff6b6b',
+                        },
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography 
+                      variant="body2" 
+                      fontWeight={selectedPort === "Local Transfer" ? 600 : 400}
+                      color={selectedPort === "Local Transfer" ? '#ff6b6b' : 'text.primary'}
+                    >
+                      Local Transfer
+                    </Typography>
+                  }
+                  sx={{
+                    border: `2px solid ${selectedPort === "Local Transfer" ? '#ff6b6b' : '#e0e0e0'}`,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 0.5,
+                    m: 0,
+                    bgcolor: selectedPort === "Local Transfer" ? alpha('#ff6b6b', 0.05) : 'transparent',
+                    '&:hover': {
+                      borderColor: '#ff6b6b',
+                      bgcolor: alpha('#ff6b6b', 0.05),
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                />
               )}
-              <option value="Point To Point">Point To Point</option>
-              <option value="Hourly">Hourly</option>
-              {(zone_on === 1 && 
-                // viewDetails && 
-                // (viewDetails.hotel?.length > 0 || 
-                //  viewDetails.attraction?.length > 0 || 
-                //  viewDetails.restaurant?.length > 0)) && (
-                <option value="Local Transfer">Local Transfer</option>
+            </RadioGroup>
+          </FormControl>
+        </Box>
+
+        {/* Form Fields Row */}
+        <Grid container spacing={2} alignItems="flex-end" sx={{ mb: 3 }}>
+          {/* Location Search */}
+          <Grid item xs={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 6 : 4}>
+            <Box>
+              {selectedPort === "Point To Point" ? (
+                <LocationSearch
+                  pickUpLocation={pickUpLocation}
+                  setPickUpLocation={setPickUpLocation}
+                  dropOffLocation={dropOffLocation}
+                  setDropOffLocation={setDropOffLocation}
+                  pickUpLatLng={pickUpLatLng}
+                  setPickupLatLng={setPickupLatLng}
+                  dropOffLatLng={dropOffLatLng}
+                  setDropoffLatLng={setDropoffLatLng}
+                  Location={Location}
+                  validationTriggered={validationTriggered}
+                  setPickupFromAutocomplete={setPickupFromAutocomplete}
+                  setDropoffFromAutocomplete={setDropoffFromAutocomplete}
+                  pickupFromAutocomplete={pickupFromAutocomplete}
+                  dropoffFromAutocomplete={dropoffFromAutocomplete}
+                  dayIndex={dayIndex}
+                />
+              ) : selectedPort === "Hourly" ? (
+                <SearchBar1
+                  exitpickUpLocation={exitpickUpLocation}
+                  setexitPickUpLocation={setexitPickUpLocation}
+                  pickUpLatLng={pickUpLatLng}
+                  setPickupLatLng={setPickupLatLng}
+                  Location={Location}
+                  validationTriggered={validationTriggered}
+                  setPickupFromAutocomplete={setExitPickupFromAutocomplete}
+                  pickupFromAutocomplete={exitPickupFromAutocomplete}
+                  dayIndex={dayIndex}
+                />
+              ) : selectedPort === "Local Transfer" ? (
+                <SearchZone
+                  currentbooking={currentbooking}
+                  picktype={picktype}
+                  setdroptype={setdroptype}
+                  droptype={droptype}
+                  setPickUpLocation={setPickUpZone}
+                  setPickupLatLng={setPickupLatLng}
+                  setDropoffLatLng={setDropoffLatLng}
+                  dropOffLocation={dropOffLatLng}
+                  validationTriggered={validationTriggered}
+                  setDropOffLocation={setDropOffZone}
+                  dayIndex={dayIndex}
+                />
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  {/* <Typography variant="body2" color="text.secondary">
+                    Please select a journey type first
+                  </Typography> */}
+                </Box>
               )}
-            </select>
-          </div>
+            </Box>
+          </Grid>
 
-          <div className={`location-search-wrapper ${selectedPort === "Point To Point" ? "location-full-width" : ""}`}>
-            {selectedPort === "Point To Point" ? (
-              <LocationSearch
-                pickUpLocation={pickUpLocation}
-                setPickUpLocation={setPickUpLocation}
-                dropOffLocation={dropOffLocation}
-                setDropOffLocation={setDropOffLocation}
-                pickUpLatLng={pickUpLatLng}
-                setPickupLatLng={setPickupLatLng}
-                dropOffLatLng={dropOffLatLng}
-                setDropoffLatLng={setDropoffLatLng}
-                Location={Location}
-                validationTriggered={validationTriggered}
-                setPickupFromAutocomplete={setPickupFromAutocomplete}
-                setDropoffFromAutocomplete={setDropoffFromAutocomplete}
-                pickupFromAutocomplete={pickupFromAutocomplete}
-                dropoffFromAutocomplete={dropoffFromAutocomplete}
-                dayIndex={dayIndex}
-              />
-            ) : selectedPort === "Hourly" ? (
-              <SearchBar1
-                exitpickUpLocation={exitpickUpLocation}
-                setexitPickUpLocation={setexitPickUpLocation}
-                pickUpLatLng={pickUpLatLng}
-                setPickupLatLng={setPickupLatLng}
-                Location={Location}
-                validationTriggered={validationTriggered}
-                setPickupFromAutocomplete={setExitPickupFromAutocomplete}
-                pickupFromAutocomplete={exitPickupFromAutocomplete}
-                dayIndex={dayIndex}
-              />
-            ) : selectedPort === "Local Transfer" ? (
-              <SearchZone
-                currentbooking={currentbooking}
-                picktype={picktype}
-                setdroptype={setdroptype}
-                droptype={droptype}
-                setPickUpLocation={setPickUpZone}
-                setPickupLatLng={setPickupLatLng}
-                setDropoffLatLng={setDropoffLatLng}
-                dropOffLocation={dropOffLatLng}
-                validationTriggered={validationTriggered}
-                setDropOffLocation={setDropOffZone}
-                dayIndex={dayIndex}
-              />
-            ) : (
-              <div className="text-center p-20">
-                <p>Please select a journey type first</p>
-              </div>
-            )}
-          </div>
+          {/* Time Selection */}
+          <Grid item xs={12} md={3}>
+            <Box>
+              {selectedPort === "Point To Point" ? (
+                <Pickuptime
+                  entryytime={entryytime}
+                  setentryytime={handleTimeSelection}
+                  setTime={setTime}
+                />
+              ) : selectedPort === "Hourly" ? (
+                <Pickuptime1
+                  entryytime={entryytime1}
+                  setentryytime={handleTimeSelection}
+                  setTime={setTime1}
+                />
+              ) : selectedPort === "Local Transfer" ? (
+                <Pickuptimezone
+                  entryytime={entryytimezone}
+                  setentryytime={setentryytimezone}
+                  setTime={setTimezone}
+                />
+              ) : selectedPort && (
+                <Pickuptimezone
+                  entryytime={entryytimezone}
+                  setentryytime={setentryytimezone}
+                  setTime={setTimezone}
+                />
+              )}
+            </Box>
+          </Grid>
 
-          <div className="time-selection-wrapper1">
-            {selectedPort === "Point To Point" ? (
-              <Pickuptime
-                entryytime={entryytime}
-                setentryytime={handleTimeSelection}
-                setTime={setTime}
-              />
-            ) : selectedPort === "Hourly" ? (
-              <Pickuptime1
-                entryytime={entryytime1}
-                setentryytime={handleTimeSelection}
-                setTime={setTime1}
-              />
-            ) : (
-              <Pickuptimezone
-                entryytime={entryytimezone}
-                setentryytime={setentryytimezone}
-                setTime={setTimezone}
-              />
-            )}
-          </div>
+          {/* Date Selection */}
+          <Grid item xs={12} md={3}>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+                {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
+              </Typography>
+              {selectedPort === "Point To Point" ? (
+                <DateSearch1
+                  selectedDate={selectedDate}
+                  setSelectedDate={(date) => {
+                    console.log("Selected Pickup Date:", date);
+                    if (date && date._isAMomentObject) {
+                      const formattedDate = date.format('YYYY-MM-DD');
+                      console.log("Formatted date:", formattedDate);
+                      setSelectedDate(formattedDate);
+                      dispatch(setpickdate(formattedDate));
+                    } else {
+                      setSelectedDate(date);
+                      dispatch(setpickdate(date));
+                    }
+                    handleLocationChange();
+                  }}
+                />
+              ) : selectedPort === "Local Transfer" ? (
+                <DateSearchZone
+                  selectedDate1={selectedDateZone}
+                  setSelectedDate1={(date) => {
+                    if (date && date._isAMomentObject) {
+                      const formattedDate = date.format('YYYY-MM-DD');
+                      console.log("Formatted zone date:", formattedDate);
+                      setSelectedDateZone(formattedDate);
+                      dispatch(setpickdate(formattedDate));
+                    } else {
+                      setSelectedDateZone(date);
+                      dispatch(setpickdate(date));
+                    }
+                    handleLocationChange();
+                  }}
+                />
+              ) : (
+                <DateSearch2
+                  selectedDate1={selectedDate1}
+                  setSelectedDate1={(date) => {
+                    if (date && date._isAMomentObject) {
+                      const formattedDate = date.format('YYYY-MM-DD');
+                      console.log("Formatted exit date:", formattedDate);
+                      setSelectedDate1(formattedDate);
+                      dispatch(setexitpickupdate(formattedDate));
+                      dispatch(setpickdate(formattedDate));
+                    } else {
+                      setSelectedDate1(date);
+                      dispatch(setexitpickupdate(date));
+                      dispatch(setpickdate(date));
+                    }
+                    handleLocationChange();
+                  }}
+                />
+              )}
+            </Box>
+          </Grid>
+        </Grid>
 
-          <div className={`date-selection-wrapper1 ${selectedPort === "Point To Point" ? "date-selection-wrapper-point-to-point" : ""}`}>
-            <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">
-              {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
-            </h4>
-            {selectedPort === "Point To Point" ? (
-              <DateSearch1
-                selectedDate={selectedDate}
-                setSelectedDate={(date) => {
-                  console.log("Selected Pickup Date:", date);
-                  // Check if date is a moment object and convert to string if needed
-                  if (date && date._isAMomentObject) {
-                    const formattedDate = date.format('YYYY-MM-DD');
-                    console.log("Formatted date:", formattedDate);
-                    setSelectedDate(formattedDate);
-                    // Directly update Redux to ensure it's set immediately
-                    dispatch(setpickdate(formattedDate));
-                  } else {
-                    setSelectedDate(date);
-                    dispatch(setpickdate(date));
-                  }
-                  // Also ensure location data is preserved when date changes
-                  handleLocationChange();
-                }}
-              />
-            ) : selectedPort === "Local Transfer" ? (
-              <DateSearchZone
-                selectedDate1={selectedDateZone}
-                setSelectedDate1={(date) => {
-                  // Check if date is a moment object and convert to string
-                  if (date && date._isAMomentObject) {
-                    const formattedDate = date.format('YYYY-MM-DD');
-                    console.log("Formatted zone date:", formattedDate);
-                    setSelectedDateZone(formattedDate);
-                    // Directly update Redux
-                    dispatch(setpickdate(formattedDate));
-                  } else {
-                    setSelectedDateZone(date);
-                    dispatch(setpickdate(date));
-                  }
-                  handleLocationChange();
-                }}
-              />
-            ) : (
-              <DateSearch2
-                selectedDate1={selectedDate1}
-                setSelectedDate1={(date) => {
-                  // Check if date is a moment object and convert to string
-                  if (date && date._isAMomentObject) {
-                    const formattedDate = date.format('YYYY-MM-DD');
-                    console.log("Formatted exit date:", formattedDate);
-                    setSelectedDate1(formattedDate);
-                    // Directly update Redux
-                    dispatch(setexitpickupdate(formattedDate));
-                    dispatch(setpickdate(formattedDate));
-                  } else {
-                    setSelectedDate1(date);
-                    dispatch(setexitpickupdate(date));
-                    dispatch(setpickdate(date));
-                  }
-                  handleLocationChange();
-                }}
-              />
-            )}
-          </div>
-
-          <div className={`search-button-wrapper1 `}>
-            <button
-              className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
-              onClick={buttonsearch}
-            >
-              <i className="icon-search text-20 mr-10" />
-              Search
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <style jsx>{`
-        .button-grid-v2-transport {
-          display: grid;
-          grid-template-columns:
-            160px minmax(300px, ${selectedPort === "Hourly" ? "3fr" : "4fr"})
-            ${selectedPort === "Hourly" ? "2fr" : "1fr"} minmax(140px, 1fr) minmax(120px, 1fr);
-          gap: 5px;
-          align-items: center;
-          width: 100%;
-          max-width: 1730px;
-        }
-
-        /* Special layout for Point to Point */
-        .point-to-point-layout {
-          grid-template-columns: 160px 1fr;
-          grid-template-rows: auto auto auto;
-          gap: 15px;
-        }
-
-        .point-to-point-layout .port-selection-wrapper {
-          grid-row: 1;
-          grid-column: 1;
-        }
-
-        .point-to-point-layout .location-full-width {
-          grid-row: 1;
-          grid-column: 2;
-        }
-
-        .point-to-point-layout .time-selection-wrapper {
-          grid-row: 2;
-          grid-column: 1;
-        }
-
-        .point-to-point-layout .date-selection-wrapper {
-          grid-row: 2;
-          grid-column: 2;
-        }
-
-        .point-to-point-layout .search-button-full-width {
-          grid-row: 2;
-          grid-column: 1 / span 2;
-          display: flex;
-          justify-content: center;
-          margin-top: 10px;
-        }
-        .point-to-point-layout .date-selection-wrapper{
-          width: 20%;
-        }
-
-        .port-selection-wrapper {
-          width: 100%;
-          max-width: 160px;
-        }
-
-        .port-selection-wrapper select {
-          width: 100%;
-          padding: 8px;
-        }
-
-        .location-search-wrapper,
-        .time-selection-wrapper1,
-        .search-button-wrapper1 {
-          width: 100%;
-        }
-        .date-selection-wrapper1{
-          width: 100%;
-        }
-
-        .search-button-wrapper1 button {
-          width: 100%;
-          max-width: 250px;
-        }
-
-        @media (max-width: 1199px) {
-          .button-grid-v2-transport:not(.point-to-point-layout) {
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-          }
-
-          .port-selection-wrapper {
-            max-width: 100%;
-          }
-
-          .button-grid-v2-transport:not(.point-to-point-layout) .location-search-wrapper {
-            grid-column: span 2;
-          }
-
-          .button-grid-v2-transport:not(.point-to-point-layout) .search-button-wrapper {
-            grid-column: span 2;
-            text-align: center;
-          }
-        }
-
-        @media (max-width: 767px) {
-          .button-grid-v2-transport, .point-to-point-layout {
-            grid-template-columns: 1fr !important;
-            grid-template-rows: auto !important;
-            gap: 15px;
-          }
-
-          .point-to-point-layout .port-selection-wrapper,
-          .point-to-point-layout .location-full-width,
-          .point-to-point-layout .time-selection-wrapper,
-          .point-to-point-layout .date-selection-wrapper,
-          .point-to-point-layout .search-button-full-width {
-            grid-column: 1 !important;
-            grid-row: auto !important;
-          }
-
-          .location-search-wrapper,
-          .search-button-wrapper {
-            grid-column: span 1;
-          }
-
-          .port-selection-wrapper,
-          .time-selection-wrapper,
-          .date-selection-wrapper {
-            margin-bottom: 10px;
-          }
-
-          .search-button-wrapper button {
-            max-width: 100%;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .mainSearch {
-            padding: 10px !important;
-          }
-
-          .button-grid-v2-transport {
-            gap: 10px;
-          }
-
-          .text-15 {
-            font-size: 14px;
-          }
-        }
-      `}</style>
-    </>
+        {/* Search Button Row */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<SearchIcon />}
+            onClick={buttonsearch}
+            sx={{
+              minWidth: 200,
+              px: 4,
+              py: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%)',
+                boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
+                transform: 'translateY(-1px)',
+              },
+              transition: 'all 0.3s ease',
+            }}
+          >
+            Search
+          </Button>
+        </Box>
+      </Box>
+    </Paper>
   );
 }; 
 

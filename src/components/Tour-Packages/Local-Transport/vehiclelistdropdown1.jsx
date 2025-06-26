@@ -20,6 +20,9 @@ import { useSelector } from "react-redux";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
+import PeopleIcon from '@mui/icons-material/People';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useDispatch } from 'react-redux';
 import { useState } from 'react';
 import { fetchVehicleDetails } from '../../../slice/localtour/Localslice';
@@ -236,10 +239,10 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
   }, [vehicles, pricemode, setpricemode, hasPrivatePrice, hasSharablePrice]);
   
   return (
-    <Grid item xs={12} sm={6} md={3}>
+    <Grid item xs={12} sm={6} md={12}>
       <Box onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
         <FormControl fullWidth>
-          <InputLabel id="price-mode-label">Price Mode</InputLabel>
+          {/* <InputLabel id="price-mode-label">Price Mode</InputLabel> */}
           <Select
             labelId="price-mode-label"
             id="price-mode-select"
@@ -285,7 +288,8 @@ const VehicleListDropdown = ({
   sectionIndex, 
   isNewBooking,
   cachedVehicles,
-  cachedVehicleName
+  cachedVehicleName,
+  isGridLayout = false
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   const portZoneType = useSelector((state) => state.localtour.portZoneType);
@@ -503,138 +507,357 @@ const VehicleListDropdown = ({
     setChildren(value);
   };
 
-  return (
-    <Grid container spacing={2} sx={{ mt: 3 }}>
-      <Grid item xs={12}>
-        <Typography variant="h6" gutterBottom>
-          Select Vehicle
-        </Typography>
-      </Grid>
-      <Grid item xs={12} sm={6} md={3}>
-        <Box onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-          <Autocomplete
-            key={`vehicle-autocomplete-${sectionIndex}`}
-            value={selectedVehicleObj}
-            onChange={(event, newValue) => {
-              event.stopPropagation();
-              handleVehicleClick(newValue);
-            }}
-            options={filteredVehicles}
-            getOptionLabel={(option) => option.vehicle_name || cachedVehicleName || ''}
-            renderOption={(props, option) => {
-              const { key, ...otherProps } = props;
-              return (
-                <CustomTooltip
-                  key={`tooltip-${option.id}`}
-                  title={<TooltipContent vehicle={option} />}
-                  placement="right"
-                  arrow
+  // If it's grid layout, return just the autocomplete for the vehicle selection column
+  if (isGridLayout) {
+    return (
+      <Box onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} sx={{ width: '100%' }}>
+        <Autocomplete
+          key={`vehicle-autocomplete-${sectionIndex}`}
+          value={selectedVehicleObj}
+          onChange={(event, newValue) => {
+            event.stopPropagation();
+            handleVehicleClick(newValue);
+          }}
+          options={filteredVehicles}
+          getOptionLabel={(option) => option.vehicle_name || cachedVehicleName || ''}
+          renderOption={(props, option) => {
+            const { key, ...otherProps } = props;
+            return (
+              <CustomTooltip
+                key={`tooltip-${option.id}`}
+                title={<TooltipContent vehicle={option} />}
+                placement="right"
+                arrow
+              >
+                <Box 
+                  key={`option-${option.id}`}
+                  component="li" 
+                  {...otherProps} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onClick(e);
+                  }}
                 >
-                  <Box 
-                    key={`option-${option.id}`}
-                    component="li" 
-                    {...otherProps} 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      props.onClick(e);
-                    }}
-                  >
-                    {option.vehicle_name}
-                    {/* Add a small indicator for available pricing modes */}
-                    <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
-                      {(option.dmc_private_price > 0 || option.dmc_sharable_price > 0) && (
-                        <Chip 
-                          key={`dmc-${option.id}`}
-                          size="small" 
-                          label="DMC"
-                          sx={{ 
-                            height: 20,
-                            fontSize: '0.7rem',
-                            bgcolor: 'rgba(25, 118, 210, 0.08)',
-                            color: 'primary.main'
-                          }}
-                        />
-                      )}
-                      {(option.trav_private_price > 0 || option.trav_sharable_price > 0) && (
-                        <Chip 
-                          key={`travclicks-${option.id}`}
-                          size="small" 
-                          label="Travclicks"
-                          sx={{ 
-                            height: 20,
-                            fontSize: '0.7rem',
-                            bgcolor: 'rgba(76, 175, 80, 0.08)',
-                            color: '#2e7d32'
-                          }}
-                        />
-                      )}
-                    </Box>
+                  {option.vehicle_name}
+                  {/* Add a small indicator for available pricing modes */}
+                  <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+                    {(option.dmc_private_price > 0 || option.dmc_sharable_price > 0) && (
+                      <Chip 
+                        key={`dmc-${option.id}`}
+                        size="small" 
+                        label="DMC"
+                        sx={{ 
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: 'rgba(25, 118, 210, 0.08)',
+                          color: 'primary.main'
+                        }}
+                      />
+                    )}
+                    {(option.trav_private_price > 0 || option.trav_sharable_price > 0) && (
+                      <Chip 
+                        key={`travclicks-${option.id}`}
+                        size="small" 
+                        label="Travclicks"
+                        sx={{ 
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: 'rgba(76, 175, 80, 0.08)',
+                          color: '#2e7d32'
+                        }}
+                      />
+                    )}
                   </Box>
-                </CustomTooltip>
-              );
+                </Box>
+              </CustomTooltip>
+            );
+          }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label=""
+              placeholder="Search Vehicle"
+              fullWidth
+              size="small"
+              // Display cached vehicle name if we have it but the vehicle isn't in the list
+              {...(cachedVehicleName && !selectedVehicleObj && {
+                InputProps: {
+                  ...params.InputProps,
+                  placeholder: cachedVehicleName
+                }
+              })}
+            />
+          )}
+          componentsProps={{
+            popper: {
+              sx: { zIndex: 9999 },
+              onClick: (e) => e.stopPropagation(),
+              onMouseDown: (e) => e.stopPropagation()
+            },
+            paper: {
+              onClick: (e) => e.stopPropagation(),
+              onMouseDown: (e) => e.stopPropagation()
+            }
+          }}
+          size="small"
+        />
+      </Box>
+    );
+  }
+
+  return (
+    <Grid container spacing={3} sx={{ mt: 2 }}>
+      {/* Vehicle Selection Column */}
+      <Grid item xs={12} md={3}>
+    
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600} 
+            sx={{ 
+              mb: 2, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              color: '#ff6b6b'
             }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Select Vehicle"
-                fullWidth
-                // Display cached vehicle name if we have it but the vehicle isn't in the list
-                {...(cachedVehicleName && !selectedVehicleObj && {
-                  InputProps: {
-                    ...params.InputProps,
-                    startAdornment: (
-                      <Typography 
-                        color="textSecondary" 
-                        sx={{ mr: 1, fontStyle: 'italic' }}
-                      >
-                        {cachedVehicleName}
-                      </Typography>
-                    )
+          >
+            <DirectionsCarIcon sx={{ fontSize: 20, color: '#ff6b6b' }} />
+            Vehicle Selection
+          </Typography>
+          <Box onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+            <Autocomplete
+              key={`vehicle-autocomplete-${sectionIndex}`}
+              value={selectedVehicleObj}
+              onChange={(event, newValue) => {
+                event.stopPropagation();
+                handleVehicleClick(newValue);
+              }}
+              options={filteredVehicles}
+              getOptionLabel={(option) => option.vehicle_name || cachedVehicleName || ''}
+              renderOption={(props, option) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <CustomTooltip
+                    key={`tooltip-${option.id}`}
+                    title={<TooltipContent vehicle={option} />}
+                    placement="right"
+                    arrow
+                  >
+                    <Box 
+                      key={`option-${option.id}`}
+                      component="li" 
+                      {...otherProps} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.onClick(e);
+                      }}
+                    >
+                      {option.vehicle_name}
+                      <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+                        {(option.dmc_private_price > 0 || option.dmc_sharable_price > 0) && (
+                          <Chip 
+                            key={`dmc-${option.id}`}
+                            size="small" 
+                            label="DMC"
+                            sx={{ 
+                              height: 20,
+                              fontSize: '0.7rem',
+                              bgcolor: 'rgba(25, 118, 210, 0.08)',
+                              color: 'primary.main'
+                            }}
+                          />
+                        )}
+                        {(option.trav_private_price > 0 || option.trav_sharable_price > 0) && (
+                          <Chip 
+                            key={`travclicks-${option.id}`}
+                            size="small" 
+                            label="Travclicks"
+                            sx={{ 
+                              height: 20,
+                              fontSize: '0.7rem',
+                              bgcolor: 'rgba(76, 175, 80, 0.08)',
+                              color: '#2e7d32'
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                  </CustomTooltip>
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label=""
+                  placeholder="Search & Select Vehicle"
+                  fullWidth
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      '&:hover fieldset': {
+                        borderColor: '#ff6b6b',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#ff6b6b',
+                      }
+                    }
+                  }}
+                  {...(cachedVehicleName && !selectedVehicleObj && {
+                    InputProps: {
+                      ...params.InputProps,
+                      placeholder: cachedVehicleName
+                    }
+                  })}
+                />
+              )}
+              componentsProps={{
+                popper: {
+                  sx: { zIndex: 9999 },
+                  onClick: (e) => e.stopPropagation(),
+                  onMouseDown: (e) => e.stopPropagation()
+                },
+                paper: {
+                  onClick: (e) => e.stopPropagation(),
+                  onMouseDown: (e) => e.stopPropagation()
+                }
+              }}
+            />
+          </Box>
+        
+      </Grid>
+
+      {/* Passenger Selection Column */}
+      <Grid item xs={12} md={3}>
+    
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600} 
+            sx={{ 
+              mb: 2, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              color: selectedVehicleObj ? '#2196f3' : 'text.disabled'
+            }}
+          >
+            <PeopleIcon sx={{ fontSize: 20 }} />
+            Passengers
+          </Typography>
+          <Box sx={{ 
+            pointerEvents: selectedVehicleObj ? 'auto' : 'none'
+          }}>
+            <Passenger 
+              adultsMax={adultsMax} 
+              childrenMax={childrenMax} 
+              seatingCapacity={seatingCapacity} 
+              initialAdults={adults}
+              initialChildren={children}
+              onAdultChange={handleAdultChange}
+              onChildChange={handleChildChange}
+            />
+          </Box>
+     
+      </Grid>
+
+      {/* Price Mode Column */}
+      <Grid item xs={12} md={3}>
+     
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600} 
+            sx={{ 
+              mb: 2, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              color: data ? '#ff9800' : 'text.disabled'
+            }}
+          >
+            <LocalOfferIcon sx={{ fontSize: 20 }} />
+            Price Mode
+          </Typography>
+          <Box sx={{ 
+            pointerEvents: data ? 'auto' : 'none'
+          }}>
+            {data && <Mode pricemode={pricemode} setpricemode={setpricemode} vehicles={data}/>}
+            {!data && (
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  p: 3, 
+                  textAlign: 'center',
+                  bgcolor: 'grey.50',
+                  borderStyle: 'dashed',
+                  borderColor: 'action.disabled'
+                }}
+              >
+                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                  Select vehicle first
+                </Typography>
+              </Paper>
+            )}
+          </Box>
+       
+      </Grid>
+
+      {/* Hours Selection Column */}
+      <Grid item xs={12} md={3}>
+      
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600} 
+            sx={{ 
+              mb: 2, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              color: data ? '#9c27b0' : 'text.disabled'
+            }}
+          >
+            <AccessTimeIcon sx={{ fontSize: 20 }} />
+            Hours Package
+          </Typography>
+          <Box sx={{ 
+            pointerEvents: data ? 'auto' : 'none'
+          }}>
+            {data && (
+              <HourlyPackage 
+                hour={selectedHours}
+                sethours={setSelectedHours}
+                onHourChange={(selectedHour) => {
+                  setSelectedHours(selectedHour);
+                  if (onHourChange) {
+                    onHourChange(selectedHour);
                   }
-                })}
+                  
+                  if (data && data.prices) {
+                    const calculatedPrice = calculateHourlyPrice(selectedHour);
+                    setTotalHourlyPrice(calculatedPrice);
+                  }
+                }}
+                availableHours={[1, 2, 4, 6, 8, 12]}
               />
             )}
-            componentsProps={{
-              popper: {
-                sx: { zIndex: 9999 },
-                onClick: (e) => e.stopPropagation(),
-                onMouseDown: (e) => e.stopPropagation()
-              },
-              paper: {
-                onClick: (e) => e.stopPropagation(),
-                onMouseDown: (e) => e.stopPropagation()
-              }
-            }}
-          />
-        </Box>
+            {!data && (
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  p: 3, 
+                  textAlign: 'center',
+                  bgcolor: 'grey.50',
+                  borderStyle: 'dashed',
+                  borderColor: 'action.disabled'
+                }}
+              >
+                <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                  Select vehicle first
+                </Typography>
+              </Paper>
+            )}
+          </Box>
+       
       </Grid>
-      <Passenger 
-        adultsMax={adultsMax} 
-        childrenMax={childrenMax} 
-        seatingCapacity={seatingCapacity} 
-        initialAdults={adults}
-        initialChildren={children}
-        onAdultChange={handleAdultChange}
-        onChildChange={handleChildChange}
-      />
-      {data && <Mode pricemode={pricemode} setpricemode={setpricemode} vehicles={data}/>}
-      <HourlyPackage 
-        hour={selectedHours}
-        sethours={setSelectedHours}
-        onHourChange={(selectedHour) => {
-          setSelectedHours(selectedHour);
-          if (onHourChange) {
-            onHourChange(selectedHour);
-          }
-          
-          // Calculate the price with the new selectedHour value explicitly
-          if (data && data.prices) {
-            const calculatedPrice = calculateHourlyPrice(selectedHour);
-            setTotalHourlyPrice(calculatedPrice);
-          }
-        }}
-        availableHours={[1, 2, 4, 6, 8, 12]} // Customize as needed
-      />
     </Grid>
   );
 };

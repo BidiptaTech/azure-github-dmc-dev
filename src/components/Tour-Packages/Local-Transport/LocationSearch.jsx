@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setentrypickup, setentrydropoff, setPickupPlaceid, setDropoffPlaceid } from "@/slice/localtour/Localslice";
+import {
+  Box,
+  TextField,
+  Typography,
+  Grid,
+  InputAdornment,
+  Alert,
+} from '@mui/material';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 const SearchBar = ({
   pickUpLocation,
@@ -143,155 +153,131 @@ const SearchBar = ({
   };
 
   // Improve error messages
-  const showPickupError =
-    validationTriggered && !isPickupValid;
-  const showDropoffError =
-    validationTriggered && !isDropoffValid;
+  const showPickupError = validationTriggered && !isPickupValid;
+  const showDropoffError = validationTriggered && !isDropoffValid;
 
   return (
-    <div className="searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0">
-      <div className="d-flex justify-between">
+    <Box sx={{ width: '100%', px: 2, py: 2 }}>
+      <Grid container spacing={3}>
         {/* Pick-up Location */}
-        <div className="flex-1 mr-10">
-          <div>
-            <div className="d-flex ml-10">
-              <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
-              <div className="ml-10 flex-grow-1">
-                <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">
-                  Pick Up Location
-                </h4>
-                <div className="text-15 text-light-1 ls-2 lh-16">
-                  <input
-                    id={pickupInputId}
-                    autoComplete="off"
-                    type="search"
-                    placeholder="Where is your pick up?"
-                    className="js-search js-dd-focus w-full pac-item"
-                    value={pickUpLocation}
-                    onChange={handlePickupChange}
-                    disabled={
-                      !SelectedPort ||
-                      SelectedPort !== "Point To Point"
-                    }
-                  />
-                  {showPickupError && (
-                    <div className="text-red-500 mt-5 text-14">
-                      *Please select location from dropdown suggestions
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Grid item xs={12} md={6}>
+          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+            Pick Up Location
+          </Typography>
+          <TextField
+            id={pickupInputId}
+            fullWidth
+            variant="outlined"
+            placeholder="Where is your pick up?"
+            value={pickUpLocation}
+            onChange={handlePickupChange}
+            disabled={!SelectedPort || SelectedPort !== "Point To Point"}
+            error={showPickupError}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MyLocationIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {showPickupError && (
+            <Alert severity="error" sx={{ mt: 1 }}>
+              Please select location from dropdown suggestions
+            </Alert>
+          )}
+        </Grid>
 
         {/* Drop-off Location */}
-        <div className="flex-1 ml-10">
-          <div>
-            <div className="d-flex">
-              <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
-              <div className="ml-10 flex-grow-1">
-                <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">
-                  Drop Off Location
-                </h4>
-                <div className="text-15 text-light-1 ls-2 lh-16">
-                  <input
-                    id={dropoffInputId}
-                    autoComplete="off"
-                    type="search"
-                    placeholder="Where is your drop off?"
-                    className="js-search js-dd-focus w-full pac-item"
-                    value={dropOffLocation}
-                    onChange={handleDropoffChange}
-                    disabled={
-                      !SelectedPort ||
-                      SelectedPort !== "Point To Point"
-                    }
-                  />
-                  {showDropoffError && (
-                    <div className="text-red-500 mt-5 text-14">
-                      *Please select location from dropdown suggestions
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        <Grid item xs={12} md={6}>
+          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+            Drop Off Location
+          </Typography>
+          <TextField
+            id={dropoffInputId}
+            fullWidth
+            variant="outlined"
+            placeholder="Where is your drop off?"
+            value={dropOffLocation}
+            onChange={handleDropoffChange}
+            disabled={!SelectedPort || SelectedPort !== "Point To Point"}
+            error={showDropoffError}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LocationOnIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {showDropoffError && (
+            <Alert severity="error" sx={{ mt: 1 }}>
+              Please select location from dropdown suggestions
+            </Alert>
+          )}
+        </Grid>
+      </Grid>
 
       {/* CSS Fixes for Google Autocomplete */}
       <style>
         {`
           .pac-container {
-  z-index: 10000 !important;
-  background-color: #fff !important;
-   border: 1px solid #ccc !important;
-  width: 100% !important; /* Expands dropdown width */
-  min-width: 200px !important; /* Ensures it's not too small */
-  max-width: 250px !important; /* Adjust as needed */
-}
+            z-index: 10000 !important;
+            background-color: #fff !important;
+            border: 1px solid #ccc !important;
+            width: 100% !important;
+            min-width: 200px !important;
+            max-width: 250px !important;
+          }
 
-.pac-item {
-  font-size: 15px !important;
-  font-weight: 520 !important;
-   color: #000 !important;
-  // padding: 10px !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: ellipsis !important;
-  width: 250px !important;
-}
+          .pac-item {
+            font-size: 15px !important;
+            font-weight: 520 !important;
+            color: #000 !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: ellipsis !important;
+            width: 250px !important;
+          }
 
-.pac-item-query {
-  font-weight: bold !important;
-  color: #000 !important;
-}
+          .pac-item-query {
+            font-weight: bold !important;
+            color: #000 !important;
+          }
 
-.text-red-500 {
-  color: #ef4444 !important;
-}
-
-.mt-5 {
-  margin-top: 5px !important;
-}
-
-.text-14 {
-  font-size: 14px !important;
-}
-  @media (max-width: 1730px) {
-    .pac-item {
-      width: 250px !important;
-    }
-  }
-  @media (max-width: 1400px) {
-    .pac-item {
-      width: 200px !important;
-    }
-  }
-  @media (max-width: 1200px) {
-    .pac-item {
-      width: 100px !important;
-    }
-  }
-  @media (max-width: 1024px) {
-    .pac-item {
-      width: 100px !important;
-    }
-  }
-  @media (max-width: 768px) {
-    .pac-item {
-      width: 80px !important;
-    }
-  }
-  @media (max-width: 480px) {
-    .pac-item {
-      width: 80px !important;
-    }
-  }
+          @media (max-width: 1730px) {
+            .pac-item {
+              width: 250px !important;
+            }
+          }
+          @media (max-width: 1400px) {
+            .pac-item {
+              width: 200px !important;
+            }
+          }
+          @media (max-width: 1200px) {
+            .pac-item {
+              width: 100px !important;
+            }
+          }
+          @media (max-width: 1024px) {
+            .pac-item {
+              width: 100px !important;
+            }
+          }
+          @media (max-width: 768px) {
+            .pac-item {
+              width: 80px !important;
+            }
+          }
+          @media (max-width: 480px) {
+            .pac-item {
+              width: 80px !important;
+            }
+          }
         `}
       </style>
-    </div>
+    </Box>
   );
 };
 

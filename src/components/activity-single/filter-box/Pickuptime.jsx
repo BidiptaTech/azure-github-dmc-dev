@@ -13,34 +13,27 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import NightsStayIcon from "@mui/icons-material/NightsStay";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 
-// Styled components for custom styling
+// Simple styled components focusing on width and z-index
 const StyledFormControl = styled(FormControl)(({ theme }) => ({
-  backgroundColor: "rgba(255, 255, 255, 0.9)",
-  borderRadius: "10px",
-  boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)",
-  transition: "all 0.3s ease",
-  "&:hover": {
-    boxShadow: "0 6px 15px rgba(0, 0, 0, 0.1)",
-    transform: "translateY(-2px)",
-  },
+  width: '100%',
+  minWidth: '180px',
 }));
 
 const StyledSelect = styled(Select)(({ theme }) => ({
-  "& .MuiSelect-select": {
-    padding: "15px 14px",
-    display: "block",
-    alignItems: "center",
-    gap: "10px",
+  '& .MuiSelect-select': {
+    padding: '12px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "rgba(53, 84, 209, 0.2)",
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#e2e8f0',
   },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "rgba(53, 84, 209, 0.5)",
-    borderWidth: "2px",
+  '&:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#3554D1',
   },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#3554D1",
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#3554D1',
   },
 }));
 
@@ -48,8 +41,8 @@ const StyledMenuItem = styled(MenuItem)(
   ({ isNightTime, isDisabled, theme }) => ({
     padding: "12px 16px",
     display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
+    alignItems: "center",
+    gap: "10px",
     backgroundColor: isNightTime
       ? "rgba(255, 235, 235, 0.85)"
       : "rgba(237, 242, 255, 0.85)",
@@ -63,44 +56,29 @@ const StyledMenuItem = styled(MenuItem)(
       backgroundColor: isNightTime
         ? "rgba(255, 235, 235, 1)"
         : "rgba(237, 242, 255, 1)",
-      transform: "translateY(-2px) scale(1.02)",
-      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
     },
 
     "&.Mui-selected": {
       backgroundColor: isNightTime
         ? "rgba(254, 215, 215, 1)"
         : "rgba(219, 234, 254, 1)",
-      fontWeight: "bold",
-    },
-
-    "&.Mui-selected:hover": {
-      backgroundColor: isNightTime
-        ? "rgba(254, 202, 202, 1)"
-        : "rgba(191, 219, 254, 1)",
+      fontWeight: "600",
     },
   })
 );
 
 const SurchargeText = styled(Typography)({
-  fontSize: "10px",
+  fontSize: "0.75rem",
   fontWeight: "500",
   color: "#B45309",
-  marginTop: "2px",
+  marginLeft: "28px",
 });
 
 const DayPriceText = styled(Typography)({
-  fontSize: "10px",
+  fontSize: "0.75rem",
   fontWeight: "500",
   color: "#1E40AF",
-  marginTop: "2px",
-});
-
-const StyledInputLabel = styled(InputLabel)({
-  color: "#64748B",
-  "&.Mui-focused": {
-    color: "#3554D1",
-  },
+  marginLeft: "28px",
 });
 
 const Pickuptime = ({ entryytime, setentryytime }) => {
@@ -110,9 +88,7 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
 
   // Extract night time limits from guide data
   const nightStartTime = guide.guide.night_start_time || "22:00";
-  console.log(nightStartTime);
   const nightEndTime = guide.guide.night_end_time || "06:00";
-  console.log(nightEndTime);
 
   // Parse 12-hour format time (with AM/PM) to 24-hour hour value
   const parseTimeToHour = (timeStr) => {
@@ -142,9 +118,6 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
   const nightStartHour = parseTimeToHour(nightStartTime);
   const nightEndHour = parseTimeToHour(nightEndTime);
 
-  console.log("Night start hour (24h format):", nightStartHour);
-  console.log("Night end hour (24h format):", nightEndHour);
-
   // Check if a given hour is in night time range
   const isNightHour = (hour) => {
     // For a time like 11:55 PM, ensure the 11 PM hour is included
@@ -153,8 +126,6 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
       nightEndTime.includes(":") && parseInt(nightEndTime.split(":")[1], 10) > 0
         ? (nightEndHour + 1) % 24
         : nightEndHour;
-
-    console.log(`Checking hour ${hour}, adjusted end hour: ${adjustedEndHour}`);
 
     if (nightStartHour < adjustedEndHour) {
       // Simple range (e.g., 19:00 to 23:59)
@@ -184,77 +155,92 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
   }
 
   return (
-    <StyledFormControl fullWidth>
-      <StyledInputLabel id="pickup-time-label" shrink={!!entryytime}>
-        {!entryytime && "Select the Pick Up Time"}
-      </StyledInputLabel>
-      <StyledSelect
-        labelId="pickup-time-label"
-        id="pickup-time-select"
-        value={entryytime}
-        onChange={(e) => setentryytime(e.target.value)}
-        open={open}
-        onOpen={() => setOpen(true)}
-        onClose={() => setOpen(false)}
-        MenuProps={{
-          PaperProps: {
-            style: {
-              maxHeight: 350,
-              width: "auto",
-              borderRadius: "12px",
-              padding: "8px",
-              marginTop: "8px",
-              backgroundColor: "rgba(255, 255, 255, 0.95)",
-              boxShadow: "0 8px 20px rgba(0, 0, 0, 0.15)",
-            },
-          },
-          TransitionProps: {
-            style: {
-              transition: "all 0.2s ease",
-            },
-          },
-        }}
-      >
-        {Array.from({ length: 24 }, (_, index) => {
-          const hour = index % 12 === 0 ? 12 : index % 12;
-          const period = index < 12 ? "AM" : "PM";
-          const timeLabel = `${hour.toString().padStart(2, "0")}:00 ${period}`;
-          const isDisabled = blockedTimes.has(index);
-          const isNight = isNightHour(index);
-
-          return (
-            <StyledMenuItem
-              key={index}
-              value={timeLabel}
-              disabled={isDisabled}
-              isNightTime={isNight}
-              isDisabled={isDisabled}
-            >
-              <Box
-                sx={{ display: "flex", alignItems: "center", width: "100%" }}
-              >
-                {isNight ? (
-                  <NightsStayIcon
-                    sx={{ mr: 1, fontSize: 20, color: "#9A3412" }}
-                  />
-                ) : (
-                  <WbSunnyIcon sx={{ mr: 1, fontSize: 20, color: "#3554D1" }} />
-                )}
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  {timeLabel}
+    <Box>
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+        Pick Up Time
+      </Typography>
+      <StyledFormControl fullWidth>
+        <StyledSelect
+          value={entryytime || ''}
+          onChange={(e) => setentryytime(e.target.value)}
+          displayEmpty
+          open={open}
+          onOpen={() => setOpen(true)}
+          onClose={() => setOpen(false)}
+          renderValue={(selected) => {
+            if (!selected) {
+              return (
+                <Typography sx={{ color: '#9ca3af' }}>
+                  Select time
+                </Typography>
+              );
+            }
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AccessTimeIcon sx={{ fontSize: '1rem', color: '#3554D1' }} />
+                <Typography sx={{ fontWeight: 500 }}>
+                  {selected}
                 </Typography>
               </Box>
+            );
+          }}
+          MenuProps={{
+            PaperProps: {
+              style: {
+                maxHeight: 300,
+                width: 'auto',
+                minWidth: '200px',
+                borderRadius: "8px",
+                marginTop: "4px",
+                zIndex: 9999,
+              },
+            },
+            anchorOrigin: {
+              vertical: 'bottom',
+              horizontal: 'left',
+            },
+            transformOrigin: {
+              vertical: 'top',
+              horizontal: 'left',
+            },
+          }}
+        >
+          {Array.from({ length: 24 }, (_, index) => {
+            const hour = index % 12 === 0 ? 12 : index % 12;
+            const period = index < 12 ? "AM" : "PM";
+            const timeLabel = `${hour.toString().padStart(2, "0")}:00 ${period}`;
+            const isDisabled = blockedTimes.has(index);
+            const isNight = isNightHour(index);
 
-              {isNight ? (
-                <SurchargeText>*Dynamic Night Surcharge Applied</SurchargeText>
-              ) : (
-                <DayPriceText>*Day Price Applied</DayPriceText>
-              )}
-            </StyledMenuItem>
-          );
-        })}
-      </StyledSelect>
-    </StyledFormControl>
+            return (
+              <StyledMenuItem
+                key={index}
+                value={timeLabel}
+                disabled={isDisabled}
+                isNightTime={isNight}
+                isDisabled={isDisabled}
+              >
+                {isNight ? (
+                  <NightsStayIcon sx={{ fontSize: '1rem', color: "#9A3412" }} />
+                ) : (
+                  <WbSunnyIcon sx={{ fontSize: '1rem', color: "#3554D1" }} />
+                )}
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {timeLabel}
+                  </Typography>
+                  {isNight ? (
+                    <SurchargeText>*Night Surcharge Applied</SurchargeText>
+                  ) : (
+                    <DayPriceText>*Standard Rate</DayPriceText>
+                  )}
+                </Box>
+              </StyledMenuItem>
+            );
+          })}
+        </StyledSelect>
+      </StyledFormControl>
+    </Box>
   );
 };
 
