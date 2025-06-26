@@ -1,55 +1,63 @@
 import React from "react";
-import { FormControl, Select, MenuItem, Box, Typography } from "@mui/material";
+import { 
+  FormControl, 
+  Select, 
+  MenuItem, 
+  Box, 
+  Typography
+} from "@mui/material";
 import { styled } from "@mui/material/styles";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import NightsStayIcon from "@mui/icons-material/NightsStay";
 
-// Styled Menu Item for consistent styling
+// Simple styled components focusing on width and z-index
+const StyledFormControl = styled(FormControl)(({ theme }) => ({
+  width: '100%',
+  minWidth: '180px',
+}));
+
 const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
   display: "flex",
   alignItems: "center",
   gap: "10px",
-  padding: "10px 15px",
-  fontWeight: "800px",
+  padding: "12px 16px",
   backgroundColor: isNight
-    ? "rgba(55, 55, 60, 0.08)"
-    : "rgba(220, 242, 255, 0.5)",
-  color: isNight ? "#000000" : "#0047AB",
+    ? "rgba(255, 235, 235, 0.85)"
+    : "rgba(237, 242, 255, 0.85)",
+  color: isNight ? "#9A3412" : "#1E3A8A",
+  borderRadius: "6px",
+  margin: "4px 8px",
   transition: "all 0.2s ease",
   "&:hover": {
     backgroundColor: isNight
-      ? "rgba(0, 0, 0, 0.15)"
-      : "rgba(220, 242, 255, 0.9)",
-    color: "#ffff",
-    transform: "translateY(-2px) scale(1.01)",
-    boxShadow: "0 3px 5px rgba(0,0,0,0.1)",
+      ? "rgba(255, 235, 235, 1)"
+      : "rgba(237, 242, 255, 1)",
   },
-  "& .MuiSvgIcon-root": {
-    color: isNight ? "#555" : "#4a90e2",
-    fontSize: "1.2rem",
+  "&.Mui-selected": {
+    backgroundColor: isNight
+      ? "rgba(254, 215, 215, 1)"
+      : "rgba(219, 234, 254, 1)",
+    fontWeight: "600",
   },
 }));
 
 // Custom Select component with styling
 const StyledSelect = styled(Select)(({ theme }) => ({
-  height: "48px",
-  borderRadius: "8px",
-  fontSize: "16px",
-  padding: "0 10px",
-  backgroundColor: "#f5f7fb",
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#e2e8f0",
+  '& .MuiSelect-select': {
+    padding: '12px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#3554D1",
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#e2e8f0',
   },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#3554D1",
+  '&:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#3554D1',
   },
-  "& .MuiSelect-select": {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#3554D1',
   },
 }));
 
@@ -59,7 +67,7 @@ const Pickuptimezone = ({
   isStatic = false,
   setTime,
 }) => {
-  // Function to determine if the selected time is during night hours
+  // Function to determine if the selected time is during night hours (6 PM to 6 AM)
   const isSelectedTimeNight = () => {
     if (!entryytime) return false;
     const hour = parseInt(entryytime.split(":")[0]);
@@ -100,89 +108,105 @@ const Pickuptimezone = ({
   };
 
   return (
-    <FormControl fullWidth variant="outlined">
-      <label
-        htmlFor="pickup-time-select"
-        className="text-15 fw-500 ls-2 lh-16 mt-5"
-      >
-        Select the Pick Up Time
-      </label>
-      <StyledSelect
-        id="pickup-time-select"
-        value={entryytime || ''}
-        onChange={handleTimeChange}
-        displayEmpty
-        disabled={isStatic}
-        renderValue={(selected) => {
-          if (!selected) {
+    <Box>
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+        Pick Up Time
+      </Typography>
+      <StyledFormControl fullWidth>
+        <StyledSelect
+          value={entryytime || ''}
+          onChange={handleTimeChange}
+          displayEmpty
+          disabled={isStatic}
+          renderValue={(selected) => {
+            if (!selected) {
+              return (
+                <Typography sx={{ color: '#9ca3af' }}>
+                  Select time
+                </Typography>
+              );
+            }
+
+            const isNight = isSelectedTimeNight();
+
             return (
-              <Typography sx={{ color: "#999" }}>Select The Time</Typography>
-            );
-          }
-
-          const isNight = isSelectedTimeNight();
-
-          return (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {isNight ? (
-                <NightsStayIcon sx={{ color: "#555" }} />
-              ) : (
-                <WbSunnyIcon sx={{ color: "#4a90e2" }} />
-              )}
-              <Typography
-                sx={{
-                  color: isNight ? "#000000" : "#0047AB",
-                  fontWeight: 600,
-                }}
-              >
-                {selected}
-              </Typography>
-            </Box>
-          );
-        }}
-        MenuProps={{
-          PaperProps: {
-            style: {
-              maxHeight: 300,
-              borderRadius: "10px",
-              backgroundColor: "rgba(255, 255, 255, 0.98)",
-              boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
-            },
-          },
-        }}
-      >
-        {/* Only show the placeholder when no time is selected */}
-        {!entryytime && (
-          <MenuItem value="" disabled>
-            Select The Time
-          </MenuItem>
-        )}
-
-        {/* Generate time options from 12 AM to 11 PM */}
-        {Array.from({ length: 24 }, (_, index) => {
-          const hour = index % 12 === 0 ? 12 : index % 12;
-          const period = index < 12 ? "AM" : "PM";
-          const timeLabel = `${hour.toString().padStart(2, "0")}:00 ${period}`;
-          const isNight = isNightHour(hour, period);
-
-          return (
-            <StyledMenuItem key={index} value={timeLabel} isNight={isNight}>
-              {isNight ? <NightsStayIcon /> : <WbSunnyIcon />}
-              <Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                {isNight ? (
+                  <NightsStayIcon sx={{ fontSize: '1rem', color: "#9A3412" }} />
+                ) : (
+                  <WbSunnyIcon sx={{ fontSize: '1rem', color: "#3554D1" }} />
+                )}
                 <Typography
                   sx={{
-                    fontWeight: 600,
-                    color: isNight ? "#000000" : "#0047AB", // Deep blue for day, dark black for night
+                    color: isNight ? "#9A3412" : "#1E3A8A",
+                    fontWeight: 500,
                   }}
                 >
-                  {timeLabel}
+                  {selected}
                 </Typography>
               </Box>
-            </StyledMenuItem>
-          );
-        })}
-      </StyledSelect>
-    </FormControl>
+            );
+          }}
+          MenuProps={{
+            PaperProps: {
+              style: {
+                maxHeight: 300,
+                width: '300px',
+                minWidth: '300px',
+                borderRadius: "8px",
+                marginTop: "4px",
+                zIndex: 9999,
+              },
+            },
+            anchorOrigin: {
+              vertical: 'bottom',
+              horizontal: 'left',
+            },
+            transformOrigin: {
+              vertical: 'top',
+              horizontal: 'left',
+            },
+          }}
+        >
+          {/* Generate time options from 12 AM to 11 PM */}
+          {Array.from({ length: 24 }, (_, index) => {
+            const hour = index % 12 === 0 ? 12 : index % 12;
+            const period = index < 12 ? "AM" : "PM";
+            const timeLabel = `${hour.toString().padStart(2, "0")}:00 ${period}`;
+            const isNight = isNightHour(hour, period);
+
+            return (
+              <StyledMenuItem key={index} value={timeLabel} isNight={isNight}>
+                {isNight ? (
+                  <NightsStayIcon sx={{ fontSize: '1rem', color: "#9A3412" }} />
+                ) : (
+                  <WbSunnyIcon sx={{ fontSize: '1rem', color: "#3554D1" }} />
+                )}
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 500,
+                      color: isNight ? "#9A3412" : "#1E3A8A",
+                    }}
+                  >
+                    {timeLabel}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: '0.75rem',
+                      color: isNight ? "#B45309" : "#1E40AF",
+                      mt: 0.5,
+                    }}
+                  >
+                    {isNight ? "*Night Surcharge Applied" : "*Standard Rate"}
+                  </Typography>
+                </Box>
+              </StyledMenuItem>
+            );
+          })}
+        </StyledSelect>
+      </StyledFormControl>
+    </Box>
   );
 };
 
