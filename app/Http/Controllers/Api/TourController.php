@@ -1057,16 +1057,21 @@ class TourController extends Controller
                             $orderData
                         );
                         
-                        if(!$sendEmail) {
-                            // If sendEmail returns false, return error response
+                        // The sendEmail function now returns:
+                        // - true on success
+                        // - string with error message on failure
+                        
+                        if ($sendEmail === true) {
+                            // Email sent successfully
+                            return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
+                        } else {
+                            // Any non-true response is an error message
                             return response()->json([
                                 'message' => 'Email sending failed',
                                 'error' => $sendEmail
                             ], 500);
                         }
-                        else{
-                            return response()->json(['message' => 'Hotel booking confirmation email sent successfully', 'sendEmail' => $sendEmail], 200);
-                        }                                                                      
+                                                                                  
                     } catch (\Exception $e) {
                         // Catch any exceptions from sendEmail and return the exact error
                         return response()->json([
