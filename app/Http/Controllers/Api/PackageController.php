@@ -488,94 +488,9 @@ class PackageController extends Controller
     }
 
     public function showPackage(Request $request){
-        $user = Auth::user();
-        $booking_id = $request->input('booking_id');
-        
-        // If booking_id is provided, show specific booking
-        if ($booking_id) {
-            $booking = PackageBooking::select(
-                'booking_id', 'package_id', 'booking_details', 'travel_dates', 
-                'selected_hotels', 'selected_attractions', 'selected_guides', 
-                'selected_restaurants', 'status', 'booked_by', 'package', 
-                'user_info', 'created_at', 'updated_at'
-            )
-            ->where('booking_id', $booking_id)
-            ->where('booked_by', $user->userId ?? $user->agent_id)
-            ->first();
-            
-            if (!$booking) {
-                return response()->json(['message' => 'Booking not found'], 404);
-            }
-            
-            // Get detailed information for the booking
-            $hotelIds = json_decode($booking->selected_hotels) ?? [];
-            $attractionIds = json_decode($booking->selected_attractions) ?? [];
-            $guideIds = json_decode($booking->selected_guides) ?? [];
-            $restaurantIds = json_decode($booking->selected_restaurants) ?? [];
-            
-            $hotels = Hotel::select(
-                'hotel_unique_id', 'name', 'main_image', 'images', 'address',
-                'phone', 'email', 'latitude', 'longitude', 'city', 'country'
-            )->whereIn('hotel_unique_id', $hotelIds)->get();
-            
-            $attractions = Attraction::select(
-                'attraction_id', 'name', 'master_image', 'additional_image',
-                'location', 'latitude', 'longitude', 'description', 'city'
-            )->whereIn('attraction_id', $attractionIds)->get();
-            
-            $selected_guides = Guide::select(
-                'guide_id', 'name', 'image', 'contact_no', 'email'
-            )->whereIn('guide_id', $guideIds)->get();
-            
-            $guides = $selected_guides->map(function ($guide) {
-                $languages = GuideLanguage::where('guide_id', $guide->guide_id)->pluck('language');
-                return [
-                    'guide_id' => $guide->guide_id,
-                    'name' => $guide->name,
-                    'image' => $guide->image,
-                    'contact_no' => $guide->contact_no,
-                    'email' => $guide->email,
-                    'languages' => $languages,
-                ];
-            });
-            
-            $restaurants = Restaurant::select(
-                'restaurant_id', 'name', 'master_image', 'images', 'city',
-                'latitude', 'longitude', 'address', 'phone'
-            )->whereIn('restaurant_id', $restaurantIds)->get();
-            
-            return response()->json([
-                'booking' => [
-                    'booking_id' => $booking->booking_id,
-                    'package_id' => $booking->package_id,
-                    'booking_details' => json_decode($booking->booking_details),
-                    'travel_dates' => json_decode($booking->travel_dates),
-                    'hotels' => $hotels,
-                    'attractions' => $attractions,
-                    'guides' => $guides,
-                    'restaurants' => $restaurants,
-                    'package' => json_decode($booking->package),
-                    'user_info' => json_decode($booking->user_info),
-                    'status' => $booking->status,
-                    'created_at' => $booking->created_at,
-                    'updated_at' => $booking->updated_at
-                ]
-            ]);
-        }
-        
-        // If no booking_id provided, show all bookings for the user
-        $bookings = PackageBooking::select(
-            'booking_id', 'package_id', 'booking_details', 'travel_dates', 
-            'selected_hotels', 'selected_attractions', 'selected_guides', 
-            'selected_restaurants', 'status', 'booked_by', 'package', 
-            'user_info', 'created_at', 'updated_at'
-        )
-        ->where('booked_by', $user->userId ?? $user->agent_id)
-        ->orderBy('created_at', 'desc')
-        ->get();
-        
+        $bookings = PackageBooking::where('booked_by', $user->userId ?? $user->agent_id)->get();
         $booking_lists = [];
-        
+        $user = Auth::user();   
         foreach ($bookings as $booking) {
             $booking_details = json_decode($booking->booking_details);
             $package_info = json_decode($booking->package);
