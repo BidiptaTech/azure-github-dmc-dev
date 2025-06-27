@@ -1048,22 +1048,36 @@ class TourController extends Controller
                         "specialRequests" => $data['specialRequests'] ?? null
                     ];
                     
-                    $sendEmail = CommonHelper::sendEmail(
-                        $hotel_email, 
-                        'hotel', 
-                        'Hotel Booking Confirmation', 
-                        'Your hotel booking has been confirmed', 
-                        $orderData
-                    );
-                    
-                    if($sendEmail){
-                        // Email sent successfully
-                        return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
-                        Log::info('Booking confirmation email sent to: ' . $orderData->email);
-                    }
-                    else{
-                        // Failed to send email
-                        Log::error('Failed to send booking confirmation email to: ' . $orderData->email);
+                    try {
+                        $sendEmail = CommonHelper::sendEmail(
+                            $hotel_email, 
+                            'hotel', 
+                            'Hotel Booking Confirmation', 
+                            'Your hotel booking has been confirmed', 
+                            $orderData
+                        );
+                        
+                        // The sendEmail function now returns:
+                        // - true on success
+                        // - string with error message on failure
+                        
+                        if ($sendEmail === true) {
+                            // Email sent successfully
+                            return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
+                        } else {
+                            // Any non-true response is an error message
+                            return response()->json([
+                                'message' => 'Email sending failed',
+                                'error' => $sendEmail
+                            ], 500);
+                        }
+                                                                                  
+                    } catch (\Exception $e) {
+                        // Catch any exceptions from sendEmail and return the exact error
+                        return response()->json([
+                            'message' => 'Email sending failed',
+                            'error' => $e->getMessage()
+                        ], 500);
                     }
                 }
             }

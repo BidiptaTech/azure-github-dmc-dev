@@ -59,6 +59,13 @@ use Illuminate\Support\Facades\Mail;
 |
 */
 Auth::routes();
+Route::get('/clear', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
+    Artisan::call('route:clear');
+    return redirect()->route('dashboard');
+})->name('clear');
 Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
@@ -67,14 +74,6 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     // Updated dashboard routes to use the controller
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
-
-    Route::get('/clear', function () {
-        Artisan::call('config:clear');
-        Artisan::call('cache:clear');
-        Artisan::call('view:clear');
-        Artisan::call('route:clear');
-        return response()->json(['message' => 'All caches cleared successfully.']);
-    })->middleware('auth')->name('clear');
 
     // Add admin middleware to the hotels endpoint
     
@@ -163,6 +162,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         
         // Country and City API routes
         Route::get('/get-cities-by-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
@@ -334,6 +334,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::resource('bookinglist', BookingListController::class);
         Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+        Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
 
         Route::resource('enquirylist', EnquiryListController::class);
 

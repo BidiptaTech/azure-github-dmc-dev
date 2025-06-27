@@ -105,6 +105,7 @@ class PackageController extends Controller
                     'city' => 'required|string|max:255',
                     'category' => 'required|string|max:255',
                     'duration_days' => 'required|integer|min:1',
+                    'package_type' => 'required|string|max:255',
                     'description' => 'nullable|string',
                     'price_adult' => 'required|numeric|min:0',
                     'price_senior' => 'nullable|numeric|min:0',
@@ -125,6 +126,10 @@ class PackageController extends Controller
                     'hotel-select-count' => 'nullable|integer|min:1|max:5',
                     'attraction-select-count' => 'nullable|integer|min:1|max:5',
                     'restaurant-select-count' => 'nullable|integer|min:1|max:5',
+                    'attraction_with_transfer' => 'nullable|boolean',
+                    'transfer_notes' => 'nullable|string',
+                    'entry_port' => 'nullable|boolean',
+                    'exit_port' => 'nullable|boolean',
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 dd($e->validator->getMessageBag());
@@ -176,6 +181,7 @@ class PackageController extends Controller
                 'city' => $validated['city'],
                 'category' => $validated['category'],
                 'duration_days' => $validated['duration_days'],
+                'package_type' => $validated['package_type'],
                 'description' => $validated['description'],
                 'price_adult' => $validated['price_adult'],
                 'price_senior' => $validated['price_senior'],
@@ -188,6 +194,10 @@ class PackageController extends Controller
                 'max_hotels' => $request->input('hotel-select-count'),
                 'max_attractions' => $request->input('attraction-select-count'),
                 'max_restaurants' => $request->input('restaurant-select-count'),
+                'attraction_with_transfer' => $request->has('attraction_with_transfer') ? 1 : 0,
+                'transfer_notes' => $request->input('transfer_notes'),
+                'entry_port' => $request->has('entry_port') ? 1 : 0,
+                'exit_port' => $request->has('exit_port') ? 1 : 0,
                 'main_image' => $mainImagePath,
                 'gallery_images' => $galleryImages,
                 'start_date' => $request->input('start_date'),
@@ -223,7 +233,7 @@ class PackageController extends Controller
      */
     public function show($id)
     {
-        $package = Package::with(['creator', 'updater'])->findOrFail($id);
+        $package = Package::with(['creator', 'updater'])->where('package_id', $id)->firstOrFail();
         
         // Increment views
         $package->incrementViews();

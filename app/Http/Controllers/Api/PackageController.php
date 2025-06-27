@@ -26,6 +26,7 @@ class PackageController extends Controller
         $country = $request->query('country');
         $today = Carbon::today();
         $date = $request->query('date');
+        $pax = $request->query('adults');
 
         // Format the date properly for comparison with database date fields
         if (empty($date)) {
@@ -72,7 +73,7 @@ class PackageController extends Controller
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
 
-        $query = Package::where('status', 1)
+        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)
             ->whereDate('start_date', '<=', $date)
             ->whereDate('expire_date', '>=', $date);
         if (!empty($city)) {
@@ -83,7 +84,7 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date')->get();
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type')->get();
         // Format the response
         return response()->json($packages);
     }
@@ -148,7 +149,7 @@ class PackageController extends Controller
                 'max_attractions', 'main_image', 'gallery_images', 'inclusions', 
                 'exclusions', 'terms_conditions', 'views_count', 
                 'rating', 'reviews_count', 'city', 'expire_date', 'start_date', 
-                'selected_guide', 'selected_restaurants', 'max_restaurants', 'status'
+                'selected_guide', 'selected_restaurants', 'max_restaurants','package_type','attraction_with_transfer','entry_port', 'exit_port', 'status'
             )
             ->first();
         if (!$package) {
@@ -288,7 +289,7 @@ class PackageController extends Controller
         }
         
         return response()->json($package);
-    } 
+    }
         
     public function storeMultipleOrders(Request $request)
     {
@@ -314,7 +315,7 @@ class PackageController extends Controller
                 Order::create([
                     'agent_id' => $agentId,
                     'tour_id' => $tourId,
-                    'data' => $item,
+                    'data' => [$item],
                     'type' => $type,
                     'bookingType' => 'enquiry',
                     'booking_id' => $bookId,
@@ -325,7 +326,6 @@ class PackageController extends Controller
 
         return response()->json(['message' => 'All orders saved successfully.']);
     }
-
 
     public function booking(Request $request){
         // Extract booking data from request
@@ -353,11 +353,13 @@ class PackageController extends Controller
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
         $check_out = Carbon::parse($end_date)->format('Y-m-d');
 
+
+
         // Verify price calculation
         $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
 
         if($package_price != $totalPrice){
-            return response()->json(['message' => 'Total price is not correct'], 400);
+            return response()->json(['message' => 'Total price is not correct', 'package_price' => $package_price, 'totalPrice' => $totalPrice, 'adult_count' => $adult_count, 'child_count' => $child_count, 'senior_count' => $senior_count], 400);
         }
 
         $lastBooking = PackageBooking::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -372,7 +374,7 @@ class PackageController extends Controller
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
         $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
-        $restaurantIds = collect($data['selected']['restaurants'])->pluck('id')->toArray();
+        
 
         $user = Auth::user();
         $booking = new PackageBooking();
@@ -387,7 +389,6 @@ class PackageController extends Controller
         $booking->selected_hotels = json_encode($hotelIds);
         $booking->selected_attractions = json_encode($attractionIds);
         $booking->selected_guides = json_encode($guideIds);
-        $booking->selected_restaurants = json_encode($restaurantIds);
 
         $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
