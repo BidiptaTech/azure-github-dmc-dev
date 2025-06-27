@@ -1078,7 +1078,11 @@ class CommonHelper
             }
             
             // Render the email template
-            $html = view($template, $viewData)->render();
+            try {
+                $html = view($template, $viewData)->render();
+            } catch (\Exception $e) {
+                return "Error rendering email template: " . $e->getMessage();
+            }
             
             // Extract the entire style tag content
             preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
@@ -1093,12 +1097,16 @@ class CommonHelper
                 $emailHtml = '<!DOCTYPE html><html><head><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
                 
                 // Send the email to the actual recipient
-                Mail::to($email)->send(new DmcMail($emailHtml, $subject));
-                
-                // Log successful email sending
-                Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
-                
-                return true;
+                try {
+                    Mail::to($email)->send(new DmcMail($emailHtml, $subject));
+                    
+                    // Log successful email sending
+                    Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
+                    
+                    return true;
+                } catch (\Exception $e) {
+                    return "Failed to send email: " . $e->getMessage();
+                }
             } else {
                 // Handle case where the div is not found
                 Log::error("Email container div not found in email template");
@@ -1110,7 +1118,7 @@ class CommonHelper
                 'type' => $type,
                 'error' => $e->getMessage()
             ]);
-            return $e;
+            return "Email sending failed: " . $e->getMessage();
         }
     }
 }
