@@ -153,7 +153,9 @@ class EnquiryController extends Controller
         }
 
         // Fetch all services for the given city and DMC
-        $hotels = Hotel::where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
+        $hotels = Hotel::with(['rooms' => function($query) {
+            $query->select('hotel_id', 'weekday_price', 'room_type', 'room_id');
+        }])->where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
         $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city)->where('country', $country)->get();
         $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
         $vehicles = Vehicle::where('dmc_id', $dmc_id)->where('city', $city)->get(); // Assuming Driver model exists
