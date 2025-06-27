@@ -126,6 +126,10 @@ class PackageController extends Controller
                     'hotel-select-count' => 'nullable|integer|min:1|max:5',
                     'attraction-select-count' => 'nullable|integer|min:1|max:5',
                     'restaurant-select-count' => 'nullable|integer|min:1|max:5',
+                    'attraction_with_transfer' => 'nullable|boolean',
+                    'transfer_notes' => 'nullable|string',
+                    'entry_port' => 'nullable|boolean',
+                    'exit_port' => 'nullable|boolean',
                 ]);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 dd($e->validator->getMessageBag());
@@ -190,6 +194,10 @@ class PackageController extends Controller
                 'max_hotels' => $request->input('hotel-select-count'),
                 'max_attractions' => $request->input('attraction-select-count'),
                 'max_restaurants' => $request->input('restaurant-select-count'),
+                'attraction_with_transfer' => $request->has('attraction_with_transfer') ? 1 : 0,
+                'transfer_notes' => $request->input('transfer_notes'),
+                'entry_port' => $request->has('entry_port') ? 1 : 0,
+                'exit_port' => $request->has('exit_port') ? 1 : 0,
                 'main_image' => $mainImagePath,
                 'gallery_images' => $galleryImages,
                 'start_date' => $request->input('start_date'),
