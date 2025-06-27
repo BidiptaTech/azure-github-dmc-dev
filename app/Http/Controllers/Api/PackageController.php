@@ -351,7 +351,8 @@ class PackageController extends Controller
         
         // Format dates to Y-m-d
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
-        $check_out = Carbon::parse($end_date)->format('Y-m-d');
+        $check_out = Carbon::parse($end_date)->format('Y-m-d'); 
+
 
 
         // Verify price calculation
