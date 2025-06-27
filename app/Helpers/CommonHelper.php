@@ -1110,7 +1110,7 @@ class CommonHelper
                 'type' => $type,
                 'error' => $e->getMessage()
             ]);
-            return false;
+            return $e;
         }
     }
 }
