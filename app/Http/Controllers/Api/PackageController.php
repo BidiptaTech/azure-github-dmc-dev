@@ -359,7 +359,7 @@ class PackageController extends Controller
         $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
 
         if($package_price != $totalPrice){
-            return response()->json(['message' => 'Total price is not correct'], 400);
+            return response()->json(['message' => 'Total price is not correct', 'package_price' => $package_price, 'totalPrice' => $totalPrice, 'adult_count' => $adult_count, 'child_count' => $child_count, 'senior_count' => $senior_count], 400);
         }
 
         $lastBooking = PackageBooking::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -374,7 +374,7 @@ class PackageController extends Controller
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
         $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
-        $restaurantIds = collect($data['selected']['restaurants'])->pluck('id')->toArray();
+        
 
         $user = Auth::user();
         $booking = new PackageBooking();
@@ -389,7 +389,6 @@ class PackageController extends Controller
         $booking->selected_hotels = json_encode($hotelIds);
         $booking->selected_attractions = json_encode($attractionIds);
         $booking->selected_guides = json_encode($guideIds);
-        $booking->selected_restaurants = json_encode($restaurantIds);
 
         $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
