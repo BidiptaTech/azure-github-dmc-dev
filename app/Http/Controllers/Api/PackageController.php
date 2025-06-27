@@ -315,7 +315,7 @@ class PackageController extends Controller
                 Order::create([
                     'agent_id' => $agentId,
                     'tour_id' => $tourId,
-                    'data' => $item,
+                    'data' => [$item],
                     'type' => $type,
                     'bookingType' => 'enquiry',
                     'booking_id' => $bookId,
@@ -352,6 +352,7 @@ class PackageController extends Controller
         // Format dates to Y-m-d
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
         $check_out = Carbon::parse($end_date)->format('Y-m-d');
+
 
 
         // Verify price calculation

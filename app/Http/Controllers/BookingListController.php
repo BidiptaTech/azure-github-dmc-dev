@@ -760,4 +760,115 @@ class BookingListController extends Controller
             return $booking;
         });
     }
+
+    /**
+     * Update booking date via drag and drop
+     */
+    public function updateDate(Request $request)
+    {
+        try {
+            $bookingId = $request->input('booking_id');
+            $newDate = $request->input('new_date');
+            $oldDate = $request->input('old_date');
+
+            // Validate input
+            if (empty($bookingId) || empty($newDate)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing required parameters'
+                ], 400);
+            }
+
+            // Find the booking
+            $booking = Order::where('booking_id', $bookingId)->first();
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking not found'
+                ], 404);
+            }
+
+            // Check if the booking type is allowed to be moved
+            $nonDraggableTypes = ['hotel', 'entry_port', 'exit_port'];
+            if (in_array(strtolower($booking->type), $nonDraggableTypes)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This booking type cannot be moved'
+                ], 403);
+            }
+
+            // Get the current data
+            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
+            if (!$data) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid booking data'
+                ], 400);
+            }
+
+            // Determine if data is an array of items or a single item
+            $isArrayOfItems = is_array($data) && !isset($data['bookingDate']);
+            // Update the booking date
+            if ($isArrayOfItems) {
+                // Handle array of items
+                foreach ($data as &$item) {
+                    if (isset($item['bookingDate'])) {
+                        if (is_array($item['bookingDate'])) {
+                            // For date ranges, update the first date
+                            $item['bookingDate'][0] = $newDate;
+                        } else {
+                            // For single dates
+                            $item['bookingDate'] = $newDate;
+                        }
+                    }
+                    
+                    // Also update other date fields that might be present
+                    if (isset($item['pickupdate'])) {
+                        $item['pickupdate'] = $newDate;
+                    }
+                    if (isset($item['exitpickupdate'])) {
+                        $item['exitpickupdate'] = $newDate;
+                    }
+                }
+            } else {
+                // Handle single item
+                if (isset($data['bookingDate'])) {
+                    if (is_array($data['bookingDate'])) {
+                        // For date ranges, update the first date
+                        $data['bookingDate'][0] = $newDate;
+                    } else {
+                        // For single dates
+                        $data['bookingDate'] = $newDate;
+                    }
+                }
+                
+                // Also update other date fields that might be present
+                if (isset($data['pickupdate'])) {
+                    $data['pickupdate'] = $newDate;
+                }
+                if (isset($data['exitpickupdate'])) {
+                    $data['exitpickupdate'] = $newDate;
+                }
+            }
+            // Save the updated data
+            $booking->data = $data;
+            $booking->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Booking date updated successfully',
+                'booking_id' => $bookingId,
+                'old_date' => $oldDate,
+                'new_date' => $newDate
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating booking date: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating the booking date'
+            ], 500);
+        }
+    }
 }
