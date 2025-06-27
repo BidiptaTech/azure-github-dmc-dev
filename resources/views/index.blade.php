@@ -472,8 +472,10 @@
         </div>
     </div>
 
-    <!-- Primary Statistics Cards -->
+    <!-- Primary Statistics Cards - Only show if user can view business metrics -->
+    @if($userPermissions['canViewBusinessMetrics'] || $userPermissions['canViewEnquiries'])
     <div class="row">
+        @if($userPermissions['canViewEnquiries'])
         <div class="col-xl-4 col-lg-6 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
@@ -483,9 +485,6 @@
                     {{ $counts['enquiries']['total'] ?? 0 }}
                 </div>
                 <div class="stats-label">Total Enquiries</div>
-                <div class="stats-detail">
-                    New: {{ $counts['enquiries']['new'] ?? 0 }}
-                </div>
                 <div class="progress-modern">
                     @php
                         $enquiryTotal = $counts['enquiries']['total'] ?? 0;
@@ -496,7 +495,9 @@
                 <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
             </div>
         </div>
+        @endif
 
+        @if($userPermissions['canViewBusinessMetrics'])
         <div class="col-xl-4 col-lg-6 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
@@ -506,10 +507,6 @@
                     {{ $counts['bookings']['total'] ?? 0 }}
                 </div>
                 <div class="stats-label">Total Bookings</div>
-                <div class="stats-detail">
-                    Confirmed: {{ $counts['bookings']['confirmed'] ?? 0 }} | 
-                    Pending: {{ $counts['bookings']['pending'] ?? 0 }}
-                </div>
                 <div class="progress-modern">
                     @php
                         $bookingTotal = $counts['bookings']['total'] ?? 0;
@@ -530,10 +527,6 @@
                     {{ $counts['tours']['total'] ?? 0 }}
                 </div>
                 <div class="stats-label">Active Tours</div>
-                <div class="stats-detail">
-                    Active: {{ $counts['tours']['active'] ?? 0 }} | 
-                    Completed: {{ $counts['tours']['completed'] ?? 0 }}
-                </div>
                 <div class="progress-modern">
                     @php
                         $tourTotal = $counts['tours']['total'] ?? 0;
@@ -544,10 +537,13 @@
                 <small class="text-muted mt-1 d-block">Progress: Volume (Max: 500)</small>
             </div>
         </div>
+        @endif
     </div>
+    @endif
 
-    <!-- Hotels to Agents Statistics Cards (No Progress Bars) -->
+    <!-- Product Statistics Cards - Show based on user permissions -->
     <div class="row">
+        @if($userPermissions['canViewHotels'])
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
@@ -563,7 +559,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if($userPermissions['canViewAttractions'])
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -577,7 +575,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if($userPermissions['canViewRestaurants'])
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
@@ -591,7 +591,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if($userPermissions['canViewGuides'])
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
@@ -605,7 +607,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if($userPermissions['canViewDrivers'])
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
@@ -619,7 +623,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if($userPermissions['canViewVehicles'])
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
@@ -633,10 +639,11 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <!-- Agents Row (Separate) - Show only for specific roles -->
-    @if(in_array(Auth::user()->role_id, [1, 10, 11, 33, 12, 37, 38]))
+    @if($userPermissions['canViewAgents'])
     <div class="row">
         <div class="col-xl-2 col-lg-4 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -648,29 +655,26 @@
                 <div class="stats-detail">
                     Active: {{ $counts['agents']['active'] ?? 0 }} | 
                     Recent: {{ $counts['agents']['recent'] ?? 0 }}
-                    <!-- DEBUG: Show current user info -->
-                    {{-- @if(config('app.debug'))
-                    <br><small style="color: #999;">
-                        Role: {{ Auth::user()->role_id }} | 
-                        User: {{ Auth::user()->userId }}
-                        @if(Auth::user()->role_id == 10)
-                            | Master DMC
-                        @endif
-                    </small>
-                    @endif --}}
                 </div>
             </div>
         </div>
     </div>
     @endif
 
-    <!-- Enhanced Charts and Activity Section -->
+    <!-- Enhanced Charts and Activity Section - Show for business metrics or product analytics -->
+    @if($userPermissions['canViewBusinessMetrics'] || $userPermissions['canViewProductAnalytics'])
     <div class="row">
         <!-- Enhanced Chart Section -->
         <div class="col-lg-8">
             <div class="chart-card">
                 <div class="chart-header">
-                    <span><i class="ri-bar-chart-line"></i> Business Analytics - {{ ucfirst($period) }}</span>
+                    <span><i class="ri-bar-chart-line"></i> 
+                        @if($userPermissions['canViewProductAnalytics'] && !$userPermissions['canViewBusinessMetrics'])
+                            Product Analytics - {{ ucfirst($period) }}
+                        @else
+                            Business Analytics - {{ ucfirst($period) }}
+                        @endif
+                    </span>
                     <small class="text-muted">Live data updates • Interactive Dashboard</small>
                 </div>
                 
@@ -755,6 +759,7 @@
                     <small class="text-muted">Real-time statistics</small>
                 </div>
                 
+                @if(isset($counts['orders']))
                 <div class="activity-item">
                     <div class="activity-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
                         <i class="ri-database-line"></i>
@@ -764,7 +769,9 @@
                         <small>{{ $counts['orders']['total'] ?? 0 }} ({{ $counts['orders']['recent'] ?? 0 }} recent)</small>
                     </div>
                 </div>
+                @endif
 
+                @if(isset($counts['facilities']))
                 <div class="activity-item">
                     <div class="activity-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
                         <i class="ri-function-line"></i>
@@ -774,7 +781,9 @@
                         <small>{{ $counts['facilities']['total'] ?? 0 }} active facilities</small>
                     </div>
                 </div>
+                @endif
 
+                @if($userPermissions['canViewZones'] && isset($counts['zones']))
                 <div class="activity-item">
                     <div class="activity-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
                         <i class="ri-map-pin-user-line"></i>
@@ -784,7 +793,9 @@
                         <small>{{ $counts['zones']['total'] ?? 0 }} operational zones</small>
                     </div>
                 </div>
+                @endif
 
+                @if(Auth::user()->role_id == 1 && isset($counts['ports']))
                 <div class="activity-item">
                     <div class="activity-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
                         <i class="ri-ship-line"></i>
@@ -794,9 +805,11 @@
                         <small>{{ $counts['ports']['total'] ?? 0 }} ports available</small>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Quick Actions -->
     <div class="row">
@@ -807,15 +820,18 @@
             </h3>
         </div>
 
+        @if($userPermissions['canViewEnquiries'])
         <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('enquirylist.index') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
                     <i class="ri-questionnaire-line"></i>
                 </div>
-                <span>Manage Enquiries</span>
+                <span>Manage Negotiation</span>
             </a>
         </div>
+        @endif
 
+        @if($userPermissions['canViewBusinessMetrics'])
         <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('bookinglist.index') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
@@ -833,7 +849,13 @@
                 <span>Manage Tours</span>
             </a>
         </div>
+        @endif
 
+        @php
+            $excludedRoles = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123];
+        @endphp
+
+        @if(!in_array(Auth::user()->role_id, $excludedRoles))
         <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('users.index') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
@@ -842,6 +864,7 @@
                 <span>Manage Users</span>
             </a>
         </div>
+        @endif
 
         <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('mail.index') }}" class="quick-action-btn">
@@ -865,7 +888,7 @@
     </div>
 
     <!-- Additional Stats Row -->
-    <div class="row mt-4">
+    {{-- <div class="row mt-4">
         <div class="col-12">
             <h3 class="section-title">
                 <i class="ri-dashboard-line"></i>
@@ -873,6 +896,7 @@
             </h3>
         </div>
 
+        @if(Auth::user()->role_id != 38)
         <div class="col-xl-3 col-lg-6 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="stats-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -886,6 +910,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <div class="col-xl-3 col-lg-6 col-md-6">
             <div class="stats-card" style="--card-color: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
@@ -928,7 +953,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> --}}
 </div>
 
 <div id="customLegend" class="d-flex flex-wrap justify-content-center mt-4"></div>
@@ -939,6 +964,7 @@
 let businessChart = null;
 let currentChartType = 'bar';
 let currentData = null;
+let userPermissions = @json($userPermissions);
 
 // Chart color schemes
 const colorSchemes = {
@@ -983,55 +1009,95 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeEnhancedChart() {
     const ctx = document.getElementById('businessAnalyticsChart').getContext('2d');
     
-    // Get initial data from PHP variables - conditionally include Agents based on user role
-    @php
-        $canViewAgents = in_array(Auth::user()->role_id, [1, 10, 11, 33, 12, 37, 38]);
-        $chartLabels = ['Enquiries', 'Bookings', 'Tours', 'Hotels', 'Restaurants', 'Guides', 'Drivers', 'Vehicles'];
-        $totalData = [
-            $counts['enquiries']['total'] ?? 0,
-            $counts['bookings']['total'] ?? 0,
-            $counts['tours']['total'] ?? 0,
-            $counts['hotels']['total'] ?? 0,
-            $counts['restaurants']['total'] ?? 0,
-            $counts['guides']['total'] ?? 0,
-            $counts['drivers']['total'] ?? 0,
-            $counts['vehicles']['total'] ?? 0
-        ];
-        $monthData = [
-            $counts['enquiries']['new'] ?? 0,
-            $counts['bookings']['confirmed'] ?? 0,
-            $counts['tours']['active'] ?? 0,
-            $counts['hotels']['active'] ?? 0,
-            $counts['restaurants']['active'] ?? 0,
-            $counts['guides']['available'] ?? 0,
-            $counts['drivers']['available'] ?? 0,
-            $counts['vehicles']['available'] ?? 0
-        ];
-        
-        if ($canViewAgents) {
-            $chartLabels[] = 'Agents';
-            $totalData[] = $counts['agents']['total'] ?? 0;
-            $monthData[] = $counts['agents']['active'] ?? 0;
+    // Build chart data based on user permissions
+    let chartLabels = [];
+    let totalData = [];
+    let monthData = [];
+    
+    // Add enquiries if user can view them (separate permission)
+    if (userPermissions.canViewEnquiries && {!! json_encode(isset($counts['enquiries'])) !!}) {
+        chartLabels.push('Enquiries');
+        totalData.push({{ $counts['enquiries']['total'] ?? 0 }});
+        monthData.push({{ $counts['enquiries']['new'] ?? 0 }});
+    }
+    
+    // Add other business metrics if user can view them
+    if (userPermissions.canViewBusinessMetrics) {
+        if ({!! json_encode(isset($counts['bookings'])) !!}) {
+            chartLabels.push('Bookings');
+            totalData.push({{ $counts['bookings']['total'] ?? 0 }});
+            monthData.push({{ $counts['bookings']['confirmed'] ?? 0 }});
         }
         
-        $chartLabels = array_merge($chartLabels, ['Attractions', 'Ports', 'Zones']);
-        $totalData = array_merge($totalData, [
-            $counts['attractions']['total'] ?? 0,
-            $counts['ports']['total'] ?? 0,
-            $counts['zones']['total'] ?? 0
-        ]);
-        $monthData = array_merge($monthData, [
-            $counts['attractions']['active'] ?? 0,
-            $counts['ports']['active'] ?? 0,
-            $counts['zones']['active'] ?? 0
-        ]);
-    @endphp
+        if ({!! json_encode(isset($counts['tours'])) !!}) {
+            chartLabels.push('Tours');
+            totalData.push({{ $counts['tours']['total'] ?? 0 }});
+            monthData.push({{ $counts['tours']['active'] ?? 0 }});
+        }
+    }
+    
+    // Add product data based on permissions
+    if (userPermissions.canViewHotels && {!! json_encode(isset($counts['hotels'])) !!}) {
+        chartLabels.push('Hotels');
+        totalData.push({{ $counts['hotels']['total'] ?? 0 }});
+        monthData.push({{ $counts['hotels']['active'] ?? 0 }});
+    }
+    
+    if (userPermissions.canViewRestaurants && {!! json_encode(isset($counts['restaurants'])) !!}) {
+        chartLabels.push('Restaurants');
+        totalData.push({{ $counts['restaurants']['total'] ?? 0 }});
+        monthData.push({{ $counts['restaurants']['active'] ?? 0 }});
+    }
+    
+    if (userPermissions.canViewGuides && {!! json_encode(isset($counts['guides'])) !!}) {
+        chartLabels.push('Guides');
+        totalData.push({{ $counts['guides']['total'] ?? 0 }});
+        monthData.push({{ $counts['guides']['available'] ?? 0 }});
+    }
+    
+    if (userPermissions.canViewDrivers && {!! json_encode(isset($counts['drivers'])) !!}) {
+        chartLabels.push('Drivers');
+        totalData.push({{ $counts['drivers']['total'] ?? 0 }});
+        monthData.push({{ $counts['drivers']['available'] ?? 0 }});
+    }
+    
+    if (userPermissions.canViewVehicles && {!! json_encode(isset($counts['vehicles'])) !!}) {
+        chartLabels.push('Vehicles');
+        totalData.push({{ $counts['vehicles']['total'] ?? 0 }});
+        monthData.push({{ $counts['vehicles']['available'] ?? 0 }});
+    }
+    
+    if (userPermissions.canViewAttractions && {!! json_encode(isset($counts['attractions'])) !!}) {
+        chartLabels.push('Attractions');
+        totalData.push({{ $counts['attractions']['total'] ?? 0 }});
+        monthData.push({{ $counts['attractions']['active'] ?? 0 }});
+    }
+    
+    if (userPermissions.canViewAgents && {!! json_encode(isset($counts['agents'])) !!}) {
+        chartLabels.push('Agents');
+        totalData.push({{ $counts['agents']['total'] ?? 0 }});
+        monthData.push({{ $counts['agents']['active'] ?? 0 }});
+    }
+    
+    // Add zones only for DMC and upper levels
+    if (userPermissions.canViewZones && {!! json_encode(isset($counts['zones'])) !!}) {
+        chartLabels.push('Zones');
+        totalData.push({{ $counts['zones']['total'] ?? 0 }});
+        monthData.push({{ $counts['zones']['active'] ?? 0 }});
+    }
+    
+    // Add ports only for admin users
+    @if(Auth::user()->role_id == 1 && isset($counts['ports']))
+    chartLabels.push('Ports');
+    totalData.push({{ $counts['ports']['total'] ?? 0 }});
+    monthData.push({{ $counts['ports']['active'] ?? 0 }});
+    @endif
     
     currentData = {
-        labels: {!! json_encode($chartLabels) !!},
+        labels: chartLabels,
         datasets: [{
             label: 'Total Count',
-            data: {!! json_encode($totalData) !!},
+            data: totalData,
             backgroundColor: colorSchemes.gradient,
             borderColor: colorSchemes.border,
             borderWidth: 2,
@@ -1042,7 +1108,7 @@ function initializeEnhancedChart() {
             tension: 0.4
         }, {
             label: 'This Month',
-            data: {!! json_encode($monthData) !!},
+            data: monthData,
             backgroundColor: colorSchemes.gradient.map(color => color.replace('0.8', '0.4')),
             borderColor: colorSchemes.border.map(color => color.replace('1', '0.8')),
             borderWidth: 1,
@@ -1346,38 +1412,99 @@ function refreshChartData() {
     }
 }
 
-// Enhanced update chart function
-function updateChart(counts) {
+// Modified update chart function
+function updateChart(counts, permissions) {
     if (businessChart) {
         document.getElementById('chartLoading').style.display = 'block';
         
-        // Build data arrays conditionally based on user role
-        const canViewAgents = {{ in_array(Auth::user()->role_id, [1, 10, 11, 33, 12, 37, 38]) ? 'true' : 'false' }};
+        // Update user permissions
+        userPermissions = permissions;
         
-        let totalData = [
-            counts.enquiries.total, counts.bookings.total, counts.tours.total,
-            counts.hotels.total, counts.restaurants.total, counts.guides.total,
-            counts.drivers.total, counts.vehicles.total
-        ];
+        // Build data arrays based on user permissions
+        let totalData = [];
+        let monthData = [];
+        let chartLabels = [];
         
-        let monthData = [
-            counts.enquiries.new || counts.enquiries.active || 0,
-            counts.bookings.confirmed || counts.bookings.active || 0,
-            counts.tours.active, counts.hotels.active, counts.restaurants.active,
-            counts.guides.available, counts.drivers.available, counts.vehicles.available
-        ];
+        // Add enquiries if user can view them (separate permission)
+        if (userPermissions.canViewEnquiries && counts.enquiries) {
+            chartLabels.push('Enquiries');
+            totalData.push(counts.enquiries.total);
+            monthData.push(counts.enquiries.new || 0);
+        }
         
-        // Add agents data if user can view it
-        if (canViewAgents) {
+        // Add other business metrics if user can view them
+        if (userPermissions.canViewBusinessMetrics) {
+            if (counts.bookings) {
+                chartLabels.push('Bookings');
+                totalData.push(counts.bookings.total);
+                monthData.push(counts.bookings.confirmed || 0);
+            }
+            
+            if (counts.tours) {
+                chartLabels.push('Tours');
+                totalData.push(counts.tours.total);
+                monthData.push(counts.tours.active);
+            }
+        }
+        
+        // Add product data based on permissions
+        if (userPermissions.canViewHotels && counts.hotels) {
+            chartLabels.push('Hotels');
+            totalData.push(counts.hotels.total);
+            monthData.push(counts.hotels.active);
+        }
+        
+        if (userPermissions.canViewRestaurants && counts.restaurants) {
+            chartLabels.push('Restaurants');
+            totalData.push(counts.restaurants.total);
+            monthData.push(counts.restaurants.active);
+        }
+        
+        if (userPermissions.canViewGuides && counts.guides) {
+            chartLabels.push('Guides');
+            totalData.push(counts.guides.total);
+            monthData.push(counts.guides.available);
+        }
+        
+        if (userPermissions.canViewDrivers && counts.drivers) {
+            chartLabels.push('Drivers');
+            totalData.push(counts.drivers.total);
+            monthData.push(counts.drivers.available);
+        }
+        
+        if (userPermissions.canViewVehicles && counts.vehicles) {
+            chartLabels.push('Vehicles');
+            totalData.push(counts.vehicles.total);
+            monthData.push(counts.vehicles.available);
+        }
+        
+        if (userPermissions.canViewAttractions && counts.attractions) {
+            chartLabels.push('Attractions');
+            totalData.push(counts.attractions.total);
+            monthData.push(counts.attractions.active);
+        }
+        
+        if (userPermissions.canViewAgents && counts.agents) {
+            chartLabels.push('Agents');
             totalData.push(counts.agents.total);
             monthData.push(counts.agents.active);
         }
         
-        // Add remaining data
-        totalData.push(counts.attractions.total, counts.ports.total, counts.zones.total);
-        monthData.push(counts.attractions.active, counts.ports.active, counts.zones.active);
+        // Add zones only for DMC and upper levels
+        if (userPermissions.canViewZones && counts.zones) {
+            chartLabels.push('Zones');
+            totalData.push(counts.zones.total);
+            monthData.push(counts.zones.active);
+        }
+        
+        if (counts.ports) {
+            chartLabels.push('Ports');
+            totalData.push(counts.ports.total);
+            monthData.push(counts.ports.active);
+        }
         
         // Update current data
+        currentData.labels = chartLabels;
         currentData.datasets[0].data = totalData;
         currentData.datasets[1].data = monthData;
         
@@ -1400,7 +1527,16 @@ function changeTimeFilter(period) {
     document.querySelectorAll('.time-filter .btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    
+    // Find the button that was clicked and mark it active
+    const targetButton = [...document.querySelectorAll('.time-filter .btn')].find(btn => 
+        btn.textContent.toLowerCase().includes(period) || 
+        (period === 'today' && btn.textContent.toLowerCase().includes('today')) ||
+        (period === 'month' && btn.textContent.toLowerCase().includes('month'))
+    );
+    if (targetButton) {
+        targetButton.classList.add('active');
+    }
     
     // Fetch new data
     fetch(`{{ route('dashboard.counts') }}?period=${period}`, {
@@ -1414,8 +1550,10 @@ function changeTimeFilter(period) {
     .then(data => {
         if (data.success) {
             updateCounts(data.counts);
-            updateChart(data.counts);
+            updateChart(data.counts, data.userPermissions);
             updateChartTitle(data.period);
+        } else {
+            console.error('Server error:', data);
         }
     })
     .catch(error => {
@@ -1445,11 +1583,19 @@ function hideLoadingState() {
 }
 
 function updateCounts(counts) {
-    // Update primary stats
-    updateElementCount('enquiry-count', counts.enquiries.total);
-    updateElementCount('booking-count', counts.bookings.total);
-    updateElementCount('tour-count', counts.tours.total);
-    updateElementCount('hotel-count', counts.hotels.total);
+    // Update primary stats - check if they exist first
+    if (counts.enquiries) {
+        updateElementCount('enquiry-count', counts.enquiries.total || 0);
+    }
+    if (counts.bookings) {
+        updateElementCount('booking-count', counts.bookings.total || 0);
+    }
+    if (counts.tours) {
+        updateElementCount('tour-count', counts.tours.total || 0);
+    }
+    if (counts.hotels) {
+        updateElementCount('hotel-count', counts.hotels.total || 0);
+    }
     
     // Update all other counts dynamically
     updateAllStatsCards(counts);
@@ -1465,16 +1611,16 @@ function updateElementCount(elementId, count) {
 function updateAllStatsCards(counts) {
     const statsMapping = {
         // Secondary stats - update by finding stats-number elements and their labels
-        'Attractions': counts.attractions.total,
-        'Restaurants': counts.restaurants.total,
-        'Guides': counts.guides.total,
-        'Drivers': counts.drivers.total,
-        'Vehicles': counts.vehicles.total,
-        'Agents': counts.agents.total,
-        'System Users': counts.users.total,
-        'Facility Categories': counts.categories.total,
-        'Facilities': counts.facilities.total,
-        'Operational Zones': counts.zones.total
+        'Attractions': counts.attractions ? counts.attractions.total : 0,
+        'Restaurants': counts.restaurants ? counts.restaurants.total : 0,
+        'Guides': counts.guides ? counts.guides.total : 0,
+        'Drivers': counts.drivers ? counts.drivers.total : 0,
+        'Vehicles': counts.vehicles ? counts.vehicles.total : 0,
+        'Agents': counts.agents ? counts.agents.total : 0,
+        'System Users': counts.users ? counts.users.total : 0,
+        'Facility Categories': counts.categories ? counts.categories.total : 0,
+        'Facilities': counts.facilities ? counts.facilities.total : 0,
+        'Operational Zones': counts.zones ? counts.zones.total : 0
     };
     
     // Update each stat card
@@ -1501,30 +1647,36 @@ function updateAllStatsCards(counts) {
 
 function updateProgressBars(counts) {
     // Update Enquiry Progress Bar
-    const enquiryTotal = counts.enquiries.total || 0;
-    const enquiryProgress = Math.min((enquiryTotal / 500) * 100, 100); // Cap at 500 enquiries
-    
-    const enquiryProgressBar = document.getElementById('enquiry-progress');
-    if (enquiryProgressBar) {
-        animateProgressBar(enquiryProgressBar, enquiryProgress);
+    if (counts.enquiries) {
+        const enquiryTotal = counts.enquiries.total || 0;
+        const enquiryProgress = Math.min((enquiryTotal / 500) * 100, 100); // Cap at 500 enquiries
+        
+        const enquiryProgressBar = document.getElementById('enquiry-progress');
+        if (enquiryProgressBar) {
+            animateProgressBar(enquiryProgressBar, enquiryProgress);
+        }
     }
     
     // Update Booking Progress Bar
-    const bookingTotal = counts.bookings.total || 0;
-    const bookingProgress = Math.min((bookingTotal / 500) * 100, 100); // Cap at 500 bookings
-    
-    const bookingProgressBar = document.getElementById('booking-progress');
-    if (bookingProgressBar) {
-        animateProgressBar(bookingProgressBar, bookingProgress);
+    if (counts.bookings) {
+        const bookingTotal = counts.bookings.total || 0;
+        const bookingProgress = Math.min((bookingTotal / 500) * 100, 100); // Cap at 500 bookings
+        
+        const bookingProgressBar = document.getElementById('booking-progress');
+        if (bookingProgressBar) {
+            animateProgressBar(bookingProgressBar, bookingProgress);
+        }
     }
     
     // Update Tour Progress Bar
-    const tourTotal = counts.tours.total || 0;
-    const tourProgress = Math.min((tourTotal / 500) * 100, 100); // Cap at 500 tours
-    
-    const tourProgressBar = document.getElementById('tour-progress');
-    if (tourProgressBar) {
-        animateProgressBar(tourProgressBar, tourProgress);
+    if (counts.tours) {
+        const tourTotal = counts.tours.total || 0;
+        const tourProgress = Math.min((tourTotal / 500) * 100, 100); // Cap at 500 tours
+        
+        const tourProgressBar = document.getElementById('tour-progress');
+        if (tourProgressBar) {
+            animateProgressBar(tourProgressBar, tourProgress);
+        }
     }
 }
 
@@ -1552,29 +1704,44 @@ function animateProgressBar(element, targetPercent) {
 }
 
 function updateStatsDetails(counts) {
-    // Update enquiry details - show only New
-    updateDetailText('Total Enquiries', `New: ${counts.enquiries.new || 0}`);
+    // Removed the update details for the three main cards since they no longer have details
     
-    // Update booking details
-    updateDetailText('Total Bookings', `Confirmed: ${counts.bookings.confirmed || 0} | Pending: ${counts.bookings.pending || 0}`);
-    
-    // Update tour details
-    updateDetailText('Active Tours', `Active: ${counts.tours.active || 0} | Completed: ${counts.tours.completed || 0}`);
-    
-    // Update Hotels to Agents section details (no progress bars)
-    updateDetailText('Hotels', `Active: ${counts.hotels.active || 0} | Recent: ${counts.hotels.recent || 0}`);
-    updateDetailText('Attractions', `Active: ${counts.attractions.active || 0} | Recent: ${counts.attractions.recent || 0}`);
-    updateDetailText('Restaurants', `Active: ${counts.restaurants.active || 0} | Recent: ${counts.restaurants.recent || 0}`);
-    updateDetailText('Guides', `Active: ${counts.guides.available || 0} | Recent: ${counts.guides.recent || 0}`);
-    updateDetailText('Drivers', `Active: ${counts.drivers.available || 0} | Recent: ${counts.drivers.recent || 0}`);
-    updateDetailText('Vehicles', `Active: ${counts.vehicles.available || 0} | Recent: ${counts.vehicles.recent || 0}`);
-    updateDetailText('Agents', `Active: ${counts.agents.active || 0} | Recent: ${counts.agents.recent || 0}`);
+    // Update Hotels to Agents section details (no progress bars) - check if counts exist first
+    if (counts.hotels) {
+        updateDetailText('Hotels', `Active: ${counts.hotels.active || 0} | Recent: ${counts.hotels.recent || 0}`);
+    }
+    if (counts.attractions) {
+        updateDetailText('Attractions', `Active: ${counts.attractions.active || 0} | Recent: ${counts.attractions.recent || 0}`);
+    }
+    if (counts.restaurants) {
+        updateDetailText('Restaurants', `Active: ${counts.restaurants.active || 0} | Recent: ${counts.restaurants.recent || 0}`);
+    }
+    if (counts.guides) {
+        updateDetailText('Guides', `Active: ${counts.guides.available || 0} | Recent: ${counts.guides.recent || 0}`);
+    }
+    if (counts.drivers) {
+        updateDetailText('Drivers', `Active: ${counts.drivers.available || 0} | Recent: ${counts.drivers.recent || 0}`);
+    }
+    if (counts.vehicles) {
+        updateDetailText('Vehicles', `Active: ${counts.vehicles.available || 0} | Recent: ${counts.vehicles.recent || 0}`);
+    }
+    if (counts.agents) {
+        updateDetailText('Agents', `Active: ${counts.agents.active || 0} | Recent: ${counts.agents.recent || 0}`);
+    }
     
     // Update system statistics details
-    updateDetailText('System Users', `Active: ${counts.users.active || 0} | Recent: ${counts.users.recent || 0}`);
-    updateDetailText('Facility Categories', `Active: ${counts.categories.active || 0} | Recent: ${counts.categories.recent || 0}`);
-    updateDetailText('Facilities', `Active: ${counts.facilities.active || 0} | Recent: ${counts.facilities.recent || 0}`);
-    updateDetailText('Operational Zones', `Active: ${counts.zones.active || 0} | Recent: ${counts.zones.recent || 0}`);
+    if (counts.users) {
+        updateDetailText('System Users', `Active: ${counts.users.active || 0} | Recent: ${counts.users.recent || 0}`);
+    }
+    if (counts.categories) {
+        updateDetailText('Facility Categories', `Active: ${counts.categories.active || 0} | Recent: ${counts.categories.recent || 0}`);
+    }
+    if (counts.facilities) {
+        updateDetailText('Facilities', `Active: ${counts.facilities.active || 0} | Recent: ${counts.facilities.recent || 0}`);
+    }
+    if (counts.zones) {
+        updateDetailText('Operational Zones', `Active: ${counts.zones.active || 0} | Recent: ${counts.zones.recent || 0}`);
+    }
 }
 
 function updateDetailText(label, detailText) {

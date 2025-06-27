@@ -188,6 +188,26 @@ fieldset legend {
 .table td .text-danger {
     font-size: 0.875rem;
 }
+
+/* Calculation Display Styles */
+.calculation-display {
+    font-size: 0.8rem;
+    font-weight: 500;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    margin-top: 0.25rem;
+    font-family: monospace;
+    text-align: center;
+    color: #495057;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.calculation-display i {
+    margin-right: 0.25rem;
+    color: #6c757d;
+}
 </style>
 
 <!-- Start of the form -->
@@ -243,9 +263,9 @@ fieldset legend {
                     <div class="col-md-3 mb-3" id="varient_price" style="display: none;">
                         <label for="varient_price_input" class="form-label"><strong>Room Rate
                                 Variant</strong><span class="text-danger">*</span></label>
-                        <input name="varient_price" id="varient_price_input" class="form-control" type="number" step="0.01" min="0"
-                            placeholder="Enter Variant Price">
-                        <div class="form-text">Price difference from Standard room</div>
+                        <input name="varient_price" id="varient_price_input" class="form-control" type="number" step="0.01"
+                            placeholder="Enter Variant Price (e.g. 1 for +1, -5 for -5)">
+                        <div class="form-text">Price difference from base room (Example: Base 1 + Variant 1 = Final 2)</div>
                         @error('varient_price')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -296,6 +316,7 @@ fieldset legend {
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekdayPrice">0</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="single-weekday-calc" style="display: none;"></div>
                                     </div>
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="singleWeekendPrice" name="singleWeekendPrice"
@@ -305,6 +326,7 @@ fieldset legend {
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekendPrice">0</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="single-weekend-calc" style="display: none;"></div>
                                     </div>
                                 </div>
                             </fieldset>
@@ -325,6 +347,7 @@ fieldset legend {
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekdayPrice">0</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="double-weekday-calc" style="display: none;"></div>
                                     </div>
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice"
@@ -334,6 +357,7 @@ fieldset legend {
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekendPrice">0</span></span>
                                         @endif
+                                        <div class="calculation-display text-primary small mt-1" id="double-weekend-calc" style="display: none;"></div>
                                     </div>
                                 </div>
                             </fieldset>
@@ -786,8 +810,16 @@ fieldset legend {
 $(document).ready(function() {
     const hotelId = "{{ $hotel->hotel_unique_id }}";
     const allRooms = @json($rooms);
-    const hotelRooms = allRooms.filter(room => room.hotel_id === hotelId);
+    console.log("Current hotel ID:", hotelId);
+    console.log("All rooms:", allRooms);
+    
+    const hotelRooms = allRooms.filter(room => {
+        console.log(`Comparing room.hotel_id (${room.hotel_id}) with hotelId (${hotelId})`);
+        return room.hotel_id === hotelId;
+    });
     const hasRooms = hotelRooms.length > 0;
+    
+    console.log("Filtered hotel rooms:", hotelRooms);
 
     // Store prices for calculations
     const standardPrices = {
@@ -834,6 +866,12 @@ $(document).ready(function() {
 
     // Attach the calculate function to price input changes
     $('input[type="text"]').on('input', calculatePrice);
+    
+    // Also trigger calculation when variant price changes
+    $('#varient_price_input').on('input change keyup blur', function() {
+        console.log('Variant price input changed:', $(this).val());
+        updateVariantPrices.call(this);
+    });
 
     // Image Upload Functionality
     function initializeImageUpload(dropAreaId, inputId, previewContainerId, isMaster = false) {
@@ -1026,12 +1064,19 @@ $(document).ready(function() {
         // Find base room if it exists
         let baseRoom = null;
         if (hasRoomsForHotel) {
-            baseRoom = currentHotelRooms.find(room => room.base_room === 1);
+            console.log("Looking for base room in:", currentHotelRooms);
+            currentHotelRooms.forEach(room => {
+                console.log(`Room ${room.room_type}: base_room = ${room.base_room} (type: ${typeof room.base_room})`);
+            });
+            
+            // Try both numeric and boolean comparison
+            baseRoom = currentHotelRooms.find(room => room.base_room === 1 || room.base_room === true || room.base_room === "1");
         }
         
         const hasBaseRoom = baseRoom !== null;
         
         console.log("Hotel rooms for this hotel:", currentHotelRooms);
+        console.log("Base room found:", baseRoom);
         console.log("Has base room:", hasBaseRoom);
         
         if (!hasRoomsForHotel) {
@@ -1051,8 +1096,10 @@ $(document).ready(function() {
             // Base room exists, allow variant room creation
             $('#base_room_type').hide();
             $('#room_type, #varient_price').show();
-            $('#single_price, #double_price').show();
+            $('#single_price, #double_price').show().css('display', 'block');
             $('#base_single_price, #base_double_price').hide();
+            
+            console.log('Showing variant room sections - Single visible:', $('#single_price').is(':visible'), 'Double visible:', $('#double_price').is(':visible'));
 
             // Remove required from hidden field
             $('#base_room_type_input').prop('required', false);
@@ -1068,29 +1115,49 @@ $(document).ready(function() {
                 standardPrices.doubleWeekday = parseFloat(baseRoom.double_weekday_price) || 0;
                 standardPrices.doubleWeekend = parseFloat(baseRoom.double_weekend_price) || 0;
                 
-                // Set default values in form fields
+                // Set base room prices as default values in variant room form fields
                 $('#singleWeekdayPrice').val(standardPrices.singleWeekday.toFixed(2));
                 $('#singleWeekendPrice').val(standardPrices.singleWeekend.toFixed(2));
                 $('#doubleWeekdayPrice').val(standardPrices.doubleWeekday.toFixed(2));
                 $('#doubleWeekendPrice').val(standardPrices.doubleWeekend.toFixed(2));
 
-                // Add helper text showing base room prices
+                // Add helper text showing base room prices with variant calculation for form fields
                 $('#singleWeekdayPrice').after(
-                    `<div class="form-text text-info">Base room price: ${standardPrices.singleWeekday.toFixed(2)}</div>`
+                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.singleWeekday.toFixed(2)}">Base price: ${standardPrices.singleWeekday.toFixed(2)}</div>`
                 );
                 $('#singleWeekendPrice').after(
-                    `<div class="form-text text-info">Base room price: ${standardPrices.singleWeekend.toFixed(2)}</div>`
+                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.singleWeekend.toFixed(2)}">Base price: ${standardPrices.singleWeekend.toFixed(2)}</div>`
                 );
                 $('#doubleWeekdayPrice').after(
-                    `<div class="form-text text-info">Base room price: ${standardPrices.doubleWeekday.toFixed(2)}</div>`
+                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.doubleWeekday.toFixed(2)}">Base price: ${standardPrices.doubleWeekday.toFixed(2)}</div>`
                 );
                 $('#doubleWeekendPrice').after(
-                    `<div class="form-text text-info">Base room price: ${standardPrices.doubleWeekend.toFixed(2)}</div>`
+                    `<div class="form-text text-info base-price-info" data-base="${standardPrices.doubleWeekend.toFixed(2)}">Base price: ${standardPrices.doubleWeekend.toFixed(2)}</div>`
                 );
+
+                // Calculation display elements are now added directly in HTML
+                
+                // Make price fields read-only initially to show they're calculated from base + variant
+                $('#singleWeekdayPrice, #singleWeekendPrice, #doubleWeekdayPrice, #doubleWeekendPrice').prop('readonly', true);
+                $('#singleWeekdayPrice, #singleWeekendPrice, #doubleWeekdayPrice, #doubleWeekendPrice').addClass('bg-light').css('cursor', 'not-allowed');
+                
+                // Add note that prices are auto-calculated
+                $('#single_price').before('<div class="alert alert-info mb-3"><i class="fas fa-info-circle"></i> Prices are automatically calculated based on base room prices + variant price</div>');
             }
 
             // Add a change handler for variant price to automatically update all price fields
             $('#varient_price_input').on('input', updateVariantPrices);
+            
+            // Initialize with current variant price if any exists
+            const currentVariantPrice = $('#varient_price_input').val();
+            if (currentVariantPrice) {
+                setTimeout(function() {
+                    updateVariantPrices.call($('#varient_price_input')[0]);
+                }, 200);
+            }
+            
+            // Test the calculation
+            console.log('Base room setup complete. Standard prices:', standardPrices);
         } else {
             // Rooms exist but no base room, create a base room first
             $('#base_room_type_input').val('').prop('readonly', false);
@@ -1114,10 +1181,13 @@ $(document).ready(function() {
     function updateVariantPrices() {
         const variantPrice = parseFloat($(this).val()) || 0;
         
-        // Show price calculation explanation
+        console.log('Variant Price:', variantPrice);
+        console.log('Standard Prices:', standardPrices);
+        
+        // Show price calculation explanation for variant price field
         if (variantPrice !== 0) {
             const operation = variantPrice > 0 ? "+" : "";
-            const message = `Base price ${operation}${variantPrice.toFixed(2)}`;
+            const message = `Variant: ${operation}${variantPrice.toFixed(2)}`;
             
             if (!$('#variant_calculation_info').length) {
                 $('#varient_price_input').after(`<div id="variant_calculation_info" class="form-text text-primary">${message}</div>`);
@@ -1128,11 +1198,56 @@ $(document).ready(function() {
             $('#variant_calculation_info').remove();
         }
 
-        // Update all variant price fields with base price + variant price
-        $('#singleWeekdayPrice').val((standardPrices.singleWeekday + variantPrice).toFixed(2));
-        $('#singleWeekendPrice').val((standardPrices.singleWeekend + variantPrice).toFixed(2));
-        $('#doubleWeekdayPrice').val((standardPrices.doubleWeekday + variantPrice).toFixed(2));
-        $('#doubleWeekendPrice').val((standardPrices.doubleWeekend + variantPrice).toFixed(2));
+        // Calculate and update all variant price fields: Base Price + Variant Price = Final Price
+        const newSingleWeekdayPrice = standardPrices.singleWeekday + variantPrice;
+        const newSingleWeekendPrice = standardPrices.singleWeekend + variantPrice;
+        const newDoubleWeekdayPrice = standardPrices.doubleWeekday + variantPrice;
+        const newDoubleWeekendPrice = standardPrices.doubleWeekend + variantPrice;
+        
+        $('#singleWeekdayPrice').val(newSingleWeekdayPrice.toFixed(2));
+        $('#singleWeekendPrice').val(newSingleWeekendPrice.toFixed(2));
+        $('#doubleWeekdayPrice').val(newDoubleWeekdayPrice.toFixed(2));
+        $('#doubleWeekendPrice').val(newDoubleWeekendPrice.toFixed(2));
+
+        console.log('Updated Prices:', {
+            singleWeekday: newSingleWeekdayPrice,
+            singleWeekend: newSingleWeekendPrice,
+            doubleWeekday: newDoubleWeekdayPrice,
+            doubleWeekend: newDoubleWeekendPrice
+        });
+
+        // Update base price info for each field to show calculation
+        $('.base-price-info').each(function() {
+            const basePrice = parseFloat($(this).data('base'));
+            
+            if (variantPrice !== 0) {
+                const operation = variantPrice >= 0 ? "+" : "";
+                const totalPrice = (basePrice + variantPrice).toFixed(2);
+                $(this).html(`Base price ${basePrice.toFixed(2)} ${operation}${variantPrice.toFixed(2)} = ${totalPrice}`);
+                $(this).removeClass('text-info').addClass('text-primary');
+            } else {
+                $(this).html(`Base price: ${basePrice.toFixed(2)}`);
+                $(this).removeClass('text-primary').addClass('text-info');
+            }
+        });
+
+        // Update calculation display in Single and Double sections
+        if (variantPrice !== 0) {
+            const operation = variantPrice >= 0 ? "+" : "";
+            const calc1 = `<i class="fas fa-calculator"></i> ${standardPrices.singleWeekday.toFixed(2)} ${operation}${variantPrice.toFixed(2)} = ${newSingleWeekdayPrice.toFixed(2)}`;
+            const calc2 = `<i class="fas fa-calculator"></i> ${standardPrices.singleWeekend.toFixed(2)} ${operation}${variantPrice.toFixed(2)} = ${newSingleWeekendPrice.toFixed(2)}`;
+            const calc3 = `<i class="fas fa-calculator"></i> ${standardPrices.doubleWeekday.toFixed(2)} ${operation}${variantPrice.toFixed(2)} = ${newDoubleWeekdayPrice.toFixed(2)}`;
+            const calc4 = `<i class="fas fa-calculator"></i> ${standardPrices.doubleWeekend.toFixed(2)} ${operation}${variantPrice.toFixed(2)} = ${newDoubleWeekendPrice.toFixed(2)}`;
+            
+            $('#single-weekday-calc').html(calc1).show();
+            $('#single-weekend-calc').html(calc2).show();
+            $('#double-weekday-calc').html(calc3).show();
+            $('#double-weekend-calc').html(calc4).show();
+            
+            console.log('Updated calculation displays:', {calc1, calc2, calc3, calc4});
+        } else {
+            $('.calculation-display').hide();
+        }
 
         // Recalculate DMC prices
         calculatePrice();

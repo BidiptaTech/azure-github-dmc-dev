@@ -124,6 +124,7 @@ class HotelController extends Controller
                 $country_tax = $check_country->tax_percentage ?? 0;
 
                 $base_price = PHP_INT_MAX;
+                $base_room_price = 0;
                 $weekend_days = json_decode($firstHotel->weekend_days, true) ?? [];
                 $today = Carbon::now()->format('l');
 
@@ -131,6 +132,11 @@ class HotelController extends Controller
                     foreach ($hotel->rooms as $room) {
                         $price = in_array($today, $weekend_days) ? $room->weekend_price : $room->weekday_price;
                         $base_price = min($base_price, $price);
+                        
+                        // Find base room price (where base_room = 1)
+                        if ($room->base_room == 1) {
+                            $base_room_price = $room->weekday_price;
+                        }
                     }
                 }
                 $base_price = ($base_price === PHP_INT_MAX) ? 0 : $base_price;
@@ -304,6 +310,7 @@ class HotelController extends Controller
                     'facilities' => $facilities_by_category,
                     'description' => strip_tags($firstHotel->description ?? ''),
                     'status' => $firstHotel->status ?? 0,
+                    'base_hotel_price' => $base_room_price,
                 ];
             }
 
