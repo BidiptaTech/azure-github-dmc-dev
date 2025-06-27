@@ -199,6 +199,7 @@ class RestaurantController extends Controller
                     'dmc_dinner_price' => round((float)$dmc_dinner_price, 2),
                     'travClicks_dinner_price' => round((float)$travClicks_dinner_price, 2),
                     'tax_percentage' => $country_tax,
+                    'restaurant_base_price' => round((float)$dmc_breakfast_price, 2) ?? round((float)$travClicks_breakfast_price, 2),
                 ];
             }
         }
