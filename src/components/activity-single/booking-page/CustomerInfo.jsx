@@ -6,6 +6,10 @@ import {
   Grid,
   Box,
   Typography,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { toast } from "react-toastify";
 import BookingDetails from "./sidebar/BookingDetails";
@@ -71,12 +75,19 @@ const CustomerInfo = ({
     countryCode: "+1", // Default to the first country code
   });
 
+  // State for selected country and dynamic validation
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [dialMinLength, setDialMinLength] = useState(8);
+  const [dialMaxLength, setDialMaxLength] = useState(15);
+
   const countryCodeFromRedux = useSelector((state) => state.auth.countryCode);
-  const dialMaxLength = useSelector((state) => state.auth.dialMaxLength);
-  const dialMinLength = useSelector((state) => state.auth.dialMinLength);
+  // const dialMaxLength = useSelector((state) => state.auth.dialMaxLength);
+  // const dialMinLength = useSelector((state) => state.auth.dialMinLength);
+  const user_country = useSelector((state) => state.auth.user_country);
+  console.log("user_country", user_country);
   console.log("countryCode from Redux:", countryCodeFromRedux);
-  console.log("dialMaxLength from Redux:", dialMaxLength);
-  console.log("dialMinLength from Redux:", dialMinLength);
+  // console.log("dialMaxLength from Redux:", dialMaxLength);
+  // console.log("dialMinLength from Redux:", dialMinLength);
   const mode =
     type === "guide"
       ? useSelector((state) => state.tourguide.selectedGuide?.mode)
@@ -89,17 +100,51 @@ const CustomerInfo = ({
       : "dmc";
   console.log("mode88", mode);
   // Set the initial country code based on Redux state
+  // Initialize selected country from user_country array
   useEffect(() => {
-    const selectedCountry = countryCodes.find(
-      (country) => country.code === countryCodeFromRedux
-    );
-    if (selectedCountry) {
+    if (user_country && user_country.length > 0) {
+      // Set default to first country in the array
+      const defaultCountry = user_country[0];
+      setSelectedCountry(defaultCountry);
+      setDialMinLength(defaultCountry.contact_min_length);
+      setDialMaxLength(defaultCountry.contact_max_length);
       setForm((prevForm) => ({
         ...prevForm,
-        countryCode: selectedCountry.dialCode, // Set the dial code based on Redux state
+        countryCode: defaultCountry.country_code,
       }));
     }
-  }, [countryCodeFromRedux]); // Run effect when countryCodeFromRedux changes
+  }, [user_country]);
+
+  // Handler for country selection
+  const handleCountryChange = (event) => {
+    const selectedCountryCode = event.target.value;
+    const country = user_country.find(c => c.code === selectedCountryCode);
+    
+    if (country) {
+      setSelectedCountry(country);
+      setDialMinLength(country.contact_min_length);
+      setDialMaxLength(country.contact_max_length);
+      setForm((prevForm) => ({
+        ...prevForm,
+        countryCode: country.country_code,
+      }));
+      
+      // Update parent component
+      onFormChange({ 
+        ...form, 
+        countryCode: country.country_code 
+      });
+      
+      // Re-validate phone if it's already touched
+      if (touched.phone && form.phone) {
+        const phoneError = validateField('phone', form.phone);
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          phone: phoneError,
+        }));
+      }
+    }
+  };
 
   // Ensure hooks are called in the same order
   const entryport = useSelector((state) => state.pickupDrop.entryport[0] || {});
@@ -742,7 +787,45 @@ const CustomerInfo = ({
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <span>{form.countryCode}</span>
+                    <FormControl 
+                      variant="standard" 
+                      sx={{ 
+                        minWidth: 80,
+                        marginRight: 1,
+                        '& .MuiInput-underline:before': { display: 'none' },
+                        '& .MuiInput-underline:after': { display: 'none' },
+                        '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                      }}
+                    >
+                      <Select
+                        value={selectedCountry?.code || ''}
+                        onChange={handleCountryChange}
+                        disableUnderline
+                        sx={{
+                          fontSize: '0.875rem',
+                          '& .MuiSelect-select': {
+                            paddingRight: '20px !important',
+                            paddingLeft: 0,
+                            paddingTop: 0,
+                            paddingBottom: 0,
+                            display: 'flex',
+                            alignItems: 'center'
+                          },
+                          '& .MuiSvgIcon-root': {
+                            fontSize: '1rem'
+                          }
+                        }}
+                      >
+                        {user_country && user_country.map((country) => (
+                          <MenuItem key={country.code} value={country.code}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                              <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </InputAdornment>
                 ),
               }}

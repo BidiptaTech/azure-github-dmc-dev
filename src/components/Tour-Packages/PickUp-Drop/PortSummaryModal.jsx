@@ -42,29 +42,21 @@ const ModalContent = styled(Paper)(({ theme }) => ({
   maxWidth: 800,
   maxHeight: '90vh',
   overflow: 'auto',
-  padding: theme.spacing(3),
+  padding: theme.spacing(2),
   backgroundColor: theme.palette.background.paper,
-  borderRadius: theme.spacing(2),
+  borderRadius: theme.spacing(1.5),
   boxShadow: theme.shadows[5],
 }));
 
 const SummarySection = styled(Box)(({ theme }) => ({
-  marginBottom: theme.spacing(3),
+  marginBottom: theme.spacing(2),
 }));
 
 const DetailRow = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(1),
-  marginBottom: theme.spacing(1),
-}));
-
-const PriceCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(1)
+  marginBottom: theme.spacing(0.5),
 }));
 
 const PortSummaryModal = ({ 
@@ -79,38 +71,60 @@ const PortSummaryModal = ({
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
 
-  // Check if modal should open
+  // Determine color theme based on port type
+  const getColorTheme = () => {
+    if (portType === "Entry Port") {
+      return {
+        primary: '#3b82f6',
+        secondary: '#1e40af',
+        gradient: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+        light: 'rgba(59, 130, 246, 0.1)',
+        name: 'Entry Port'
+      };
+    } else if (portType === "Exit Port") {
+      return {
+        primary: '#10b981',
+        secondary: '#059669',
+        gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        light: 'rgba(16, 185, 129, 0.1)',
+        name: 'Exit Port'
+      };
+    }
+    return {
+      primary: '#3b82f6',
+      secondary: '#1e40af',
+      gradient: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+      light: 'rgba(59, 130, 246, 0.1)',
+      name: 'Port Service'
+    };
+  };
+
+  const colorTheme = getColorTheme();
+
   if (!open) return null;
   
-  // If no booking data is available, show a loading or error state
   if (!bookingData) {
     return (
       <StyledModal
         open={open}
         onClose={onClose}
         aria-labelledby="port-summary-modal-loading"
+        sx={{ zIndex: zone_on ? 1000 : 1300 }}
       >
-        <ModalContent sx={{ maxWidth: 500, textAlign: 'center', py: 4 }}>
+        <ModalContent sx={{ maxWidth: 400, textAlign: 'center', py: 3 }}>
           <IconButton
             onClick={onClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: 'grey.500',
-            }}
+            sx={{ position: 'absolute', right: 8, top: 8, color: 'grey.500' }}
           >
             <CloseIcon />
           </IconButton>
           <Alert severity="warning" sx={{ mb: 2 }}>
             Complete booking information is not available
           </Alert>
-          <Typography variant="body1" sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ mb: 2 }}>
             Please ensure all fields are filled to view the complete summary.
           </Typography>
-          <Button variant="outlined" onClick={onClose}>
-            Close
-          </Button>
+          <Button variant="outlined" onClick={onClose}>Close</Button>
         </ModalContent>
       </StyledModal>
     );
@@ -125,16 +139,16 @@ const PortSummaryModal = ({
 
     return (
       <Stack spacing={0.5}>
-        <Typography variant="h5" color="primary" sx={{ fontWeight: 600 }}>
+        <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
           {currencyCode} {mainPrice}
         </Typography>
         {currencyCode !== 'USD' && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="caption" color="text.secondary">
             USD {usdPrice}
           </Typography>
         )}
         {currencyCode !== 'SGD' && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="caption" color="text.secondary">
             SGD {sgdPrice}
           </Typography>
         )}
@@ -143,299 +157,260 @@ const PortSummaryModal = ({
   };
 
   return (
-    <StyledModal
-      open={open}
-      onClose={onClose}
-      aria-labelledby="port-summary-modal"
-    >
+    <StyledModal open={open} onClose={onClose} aria-labelledby="port-summary-modal">
       <ModalContent>
         <IconButton
           onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: 'grey.500',
-          }}
+          sx={{ position: 'absolute', right: 8, top: 8, color: 'grey.500' }}
         >
           <CloseIcon />
         </IconButton>
 
-        <Stack spacing={3}>
+        <Stack spacing={2}>
           {/* Header */}
-          <Box>
-            <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
-              {portType} Transport Summary
+          <Box 
+            sx={{ 
+              background: colorTheme.gradient,
+              color: 'white',
+              p: 2,
+              borderRadius: 1.5,
+              mb: 1
+            }}
+          >
+            <Typography variant="h5" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              {colorTheme.name} Summary
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography
-                component="span"
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
                 sx={{
                   px: 1.5,
                   py: 0.5,
-                  bgcolor: portType === "Entry Port" ? 'primary.main' : 'secondary.main',
-                  color: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
                   borderRadius: 1,
-                  fontSize: '0.875rem',
+                  fontSize: '0.75rem',
                   fontWeight: 500
                 }}
               >
-                {portType} Service
-              </Typography>
+                Premium Service
+              </Box>
+              {bookingData?.mode === 'dmc' && dmcName && (
+                <Box
+                  sx={{
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: 1,
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                >
+                  {dmcName}
+                </Box>
+              )}
             </Box>
           </Box>
 
-          <Divider />
-
-          {/* Vehicle Details */}
+          {/* Vehicle Overview */}
           <SummarySection>
-            <Card sx={{ display: 'flex', mb: 2 }}>
+            <Card 
+              sx={{ 
+                display: 'flex', 
+                border: `1px solid ${colorTheme.primary}`,
+                borderRadius: 2,
+                overflow: 'hidden',
+                height: 140
+              }}
+            >
               <CardMedia
                 component="img"
-                sx={{ width: 200, height: 200, objectFit: 'cover' }}
+                sx={{ 
+                  width: 120, 
+                  height: 140, 
+                  objectFit: 'cover'
+                }}
                 image={bookingData.vehicleImage || '/images/car-placeholder.jpg'}
                 alt={bookingData.vehicleName || 'Selected Vehicle'}
               />
               <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
+                <CardContent sx={{ p: 1.5, pb: 0 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: colorTheme.primary, mb: 0.5 }}>
                     {bookingData.vehicleName || 'Selected Vehicle'}
                   </Typography>
                   {bookingData.city && bookingData.country && (
                     <DetailRow>
-                      <LocationOnIcon color="primary" />
-                      <Typography>
+                      <LocationOnIcon sx={{ color: colorTheme.primary, fontSize: 16 }} />
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         {bookingData.city}, {bookingData.country}
                       </Typography>
                     </DetailRow>
                   )}
-                  {(bookingData.vehicleType || bookingData.vehicleModel) && (
-                    <DetailRow>
-                      <DirectionsCarIcon color="primary" />
-                      <Typography>
-                        {bookingData.vehicleType || 'Transport Vehicle'}
-                        {bookingData.vehicleModel && `, ${bookingData.vehicleModel}`}
-                      </Typography>
-                    </DetailRow>
-                  )}
-                  <Box 
-                    sx={{ 
-                      mt: 2,
-                      p: 1.5,
-                      borderRadius: 1,
-                      bgcolor: portType === "Entry Port" ? 'primary.main' : 'secondary.main',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1
-                    }}
-                  >
-                    <LocationOnIcon sx={{ color: 'white' }} />
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        {portType} Transfer
-                      </Typography>
-                    </Box>
-                  </Box>
+                  <DetailRow>
+                    <DirectionsCarIcon sx={{ color: colorTheme.primary, fontSize: 16 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {bookingData.vehicleType || 'Transport Vehicle'}
+                    </Typography>
+                  </DetailRow>
                 </CardContent>
+                <Box 
+                  sx={{ 
+                    mt: 'auto',
+                    p: 1,
+                    background: colorTheme.gradient,
+                    color: 'white'
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {colorTheme.name} Transfer
+                  </Typography>
+                </Box>
               </Box>
             </Card>
           </SummarySection>
 
-          {/* Journey Details Section */}
+          {/* Journey & Guest Details Combined */}
           <SummarySection>
-            <Typography variant="h6" gutterBottom>
-              <MyLocationIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Journey Details
-            </Typography>
-            <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
-              <Grid container spacing={2}>
-                {/* Pickup Location */}
-                <Grid item xs={12} md={6}>
-                  <PriceCard>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      <LocationOnIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                      Pick-up Location
-                    </Typography>
-                    <Typography variant="body1">
-                      {bookingData.pickupLocation || 'Not specified'}
-                    </Typography>
-                  </PriceCard>
-                </Grid>
-                
-                {/* Dropoff Location */}
-                <Grid item xs={12} md={6}>
-                  <PriceCard>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      <LocationCityIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                      Drop-off Location
-                    </Typography>
-                    <Typography variant="body1">
-                      {bookingData.dropoffLocation || 'Not specified'}
-                    </Typography>
-                  </PriceCard>
-                </Grid>
-                
-                {/* Pickup Time */}
-                <Grid item xs={12} md={6}>
-                  <PriceCard>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                      Pick-up Time
-                    </Typography>
-                    <Typography variant="body1">
-                      {bookingData.pickupTime || 'Not specified'}
-                    </Typography>
-                  </PriceCard>
-                </Grid>
-                
-                {/* Pickup Date */}
-                <Grid item xs={12} md={6}>
-                  <PriceCard>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      <CalendarTodayIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                      Pick-up Date
-                    </Typography>
-                    <Typography variant="body1">
-                      {bookingData.bookingDate || 'Not specified'}
-                    </Typography>
-                  </PriceCard>
-                </Grid>
-              </Grid>
-            </Paper>
-          </SummarySection>
-
-          {/* Vehicle Details */}
-          <SummarySection>
-            <Typography variant="h6" gutterBottom>
-              <DirectionsCarIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Vehicle Details
-            </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <PriceCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Vehicle Type
-                  </Typography>
-                  <Typography variant="body1">
-                    {bookingData.vehicleType || 'Standard Vehicle'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Model: {bookingData.vehicleModel || 'Standard Model'}
-                  </Typography>
-                </PriceCard>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <PriceCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Pricing Mode
-                  </Typography>
-                  <Typography variant="body1">
-                    {bookingData.priceMode || 'Private'}
-                  </Typography>
-                  {bookingData.seatingCapacity && (
-                    <Typography variant="body2" color="text.secondary">
-                      Capacity: {bookingData.seatingCapacity} persons
-                    </Typography>
-                  )}
-                </PriceCard>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <PriceCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Booking Mode
-                  </Typography>
-                  {bookingData.mode === 'dmc' && (
-                    <Box sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 1,
-                      mt: 1,
-                      pt: 1,
-                      borderTop: '1px solid',
-                      borderColor: 'divider'
-                    }}>
-                      {dmcLogo && (
-                        <Box
-                          component="img"
-                          src={dmcLogo}
-                          alt={dmcName}
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            objectFit: 'contain',
-                            borderRadius: '4px'
-                          }}
-                        />
-                      )}
-                      <Typography
-                        sx={{
-                          fontSize: '1rem',
-                          fontWeight: 500,
-                          color: 'text.primary'
-                        }}
-                      >
-                        {dmcName}'s Mode
-                      </Typography>
-                    </Box>
-                  )}
-                  {bookingData.mode === 'travclicks' && (
-                    <Typography variant="body1">
-                      Travclicks Mode
-                    </Typography>
-                  )}
-                </PriceCard>
-              </Grid>
-            </Grid>
-          </SummarySection>
-
-          {/* Guest Details and Total Price */}
-          <SummarySection>
-            <Typography variant="h6" gutterBottom>
-              <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Guest Details & Price
-            </Typography>
-            <Grid container spacing={2}>
+              {/* Journey Details */}
               <Grid item xs={12} md={8}>
-                <PriceCard>
-                  <Box sx={{ display: 'flex', gap: 3 }}>
+                <Paper 
+                  sx={{ 
+                    p: 2, 
+                    background: colorTheme.light,
+                    border: `1px solid ${colorTheme.primary}`,
+                    borderRadius: 1.5,
+                    height: '100%'
+                  }}
+                >
+                  <Typography variant="subtitle1" gutterBottom sx={{ color: colorTheme.primary, fontWeight: 600, mb: 1 }}>
+                    <MyLocationIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                    Journey Details
+                  </Typography>
+                  <Grid container spacing={1.5}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">Pick-up</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {bookingData.pickupLocation || 'Not specified'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">Drop-off</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {bookingData.dropoffLocation || 'Not specified'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">Date</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {bookingData.bookingDate || 'Not specified'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">Time</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {bookingData.pickupTime || 'Not specified'}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+              
+              {/* Guests & Price */}
+              <Grid item xs={12} md={4}>
+                <Paper 
+                  sx={{ 
+                    p: 2, 
+                    background: colorTheme.gradient,
+                    color: 'white',
+                    borderRadius: 1.5,
+                    textAlign: 'center',
+                    height: '100%'
+                  }}
+                >
+                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+                    <GroupIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                    Guests & Price
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 1.5 }}>
                     <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
-                        <Typography>
-                          Adults: {bookingData.adults || 0}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <ChildCareIcon sx={{ mr: 1, color: 'primary.main' }} />
-                        <Typography>
-                          Children: {bookingData.children || 0}
-                        </Typography>
-                      </Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {bookingData.adults || 0}
+                      </Typography>
+                      <Typography variant="caption">Adults</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {bookingData.children || 0}
+                      </Typography>
+                      <Typography variant="caption">Children</Typography>
                     </Box>
                   </Box>
-                </PriceCard>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <PriceCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    <AttachMoneyIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                    Total Price
-                  </Typography>
+                  <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)', mb: 1 }} />
                   {formatPrice(bookingData.price)}
                   {bookingData.taxPercentage && (
-                    <Typography variant="caption" color="text.secondary">
-                      *Prices are subject to {bookingData.taxPercentage}% tax
+                    <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 0.5 }}>
+                      *Inc. {bookingData.taxPercentage}% tax
                     </Typography>
                   )}
-                </PriceCard>
+                </Paper>
               </Grid>
             </Grid>
           </SummarySection>
 
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
-            <Button variant="outlined" onClick={onClose}>
+          {/* Service Provider */}
+          {bookingData.mode === 'dmc' && dmcName && (
+            <SummarySection>
+              <Paper 
+                sx={{ 
+                  p: 1.5, 
+                  border: `1px solid ${colorTheme.primary}`,
+                  borderRadius: 1.5
+                }}
+              >
+                <Typography variant="subtitle2" gutterBottom sx={{ color: colorTheme.primary, fontWeight: 600 }}>
+                  Service Provider
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {dmcLogo && (
+                    <Box
+                      component="img"
+                      src={dmcLogo}
+                      alt={dmcName}
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        objectFit: 'contain',
+                        borderRadius: 1,
+                        border: `1px solid ${colorTheme.light}`
+                      }}
+                    />
+                  )}
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {dmcName}
+                  </Typography>
+                </Box>
+              </Paper>
+            </SummarySection>
+          )}
+
+          {/* Action Button */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Button 
+              variant="contained" 
+              onClick={onClose}
+              size="medium"
+              sx={{
+                minWidth: 120,
+                px: 3,
+                py: 1,
+                borderRadius: 1.5,
+                background: colorTheme.gradient,
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': {
+                  background: colorTheme.secondary,
+                },
+              }}
+            >
               Close
             </Button>
           </Box>

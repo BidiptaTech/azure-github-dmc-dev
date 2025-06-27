@@ -27,6 +27,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import PersonIcon from '@mui/icons-material/Person';
 import AssistantIcon from '@mui/icons-material/Assistant';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useDispatch, useSelector } from 'react-redux';
 import GuideListing from './GuideListing';
 import TimeSelection from './TimeSelection';
@@ -62,6 +63,11 @@ export default function GuideComponent() {
   const status = useSelector((state) => state.tourguide.status);
   const searchParams = useSelector((state) => state.tourguide.searchParams);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
+  
+  // Get existing services from Redux state
+  const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
 
   // Initialize form state with search params
   const defaultSection = useMemo(() => ({
@@ -79,12 +85,200 @@ export default function GuideComponent() {
   const [validationError, setValidationError] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [expandedSections, setExpandedSections] = useState([0]);
+  // Track which sections have already been saved to Redux
+  const [savedSectionIds, setSavedSectionIds] = useState([]);
+
+  // Define helper functions at the beginning
+  const getSelectedGuide = (guideId) => {
+    return guides.find(g => g.id === guideId);
+  };
+
+  const getCompletionStatus = (section) => {
+    const steps = [
+      section.guide,
+      section.pax.Adults + section.pax.Children > 0,
+      section.pickUpTime,
+      section.hourlyPackage
+    ];
+    return steps.filter(Boolean).length;
+  };
+
+  // Define memoized functions early
+  const getBookingSummary = useCallback((booking) => {
+    const selectedGuideDetails = guides.find(g => g.id === booking.guide) || {};
+    
+    return {
+      guide: selectedGuideDetails,
+      guideName: selectedGuideDetails.guide_name || 'Guide',
+      city: selectedGuideDetails.city || searchParams?.location?.city || '',
+      country: selectedGuideDetails.country || searchParams?.location?.country || '',
+      pickUpTime: booking.pickUpTime,
+      pickUpTimeHour: booking.pickUpTimeHour,
+      duration: booking.hourlyPackage,
+      pax: booking.pax,
+      mode: currentMode,
+      priceBreakdown: booking.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0 },
+      image: selectedGuideDetails.image || '/placeholder-guide.jpg',
+      languages: selectedGuideDetails.languages || [],
+      experience: selectedGuideDetails.experience_years || 'Not specified',
+      bookingDate: booking.bookingDate
+    };
+  }, [guides, searchParams, currentMode]);
+
+  const validateBookings = useCallback(() => {
+    if (formSections.length === 0) {
+      setValidationError("Please add at least one guide booking.");
+      return false;
+    }
+    
+    // Only validate complete sections
+    const completeSections = formSections.filter(section => 
+      section.guide && 
+      section.pickUpTime && 
+      section.hourlyPackage && 
+      (section.pax.Adults + section.pax.Children > 0)
+    );
+    
+    if (completeSections.length === 0) {
+      // Don't show error when auto-validating
+      return false;
+    }
+    
+    setValidationError(null);
+    return true;
+  }, [formSections, setValidationError]);
+
+  const handleBookNow = useCallback(() => {
+    if (!validateBookings()) {
+      return;
+    }
+    
+    // Filter out incomplete sections
+    const completeSections = formSections.filter(section => 
+      section.guide && 
+      section.pickUpTime && 
+      section.hourlyPackage && 
+      (section.pax.Adults + section.pax.Children > 0)
+    );
+    
+    if (completeSections.length === 0) {
+      return; // No complete sections to save
+    }
+    
+    // Clone the existing services array, but remove ALL previous guide services
+    const servicesWithoutGuides = existingServices.filter(service => service.type !== "guide");
+    
+    // Create new guide services for the current complete sections
+    const guideServices = completeSections.map((section, index) => {
+      const summaryData = getBookingSummary(section);
+      
+      // Create unique booking ID - use formSections index to maintain identity
+      const sectionIndex = formSections.indexOf(section);
+      const bookingId = `guide-${Date.now()}-${sectionIndex}`;
+      
+      // Create the guide booking data
+      const bookingData = {
+        id: bookingId,
+        guide_id: section.guide,
+        guide_name: summaryData.guideName,
+        image: summaryData.image,
+        dmc_Id: agentId,
+        Mode: currentMode,
+        entrypickup: section.pickUpTime,
+        entrytime: section.pickUpTimeHour,
+        adults: section.pax.Adults,
+        children: section.pax.Children,
+        hours: section.hourlyPackage,
+        basePrice: section.priceBreakdown.basePrice,
+        surcharge: section.priceBreakdown.nightSurcharge,
+        totalPrice: section.priceBreakdown.totalPrice,
+        pickupdate: section.bookingDate,
+        Tax: selectedGuideDetails?.tax_percentage,
+        Night_Start_Time: selectedGuideDetails?.night_start_time,
+        Night_End_Time: selectedGuideDetails?.night_end_time,
+        // Keep some fields that might still be needed
+        city: summaryData.city,
+        country: summaryData.country,
+        languages: summaryData.languages,
+        experience: summaryData.experience
+      };
+      
+      console.log(`Guide booking data for section ${index}:`, bookingData);
+      
+      // Create a new guide service entry for this booking
+      return {
+        type: "guide",
+        agent_id: agentId,
+        tour_id: tourId,
+        data: [bookingData]
+      };
+    });
+    
+    // Combine non-guide services with new guide services
+    const updatedServices = [...servicesWithoutGuides, ...guideServices];
+    
+    console.log("Guide - Dispatching updated services to Redux:", updatedServices);
+    
+    // Dispatch the updated services
+    dispatch(setAllServices(updatedServices));
+    
+    setBookingSuccess(true);
+    
+    setTimeout(() => {
+      setBookingSuccess(false);
+    }, 5000);
+  }, [formSections, existingServices, validateBookings, dispatch, currentMode, getBookingSummary]);
 
   useEffect(() => {
     console.log('Guide Status:', status);
     console.log('Guides Data:', guides);
     console.log('Search Params:', searchParams);
   }, [status, guides, searchParams]);
+  
+  // Effect to automatically dispatch completed guide bookings to Redux
+  useEffect(() => {
+    // Skip if no form sections or during loading
+    if (formSections.length === 0 || status === 'loading') return;
+    
+    // Find sections that are complete but not yet saved
+    const newCompleteSections = formSections.filter((section, index) => {
+      // Check if all required fields are filled
+      const isComplete = (
+        section.guide && 
+        section.pickUpTime && 
+        section.hourlyPackage && 
+        (section.pax.Adults + section.pax.Children > 0)
+      );
+      
+      // Generate a unique ID for this section based on its contents
+      const sectionSignature = `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}`;
+      
+      // Check if this section has already been saved
+      const isSaved = savedSectionIds.includes(sectionSignature);
+      
+      // Return true if this section is complete and not yet saved
+      return isComplete && !isSaved;
+    });
+    
+    // If we found new complete sections, update Redux
+    if (newCompleteSections.length > 0) {
+      // Get signatures for the new sections
+      const newSectionSignatures = newCompleteSections.map(section => 
+        `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}`
+      );
+      
+      // Wait a bit to avoid too many Redux updates
+      const timeoutId = setTimeout(() => {
+        // Call handleBookNow
+        handleBookNow();
+        
+        // Mark these sections as saved
+        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formSections, handleBookNow, status, savedSectionIds]);
 
   const handleAddMore = () => {
     const newIndex = formSections.length;
@@ -93,8 +287,20 @@ export default function GuideComponent() {
   };
 
   const handleRemoveSection = (indexToRemove) => {
+    // Get the section being removed
+    const sectionToRemove = formSections[indexToRemove];
+    
+    // Remove the section from formSections
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
+    
+    // Update expanded sections
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
+    
+    // Remove section signature from saved IDs
+    if (sectionToRemove) {
+      const sectionSignature = `${sectionToRemove.guide}-${sectionToRemove.pickUpTime}-${sectionToRemove.hourlyPackage}`;
+      setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
+    }
   };
 
   const toggleSectionExpand = (index) => {
@@ -140,6 +346,36 @@ export default function GuideComponent() {
     }
     
     setFormSections(newFormSections);
+    
+    // Check if the current section is now complete
+    const updatedSection = newFormSections[sectionIndex];
+    const isComplete = 
+      updatedSection.guide && 
+      updatedSection.pickUpTime && 
+      updatedSection.hourlyPackage && 
+      (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
+    
+    // Generate signature for this section
+    const oldSectionSignature = formSections[sectionIndex] ? 
+      `${formSections[sectionIndex].guide}-${formSections[sectionIndex].pickUpTime}-${formSections[sectionIndex].hourlyPackage}` : '';
+    
+    const newSectionSignature = 
+      `${updatedSection.guide}-${updatedSection.pickUpTime}-${updatedSection.hourlyPackage}`;
+    
+    // If the data changed, remove the old signature from saved list
+    if (oldSectionSignature !== newSectionSignature) {
+      setSavedSectionIds(prev => 
+        prev.filter(signature => signature !== oldSectionSignature)
+      );
+      
+      console.log(`Guide booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+    }
+      
+    // If the section just became complete, show success message
+    if (isComplete) {
+      // The useEffect will handle dispatching to Redux
+      console.log(`Guide booking section ${sectionIndex + 1} is now complete`);
+    }
   };
 
   const handleOpenModal = (index) => {
@@ -150,116 +386,6 @@ export default function GuideComponent() {
   const handleCloseModal = () => {
     setOpenModal(false);
     setSelectedSectionIndex(null);
-  };
-
-  const getBookingSummary = (booking) => {
-    const selectedGuideDetails = guides.find(g => g.id === booking.guide) || {};
-    
-    return {
-      guide: selectedGuideDetails,
-      guideName: selectedGuideDetails.guide_name || 'Guide',
-      city: selectedGuideDetails.city || searchParams?.location?.city || '',
-      country: selectedGuideDetails.country || searchParams?.location?.country || '',
-      pickUpTime: booking.pickUpTime,
-      pickUpTimeHour: booking.pickUpTimeHour,
-      duration: booking.hourlyPackage,
-      pax: booking.pax,
-      mode: currentMode,
-      priceBreakdown: booking.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0 },
-      image: selectedGuideDetails.image || '/placeholder-guide.jpg',
-      languages: selectedGuideDetails.languages || [],
-      experience: selectedGuideDetails.experience_years || 'Not specified',
-      bookingDate: booking.bookingDate
-    };
-  };
-
-  const validateBookings = () => {
-    if (formSections.length === 0) {
-      setValidationError("Please add at least one guide booking.");
-      return false;
-    }
-    
-    for (let i = 0; i < formSections.length; i++) {
-      const section = formSections[i];
-      
-      if (!section.guide) {
-        setValidationError(`Booking #${i + 1}: Please select a guide.`);
-        return false;
-      }
-      
-      if (!section.pickUpTime) {
-        setValidationError(`Booking #${i + 1}: Please select a pickup time.`);
-        return false;
-      }
-      
-      if (!section.hourlyPackage) {
-        setValidationError(`Booking #${i + 1}: Please select a package.`);
-        return false;
-      }
-      
-      const totalPax = section.pax.Adults + section.pax.Children;
-      if (totalPax <= 0) {
-        setValidationError(`Booking #${i + 1}: Please select at least one person.`);
-        return false;
-      }
-    }
-    
-    setValidationError(null);
-    return true;
-  };
-
-  const handleBookNow = () => {
-    if (!validateBookings()) {
-      return;
-    }
-    
-    const bookingsData = {
-      type: 'guide',
-      bookings: formSections.map((section, index) => {
-        const summaryData = getBookingSummary(section);
-        
-        return {
-          id: `guide-${Date.now()}-${index}`,
-          guideId: section.guide,
-          guideName: summaryData.guideName,
-          city: summaryData.city,
-          country: summaryData.country,
-          pickUpTime: section.pickUpTime,
-          pickUpTimeHour: section.pickUpTimeHour,
-          duration: section.hourlyPackage,
-          priceBreakdown: section.priceBreakdown,
-          pax: section.pax,
-          image: summaryData.image,
-          mode: currentMode,
-          languages: summaryData.languages,
-          experience: summaryData.experience,
-          bookingDate: section.bookingDate
-        };
-      })
-    };
-    
-    console.log("Guide bookings data:", bookingsData);
-    dispatch(setAllServices(bookingsData));
-    
-    setBookingSuccess(true);
-    
-    setTimeout(() => {
-      setBookingSuccess(false);
-    }, 5000);
-  };
-
-  const getCompletionStatus = (section) => {
-    const steps = [
-      section.guide,
-      section.pax.Adults + section.pax.Children > 0,
-      section.pickUpTime,
-      section.hourlyPackage
-    ];
-    return steps.filter(Boolean).length;
-  };
-
-  const getSelectedGuide = (guideId) => {
-    return guides.find(g => g.id === guideId);
   };
 
   if (!guides || guides.length === 0) {
@@ -672,6 +798,7 @@ export default function GuideComponent() {
             </CardContent>
           </Card>
         </Grid>
+        
       </Grid>
 
       <GuideBookingSummaryModal

@@ -109,6 +109,8 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
   const [openModal, setOpenModal] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  
+  
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
   const [expandedSections, setExpandedSections] = useState([]);
   const [bookingsVersion, setBookingsVersion] = useState(0);
@@ -266,12 +268,22 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
       });
     }
     
+    // Make sure the returned service entry includes agent_id and tour_id
     return {
       ...newServiceEntry,
       agent_id: agentId,
       tour_id: tourId
     };
   }, [allBookings, allServices, dispatch, agentId, tourId]);
+
+  // Add function to dispatch all valid bookings to Redux 
+  const dispatchAllValidBookings = useCallback(() => {
+    allBookings.forEach((booking, index) => {
+      if (isBookingValid(booking)) {
+        dispatchBookingToRedux(index);
+      }
+    });
+  }, [allBookings, isBookingValid, dispatchBookingToRedux]);
 
   // Reset vehicles when component unmounts
   useEffect(() => {
