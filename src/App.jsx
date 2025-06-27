@@ -92,6 +92,7 @@ import TourPackages from "./pages/tour-packages/index";
 import PreDefinePackagesPage from "./pages/pre-define-packages/index";
 import Packages from "./pages/packages";
 import PackageDetails from "./pages/pre-define-packages/package-details";
+import ModalTestRoute from "./pages/others/modal-test";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
 
@@ -194,6 +195,9 @@ function App() {
             <ProtectedRoute>
               <PackageDetails />
             </ProtectedRoute>
+          } />
+          <Route path="/modal-test" element={
+            <ModalTestRoute />
           } />
           <Route path="dashboard">
             <Route

@@ -4,6 +4,8 @@ import Cookies from "js-cookie";
 // Base URL for all API requests
 export const BASE_URL = "https://dev.travclicks.com/backadm-dmc/api/v1";
 
+// config.js
+// export const BASE_URL = `${window.location.protocol}//${window.location.host}/backadm-dmc/api/v1`;
 // Create an axios instance with default configuration
 const api = axios.create({
   baseURL: BASE_URL,

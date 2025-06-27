@@ -13,8 +13,8 @@ import {
 import MuiAlert from "@mui/material/Alert";
 import LocationSearch from '../hero/hero-3/LocationSearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
-import DateSearch from '../hero/DateSearch';
 import CitySearch from '../hero/hero-3/CitySearch';
+import DateSelect from './common/DateSelect';
 import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
 import LuggageIcon from '@mui/icons-material/Luggage';
@@ -68,10 +68,7 @@ const PreDefinePackages = () => {
   const dispatch = useDispatch();
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState(null);
-  const [dateRange, setDateRange] = useState([
-    new Date().toISOString().split('T')[0], // Today
-    new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow
-  ]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
   const [guestCounts, setGuestCounts] = useState({
     Adults: 1,
     Children: 0,
@@ -84,10 +81,8 @@ const PreDefinePackages = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
 
-  const handleDateRangeChange = (dates) => {
-    if (dates && Array.isArray(dates) && dates.length === 2) {
-      setDateRange(dates.map(date => date.format("YYYY-MM-DD")));
-    }
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
   };
 
   const handleGuestChange = (newGuestCounts) => {
@@ -125,9 +120,9 @@ const PreDefinePackages = () => {
       return false;
     }
 
-    // Validate date range
-    if (!dateRange || dateRange.length !== 2) {
-      setSnackbarMessage("Please select valid dates for your stay");
+    // Validate date selection
+    if (!selectedDate) {
+      setSnackbarMessage("Please select a valid date");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
@@ -182,10 +177,7 @@ const PreDefinePackages = () => {
     const formData = {
       location: selectedLocation,
       city: selectedCity,
-      dates: {
-        checkIn: dateRange[0],
-        checkOut: dateRange[1],
-      },
+      date: selectedDate,
       guests: {
         adults: guestCounts.Adults,
         maleCount: guestCounts.maleCount || 0,
@@ -202,8 +194,7 @@ const PreDefinePackages = () => {
     const searchParams = {
       country: selectedLocation,
       city: selectedCity,
-      check_in: dateRange[0],
-      check_out: dateRange[1],
+      date: selectedDate,
       adults: guestCounts.Adults,
       male_count: guestCounts.maleCount || 0,
       female_count: guestCounts.femaleCount || 0,
@@ -271,9 +262,9 @@ const PreDefinePackages = () => {
               <div style={{ flex: '1.2', minWidth: '0' }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
                 <div>
                   <h4 className="text-15 fw-500 ls-2 lh-16">
-                    Check in - Check out
+                    Select Date
                   </h4>
-                  <DateSearch onDateChange={handleDateRangeChange} />
+                  <DateSelect onChange={handleDateChange} value={selectedDate} />
                 </div>
               </div>
 
