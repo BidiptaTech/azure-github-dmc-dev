@@ -607,10 +607,15 @@
                         <div data-i18n="Booking List">Booking List</div>
                     </a>
                     <ul class="menu-sub">
-                        <!-- Show Tour -->
+                        <!-- Show Booking -->
                         <li class="menu-item @if(Request::is('bookinglist')) active @endif">
                             <a href="{{ route('bookinglist.index') }}" class="menu-link">
                                 <div data-i18n="Booking List">Booking List</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('enquiries')) active @endif">
+                            <a href="{{ route('bookinglist.enquiry') }}" class="menu-link">
+                                <div data-i18n="Enquiry List">Enquiry List</div>
                             </a>
                         </li>
                     </ul>
