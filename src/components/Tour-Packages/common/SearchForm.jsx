@@ -58,7 +58,7 @@ import {
 } from "../../../slice/common/EnquirySlice";
 import { setSearchLocation } from "../../../slice/common/BookingSlice";
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
-import { setSearchCriteria, fetchTourPackages, clearPackages } from "../../../slice/tour-packages/tourPackageSlice";
+import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices } from "../../../slice/tour-packages/tourPackageSlice";
 import { store } from "../../../store/store";
 import { setSearchParams as setAttractionSearchParams } from "../../../slice/attractions/attractionSlice";
 import { setSearchParams as setGuideSearchParams } from "../../../slice/tourguide/guideslice";
@@ -218,7 +218,7 @@ export default function SearchForm({ onNext, setActiveTab }) {
 
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
-    
+    dispatch(clearAllServices());
     // Clear previous data
     dispatch(clearAttractions());
     dispatch(resetVehicles());

@@ -258,6 +258,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
   const entryDropoff = useSelector((state) => state.pickupDrop.entrydropoff);
   const pickupDate = useSelector((state) => state.pickupDrop.pickupdate);
   const entryTime = useSelector((state) => state.pickupDrop.entrytime);
+  const agentId = useSelector((state) => state.editing?.agentId);
+  const tourId = useSelector((state) => state.hotels.id);
   
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
@@ -671,29 +673,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     // Find any existing customer info in current services
     const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
     
-    // Create booking data, including any customer info fields if available
+    // Create booking data matching the exact parameter names from index1.jsx details object
     const bookingData = {
-      vehicle_id: vehicle.id,
-      vehicle_name: vehicle.vehicle_name,
-      vehicle_type: vehicle.vehicle_type,
-      vehicle_model: vehicle.vehicle_model,
-      model_year: vehicle.model_year,
-      seating_capacity: vehicle.seating_capacity,
-      vehicle_image: vehicle.image,
-      city: vehicle.city,
-      country: vehicle.country,
-      pickup_location: entryPickup,
-      dropoff_location: entryDropoff,
-      booking_date: pickupDate,
-      pickup_time: entryTime,
-      adults: bookingAdultCount,
-      children: bookingChildCount,
-      price: price,
-      tax_percentage: vehicle.tax_percentage,
-      transport_type: booking.priceMode === "Sharable" ? "shared" : "private",
-      mode: booking.mode,
-      dmc_id: booking.dmcId,
-      id: booking.id,
       // If we have customer info, spread it into the booking data
       ...(customerInfoService ? { 
         fullName: customerInfoService.fullName, 
@@ -705,7 +686,38 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
         zip: customerInfoService.zip,
         specialRequests: customerInfoService.specialRequests,
         countryCode: customerInfoService.countryCode
-      } : {})
+      } : {}),
+      
+      // Core booking details matching index1.jsx details structure
+      bookingDate: pickupDate,
+      vehicles_id: vehicle.id,
+      image: vehicle.image,
+      dmc_id: booking.dmcId,
+      vehicles_name: vehicle.vehicle_name,
+      Mode: booking.mode,
+      type: booking.priceMode === "Sharable" ? "shared" : "private",
+      entrypickup: entryPickup,
+      entrydropoff: entryDropoff,
+      PickupPlaceid: booking.PickupPlaceid || null,
+      DropoffPlaceid: booking.DropoffPlaceid || null,
+      pickupdate: pickupDate,
+      entrytime: entryTime,
+      adults: bookingAdultCount,
+      children: bookingChildCount,
+      totalPrice: Math.ceil(price),
+      Tax: vehicle.tax_percentage,
+      distance: vehicle.distance || vehicleData.$distanceInKM || null,
+      Night_Start_Time: vehicle.night_start_time || vehicleData.Night_Start_Time || null,
+      Night_End_Time: vehicle.night_end_time || vehicleData.Night_End_Time || null,
+      city: vehicle.city,
+      country: vehicle.country,
+      
+      // Additional fields for tour package context
+      id: booking.id,
+      vehicle_type: vehicle.vehicle_type,
+      vehicle_model: vehicle.vehicle_model,
+      model_year: vehicle.model_year,
+      seating_capacity: vehicle.seating_capacity
     };
     
     console.log("Entry Vehicle - Formatted booking data for Redux:", bookingData);
@@ -729,6 +741,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     // Create a new Entry Port entry for this vehicle
     const newEntryPortService = {
       type: "Entry Port",
+      agent_id: agentId,
+      tour_id: tourId,
       data: [bookingData]
     };
     
