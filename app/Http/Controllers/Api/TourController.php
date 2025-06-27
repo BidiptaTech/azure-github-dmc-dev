@@ -1065,7 +1065,7 @@ class TourController extends Controller
                             ], 500);
                         }
                         else{
-                            return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
+                            return response()->json(['message' => 'Hotel booking confirmation email sent successfully', 'sendEmail' => $sendEmail], 200);
                         }                                                                      
                     } catch (\Exception $e) {
                         // Catch any exceptions from sendEmail and return the exact error

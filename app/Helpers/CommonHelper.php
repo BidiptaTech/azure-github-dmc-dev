@@ -1102,7 +1102,7 @@ class CommonHelper
             } else {
                 // Handle case where the div is not found
                 Log::error("Email container div not found in email template");
-                return false;
+                return "Email container div not found in email template";
             }
         } catch (\Exception $e) {
             \Log::error('Email sending failed: ' . $e->getMessage(), [
