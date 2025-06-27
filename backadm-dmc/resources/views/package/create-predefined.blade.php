@@ -204,71 +204,95 @@
                 </div>
             </div>
 
-            <!-- Hotels Selection -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i>Hotels Selection</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-9">
-                            <label class="form-label">Select Hotels</label>
-                            <select class="form-select" id="hotel-select" multiple disabled>
-                                <option value="">Select Hotels</option>
-                            </select>
-                            <input type="hidden" name="selected_hotels">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">
-                                Max Select Hotels 
-                            </label>
-                            <select class="form-select" id="hotel-select-count" name="hotel-select-count">
-                                <option value="">Choose Max...</option>
-                                <option value="1">1 </option>
-                                <option value="2">2 </option>
-                                <option value="3">3 </option>
-                                <option value="4">4 </option>
-                                <option value="5">5 </option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="selected-hotels" class="mt-3"></div>
-                </div>
-            </div>
-
-            <!-- Attractions Selection -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-map-pin-line me-2 text-info"></i>Attractions Selection</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-9">
-                            <label class="form-label">Select Attractions</label>
-                            <select class="form-select" id="attraction-select" multiple disabled>
-                                <option value="">Select Attractions</option>
-                            </select>
-                            <input type="hidden" name="selected_attractions">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">
-                                Max Select Attraction 
-                            </label>
-                            <select class="form-select" id="attraction-select-count" name="attraction-select-count">
-                                <option value="">Choose Max...</option>
-                                <option value="1">1 </option>
-                                <option value="2">2 </option>
-                                <option value="3">3 </option>
-                                <option value="4">4 </option>
-                                <option value="5">5 </option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="selected-attractions" class="mt-3"></div>
-                </div>
-            </div>
-
+            <!-- Restaurants & Hotels Selection -->
             <div class="row g-3">
+                <!-- Hotels Selection -->
+                <div class="col-md-12 card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i>Hotels Selection</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-9">
+                                <label class="form-label">Select Hotels</label>
+                                <select class="form-select" id="hotel-select" multiple disabled>
+                                    <option value="">Select Hotels</option>
+                                </select>
+                                <input type="hidden" name="selected_hotels">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">
+                                    Max Select Hotels 
+                                </label>
+                                <select class="form-select" id="hotel-select-count" name="hotel-select-count">
+                                    <option value="">Choose Max...</option>
+                                    <option value="1">1 </option>
+                                    <option value="2">2 </option>
+                                    <option value="3">3 </option>
+                                    <option value="4">4 </option>
+                                    <option value="5">5 </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="selected-hotels" class="mt-3"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Attractions & Guide Selection -->
+            <div class="row g-3">
+                <!-- Attractions Selection -->
+                <div class="col-md-6 card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="ri-map-pin-line me-2 text-info"></i>Attractions Selection</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-9">
+                                <label class="form-label">Select Attractions</label>
+                                <select class="form-select" id="attraction-select" multiple disabled>
+                                    <option value="">Select Attractions</option>
+                                </select>
+                                <input type="hidden" name="selected_attractions">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">
+                                    Max Select Attraction 
+                                </label>
+                                <select class="form-select" id="attraction-select-count" name="attraction-select-count">
+                                    <option value="">Choose Max...</option>
+                                    <option value="1">1 </option>
+                                    <option value="2">2 </option>
+                                    <option value="3">3 </option>
+                                    <option value="4">4 </option>
+                                    <option value="5">5 </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="selected-attractions" class="mt-3"></div>
+                        
+                        <!-- Local Transfer Section -->
+                        <div class="mt-4 pt-3 border-top border-light">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-shrink-0">
+                                    <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
+                                        <i class="ri-taxi-line fs-5"></i>
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-0 fw-semibold">Local Transfer Included?</h6>
+                                    <small class="text-muted">Transportation for sightseeing visits</small>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable-local-transfer" name="attraction_with_transfer" value="1" checked>
+                                    <label class="form-check-label" for="enable-local-transfer">Available</label>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- End Local Transfer Section -->
+                    </div>
+                </div>
 
                 <!-- Guide Selection -->
                 <div class="col-md-6 card mb-4">
@@ -290,37 +314,7 @@
                     </div>
                 </div>
 
-                <!-- Restaurants Selection -->
-                <div class="col-md-6 card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="ri-restaurant-line me-2 text-success"></i>Restaurants Selection</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Select Restaurants (Optional)</label>
-                                <select class="form-select" id="restaurant-select" multiple disabled>
-                                    <option value="">Select Restaurants</option>
-                                </select>
-                                <input type="hidden" name="selected_restaurants">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">
-                                    Max Select Restaurants 
-                                </label>
-                                <select class="form-select" id="restaurant-select-count" name="restaurant-select-count">
-                                    <option value="">Choose Max...</option>
-                                    <option value="1">1 </option>
-                                    <option value="2">2 </option>
-                                    <option value="3">3 </option>
-                                    <option value="4">4 </option>
-                                    <option value="5">5 </option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="selected-restaurants" class="mt-3"></div>
-                    </div>
-                </div>
+                
 
             </div>
 
@@ -330,13 +324,66 @@
                     <h5 class="mb-0"><i class="ri-bus-line me-2 text-primary"></i>Transport Selection</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Transport</label>
-                            <select class="form-select" id="transport-select" disabled>
-                                <option value="">Select Transport</option>
-                            </select>
-                            <input type="hidden" name="selected_transport">
+                    <!-- Port Transfer Options -->
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <h6 class="fw-semibold mb-3"><i class="ri-flight-takeoff-line me-2 text-success"></i>Port Transfer Options</h6>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 border-primary border-opacity-25 shadow-sm hover-shadow">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="flex-shrink-0">
+                                            <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
+                                                <i class="ri-flight-land-line fs-5"></i>
+                                            </span>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-0 fw-semibold">Arrival</h6>
+                                            <small class="text-muted">Airport/port pickup on arrival</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-check form-switch ps-0 d-flex justify-content-between align-items-center mt-2">
+                                        <label class="form-check-label fw-medium text-body" for="entry-port">
+                                            Include in package?
+                                        </label>
+                                        <div>
+                                            <input class="form-check-input me-0 toggle-lg" type="checkbox" id="entry-port" name="entry_port" value="1" 
+                                                style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 border-danger border-opacity-25 shadow-sm hover-shadow">
+                                <div class="card-body p-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="flex-shrink-0">
+                                            <span class="badge bg-danger-subtle text-danger p-2 rounded-circle">
+                                                <i class="ri-flight-takeoff-line fs-5"></i>
+                                            </span>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-0 fw-semibold">Departure</h6>
+                                            <small class="text-muted">Airport/port dropoff on departure</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-check form-switch ps-0 d-flex justify-content-between align-items-center mt-2">
+                                        <label class="form-check-label fw-medium text-body" for="exit-port">
+                                            Include in package?
+                                        </label>
+                                        <div>
+                                            <input class="form-check-input me-0 toggle-lg" type="checkbox" id="exit-port" name="exit_port" value="1"
+                                                style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -473,6 +520,41 @@ $(document).ready(function() {
     });
     $('#guide-select').select2({
         placeholder: 'Select guide'
+    });
+
+    // Toggle card highlight when port transfer checkboxes change
+    $('#entry-port').change(function() {
+        if($(this).is(':checked')) {
+            $(this).closest('.card').addClass('border-primary').removeClass('border-primary-subtle');
+            $(this).closest('.card').find('.badge').addClass('bg-primary').removeClass('bg-primary-subtle');
+        } else {
+            $(this).closest('.card').removeClass('border-primary').addClass('border-primary-subtle');
+            $(this).closest('.card').find('.badge').removeClass('bg-primary').addClass('bg-primary-subtle');
+        }
+    });
+
+    $('#exit-port').change(function() {
+        if($(this).is(':checked')) {
+            $(this).closest('.card').addClass('border-danger').removeClass('border-danger-subtle');
+            $(this).closest('.card').find('.badge').addClass('bg-danger').removeClass('bg-danger-subtle');
+        } else {
+            $(this).closest('.card').removeClass('border-danger').addClass('border-danger-subtle');
+            $(this).closest('.card').find('.badge').removeClass('bg-danger').addClass('bg-danger-subtle');
+        }
+    });
+    
+    // Toggle meal option cards
+    $('.meal-toggle').change(function() {
+        const mealType = $(this).data('meal-type');
+        const badgeColor = $(this).data('badge-color');
+        
+        if($(this).is(':checked')) {
+            $(this).closest('.card').addClass('border-' + badgeColor).removeClass('border-' + badgeColor + '-opacity-25');
+            $(this).closest('.card').find('.badge').addClass('bg-' + badgeColor).removeClass('bg-' + badgeColor + '-subtle');
+        } else {
+            $(this).closest('.card').removeClass('border-' + badgeColor).addClass('border-' + badgeColor + '-opacity-25');
+            $(this).closest('.card').find('.badge').removeClass('bg-' + badgeColor).addClass('bg-' + badgeColor + '-subtle');
+        }
     });
 
     // Country change event
@@ -833,6 +915,71 @@ $(document).ready(function() {
     content: "*";
     color: #ff3e1d;
     margin-left: 4px;
+}
+
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+.hover-shadow:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+/* Custom larger toggle switch */
+.toggle-lg {
+    transform: scale(1.3);
+    margin-right: 10px;
+}
+
+/* Custom toggle colors */
+#entry-port:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+#exit-port:checked {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+/* Meal toggle colors */
+#breakfast-included:checked {
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+
+#lunch-included:checked {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+}
+
+#dinner-included:checked {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+}
+
+/* Purple color for dinner */
+.text-purple {
+    color: #6f42c1;
+}
+
+.bg-purple-subtle {
+    background-color: rgba(111, 66, 193, 0.1);
+}
+
+.border-purple {
+    border-color: #6f42c1 !important;
+}
+
+/* Highlight card when toggle is checked */
+#entry-port:checked ~ .card {
+    border-color: #0d6efd !important;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+#exit-port:checked ~ .card {
+    border-color: #dc3545 !important;
+    background-color: rgba(220, 53, 69, 0.05);
 }
 </style>
 @endsection 

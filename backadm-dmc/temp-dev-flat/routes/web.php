@@ -59,6 +59,13 @@ use Illuminate\Support\Facades\Mail;
 |
 */
 Auth::routes();
+Route::get('/clear', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
+    Artisan::call('route:clear');
+    return redirect()->route('dashboard');
+})->name('clear');
 Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
@@ -68,13 +75,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
 
-    Route::get('/clear', function () {
-        Artisan::call('config:clear');
-        Artisan::call('cache:clear');
-        Artisan::call('view:clear');
-        Artisan::call('route:clear');
-        return response()->json(['message' => 'All caches cleared successfully.']);
-    })->middleware('auth')->name('clear');
+
 
     // Add admin middleware to the hotels endpoint
     
