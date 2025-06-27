@@ -1063,21 +1063,21 @@ class TourController extends Controller
                         
                         if ($sendEmail === true) {
                             // Email sent successfully
-                            return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
+                            // return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
                         } else {
                             // Any non-true response is an error message
-                            return response()->json([
-                                'message' => 'Email sending failed',
-                                'error' => $sendEmail
-                            ], 500);
+                            // return response()->json([
+                            //     'message' => 'Email sending failed',
+                            //     'error' => $sendEmail
+                            // ], 500);
                         }
                                                                                   
                     } catch (\Exception $e) {
                         // Catch any exceptions from sendEmail and return the exact error
-                        return response()->json([
-                            'message' => 'Email sending failed',
-                            'error' => $e->getMessage()
-                        ], 500);
+                        // return response()->json([
+                        //     'message' => 'Email sending failed',
+                        //     'error' => $e->getMessage()
+                        // ], 500);
                     }
                 }
             }
