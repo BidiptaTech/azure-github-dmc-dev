@@ -20,8 +20,10 @@ use App\Models\Agent;
 use App\Models\Facility;
 use App\Models\Category;
 use App\Models\Zone;
-use App\Models\Port;
+use App\Models\Port;  
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -35,7 +37,10 @@ class DashboardController extends Controller
         // Get counts for all entities
         $counts = $this->getAllCounts($dateRanges);
         
-        return view('index', compact('counts', 'period'));
+        // Get user permissions for view filtering
+        $userPermissions = $this->getUserPermissions();
+        
+        return view('index', compact('counts', 'period', 'userPermissions'));
     }
     
     /**
@@ -46,12 +51,145 @@ class DashboardController extends Controller
         $period = $request->get('period', 'today'); // Change default from 'total' to 'today'
         $dateRanges = $this->getDateRanges($period);
         $counts = $this->getAllCounts($dateRanges);
+        $userPermissions = $this->getUserPermissions();
         
         return response()->json([
             'success' => true,
             'counts' => $counts,
-            'period' => $period
+            'period' => $period,
+            'userPermissions' => $userPermissions
         ]);
+    }
+    
+    /**
+     * Get user permissions for view filtering
+     */
+    private function getUserPermissions()
+    {
+        $user = Auth::user();
+        
+        return [
+            'canViewAllProducts' => $this->canViewAllProducts($user),
+            'canViewHotels' => $this->canViewHotels($user),
+            'canViewAttractions' => $this->canViewAttractions($user),
+            'canViewRestaurants' => $this->canViewRestaurants($user),
+            'canViewGuides' => $this->canViewGuides($user),
+            'canViewDrivers' => $this->canViewDrivers($user),
+            'canViewVehicles' => $this->canViewVehicles($user),
+            'canViewBusinessMetrics' => $this->canViewBusinessMetrics($user),
+            'canViewEnquiries' => $this->canViewEnquiries($user),
+            'canViewProductAnalytics' => $this->canViewProductAnalytics($user),
+            'canViewZones' => $this->canViewZones($user),
+            'canViewAgents' => $this->canViewAgents($user),
+            'isProductManager' => $this->isProductManager($user)
+        ];
+    }
+    
+    /**
+     * Check if user can view all products
+     */
+    private function canViewAllProducts($user)
+    {
+        return in_array($user->role_id, [1, 2, 10, 11, 35]); // Admin, Super Admin, Master DMC, DMC, Product Head
+    }
+    
+    /**
+     * Check if user can view product analytics (for chart display)
+     */
+    private function canViewProductAnalytics($user)
+    {
+        return $this->canViewAllProducts($user) || $this->isProductManager($user);
+    }
+    
+    /**
+     * Check if user can view zones (only DMC and upper levels)
+     */
+    private function canViewZones($user)
+    {
+        return in_array($user->role_id, [1, 2, 10, 11]); // Admin, Super Admin, Master DMC, DMC only
+    }
+    
+    /**
+     * Check if user can view hotels
+     */
+    private function canViewHotels($user)
+    {
+        return $this->canViewAllProducts($user) || in_array($user->role_id, [77, 84]); // PM Hotel, Asst PM Hotel
+    }
+    
+    /**
+     * Check if user can view attractions
+     */
+    private function canViewAttractions($user)
+    {
+        return $this->canViewAllProducts($user) || in_array($user->role_id, [74, 93]); // PM Attraction, Asst PM Attraction
+    }
+    
+    /**
+     * Check if user can view restaurants
+     */
+    private function canViewRestaurants($user)
+    {
+        return $this->canViewAllProducts($user) || in_array($user->role_id, [78, 120]); // PM Restaurant, Asst PM Restaurant
+    }
+    
+    /**
+     * Check if user can view guides
+     */
+    private function canViewGuides($user)
+    {
+        return $this->canViewAllProducts($user) || in_array($user->role_id, [75, 102]); // PM Guide, Asst PM Guide
+    }
+    
+    /**
+     * Check if user can view drivers
+     */
+    private function canViewDrivers($user)
+    {
+        return $this->canViewAllProducts($user) || in_array($user->role_id, [76, 111]); // PM Driver, Asst PM Driver
+    }
+    
+    /**
+     * Check if user can view vehicles
+     */
+    private function canViewVehicles($user)
+    {
+        return $this->canViewDrivers($user); // Same as drivers
+    }
+    
+    /**
+     * Check if user can view business metrics (enquiries, bookings, tours)
+     */
+    private function canViewBusinessMetrics($user)
+    {
+        // Product managers and product head cannot see business metrics, only sales and upper roles can
+        return in_array($user->role_id, [1, 2, 10, 11, 33, 12, 37, 38]); // Exclude product managers and product head
+    }
+    
+    /**
+     * Check if user can view enquiries specifically
+     */
+    private function canViewEnquiries($user)
+    {
+        // Exclude product head and all product manager roles from seeing enquiries
+        $excludedRoles = [35, 74, 75, 76, 77, 78, 84, 93, 102, 111, 120];
+        return !in_array($user->role_id, $excludedRoles) && $this->canViewBusinessMetrics($user);
+    }
+    
+    /**
+     * Check if user can view agents
+     */
+    private function canViewAgents($user)
+    {
+        return in_array($user->role_id, [1, 2, 10, 11, 33, 12, 37, 38]); // Sales hierarchy only
+    }
+    
+    /**
+     * Check if user is a product manager
+     */
+    private function isProductManager($user)
+    {
+        return in_array($user->role_id, [74, 75, 76, 77, 78, 84, 93, 102, 111, 120]);
     }
     
     /**
@@ -89,31 +227,67 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         
-        return [
-            // Core entities
-            'hotels' => $this->getHotelCounts($dateRanges, $user),
-            'attractions' => $this->getAttractionCounts($dateRanges, $user),
-            'restaurants' => $this->getRestaurantCounts($dateRanges, $user),
-            'guides' => $this->getGuideCounts($dateRanges, $user),
-            'drivers' => $this->getDriverCounts($dateRanges, $user),
-            'vehicles' => $this->getVehicleCounts($dateRanges, $user),
-            
-            // Business entities
-            'tours' => $this->getTourCounts($dateRanges, $user),
-            'bookings' => $this->getBookingCounts($dateRanges, $user),
-            'enquiries' => $this->getEnquiryCounts($dateRanges, $user),
-            'orders' => $this->getOrderCounts($dateRanges, $user),
-            
-            // User management
-            'agents' => $this->getAgentCounts($dateRanges, $user),
-            'users' => $this->getUserCounts($dateRanges, $user),
-            
-            // Configuration entities
-            'facilities' => $this->getFacilityCounts($dateRanges, $user),
-            'categories' => $this->getCategoryCounts($dateRanges, $user),
-            'zones' => $this->getZoneCounts($dateRanges, $user),
-            'ports' => $this->getPortCounts($dateRanges, $user),
-        ];
+        $counts = [];
+        
+        // Core entities - only include if user has permission
+        if ($this->canViewHotels($user)) {
+            $counts['hotels'] = $this->getHotelCounts($dateRanges, $user);
+        }
+        
+        if ($this->canViewAttractions($user)) {
+            $counts['attractions'] = $this->getAttractionCounts($dateRanges, $user);
+        }
+        
+        if ($this->canViewRestaurants($user)) {
+            $counts['restaurants'] = $this->getRestaurantCounts($dateRanges, $user);
+        }
+        
+        if ($this->canViewGuides($user)) {
+            $counts['guides'] = $this->getGuideCounts($dateRanges, $user);
+        }
+        
+        if ($this->canViewDrivers($user)) {
+            $counts['drivers'] = $this->getDriverCounts($dateRanges, $user);
+        }
+        
+        if ($this->canViewVehicles($user)) {
+            $counts['vehicles'] = $this->getVehicleCounts($dateRanges, $user);
+        }
+        
+        // Business entities - only for non-product managers
+        if ($this->canViewBusinessMetrics($user)) {
+            $counts['tours'] = $this->getTourCounts($dateRanges, $user);
+            $counts['bookings'] = $this->getBookingCounts($dateRanges, $user);
+            $counts['orders'] = $this->getOrderCounts($dateRanges, $user);
+        }
+        
+        // Enquiries - separate check with additional role restrictions
+        if ($this->canViewEnquiries($user)) {
+            $counts['enquiries'] = $this->getEnquiryCounts($dateRanges, $user);
+        }
+        
+        // User management
+        if ($this->canViewAgents($user)) {
+            $counts['agents'] = $this->getAgentCounts($dateRanges, $user);
+        }
+        
+        if (in_array($user->role_id, [1, 2, 10, 11])) { // Only higher level roles can see users
+            $counts['users'] = $this->getUserCounts($dateRanges, $user);
+        }
+        
+        // Configuration entities - for higher level roles and product managers
+        if (in_array($user->role_id, [1, 2, 10, 11, 35]) || $this->isProductManager($user)) {
+            $counts['facilities'] = $this->getFacilityCounts($dateRanges, $user);
+            $counts['categories'] = $this->getCategoryCounts($dateRanges, $user);
+            $counts['ports'] = $this->getPortCounts($dateRanges, $user);
+        }
+        
+        // Zones - only for DMC and upper levels (Admin, Super Admin, Master DMC, DMC)
+        if ($this->canViewZones($user)) {
+            $counts['zones'] = $this->getZoneCounts($dateRanges, $user);
+        }
+        
+        return $counts;
     }
     
     /**
@@ -121,10 +295,15 @@ class DashboardController extends Controller
      */
     private function getHotelCounts($dateRanges, $user)
     {
+        // Return empty if user can't view hotels
+        if (!$this->canViewHotels($user)) {
+            return ['total' => 0, 'active' => 0, 'recent' => 0];
+        }
+        
         $query = Hotel::where('status', 1);
         
         // Apply role-based filtering
-        $query = $this->applyRoleBasedFiltering($query, $user, 'dmc_id');
+        $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
         
         $totalQuery = clone $query;
         $activeQuery = clone $query;
@@ -150,8 +329,12 @@ class DashboardController extends Controller
      */
     private function getAttractionCounts($dateRanges, $user)
     {
+        if (!$this->canViewAttractions($user)) {
+            return ['total' => 0, 'active' => 0, 'recent' => 0];
+        }
+        
         $query = Attraction::where('status', 1);
-        $query = $this->applyRoleBasedFiltering($query, $user, 'dmc_id');
+        $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
         
         $totalQuery = clone $query;
         $activeQuery = clone $query;
@@ -177,8 +360,12 @@ class DashboardController extends Controller
      */
     private function getRestaurantCounts($dateRanges, $user)
     {
+        if (!$this->canViewRestaurants($user)) {
+            return ['total' => 0, 'active' => 0, 'recent' => 0];
+        }
+        
         $query = Restaurant::where('status', 1);
-        $query = $this->applyRoleBasedFiltering($query, $user, 'dmc_id');
+        $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
         
         $totalQuery = clone $query;
         $activeQuery = clone $query;
@@ -204,8 +391,12 @@ class DashboardController extends Controller
      */
     private function getGuideCounts($dateRanges, $user)
     {
+        if (!$this->canViewGuides($user)) {
+            return ['total' => 0, 'available' => 0, 'recent' => 0];
+        }
+        
         $query = Guide::where('status', 1);
-        $query = $this->applyRoleBasedFiltering($query, $user, 'dmc_id');
+        $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
         
         $totalQuery = clone $query;
         $availableQuery = clone $query;
@@ -231,8 +422,12 @@ class DashboardController extends Controller
      */
     private function getDriverCounts($dateRanges, $user)
     {
+        if (!$this->canViewDrivers($user)) {
+            return ['total' => 0, 'available' => 0, 'recent' => 0];
+        }
+        
         $query = Driver::where('status', 1);
-        $query = $this->applyRoleBasedFiltering($query, $user, 'dmc_id');
+        $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
         
         $totalQuery = clone $query;
         $availableQuery = clone $query;
@@ -258,8 +453,12 @@ class DashboardController extends Controller
      */
     private function getVehicleCounts($dateRanges, $user)
     {
+        if (!$this->canViewVehicles($user)) {
+            return ['total' => 0, 'available' => 0, 'recent' => 0];
+        }
+        
         $query = Vehicle::where('is_available', 1);
-        $query = $this->applyRoleBasedFiltering($query, $user, 'dmc_id');
+        $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
         
         $totalQuery = clone $query;
         $availableQuery = clone $query;
@@ -488,7 +687,8 @@ class DashboardController extends Controller
         return [
             'total' => $total,
             'today' => $today,
-            'this_month' => $thisMonth
+            'this_month' => $thisMonth,
+            'new' => $today // For compatibility with existing code
         ];
     }
     
@@ -583,6 +783,11 @@ class DashboardController extends Controller
     {
         $query = Facility::where('status', 1);
         
+        // Apply role-based filtering for product managers if they have a dmc_id field
+        if ($this->isProductManager($user) && Schema::hasColumn('facilities', 'dmc_id')) {
+            $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
+        }
+        
         $totalQuery = clone $query;
         $activeQuery = clone $query;
         $recentQuery = clone $query;
@@ -608,6 +813,11 @@ class DashboardController extends Controller
     private function getCategoryCounts($dateRanges, $user)
     {
         $query = Category::where('status', 1);
+        
+        // Apply role-based filtering for product managers if they have a dmc_id field
+        if ($this->isProductManager($user) && Schema::hasColumn('categories', 'dmc_id')) {
+            $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
+        }
         
         $totalQuery = clone $query;
         $activeQuery = clone $query;
@@ -662,6 +872,11 @@ class DashboardController extends Controller
     {
         $query = Port::where('status', 1);
         
+        // Apply role-based filtering for product managers if they have a dmc_id field
+        if ($this->isProductManager($user) && Schema::hasColumn('ports', 'dmc_id')) {
+            $query = $this->applyProductRoleBasedFiltering($query, $user, 'dmc_id');
+        }
+        
         $totalQuery = clone $query;
         $activeQuery = clone $query;
         $recentQuery = clone $query;
@@ -679,6 +894,66 @@ class DashboardController extends Controller
             'active' => $activeQuery->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count(),
             'recent' => $recentQuery->where('created_at', '>=', Carbon::now()->subDays(7))->count()
         ];
+    }
+    
+    /**
+     * Apply role-based filtering for product managers
+     */
+    private function applyProductRoleBasedFiltering($query, $user, $dmcField)
+    {
+        // For product managers, find their DMC and filter accordingly
+        if ($this->isProductManager($user)) {
+            $dmcId = $this->getDmcIdForProductManager($user);
+            if ($dmcId) {
+                $query->where($dmcField, $dmcId);
+            } else {
+                // If no DMC found, return empty results to avoid showing all data
+                $query->where($dmcField, -1);
+            }
+        } else {
+            // Use existing filtering for other roles
+            $query = $this->applyRoleBasedFiltering($query, $user, $dmcField);
+        }
+        
+        return $query;
+    }
+    
+    /**
+     * Get DMC ID for product manager - Enhanced to handle all product manager types
+     */
+    private function getDmcIdForProductManager($user)
+    {
+        // Check if this is a Product Head (role_id = 35)
+        if ($user->role_id == 35) {
+            // Product Head is created by DMC (role_id = 11)
+            return $user->created_by;
+        }
+        
+        // Check if this is a Product Manager (PM Hotel: 77, PM Attraction: 74, PM Restaurant: 78, PM Guide: 75, PM Driver: 76)
+        if (in_array($user->role_id, [74, 75, 76, 77, 78])) {
+            // Product managers are created by Product Head (role_id = 35)
+            $productHead = User::where('userId', $user->created_by)->first();
+            if ($productHead && $productHead->role_id == 35) {
+                // Product Head is created by DMC (role_id = 11)
+                return $productHead->created_by;
+            }
+        }
+        
+        // Check if this is an Assistant Product Manager (Asst PM Hotel: 84, Asst PM Attraction: 93, Asst PM Restaurant: 120, Asst PM Guide: 102, Asst PM Driver: 111)
+        if (in_array($user->role_id, [84, 93, 102, 111, 120])) {
+            // Assistant product managers are created by Product Manager
+            $productManager = User::where('userId', $user->created_by)->first();
+            if ($productManager && in_array($productManager->role_id, [74, 75, 76, 77, 78])) {
+                // Product Manager is created by Product Head (role_id = 35)
+                $productHead = User::where('userId', $productManager->created_by)->first();
+                if ($productHead && $productHead->role_id == 35) {
+                    // Product Head is created by DMC (role_id = 11)
+                    return $productHead->created_by;
+                }
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -792,7 +1067,7 @@ class DashboardController extends Controller
     private function getAllRelatedUserIds($user)
     {
         // Add debugging
-        \Log::info("DEBUG: getAllRelatedUserIds called for user", [
+        Log::info("DEBUG: getAllRelatedUserIds called for user", [
             'userId' => $user->userId,
             'role_id' => $user->role_id,
             'name' => $user->name
@@ -807,7 +1082,7 @@ class DashboardController extends Controller
                            ->where('role_id', 11)
                            ->pluck('userId');
                 
-                \Log::info("DEBUG: Master DMC found DMCs", [
+                Log::info("DEBUG: Master DMC found DMCs", [
                     'master_dmc_id' => $masterDmcId,
                     'dmcs_found' => $dmcs->toArray()
                 ]);
@@ -817,7 +1092,7 @@ class DashboardController extends Controller
                                  ->where('role_id', 33)
                                  ->pluck('userId');
                 
-                \Log::info("DEBUG: Sales heads found", [
+                Log::info("DEBUG: Sales heads found", [
                     'sales_heads' => $salesHeads->toArray()
                 ]);
                 
@@ -838,13 +1113,13 @@ class DashboardController extends Controller
                     ->unique()
                     ->filter();
                 
-                \Log::info("DEBUG: Final all IDs", [
+                Log::info("DEBUG: Final all IDs", [
                     'all_ids' => $allIds->toArray()
                 ]);
                 
                 // Check how many agents this returns
                 $agentCount = Agent::whereIn('sales_manager_dmc', $allIds)->count();
-                \Log::info("DEBUG: Agent count for these IDs", [
+                Log::info("DEBUG: Agent count for these IDs", [
                     'agent_count' => $agentCount
                 ]);
                 
