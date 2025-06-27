@@ -315,7 +315,7 @@ class PackageController extends Controller
                 Order::create([
                     'agent_id' => $agentId,
                     'tour_id' => $tourId,
-                    'data' => $item,
+                    'data' => [$item],
                     'type' => $type,
                     'bookingType' => 'enquiry',
                     'booking_id' => $bookId,
