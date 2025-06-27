@@ -220,6 +220,7 @@ class GuideController extends Controller
                 'guide_image' => $firstGuide->image,
                 'availability' => $responseData,
                 'tax_percentage' => $country_tax,
+                'guide_base_price' => round((float)$dmc_day_rate, 2),
             ];
         }
         return response()->json($guideList);
