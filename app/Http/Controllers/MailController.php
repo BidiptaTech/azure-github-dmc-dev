@@ -34,85 +34,85 @@ class MailController extends Controller
         $templates = EmailTemplate::orderBy('created_at', 'desc')->first();
 
 
-        // try {
-        //     // Prepare dynamic data for the booking confirmation email
-        //     $data = [
-        //         "booking_id" => "BK-" . rand(10000, 99999),
-        //         "customer_name" => "Mr. Saurabh Singh",
-        //         "type" => "Hotel Booking",
-        //         "booking_date" => date('Y-m-d'),
-        //         "check_in_date" => date('Y-m-d', strtotime('+7 days')),
-        //         "check_out_date" => date('Y-m-d', strtotime('+10 days')),
-        //         "location" => "Paris, France",
-        //         "guests" => "2 Adults, 1 Child",
-        //         "reference_number" => "REF-" . rand(1000, 9999),
-        //         "total_price" => 1250.00,
-        //         "payment_status" => "Paid"
-        //     ];
+        try {
+            // Prepare dynamic data for the booking confirmation email
+            $data = [
+                "booking_id" => "BK-" . rand(10000, 99999),
+                "customer_name" => "Mr. Saurabh Singh",
+                "type" => "Hotel Booking",
+                "booking_date" => date('Y-m-d'),
+                "check_in_date" => date('Y-m-d', strtotime('+7 days')),
+                "check_out_date" => date('Y-m-d', strtotime('+10 days')),
+                "location" => "Paris, France",
+                "guests" => "2 Adults, 1 Child",
+                "reference_number" => "REF-" . rand(1000, 9999),
+                "total_price" => 1250.00,
+                "payment_status" => "Paid"
+            ];
             
-        //     // Get company settings for the email
-        //     $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
-        //     $nameSetting = \App\Helpers\CommonHelper::masterSettingsName('name');
+            // Get company settings for the email
+            $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
+            $nameSetting = \App\Helpers\CommonHelper::masterSettingsName('name');
             
-        //     // Add company info to the data array
-        //     $companyData = [
-        //         "company" => [
-        //             "companyName" => $nameSetting['master_value'] ?? config('app.name'),
-        //             "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
-        //         ]
-        //     ];
+            // Add company info to the data array
+            $companyData = [
+                "company" => [
+                    "companyName" => $nameSetting['master_value'] ?? config('app.name'),
+                    "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
+                ]
+            ];
             
-        //     // Add mail settings for the template
-        //     $mailSettings = (object)[
-        //         "support_email" => "support@yourdomain.com",
-        //         "support_phone" => "+1 (555) 123-4567",
-        //         "facebook_url" => "https://facebook.com/yourcompany",
-        //         "twitter_url" => "https://twitter.com/yourcompany",
-        //         "instagram_url" => "https://instagram.com/yourcompany",
-        //         "linkedin_url" => "https://linkedin.com/company/yourcompany"
-        //     ];
+            // Add mail settings for the template
+            $mailSettings = (object)[
+                "support_email" => "support@yourdomain.com",
+                "support_phone" => "+1 (555) 123-4567",
+                "facebook_url" => "https://facebook.com/yourcompany",
+                "twitter_url" => "https://twitter.com/yourcompany",
+                "instagram_url" => "https://instagram.com/yourcompany",
+                "linkedin_url" => "https://linkedin.com/company/yourcompany"
+            ];
             
-        //     // Merge all data
-        //     $viewData = array_merge($data, $companyData);
-        //     $viewData['mail_settings'] = $mailSettings;
+            // Merge all data
+            $viewData = array_merge($data, $companyData);
+            $viewData['mail_settings'] = $mailSettings;
             
-        //     // Render the email template
-        //     $html = view('mails.booking_confirmation', $viewData)->render();
+            // Render the email template
+            $html = view('mails.booking_confirmation', $viewData)->render();
             
-        //     // Extract the entire style tag content
-        //     preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
-        //     $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+            // Extract the entire style tag content
+            preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+            $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
             
-        //     // Extract the email-container div with all its contents
-        //     preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
-        //     if (!empty($matches[0])) {
-        //         $extractedHtml = $matches[0];
+            // Extract the email-container div with all its contents
+            preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
+            if (!empty($matches[0])) {
+                $extractedHtml = $matches[0];
                 
-        //         // Add minimal HTML structure with the extracted styles
-        //         $emailHtml = '<!DOCTYPE html><html><head><title>Booking Details</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+                // Add minimal HTML structure with the extracted styles
+                $emailHtml = '<!DOCTYPE html><html><head><title>Booking Details</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
                 
-        //         // Send just this part
-        //         Mail::to("saurabh.coactive@gmail.com")->send(new DmcMail($emailHtml, "Your Booking Details"));
-        //         return view('mails.index', compact('templates'))
-        //         ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
-        //     } else {
-        //         // Handle case where the div is not found
-        //         Log::error("Email container div not found in email template");
-        //         return response()->json(['error' => 'Email template structure is invalid'], 500);
-        //     }
-        //     // Send the email
-        //     $recipientEmail = "saurabh.coactive@gmail.com";
-        //     $subject = "Your Booking Confirmation #" . $data['booking_id'];
+                // Send just this part
+                Mail::to("saurabh.coactive@gmail.com")->send(new DmcMail($emailHtml, "Your Booking Details"));
+                return view('mails.index', compact('templates'))
+                ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
+            } else {
+                // Handle case where the div is not found
+                Log::error("Email container div not found in email template");
+                return response()->json(['error' => 'Email template structure is invalid'], 500);
+            }
+            // Send the email
+            $recipientEmail = "saurabh.coactive@gmail.com";
+            $subject = "Your Booking Confirmation #" . $data['booking_id'];
             
-        //     Mail::to($recipientEmail)->send(new DmcMail($html, $subject));
+            Mail::to($recipientEmail)->send(new DmcMail($html, $subject));
             
-        //     return view('mails.index', compact('templates'))
-        //         ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
-        // } catch (\Exception $e) {
-        //     \Log::error('Email sending failed: ' . $e->getMessage());
-        //     return view('mails.index', compact('templates'))
-        //         ->with('error', 'Failed to send email: ' . $e->getMessage());
-        // }
+            return view('mails.index', compact('templates'))
+                ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
+        } catch (\Exception $e) {
+            \Log::error('Email sending failed: ' . $e->getMessage());
+            return view('mails.index', compact('templates'))
+                ->with('error', 'Failed to send email: ' . $e->getMessage());
+        }
 
         return view('mails.index', compact('templates'))
         ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
