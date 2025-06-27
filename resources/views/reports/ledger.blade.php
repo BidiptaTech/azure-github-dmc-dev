@@ -97,14 +97,22 @@
                             </div>
                             <div class="col-md-3">
                                 <label for="agent_id" class="form-label">Agent</label>
-                                <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent">
-                                    <option value="">All Agents</option>
-                                    @foreach($agentsForDropdown as $agent)
-                                        <option value="{{ $agent->agent_id }}" {{ $agentId == $agent->agent_id ? 'selected' : '' }}>
-                                            {{ $agent->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @if(count($agentsForDropdown) > 0)
+                                    <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent">
+                                        <option value="">All Agents</option>
+                                        @foreach($agentsForDropdown as $agent)
+                                            <option value="{{ $agent->agent_id }}" {{ $agentId == $agent->agent_id ? 'selected' : '' }}>
+                                                {{ $agent->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <div class="form-control bg-light text-muted d-flex align-items-center" style="height: 48px;">
+                                        <i class="ri-user-forbid-line me-2"></i>
+                                        <span>No agents available</span>
+                                    </div>
+                                    <input type="hidden" name="agent_id" value="">
+                                @endif
                             </div>
                             <div class="col-md-3">
                                 <label for="service_type" class="form-label">Service Type</label>

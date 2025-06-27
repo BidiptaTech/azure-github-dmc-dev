@@ -332,6 +332,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
 
         //Booking List
         Route::resource('bookinglist', BookingListController::class);
+        Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
 
         Route::resource('enquirylist', EnquiryListController::class);

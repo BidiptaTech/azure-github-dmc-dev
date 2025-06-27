@@ -324,6 +324,315 @@ class BookingListController extends Controller
         return view('bookingList.index', compact('bookings', 'dmcUsers', 'pagination'));
     }
 
+    public function enquiry(Request $request)
+    {
+        $user = auth()->user();
+        $agent_ids = collect(); // for filtering bookings
+        switch ($user->role_id) {
+        case 10: // Master DMC
+            $dmc_ids = User::where('master_dmc_id', $user->userId)
+                            ->where('role_id', 11) // DMCs
+                            ->pluck('userId');
+    
+            $sales_heads = User::whereIn('created_by', $dmc_ids)
+                                ->where('role_id', 33)
+                                ->pluck('userId');
+    
+            $sales_managers = User::whereIn('created_by', $sales_heads)
+                                    ->whereIn('role_id', [12, 37])
+                                    ->pluck('userId');
+    
+            $assistant_managers = User::whereIn('created_by', $sales_managers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+    
+            $all_ids = collect($dmc_ids)
+                ->merge($sales_heads)
+                ->merge($sales_managers)
+                ->merge($assistant_managers)
+                ->unique()
+                ->filter();
+    
+            $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+            break;
+            case 11: // DMC
+                $dmc_id = $user->userId;
+
+                $sales_heads = User::where('created_by', $dmc_id)
+                    ->where('role_id', 33)
+                    ->pluck('userId');
+
+                $sales_managers = User::whereIn('created_by', $sales_heads)
+                    ->whereIn('role_id', [12, 37])
+                    ->pluck('userId');
+
+                $assistant_managers = User::whereIn('created_by', $sales_managers)
+                    ->where('role_id', 38)
+                    ->pluck('userId');
+
+                $all_ids = collect([$dmc_id])
+                    ->merge($sales_heads)
+                    ->merge($sales_managers)
+                    ->merge($assistant_managers)
+                    ->unique()
+                    ->filter();
+
+                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+                break;
+
+            case 33: // Sales Head
+                $sh_id = $user->userId;
+
+                $sales_managers = User::where('created_by', $sh_id)
+                    ->whereIn('role_id', [12, 37])
+                    ->pluck('userId');
+
+                $assistant_managers = User::whereIn('created_by', $sales_managers)
+                    ->where('role_id', 38)
+                    ->pluck('userId');
+
+                $all_ids = collect([$sh_id])
+                    ->merge($sales_managers)
+                    ->merge($assistant_managers)
+                    ->unique()
+                    ->filter();
+
+                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+                break;
+
+            case 12: // Sales Manager
+            case 37:
+                $sm_id = $user->userId;
+
+                $assistant_managers = User::where('created_by', $sm_id)
+                    ->where('role_id', 38)
+                    ->pluck('userId');
+
+                $all_ids = collect([$sm_id])
+                    ->merge($assistant_managers)
+                    ->unique()
+                    ->filter();
+
+                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+                break;
+
+            case 38: // Assistant Manager
+                $agent_ids = Agent::where('sales_manager_dmc', $user->userId)->pluck('agent_id');
+                break;
+        }
+
+        // **FIX: Create a separate query just for getting unique tour_ids**
+        $uniqueTourIdsQuery = DB::table('orders')
+            ->select('orders.tour_id') // Only select tour_id, not the JSON data column
+            ->where('orders.bookingType', '=', 'enquiry')
+            ->where('orders.status', 1)
+            ->when($agent_ids->isNotEmpty(), function ($query) use ($agent_ids) {
+                $query->whereIn('orders.agent_id', $agent_ids);
+            });
+
+        // Now get unique tour IDs - this will work because we're not selecting JSON columns
+        $uniqueTourIds = $uniqueTourIdsQuery->distinct()->pluck('tour_id');
+        
+        // Paginate the tour IDs (10 tours per page)
+        $perPage = 10;
+        $currentPage = $request->get('page', 1);
+        $paginatedTourIds = $uniqueTourIds->forPage($currentPage, $perPage);
+        
+        // Now get all bookings for the current page's tour IDs
+        $bookings = DB::table('orders')
+            ->select([
+                'orders.id',
+                'orders.tour_id',
+                'orders.booking_id',
+                'orders.agent_id',
+                'orders.type',
+                'orders.data',
+                'orders.bookingType',
+                'agents.name as agent_name'
+            ])
+            ->leftJoin('agents', 'orders.agent_id', '=', 'agents.agent_id')
+            ->where('orders.bookingType', '=', 'enquiry')
+            ->where('orders.status', 1)
+            ->whereIn('orders.tour_id', $paginatedTourIds)
+            ->when($agent_ids->isNotEmpty(), function ($query) use ($agent_ids) {
+                $query->whereIn('orders.agent_id', $agent_ids);
+            })
+            ->orderBy('orders.id', 'desc')
+            ->get();
+
+        // Format and decode bookings
+        $bookings = $bookings->map(function ($booking) {
+            $types = [
+                'hotel' => 'Hotel',
+                'attraction' => 'Attraction',
+                'guide' => 'Guide',
+                'restaurant' => 'Restaurant',
+                'travel_point' => 'Travel Point',
+                'travel_hourly' => 'Travel Hourly',
+                'exit_port' => 'Exit Port',
+                'entry_port' => 'Entry Port'
+            ];
+
+            // Decode the JSON data
+            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
+            
+            // Handle the data decoding more carefully
+            if (is_array($data)) {
+                // If it's a direct array of items
+                if (isset($data[0])) {
+                    $booking->data_decoded = $data;
+                } else {
+                    // If it's a single item
+                    $booking->data_decoded = [$data];
+                }
+            } else {
+                $booking->data_decoded = [];
+            }
+
+            // Process each item in data_decoded to ensure dates are properly formatted
+            $booking->data_decoded = array_map(function($item) {
+                // Handle booking dates
+                if (isset($item['bookingDate'])) {
+                    if (is_array($item['bookingDate'])) {
+                        // For date ranges (like hotel bookings)
+                        $item['bookingDate'] = array_map(function($date) {
+                            return date('Y-m-d', strtotime($date));
+                        }, $item['bookingDate']);
+                    } else {
+                        // For single dates
+                        $item['bookingDate'] = date('Y-m-d', strtotime($item['bookingDate']));
+                    }
+                }
+
+                // Handle other date fields
+                if (isset($item['pickupdate'])) {
+                    $item['pickupdate'] = date('Y-m-d', strtotime($item['pickupdate']));
+                }
+                if (isset($item['exitpickupdate'])) {
+                    $item['exitpickupdate'] = date('Y-m-d', strtotime($item['exitpickupdate']));
+                }
+
+                return $item;
+            }, $booking->data_decoded);
+
+            // Set the type
+            $booking->type = $types[$booking->type] ?? $booking->type;
+
+            // Add DMC and Master DMC information
+            if ($booking->agent_id) {
+                $agent = Agent::where('agent_id', $booking->agent_id)->first();
+                
+                // Initialize DMC information
+                $dmc_id = null;
+                $dmc_name = 'N/A';
+                $dmc_company = 'N/A';
+                $master_dmc_name = 'N/A';
+                $master_dmc_company = 'N/A';
+                
+                if ($agent) {
+                    // Determine DMC ID based on agent role
+                    switch ($agent->role_id) {
+                        case 11: // Agent is a DMC
+                            $dmc_id = $agent->userId ?? $agent->agent_id;
+                            break;
+                            
+                        case 33: // Sales Head
+                            $salesManagerId = $agent->sales_manager_dmc;
+                            $saleshead_dmc = User::where('userId', $salesManagerId)->first();
+                            if ($saleshead_dmc) {
+                                $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
+                                if ($dmc_users && $dmc_users->role_id == 11) {
+                                    $dmc_id = $dmc_users->userId;
+                                }
+                            }
+                            break;
+                            
+                        case 12:
+                        case 37: // Sales Manager
+                            $salesManagerId = $agent->sales_manager_dmc;
+                            $salesmng_dmc = User::where('userId', $salesManagerId)->first();
+                            
+                            if ($salesmng_dmc) {
+                                $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first();
+                                if ($saleshead_dmc) {
+                                    $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
+                                    if ($dmc_users && $dmc_users->role_id == 11) {
+                                        $dmc_id = $dmc_users->userId;
+                                    }
+                                }
+                            }
+                            break;
+                            
+                        case 38: // Assistant Manager
+                            $salesManagerId = $agent->sales_manager_dmc;
+                            $asmng_dmc = User::where('userId', $salesManagerId)->first();
+                            if ($asmng_dmc) {
+                                $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first();
+                                if ($salesmng_dmc) {
+                                    $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first();
+                                    if ($saleshead_dmc) {
+                                        $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
+                                        if ($dmc_users && $dmc_users->role_id == 11) {
+                                            $dmc_id = $dmc_users->userId;
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                    
+                    // Get DMC and Master DMC information if DMC ID is available
+                    if ($dmc_id) {
+                        $dmc = User::where('userId', $dmc_id)->first();
+                        if ($dmc) {
+                            $dmc_name = $dmc->name;
+                            $dmc_company = $dmc->company_name;
+                            
+                            // Get Master DMC information if available
+                            if ($dmc->master_dmc_id) {
+                                $master_dmc = User::where('userId', $dmc->master_dmc_id)->first();
+                                if ($master_dmc) {
+                                    $master_dmc_name = $master_dmc->name;
+                                    $master_dmc_company = $master_dmc->company_name;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Add the company information to the booking
+                $booking->dmc_name = $dmc_name;
+                $booking->dmc_company = $dmc_company;
+                $booking->master_dmc_name = $master_dmc_name;
+                $booking->master_dmc_company = $master_dmc_company;
+            }
+
+            return $booking;
+        });
+
+        // Create pagination manually
+        $pagination = new \Illuminate\Pagination\LengthAwarePaginator(
+            $bookings, // Current page items
+            $uniqueTourIds->count(), // Total items count
+            $perPage, // Items per page
+            $currentPage, // Current page
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+        $pagination->appends($request->except('page'));
+
+        // For use in JavaScript, etc.
+        $dmcUsers = DB::table('users')
+            ->select('userId', 'name', 'company_name')
+            ->get()
+            ->keyBy('userId')
+            ->toArray();
+
+        return view('bookingList.enquiry', compact('bookings', 'dmcUsers', 'pagination'));
+    }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -633,11 +942,11 @@ class BookingListController extends Controller
         // Fetch tour details
         // $tourDetails = DB::table('tours')->where('tour_id', $tourId)->first();
         $tourDetails = Tour::with(['booking' => function ($query) {
-    $query->where(function ($q) {
-        $q->where('type', '!=', 'hotel')
-          ->orWhere('status', '!=', 2);
-    });
-}])->where('tour_id', $tourId)->first();
+        $query->where(function ($q) {
+            $q->where('type', '!=', 'hotel')
+            ->orWhere('status', '!=', 2);
+        });
+        }])->where('tour_id', $tourId)->first();
 
         if (!$bookings->count()) {
             return redirect()->back()->with('error', 'No itinerary found for this tour.');
