@@ -6,7 +6,7 @@ import {
   setSelectbooking,
 } from "@/slice/localtour/Localslice";
 
-const AttractionRestaurantSearch = ({ onSelect }) => {
+const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0 }) => {
   const dispatch = useDispatch();
   const attractions = useSelector((state) => state.attractions.attractions);
   const restaurants = useSelector((state) => state.restaurants.restaurants);
@@ -15,6 +15,9 @@ const AttractionRestaurantSearch = ({ onSelect }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const dropdownRef = useRef(null);
+  
+  // Create unique ID for the input
+  const inputId = `attraction-restaurant-search-day-${dayIndex}`;
 
   // Filter attractions and restaurants based on search term
   const filteredAttractions = attractions?.filter(attraction => 
@@ -86,6 +89,7 @@ const AttractionRestaurantSearch = ({ onSelect }) => {
           </h4>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative" ref={dropdownRef}>
             <input
+              id={inputId}
               type="text"
               placeholder="where is your pickup?"
               className="js-search js-dd-focus w-full"
@@ -102,7 +106,7 @@ const AttractionRestaurantSearch = ({ onSelect }) => {
                     <div className="category-heading">Attractions</div>
                     {filteredAttractions.map((attraction) => (
                       <div
-                        key={`attraction-${attraction.id}`}
+                        key={`attraction-${attraction.id}-day-${dayIndex}`}
                         className="location-item"
                         onClick={() => handleSelect(attraction, 'attraction')}
                       >
@@ -118,7 +122,7 @@ const AttractionRestaurantSearch = ({ onSelect }) => {
                     <div className="category-heading">Restaurants</div>
                     {filteredRestaurants.map((restaurant) => (
                       <div
-                        key={`restaurant-${restaurant.id}`}
+                        key={`restaurant-${restaurant.id}-day-${dayIndex}`}
                         className="location-item"
                         onClick={() => handleSelect(restaurant, 'restaurant')}
                       >

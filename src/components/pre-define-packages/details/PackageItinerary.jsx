@@ -9,6 +9,11 @@ import {
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
+// Import shared date utility functions from parent component
+// Note: In a real application, these would be in a separate utils file
+// This is a workaround for this specific implementation
+import { formatDate, getItineraryDayDate } from './shared-date-utils';
+
 // Compact day item component for sidebar
 const DayItem = ({ day, isActive, onClick }) => {
   return (
@@ -82,36 +87,14 @@ const DayItem = ({ day, isActive, onClick }) => {
   );
 };
 
-const formatDate = (date) => {
-  return date.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: '2-digit'
-  }).replace(',', '');
-};
-
 const PackageItinerary = ({ packageDetails, activeDay, setActiveDay, contentRef, dayRefs }) => {
   // Generate day items for sidebar navigation
   const generateDayItems = () => {
     const days = packageDetails.duration_days || 1;
     
-      // Prioritize using the date from search or fall back to package start_date
-  // This ensures the itinerary uses the user-selected date
-  const startDate = packageDetails.date ? new Date(packageDetails.date) : 
-                   packageDetails.start_date ? new Date(packageDetails.start_date) : new Date();
-  
-  // Log for debugging to confirm which date is being used
-  console.log('PackageItinerary - Dates:', { 
-    date: packageDetails.date,
-    start_date: packageDetails.start_date,
-    using: packageDetails.date ? 'date' : packageDetails.start_date ? 'start_date' : 'current date'
-  });
-    
     return Array(days).fill().map((_, index) => {
-      // Calculate date for this day (start date + index days)
-      const dayDate = new Date(startDate);
-      dayDate.setDate(startDate.getDate() + index);
+      // Use the shared date calculation function
+      const dayDate = getItineraryDayDate(packageDetails, index);
       
       return {
         day: index + 1,
@@ -129,6 +112,7 @@ const PackageItinerary = ({ packageDetails, activeDay, setActiveDay, contentRef,
   // Scroll to specific day in itinerary
   const scrollToDay = (dayIndex) => {
     setActiveDay(dayIndex);
+    
     if (dayRefs.current[dayIndex] && dayRefs.current[dayIndex].current && contentRef.current) {
       const contentContainer = contentRef.current;
       const dayElement = dayRefs.current[dayIndex].current;

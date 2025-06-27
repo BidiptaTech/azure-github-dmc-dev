@@ -552,10 +552,25 @@ export const Localtourslice = createAsyncThunk(
 );
 export const fetchLocalZone = createAsyncThunk(
   "localtour/fetchLocalZone",
-  async ({ id, type }, { rejectWithValue, dispatch }) => {
+  async ({ id, type }, { rejectWithValue, dispatch, getState }) => {
+    const state = getState();
     try {
       const authToken = Cookies.get("authToken");
-      const AgentId = Cookies.get("AgentId");
+      const agentID = state.editing?.agentId;
+      const userRole = state.auth?.userRole;
+
+      // Corrected conditional statement
+      let AgentId;
+      if (
+        userRole === "Sales Head(DMC)" ||
+        userRole === "Sales Manager (DMC)" ||
+        userRole === "Assistant Manager (DMC)"
+      ) {
+        AgentId = agentID;
+      } else {
+        AgentId = Cookies.get("AgentId");
+      }
+
 
       if (!authToken || !AgentId) {
         throw new Error("Authorization and AgentId are missing.");

@@ -13,12 +13,16 @@ const SearchBar = ({
   validationTriggered = false,
   setPickupFromAutocomplete,
   setDropoffFromAutocomplete,
+  dayIndex = 0,
 }) => {
   const autocompletePickUpRef1 = useRef(null);
   const autocompleteDropOffRef1 = useRef(null);
   const [isPickupValid, setIsPickupValid] = useState(true);
   const [isDropoffValid, setIsDropoffValid] = useState(true);
   const SelectedPort = useSelector((state) => state.localtour.selectedPort);
+
+  const pickupInputId = `local-transport-pick-up-input-day-${dayIndex}`;
+  const dropoffInputId = `local-transport-drop-off-input-day-${dayIndex}`;
 
   useEffect(() => {
     if (!window.google || !window.google.maps || !window.google.maps.places) {
@@ -74,22 +78,20 @@ const SearchBar = ({
     };
 
     initializeAutocomplete(
-      "local-transport-pick-up-input",
+      pickupInputId,
       autocompletePickUpRef1,
       setPickUpLocation,
       setPickupLatLng,
       setIsPickupValid,
-      setPickupFromAutocomplete,
-      true // isPickup = true
+      setPickupFromAutocomplete
     );
     initializeAutocomplete(
-      "local-transport-drop-off-input",
+      dropoffInputId,
       autocompleteDropOffRef1,
       setDropOffLocation,
       setDropoffLatLng,
       setIsDropoffValid,
-      setDropoffFromAutocomplete,
-      false // isPickup = false
+      setDropoffFromAutocomplete
     );
 
     return () => {
@@ -110,6 +112,8 @@ const SearchBar = ({
     setDropoffLatLng,
     setPickupFromAutocomplete,
     setDropoffFromAutocomplete,
+    pickupInputId,
+    dropoffInputId,
   ]);
 
   const handlePickupChange = (e) => {
@@ -158,7 +162,7 @@ const SearchBar = ({
                 </h4>
                 <div className="text-15 text-light-1 ls-2 lh-16">
                   <input
-                    id="local-transport-pick-up-input"
+                    id={pickupInputId}
                     autoComplete="off"
                     type="search"
                     placeholder="Where is your pick up?"
@@ -192,7 +196,7 @@ const SearchBar = ({
                 </h4>
                 <div className="text-15 text-light-1 ls-2 lh-16">
                   <input
-                    id="local-transport-drop-off-input"
+                    id={dropoffInputId}
                     autoComplete="off"
                     type="search"
                     placeholder="Where is your drop off?"

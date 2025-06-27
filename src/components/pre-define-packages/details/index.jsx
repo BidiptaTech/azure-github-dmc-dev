@@ -57,6 +57,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormGroup from '@mui/material/FormGroup';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 
 // Import components
 import PackageHeader from './PackageHeader';
@@ -65,7 +67,7 @@ import InclusionsExclusions from './InclusionsExclusions';
 import PackageItinerary from './PackageItinerary';
 import AccommodationDetails from './AccommodationDetails';
 import AttractionsDetails from './AttractionsDetails';
-import RestaurantsDetails from './RestaurantsDetails';
+/* import RestaurantsDetails from './RestaurantsDetails'; */
 import GuideDetails from './GuideDetails';
 import PackagePricing from './PackagePricing';
 import TermsConditions from './TermsConditions';
@@ -74,11 +76,12 @@ import TermsConditions from './TermsConditions';
 import SelectionModal from './selection-components/SelectionModal';
 import HotelItemRenderer from './selection-components/HotelItemRenderer';
 import AttractionItemRenderer from './selection-components/AttractionItemRenderer';
-import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer';
+/* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
 import GuideItemRenderer from './selection-components/GuideItemRenderer';
 
 // Import API endpoints
 import { endpoints } from '../../../services/api';
+import { formatDate, getItineraryDayDate } from './shared-date-utils';
 
 // Navigation arrow for section navigation
 const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label }) => {
@@ -225,36 +228,43 @@ const PackageDetailsContainer = () => {
   const navigate = useNavigate();
   
   const [mainTab, setMainTab] = useState(0);
-  const [activeSection, setActiveSection] = useState('hotels');
-  const [activeDay, setActiveDay] = useState(0); // Track active day in itinerary
-  const [currentPackageDetails, setCurrentPackageDetails] = useState(null); // Track updated package details
+  const [activeDay, setActiveDay] = useState(0);
+  const [currentPackageDetails, setCurrentPackageDetails] = useState(null);
   
   // State for modals
   const [hotelsModalOpen, setHotelsModalOpen] = useState(false);
   const [attractionsModalOpen, setAttractionsModalOpen] = useState(false);
-  const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false);
+  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   const [guidesModalOpen, setGuidesModalOpen] = useState(false);
   
   // State for available items (items fetched from API)
   const [availableHotels, setAvailableHotels] = useState([]);
   const [availableAttractions, setAvailableAttractions] = useState([]);
-  const [availableRestaurants, setAvailableRestaurants] = useState([]);
+  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
   const [availableGuides, setAvailableGuides] = useState([]);
   
   // State for selected items
   const [selectedHotels, setSelectedHotels] = useState([]);
   const [selectedAttractions, setSelectedAttractions] = useState([]);
-  const [selectedRestaurants, setSelectedRestaurants] = useState([]);
+  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   const [selectedGuides, setSelectedGuides] = useState([]);
   
-  // Refs for scrolling to sections
-  const itineraryRef = useRef(null);
-  const hotelsRef = useRef(null);
-  const attractionsRef = useRef(null);
-  const restaurantsRef = useRef(null);
-  const guidesRef = useRef(null);
-  const policiesRef = useRef(null);
-  const pricingRef = useRef(null);
+  // State for globally selected hotel and guide across all days
+  const [selectedHotelId, setSelectedHotelId] = useState(null);
+  const [selectedGuideId, setSelectedGuideId] = useState(null);
+  
+  // Track booked attractions by day - { attractionId: dayIndex }
+  const [bookedAttractions, setBookedAttractions] = useState({});
+  
+  // Track transport options
+  const [entryPortTransfer, setEntryPortTransfer] = useState(0);
+  const [exitPortTransfer, setExitPortTransfer] = useState(0);
+  const [attractionWithTransfer, setAttractionWithTransfer] = useState({});
+  
+  // Track active service tab for each day
+  const [dayServiceTabs, setDayServiceTabs] = useState({});
+  
+  // Ref for content scrolling
   const contentRef = useRef(null);
 
   // Refs for days in itinerary (will be populated dynamically)
@@ -262,42 +272,6 @@ const PackageDetailsContainer = () => {
   
   const handleMainTabChange = (event, newValue) => {
     setMainTab(newValue);
-  };
-  
-  const scrollToSection = (sectionId) => {
-    setActiveSection(sectionId);
-    const sectionRef = {
-      itinerary: itineraryRef,
-      hotels: hotelsRef,
-      attractions: attractionsRef,
-      restaurants: restaurantsRef,
-      guides: guidesRef,
-      policies: policiesRef,
-      pricing: pricingRef
-    }[sectionId];
-    
-    if (sectionRef && sectionRef.current && contentRef.current) {
-      // Get the content container
-      const contentContainer = contentRef.current;
-      const sectionElement = sectionRef.current;
-      
-      // Calculate the section's position relative to the content container
-      const sectionRect = sectionElement.getBoundingClientRect();
-      const containerRect = contentContainer.getBoundingClientRect();
-      
-      // Calculate the correct scroll position
-      // This accounts for the section's position relative to the container
-      const scrollPosition = contentContainer.scrollTop + (sectionRect.top - containerRect.top);
-      
-      // Add a small offset to account for any sticky headers (20px padding)
-      const scrollOffset = -20;
-      
-      // Scroll to the calculated position
-      contentContainer.scrollTo({
-        top: scrollPosition + scrollOffset,
-        behavior: 'smooth'
-      });
-    }
   };
   
   // Scroll to specific day in itinerary
@@ -325,45 +299,6 @@ const PackageDetailsContainer = () => {
     }
   };
   
-  // Section tabs configuration
-  const sectionTabs = [
-    // { id: 'itinerary', label: 'Itinerary', icon: <MapIcon /> },
-    { id: 'hotels', label: 'Hotels', icon: <HotelIcon /> },
-    { id: 'attractions', label: 'Attractions', icon: <AttractionsIcon /> },
-    { id: 'restaurants', label: 'Restaurants', icon: <RestaurantIcon /> },
-    { id: 'guides', label: 'Tour Guide', icon: <PersonIcon /> },
-    // { id: 'policies', label: 'Policies', icon: <GavelIcon /> }
-  ];
-  
-  // Render horizontal section tabs
-  const renderSectionTabs = () => (
-    <Paper elevation={2} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-      <Tabs
-        value={sectionTabs.findIndex(tab => tab.id === activeSection)}
-        onChange={(e, value) => scrollToSection(sectionTabs[value].id)}
-        variant="scrollable"
-        scrollButtons="auto"
-        aria-label="section navigation tabs"
-        sx={{
-          bgcolor: 'background.paper',
-          '& .MuiTab-root': {
-            minWidth: 'auto',
-            py: 1.5
-          }
-        }}
-      >
-        {sectionTabs.map(tab => (
-          <Tab 
-            key={tab.id} 
-            icon={tab.icon} 
-            label={tab.label} 
-            iconPosition="start"
-          />
-        ))}
-      </Tabs>
-    </Paper>
-  );
-  
   const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
   
   useEffect(() => {
@@ -381,6 +316,14 @@ const PackageDetailsContainer = () => {
         date: searchParams?.date || packageDetails.date
       };
       
+      console.log('Setting package details in parent component:', {
+        originalDate: packageDetails.date,
+        originalStartDate: packageDetails.start_date,
+        searchParamsDate: searchParams?.date,
+        finalDate: updatedPackageDetails.date,
+        finalStartDate: updatedPackageDetails.start_date
+      });
+      
       // Create refs for each day in the itinerary
       if (updatedPackageDetails.duration_days) {
         dayRefs.current = Array(updatedPackageDetails.duration_days)
@@ -391,7 +334,7 @@ const PackageDetailsContainer = () => {
       // Set selected items from package details
       setSelectedHotels(updatedPackageDetails.selected_hotels || []);
       setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
-      setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []);
+      /* setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []); */
       
       // Check for both property names for guides (selected_guides or selected_guide)
       const guides = updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || [];
@@ -541,6 +484,7 @@ const PackageDetailsContainer = () => {
     }
   };
   
+  /* 
   const handleOpenRestaurantsModal = async () => {
     try {
       // Show loading state
@@ -598,6 +542,7 @@ const PackageDetailsContainer = () => {
       setIsLoading(false);
     }
   };
+  */
   
   const handleOpenGuidesModal = async () => {
     try {
@@ -663,6 +608,94 @@ const PackageDetailsContainer = () => {
     }
   };
   
+  // Handler for booking/unbooking an attraction for a specific day
+  const handleAttractionToggle = (attractionId, dayIndex, isChecked) => {
+    console.log(`Attraction ${attractionId} on day ${dayIndex + 1} ${isChecked ? 'booked' : 'unbooked'}`);
+    
+    setBookedAttractions(prev => {
+      const updated = {...prev};
+      
+      if (isChecked) {
+        // Book the attraction for this day
+        updated[attractionId] = dayIndex;
+      } else {
+        // Remove the booking if it exists
+        if (updated[attractionId] === dayIndex) {
+          delete updated[attractionId];
+        }
+      }
+      
+      return updated;
+    });
+  };
+  
+  // Handler for toggling attraction transfer
+  const handleAttractionTransferToggle = (attractionId, isChecked) => {
+    console.log(`Attraction transfer for ${attractionId} ${isChecked ? 'enabled' : 'disabled'}`);
+    
+    setAttractionWithTransfer(prev => {
+      const updated = {...prev};
+      
+      if (isChecked) {
+        // Add transport for this attraction
+        updated[attractionId] = 1;
+      } else {
+        // Remove transport if it exists
+        delete updated[attractionId];
+      }
+      
+      return updated;
+    });
+  };
+  
+  // Helper to check if an attraction has transfer
+  const hasAttractionTransfer = (attractionId) => {
+    return attractionWithTransfer[attractionId] === 1;
+  };
+  
+  // Helper to check if an attraction is already booked
+  const isAttractionBooked = (attractionId) => {
+    return attractionId in bookedAttractions;
+  };
+  
+  // Helper to check if an attraction is booked for a specific day
+  const isAttractionBookedForDay = (attractionId, dayIndex) => {
+    return bookedAttractions[attractionId] === dayIndex;
+  };
+  
+  // Handlers for hotel and guide selection
+  const handleHotelSelect = (hotelId) => {
+    console.log(`Selected hotel: ${hotelId}`);
+    setSelectedHotelId(hotelId);
+  };
+  
+  const handleGuideSelect = (guideId) => {
+    console.log(`Selected guide: ${guideId}`);
+    setSelectedGuideId(guideId);
+  };
+
+  // Get itinerary dates for all days
+  const getItineraryDates = () => {
+    if (!packageDetails || !packageDetails.duration_days) return [];
+    
+    const dates = [];
+    for (let i = 0; i < packageDetails.duration_days; i++) {
+      const dayDate = getItineraryDayDate(packageDetails, i);
+      dates.push({
+        day: i + 1, 
+        date: formatDate(dayDate),
+        full_date: dayDate
+      });
+    }
+    return dates;
+  };
+  
+  // Helper function to ensure consistent ID handling
+  const getEntityId = (entity, index, prefix) => {
+    // Try to get ID in different formats that might exist in the data
+    return entity.id || entity._id || `${prefix}-${index}`;
+  };
+  
   // Helper to get navigation details for sections
   const getNavigationDetails = (currentSection) => {
     const sections = sectionTabs.map(tab => tab.id);
@@ -680,6 +713,81 @@ const PackageDetailsContainer = () => {
         icon: sectionTabs[currentIndex + 1].icon
       } : null
     };
+  };
+  
+  // Helper to get the active tab for a day (default to 'hotels')
+  const getActiveDayServiceTab = (dayIndex) => {
+    return dayServiceTabs[dayIndex] || 'hotels';
+  };
+  
+  // Handle tab change for a specific day
+  const handleDayServiceTabChange = (dayIndex, newValue) => {
+    setDayServiceTabs(prev => ({
+      ...prev,
+      [dayIndex]: newValue
+    }));
+  };
+  
+  // Add these event handlers for entry/exit port
+  const handleEntryPortTransfer = (isChecked) => {
+    setEntryPortTransfer(isChecked ? 1 : 0);
+  };
+  
+  const handleExitPortTransfer = (isChecked) => {
+    setExitPortTransfer(isChecked ? 1 : 0);
+  };
+  
+  // No need for handlers since these are not user-selectable
+  
+  // Helper to check if an attraction has transfer available and what type
+  const getAttractionTransferType = (attractionId) => {
+    // Check if attraction transfer is available in package data
+    if (packageDetails?.attractions_with_transfer) {
+      const transferValue = packageDetails.attractions_with_transfer[attractionId];
+      if (transferValue === 2) return 'bidirectional';
+      if (transferValue === 1 || transferValue === true) return 'unidirectional';
+    }
+    
+    // Check if package data has general attraction_with_transfer flag
+    if (packageDetails?.attraction_with_transfer === 2) {
+      return 'bidirectional';
+    }
+    if (packageDetails?.attraction_with_transfer === 1 || 
+        packageDetails?.attraction_with_transfer === true) {
+      return 'unidirectional';
+    }
+    
+    // Default to checking the attraction object itself
+    const attraction = selectedAttractions.find(a => (a.id === attractionId || a._id === attractionId));
+    if (attraction?.with_transfer === 2) return 'bidirectional';
+    if (attraction?.with_transfer === 1 || 
+        attraction?.with_transfer === true ||
+        attraction?.transfer_available === true) return 'unidirectional';
+    
+    return null; // No transfer available
+  };
+
+  // Helper to check if an attraction has any transfer available
+  const hasAttractionTransferAvailable = (attractionId) => {
+    return getAttractionTransferType(attractionId) !== null;
+  };
+  
+  // Helper to check if entry port transfer is available
+  const hasEntryPortTransfer = () => {
+    return packageDetails?.entry_port_transfer === 1 || 
+           packageDetails?.entry_port_transfer === true ||
+           packageDetails?.entry_port === 1 || 
+           packageDetails?.entry_port === true || 
+           packageDetails?.has_entry_port_transfer === true;
+  };
+  
+  // Helper to check if exit port transfer is available
+  const hasExitPortTransfer = () => {
+    return packageDetails?.exit_port_transfer === 1 || 
+           packageDetails?.exit_port_transfer === true ||
+           packageDetails?.exit_port === 1 || 
+           packageDetails?.exit_port === true || 
+           packageDetails?.has_exit_port_transfer === true;
   };
   
   if (loadingDetails) {
@@ -780,20 +888,6 @@ const PackageDetailsContainer = () => {
               
               {/* Content Columns - Container for main content and price */}
               <Grid item xs={12} md={9} lg={10}>
-                {/* Section tabs that span across middle and right columns - Sticky */}
-                <Box 
-                  sx={{ 
-                    position: 'sticky',
-                    top: 20,
-                    zIndex: 10,
-                    mb: 2,
-                    backgroundColor: 'background.default',
-                    pt: 0.5
-                  }}
-                >
-                  {renderSectionTabs()}
-                </Box>
-                
                 <Grid container spacing={3}>
                   {/* Middle column - Scrollable main content */}
                   <Grid item xs={12} md={8}>
@@ -820,186 +914,486 @@ const PackageDetailsContainer = () => {
                         },
                       }}
                     >
-                      {/* Hotels Section */}
-                      <Box ref={hotelsRef} id="hotels" sx={{ mb: 2 }}>
-                        <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                          <SectionHeader 
-                            icon={HotelIcon} 
-                            title="Hotels"
-                            // count={selectedHotels.length}
-                            onChangeClick={handleOpenHotelsModal}
-                          />
-                          <ContentSection>
-                            <AccommodationDetails packageData={{...packageDetails, selected_hotels: selectedHotels}} />
-                          </ContentSection>
-                        </Card>
+                      {/* Day-by-Day Itinerary with Service Selection */}
+                      {(currentPackageDetails || packageDetails).duration_days && 
+                      Array((currentPackageDetails || packageDetails).duration_days).fill().map((_, dayIndex) => {
+                        // Create references for each day if not already created
+                        if (!dayRefs.current[dayIndex]) {
+                          dayRefs.current[dayIndex] = React.createRef();
+                        }
                         
-                        {/* Bottom navigation */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
-                          {(() => {
-                            const nav = getNavigationDetails('hotels');
-                            return (
-                              <>
-                                <NavigationArrow
-                                  direction="prev"
-                                  disabled={!nav.prev}
-                                  label="Hotels"
-                                />
-                                <NavigationArrow
-                                  direction="next"
-                                  onClick={() => scrollToSection('attractions')}
-                                  label="Attractions"
-                                />
-                              </>
-                            );
-                          })()}
-                        </Box>
-                      </Box>
-                      
-                      {/* Attractions Section */}
-                      <Box ref={attractionsRef} id="attractions" sx={{ mb: 2 }}>
-                        <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                          <SectionHeader 
-                            icon={AttractionsIcon} 
-                            title="Attractions"
-                            // count={selectedAttractions.length}
-                            onChangeClick={handleOpenAttractionsModal}
-                          />
-                          <ContentSection>
-                            <AttractionsDetails packageData={{...packageDetails, selected_attractions: selectedAttractions}} />
-                          </ContentSection>
-                        </Card>
+                        // Get the day date using currentPackageDetails for consistency
+                        const dayDate = getItineraryDayDate(currentPackageDetails || packageDetails, dayIndex);
+                        const formattedDate = formatDate(dayDate);
                         
-                        {/* Bottom navigation */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
-                          {(() => {
-                            const nav = getNavigationDetails('attractions');
-                            return (
-                              <>
-                                <NavigationArrow
-                                  direction="prev"
-                                  onClick={() => scrollToSection('hotels')}
-                                  label="Hotels"
-                                />
-                                <NavigationArrow
-                                  direction="next"
-                                  onClick={() => scrollToSection('restaurants')}
-                                  label="Restaurants"
-                                />
-                              </>
-                            );
-                          })()}
-                        </Box>
-                      </Box>
-                      
-                      {/* Restaurants Section */}
-                      <Box ref={restaurantsRef} id="restaurants" sx={{ mb: 2 }}>
-                        <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                          <SectionHeader 
-                            icon={RestaurantIcon} 
-                            title="Restaurants"
-                            // count={selectedRestaurants.length}
-                            onChangeClick={handleOpenRestaurantsModal}
-                          />
-                          <ContentSection>
-                            <RestaurantsDetails packageData={{...packageDetails, selected_restaurants: selectedRestaurants}} />
-                          </ContentSection>
-                        </Card>
+                        // Get description for the day
+                        const currentDetails = currentPackageDetails || packageDetails;
+                        const dayDescription = currentDetails.itinerary && currentDetails.itinerary[dayIndex]
+                          ? currentDetails.itinerary[dayIndex].title.split(' - ')[1]
+                          : dayIndex === 0 ? 'Arrival' : dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 'Exploration';
                         
-                        {/* Bottom navigation */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
-                          {(() => {
-                            const nav = getNavigationDetails('restaurants');
-                            return (
-                              <>
-                                <NavigationArrow
-                                  direction="prev"
-                                  onClick={() => scrollToSection('attractions')}
-                                  label="Attractions"
+                        return (
+                          <Box 
+                            key={`day-${dayIndex}`}
+                            ref={dayRefs.current[dayIndex]}
+                            id={`day-${dayIndex}`} 
+                            sx={{ mb: 4 }}
+                          >
+                            {/* Day Header */}
+                            <Card elevation={2} sx={{ borderRadius: '8px 8px 0 0', overflow: 'hidden', mb: 0 }}>
+                              <Box sx={{ 
+                                bgcolor: activeDay === dayIndex ? 'primary.main' : 'grey.100', 
+                                color: activeDay === dayIndex ? 'primary.contrastText' : 'text.primary',
+                                px: 3, 
+                                py: 1.5, 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center'
+                              }}>
+                                <Box>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    Day {dayIndex + 1} - {dayDescription}
+                                  </Typography>
+                                  <Typography variant="body2" color={activeDay === dayIndex ? 'primary.contrastText' : 'text.secondary'}>
+                                    {formattedDate}
+                                  </Typography>
+                                </Box>
+                                <Chip 
+                                  label={`Day ${dayIndex + 1}`} 
+                                  color={activeDay === dayIndex ? "primary" : "default"}
+                                  onClick={() => setActiveDay(dayIndex)} 
+                                  variant={activeDay === dayIndex ? "filled" : "outlined"}
                                 />
-                                <NavigationArrow
-                                  direction="next"
-                                  onClick={() => scrollToSection('guides')}
-                                  label="Tour Guide"
-                                />
-                              </>
-                            );
-                          })()}
-                        </Box>
-                      </Box>
-                      
-                      {/* Tour Guide Section */}
-                      <Box ref={guidesRef} id="guides" sx={{ mb: 2 }}>
-                        <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                          <SectionHeader 
-                            icon={PersonIcon} 
-                            title="Tour Guide"
-                            // count={selectedGuides.length}
-                            onChangeClick={handleOpenGuidesModal}
-                          />
-                          <ContentSection>
-                            <GuideDetails packageData={{...packageDetails, selected_guides: selectedGuides}} />
-                          </ContentSection>
-                        </Card>
-                        
-                        {/* Bottom navigation */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
-                          {(() => {
-                            const nav = getNavigationDetails('guides');
-                            return (
-                              <>
-                                <NavigationArrow
-                                  direction="prev"
-                                  onClick={() => scrollToSection('restaurants')}
-                                  label="Restaurants"
-                                />
-                                {/* <NavigationArrow
-                                  direction="next"
-                                  onClick={() => scrollToSection('policies')}
-                                  label="Policies"
-                                /> */}
-                              </>
-                            );
-                          })()}
-                        </Box>
-                      </Box>
-                      
-                      {/* Policies Section */}
-                      {/* <Box ref={policiesRef} id="policies" sx={{ mb: 2 }}>
-                        <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                          <SectionHeader 
-                            icon={GavelIcon} 
-                            title="Policies"
-                          />
-                          <ContentSection>
-                            <Stack spacing={1}>
-                              <InclusionsExclusions packageData={packageDetails} />
-                              <TermsConditions packageData={packageDetails} />
-                            </Stack>
-                          </ContentSection>
-                        </Card>
-                        
-                        
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
-                          {(() => {
-                            const nav = getNavigationDetails('policies');
-                            return (
-                              <>
-                                <NavigationArrow
-                                  direction="prev"
-                                  onClick={() => scrollToSection('guides')}
-                                  label="Tour Guide"
-                                />
-                                <NavigationArrow
-                                  direction="next"
-                                  disabled={!nav.next}
-                                  label="Policies"
-                                />
-                              </>
-                            );
-                          })()}
-                        </Box>
-                      </Box> */}
+                              </Box>
+                            </Card>
+
+                            {/* Day Services */}
+                            <Card elevation={1} sx={{ borderRadius: '0 0 8px 8px', overflow: 'hidden', mb: 2 }}>
+                              <ContentSection>
+                                {/* Service Tabs */}
+                                <Tabs 
+                                  value={getActiveDayServiceTab(dayIndex)}
+                                  onChange={(e, newValue) => handleDayServiceTabChange(dayIndex, newValue)}
+                                  variant="fullWidth"
+                                  sx={{ 
+                                    borderBottom: 1, 
+                                    borderColor: 'divider',
+                                    mb: 3
+                                  }}
+                                >
+                                  <Tab 
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          bgcolor: 'primary.main',
+                                          color: 'white',
+                                          borderRadius: '50%',
+                                          width: 28,
+                                          height: 28,
+                                          mr: 1
+                                        }}>
+                                          <HotelIcon sx={{ fontSize: 16 }} />
+                                        </Box>
+                                        <Typography>Hotels</Typography>
+                                      </Box>
+                                    } 
+                                    value="hotels" 
+                                  />
+                                  <Tab 
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          bgcolor: 'success.main',
+                                          color: 'white',
+                                          borderRadius: '50%',
+                                          width: 28,
+                                          height: 28,
+                                          mr: 1
+                                        }}>
+                                          <AttractionsIcon sx={{ fontSize: 16 }} />
+                                        </Box>
+                                        <Typography>Attractions</Typography>
+                                      </Box>
+                                    } 
+                                    value="attractions" 
+                                  />
+                                  {/* 
+                                  <Tab 
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          bgcolor: 'warning.main',
+                                          color: 'white',
+                                          borderRadius: '50%',
+                                          width: 28,
+                                          height: 28,
+                                          mr: 1
+                                        }}>
+                                          <RestaurantIcon sx={{ fontSize: 16 }} />
+                                        </Box>
+                                        <Typography>Restaurants</Typography>
+                                      </Box>
+                                    } 
+                                    value="restaurants" 
+                                  />
+                                  */}
+                                  <Tab 
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          bgcolor: 'info.main',
+                                          color: 'white',
+                                          borderRadius: '50%',
+                                          width: 28,
+                                          height: 28,
+                                          mr: 1
+                                        }}>
+                                          <PersonIcon sx={{ fontSize: 16 }} />
+                                        </Box>
+                                        <Typography>Guides</Typography>
+                                      </Box>
+                                    } 
+                                    value="guides" 
+                                  />
+                                </Tabs>
+                                
+                                {/* Hotels Tab Panel */}
+                                {getActiveDayServiceTab(dayIndex) === 'hotels' && (
+                                  <Box sx={{ mt: 5, ml: 1 }}>
+                                    <Grid container spacing={2}>
+                                      {/* Entry/Exit port options for first/last day */}
+                                      {dayIndex === 0 && hasEntryPortTransfer() && (
+                                        <Grid item xs={12}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
+                                            <Typography variant="subtitle2" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center' }}>
+                                              <span role="img" aria-label="info" style={{ marginRight: '8px' }}>✅</span>
+                                              Arrival transfer from entry port (airport/station) is included
+                                            </Typography>
+                                          </Box>
+                                        </Grid>
+                                      )}
+                                      
+                                      {dayIndex === (packageDetails.duration_days - 1) && hasExitPortTransfer() && (
+                                        <Grid item xs={12}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
+                                            <Typography variant="subtitle2" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center' }}>
+                                              <span role="img" aria-label="info" style={{ marginRight: '8px' }}>✅</span>
+                                              Departure transfer to exit port (airport/station) is included
+                                            </Typography>
+                                          </Box>
+                                        </Grid>
+                                      )}
+                                      
+                                      {selectedHotels && selectedHotels.length > 0 ? (
+                                        <RadioGroup
+                                          name={`hotels-day-${dayIndex}`}
+                                          value={selectedHotelId || ''}
+                                          onChange={(e) => handleHotelSelect(e.target.value)}
+                                          sx={{ width: '100%' }}
+                                        >
+                                          <Grid container spacing={2}>
+                                            {selectedHotels.map((hotel, idx) => (
+                                              <Grid item xs={12} sm={6} md={4} key={`hotel-${dayIndex}-${idx}`}>
+                                                <Card 
+                                                  variant="outlined" 
+                                                  sx={{ 
+                                                    height: '100%',
+                                                    transition: 'all 0.2s ease',
+                                                    position: 'relative',
+                                                    border: selectedHotelId === getEntityId(hotel, idx, 'hotel') ? '2px solid' : '1px solid',
+                                                    borderColor: selectedHotelId === getEntityId(hotel, idx, 'hotel') ? 'primary.main' : 'divider',
+                                                    '&:hover': {
+                                                      boxShadow: 2,
+                                                      borderColor: 'primary.light'
+                                                    }
+                                                  }}
+                                                >
+                                                  <Box 
+                                                    component="img" 
+                                                    src={hotel.image || '/img/hotels/1.png'} 
+                                                    alt={hotel.name}
+                                                    sx={{ 
+                                                      width: '100%', 
+                                                      height: 120, 
+                                                      objectFit: 'cover',
+                                                      borderBottom: '1px solid',
+                                                      borderColor: 'divider'
+                                                    }}
+                                                  />
+                                                  <CardContent sx={{ p: 2 }}>
+                                                    <Typography variant="subtitle1" fontWeight="bold" noWrap>{hotel.name}</Typography>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                      <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+                                                      <Typography variant="caption" color="text.secondary" noWrap>
+                                                        {hotel.address || hotel.location || 'Location information unavailable'}
+                                                      </Typography>
+                                                    </Box>
+                                                    <FormControlLabel
+                                                      control={
+                                                        <Radio 
+                                                          size="small" 
+                                                          value={getEntityId(hotel, idx, 'hotel')}
+                                                          color="primary"
+                                                          checked={selectedHotelId === getEntityId(hotel, idx, 'hotel')}
+                                                        />
+                                                      }
+                                                      label="Select for all days"
+                                                      sx={{ 
+                                                        mt: 0.5, 
+                                                        '& .MuiFormControlLabel-label': { 
+                                                          fontSize: '0.8rem',
+                                                          fontWeight: selectedHotelId === getEntityId(hotel, idx, 'hotel') ? 'bold' : 'normal',
+                                                        }
+                                                      }}
+                                                    />
+                                                  </CardContent>
+                                                </Card>
+                                              </Grid>
+                                            ))}
+                                          </Grid>
+                                        </RadioGroup>
+                                      ) : (
+                                        <Grid item xs={12}>
+                                          <Alert severity="info" sx={{ mb: 1 }}>No hotels available for this day.</Alert>
+                                        </Grid>
+                                      )}
+                                    </Grid>
+                                  </Box>
+                                )}
+
+                                {/* Attractions Tab Panel */}
+                                {getActiveDayServiceTab(dayIndex) === 'attractions' && (
+                                  <Box sx={{ mt: 5, ml: 1 }}>
+                                    <Grid container spacing={2}>
+                                      {/* Filter attractions to only show those not booked on other days */}
+                                      {(selectedAttractions && selectedAttractions.length > 0 ? 
+                                        selectedAttractions.filter(attraction => {
+                                          const attractionId = getEntityId(attraction, null, 'attraction');
+                                          // Show if not booked anywhere OR booked for this specific day
+                                          return !isAttractionBooked(attractionId) || 
+                                                isAttractionBookedForDay(attractionId, dayIndex);
+                                        }) : []
+                                      ).length > 0 ? (
+                                        selectedAttractions
+                                          .filter(attraction => {
+                                            const attractionId = getEntityId(attraction, null, 'attraction');
+                                            // Show if not booked anywhere OR booked for this specific day
+                                            return !isAttractionBooked(attractionId) || 
+                                                  isAttractionBookedForDay(attractionId, dayIndex);
+                                          })
+                                          .map((attraction, idx) => {
+                                            const attractionId = getEntityId(attraction, idx, 'attraction');
+                                            const isBooked = isAttractionBookedForDay(attractionId, dayIndex);
+                                            
+                                            return (
+                                              <Grid item xs={12} sm={6} md={4} key={`attraction-${dayIndex}-${idx}`}>
+                                                <Card 
+                                                  variant="outlined" 
+                                                  sx={{ 
+                                                    height: '100%',
+                                                    transition: 'all 0.2s ease',
+                                                    border: isBooked ? '2px solid' : '1px solid',
+                                                    borderColor: isBooked ? 'success.main' : 'divider',
+                                                    '&:hover': {
+                                                      boxShadow: 2,
+                                                      borderColor: isBooked ? 'success.main' : 'success.light'
+                                                    }
+                                                  }}
+                                                >
+                                                  <Box 
+                                                    component="img" 
+                                                    src={attraction.image || '/img/attractions/1.png'} 
+                                                    alt={attraction.name || attraction.title}
+                                                    sx={{ 
+                                                      width: '100%', 
+                                                      height: 120, 
+                                                      objectFit: 'cover',
+                                                      borderBottom: '1px solid',
+                                                      borderColor: 'divider'
+                                                    }}
+                                                  />
+                                                  <CardContent sx={{ p: 2 }}>
+                                                    <Typography variant="subtitle1" fontWeight="bold" noWrap>
+                                                      {attraction.name || attraction.title}
+                                                    </Typography>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                      <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+                                                      <Typography variant="caption" color="text.secondary" noWrap>
+                                                        {attraction.address || attraction.location || 'Location information unavailable'}
+                                                      </Typography>
+                                                    </Box>
+                                                    <FormControlLabel
+                                                      control={
+                                                        <Checkbox 
+                                                          size="small" 
+                                                          color="success"
+                                                          checked={isBooked}
+                                                          onChange={(e) => handleAttractionToggle(
+                                                            attractionId, 
+                                                            dayIndex, 
+                                                            e.target.checked
+                                                          )}
+                                                        />
+                                                      }
+                                                      label={isBooked ? "Booked for this day" : "Book for this day"}
+                                                      sx={{ 
+                                                        mt: 0.5,
+                                                        '& .MuiFormControlLabel-label': { 
+                                                          fontSize: '0.8rem',
+                                                          color: isBooked ? 'success.main' : 'text.secondary',
+                                                          fontWeight: isBooked ? 'bold' : 'normal'
+                                                        }
+                                                      }}
+                                                    />
+                                                    {(() => {
+                                                      const transferType = getAttractionTransferType(attractionId);
+                                                      if (!transferType) return null;
+                                                      
+                                                      return (
+                                                        <Box sx={{ mt: 0.5, ml: 2, display: 'flex', alignItems: 'center' }}>
+                                                          <span role="img" aria-label="transfer" style={{ marginRight: '4px', fontSize: '0.75rem' }}>
+                                                            {transferType === 'bidirectional' ? '🔄' : '🚕'}
+                                                          </span>
+                                                          <Typography variant="caption" color="success.main" fontWeight="medium">
+                                                            {transferType === 'bidirectional' ? 'Round trip transfer' : 'One-way transfer'}
+                                                          </Typography>
+                                                        </Box>
+                                                      );
+                                                    })()}
+                                                  </CardContent>
+                                                </Card>
+                                              </Grid>
+                                            );
+                                          })
+                                      ) : (
+                                        <Grid item xs={12}>
+                                          <Alert severity="info" sx={{ mb: 1 }}>
+                                            {selectedAttractions && selectedAttractions.length > 0 
+                                              ? 'All attractions have been booked on other days.' 
+                                              : 'No attractions available for this day.'}
+                                          </Alert>
+                                        </Grid>
+                                      )}
+                                    </Grid>
+                                  </Box>
+                                )}
+
+                                {/* Guides Tab Panel */}
+                                {getActiveDayServiceTab(dayIndex) === 'guides' && (
+                                  <Box sx={{ mt: 5, ml: 1 }}>
+                                    <Grid container spacing={2}>
+                                      {selectedGuides && selectedGuides.length > 0 ? (
+                                        selectedGuides.map((guide, idx) => {
+                                          const guideId = getEntityId(guide, idx, 'guide');
+                                          console.log(`Rendering guide ${idx}, ID:`, guideId, "Selected ID:", selectedGuideId, "Checked:", selectedGuideId === guideId);
+                                          
+                                          return (
+                                            <Grid item xs={12} sm={6} md={4} key={`guide-${dayIndex}-${idx}`}>
+                                              <Card 
+                                                variant="outlined" 
+                                                sx={{ 
+                                                  height: '100%',
+                                                  transition: 'all 0.2s ease',
+                                                  border: selectedGuideId === guideId ? '2px solid' : '1px solid',
+                                                  borderColor: selectedGuideId === guideId ? 'info.main' : 'divider',
+                                                  '&:hover': {
+                                                    boxShadow: 2,
+                                                    borderColor: 'info.light'
+                                                  }
+                                                }}
+                                                onClick={() => {
+                                                  console.log(`Card clicked for guide ${idx}, ID: ${guideId}`);
+                                                  handleGuideSelect(guideId);
+                                                }}
+                                              >
+                                                <Box sx={{ 
+                                                  display: 'flex',
+                                                  justifyContent: 'center',
+                                                  padding: 2,
+                                                  borderBottom: '1px solid',
+                                                  borderColor: 'divider'
+                                                }}>
+                                                  <Avatar 
+                                                    src={guide.image || '/img/team/1.png'} 
+                                                    alt={guide.name}
+                                                    sx={{ width: 80, height: 80 }}
+                                                  />
+                                                </Box>
+                                                <CardContent sx={{ p: 2 }}>
+                                                  <Typography variant="subtitle1" fontWeight="bold" align="center" noWrap>
+                                                    {guide.name}
+                                                  </Typography>
+                                                  <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>
+                                                    {guide.language || 'English'} • {guide.experience || '5'} years exp.
+                                                  </Typography>
+                                                  
+                                                  {/* Individual radio button with explicit click handler */}
+                                                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <Radio 
+                                                      size="small" 
+                                                      checked={selectedGuideId === guideId}
+                                                      color="info"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent double firing with card click
+                                                        console.log(`Radio clicked for guide ${idx}, ID: ${guideId}`);
+                                                        handleGuideSelect(guideId);
+                                                      }}
+                                                    />
+                                                    <Typography 
+                                                      variant="body2" 
+                                                      fontSize="0.8rem"
+                                                      color={selectedGuideId === guideId ? 'info.main' : 'text.secondary'}
+                                                      fontWeight={selectedGuideId === guideId ? 'bold' : 'normal'}
+                                                    >
+                                                      Select for all days
+                                                    </Typography>
+                                                  </Box>
+                                                </CardContent>
+                                              </Card>
+                                            </Grid>
+                                          );
+                                        })
+                                      ) : (
+                                        <Grid item xs={12}>
+                                          <Alert severity="info" sx={{ mb: 1 }}>No guides available for this day.</Alert>
+                                        </Grid>
+                                      )}
+                                    </Grid>
+                                  </Box>
+                                )}
+                              </ContentSection>
+                            </Card>
+                            
+                            {/* Day navigation controls */}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
+                              <NavigationArrow
+                                direction="prev"
+                                onClick={() => dayIndex > 0 && scrollToDay(dayIndex - 1)}
+                                disabled={dayIndex === 0}
+                                label="Previous Day"
+                              />
+                              <NavigationArrow
+                                direction="next"
+                                onClick={() => dayIndex < (packageDetails.duration_days - 1) && scrollToDay(dayIndex + 1)}
+                                disabled={dayIndex === (packageDetails.duration_days - 1)}
+                                label="Next Day"
+                              />
+                            </Box>
+                          </Box>
+                        );
+                      })}
                     </Box>
                   </Grid>
                   
@@ -1016,8 +1410,11 @@ const PackageDetailsContainer = () => {
                         packageData={packageDetails} 
                         selectedHotels={selectedHotels}
                         selectedAttractions={selectedAttractions}
-                        selectedRestaurants={selectedRestaurants}
                         selectedGuides={selectedGuides}
+                        bookedAttractions={bookedAttractions}
+                        selectedHotelId={selectedHotelId}
+                        selectedGuideId={selectedGuideId}
+                        itineraryDates={getItineraryDates()}
                       />
                     </Box>
                   </Grid>
@@ -1077,6 +1474,7 @@ const PackageDetailsContainer = () => {
         loading={isLoading}
       />
       
+      {/* 
       <SelectionModal
         open={restaurantsModalOpen}
         onClose={() => setRestaurantsModalOpen(false)}
@@ -1087,6 +1485,7 @@ const PackageDetailsContainer = () => {
         renderItem={RestaurantItemRenderer}
         loading={isLoading}
       />
+      */}
       
       <SelectionModal
         open={guidesModalOpen}

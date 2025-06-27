@@ -58,14 +58,14 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   // Get search params to access the selected date
   const searchParams = useSelector(state => state.prePackages.searchParams);
   
-  // Format the arrival date to dd/mm/yyyy
+  // Format the arrival date to dd-mm-yyyy
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    return `${day}-${month}-${year}`;
   };
   
   // Get the date from searchParams
@@ -74,8 +74,11 @@ const selectedDate = searchParams?.date ?
   
   // Get country code from Redux state (adjust the path based on your Redux structure)
   const countryCodeFromRedux = useSelector((state) => state.auth?.countryCode);
-  const dialMaxLength = useSelector((state) => state.auth?.dialMaxLength) || 15;
-  const dialMinLength = useSelector((state) => state.auth?.dialMinLength) || 8;
+  console.log(countryCodeFromRedux);
+  // const dialMaxLength = useSelector((state) => state.auth?.dialMaxLength) || 15;
+  // const dialMinLength = useSelector((state) => state.auth?.dialMinLength) || 8;
+  const dialMaxLength =  15;
+  const dialMinLength =  8;
   
   const [snackbar, setSnackbar] = useState({
     open: false,

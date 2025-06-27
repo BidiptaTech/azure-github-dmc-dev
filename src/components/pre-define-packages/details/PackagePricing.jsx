@@ -11,7 +11,14 @@ const PackagePricing = ({
   selectedHotels = [], 
   selectedAttractions = [], 
   selectedRestaurants = [], 
-  selectedGuides = [] 
+  selectedGuides = [],
+  bookedAttractions = {},
+  selectedHotelId,
+  selectedGuideId,
+  itineraryDates = [],
+  entryPortTransfer = 0,
+  exitPortTransfer = 0,
+  attractionWithTransfer = {}
 }) => {
   // State for the UserInfo modal
   const [isUserInfoModalOpen, setIsUserInfoModalOpen] = useState(false);
@@ -62,6 +69,61 @@ const PackagePricing = ({
   // Check if child price is available
   const hasChildPrice = packageData.price_child && parseFloat(packageData.price_child) > 0;
   
+  // Helper function to get selected entity by ID
+  const getSelectedEntityById = (entities, entityId) => {
+    if (!entityId || !entities || !entities.length) return null;
+    return entities.find(entity => (entity.id === entityId || entity._id === entityId));
+  };
+
+  // Helper functions to check transfer availability
+  const hasEntryPortTransfer = () => {
+    return packageData?.entry_port_transfer === 1 || 
+           packageData?.entry_port_transfer === true ||
+           packageData?.entry_port === 1 || 
+           packageData?.entry_port === true || 
+           packageData?.has_entry_port_transfer === true;
+  };
+  
+  const hasExitPortTransfer = () => {
+    return packageData?.exit_port_transfer === 1 || 
+           packageData?.exit_port_transfer === true ||
+           packageData?.exit_port === 1 || 
+           packageData?.exit_port === true || 
+           packageData?.has_exit_port_transfer === true;
+  };
+  
+  // Helper to check if an attraction has transfer available and what type
+  const getAttractionTransferType = (attractionId) => {
+    // Check if attraction transfer is available in package data
+    if (packageData?.attractions_with_transfer) {
+      const transferValue = packageData.attractions_with_transfer[attractionId];
+      if (transferValue === 2) return 'bidirectional';
+      if (transferValue === 1 || transferValue === true) return 'unidirectional';
+    }
+    
+    // Check if package data has general attraction_with_transfer flag
+    if (packageData?.attraction_with_transfer === 2) {
+      return 'bidirectional';
+    }
+    if (packageData?.attraction_with_transfer === 1 || 
+        packageData?.attraction_with_transfer === true) {
+      return 'unidirectional';
+    }
+    
+    // Default to checking the attraction object itself
+    const attraction = selectedAttractions.find(a => (a.id === attractionId || a._id === attractionId));
+    if (attraction?.with_transfer === 2) return 'bidirectional';
+    if (attraction?.with_transfer === 1 || 
+        attraction?.with_transfer === true ||
+        attraction?.transfer_available === true) return 'unidirectional';
+    
+    return null; // No transfer available
+  };
+
+  const hasAttractionTransfer = (attractionId) => {
+    return getAttractionTransferType(attractionId) !== null;
+  };
+
   // Handle booking button click
   const handleBookPackage = () => {
     // Ensure we use ONLY ONE item from each category 
@@ -70,7 +132,10 @@ const PackagePricing = ({
     
     // For Hotels
     let hotelToUse = null;
-    if (selectedHotels.length > 0) {
+    if (selectedHotelId) {
+      // User selected a specific hotel via UI
+      hotelToUse = getSelectedEntityById(selectedHotels, selectedHotelId);
+    } else if (selectedHotels.length > 0) {
       // User made a selection via modal, use the first selected hotel
       hotelToUse = selectedHotels[0]; 
     } else if (packageData.selected_hotels && packageData.selected_hotels.length > 0) {
@@ -78,40 +143,116 @@ const PackagePricing = ({
       hotelToUse = packageData.selected_hotels[0];
     }
     
-    // For Attractions
-    let attractionToUse = null;
-    if (selectedAttractions.length > 0) {
-      // User made a selection via modal, use the first selected attraction
-      attractionToUse = selectedAttractions[0];
-    } else if (packageData.selected_attractions && packageData.selected_attractions.length > 0) {
-      // No modal selection, use the first attraction from package data
-      attractionToUse = packageData.selected_attractions[0];
-    }
-    
-    // For Restaurants
-    let restaurantToUse = null;
-    if (selectedRestaurants.length > 0) {
-      // User made a selection via modal, use the first selected restaurant
-      restaurantToUse = selectedRestaurants[0];
-    } else if (packageData.selected_restaurants && packageData.selected_restaurants.length > 0) {
-      // No modal selection, use the first restaurant from package data
-      restaurantToUse = packageData.selected_restaurants[0];
-    }
-    
-    // For Guides
+    // For Guides - define outside the loop so it's accessible later
     let guideToUse = null;
-    if (selectedGuides.length > 0) {
+    if (selectedGuideId) {
+      // User selected a specific guide via UI
+      guideToUse = getSelectedEntityById(selectedGuides, selectedGuideId);
+    } else if (selectedGuides.length > 0) {
       // User made a selection via modal, use the first selected guide
       guideToUse = selectedGuides[0];
-    } else if (packageData.selected_guides && packageData.selected_guides.length > 0) {
-      // No modal selection, use the first guide from package data (selected_guides)
-      guideToUse = packageData.selected_guides[0];
-    } else if (packageData.selected_guide && packageData.selected_guide.length > 0) {
-      // No modal selection, use the first guide from package data (selected_guide)
-      guideToUse = packageData.selected_guide[0];
+    } else if ((packageData.selected_guides && packageData.selected_guides.length > 0) || 
+               (packageData.selected_guide && packageData.selected_guide.length > 0)) {
+      // No modal selection, use the first guide from package data
+      guideToUse = packageData.selected_guides?.[0] || packageData.selected_guide?.[0];
     }
     
-    // Create a structured data object with all selections and their types
+    // Create enhanced itinerary with services for each day
+    const enhancedItinerary = itineraryDates.map(dayInfo => {
+      // Start with basic day info
+      const enhancedDay = {
+        ...dayInfo,
+        services: []
+      };
+      
+      // Add hotel if selected
+      if (hotelToUse) {
+        const hotelService = {
+          service_type: 'hotel',
+          service_id: hotelToUse.id || hotelToUse._id,
+          service_name: hotelToUse.name,
+          details: hotelToUse
+        };
+        
+        // Add entry_port for first day if available
+        if (dayInfo.day === 1 && hasEntryPortTransfer()) {
+          hotelService.entry_port = 1;
+        } else {
+          hotelService.entry_port = null;
+        }
+        
+        // Add exit_port for last day if available
+        if (dayInfo.day === itineraryDates.length && hasExitPortTransfer()) {
+          hotelService.exit_port = 1;
+        } else {
+          hotelService.exit_port = null;
+        }
+        
+        enhancedDay.services.push(hotelService);
+      }
+      
+      // Add attraction if booked for this day
+      if (selectedAttractions && selectedAttractions.length > 0) {
+        selectedAttractions.forEach(attraction => {
+          const attractionId = attraction.id || attraction._id;
+          const bookedDayIndex = bookedAttractions[attractionId];
+          
+          // Only add if booked for this specific day
+          if (bookedDayIndex !== undefined && bookedDayIndex === dayInfo.day - 1) {
+            const attractionService = {
+              service_type: 'attraction',
+              service_id: attractionId,
+              service_name: attraction.name || attraction.title,
+              details: attraction
+            };
+            
+            // Add attraction_with_transfer if available for this attraction
+            const transferType = getAttractionTransferType(attractionId);
+            if (transferType === 'bidirectional') {
+              attractionService.attraction_with_transfer = 2;
+            } else if (transferType === 'unidirectional') {
+              attractionService.attraction_with_transfer = 1;
+            } else {
+              attractionService.attraction_with_transfer = null;
+            }
+            
+            enhancedDay.services.push(attractionService);
+          }
+        });
+      }
+      
+      // Add guide if selected - guide is already defined above
+      if (guideToUse) {
+        enhancedDay.services.push({
+          service_type: 'guide',
+          service_id: guideToUse.id || guideToUse._id,
+          service_name: guideToUse.name,
+          details: guideToUse
+        });
+      }
+      
+      // For restaurants (commented out as requested)
+      /* let restaurantToUse = null;
+      if (selectedRestaurants.length > 0) {
+        // User made a selection via modal, use the first selected restaurant
+        restaurantToUse = selectedRestaurants[0];
+      } else if (packageData.selected_restaurants && packageData.selected_restaurants.length > 0) {
+        // No modal selection, use the first restaurant from package data
+        restaurantToUse = packageData.selected_restaurants[0];
+      }
+      
+      if (restaurantToUse) {
+        enhancedDay.services.push({
+          service_type: 'restaurant',
+          service_id: restaurantToUse.id || restaurantToUse._id,
+          service_name: restaurantToUse.name,
+          details: restaurantToUse
+        });
+      } */
+      
+      return enhancedDay;
+    });
+    
     const bookingData = {
       package: {
         // Exclude the package's selected_hotels/attractions/etc as we want to use only what the user selected
@@ -124,9 +265,27 @@ const PackagePricing = ({
         type: 'package'
       },
       selected: {
-        hotels: hotelToUse ? [{ ...hotelToUse, type: 'hotel' }] : [],
-        attractions: attractionToUse ? [{ ...attractionToUse, type: 'attraction' }] : [],
-        restaurants: restaurantToUse ? [{ ...restaurantToUse, type: 'restaurant' }] : [],
+        hotels: hotelToUse ? [{ 
+          ...hotelToUse, 
+          type: 'hotel',
+          entry_port: hasEntryPortTransfer() ? 1 : null,
+          exit_port: hasExitPortTransfer() ? 1 : null
+        }] : [],
+        attractions: selectedAttractions.length > 0 ? 
+          selectedAttractions.filter(attraction => 
+            bookedAttractions[attraction.id || attraction._id] !== undefined
+          ).map(attraction => {
+            const attractionId = attraction.id || attraction._id;
+            const transferType = getAttractionTransferType(attractionId);
+            
+            return {
+              ...attraction, 
+              type: 'attraction',
+              attraction_with_transfer: transferType === 'bidirectional' ? 2 : 
+                                        transferType === 'unidirectional' ? 1 : null
+            };
+          }) : [],
+        /* restaurants: restaurantToUse ? [{ ...restaurantToUse, type: 'restaurant' }] : [], */
         guides: guideToUse ? [{ ...guideToUse, type: 'guide' }] : []
       },
       booking_details: {
@@ -139,7 +298,10 @@ const PackagePricing = ({
         travel_dates: searchParams?.check_in && searchParams?.check_out ? {
           check_in: searchParams.check_in,
           check_out: searchParams.check_out
-        } : null
+        } : null,
+        itinerary: enhancedItinerary,
+        entry_port_transfer: hasEntryPortTransfer() ? 1 : null,
+        exit_port_transfer: hasExitPortTransfer() ? 1 : null
       }
     };
     
@@ -161,187 +323,166 @@ const PackagePricing = ({
   };
   
   return (
-    <>
-      <Paper elevation={2} sx={{ borderRadius: '12px', overflow: 'hidden', height: '100%' }}>
-        <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', px: 3, py: 1.5, display: 'flex', alignItems: 'center' }}>
-          <AttachMoneyIcon sx={{ mr: 1 }} />
-          <Typography variant="h6" fontWeight="bold">Price Summary</Typography>
-        </Box>
-        
-        <Box sx={{ p: 3 }}>
-          {/* Adult Price Section */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            py: 1,
-            borderBottom: '1px dashed #e0e0e0'
-          }}>
-            <Typography variant="body1" fontWeight="medium">
-              Adult Price
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Typography variant="caption" sx={{ mr: 0.5 }}>SGD</Typography>
-              <Typography variant="h6" color="primary" fontWeight="bold">
-                {packageData.price_adult}
-              </Typography>
-            </Box>
-          </Box>
-          
-          {/* Adult Count and Total */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            py: 1,
-            borderBottom: '1px dashed #e0e0e0'
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <PersonIcon fontSize="small" sx={{ mr: 0.5 }} />
-              <Typography variant="body2">
-                {adultCount} {adultCount > 1 ? 'Adults' : 'Adult'} 
-                {(maleCount > 0 || femaleCount > 0) && (
-                  <Typography component="span" variant="caption" sx={{ ml: 0.5 }}>
-                    ({maleCount} male, {femaleCount} female)
-                  </Typography>
-                )}
-              </Typography>
-            </Box>
-            <Typography variant="body1" fontWeight="medium">
-              <Typography variant="caption" sx={{ mr: 0.5 }}>SGD {totalAdultPrice.toFixed(2)}</Typography> 
+    <Paper
+      elevation={2}
+      sx={{
+        borderRadius: '16px',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          bgcolor: 'primary.main',
+          color: 'white',
+          px: 3,
+          py: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Typography variant="h6" fontWeight="bold">
+          Price Summary
+        </Typography>
+        <AttachMoneyIcon fontSize="medium" />
+      </Box>
+      
+      {/* Content */}
+      <Box sx={{ p: 3 }}>
+        {/* Adult Price */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          py: 1,
+          borderBottom: '1px dashed #e0e0e0'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <PersonIcon sx={{ color: 'primary.main', mr: 1, fontSize: 20 }} />
+            <Typography variant="body1">
+              Adult{adultCount > 1 ? 's' : ''} ({adultCount})
             </Typography>
           </Box>
-          
-          {/* Child Price Section - Only show if child price exists */}
-          {hasChildPrice && childCount > 0 && (
-            <>
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                py: 1,
-                borderBottom: '1px dashed #e0e0e0'
-              }}>
-                <Typography variant="body1" fontWeight="medium">
-                  Child Price
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <AttachMoneyIcon color="primary" />
-                  <Typography variant="h6" fontWeight="bold">
-                    {packageData.price_child}
-                  </Typography>
-                </Box>
-              </Box>
-              
-              {/* Child Count and Total - Only show if there are children */}
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                py: 1,
-                borderBottom: '1px dashed #e0e0e0'
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <PersonIcon fontSize="small" sx={{ mr: 0.5 }} />
-                  <Typography variant="body2">
-                    {childCount} {childCount > 1 ? 'Children' : 'Child'}
-                  </Typography>
-                </Box>
-                <Typography variant="body1" fontWeight="medium">
-                  <Typography variant="caption" sx={{ mr: 0.5 }}>SGD</Typography> {totalChildPrice.toFixed(2)}
-                </Typography>
-              </Box>
-            </>
-          )}
-          
-          {/* Duration */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            py: 1,
-            borderBottom: '1px dashed #e0e0e0'
-          }}>
-            <Typography variant="body1" fontWeight="medium">
-              Duration
-            </Typography>
-            <Typography variant="body1" fontWeight="bold">
-              {packageData.duration_days} Days
-            </Typography>
-          </Box>
-          
-          
-          
-          {/* Total Price */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            py: 1.5,
-            mt: 1,
-            bgcolor: 'primary.light',
-            px: 2,
-            borderRadius: '8px'
-          }}>
-            <Typography variant="h6" fontWeight="bold">
-              Total Price
-            </Typography>
-            <Typography variant="h6" color="primary.dark" fontWeight="bold">
-              <Typography variant="caption" component="span" sx={{ mr: 0.5 }}>SGD</Typography> {totalPrice.toFixed(2)}
-            </Typography>
-          </Box>
-          
-          <Button 
-            variant="contained" 
-            color="primary" 
-            fullWidth 
-            size="large"
-            sx={{ py: 1.5, mt: 2 }}
-            onClick={handleBookPackage}
-            disabled={bookingComplete}
-          >
-            {bookingComplete ? 'Booking Complete' : 'Book This Package'}
-          </Button>
-          
-          {bookingComplete && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              Your booking has been confirmed successfully.
-            </Alert>
-          )}
-          
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
-            * Prices are per person
+          <Typography variant="body1" fontWeight="bold">
+            ${adultPrice.toFixed(2)} each
           </Typography>
         </Box>
-      </Paper>
+        
+        {/* Child Price (if available) */}
+        {hasChildPrice && childCount > 0 && (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            py: 1,
+            borderBottom: '1px dashed #e0e0e0'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <PersonIcon sx={{ color: 'primary.main', mr: 1, fontSize: 16 }} />
+              <Typography variant="body1">
+                Child{childCount > 1 ? 'ren' : ''} ({childCount})
+              </Typography>
+            </Box>
+            <Typography variant="body1" fontWeight="bold">
+              ${childPrice.toFixed(2)} each
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Duration */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          py: 1,
+          borderBottom: '1px dashed #e0e0e0'
+        }}>
+          <Typography variant="body1" fontWeight="medium">
+            Duration
+          </Typography>
+          <Typography variant="body1" fontWeight="bold">
+            {packageData.duration_days} Days
+          </Typography>
+        </Box>
+        
+        {/* Travel Dates */}
+        {searchParams?.check_in && searchParams?.check_out && (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            py: 1,
+            borderBottom: '1px dashed #e0e0e0'
+          }}>
+            <Typography variant="body1" fontWeight="medium">
+              Travel Dates
+            </Typography>
+            <Typography variant="body2" fontWeight="medium">
+              {new Date(searchParams.check_in).toLocaleDateString()} - {new Date(searchParams.check_out).toLocaleDateString()}
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Total Price */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          py: 1.5,
+          mt: 1,
+          bgcolor: 'primary.light',
+          px: 2,
+          borderRadius: '8px'
+        }}>
+          <Typography variant="h6" fontWeight="bold">
+            Total Price
+          </Typography>
+          <Typography variant="h6" color="primary.dark" fontWeight="bold">
+            ${totalPrice.toFixed(2)}
+          </Typography>
+        </Box>
+        
+        <Button 
+          variant="contained" 
+          color="primary" 
+          fullWidth 
+          size="large"
+          sx={{ py: 1.5, mt: 2 }}
+          onClick={handleBookPackage}
+        >
+          Book This Package
+        </Button>
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+          * Prices are per person
+        </Typography>
+      </Box>
       
       {/* User Info Modal */}
-      {bookingData && (
-        <UserInfo 
-          open={isUserInfoModalOpen} 
+      {isUserInfoModalOpen && (
+        <UserInfo
+          open={isUserInfoModalOpen}
           onClose={() => setIsUserInfoModalOpen(false)}
-          onSubmit={handleFormSubmit}
           bookingData={bookingData}
+          onSubmit={handleFormSubmit}
         />
       )}
       
-      {/* Success Notification */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
+      {/* Notifications */}
+      <Snackbar 
+        open={notification.open} 
+        autoHideDuration={6000} 
         onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert 
           onClose={handleCloseNotification} 
           severity={notification.severity} 
-          elevation={6} 
-          variant="filled"
+          sx={{ width: '100%' }}
         >
           {notification.message}
         </Alert>
       </Snackbar>
-    </>
+    </Paper>
   );
 };
 
