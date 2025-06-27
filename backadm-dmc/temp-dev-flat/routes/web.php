@@ -75,8 +75,6 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
 
-
-
     // Add admin middleware to the hotels endpoint
     
     
