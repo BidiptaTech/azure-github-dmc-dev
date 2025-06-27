@@ -110,7 +110,6 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
   const [validationError, setValidationError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   
-  
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
   const [expandedSections, setExpandedSections] = useState([]);
   const [bookingsVersion, setBookingsVersion] = useState(0);

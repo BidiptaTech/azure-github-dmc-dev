@@ -247,7 +247,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
     if (pickid && dropid) {
       setTimeout(() => {
         dispatch(fetchZoneVehicles());
-      }, 500);
+      }, 500); 
     }
   };
 
