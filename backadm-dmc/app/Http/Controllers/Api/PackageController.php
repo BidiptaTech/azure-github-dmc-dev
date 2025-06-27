@@ -149,7 +149,7 @@ class PackageController extends Controller
                 'max_attractions', 'main_image', 'gallery_images', 'inclusions', 
                 'exclusions', 'terms_conditions', 'views_count', 
                 'rating', 'reviews_count', 'city', 'expire_date', 'start_date', 
-                'selected_guide', 'selected_restaurants', 'max_restaurants', 'status'
+                'selected_guide', 'selected_restaurants', 'max_restaurants','package_type','attraction_with_transfer','entry_port', 'exit_port', 'status'
             )
             ->first();
         if (!$package) {
@@ -351,7 +351,7 @@ class PackageController extends Controller
         
         // Format dates to Y-m-d
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
-        $check_out = Carbon::parse($end_date)->format('Y-m-d'); 
+        $check_out = Carbon::parse($end_date)->format('Y-m-d');
 
 
 
