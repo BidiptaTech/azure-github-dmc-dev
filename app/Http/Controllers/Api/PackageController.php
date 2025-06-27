@@ -84,7 +84,7 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date')->get();
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type')->get();
         // Format the response
         return response()->json($packages);
     }
@@ -289,7 +289,7 @@ class PackageController extends Controller
         }
         
         return response()->json($package);
-    } 
+    }
         
     public function storeMultipleOrders(Request $request)
     {
@@ -327,7 +327,6 @@ class PackageController extends Controller
         return response()->json(['message' => 'All orders saved successfully.']);
     }
 
-
     public function booking(Request $request){
         // Extract booking data from request
         $data = $request->json()->all();
@@ -352,7 +351,7 @@ class PackageController extends Controller
         
         // Format dates to Y-m-d
         $check_in = Carbon::parse($start_date)->format('Y-m-d');
-        $check_out = Carbon::parse($end_date)->format('Y-m-d'); 
+        $check_out = Carbon::parse($end_date)->format('Y-m-d');
 
 
         // Verify price calculation
