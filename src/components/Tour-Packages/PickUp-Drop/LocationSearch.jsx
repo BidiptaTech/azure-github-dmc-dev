@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import {
+  Box,
+  Typography,
+  TextField,
+  Grid,
+  InputAdornment,
+  useTheme,
+  alpha,
+} from '@mui/material';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 const SearchBar = ({
   pickUpLocation,
@@ -12,7 +22,9 @@ const SearchBar = ({
   validationTriggered = false,
   setPickupFromAutocomplete,
   setDropoffFromAutocomplete,
+  colorTheme = "red", // default red theme, can be "blue"
 }) => {
+  const theme = useTheme();
   const autocompletePickUpPackageRef = useRef(null);
   const autocompleteDropOffPackageRef = useRef(null);
   const [isPickupValid, setIsPickupValid] = useState(true);
@@ -117,156 +129,294 @@ const SearchBar = ({
   const showDropoffError =
     validationTriggered && dropOffLocation && !isDropoffValid;
 
+  // Color theme configuration
+  const themeColors = {
+    red: {
+      primary: '#ff6b6b',
+      hover: '#ff6b6b',
+      focus: '#ff6b6b',
+    },
+    blue: {
+      primary: '#3b82f6',
+      hover: '#3b82f6',
+      focus: '#3b82f6',
+    }
+  };
+
+  const currentTheme = themeColors[colorTheme] || themeColors.red;
+
   return (
-    <div className="searchMenu-loc  lg:py-10 lg:px-0">
-      <div className="d-flex">
+    <Box sx={{ width: '100%' }}>
+      <Grid container spacing={2}>
         {/* Pick-up Location */}
-        <div className="flex-1 ">
-          <div>
-            <div className="d-flex ml-10">
-              <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
-              <div className="ml-10 flex-grow-1">
-                <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">
-                  Pick Up Location
-                </h4>
-                <div className="text-15 text-light-1 ls-2 lh-16">
-                  <input
-                    id="pick-up-input"
-                    autoComplete="off"
-                    type="search"
-                    placeholder="Where is your pick up?"
-                    className="js-search js-dd-focus w-full pac-item"
-                    value={pickUpLocation}
-                    onChange={handlePickupChange}
-                    // disabled={
-                    //   !SelectedPort ||
-                    //   (SelectedPort !== "Entry Port" &&
-                    //     SelectedPort !== "Exit Port")
-                    // }
-                  />
-                  {showPickupError && (
-                    <div className="text-red-500 mt-5 text-14">
-                      *Select location from dropdown
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Grid item xs={12} md={6}>
+          <Box>
+            <Typography 
+              variant="subtitle2" 
+              fontWeight={600} 
+              sx={{ mb: 1, color: 'text.primary' }}
+            >
+              Pick Up Location
+            </Typography>
+            <TextField
+              id="pick-up-input"
+              fullWidth
+              autoComplete="off"
+              type="search"
+              placeholder="Where is your pick up?"
+              value={pickUpLocation}
+              onChange={handlePickupChange}
+              error={showPickupError}
+              helperText={showPickupError ? "Select location from dropdown" : ""}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationOnIcon 
+                      sx={{ 
+                        color: showPickupError ? 'error.main' : 'text.secondary',
+                        fontSize: 20 
+                      }} 
+                    />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: 'background.paper',
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: currentTheme.hover,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: currentTheme.focus,
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: 15,
+                  fontWeight: 400,
+                },
+                '& .MuiFormHelperText-root': {
+                  fontSize: 14,
+                  mt: 0.5,
+                },
+              }}
+            />
+          </Box>
+        </Grid>
 
         {/* Drop-off Location */}
-        <div className="flex-1 ml-10">
-          <div>
-            <div className="d-flex">
-              <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
-              <div className="ml-10 flex-grow-1">
-                <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">
-                  Drop Off Location
-                </h4>
-                <div className="text-15 text-light-1 ls-2 lh-16">
-                  <input
-                    id="drop-off-input"
-                    autoComplete="off"
-                    type="search"
-                    placeholder="Where is your drop off?"
-                    className="js-search js-dd-focus w-full pac-item"
-                    value={dropOffLocation}
-                    onChange={handleDropoffChange}
-                    // disabled={
-                    //   !SelectedPort ||
-                    //   (SelectedPort !== "Entry Port" &&
-                    //     SelectedPort !== "Exit Port")
-                    // }
-                  />
-                  {showDropoffError && (
-                    <div className="text-red-500 mt-5 text-14">
-                      *Select location from dropdown
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        <Grid item xs={12} md={6}>
+          <Box>
+            <Typography 
+              variant="subtitle2" 
+              fontWeight={600} 
+              sx={{ mb: 1, color: 'text.primary' }}
+            >
+              Drop Off Location
+            </Typography>
+            <TextField
+              id="drop-off-input"
+              fullWidth
+              autoComplete="off"
+              type="search"
+              placeholder="Where is your drop off?"
+              value={dropOffLocation}
+              onChange={handleDropoffChange}
+              error={showDropoffError}
+              helperText={showDropoffError ? "Select location from dropdown" : ""}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationOnIcon 
+                      sx={{ 
+                        color: showDropoffError ? 'error.main' : 'text.secondary',
+                        fontSize: 20 
+                      }} 
+                    />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: 'background.paper',
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: currentTheme.hover,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: currentTheme.focus,
+                    borderWidth: 2,
+                  },
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: 15,
+                  fontWeight: 400,
+                },
+                '& .MuiFormHelperText-root': {
+                  fontSize: 14,
+                  mt: 0.5,
+                },
+              }}
+            />
+          </Box>
+        </Grid>
+      </Grid>
 
-      {/* CSS Fixes for Google Autocomplete */}
+      {/* Enhanced UI for Google Autocomplete Dropdown */}
       <style>
         {`
           .pac-container {
-  z-index: 10000 !important;
-  background-color: #fff !important;
-   border: 1px solid #ccc !important;
-  width: 100% !important; /* Expands dropdown width */
-  min-width: 200px !important; /* Ensures it's not too small */
-  max-width: 250px !important; /* Adjust as needed */
-}
+            z-index: 10000 !important;
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12) !important;
+            margin-top: 4px !important;
+            overflow: hidden !important;
+            max-height: 240px !important;
+            overflow-y: auto !important;
+            min-width: 300px !important;
+            max-width: 400px !important;
+            font-family: inherit !important;
+          }
 
-.searchMenu-loc {
-  width: 100%;
-}
+          /* Custom Scrollbar Styling */
+          .pac-container::-webkit-scrollbar {
+            width: 4px !important;
+          }
 
-.pac-item {
-  font-size: 15px !important;
-  font-weight: 520 !important;
-   color: #000 !important;
-  // padding: 10px !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: ellipsis !important;
-  width: 250px !important;
-}
+          .pac-container::-webkit-scrollbar-track {
+            background: #f8fafc !important;
+          }
 
-.pac-item-query {
-  font-weight: bold !important;
-  color: #000 !important;
-}
+          .pac-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1 !important;
+            border-radius: 2px !important;
+          }
 
-.text-red-500 {
-  color: #ef4444 !important;
-}
+          .pac-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8 !important;
+          }
 
-.mt-5 {
-  margin-top: 5px !important;
-}
+          /* Firefox Scrollbar */
+          .pac-container {
+            scrollbar-width: thin !important;
+            scrollbar-color: #cbd5e1 #f8fafc !important;
+          }
 
-.text-14 {
-  font-size: 14px !important;
-}
-  @media (max-width: 1730px) {
-    .pac-item {
-      width: 250px !important;
-    }
-  }
-  @media (max-width: 1400px) {
-    .pac-item {
-      width: 200px !important;
-    }
-  }
-  @media (max-width: 1200px) {
-    .pac-item {
-      width: 100px !important;
-    }
-  }
-  @media (max-width: 1024px) {
-    .pac-item {
-      width: 100px !important;
-    }
-  }
-  @media (max-width: 768px) {
-    .pac-item {
-      width: 80px !important;
-    }
-  }
-  @media (max-width: 480px) {
-    .pac-item {
-      width: 80px !important;
-    }
-  }
+          .pac-item {
+            font-size: 14px !important;
+            font-weight: 400 !important;
+            color: #374151 !important;
+            padding: 12px 16px !important;
+            border-bottom: 1px solid #f3f4f6 !important;
+            cursor: pointer !important;
+            transition: background-color 0.15s ease !important;
+            background-color: #ffffff !important;
+            line-height: 1.5 !important;
+            margin: 0 !important;
+          }
+
+          .pac-item:hover {
+            background-color: #f9fafb !important;
+          }
+
+          .pac-item:last-child {
+            border-bottom: none !important;
+          }
+
+          .pac-item-query {
+            font-weight: 500 !important;
+            color: #111827 !important;
+          }
+
+          .pac-matched {
+            font-weight: 600 !important;
+            color: ${currentTheme.primary} !important;
+            background-color: rgba(${colorTheme === 'blue' ? '59, 130, 246' : '255, 107, 107'}, 0.1) !important;
+            padding: 1px 3px !important;
+            border-radius: 3px !important;
+          }
+
+          .pac-icon {
+            margin-right: 12px !important;
+            color: #9ca3af !important;
+            font-size: 14px !important;
+          }
+
+          .pac-item:hover .pac-icon {
+            color: ${currentTheme.primary} !important;
+          }
+
+          /* Remove gaps and ensure clean layout */
+          .pac-item span {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: inherit !important;
+          }
+
+          .pac-item table {
+            margin: 0 !important;
+            border-collapse: collapse !important;
+          }
+
+          .pac-item td {
+            padding: 0 !important;
+            margin: 0 !important;
+            vertical-align: middle !important;
+          }
+
+          /* Responsive adjustments */
+          @media (max-width: 1400px) {
+            .pac-container {
+              min-width: 280px !important;
+              max-width: 350px !important;
+            }
+          }
+          
+          @media (max-width: 1200px) {
+            .pac-container {
+              min-width: 250px !important;
+              max-width: 320px !important;
+              max-height: 200px !important;
+            }
+          }
+          
+          @media (max-width: 1024px) {
+            .pac-container {
+              min-width: 220px !important;
+              max-width: 280px !important;
+            }
+          }
+          
+          @media (max-width: 768px) {
+            .pac-container {
+              min-width: 200px !important;
+              max-width: 250px !important;
+              max-height: 180px !important;
+            }
+            
+            .pac-item {
+              font-size: 13px !important;
+              padding: 10px 14px !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .pac-container {
+              min-width: 180px !important;
+              max-width: 220px !important;
+            }
+            
+            .pac-item {
+              font-size: 12px !important;
+              padding: 8px 12px !important;
+            }
+          }
         `}
       </style>
-    </div>
+    </Box>
   );
 };
 
