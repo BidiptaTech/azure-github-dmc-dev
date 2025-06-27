@@ -2319,6 +2319,45 @@ class UserController extends Controller
         return response()->json(['success' => true, 'message' => 'Zone status updated successfully', 'user_id' => $request->user_id, 'zone_on' => $request->zone_on]);
     }
 
+    public function updateEmail(Request $request)
+    {            
+        try {
+            $user = User::where('userId', $request->user_id)->first();
+            if(!$user){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+            $currentUser = Auth::user();
+            
+            // Check permissions - only admins can update this
+            if ($currentUser->role_id != 1 && $currentUser->role_id != 2 && $currentUser->role_id != 3 && $currentUser->role_id != 4 && $currentUser->role_id != 5 && $currentUser->role_id != 6 && $currentUser->role_id != 7 && $currentUser->role_id != 8 && $currentUser->role_id != 9 && $currentUser->role_id != 10) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to update Email status'
+                ], 403);
+            }
+            
+            $user->email_on = $request->email_on;
+            $user->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Email status updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error updating email status: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating Email status',
+                'user_id' => $request->user_id,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     /*
     * Get cities by country name
     * Date: 03-06-2024

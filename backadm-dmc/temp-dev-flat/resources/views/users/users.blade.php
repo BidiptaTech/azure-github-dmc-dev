@@ -58,6 +58,10 @@
               @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <th>Price Hide</th>
               @endif
+
+              @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
+                <th>Email On</th>
+              @endif
               <th>Role</th>
               <th>User Type</th>
 
@@ -152,6 +156,34 @@
                     <div class="col-md-2 form-check form-switch">
                         <input type="hidden" name="price_hide" value="0">
                         <input {{$user->price_hide == 1 ? 'checked' : ''}} class="form-check-input" name="price_hide" type="checkbox" id="price_hide"
+                            value="1" style="width: 35px; height: 20px;" disabled>
+                    </div>
+                    @endif
+                  
+                  @else
+                  --
+                  @endif
+                </td>
+                @endif
+
+                @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
+                <td>
+                  @if($user->role_id == 11)
+                    @if(auth::user()->role_id == 10)
+                    <div class="col-md-2 form-check form-switch">
+                        <input type="hidden" name="email_on" value="0">
+                        <input {{$user->email_on == 1 ? 'checked' : ''}} 
+                            class="form-check-input email-toggle" 
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox" 
+                            id="email_on_{{ $user->userId }}"
+                            value="1" 
+                            style="width: 35px; height: 20px;">
+                    </div>
+                    @else
+                    <div class="col-md-2 form-check form-switch">
+                        <input type="hidden" name="email_on" value="0">
+                        <input {{$user->email_on == 1 ? 'checked' : ''}} class="form-check-input" name="email_on" type="checkbox" id="email_on"
                             value="1" style="width: 35px; height: 20px;" disabled>
                     </div>
                     @endif
@@ -474,6 +506,53 @@ $(document).ready(function() {
                 $('.zone-toggle[data-user-id="' + userId + '"]').prop('disabled', false);
                 toastr.error('Error updating Zone on status');
                 $('.zone-toggle[data-user-id="' + userId + '"]').prop('checked', !isChecked);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+});
+</script>
+
+<script>
+$(document).ready(function() {
+    $('.email-toggle').on('change', function() {
+        const userId = $(this).data('user-id');
+        const isChecked = $(this).is(':checked') ? 1 : 0;
+        
+        // Show loading indicator
+        $(this).prop('disabled', true);
+        
+        $.ajax({
+            url: "{{ route('users.update.email') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                email_on: isChecked,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                // Enable the toggle again
+                $('.email-toggle[data-user-id="' + userId + '"]').prop('disabled', false);
+                
+                // Show success message
+                if (response.success) {
+                    toastr.success(response.message || 'Email status updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating Email status');
+                    // Revert the toggle if there was an error
+                    $('.email-toggle[data-user-id="' + userId + '"]').prop('checked', !isChecked);
+                }
+            },
+            error: function(xhr) {
+                // Enable the toggle again
+                $('.email-toggle[data-user-id="' + userId + '"]').prop('disabled', false);
+                
+                // Show error message
+                toastr.error('Error updating Email status');
+                
+                // Revert the toggle
+                $('.email-toggle[data-user-id="' + userId + '"]').prop('checked', !isChecked);
+                
                 console.error(xhr.responseText);
             }
         });

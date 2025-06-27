@@ -164,6 +164,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         
         // Country and City API routes
         Route::get('/get-cities-by-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
@@ -334,6 +335,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         //Booking List
         Route::resource('bookinglist', BookingListController::class);
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+        Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
 
         Route::resource('enquirylist', EnquiryListController::class);
 
