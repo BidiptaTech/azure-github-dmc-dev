@@ -496,4 +496,81 @@ class PackageController extends Controller
         }
     }
     
+    public function updateCustomPackage(Request $request){
+        $payload = $request->all(); // this is the outer array
+
+        foreach ($payload as $entry) {
+            // Validate each entry
+            validator($entry, [
+                'type' => 'required|string',
+                'tour_id' => 'required|integer',
+                'agent_id' => 'required|integer',
+                'data' => 'required|array',
+            ])->validate();
+
+            $type = $entry['type'];
+            $tourId = $entry['tour_id'];
+            $agentId = $entry['agent_id'];
+            $newData = $entry['data'];
+
+            // Get existing orders for this tour
+            $existingOrders = Order::where('tour_id', $tourId)
+                ->where('agent_id', $agentId)
+                ->where('type', $type)
+                ->get();
+
+            // Create arrays to track what needs to be updated/added/deleted
+            $existingBookingIds = $existingOrders->pluck('booking_id')->toArray();
+            $newBookingIds = [];
+
+            // Process new data items
+            foreach ($newData as $item) {
+                $bookingId = $item['booking_id'] ?? null;
+                if ($bookingId && in_array($bookingId, $existingBookingIds)) {
+                    // Update existing order
+                    $existingOrder = $existingOrders->where('booking_id', $bookingId)->first();
+                    if ($existingOrder) {
+                        $existingOrder->update([
+                            'data' => [$item],
+                            'type' => $type,
+                            'status' => 1,
+                        ]);
+                        $newBookingIds[] = $bookingId;
+                    }
+                } else {
+                    // Create new order
+                    $max_book_id = Order::max('booking_id') ?? 0;
+                    $newBookingId = CommonHelper::createId($max_book_id);
+
+                    // Ensure unique booking_id
+                    while (Order::where('booking_id', $newBookingId)->exists()) {
+                        $newBookingId = CommonHelper::createId($newBookingId);
+                    }
+
+                    Order::create([
+                        'agent_id' => $agentId,
+                        'tour_id' => $tourId,
+                        'data' => [$item],
+                        'type' => $type,
+                        'bookingType' => 'enquiry',
+                        'booking_id' => $newBookingId,
+                        'status' => 1,
+                    ]);
+                    $newBookingIds[] = $newBookingId;
+                }
+            }
+
+            // Delete orders that are no longer present in the new data
+            $ordersToDelete = array_diff($existingBookingIds, $newBookingIds);
+            if (!empty($ordersToDelete)) {
+                Order::where('tour_id', $tourId)
+                    ->where('agent_id', $agentId)
+                    ->where('type', $type)
+                    ->whereIn('booking_id', $ordersToDelete)
+                    ->delete();
+            }
+        }
+
+        return response()->json(['message' => 'Custom package updated successfully.']);
+    }
 }
