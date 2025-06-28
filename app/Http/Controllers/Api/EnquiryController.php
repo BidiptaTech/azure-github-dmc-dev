@@ -568,6 +568,7 @@ class EnquiryController extends Controller
                 'entry_dropoff_location' => $entry_dropoff_location,
 
                 'exit_port' => $enquiry->exit_port,
+                'approx_price' => $enquiry->approx_price,
                 'exit_port_address' => $enquiry->exit_port_address,
                 'exit_pickup_type' => $enquiry->exit_pickup_type,
                 'exit_pickup_location' => $exit_pickup_location,
