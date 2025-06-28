@@ -16,7 +16,7 @@ use App\Helpers\CommonHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Auth;
+use Illuminate\Support\Facades\Auth;
 
 class PackageController extends Controller
 {
@@ -329,6 +329,77 @@ class PackageController extends Controller
 
     public function booking(Request $request){
         // Extract booking data from request
+        $user = Auth::user();
+        if(!$user){
+            return response()->json(['message' => 'User not found'], 404);
+        }
+        
+        // Get type from request
+        $type = $request->input('user_role', 'user'); // Default to 'user' if not provided
+        
+        if($type == 'agent' || $type == 'Agent'){
+            $user_id = $user->agent_id; 
+            $sales_manager_dmc_id = $user->sales_manager_dmc;
+            $role_id = $user->role_id;
+
+            if($role_id == 11){
+                $dmc_id = $sales_manager_dmc_id;
+            }
+            elseif($role_id == 33){
+                $sales_head_id = $user->sales_manager_dmc;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            elseif($role_id == 37){
+                $sales_manager_id = $user->sales_manager_dmc;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            elseif($role_id == 38){
+                $assistant_sales_manager_id = $user->sales_manager_dmc;
+                $assistant_sales_manager = User::where('userId', $assistant_sales_manager_id)->first();
+                $sales_manager_id = $assistant_sales_manager->created_by;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            else{
+                $dmc_id = null;
+            }
+        }else{
+            $user_id = $user->userId;
+            //DMC (role_id 11)
+            if($user->role_id == 11){
+                $dmc_id = $user_id;
+            }
+            //Sales Head (role_id 33)
+            elseif($user->role_id == 33){
+                $dmc_id = $user->created_by;
+            }
+            //Sales Manager (role_id 37)
+            elseif($user->role_id == 37){
+                $sales_manager_id = $user->userId;
+                $sales_head_id = $user->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            //Assistant Sales Manager (role_id 38)
+            elseif($user->role_id == 38){
+                $assistant_sales_manager_id = $user->userId;
+                $sales_manager_id = $user->created_by;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            else {
+                $dmc_id = null; // Default for other roles
+            }
+        }
+        
         $data = $request->json()->all();
         $package_id = $data['package']['package_id'];
         $totalPrice = $data['booking_details']['total_price'];
@@ -366,7 +437,7 @@ class PackageController extends Controller
         $booking_max_id = $lastBooking->booking_id ?? 0;
         $bookingId = CommonHelper::createId($booking_max_id);
         while (PackageBooking::where('booking_id', $bookingId)->exists()) {
-            $attractionId = CommonHelper::createId($attractionId);
+            $bookingId = CommonHelper::createId($bookingId);
         }
 
                 
@@ -376,10 +447,12 @@ class PackageController extends Controller
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
         
 
-        $user = Auth::user();
+       
         $booking = new PackageBooking();
         $booking->booking_id = $bookingId;
         $booking->package_id = $package_id;
+        $booking->type = $type; // Save the type (agent/user)
+        $booking->dmc_id = $dmc_id; // Save the DMC ID
         $booking->booking_details = json_encode($data['booking_details']);
         $booking->package = json_encode($data['package']);
         $booking->user_info = json_encode($data['user_info']);
@@ -395,7 +468,12 @@ class PackageController extends Controller
         // Add other required fields and save the booking
         $booking->save();
         
-        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->booking_id], 201);
+        return response()->json([
+            'message' => 'Booking created successfully', 
+            'booking_id' => $booking->booking_id,
+            'type' => $type,
+            'dmc_id' => $dmc_id
+        ], 201);
     }
 
     public function editCustomPackage(Request $request){
@@ -583,7 +661,7 @@ class PackageController extends Controller
                 'message' => 'Package ID is required.',
             ], 400);
         }
-        $updated = PackageBooking::where('booking_id', $booking_id)
+        $updated = PackageBooking::where('booking_id', $package_id)
             ->update(['status' => 4]);
         if ($updated) {
             return response()->json([
