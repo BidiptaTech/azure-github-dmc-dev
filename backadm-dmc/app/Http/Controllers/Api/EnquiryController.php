@@ -157,19 +157,98 @@ class EnquiryController extends Controller
             $query->select('hotel_id', 'double_weekday_price', 'room_type', 'room_id')
                   ->selectRaw('(double_weekday_price / 2) as single_base_price');
         }])->where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
+        
         $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city)->where('country', $country)->get();
         $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
         $vehicles = Vehicle::where('dmc_id', $dmc_id)->where('city', $city)->get(); // Assuming Driver model exists
         $city_id = City::where('name', $city)->first();
         $ports = Port::where('city_id', $city_id->city_id)->where('country', $country)->get();
         $guides = Guide::with('languages')->where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get(); // Assuming Guide model exists
+        
+        // Create custom arrays with only necessary data
+        $hotel_list = $hotels->map(function($hotel) {
+            // Get minimum double_weekday_price from all rooms
+            $min_price = $hotel->rooms->min('double_weekday_price');
+            
+            return [
+                'hotel_unique_id' => $hotel->hotel_unique_id,
+                'name' => $hotel->name,
+                'main_image' => $hotel->main_image,
+                'city' => $hotel->city,
+                'address' => $hotel->address,
+                'country' => $hotel->country,
+                'hotel_star_rating' => $hotel->hotel_star_rating,
+                'single_base_price' => $min_price/2,
+            ];
+        });
+        
+        $attraction_list = $attractions->map(function($attraction) {
+            return [
+                'id' => $attraction->attraction_id,
+                'name' => $attraction->name,
+                'location' => $attraction->location,
+                'country' => $attraction->country,
+                'master_image' => $attraction->master_image,
+                'base_price' => $attraction->adult_price,
+            ];
+        });
+        
+        $restaurant_list = $restaurants->map(function($restaurant) {
+            return [
+                'id' => $restaurant->restaurant_id,
+                'name' => $restaurant->name,
+                'master_image' => $restaurant->master_image,
+                'city' => $restaurant->city,
+                'country' => $restaurant->country,
+                'base-price' => $restaurant->bf_price,
+            ];
+        });
+        
+        $vehicle_list = $vehicles->map(function($vehicle) {
+            return [
+                'id' => $vehicle->id,
+                'vehicle_id' => $vehicle->vehicle_id,
+                'vehicle_type' => $vehicle->vehicle_type,
+                'vehicle_name' => $vehicle->vehicle_name,
+                'image' => $vehicle->image,
+                'city' => $vehicle->city,
+                'base_price' => $vehicle->base_price,
+                'seating_capacity' => $vehicle->seating_capacity,
+            ];
+        });
+        
+        $port_list = $ports->map(function($port) {
+            return [
+                'port_id' => $port->port_id,
+                'port_name' => $port->port_name,
+                'type' => $port->type,
+                'country' => $port->country,
+                'distance' => $port->distance,
+            ];
+        });
+        
+        $guide_list = $guides->map(function($guide) {
+            return [
+                'guide_id' => $guide->guide_id,
+                'name' => $guide->name,
+                'guide_gender' => $guide->guide_gender,
+                'guide_age' => $guide->guide_age,
+                'image' => $guide->image,
+                'rating' => $guide->rating,
+                'city' => $guide->city,
+                'country' => $guide->country,
+                'base_price' => $guide->hourly_price,
+                'languages' => $guide->languages->pluck('language'),
+            ];
+        });
+        
         $items = [
-            'hotels' => $hotels,
-            'attractions' => $attractions,
-            'restaurants' => $restaurants,
-            'guides' => $guides,
-            'vehicles' => $vehicles,
-            'ports' => $ports,
+            'hotels' => $hotel_list,
+            'attractions' => $attraction_list,
+            'restaurants' => $restaurant_list,
+            'guides' => $guide_list,
+            'vehicles' => $vehicle_list,
+            'ports' => $port_list,
         ];
 
         return response()->json([
