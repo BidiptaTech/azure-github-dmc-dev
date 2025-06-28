@@ -16,7 +16,7 @@ use App\Helpers\CommonHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Auth;
+use Illuminate\Support\Facades\Auth;
 
 class PackageController extends Controller
 {
@@ -329,6 +329,77 @@ class PackageController extends Controller
 
     public function booking(Request $request){
         // Extract booking data from request
+        $user = Auth::user();
+        if(!$user){
+            return response()->json(['message' => 'User not found'], 404);
+        }
+        
+        // Get type from request
+        $type = $request->input('user_role', 'user'); // Default to 'user' if not provided
+        
+        if($type == 'agent' || $type == 'Agent'){
+            $user_id = $user->agent_id; 
+            $sales_manager_dmc_id = $user->sales_manager_dmc;
+            $role_id = $user->role_id;
+
+            if($role_id == 11){
+                $dmc_id = $sales_manager_dmc_id;
+            }
+            elseif($role_id == 33){
+                $sales_head_id = $user->sales_manager_dmc;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            elseif($role_id == 37){
+                $sales_manager_id = $user->sales_manager_dmc;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            elseif($role_id == 38){
+                $assistant_sales_manager_id = $user->sales_manager_dmc;
+                $assistant_sales_manager = User::where('userId', $assistant_sales_manager_id)->first();
+                $sales_manager_id = $assistant_sales_manager->created_by;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            else{
+                $dmc_id = null;
+            }
+        }else{
+            $user_id = $user->userId;
+            //DMC (role_id 11)
+            if($user->role_id == 11){
+                $dmc_id = $user_id;
+            }
+            //Sales Head (role_id 33)
+            elseif($user->role_id == 33){
+                $dmc_id = $user->created_by;
+            }
+            //Sales Manager (role_id 37)
+            elseif($user->role_id == 37){
+                $sales_manager_id = $user->userId;
+                $sales_head_id = $user->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            //Assistant Sales Manager (role_id 38)
+            elseif($user->role_id == 38){
+                $assistant_sales_manager_id = $user->userId;
+                $sales_manager_id = $user->created_by;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            else {
+                $dmc_id = null; // Default for other roles
+            }
+        }
+        
         $data = $request->json()->all();
         $package_id = $data['package']['package_id'];
         $totalPrice = $data['booking_details']['total_price'];
@@ -365,7 +436,7 @@ class PackageController extends Controller
         $booking_max_id = $lastBooking->booking_id ?? 0;
         $bookingId = CommonHelper::createId($booking_max_id);
         while (PackageBooking::where('booking_id', $bookingId)->exists()) {
-            $attractionId = CommonHelper::createId($attractionId);
+            $bookingId = CommonHelper::createId($bookingId);
         }
 
                 
@@ -375,10 +446,12 @@ class PackageController extends Controller
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
         
 
-        $user = Auth::user();
+       
         $booking = new PackageBooking();
         $booking->booking_id = $bookingId;
         $booking->package_id = $package_id;
+        $booking->type = $type; // Save the type (agent/user)
+        $booking->dmc_id = $dmc_id; // Save the DMC ID
         $booking->booking_details = json_encode($data['booking_details']);
         $booking->package = json_encode($data['package']);
         $booking->user_info = json_encode($data['user_info']);
@@ -394,7 +467,12 @@ class PackageController extends Controller
         // Add other required fields and save the booking
         $booking->save();
         
-        return response()->json(['message' => 'Booking created successfully', 'booking_id' => $booking->booking_id], 201);
+        return response()->json([
+            'message' => 'Booking created successfully', 
+            'booking_id' => $booking->booking_id,
+            'type' => $type,
+            'dmc_id' => $dmc_id
+        ], 201);
     }
 
     public function editCustomPackage(Request $request){
@@ -489,4 +567,106 @@ class PackageController extends Controller
         }
     }
     
+    public function updateCustomPackage(Request $request){
+        $payload = $request->all(); // this is the outer array
+
+        foreach ($payload as $entry) {
+            // Validate each entry
+            validator($entry, [
+                'type' => 'required|string',
+                'tour_id' => 'required|integer',
+                'agent_id' => 'required|integer',
+                'data' => 'required|array',
+            ])->validate();
+
+            $type = $entry['type'];
+            $tourId = $entry['tour_id'];
+            $agentId = $entry['agent_id'];
+            $newData = $entry['data'];
+
+            // Get existing orders for this tour
+            $existingOrders = Order::where('tour_id', $tourId)
+                ->where('agent_id', $agentId)
+                ->where('type', $type)
+                ->get();
+
+            // Create arrays to track what needs to be updated/added/deleted
+            $existingBookingIds = $existingOrders->pluck('booking_id')->toArray();
+            $newBookingIds = [];
+
+            // Process new data items
+            foreach ($newData as $item) {
+                $bookingId = $item['booking_id'] ?? null;
+                if ($bookingId && in_array($bookingId, $existingBookingIds)) {
+                    // Update existing order
+                    $existingOrder = $existingOrders->where('booking_id', $bookingId)->first();
+                    if ($existingOrder) {
+                        $existingOrder->update([
+                            'data' => [$item],
+                            'type' => $type,
+                            'status' => 1,
+                        ]);
+                        $newBookingIds[] = $bookingId;
+                    }
+                } else {
+                    // Create new order
+                    $max_book_id = Order::max('booking_id') ?? 0;
+                    $newBookingId = CommonHelper::createId($max_book_id);
+
+                    // Ensure unique booking_id
+                    while (Order::where('booking_id', $newBookingId)->exists()) {
+                        $newBookingId = CommonHelper::createId($newBookingId);
+                    }
+
+                    Order::create([
+                        'agent_id' => $agentId,
+                        'tour_id' => $tourId,
+                        'data' => [$item],
+                        'type' => $type,
+                        'bookingType' => 'enquiry',
+                        'booking_id' => $newBookingId,
+                        'status' => 1,
+                    ]);
+                    $newBookingIds[] = $newBookingId;
+                }
+            }
+
+            // Delete orders that are no longer present in the new data
+            $ordersToDelete = array_diff($existingBookingIds, $newBookingIds);
+            if (!empty($ordersToDelete)) {
+                Order::where('tour_id', $tourId)
+                    ->where('agent_id', $agentId)
+                    ->where('type', $type)
+                    ->whereIn('booking_id', $ordersToDelete)
+                    ->delete();
+            }
+        }
+
+        return response()->json(['message' => 'Custom package updated successfully.']);
+    }
+
+    public function cancelPackageBooking(Request $request)
+    {
+        $package_id = $request->input('booking_id');
+        if (empty($package_id)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Package ID is required.',
+            ], 400);
+        }
+        $updated = PackageBooking::where('booking_id', $package_id)
+            ->update(['status' => 4]);
+        if ($updated) {
+            return response()->json([
+                'status' => true,
+                'message' => 'Booking successfully cancelled.',
+            ]);
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'Booking not found or already cancelled.',
+            ], 404);
+        }
+    }
+
 }
