@@ -81,10 +81,7 @@ class DashboardController extends Controller
             'canViewProductAnalytics' => $this->canViewProductAnalytics($user),
             'canViewZones' => $this->canViewZones($user),
             'canViewAgents' => $this->canViewAgents($user),
-<<<<<<< HEAD
             'canViewPorts' => $this->canViewPorts($user),
-=======
->>>>>>> 8f1332a634a745061d8a2a43171410f908628470
             'isProductManager' => $this->isProductManager($user)
         ];
     }
@@ -114,7 +111,6 @@ class DashboardController extends Controller
     }
     
     /**
-<<<<<<< HEAD
      * Check if user can view ports (only Admin and Super Admin)
      */
     private function canViewPorts($user)
@@ -122,9 +118,8 @@ class DashboardController extends Controller
         return in_array($user->role_id, [1, 2]); // Admin, Super Admin only
     }
     
+    
     /**
-=======
->>>>>>> 8f1332a634a745061d8a2a43171410f908628470
      * Check if user can view hotels
      */
     private function canViewHotels($user)
@@ -294,13 +289,10 @@ class DashboardController extends Controller
         if (in_array($user->role_id, [1, 2, 10, 11, 35]) || $this->isProductManager($user)) {
             $counts['facilities'] = $this->getFacilityCounts($dateRanges, $user);
             $counts['categories'] = $this->getCategoryCounts($dateRanges, $user);
-<<<<<<< HEAD
         }
         
         // Ports - only for Admin and Super Admin
         if ($this->canViewPorts($user)) {
-=======
->>>>>>> 8f1332a634a745061d8a2a43171410f908628470
             $counts['ports'] = $this->getPortCounts($dateRanges, $user);
         }
         
