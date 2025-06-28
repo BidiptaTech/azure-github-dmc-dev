@@ -81,6 +81,7 @@ class DashboardController extends Controller
             'canViewProductAnalytics' => $this->canViewProductAnalytics($user),
             'canViewZones' => $this->canViewZones($user),
             'canViewAgents' => $this->canViewAgents($user),
+            'canViewPorts' => $this->canViewPorts($user),
             'isProductManager' => $this->isProductManager($user)
         ];
     }
@@ -107,6 +108,14 @@ class DashboardController extends Controller
     private function canViewZones($user)
     {
         return in_array($user->role_id, [1, 2, 10, 11]); // Admin, Super Admin, Master DMC, DMC only
+    }
+    
+    /**
+     * Check if user can view ports (only Admin and Super Admin)
+     */
+    private function canViewPorts($user)
+    {
+        return in_array($user->role_id, [1, 2]); // Admin, Super Admin only
     }
     
     /**
@@ -279,6 +288,10 @@ class DashboardController extends Controller
         if (in_array($user->role_id, [1, 2, 10, 11, 35]) || $this->isProductManager($user)) {
             $counts['facilities'] = $this->getFacilityCounts($dateRanges, $user);
             $counts['categories'] = $this->getCategoryCounts($dateRanges, $user);
+        }
+        
+        // Ports - only for Admin and Super Admin
+        if ($this->canViewPorts($user)) {
             $counts['ports'] = $this->getPortCounts($dateRanges, $user);
         }
         
