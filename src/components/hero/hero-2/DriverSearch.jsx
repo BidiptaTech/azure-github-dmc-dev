@@ -70,6 +70,13 @@ const PhoneChip = styled(Chip)(({ theme }) => ({
   fontSize: 12,
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+}));
+
 const DriverSearch = ({ onSelect }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -81,6 +88,12 @@ const DriverSearch = ({ onSelect }) => {
 
   // Get drivers from Redux store
   const { drivers = [], loading, error } = useSelector(state => state.enquiryList || { drivers: [], loading: false });
+
+  // Helper function to format price
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
 
   // Filter drivers based on search term
   const filteredDrivers = drivers ? drivers.filter((driver) =>
@@ -164,10 +177,19 @@ const DriverSearch = ({ onSelect }) => {
                     key={driver.driver_id}
                     onClick={() => handleDriverSelect(driver)}
                   >
-                    <Typography variant="body1">{driver.name}</Typography>
-                    {driver.phone && (
-                      <PhoneChip size="small" label={driver.phone} />
-                    )}
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body1">{driver.name}</Typography>
+                      {driver.phone && (
+                        <PhoneChip size="small" label={driver.phone} sx={{ mt: 0.5 }} />
+                      )}
+                      {driver.base_price && (
+                        <PriceChip 
+                          label={`${formatPrice(driver.base_price)}/day`}
+                          size="small"
+                          sx={{ mt: 0.5, ml: 1 }}
+                        />
+                      )}
+                    </Box>
                   </DriverOption>
                 ))
               ) : (

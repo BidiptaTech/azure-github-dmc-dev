@@ -74,6 +74,14 @@ const CountBadge = styled(Chip)(({ theme }) => ({
   fontSize: 12,
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+  marginTop: theme.spacing(0.5),
+}));
+
 const PreferredHotelsDropdown = ({ onSelect }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -84,6 +92,12 @@ const PreferredHotelsDropdown = ({ onSelect }) => {
   const inputRef = useRef(null);
 
   const { hotels = [], loading, error } = useSelector((state) => state.enquiryList || {});
+
+  // Helper function to format price
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
   const filteredHotels = hotels.filter((hotel) =>
     hotel.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -225,6 +239,12 @@ const PreferredHotelsDropdown = ({ onSelect }) => {
                           <Typography variant="caption" color="text.secondary">
                             {getDescriptionSnippet(hotel.description)}
                           </Typography>
+                          {hotel.single_base_price && (
+                            <PriceChip 
+                              label={`${formatPrice(hotel.single_base_price)}/night`}
+                              size="small"
+                            />
+                          )}
                         </>
                       }
                     />

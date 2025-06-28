@@ -42,9 +42,10 @@ import {
   ExpandMore as ExpandMoreIcon,
   ArrowBack as ArrowBackIcon,
   Send as SendIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  AttachMoney as AttachMoneyIcon
 } from "@mui/icons-material";
-import { submitEnquiryForm, updateServiceDetails } from "../../../slice/common/EnquirySlice";
+import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice } from "../../../slice/common/EnquirySlice";
 import axios from "axios";
 import Cookies from "js-cookie";  
 import { BASE_URL } from '@/services/api';
@@ -151,6 +152,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   const [localEnquiryId, setLocalEnquiryId] = useState(null);
   const [countryValue, setCountryValue] = useState("");
   const [cityValue, setCityValue] = useState("");
+  const [calculatedPrice, setCalculatedPrice] = useState(0);
   
   const bookingDetails = useSelector((state) => state.enquiry);
   const serviceDetails = useSelector((state) => state.enquiry.serviceDetails || {});
@@ -192,7 +194,159 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       setLocalEnquiryId(enquiryId);
     }
   }, [enquiryId]);
+
+  // Calculate and update price when service details change
+  useEffect(() => {
+    if (selectedServices && serviceDetails) {
+      const price = calculateApproximatePrice();
+      setCalculatedPrice(price);
+    }
+  }, [selectedServices, serviceDetails, bookingDetails?.guestCounts, bookingDetails?.checkinDate, bookingDetails?.checkoutDate]);
+
+  // Calculate and store price when component mounts
+  useEffect(() => {
+    if (selectedServices && serviceDetails) {
+      const price = calculateApproximatePrice();
+      setCalculatedPrice(price);
+    }
+  }, [selectedServices, serviceDetails, bookingDetails]);
   
+  // Function to calculate approximate pricing using ACTUAL API prices
+  const calculateApproximatePrice = () => {
+    let totalPrice = 0;
+    
+    // Get guest count from booking details for per-person calculations
+    const guestCounts = bookingDetails?.guestCounts || {};
+    const totalPersons = (guestCounts.Adults || 1) + (guestCounts.Children || 0) + (guestCounts.Infants || 0);
+    
+    // Calculate days between check-in and check-out
+    const checkinDate = bookingDetails?.checkinDate ? new Date(bookingDetails.checkinDate) : new Date();
+    const checkoutDate = bookingDetails?.checkoutDate ? new Date(bookingDetails.checkoutDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const totalDays = Math.max(1, Math.ceil((checkoutDate - checkinDate) / (24 * 60 * 60 * 1000)));
+
+    console.log("Pricing calculation details:", { totalPersons, totalDays, serviceDetails });
+
+    // Calculate hotel pricing using ACTUAL hotel prices
+    if (selectedServices.includes("hotel") && serviceDetails.hotel) {
+      const hotelDetails = serviceDetails["undefined"] || serviceDetails.hotel;
+      const selectedHotels = hotelDetails.preferredHotels || [];
+      
+      let hotelPrice = 0;
+      selectedHotels.forEach(hotel => {
+        // Use actual single_base_price from API, fallback to default if 0 or missing
+        const actualPrice = parseFloat(hotel.single_base_price) || 120; // 120 as fallback
+        hotelPrice += actualPrice * totalDays;
+        console.log(`Hotel "${hotel.name}": $${actualPrice}/night × ${totalDays} days = $${actualPrice * totalDays}`);
+      });
+      
+      totalPrice += hotelPrice;
+      console.log(`Total hotel pricing: $${hotelPrice}`);
+    }
+
+    // Calculate port/transfer pricing using ACTUAL vehicle prices
+    if (selectedServices.includes("entryExitPort") && serviceDetails.entryExitPort) {
+      const entryExitDetails = serviceDetails.entryExitPort;
+      let transferCount = 0;
+      if (entryExitDetails.showEntryPort !== false) transferCount++; // Entry transfer
+      if (entryExitDetails.showExitPort === true) transferCount++; // Exit transfer
+      
+      const cars = entryExitDetails.preferredCars || [];
+      let transferPrice = 0;
+      
+      if (cars.length > 0) {
+        cars.forEach(car => {
+          // Use actual base_price from API, fallback to default if missing
+          const actualPrice = parseFloat(car.base_price) || 45; // 45 as fallback
+          transferPrice += actualPrice * transferCount;
+          console.log(`Vehicle "${car.vehicle_name}": $${actualPrice} × ${transferCount} transfers = $${actualPrice * transferCount}`);
+        });
+      } else {
+        // If no specific cars selected, use default price
+        transferPrice = transferCount * 45; // Default port transfer price
+      }
+      
+      totalPrice += transferPrice;
+      console.log(`Total transfer pricing: $${transferPrice}`);
+    }
+
+    // Calculate attraction pricing using ACTUAL attraction prices
+    if (selectedServices.includes("attraction") && serviceDetails.attraction) {
+      const attractions = serviceDetails.attraction.selectedAttractions || [];
+      
+      let attractionPrice = 0;
+      attractions.forEach(attraction => {
+        // Use actual base_price from API, fallback to default if 0 or missing
+        const actualPrice = parseFloat(attraction.base_price) || 25; // 25 as fallback
+        attractionPrice += actualPrice * totalPersons;
+        console.log(`Attraction "${attraction.name}": $${actualPrice}/person × ${totalPersons} persons = $${actualPrice * totalPersons}`);
+      });
+      
+      totalPrice += attractionPrice;
+      console.log(`Total attraction pricing: $${attractionPrice}`);
+    }
+
+    // Calculate local tour pricing using ACTUAL vehicle prices
+    if (selectedServices.includes("localTour") && serviceDetails.localTour) {
+      const localTourCars = serviceDetails.localTour.preferredCars || [];
+      
+      let localTourPrice = 0;
+      if (localTourCars.length > 0) {
+        localTourCars.forEach(car => {
+          // Use actual base_price from API, fallback to default if missing
+          const actualPrice = parseFloat(car.base_price) || 85; // 85 as fallback
+          localTourPrice += actualPrice * totalDays;
+          console.log(`Local tour vehicle "${car.vehicle_name}": $${actualPrice}/day × ${totalDays} days = $${actualPrice * totalDays}`);
+        });
+      } else {
+        // If no specific cars selected, use default price
+        localTourPrice = 85 * totalDays; // Default local tour price
+      }
+      
+      totalPrice += localTourPrice;
+      console.log(`Total local tour pricing: $${localTourPrice}`);
+    }
+
+    // Calculate tour guide pricing using ACTUAL guide prices
+    if (selectedServices.includes("tourGuide") && serviceDetails.tourGuide) {
+      const guides = serviceDetails.tourGuide.preferredGuides || [];
+      
+      let guidePrice = 0;
+      guides.forEach(guide => {
+        // Use actual base_price from API, fallback to default if missing
+        const actualPrice = parseFloat(guide.base_price) || 150; // 150 as fallback
+        guidePrice += actualPrice * totalDays;
+        console.log(`Guide "${guide.name}": $${actualPrice}/day × ${totalDays} days = $${actualPrice * totalDays}`);
+      });
+      
+      totalPrice += guidePrice;
+      console.log(`Total guide pricing: $${guidePrice}`);
+    }
+
+    // Calculate restaurant pricing using ACTUAL restaurant prices
+    if (selectedServices.includes("restaurant") && serviceDetails.restaurant) {
+      const restaurants = serviceDetails.restaurant.selectedRestaurants || [];
+      
+      let restaurantPrice = 0;
+      restaurants.forEach(restaurant => {
+        // Use actual base-price from API, fallback to default if missing
+        const actualPrice = parseFloat(restaurant['base-price']) || 35; // 35 as fallback
+        restaurantPrice += actualPrice * totalPersons;
+        console.log(`Restaurant "${restaurant.name}": $${actualPrice}/person × ${totalPersons} persons = $${actualPrice * totalPersons}`);
+      });
+      
+      totalPrice += restaurantPrice;
+      console.log(`Total restaurant pricing: $${restaurantPrice}`);
+    }
+
+    console.log(`Total approximate price calculated: $${totalPrice}`);
+    const roundedPrice = Math.round(totalPrice);
+    
+    // Dispatch the calculated price to Redux so EnquirySlice can use it
+    dispatch(updateCalculatedPrice(roundedPrice));
+    
+    return roundedPrice; // Round to nearest dollar
+  };
+
   // console.log("Selected Services:", selectedServices);
   // console.log("Service Details from Redux:", serviceDetails);
   // console.log("Enquiry ID from Redux:", enquiryId);
@@ -1084,6 +1238,9 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         return;
       }
       
+      // Calculate approximate price using the main calculation function
+      const approxPrice = calculateApproximatePrice();
+      
       // Format data according to API requirements
       const requestBody = {
         enquiry_id: submissionId,
@@ -1093,6 +1250,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         attraction: selectedServices.includes("attraction"),
         restaurant: selectedServices.includes("restaurant"),
         guide: selectedServices.includes("tourGuide"),
+        approx_price: approxPrice, // Add the calculated approximate price
       };
 
       // Log key information about submission
@@ -1760,7 +1918,74 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         </Grid>
       </Grid>
       
-    
+      {/* Pricing Summary Section */}
+      {calculatedPrice > 0 && (
+        <SectionPaper>
+          <SectionHeader>
+            <SectionIcon bgcolor="#4caf50">
+              <AttachMoneyIcon />
+            </SectionIcon>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              Package Pricing Summary
+            </Typography>
+          </SectionHeader>
+          
+          <Box 
+            sx={{ 
+              background: 'linear-gradient(135deg,rgb(76, 119, 175) 0%,rgb(69, 86, 160) 100%)',
+              color: 'white',
+              p: 3,
+              borderRadius: 2,
+              textAlign: 'center'
+            }}
+          >
+            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
+              ${calculatedPrice.toLocaleString()}/person
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 1, color: 'white' }}>
+              Approximate Total Package Cost
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 1 }}>
+              *Final price may vary based on actual selections and seasonal rates
+            </Typography>
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              <strong>Price includes:</strong>
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {selectedServices.map((service) => (
+                <Chip
+                  key={service}
+                  label={formatServiceName(service)}
+                  icon={getServiceIcon(service)}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              ))}
+            </Box>
+          </Box>
+
+          {bookingDetails?.guestCounts && (
+            <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Based on:</strong> {' '}
+                {(bookingDetails.guestCounts.Adults || 1)} Adult(s)
+                {bookingDetails.guestCounts.Children > 0 && `, ${bookingDetails.guestCounts.Children} Child(ren)`}
+                {bookingDetails.guestCounts.Infants > 0 && `, ${bookingDetails.guestCounts.Infants} Infant(s)`}
+                {bookingDetails.checkinDate && bookingDetails.checkoutDate && (
+                  <span>
+                    {' • '} 
+                    {Math.max(1, Math.ceil((new Date(bookingDetails.checkoutDate) - new Date(bookingDetails.checkinDate)) / (24 * 60 * 60 * 1000)))} day(s)
+                  </span>
+                )}
+              </Typography>
+            </Box>
+          )}
+        </SectionPaper>
+      )}
       
       {/* Action buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
