@@ -111,6 +111,13 @@ const CountBadge = styled(Chip)(({ theme }) => ({
   fontSize: 12,
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+}));
+
 const AttractionSearch = ({ onSelect }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,6 +131,12 @@ const AttractionSearch = ({ onSelect }) => {
   // Get attractions from Redux store
   const { attractions = [], loading, error } = useSelector(state => state.enquiryList || { attractions: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
+
+  // Helper function to format price
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
 
   // Manual fetch button for testing
   // const handleManualFetch = () => {
@@ -288,6 +301,13 @@ const AttractionSearch = ({ onSelect }) => {
                         <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.4 }}>
                           {getDescriptionSnippet(attraction.description)}
                         </Typography>
+                      )}
+                      {attraction.base_price && (
+                        <PriceChip 
+                          label={`${formatPrice(attraction.base_price)}/person`}
+                          size="small"
+                          sx={{ mt: 1 }}
+                        />
                       )}
                     </AttractionInfo>
                     {attraction.master_image && (

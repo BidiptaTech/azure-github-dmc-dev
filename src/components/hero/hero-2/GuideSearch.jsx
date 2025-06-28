@@ -119,6 +119,13 @@ const MetadataTag = styled(Chip)(({ theme }) => ({
   backgroundColor: theme.palette.grey[100],
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+}));
+
 const OthersInputContainer = styled(Box)(({ theme }) => ({
   marginTop: theme.spacing(1),
   display: "flex",
@@ -138,6 +145,12 @@ const GuideSearch = ({ onSelect }) => {
   // Get guides from Redux store
   const { guides = [], loading, error } = useSelector(state => state.enquiryList || { guides: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
+
+  // Helper function to format price
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
 
   // Manual fetch button for testing
   const handleManualFetch = () => {
@@ -334,6 +347,13 @@ const GuideSearch = ({ onSelect }) => {
                         <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.4 }}>
                           {getDescriptionSnippet(guide.description)}
                         </Typography>
+                      )}
+                      {guide.base_price && (
+                        <PriceChip 
+                          label={`${formatPrice(guide.base_price)}/hour`}
+                          size="small"
+                          sx={{ mt: 1 }}
+                        />
                       )}
                     </GuideInfo>
                     {guide.image && (
