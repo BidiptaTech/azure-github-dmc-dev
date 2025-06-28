@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState , useEffect} from 'react';
 import { 
   Box, 
   Typography, 
@@ -69,7 +69,91 @@ export default function Itinerary({ onBookingSuccess }) {
   const [portType,setPortType] = useState("Entry Port");
   const [portType1,setPortType1] = useState("Exit Port");
   const dispatch = useDispatch();
-  
+  const packageData = useSelector((state) => state.tourPackages.packageData);
+  console.log("packageData", packageData);
+
+  // Categorize package data by service type
+  const categorizedServices = useMemo(() => {
+    if (!packageData?.tour?.booking) {
+      return {
+        hotels: [],
+        entryPorts: [],
+        exitPorts: [],
+        attractions: [],
+        restaurants: [],
+        guides: [],
+        travelPoints: [],
+        travelHourly: [],
+        localTransports: []
+      };
+    }
+
+    const services = {
+      hotels: [],
+      entryPorts: [],
+      exitPorts: [],
+      attractions: [],
+      restaurants: [],
+      guides: [],
+      travelPoints: [],
+      travelHourly: [],
+      localTransports: []
+    };
+
+    packageData.tour.booking.forEach(booking => {
+      const serviceType = booking.type?.toLowerCase();
+      
+      switch (serviceType) {
+        case 'hotel':
+          services.hotels.push(booking);
+          break;
+        case 'entry_port':
+          services.entryPorts.push(booking);
+          break;
+        case 'exit_port':
+          services.exitPorts.push(booking);
+          break;
+        case 'attraction':
+          services.attractions.push(booking);
+          break;
+        case 'restaurant':
+          services.restaurants.push(booking);
+          break;
+        case 'guide':
+          services.guides.push(booking);
+          break;
+        case 'travel_point':
+          services.travelPoints.push(booking);
+          break;
+        case 'travel_hourly':
+          services.travelHourly.push(booking);
+          break;
+        case 'local_transport':
+          services.localTransports.push(booking);
+          break;
+        default:
+          console.warn(`Unknown service type: ${booking.type}`);
+      }
+    });
+
+    return services;
+  }, [packageData]);
+
+  // Log categorized services for debugging
+  useEffect(() => {
+    if (packageData?.tour?.booking) {
+      console.log("Categorized Services:", categorizedServices);
+      console.log("Hotels:", categorizedServices.hotels);
+      console.log("Entry Ports:", categorizedServices.entryPorts);
+      console.log("Exit Ports:", categorizedServices.exitPorts);
+      console.log("Attractions:", categorizedServices.attractions);
+      console.log("Restaurants:", categorizedServices.restaurants);
+      console.log("Guides:", categorizedServices.guides);
+      console.log("Travel Points:", categorizedServices.travelPoints);
+      console.log("Travel Hourly:", categorizedServices.travelHourly);
+      console.log("Local Transports:", categorizedServices.localTransports);
+    }
+  }, [categorizedServices, packageData]);
   // State for active service tab
   const [activeServiceTab, setActiveServiceTab] = useState(0);
   
@@ -191,7 +275,7 @@ export default function Itinerary({ onBookingSuccess }) {
         </Box> */}
         
         {/* Hotel Component */}
-        <HotelComponent />
+        <HotelComponent hotels={categorizedServices.hotels} />
 
       </Paper>
 
@@ -244,6 +328,8 @@ export default function Itinerary({ onBookingSuccess }) {
         setPortType={() => setPortType("Entry Port")} 
         date={date}
         dayIndex={index}
+        entryPorts={categorizedServices.entryPorts}
+        exitPorts={categorizedServices.exitPorts}
       />
     </Paper>
   </Box>
@@ -257,6 +343,7 @@ export default function Itinerary({ onBookingSuccess }) {
                 <AttractionComponent 
                   date={date}
                   dayIndex={index}
+                  attractions={categorizedServices.attractions}
                 />
               </Paper>
             </Box>
@@ -268,6 +355,7 @@ export default function Itinerary({ onBookingSuccess }) {
                 <GuideComponent 
                   date={date}
                   dayIndex={index}
+                  guides={categorizedServices.guides}
                 />
               </Paper>
             </Box>
@@ -279,6 +367,7 @@ export default function Itinerary({ onBookingSuccess }) {
                 <RestaurantComponent 
                   date={date}
                   dayIndex={index}
+                  restaurants={categorizedServices.restaurants}
                 />
               </Paper>
             </Box>
@@ -289,6 +378,9 @@ export default function Itinerary({ onBookingSuccess }) {
                 <TransportComponent 
                   dayIndex={index}
                   date={date}
+                  PointToPoint={categorizedServices.travelPoints}
+                  Hourly={categorizedServices.travelHourly}
+                  LocalTransports={categorizedServices.localTransports}
                 />
               </Paper>
             </Box>
@@ -303,6 +395,8 @@ export default function Itinerary({ onBookingSuccess }) {
         setPortType1={() => setPortType1("Exit Port")} 
         date={date}
         dayIndex={index}
+        entryPorts={categorizedServices.entryPorts}
+        exitPorts={categorizedServices.exitPorts}
       />
     </Paper>
   </Box>

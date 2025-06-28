@@ -34,6 +34,7 @@ import NoteIcon from '@mui/icons-material/Note';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockIcon from '@mui/icons-material/Lock';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useDispatch, useSelector } from 'react-redux';
 import { bookPackage, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 
@@ -54,10 +55,30 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   const dispatch = useDispatch();
   const { bookingLoading, bookingSuccess, bookingError } = useSelector(state => state.prePackages);
   
+  // Get search params to access the selected date
+  const searchParams = useSelector(state => state.prePackages.searchParams);
+  
+  // Format the arrival date to dd-mm-yyyy
+  const formatDateToDDMMYYYY = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+  
+  // Get the date from searchParams
+const selectedDate = searchParams?.date ? 
+  formatDateToDDMMYYYY(searchParams.date) : '';
+  
   // Get country code from Redux state (adjust the path based on your Redux structure)
   const countryCodeFromRedux = useSelector((state) => state.auth?.countryCode);
-  const dialMaxLength = useSelector((state) => state.auth?.dialMaxLength) || 15;
-  const dialMinLength = useSelector((state) => state.auth?.dialMinLength) || 8;
+  console.log(countryCodeFromRedux);
+  // const dialMaxLength = useSelector((state) => state.auth?.dialMaxLength) || 15;
+  // const dialMinLength = useSelector((state) => state.auth?.dialMinLength) || 8;
+  const dialMaxLength =  15;
+  const dialMinLength =  8;
   
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -203,7 +224,9 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
         ...bookingData,
         user_info: {
           ...formData
-        }
+        },
+        // Add the selected date in dd/mm/yyyy format
+        date: selectedDate
       };
       
       // Dispatch the booking action
@@ -287,6 +310,18 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
                 Your information is secure
               </Typography>
             </Box>
+
+            {/* Selected Date Display */}
+            {selectedDate && (
+              <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: '12px', bgcolor: '#e8f4fd', border: '1px dashed #2196f3' }}>
+                <Box display="flex" alignItems="center">
+                  <CalendarTodayIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="subtitle1" fontWeight="medium">
+                    Selected Travel Date: <Box component="span" fontWeight="bold">{selectedDate}</Box>
+                  </Typography>
+                </Box>
+              </Paper>
+            )}
 
             <Paper elevation={0} sx={{ p: 3, borderRadius: '12px' }}>
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, color: '#3f51b5' }}>

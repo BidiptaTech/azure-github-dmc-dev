@@ -31,9 +31,9 @@ const Counter = ({
 
   const incrementCount = () => {
     // For Adults, prevent going above 10
-    if (name === "Adults" && count >= 10) return;
+    if (name === "Adults" && count >= 50) return;
     // For Children, prevent going above 10
-    if (name === "Children" && count >= 10) return;
+    if (name === "Children" && count >= 20) return;
     // For Infants, prevent going above 5
     if (name === "Infants" && count >= 5) return;
 

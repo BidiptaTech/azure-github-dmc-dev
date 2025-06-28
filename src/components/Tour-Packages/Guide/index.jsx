@@ -802,6 +802,7 @@ export default function GuideComponent() {
           </Card>
         </Grid>
         
+        
       </Grid>
 
       <GuideBookingSummaryModal

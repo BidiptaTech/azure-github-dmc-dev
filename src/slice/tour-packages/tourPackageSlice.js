@@ -197,6 +197,9 @@ const tourPackageSlice = createSlice({
         }
       }
     },
+    setPackageData: (state, action) => {
+      state.packageData = action.payload;
+    },
 
     // Clear all services
     clearAllServices: (state) => {
@@ -300,6 +303,7 @@ export const {
   resetPackageEnquiryId,
   setAllServices,
   clearAllServices,
+  setPackageData,
 } = tourPackageSlice.actions;
 
 // Export selectors

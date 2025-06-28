@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import {
+  Box,
+  Button,
+  Paper,
+  Grid,
+  Typography,
+  useTheme,
+  alpha,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import LocationSearch from "./LocationSearch";
 import {
   fetchVehicles,
@@ -16,6 +26,7 @@ import DateSearch1 from "@/components/activity-list/common/DateSearch1";
 import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
 
 const EntryPortSearch = ({ Location }) => {
+  const theme = useTheme();
   const dispatch = useDispatch();
   
   // Get values from Redux store to persist state
@@ -106,183 +117,97 @@ const EntryPortSearch = ({ Location }) => {
   };
 
   return (
-    <div className="entry-port-search-container">
-      {/* First row - Location Search */}
-      <div className="search-row1 location-row">
-        <LocationSearch
-          pickUpLocation={pickUpLocation}
-          setPickUpLocation={setPickUpLocation}
-          dropOffLocation={dropOffLocation}
-          setDropOffLocation={setDropOffLocation}
-          pickUpLatLng={pickUpLatLng}
-          setPickupLatLng={setPickupLatLng}
-          dropOffLatLng={dropOffLatLng}
-          setDropoffLatLng={setDropoffLatLng}
-          Location={Location}
-          validationTriggered={validationTriggered}
-          setPickupFromAutocomplete={setPickupFromAutocomplete}
-          setDropoffFromAutocomplete={setDropoffFromAutocomplete}
-        />
-        <div className="time-selection-wrapper">
+    <Paper 
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        bgcolor: 'white',
+        p: { xs: 2, md: 3 },
+        mt: 2,
+      }}
+    >
+      <Box sx={{ width: '100%', maxWidth: 1730 }}>
+        {/* Form Fields Row */}
+        <Grid container spacing={2} alignItems="flex-end" sx={{ mb: 3 }}>
+          {/* Location Search */}
+          <Grid item xs={12} md={6}>
+            <Box>
+                        <LocationSearch
+            pickUpLocation={pickUpLocation}
+            setPickUpLocation={setPickUpLocation}
+            dropOffLocation={dropOffLocation}
+            setDropOffLocation={setDropOffLocation}
+            pickUpLatLng={pickUpLatLng}
+            setPickupLatLng={setPickupLatLng}
+            dropOffLatLng={dropOffLatLng}
+            setDropoffLatLng={setDropoffLatLng}
+            Location={Location}
+            validationTriggered={validationTriggered}
+            setPickupFromAutocomplete={setPickupFromAutocomplete}
+            setDropoffFromAutocomplete={setDropoffFromAutocomplete}
+            colorTheme="blue"
+          />
+            </Box>
+          </Grid>
+
           {/* Time Selection */}
-          <Pickuptime
-            entryytime={entryytime}
-            setentryytime={setentryytime}
-            setTime={setTime}
-          />
-        </div>
-        {/* Date Selection */}
-        <div className="date-selection-wrapper">
-          <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">Pick Up Date</h4>
-          <DateSearch1
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-          />
-        </div>
-      </div>
-      {/* Second row - Time, Date, Button */}
-      <div className="search-row controls-row">
-        {/* Search Button */}
-        <div className="search-button-wrapper">
-          <button
-            className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
+          <Grid item xs={12} md={3}>
+            <Box>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+                Pick Up Time
+              </Typography>
+              <Pickuptime
+                entryytime={entryytime}
+                setentryytime={setentryytime}
+                setTime={setTime}
+              />
+            </Box>
+          </Grid>
+
+          {/* Date Selection */}
+          <Grid item xs={12} md={3}>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+                Pick Up Date
+              </Typography>
+              <DateSearch1
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+              />
+            </Box>
+          </Grid>
+        </Grid>
+
+        {/* Search Button Row */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<SearchIcon />}
             onClick={buttonsearch}
+            sx={{
+              minWidth: 200,
+              px: 4,
+              py: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+                boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
+                transform: 'translateY(-1px)',
+              },
+              transition: 'all 0.3s ease',
+            }}
           >
-            <i className="icon-search text-20 mr-10" />
             Search
-          </button>
-        </div>
-      </div>
-
-      <style jsx>{`
-        .entry-port-search-container {
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
-          width: 100%;
-        }
-        
-        .search-row1 {
-          width: 100%;
-          margin-left: -10px;
-        }
-        
-        .location-row {
-          display: flex;
-          flex-direction: row;
-          align-items: flex-end;
-          flex-wrap: nowrap;
-          gap: 10px;
-        }
-        
-        .controls-row {
-          /* Second row with controls */
-          display: flex;
-          flex-wrap: wrap;
-          align-items: flex-end;
-          gap: 15px;
-        }
-        
-        .searchMenu-loc {
-          width: 58%;
-          flex-shrink: 0;
-          margin-right: 0;
-        }
-        
-        .time-selection-wrapper {
-          width: 15%;
-          flex-shrink: 0;
-        }
-        
-        .date-selection-wrapper {
-          width: 20%;
-          flex-shrink: 0;
-        }
-        
-        .search-button-wrapper {
-          width: 20%;
-          margin-left: auto;
-        }
-
-        .search-button-wrapper button {
-          width: 100%;
-          max-width: 160px;
-        }
-
-        @media (max-width: 1400px) {
-          .searchMenu-loc {
-            width: 50%;
-          }
-          
-          .time-selection-wrapper {
-            width: 20%;
-          }
-          
-          .date-selection-wrapper {
-            width: 25%;
-          }
-        }
-
-        @media (max-width: 1199px) {
-          .location-row {
-            flex-wrap: wrap;
-          }
-          
-          .searchMenu-loc {
-            width: 100%;
-            margin-bottom: 15px;
-          }
-          
-          .time-selection-wrapper {
-            width: 48%;
-          }
-          
-          .date-selection-wrapper {
-            width: 48%;
-          }
-          
-          .controls-row {
-            flex-direction: column;
-            gap: 15px;
-          }
-          
-          .time-selection-wrapper,
-          .date-selection-wrapper,
-          .search-button-wrapper {
-            margin-left: 0;
-          }
-          
-          .search-button-wrapper {
-            text-align: center;
-            width: 100%;
-          }
-          
-          .search-button-wrapper button {
-            max-width: 100%;
-          }
-        }
-
-        @media (max-width: 767px) {
-          .entry-port-search-container {
-            gap: 10px;
-          }
-          
-          .location-row {
-            flex-direction: column;
-            gap: 15px;
-          }
-          
-          .time-selection-wrapper,
-          .date-selection-wrapper {
-            width: 100%;
-          }
-          
-          .controls-row {
-            gap: 10px;
-          }
-        }
-      `}</style>
-    </div>
+          </Button>
+        </Box>
+      </Box>
+    </Paper>
   );
 };
 

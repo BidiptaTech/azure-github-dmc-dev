@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import SearchForm from './common/SearchForm';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
-import { setSearchCriteria, setAllServices } from '@/slice/tour-packages/tourPackageSlice';
+import { setSearchCriteria} from '@/slice/tour-packages/tourPackageSlice';
 import { useDispatch } from 'react-redux';
 
 
@@ -14,17 +14,30 @@ import Itinerary from './common/Itinerary';
 
 // Import icons
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
-import { settourdetails } from '@/slice/hotel/hotelSlice';
+import { settourdetails,updateSearchState } from '@/slice/hotel/hotelSlice';
+import { fetchCitiesByCountry } from '@/slice/common/citiesSlice';
 
 export default function TourPackages() {
   const [currentStep, setCurrentStep] = useState(1);
   const dispatch = useDispatch();
   const packageData = useSelector((state) => state.tourPackages.packageData);
+
+   // Fetch cities when a country is selected
+   
   console.log("packageData", packageData);
   useEffect(() => {
     if(packageData){
       dispatch(settourdetails(packageData.tour));
-
+      dispatch(fetchCitiesByCountry(packageData.tour.destination))
+      .unwrap()
+      .then((response) => {
+        dispatch(setCity(response.data));
+      })
+      .catch((error) => {
+        console.error("Error fetching cities:", error);
+      });
+      // fetchCities(packageData.tour.destination);
+      dispatch(updateSearchState({ location: packageData.tour.destination }));
       dispatch(setSearchCriteria({
         destination: packageData.tour.destination,
         checkIn: packageData.tour.check_in_time,
@@ -40,9 +53,9 @@ export default function TourPackages() {
       }));
       
       // Dispatch the booking services if they exist
-      if (packageData.tour.booking && Array.isArray(packageData.tour.booking)) {
-        dispatch(setAllServices(packageData.tour.booking));
-      }
+      // if (packageData.tour.booking && Array.isArray(packageData.tour.booking)) {
+      //   dispatch(setAllServices(packageData.tour.booking));
+      // }
       
       setCurrentStep(2);
     }
@@ -139,7 +152,7 @@ export default function TourPackages() {
                     fontSize: '1.1rem'
                   }}
                 >
-                  Create Tour Packages
+                  {packageData ? "Update Tour Packages" : "Create Tour Packages"}
                 </Typography>
                 <Typography 
                   variant="caption" 
@@ -149,7 +162,7 @@ export default function TourPackages() {
                     fontWeight: 400
                   }}
                 >
-                  Search and customize your packages
+                  {packageData ? " " : "Search and customize your packages"}
                 </Typography>
               </Box>
             </Box>
@@ -162,7 +175,7 @@ export default function TourPackages() {
             overflow: 'visible',
             position: 'relative'
           }}>
-            <SearchForm onNext={handleNext} />
+            {packageData ? <></> : <SearchForm onNext={handleNext} />}
           </Box>
         </Paper>
       </Box>

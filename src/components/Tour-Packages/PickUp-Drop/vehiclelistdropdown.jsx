@@ -16,13 +16,18 @@ import {
   MenuItem,
   InputLabel,
   Button,
-  IconButton
+  IconButton,
+  Card,
+  CardContent
 } from '@mui/material';
 import { useSelector } from "react-redux";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FlightLandIcon from '@mui/icons-material/FlightLand';
+import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useDispatch } from 'react-redux';
 
 import { fetchVehicleDetails } from '../../../slice/port/pickupDropSlice';
@@ -247,12 +252,12 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
   );
 };
 
-const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
+const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) => {
   const vehicles = useSelector((state) => state.pickupDrop.vehicles || []);
   const portZoneType = useSelector((state) => state.pickupDrop.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  
+  console.log("entryPorts", entryPorts);
   // Redux state for locations and times
   const entryPickup = useSelector((state) => state.pickupDrop.entrypickup);
   const entryDropoff = useSelector((state) => state.pickupDrop.entrydropoff);
@@ -260,6 +265,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
   const entryTime = useSelector((state) => state.pickupDrop.entrytime);
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
+  
   
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
@@ -279,18 +285,87 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
   const [openSummaryModal, setOpenSummaryModal] = useState(false);
   const [summaryBookingIndex, setSummaryBookingIndex] = useState(null);
   
-  // Use a ref to store bookings to prevent them from being lost during re-renders
-  const bookingsRef = useRef([
-    { 
-      id: `entry-${Date.now()}`, // Use unique ID with timestamp and type prefix
-      vehicle: null, 
-      vehicleData: null, 
+  // Initialize bookings from entryPorts data or default empty booking
+  const initializeBookings = () => {
+    if (entryPorts && entryPorts.length > 0) {
+      // Pre-populate with existing entry port data
+      return entryPorts.map((entryPort, index) => {
+        const entryData = entryPort.data?.[0];
+        if (!entryData) {
+          // Fallback to default booking if no data
+          return {
+            id: `entry-${Date.now()}-${index}`,
+            vehicle: null,
+            vehicleData: null,
+            priceMode: null,
+            isComplete: false,
+            adults: adultCount || 1,
+            children: childCount || 0
+          };
+        }
+        
+        // Find the corresponding vehicle from the vehicles list
+        const matchingVehicle = vehicles.find(v => v.id === entryData.vehicles_id);
+        
+        return {
+          id: entryData.id,
+          vehicle: matchingVehicle || {
+            id: entryData.vehicles_id,
+            vehicle_name: entryData.vehicles_name,
+            vehicle_type: entryData.vehicle_type,
+            vehicle_model: entryData.vehicle_model,
+            model_year: entryData.model_year,
+            seating_capacity: entryData.seating_capacity,
+            image: entryData.image,
+            city: entryData.city,
+            country: entryData.country,
+            dmc_id: entryData.dmc_id
+          },
+          vehicleData: {
+            // Map the price mode to expected structure
+            private_price: entryData.type === 'private' ? entryData.totalPrice : 0,
+            shared_price: entryData.type === 'shared' ? entryData.totalPrice : 0,
+            prices: {
+              privatePrice: entryData.type === 'private' ? entryData.totalPrice : 0,
+              sharablePrice: entryData.type === 'shared' ? entryData.totalPrice : 0
+            }
+          },
+          priceMode: entryData.type === 'shared' ? 'Sharable' : 'Private',
+          isComplete: true, // Mark as complete since it's loaded data
+          adults: entryData.adults || 1,
+          children: entryData.children || 0,
+          mode: entryData.Mode || 'dmc',
+          dmcId: entryData.dmc_id,
+          // Store original loaded data for reference
+          originalData: entryData
+        };
+      });
+    }
+    
+    // Default empty booking when no entryPorts data
+    return [{
+      id: `entry-${Date.now()}`,
+      vehicle: null,
+      vehicleData: null,
       priceMode: null,
       isComplete: false,
       adults: adultCount || 1,
       children: childCount || 0
+    }];
+  };
+
+  // Use a ref to store bookings to prevent them from being lost during re-renders
+  const bookingsRef = useRef(initializeBookings());
+
+  // Debug log initial bookings
+  useEffect(() => {
+    console.log("Entry Vehicle - Initial bookings state:", bookingsRef.current);
+    if (entryPorts && entryPorts.length > 0) {
+      console.log("Entry Vehicle - Loading with existing entryPorts data");
+    } else {
+      console.log("Entry Vehicle - Loading with default empty booking");
     }
-  ]);
+  }, []);
   
   // State to trigger re-renders when bookings change
   const [bookingsVersion, setBookingsVersion] = useState(0);
@@ -352,40 +427,58 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     setBookings([...bookings, newBooking]);
   };
   
-  // Remove a booking
+  // Remove a booking from both local state and Redux state
   const handleRemoveBooking = (indexToRemove) => {
     const bookings = getBookings();
     const bookingToRemove = bookings[indexToRemove];
     
     if (bookingToRemove) {
+      console.log("Entry Vehicle - Removing booking:", bookingToRemove);
+      
       // Remove from local state
       const updatedBookings = bookings.filter((_, index) => index !== indexToRemove);
       setBookings(updatedBookings);
       
-      // Remove from Redux state if it has a vehicleId
-      if (bookingToRemove.vehicle && bookingToRemove.vehicle.id) {
+      // Remove from Redux state if it has booking data
+      if (bookingToRemove.id || (bookingToRemove.vehicle && bookingToRemove.vehicle.id)) {
         // Clone the existing services array
         const currentServices = [...existingServices];
         
-        // Filter out the booking with matching ID or type+vehicleId
+        // Filter out entry_port services that contain this booking
         const filteredServices = currentServices.filter(service => {
-          // If the booking has an ID, use that for exact matching
-          if (bookingToRemove.id && service.id === bookingToRemove.id) {
-            return false;
+          // Check if this is an entry_port service
+          if (service.type === "entry_port") {
+            // Check if this service contains data that matches our booking
+            if (service.data && Array.isArray(service.data)) {
+              // Remove this service if any of its data matches our booking
+              const hasMatchingData = service.data.some(dataItem => {
+                // Match by ID first (most reliable)
+                if (bookingToRemove.id && dataItem.id === bookingToRemove.id) {
+                  return true;
+                }
+                
+                // Match by vehicle ID as fallback
+                if (bookingToRemove.vehicle && 
+                    dataItem.vehicles_id === bookingToRemove.vehicle.id) {
+                  return true;
+                }
+                
+                return false;
+              });
+              
+              // If this service has matching data, filter it out
+              return !hasMatchingData;
+            }
           }
           
-          // Otherwise match by type and vehicleId
-          if (service.type === "Entry Port" && 
-              service.vehicleId === bookingToRemove.vehicle.id) {
-            return false;
-          }
-          
+          // Keep all other services
           return true;
         });
         
         // Only dispatch if there's an actual change
         if (filteredServices.length !== currentServices.length) {
-          console.log(`Removing Entry Port booking from Redux:`, bookingToRemove);
+          console.log("Entry Vehicle - Removing booking from Redux:", bookingToRemove);
+          console.log("Entry Vehicle - Updated services:", filteredServices);
           dispatch(setAllServices(filteredServices));
         }
       }
@@ -403,9 +496,165 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
   const selectedVehicleObj = selectedVehicle ? 
     filteredVehicles.find(v => v.id === selectedVehicle) : null;
   
-  // Update current booking when selected vehicle changes from parent
+  // Function to dispatch initialized bookings to Redux state
+  const dispatchInitializedBookingsToRedux = (bookings) => {
+    const completedBookings = bookings.filter(booking => booking.isComplete);
+    
+    if (completedBookings.length > 0) {
+      console.log("Entry Vehicle - Dispatching initialized bookings to Redux:", completedBookings);
+      
+      // Format bookings for Redux state
+      const bookingsForRedux = completedBookings.map(booking => {
+        const vehicle = booking.vehicle;
+        const vehicleData = booking.vehicleData;
+        const bookingAdultCount = booking.adults || adultCount;
+        const bookingChildCount = booking.children || childCount;
+        const totalGuests = bookingAdultCount + bookingChildCount;
+        
+        // Calculate price based on price mode
+        const price = booking.priceMode === "Sharable"
+          ? (vehicleData.prices && vehicleData.prices.sharablePrice 
+              ? vehicleData.prices.sharablePrice * totalGuests 
+              : (vehicleData.shared_price ? parseFloat(vehicleData.shared_price) * totalGuests : 0))
+          : (vehicleData.prices && vehicleData.prices.privatePrice 
+              ? vehicleData.prices.privatePrice 
+              : (vehicleData.private_price ? parseFloat(vehicleData.private_price) : 0));
+        
+        // Find any existing customer info in current services
+        const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
+        
+        // Create booking data in the same format as currently used
+        const bookingData = {
+          // If we have customer info, spread it into the booking data
+          ...(customerInfoService ? { 
+            fullName: customerInfoService.fullName, 
+            email: customerInfoService.email,
+            phone: customerInfoService.phone,
+            address1: customerInfoService.address1,
+            address2: customerInfoService.address2,
+            state: customerInfoService.state,
+            zip: customerInfoService.zip,
+            specialRequests: customerInfoService.specialRequests,
+            countryCode: customerInfoService.countryCode
+          } : {}),
+          
+          // Core booking details
+          id: booking.id,
+          bookingDate: pickupDate,
+          vehicles_id: vehicle.id,
+          image: vehicle.image,
+          dmc_id: booking.dmcId,
+          vehicles_name: vehicle.vehicle_name,
+          Mode: booking.mode,
+          type: booking.priceMode === "Sharable" ? "shared" : "private",
+          entrypickup: entryPickup,
+          entrydropoff: entryDropoff,
+          PickupPlaceid: booking.PickupPlaceid || null,
+          DropoffPlaceid: booking.DropoffPlaceid || null,
+          pickupdate: pickupDate,
+          entrytime: entryTime,
+          adults: bookingAdultCount,
+          children: bookingChildCount,
+          totalPrice: Math.ceil(price),
+          Tax: vehicle.tax_percentage,
+          distance: vehicle.distance || vehicleData.$distanceInKM || booking.originalData?.distance || null,
+          Night_Start_Time: vehicle.night_start_time || vehicleData.Night_Start_Time || null,
+          Night_End_Time: vehicle.night_end_time || vehicleData.Night_End_Time || null,
+          city: vehicle.city,
+          country: vehicle.country,
+          vehicle_type: vehicle.vehicle_type,
+          vehicle_model: vehicle.vehicle_model,
+          model_year: vehicle.model_year,
+          seating_capacity: vehicle.seating_capacity
+        };
+        
+        return {
+          type: "entry_port",
+          agent_id: agentId,
+          tour_id: tourId,
+          data: [bookingData]
+        };
+      });
+      
+      // Remove any existing Entry Port services and add the new ones
+      const filteredServices = existingServices.filter(service => service.type !== "entry_port");
+      const finalServices = [...filteredServices, ...bookingsForRedux];
+      
+      console.log("Entry Vehicle - Dispatching initialized services to Redux:", finalServices);
+      dispatch(setAllServices(finalServices));
+    }
+  };
+
+  // Re-initialize bookings when entryPorts prop changes
   useEffect(() => {
-    if (selectedVehicleObj && !bookingsRef.current[0].vehicle) {
+    if (entryPorts && entryPorts.length > 0 && vehicles.length > 0) {
+      console.log("Entry Vehicle - Detected entryPorts data, re-initializing bookings:", entryPorts);
+      
+      // Re-initialize bookings with the latest entryPorts and vehicles data
+      const newBookings = entryPorts.map((entryPort, index) => {
+        const entryData = entryPort.data?.[0];
+        if (!entryData) {
+          return {
+            id: `entry-${Date.now()}-${index}`,
+            vehicle: null,
+            vehicleData: null,
+            priceMode: null,
+            isComplete: false,
+            adults: adultCount || 1,
+            children: childCount || 0
+          };
+        }
+        
+        // Find the corresponding vehicle from the vehicles list
+        const matchingVehicle = vehicles.find(v => v.id === entryData.vehicles_id);
+        
+        return {
+          id: entryData.id,
+          vehicle: matchingVehicle || {
+            id: entryData.vehicles_id,
+            vehicle_name: entryData.vehicles_name,
+            vehicle_type: entryData.vehicle_type,
+            vehicle_model: entryData.vehicle_model,
+            model_year: entryData.model_year,
+            seating_capacity: entryData.seating_capacity,
+            image: entryData.image,
+            city: entryData.city,
+            country: entryData.country,
+            dmc_id: entryData.dmc_id
+          },
+          vehicleData: {
+            private_price: entryData.type === 'private' ? entryData.totalPrice : 0,
+            shared_price: entryData.type === 'shared' ? entryData.totalPrice : 0,
+            prices: {
+              privatePrice: entryData.type === 'private' ? entryData.totalPrice : 0,
+              sharablePrice: entryData.type === 'shared' ? entryData.totalPrice : 0
+            },
+            $distanceInKM: entryData.distance || null
+          },
+          priceMode: entryData.type === 'shared' ? 'Sharable' : 'Private',
+          isComplete: true,
+          adults: entryData.adults || 1,
+          children: entryData.children || 0,
+          mode: entryData.Mode || 'dmc',
+          dmcId: entryData.dmc_id,
+          originalData: entryData
+        };
+      });
+      
+      // Store in local state
+      bookingsRef.current = newBookings;
+      setBookingsVersion(prev => prev + 1);
+      
+      console.log("Entry Vehicle - Initialized bookings from entryPorts:", newBookings);
+      
+      // Also store in Redux state in the same format
+      dispatchInitializedBookingsToRedux(newBookings);
+    }
+  }, [entryPorts, vehicles, adultCount, childCount, existingServices, dispatch, agentId, tourId, entryPickup, entryDropoff, pickupDate, entryTime]);
+
+  // Update current booking when selected vehicle changes from parent (only if no loaded data)
+  useEffect(() => {
+    if (selectedVehicleObj && !bookingsRef.current[0].vehicle && (!entryPorts || entryPorts.length === 0)) {
       const currentBookings = getBookings();
       const updatedBookings = [...currentBookings];
       updatedBookings[0] = {
@@ -415,7 +664,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
       setBookings(updatedBookings);
       handleVehicleSelect(selectedVehicleObj, 0);
     }
-  }, [selectedVehicleObj]);
+  }, [selectedVehicleObj, entryPorts]);
   
   // Update completion status when relevant data changes
   useEffect(() => {
@@ -432,16 +681,33 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     
     const updatedBookings = bookings.map(booking => {
       // Check if all required fields are present
-      const isComplete = 
-        booking.vehicle !== null && 
-        booking.vehicleData !== null && 
-        booking.priceMode !== null && booking.priceMode !== '' &&
-        entryPickup !== null && entryPickup !== undefined && entryPickup !== '' &&
-        entryDropoff !== null && entryDropoff !== undefined && entryDropoff !== '' &&
-        pickupDate !== null && pickupDate !== undefined && pickupDate !== '' &&
-        entryTime !== null && entryTime !== undefined && entryTime !== '';
+      // For loaded bookings, check if they have originalData (indicating they were loaded from entryPorts)
+      const isLoadedBooking = booking.originalData !== undefined;
       
-      console.log(`Entry Vehicle - Booking ${booking.id} isComplete:`, isComplete);
+      let isComplete;
+      if (isLoadedBooking) {
+        // For loaded bookings, check if the booking itself has all required data
+        isComplete = 
+          booking.vehicle !== null && 
+          booking.vehicleData !== null && 
+          booking.priceMode !== null && booking.priceMode !== '' &&
+          booking.originalData.entrypickup !== null && booking.originalData.entrypickup !== undefined && booking.originalData.entrypickup !== '' &&
+          booking.originalData.entrydropoff !== null && booking.originalData.entrydropoff !== undefined && booking.originalData.entrydropoff !== '' &&
+          booking.originalData.pickupdate !== null && booking.originalData.pickupdate !== undefined && booking.originalData.pickupdate !== '' &&
+          booking.originalData.entrytime !== null && booking.originalData.entrytime !== undefined && booking.originalData.entrytime !== '';
+      } else {
+        // For new bookings, check Redux state values
+        isComplete = 
+          booking.vehicle !== null && 
+          booking.vehicleData !== null && 
+          booking.priceMode !== null && booking.priceMode !== '' &&
+          entryPickup !== null && entryPickup !== undefined && entryPickup !== '' &&
+          entryDropoff !== null && entryDropoff !== undefined && entryDropoff !== '' &&
+          pickupDate !== null && pickupDate !== undefined && pickupDate !== '' &&
+          entryTime !== null && entryTime !== undefined && entryTime !== '';
+      }
+      
+      console.log(`Entry Vehicle - Booking ${booking.id} isComplete:`, isComplete, `(loaded: ${isLoadedBooking})`);
       
       if (isComplete !== booking.isComplete) {
         needsUpdate = true;
@@ -782,6 +1048,22 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     const bookingChildCount = booking.children || childCount;
     const totalGuests = bookingAdultCount + bookingChildCount;
     
+    // Check if this is a loaded booking or a new booking
+    const isLoadedBooking = booking.originalData !== undefined;
+    
+    // Get location and timing data based on booking type
+    const locationData = isLoadedBooking ? {
+      pickupLocation: booking.originalData.entrypickup,
+      dropoffLocation: booking.originalData.entrydropoff,
+      bookingDate: booking.originalData.pickupdate,
+      pickupTime: booking.originalData.entrytime
+    } : {
+      pickupLocation: entryPickup,
+      dropoffLocation: entryDropoff,
+      bookingDate: pickupDate,
+      pickupTime: entryTime
+    };
+    
     // Calculate price based on price mode
     const price = booking.priceMode === "Sharable"
       ? (vehicleData.prices && vehicleData.prices.sharablePrice 
@@ -800,10 +1082,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
       vehicleImage: vehicle.image,
       city: vehicle.city,
       country: vehicle.country,
-      pickupLocation: entryPickup,
-      dropoffLocation: entryDropoff,
-      bookingDate: pickupDate,
-      pickupTime: entryTime,
+      ...locationData,
       adults: bookingAdultCount,
       children: bookingChildCount,
       price: price,
@@ -817,173 +1096,269 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
   const bookings = getBookings();
 
   return (
-    <>
-      <Grid container spacing={2} sx={{ mt: 3 }}>
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Select Entry Vehicle
-          </Typography>
-        </Grid>
-        
-        {bookings.map((booking, index) => (
-          <Grid container spacing={2} key={booking.id} sx={{ 
-            mt: index > 0 ? 3 : 0, 
-            mb: 3,
-            p: 2,
-            mx: 0.1,
-            borderRadius: 1,
-            bgcolor: 'background.paper',
-            boxShadow: 1
-          }}>
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle1" gutterBottom fontWeight="500">
-                {index === 0 ? "Entry Vehicle" : `Additional Entry Vehicle #${index + 1}`}
-              </Typography>
-              <IconButton
-                color="error"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRemoveBooking(index);
-                }}
-                size="small"
-                aria-label="delete booking"
+    <Box sx={{ mt: 3 }}>
+      {/* Header Card with Gradient Background */}
+      
+      
+      {/* Multiple Booking Cards */}
+      <Grid container spacing={3}>
+        {bookings.map((booking, index) => {
+          const completionStatus = booking.isComplete ? 3 : 
+            (booking.vehicle ? 1 : 0) + (booking.adults + booking.children > 0 ? 1 : 0) + 
+            (booking.priceMode ? 1 : 0);
+          
+          return (
+            <Grid item xs={12} key={booking.id}>
+              <Card 
+                elevation={2}
                 sx={{ 
-                  borderRadius: '4px', 
-                  '&:hover': { 
-                    bgcolor: 'rgba(211, 47, 47, 0.04)' 
-                  } 
+                  borderRadius: 3,
+                  border: `2px solid rgba(59, 130, 246, 0.2)`,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: `0 8px 24px rgba(59, 130, 246, 0.15)`,
+                    transform: 'translateY(-2px)',
+                  }
                 }}
               >
-                <DeleteIcon />
-              </IconButton>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Autocomplete
-                value={booking.vehicle}
-                onChange={(event, newValue) => handleVehicleSelect(newValue, index)}
-                options={filteredVehicles}
-                getOptionLabel={(option) => option?.vehicle_name || ''}
-                isOptionEqualToValue={(option, value) => {
-                  if (!option || !value) return false;
-                  return option.id === value.id;
-                }}
-                noOptionsText="No vehicles with valid pricing available"
-                renderOption={(props, option) => {
-                  // Extract key from props to handle it separately
-                  const { key, ...otherProps } = props;
-                  
-                  return (
-                    <CustomTooltip
-                      key={option.id} // Use option.id as key for the tooltip
-                      title={<TooltipContent vehicle={option} />}
-                      placement="right"
-                      arrow
-                    >
-                      <Box component="li" key={key} {...otherProps}>
-                        {option.vehicle_name}
-                        <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
-                          {(option.dmc_private_price > 0 || option.dmc_sharable_price > 0) && (
-                            <Chip 
-                              key={`dmc-${option.id}`}
-                              size="small" 
-                              label="DMC"
-                              sx={{ 
-                                height: 20,
-                                fontSize: '0.7rem',
-                                bgcolor: 'rgba(25, 118, 210, 0.08)',
-                                color: 'primary.main'
-                              }}
-                            />
-                          )}
-                          {(option.trav_private_price > 0 || option.trav_sharable_price > 0) && (
-                            <Chip 
-                              key={`travclicks-${option.id}`}
-                              size="small" 
-                              label="Travclicks"
-                              sx={{ 
-                                height: 20,
-                                fontSize: '0.7rem',
-                                bgcolor: 'rgba(76, 175, 80, 0.08)',
-                                color: '#2e7d32'
-                              }}
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    </CustomTooltip>
-                  );
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={`Select Entry Vehicle ${index > 0 ? '#' + (index + 1) : ''}`}
-                    fullWidth
-                  />
-                )}
-              />
-            </Grid>
-            
-            {/* Use existing Passenger component with custom props for this booking */}
-            <Passenger 
-              adultsMax={adultsMax} 
-              childrenMax={childrenMax} 
-              seatingCapacity={seatingCapacity}
-              initialAdults={booking.adults || 1}
-              initialChildren={booking.children || 0}
-              onAdultChange={(count) => handleAdultChange(index, count)}
-              onChildChange={(count) => handleChildChange(index, count)}
-            />
-            
-            {booking.vehicleData && (
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth>
-                  <InputLabel id={`price-mode-label-entry-${index}`}>Price Mode</InputLabel>
-                  <Select
-                    labelId={`price-mode-label-entry-${index}`}
-                    id={`price-mode-select-entry-${index}`}
-                    value={booking.priceMode || ''}
-                    label="Price Mode"
-                    onChange={(e) => handlePriceModeSelect(e.target.value, index)}
+                <CardContent sx={{ p: 0 }}>
+                  {/* Header */}
+                  <Box sx={{ 
+                    p: 2,
+                    bgcolor: 'rgba(59, 130, 246, 0.05)',
+                    borderBottom: `1px solid rgba(59, 130, 246, 0.1)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <FlightLandIcon sx={{ color: '#3b82f6', fontSize: 24 }} />
+                      <Chip 
+                        label={`Entry Port #${index + 1}`}
+                        sx={{ 
+                          bgcolor: '#3b82f6',
+                          color: 'white',
+                          fontWeight: 600
+                        }}
+                        size="small"
+                      />
+                      <Chip 
+                        label={`${completionStatus}/3 Complete`}
+                        color={completionStatus === 3 ? "success" : "warning"}
+                        size="small"
+                        variant="outlined"
+                      />
+                      {booking.isComplete && (
+                        <Chip
+                          label="Ready for Booking"
+                          color="success"
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Tooltip title="Remove this service">
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveBooking(index);
+                          }}
+                          sx={{ 
+                            bgcolor: 'rgba(244, 67, 54, 0.1)',
+                            '&:hover': { bgcolor: 'rgba(244, 67, 54, 0.2)' }
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
+                        </IconButton>
+                      </Tooltip>
+                      
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={() => handleOpenSummaryModal(index)}
+                        disabled={!booking.isComplete}
+                        startIcon={<VisibilityIcon />}
+                        sx={{
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1,
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          borderColor: '#3b82f6',
+                          color: '#3b82f6',
+                          '&:hover': {
+                            borderColor: '#1e40af',
+                            bgcolor: 'rgba(59, 130, 246, 0.05)',
+                            transform: 'translateY(-1px)',
+                          },
+                          '&:disabled': {
+                            borderColor: 'rgba(59, 130, 246, 0.3)',
+                            color: 'rgba(59, 130, 246, 0.3)',
+                          },
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
+                        View Summary
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  {/* Content Section */}
+                  <Paper 
+                    elevation={0} 
+                    sx={{ 
+                      m: 2,
+                      p: 3, 
+                      borderRadius: 2,
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(10px)'
+                    }}
                   >
-                    {((booking.vehicleData.prices && booking.vehicleData.prices.privatePrice > 0) || 
-                      (booking.vehicleData.private_price && parseFloat(booking.vehicleData.private_price) > 0)) && (
-                      <MenuItem value="Private">Private</MenuItem>
-                    )}
-                    {((booking.vehicleData.prices && booking.vehicleData.prices.sharablePrice > 0) || 
-                      (booking.vehicleData.shared_price && parseFloat(booking.vehicleData.shared_price) > 0)) && (
-                      <MenuItem value="Sharable">Sharable</MenuItem>
-                    )}
-                  </Select>
-                </FormControl>
-              </Grid>
-            )}
-            
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  disabled={!booking.isComplete}
-                  onClick={() => handleOpenSummaryModal(index)}
-                  fullWidth
-                >
-                  View Entry Summary
-                </Button>
-              </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Autocomplete
+                          value={booking.vehicle}
+                          onChange={(event, newValue) => handleVehicleSelect(newValue, index)}
+                          options={filteredVehicles}
+                          getOptionLabel={(option) => option?.vehicle_name || ''}
+                          isOptionEqualToValue={(option, value) => {
+                            if (!option || !value) return false;
+                            return option.id === value.id;
+                          }}
+                          noOptionsText="No vehicles with valid pricing available"
+                          renderOption={(props, option) => {
+                            // Extract key from props to handle it separately
+                            const { key, ...otherProps } = props;
+                            
+                            return (
+                              <CustomTooltip
+                                key={option.id} // Use option.id as key for the tooltip
+                                title={<TooltipContent vehicle={option} />}
+                                placement="right"
+                                arrow
+                              >
+                                <Box component="li" key={key} {...otherProps}>
+                                  {option.vehicle_name}
+                                  <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+                                    {(option.dmc_private_price > 0 || option.dmc_sharable_price > 0) && (
+                                      <Chip 
+                                        key={`dmc-${option.id}`}
+                                        size="small" 
+                                        label="DMC"
+                                        sx={{ 
+                                          height: 20,
+                                          fontSize: '0.7rem',
+                                          bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                          color: 'primary.main'
+                                        }}
+                                      />
+                                    )}
+                                    {(option.trav_private_price > 0 || option.trav_sharable_price > 0) && (
+                                      <Chip 
+                                        key={`travclicks-${option.id}`}
+                                        size="small" 
+                                        label="Travclicks"
+                                        sx={{ 
+                                          height: 20,
+                                          fontSize: '0.7rem',
+                                          bgcolor: 'rgba(76, 175, 80, 0.08)',
+                                          color: '#2e7d32'
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                </Box>
+                              </CustomTooltip>
+                            );
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label={`Select Entry Vehicle ${index > 0 ? '#' + (index + 1) : ''}`}
+                              fullWidth
+                            />
+                          )}
+                        />
+                      </Grid>
+                      
+                      {/* Use existing Passenger component with custom props for this booking */}
+                      <Passenger 
+                        adultsMax={adultsMax} 
+                        childrenMax={childrenMax} 
+                        seatingCapacity={seatingCapacity}
+                        initialAdults={booking.adults || 1}
+                        initialChildren={booking.children || 0}
+                        onAdultChange={(count) => handleAdultChange(index, count)}
+                        onChildChange={(count) => handleChildChange(index, count)}
+                      />
+                      
+                      {booking.vehicleData && (
+                        <Grid item xs={12} sm={6} md={3}>
+                          <FormControl fullWidth>
+                            <InputLabel id={`price-mode-label-entry-${index}`}>Price Mode</InputLabel>
+                            <Select
+                              labelId={`price-mode-label-entry-${index}`}
+                              id={`price-mode-select-entry-${index}`}
+                              value={booking.priceMode || ''}
+                              label="Price Mode"
+                              onChange={(e) => handlePriceModeSelect(e.target.value, index)}
+                            >
+                              {((booking.vehicleData.prices && booking.vehicleData.prices.privatePrice > 0) || 
+                                (booking.vehicleData.private_price && parseFloat(booking.vehicleData.private_price) > 0)) && (
+                                <MenuItem value="Private">Private</MenuItem>
+                              )}
+                              {((booking.vehicleData.prices && booking.vehicleData.prices.sharablePrice > 0) || 
+                                (booking.vehicleData.shared_price && parseFloat(booking.vehicleData.shared_price) > 0)) && (
+                                <MenuItem value="Sharable">Sharable</MenuItem>
+                              )}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                </CardContent>
+              </Card>
             </Grid>
-          </Grid>
-        ))}
-        
+          );
+        })}
+
+        {/* Add More Card */}
         <Grid item xs={12}>
-          <Button
-            variant="outlined"
-            color="primary"
+          <Card 
+            sx={{ 
+              borderRadius: 3,
+              border: `2px dashed rgba(59, 130, 246, 0.4)`,
+              bgcolor: 'rgba(59, 130, 246, 0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: 'rgba(59, 130, 246, 0.05)',
+                borderColor: '#3b82f6',
+                transform: 'translateY(-1px)',
+              }
+            }}
             onClick={handleAddMoreBooking}
-            fullWidth
           >
-            Add More Booking
-          </Button>
+            <CardContent sx={{ py: 2 }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                gap: 2
+              }}>
+           
+                <AddIcon sx={{ fontSize: 32, color: '#3b82f6' }} />
+                <Typography variant="h6" color="#3b82f6" fontWeight={600}>
+                  Add More 
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
       
@@ -994,7 +1369,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
         bookingData={summaryBookingIndex !== null ? getBookingSummary(summaryBookingIndex) : null}
         portType="Entry Port"
       />
-    </>
+    </Box>
   );
 };
 
