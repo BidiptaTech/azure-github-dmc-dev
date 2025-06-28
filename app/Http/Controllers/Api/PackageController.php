@@ -573,4 +573,29 @@ class PackageController extends Controller
 
         return response()->json(['message' => 'Custom package updated successfully.']);
     }
+
+    public function cancelPackageBooking(Request $request)
+    {
+        $package_id = $request->input('package_id');
+        if (empty($package_id)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Package ID is required.',
+            ], 400);
+        }
+        $updated = PackageBooking::where('package_id', $package_id)
+            ->update(['status' => 3]);
+        if ($updated) {
+            return response()->json([
+                'status' => true,
+                'message' => 'Booking successfully cancelled.',
+            ]);
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'Booking not found or already cancelled.',
+            ], 404);
+        }
+    }
+
 }
