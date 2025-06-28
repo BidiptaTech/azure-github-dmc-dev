@@ -313,7 +313,9 @@ const PackageDetailsContainer = () => {
       // Create a memoized version of packageDetails with date from searchParams
       const updatedPackageDetails = {
         ...packageDetails,
-        date: searchParams?.date || packageDetails.date
+        date: searchParams?.date || packageDetails.date,
+        // Include searchParams directly to ensure getItineraryDayDate has access to it
+        searchParams
       };
       
       console.log('Setting package details in parent component:', {
@@ -321,7 +323,8 @@ const PackageDetailsContainer = () => {
         originalStartDate: packageDetails.start_date,
         searchParamsDate: searchParams?.date,
         finalDate: updatedPackageDetails.date,
-        finalStartDate: updatedPackageDetails.start_date
+        finalStartDate: updatedPackageDetails.start_date,
+        searchParams
       });
       
       // Create refs for each day in the itinerary
@@ -676,11 +679,14 @@ const PackageDetailsContainer = () => {
 
   // Get itinerary dates for all days
   const getItineraryDates = () => {
-    if (!packageDetails || !packageDetails.duration_days) return [];
+    // Use currentPackageDetails that has searchParams attached to it
+    const detailsWithSearchParams = currentPackageDetails || packageDetails;
+    
+    if (!detailsWithSearchParams || !detailsWithSearchParams.duration_days) return [];
     
     const dates = [];
-    for (let i = 0; i < packageDetails.duration_days; i++) {
-      const dayDate = getItineraryDayDate(packageDetails, i);
+    for (let i = 0; i < detailsWithSearchParams.duration_days; i++) {
+      const dayDate = getItineraryDayDate(detailsWithSearchParams, i);
       dates.push({
         day: i + 1, 
         date: formatDate(dayDate),
@@ -922,12 +928,13 @@ const PackageDetailsContainer = () => {
                           dayRefs.current[dayIndex] = React.createRef();
                         }
                         
-                        // Get the day date using currentPackageDetails for consistency
-                        const dayDate = getItineraryDayDate(currentPackageDetails || packageDetails, dayIndex);
+                        // Get the day date using currentPackageDetails that has searchParams for consistency
+                        const detailsWithSearchParams = currentPackageDetails || packageDetails;
+                        const dayDate = getItineraryDayDate(detailsWithSearchParams, dayIndex);
                         const formattedDate = formatDate(dayDate);
                         
                         // Get description for the day
-                        const currentDetails = currentPackageDetails || packageDetails;
+                        const currentDetails = detailsWithSearchParams;
                         const dayDescription = currentDetails.itinerary && currentDetails.itinerary[dayIndex]
                           ? currentDetails.itinerary[dayIndex].title.split(' - ')[1]
                           : dayIndex === 0 ? 'Arrival' : dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 'Exploration';

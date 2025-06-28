@@ -18,6 +18,8 @@ export const formatDate = (date) => {
 /**
  * Calculate the date for a specific day in the itinerary
  * This ensures consistent date calculation across all components
+ * 
+ * IMPORTANT: Always prioritizes the user's search date from searchParams over package details date
  */
 export const getItineraryDayDate = (packageDetails, dayIndex) => {
   // Debug the inputs to see what's being passed
@@ -26,17 +28,27 @@ export const getItineraryDayDate = (packageDetails, dayIndex) => {
     dayIndex,
     packageDate: packageDetails.date, 
     packageStartDate: packageDetails.start_date,
+    searchParamsDate: packageDetails.searchParams?.date,
     currentPackageDetails: packageDetails,
   });
 
-  // Get the starting date, with fallbacks
+  // Get the starting date, with fallbacks - ALWAYS prioritize searchParams.date if available
   let startDate;
   
-  if (packageDetails.date) {
+  // First check for searchParams.date (search date has highest priority)
+  if (packageDetails.searchParams?.date) {
+    startDate = new Date(packageDetails.searchParams.date);
+  }
+  // Then check for date property from package details that was set from searchParams
+  else if (packageDetails.date) {
     startDate = new Date(packageDetails.date);
-  } else if (packageDetails.start_date) {
+  } 
+  // Fallback to package start date
+  else if (packageDetails.start_date) {
     startDate = new Date(packageDetails.start_date);
-  } else {
+  } 
+  // Last resort is current date
+  else {
     startDate = new Date();
   }
   
@@ -48,7 +60,10 @@ export const getItineraryDayDate = (packageDetails, dayIndex) => {
   
   console.log(`[getItineraryDayDate] using start date:`, { 
     startDateObj: startDate,
-    startDateStr: startDate.toISOString()
+    startDateStr: startDate.toISOString(),
+    source: packageDetails.searchParams?.date ? 'searchParams.date' : 
+           packageDetails.date ? 'packageDetails.date' : 
+           packageDetails.start_date ? 'packageDetails.start_date' : 'current date'
   });
   
   // Create a new date object to avoid modifying the original

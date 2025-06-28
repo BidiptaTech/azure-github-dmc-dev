@@ -65,6 +65,25 @@ export const bookPackage = createAsyncThunk(
   }
 );
 
+// Async thunk for canceling a package booking
+// Uses the cancel-package-booking endpoint with booking_id parameter
+export const cancelPackageBooking = createAsyncThunk(
+  'prePackages/cancelPackageBooking',
+  async (booking_id, { rejectWithValue }) => {
+    try {
+      console.log("Canceling package booking with ID:", booking_id);
+      const response = await endpoints.request('post', 'cancel-package-booking', { booking_id });
+      console.log("API Response for cancel-package-booking:", response);
+      return { booking_id, ...response.data };
+    } catch (error) {
+      console.error("Error canceling package booking:", error);
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to cancel package booking'
+      );
+    }
+  }
+);
+
 // Async thunk for fetching package booking lists
 export const fetchPackageBookingLists = createAsyncThunk(
   'prePackages/fetchPackageBookingLists',
@@ -99,6 +118,10 @@ const initialState = {
   bookingLists: [],
   bookingListsLoading: false,
   bookingListsError: null,
+  // New state for package booking cancellation
+  cancelBookingLoading: false,
+  cancelBookingSuccess: false,
+  cancelBookingError: null,
 };
 
 const prePackagesSlice = createSlice({
@@ -125,6 +148,10 @@ const prePackagesSlice = createSlice({
     resetBookingLists: (state) => {
       state.bookingLists = [];
       state.bookingListsError = null;
+    },
+    resetCancelBookingStatus: (state) => {
+      state.cancelBookingSuccess = false;
+      state.cancelBookingError = null;
     },
   },
   extraReducers: (builder) => {
@@ -168,6 +195,31 @@ const prePackagesSlice = createSlice({
         state.bookingLoading = false;
         state.bookingError = action.payload;
       })
+      // Handle package booking cancellation states
+      .addCase(cancelPackageBooking.pending, (state) => {
+        state.cancelBookingLoading = true;
+        state.cancelBookingSuccess = false;
+        state.cancelBookingError = null;
+      })
+      .addCase(cancelPackageBooking.fulfilled, (state, action) => {
+        state.cancelBookingLoading = false;
+        state.cancelBookingSuccess = true;
+        
+        // Update the booking status in the bookingLists array if it exists
+        if (state.bookingLists && Array.isArray(state.bookingLists)) {
+          state.bookingLists = state.bookingLists.map(booking => {
+            if ((booking.booking_id && booking.booking_id === action.payload.booking_id) || 
+                (booking.id && booking.id === action.payload.booking_id)) {
+              return { ...booking, status: 4 };
+            }
+            return booking;
+          });
+        }
+      })
+      .addCase(cancelPackageBooking.rejected, (state, action) => {
+        state.cancelBookingLoading = false;
+        state.cancelBookingError = action.payload;
+      })
       // Handle package booking lists states
       .addCase(fetchPackageBookingLists.pending, (state) => {
         state.bookingListsLoading = true;
@@ -208,5 +260,13 @@ const prePackagesSlice = createSlice({
   },
 });
 
-export const { setSearchParams, resetPackages, resetPackageDetails, resetBookingStatus, resetBookingLists } = prePackagesSlice.actions;
+export const { 
+  setSearchParams, 
+  resetPackages, 
+  resetPackageDetails, 
+  resetBookingStatus, 
+  resetBookingLists,
+  resetCancelBookingStatus 
+} = prePackagesSlice.actions;
+
 export default prePackagesSlice.reducer;
