@@ -1,0 +1,92 @@
+name: Build and Deploy Full Stack App to Azure Web App - dmc-app-uat
+
+on:
+  push:
+    branches:
+      - uat_main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup Node.js (for React)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 🧠 Setup PHP (for Laravel)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: 📦 Install Laravel dependencies
+        run: |
+          cd backadm-dmc
+          composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+          cd ..
+
+      - name: 📦 Install React dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: 🗂️ Prepare Deployment Folder
+        run: |
+          mkdir -p deployment
+          cp -r build/* deployment/
+          cp -r backadm-dmc deployment/backadm-dmc
+
+          # Optional: copy Laravel debug, startup, etc. if needed
+          [ -f laravel-debug.php ] && cp laravel-debug.php deployment/
+          [ -f startup.sh ] && cp startup.sh deployment/
+          [ -f default ] && cp default deployment/
+
+      - name: 🔐 Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'dmc-app-uat'
+          slot-name: 'Production'
+          package: './deployment'
+
+      - name: 🛠️ Laravel Post-Deploy Optimization
+        run: |
+          echo "⚙️ Running Laravel post-deploy setup..."
+          az webapp ssh --name dmc-app-uat --resource-group rg-dmc-app-uat --command '
+            cd /home/site/wwwroot/backadm-dmc &&
+            php artisan cache:clear &&
+            php artisan config:clear &&
+            php artisan route:clear &&
+            php artisan view:clear &&
+            php artisan config:cache &&
+            php artisan route:cache &&
+            php artisan view:cache &&
+            php artisan optimize
+          '
+
+      - name: 🔁 Restart Azure App
+        run: |
+          az webapp restart --resource-group rg-dmc-app-uat --name dmc-app-uat
+
+      - name: ✅ Deployment Summary
+        run: |
+          echo "✅ Fullstack (Laravel + React) app deployed to Azure from uat_main"
+          echo "🌐 URL: https://uat.travclicks.com/"
+          echo "🛠️ Laravel app: /backadm-dmc"
+          echo "🎨 React app: /"
