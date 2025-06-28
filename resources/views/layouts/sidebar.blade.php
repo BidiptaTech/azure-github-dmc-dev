@@ -420,7 +420,11 @@
         color: #f59e0b !important; /* Amber */
         background: rgba(245, 158, 11, 0.1);
     }
-
+    .roadmap-icon:hover {
+  color: #2ecc71;
+  transform: scale(1.1);
+  transition: 0.3s;
+}
 </style>
         <body>
             <div class="layout-wrapper layout-content-navbar  ">
@@ -622,6 +626,30 @@
                 </li>  
             {{-- @endif --}}
             <!-- End Booking List -->
+
+            <!-- Predefined Packages Booking List -->
+            @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
+                </li>
+                
+                <li class="menu-item @if(Request::is('predefined-package-booking-list*')) open active @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-suitcase-line" style="color: #1E90FF;"></i>
+
+                        <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                    </a>
+                    <ul class="menu-sub">
+                        <!-- Show Booking -->
+                        <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                            <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
+                                <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            @endif
+            <!-- End Predefined Packages Booking List -->
 
             <!-- Reports -->
             <li class="menu-header mt-5">
