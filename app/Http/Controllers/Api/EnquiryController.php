@@ -184,7 +184,7 @@ class EnquiryController extends Controller
         
         $attraction_list = $attractions->map(function($attraction) {
             return [
-                'id' => $attraction->attraction_id,
+                'attraction_id' => $attraction->attraction_id,
                 'name' => $attraction->name,
                 'location' => $attraction->location,
                 'country' => $attraction->country,
@@ -195,7 +195,7 @@ class EnquiryController extends Controller
         
         $restaurant_list = $restaurants->map(function($restaurant) {
             return [
-                'id' => $restaurant->restaurant_id,
+                'restaurant_id' => $restaurant->restaurant_id,
                 'name' => $restaurant->name,
                 'master_image' => $restaurant->master_image,
                 'city' => $restaurant->city,
