@@ -92,9 +92,15 @@ class MailController extends Controller
                 $emailHtml = '<!DOCTYPE html><html><head><title>Booking Details</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
                 
                 // Send just this part
-                Mail::to("saurabh.coactive@gmail.com")->send(new DmcMail($emailHtml, "Your Booking Details"));
-                return view('mails.index', compact('templates'))
-                ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
+                try {
+                    Mail::to("bidipta.mitra@coactivesolutions.co.in")->send(new DmcMail($emailHtml, "Your Booking Details"));
+                    return view('mails.index', compact('templates'))
+                        ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
+                } catch (\Exception $e) {
+                    Log::error('Email sending failed: ' . $e->getMessage());
+                    return view('mails.index', compact('templates'))
+                        ->with('error', 'Failed to send email: ' . $e->getMessage());
+                }
             } else {
                 // Handle case where the div is not found
                 Log::error("Email container div not found in email template");
@@ -104,12 +110,18 @@ class MailController extends Controller
             $recipientEmail = "saurabh.coactive@gmail.com";
             $subject = "Your Booking Confirmation #" . $data['booking_id'];
             
-            Mail::to($recipientEmail)->send(new DmcMail($html, $subject));
+            try {
+                Mail::to($recipientEmail)->send(new DmcMail($html, $subject));
+            } catch (\Exception $e) {
+                Log::error('Email sending failed: ' . $e->getMessage());
+                return view('mails.index', compact('templates'))
+                    ->with('error', 'Failed to send email: ' . $e->getMessage());
+            }
             
             return view('mails.index', compact('templates'))
                 ->with('success', 'Email sent successfully! Check your inbox or spam folder.');
         } catch (\Exception $e) {
-            \Log::error('Email sending failed: ' . $e->getMessage());
+            Log::error('Email sending failed: ' . $e->getMessage());
             return view('mails.index', compact('templates'))
                 ->with('error', 'Failed to send email: ' . $e->getMessage());
         }
