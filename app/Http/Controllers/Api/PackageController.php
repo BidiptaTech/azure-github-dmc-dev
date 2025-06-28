@@ -584,7 +584,7 @@ class PackageController extends Controller
             ], 400);
         }
         $updated = PackageBooking::where('package_id', $package_id)
-            ->update(['status' => 3]);
+            ->update(['status' => 4]);
         if ($updated) {
             return response()->json([
                 'status' => true,
