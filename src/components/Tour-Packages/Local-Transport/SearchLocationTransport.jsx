@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import {
   Box,
@@ -49,8 +49,30 @@ import SearchZone from "@/components/Tour-Packages/Local-Transport/LocationZoneS
 import Pickuptimezone from "@/components/activity-list/activity-list-v3/Pickuptimezone";
 import DateSearchZone from "@/components/activity-list/activity-list-v3/DateSearchZone";
 
-const SearchLocationTransport = ({ Location, dayIndex = 0 }) => {
+const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const dispatch = useDispatch();
+  
+  // Helper function to format date from Itinerary
+  const formatItineraryDate = useCallback((itineraryDate) => {
+    if (!itineraryDate) return "";
+    
+    // If it's a moment/dayjs object
+    if (itineraryDate && itineraryDate.format) {
+      return itineraryDate.format('YYYY-MM-DD');
+    }
+    
+    // If it's already a string
+    if (typeof itineraryDate === 'string') {
+      return itineraryDate;
+    }
+    
+    // If it's a Date object
+    if (itineraryDate instanceof Date) {
+      return itineraryDate.toISOString().split('T')[0];
+    }
+    
+    return "";
+  }, []);
 
   // Get values from Redux store to persist state
   const reduxPickUpLocation = useSelector((state) => state.localtour.entrypickup || "");
@@ -66,15 +88,26 @@ const SearchLocationTransport = ({ Location, dayIndex = 0 }) => {
   const reduxPickUpZone = useSelector((state) => state.localtour.PickupZoneid || "");
   const reduxDropOffZone = useSelector((state) => state.localtour.DropoffZoneid || "");
 
+  // Memoize the formatted date from Itinerary to prevent continuous recalculation
+  const itineraryFormattedDate = useMemo(() => {
+    return formatItineraryDate(date);
+  }, [date, formatItineraryDate]);
+
+  // Add refs to track previous values
+  const prevItineraryDateRef = useRef("");
+
   // State for storing the pickup and dropoff locations
   const [pickUpLocation, setPickUpLocation] = useState(reduxPickUpLocation);
   const [pickUpZone, setPickUpZone] = useState(reduxPickUpZone);
   const [dropOffLocation, setDropOffLocation] = useState(reduxDropOffLocation);
   const [dropOffzone, setDropOffZone] = useState(reduxDropOffZone);
   const [exitpickUpLocation, setexitPickUpLocation] = useState(reduxExitPickUpLocation);
-  const [selectedDate, setSelectedDate] = useState(reduxPickupDate);
-  const [selectedDate1, setSelectedDate1] = useState(reduxPickupDate1);
-  const [selectedDateZone, setSelectedDateZone] = useState(reduxPickupDate || "");
+  
+  // Initialize date states with Itinerary date as priority, fallback to Redux
+  const [selectedDate, setSelectedDate] = useState(itineraryFormattedDate || reduxPickupDate);
+  const [selectedDate1, setSelectedDate1] = useState(itineraryFormattedDate || reduxPickupDate1);
+  const [selectedDateZone, setSelectedDateZone] = useState(itineraryFormattedDate || reduxPickupDate || "");
+  
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
   const [pickUpLatLng, setPickupLatLng] = useState(reduxPickUpLatLng);
   const [dropOffLatLng, setDropoffLatLng] = useState(reduxDropOffLatLng);
@@ -82,17 +115,22 @@ const SearchLocationTransport = ({ Location, dayIndex = 0 }) => {
   const [entryytime1, setentryytime1] = useState(reduxEntryTime1);
   const [entryytimezone, setentryytimezone] = useState(reduxEntryTimeZone);
   const zone_on = useSelector((state) => state.auth.zone_on);
-
-  // Log Redux date values when component mounts
+  
+  // Update date states when the date prop from Itinerary changes
   useEffect(() => {
-    console.log("Initial Redux date values:", { 
-      reduxPickupDate, 
-      reduxPickupDate1,
-      selectedDate,
-      selectedDate1,
-      selectedDateZone
-    });
-  }, []);
+    if (itineraryFormattedDate && itineraryFormattedDate !== prevItineraryDateRef.current) {
+      // Only log once per unique date change
+      console.log(`Day ${dayIndex + 1} - Setting date to:`, itineraryFormattedDate);
+      
+      // Update all date states with the new date from Itinerary
+      setSelectedDate(itineraryFormattedDate);
+      setSelectedDate1(itineraryFormattedDate);
+      setSelectedDateZone(itineraryFormattedDate);
+      
+      // Update the ref to track the current value
+      prevItineraryDateRef.current = itineraryFormattedDate;
+    }
+  }, [itineraryFormattedDate, dayIndex]);
 
   // Add state for validation
   const [validationTriggered, setValidationTriggered] = useState(false);

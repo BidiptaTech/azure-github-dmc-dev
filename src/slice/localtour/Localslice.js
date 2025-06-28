@@ -803,6 +803,12 @@ const LocalSlice = createSlice({
     },
     resetVehicles1: (state, action) => {
       state.vehicles = [];
+      state.entrypickup = "";
+      state.entrydropoff = "";
+      state.exitpickup = "";
+      state.pickupdate = "";
+      state.exitpickupdate = "";
+      state.entrytime = "";
       state.DropoffPlaceid = "";
       state.PickupPlaceid = "";
       //state.selectedVehicleId = null;

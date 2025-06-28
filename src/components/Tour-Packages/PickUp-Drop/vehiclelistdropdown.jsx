@@ -740,7 +740,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange }) => {
     
     // Create a new Entry Port entry for this vehicle
     const newEntryPortService = {
-      type: "Entry Port",
+      type: "entry_port",
       agent_id: agentId,
       tour_id: tourId,
       data: [bookingData]

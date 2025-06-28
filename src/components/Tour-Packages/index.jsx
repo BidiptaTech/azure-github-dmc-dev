@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, Grid, Paper, Button } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import SearchForm from './common/SearchForm';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+import { setSearchCriteria, setAllServices } from '@/slice/tour-packages/tourPackageSlice';
+import { useDispatch } from 'react-redux';
 
 
 // Import service components
@@ -12,12 +14,48 @@ import Itinerary from './common/Itinerary';
 
 // Import icons
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
+import { settourdetails } from '@/slice/hotel/hotelSlice';
 
 export default function TourPackages() {
   const [currentStep, setCurrentStep] = useState(1);
+  const dispatch = useDispatch();
+  const packageData = useSelector((state) => state.tourPackages.packageData);
+  console.log("packageData", packageData);
+  useEffect(() => {
+    if(packageData){
+      dispatch(settourdetails(packageData.tour));
+
+      dispatch(setSearchCriteria({
+        destination: packageData.tour.destination,
+        checkIn: packageData.tour.check_in_time,
+        checkOut: packageData.tour.check_out_time,
+        guests: {
+          adults: packageData.tour.adult,
+          children: packageData.tour.child,
+          infants: packageData.tour.infant,
+          maleCount: packageData.tour.male_count,
+          femaleCount: packageData.tour.female_count,
+          childrenAges: packageData.tour.child_ages ? packageData.tour.child_ages.split(', ') : [],
+        }
+      }));
+      
+      // Dispatch the booking services if they exist
+      if (packageData.tour.booking && Array.isArray(packageData.tour.booking)) {
+        dispatch(setAllServices(packageData.tour.booking));
+      }
+      
+      setCurrentStep(2);
+    }
+  }, [packageData]);
+
+
 
   const handleNext = () => {
     setCurrentStep(currentStep + 1);
+  };
+
+  const handleBookingSuccess = () => {
+    setCurrentStep(1);
   };
 
   return (
@@ -134,7 +172,7 @@ export default function TourPackages() {
         <Box sx={{ mt: 4 }}>
           {/* Service content area */}
           <Box sx={{ py: 2 }}>
-            <Itinerary />
+            <Itinerary onBookingSuccess={handleBookingSuccess} />
           </Box>
         </Box>
       )}

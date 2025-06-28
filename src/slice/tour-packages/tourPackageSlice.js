@@ -25,6 +25,7 @@ const initialState = {
   packageEnquiryId: null,
   selectedPackages: [],
   AllServices: [],
+  packageData: null,
 };
 
 console.log("%c REDUX: Initial AllServices state created", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;", initialState.AllServices);
@@ -106,6 +107,48 @@ export const BookPackageEnquiry = createAsyncThunk(
 
       return response.data;
     } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const UpdateCustomPackage = createAsyncThunk(
+  "tourPackages/UpdateCustomPackage",
+  async ({ tour_id }, { rejectWithValue, getState }) => {
+    const state = getState();
+    try {
+      const authToken = Cookies.get("authToken");
+      const agentID = state.editing?.agentId;
+      const userRole = state.auth?.userRole;
+      let AgentId;
+      if (
+        userRole === "Sales Head(DMC)" ||
+        userRole === "Sales Manager (DMC)" ||
+        userRole === "Assistant Manager (DMC)"
+      ) {
+        AgentId = agentID;
+      } else {
+        AgentId = Cookies.get("AgentId");
+      }
+
+
+      if (!authToken || !AgentId) {
+        throw new Error("Authorization and AgentId are missing.");
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/edit-custom-package?tour_id=${tour_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+            "agent-id": AgentId,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) { 
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -229,6 +272,21 @@ const tourPackageSlice = createSlice({
       .addCase(BookPackageEnquiry.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      
+      // Handle UpdateCustomPackage states
+      .addCase(UpdateCustomPackage.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(UpdateCustomPackage.fulfilled, (state, action) => {
+        state.loading = false;
+        state.packageData = action.payload;
+      })
+      .addCase(UpdateCustomPackage.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.packageData = null;
       });
   },
 });

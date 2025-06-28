@@ -59,9 +59,10 @@ import PickupDropComponent from '../../Tour-Packages/PickUp-Drop';
 import SimpleCustomerInfo from './SimpleCustomerInfo';
 import ServicesSummaryModal from './ServicesSummaryModal';
 
-export default function Itinerary() {
+export default function Itinerary({ onBookingSuccess }) {
   // Get data from Redux store
   const { searchCriteria } = useSelector((state) => state.tourPackages);
+  console.log("searchCriteria", searchCriteria);
   const { hotels } = useSelector((state) => state.hotels);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
@@ -85,8 +86,23 @@ export default function Itinerary() {
   const dates = useMemo(() => {
     if (!searchCriteria?.checkIn || !searchCriteria?.checkOut) return [];
     
-    const startDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
-    const endDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
+    // Detect date format and parse accordingly
+    const checkInDate = searchCriteria.checkIn;
+    const checkOutDate = searchCriteria.checkOut;
+    
+    let startDate, endDate;
+    
+    // Check if dates are in YYYY-MM-DD format (from loaded package) or DD/MM/YYYY format (from search form)
+    if (checkInDate.includes('-') && checkInDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // YYYY-MM-DD format (from loaded package data)
+      startDate = moment(checkInDate, 'YYYY-MM-DD');
+      endDate = moment(checkOutDate, 'YYYY-MM-DD');
+    } else {
+      // DD/MM/YYYY format (from search form)
+      startDate = moment(checkInDate, 'DD/MM/YYYY');
+      endDate = moment(checkOutDate, 'DD/MM/YYYY');
+    }
+    
     const dayDiff = endDate.diff(startDate, 'days');
 
     // Generate an array of all dates in the range
@@ -123,6 +139,11 @@ export default function Itinerary() {
         setSnackbarMessage('Package booked successfully!');
         setSnackbarSeverity('success');
         setOpenSnackbar(true);
+        
+        // Call the callback to reset current step in parent component
+        if (onBookingSuccess) {
+          onBookingSuccess();
+        }
       })
       .catch((error) => {
         setSnackbarMessage(error?.message || 'Failed to book package. Please try again.');
@@ -218,7 +239,12 @@ export default function Itinerary() {
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
       {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
-      <PickupDropComponent portType={portType} setPortType={() => setPortType("Entry Port")} />
+      <PickupDropComponent 
+        portType={portType} 
+        setPortType={() => setPortType("Entry Port")} 
+        date={date}
+        dayIndex={index}
+      />
     </Paper>
   </Box>
 )}
@@ -228,7 +254,10 @@ export default function Itinerary() {
             <Box sx={{ mb: 2 }}>
               <Paper elevation={1} sx={{ p: 0, borderLeft: '4px solid #f44336' }}>
                 
-                <AttractionComponent />
+                <AttractionComponent 
+                  date={date}
+                  dayIndex={index}
+                />
               </Paper>
             </Box>
 
@@ -236,7 +265,10 @@ export default function Itinerary() {
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
                 {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography> */}
-                <GuideComponent />
+                <GuideComponent 
+                  date={date}
+                  dayIndex={index}
+                />
               </Paper>
             </Box>
 
@@ -244,14 +276,20 @@ export default function Itinerary() {
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #ff9800' }}>
                 <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Restaurant</Typography>
-                <RestaurantComponent />
+                <RestaurantComponent 
+                  date={date}
+                  dayIndex={index}
+                />
               </Paper>
             </Box>
 
             {/* Transport Component */}
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
-                <TransportComponent dayIndex={index} />
+                <TransportComponent 
+                  dayIndex={index}
+                  date={date}
+                />
               </Paper>
             </Box>
 
@@ -260,7 +298,12 @@ export default function Itinerary() {
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
       {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Departure</Typography> */}
-      <PickupDropComponent portType1={portType1} setPortType1={() => setPortType1("Exit Port")} />
+      <PickupDropComponent 
+        portType1={portType1} 
+        setPortType1={() => setPortType1("Exit Port")} 
+        date={date}
+        dayIndex={index}
+      />
     </Paper>
   </Box>
 )}

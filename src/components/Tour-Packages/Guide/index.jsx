@@ -177,6 +177,9 @@ export default function GuideComponent() {
       const bookingId = `guide-${Date.now()}-${sectionIndex}`;
       
       // Create the guide booking data
+      // Get the guide details for this specific section
+      const selectedGuideDetails = getSelectedGuide(section.guide);
+      
       const bookingData = {
         id: bookingId,
         guide_id: section.guide,

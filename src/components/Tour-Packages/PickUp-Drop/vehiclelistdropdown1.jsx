@@ -648,7 +648,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     
     // Create a new Exit Port entry for this vehicle
     const newExitPortService = {
-      type: "Exit Port",
+      type: "exit_port",
       agent_id: agentId,
       tour_id: tourId,
       data: [bookingData]
