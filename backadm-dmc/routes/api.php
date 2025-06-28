@@ -70,6 +70,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/store/custom-booking', 'App\Http\Controllers\Api\PackageController@storeMultipleOrders');
     Route::get('/edit-custom-package', 'App\Http\Controllers\Api\PackageController@editCustomPackage');
     Route::get('/package-booking-lists', 'App\Http\Controllers\Api\PackageController@getBookingLists');
+    Route::post('/update-custom-package', 'App\Http\Controllers\Api\PackageController@updateCustomPackage');
+    Route::post('/cancel-package-booking', 'App\Http\Controllers\Api\PackageController@cancelPackageBooking');
     Route::get('/cities', function (Request $request) {
         $input = $request->query('input');
         $response = Http::get("https://maps.googleapis.com/maps/api/place/autocomplete/json", [
