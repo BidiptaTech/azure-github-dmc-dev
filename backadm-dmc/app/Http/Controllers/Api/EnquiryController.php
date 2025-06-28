@@ -154,7 +154,8 @@ class EnquiryController extends Controller
 
         // Fetch all services for the given city and DMC
         $hotels = Hotel::with(['rooms' => function($query) {
-            $query->select('hotel_id', 'weekday_price', 'room_type', 'room_id');
+            $query->select('hotel_id', 'double_weekday_price', 'room_type', 'room_id')
+                  ->selectRaw('(double_weekday_price / 2) as single_base_price');
         }])->where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
         $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city)->where('country', $country)->get();
         $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
@@ -284,6 +285,7 @@ class EnquiryController extends Controller
         $enquiry->exit_port_address = $validated['exit_port_address'] ?? null;
         $enquiry->exit_pickup_type = $validated['exit_pickup_type'] ?? null;
         $enquiry->exit_pickup_location_id = $validated['exit_pickup_location_id'] ?? null;
+        $enquiry->approx_price = $request->approx_price ?? null;
 
         // Save the updated enquiry
         $enquiry->save();
