@@ -16,6 +16,22 @@ class PackageBooking extends Model
     protected $guarded = [];
     
     /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'booking_details' => 'json',
+        'travel_dates' => 'json',
+        'selected_hotels' => 'json',
+        'selected_attractions' => 'json',
+        'selected_guides' => 'json',
+        'selected_restaurants' => 'json',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+    
+    /**
      * Get the package associated with the booking
      */
     public function package()
@@ -26,12 +42,46 @@ class PackageBooking extends Model
     /**
      * Get the user who made the booking
      */
+    public function bookedBy()
+    {
+        return $this->belongsTo(User::class, 'booked_by', 'userId');
+    }
     
     /**
      * Get the total number of travelers
      */
     public function getTotalTravelersAttribute()
     {
-        return $this->adult_count + $this->child_count + $this->senior_count;
+        if ($this->booking_details && isset($this->booking_details['adult_count']) && isset($this->booking_details['child_count'])) {
+            return $this->booking_details['adult_count'] + $this->booking_details['child_count'];
+        }
+        return 0;
+    }
+    
+    /**
+     * Get the travel dates as a formatted string
+     */
+    public function getTravelDatesRangeAttribute()
+    {
+        if ($this->booking_details && isset($this->booking_details['itinerary']) && count($this->booking_details['itinerary']) > 0) {
+            $firstDay = reset($this->booking_details['itinerary']);
+            $lastDay = end($this->booking_details['itinerary']);
+            
+            if (isset($firstDay['date']) && isset($lastDay['date'])) {
+                return $firstDay['date'] . ' - ' . $lastDay['date'];
+            }
+        }
+        return 'Not specified';
+    }
+    
+    /**
+     * Get the duration in days
+     */
+    public function getDurationDaysAttribute()
+    {
+        if ($this->booking_details && isset($this->booking_details['itinerary'])) {
+            return count($this->booking_details['itinerary']);
+        }
+        return 0;
     }
 }

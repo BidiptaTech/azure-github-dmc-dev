@@ -425,7 +425,6 @@ class PackageController extends Controller
         $check_out = Carbon::parse($end_date)->format('Y-m-d');
 
 
-
         // Verify price calculation
         $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
 
@@ -498,16 +497,14 @@ class PackageController extends Controller
         
         try {
             $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
-                ->where('booked_by', $user->userId ?? $user->agent_id)
+                ->where('booked_by', $user->agent_id ?? $user->userId)
                 ->get();
             
             $data = [];
-            
             foreach ($booking as $b) {
                 $hotelIds = json_decode($b->selected_hotels) ?? [];
                 $attractionIds = json_decode($b->selected_attractions) ?? [];
                 $guideIds = json_decode($b->selected_guides) ?? [];
-                $restaurantIds = json_decode($b->selected_restaurants) ?? [];
 
                 // Only fetch related data if IDs exist
                 $hotels = !empty($hotelIds) ? Hotel::select(
@@ -539,10 +536,7 @@ class PackageController extends Controller
                     });
                 }
                 
-                $restaurants = !empty($restaurantIds) ? Restaurant::select(
-                    'restaurant_id', 'name', 'master_image', 'images', 'city',
-                     'latitude', 'longitude'
-                )->whereIn('restaurant_id', $restaurantIds)->get() : [];
+                
 
                 $data[] = [
                     'booking_id' => $b->booking_id,
@@ -552,7 +546,6 @@ class PackageController extends Controller
                     'hotels' => $hotels,
                     'attractions' => $attractions,
                     'guides' => $guides,
-                    'restaurants' => $restaurants,
                     'package' => json_decode($b->package),
                     'user_info' => json_decode($b->user_info),
                     'status' => $b->status

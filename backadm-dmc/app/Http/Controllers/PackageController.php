@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
 use Exception;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
+use App\Models\PackageBooking;
+use App\Models\Vehicles;
 
 class PackageController extends Controller
 {
@@ -472,5 +475,136 @@ class PackageController extends Controller
             }
             return $item;
         }, $items);
+    }
+
+
+    public function predefinedPackageBookingList()
+    {
+        $user = auth()->user();
+
+        if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 37 || $user->role_id == 38){
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }
+            //sales head
+            elseif($user->role_id == 33){
+                $dmc_id = $user->created_by;
+            }
+            //operational head
+            elseif($user->role_id == 34){
+                $dmc_id = $user->created_by;
+            }
+            //finance head
+            elseif($user->role_id == 36){
+                $dmc_id = $user->created_by;
+            }
+            //sales manager
+            elseif($user->role_id == 37){
+                $sales_manager_id = $user->userId;
+                $sales_head_id = $user->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+            //assistant sales manager
+            elseif($user->role_id == 38){
+                $assistant_sales_manager_id = $user->userId;
+                $sales_manager_id = $user->created_by;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+
+            // Include the package relationship to access package details
+        $bookings = PackageBooking::with('package')
+        
+        ->orderBy('created_at', 'desc')
+        ->get();
+        }else{
+            $bookings = PackageBooking::with('package')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        }
+        
+        return view('package.booking-list', compact('bookings'));
+    }
+    
+    /**
+     * Add payment for a package booking
+     *
+     * @param Request $request
+     * @param string $package_id Package ID
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function addPayment(Request $request, $booking_id)
+    {
+        try {
+            // Validate the request
+            $request->validate([
+                'booking_id' => 'required',
+                'payment_amount' => 'required|numeric|min:0.01',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string',
+                'transaction_id' => 'required|string',
+            ]);
+            
+            // Find the booking by ID
+            $booking = PackageBooking::findOrFail($booking_id);
+            
+            // Update booking with payment details
+            $booking->status = '3'; // Mark as paid
+            $booking->payment_amount = $request->payment_amount;
+            $booking->payment_date = $request->payment_date;
+            $booking->payment_mode = $request->payment_type; // Note: field name mismatch fixed
+            $booking->transaction_id = $request->transaction_id;
+
+            $booking->save();
+            
+            return redirect()->route('predefined.package.booking.list')
+                ->with('success', 'Payment details saved successfully.');
+                
+        } catch (\Exception $e) {
+            return redirect()->route('predefined.package.booking.list')
+                ->with('error', 'Failed to save payment details: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Confirm payment for a package booking
+     *
+     * @param Request $request
+     * @param int $booking_id Booking ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function confirmPayment(Request $request, $booking_id)
+    {
+        try {
+            // Find the booking by ID
+            $booking = PackageBooking::findOrFail($booking_id);
+            
+            // Check if booking has payment details
+            if (empty($booking->payment_amount) || empty($booking->payment_date) || empty($booking->transaction_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot confirm payment. Payment details are missing.'
+                ], 400);
+            }
+            
+            // Update booking status to confirmed (2)
+            $booking->status = '2'; // Confirmed
+            $booking->save();
+        
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment confirmed successfully.'
+            ]);
+                
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm payment: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

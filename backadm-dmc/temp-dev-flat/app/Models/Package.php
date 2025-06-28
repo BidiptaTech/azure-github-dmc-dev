@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use App\Models\User;
 use App\Models\Hotel;
 use App\Models\Attraction;
+use App\Models\PackageBooking;
 
 class Package extends Model
 {
@@ -232,6 +233,14 @@ class Package extends Model
     public function isDraft()
     {
         return $this->status === 'draft';
+    }
+
+    /**
+     * Get all bookings for this package
+     */
+    public function bookings()
+    {
+        return $this->hasMany(PackageBooking::class, 'package_id', 'package_id');
     }
 
     public function getSelectedHotelsDetails()
