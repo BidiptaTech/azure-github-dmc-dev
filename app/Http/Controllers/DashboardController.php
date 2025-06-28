@@ -118,6 +118,7 @@ class DashboardController extends Controller
         return in_array($user->role_id, [1, 2]); // Admin, Super Admin only
     }
     
+    
     /**
      * Check if user can view hotels
      */
