@@ -983,6 +983,14 @@ const pickupDropSlice = createSlice({
     },
     resetVehicles: (state, action) => {
       state.vehicles = [];
+      state.vehicles1 = [];
+      state.entrypickup = "";
+      state.entrydropoff = "";
+      state.exitpickup = "";
+      state.exitdropoff = "";
+      state.pickupdate = "";
+      state.exitpickupdate = "";
+      state.entrytime = "";
       state.DropoffPlaceid = "";
       state.PickupPlaceid = "";
       state.DropoffPlaceid1 = "";

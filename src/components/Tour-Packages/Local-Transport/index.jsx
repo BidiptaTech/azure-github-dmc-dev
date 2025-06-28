@@ -71,7 +71,7 @@ const initialFormState = {
   price: 0,
 };
 
-export default function LocalTransportComponent({ dayIndex = 0 }) {
+export default function LocalTransportComponent({ dayIndex = 0, date }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   
@@ -130,7 +130,10 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
 
   // Redux dispatch function
   const dispatchBookingToRedux = useCallback((bookingIndex) => {
-    if (isDispatching.current) return;
+    if (isDispatching.current) {
+      console.log("Dispatch already in progress, skipping...");
+      return;
+    }
     
     const booking = allBookings[bookingIndex];
     
@@ -138,29 +141,30 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
       console.error("Cannot dispatch incomplete booking to Redux", booking);
       return;
     }
+
+    
     
     const bookingId = booking.id || `${booking.transportType.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
     const customerInfoService = allServices.find(service => service.type === 'CustomerInfo');
+    let serviceType;
     
-    const bookingData = {
+    // Base booking data structure using parameter names from details objects
+    let bookingData = {
       id: bookingId,
-      vehicle_id: booking.vehicleId,
-      vehicle_name: booking.vehicleName,
-      vehicle_type: booking.vehicleType,
-      vehicle_model: booking.vehicleModel,
-      vehicle_image: booking.vehicleImage,
-      city: booking.city,
-      country: booking.country,
-      pickup_location: booking.pickupLocation,
-      dropoff_location: booking.dropoffLocation,
-      booking_date: booking.bookingDate,
-      pickup_time: booking.pickupTime,
+      vehicles_id: booking.vehicleId,
+      vehicles_name: booking.vehicleName,
+      image: booking.vehicleImage,
+      dmc_id: booking.dmcId,
+      Mode: booking.mode,
+      type: booking.priceMode,
       adults: booking.adults,
       children: booking.children,
-      price: booking.price,
-      transport_type: booking.priceMode === "Sharable" ? "shared" : "private",
-      mode: booking.mode,
-      dmc_id: booking.dmcId,
+      totalPrice: Math.ceil(booking.price || 0),
+      city: booking.city,
+      country: booking.country,
+      bookingDate: booking.bookingDate,
+      entrytime: booking.pickupTime,
+      pickupdate: booking.bookingDate,
       ...(customerInfoService ? { 
         fullName: customerInfoService.fullName, 
         email: customerInfoService.email,
@@ -173,20 +177,59 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
         countryCode: customerInfoService.countryCode
       } : {})
     };
-    
-    if (booking.transportType === "Hourly") {
-      bookingData.hours = booking.hours;
-    }
-    
-    if (booking.transportType === "Local Transfer" && booking.zoneId) {
-      bookingData.zone_id = booking.zoneId;
+
+    // Add transport type specific parameters based on details objects
+    if (booking.transportType === "Point To Point") {
+      // Parameters from index3.jsx details object
+      serviceType = "travel_point";
+      bookingData = {
+        ...bookingData,
+        entrypickup: booking.pickupLocation,
+        entrydropoff: booking.dropoffLocation,
+        PickupPlaceid: booking.PickupPlaceid || '',
+        DropoffPlaceid: booking.DropoffPlaceid || '',
+        Tax: booking.Tax || 0,
+        distance: booking.distance || 0,
+        Night_Start_Time: booking.Night_Start_Time || '',
+        Night_End_Time: booking.Night_End_Time || ''
+      };
+    } else if (booking.transportType === "Hourly") {
+      // Parameters from index4.jsx details object
+      serviceType = "travel_hourly";
+      bookingData = {
+        ...bookingData,
+        entrypickup: booking.pickupLocation,
+        PickupPlaceid: booking.PickupPlaceid || '',
+        exitpickupdate: booking.bookingDate,
+        selectedHours: booking.hours || 1,
+        Tax: booking.Tax || 0,
+        Night_Start_Time: booking.Night_Start_Time || '',
+        Night_End_Time: booking.Night_End_Time || ''
+      };
+    } else if (booking.transportType === "Local Transfer") {
+      // Parameters from index5.jsx details object
+      serviceType = "local_transport";
+      bookingData = {
+        ...bookingData,
+        entrypickup: booking.pickupLocation,
+        entrydropoff: booking.dropoffLocation,
+        PickupPlaceid: booking.PickupPlaceid || '',
+        DropoffPlaceid: booking.DropoffPlaceid || '',
+        to_zone_id: booking.to_zone_id || booking.zoneId || '',
+        from_zone_id: booking.from_zone_id || ''
+      };
     }
     
     const currentServices = [...allServices];
     const existingServiceIndex = currentServices.findIndex(service => {
-      if (service.type === booking.transportType) {
-        return service.data && service.data.some(item => item.id === bookingId || 
-          (item.vehicle_id === booking.vehicleId));
+      if (service.type === serviceType) {
+        return service.data && service.data.some(item => 
+          item.id === bookingId || 
+          (item.vehicles_id === booking.vehicleId && 
+           item.totalPrice === Math.ceil(booking.price || 0) &&
+           item.adults === booking.adults &&
+           item.children === booking.children)
+        );
       }
       return false;
     });
@@ -194,12 +237,12 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
     if (existingServiceIndex >= 0) {
       const existingService = currentServices[existingServiceIndex];
       const existingBookingItem = existingService.data && existingService.data.find(item => 
-        item.id === bookingId || (item.vehicle_id === booking.vehicleId)
+        item.id === bookingId || (item.vehicles_id === booking.vehicleId)
       );
       
       if (existingBookingItem && 
-          existingBookingItem.price === bookingData.price && 
-          existingBookingItem.transport_type === bookingData.transport_type &&
+          existingBookingItem.totalPrice === bookingData.totalPrice && 
+          existingBookingItem.type === bookingData.type &&
           existingBookingItem.adults === bookingData.adults &&
           existingBookingItem.children === bookingData.children) {
         
@@ -214,8 +257,9 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
           });
         }
         
+        
         return {
-          type: booking.transportType,
+          type: serviceType,
           agent_id: agentId,
           tour_id: tourId,
           data: [existingBookingItem]
@@ -224,9 +268,14 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
     }
     
     const filteredServices = currentServices.filter(service => {
-      if (service.type === booking.transportType) {
+      if (service.type === serviceType) {
         if (service.data && service.data.some(item => 
-          item.id === bookingId || (item.vehicle_id === booking.vehicleId))) {
+          item.id === bookingId || 
+          (item.vehicles_id === booking.vehicleId && 
+           item.totalPrice === Math.ceil(booking.price || 0) &&
+           item.adults === booking.adults &&
+           item.children === booking.children)
+        )) {
           return false;
         }
       }
@@ -234,7 +283,7 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
     });
     
     const newServiceEntry = {
-      type: booking.transportType,
+      type: serviceType,
       agent_id: agentId,
       tour_id: tourId,
       data: [bookingData]
@@ -245,7 +294,12 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
     const hasChanged = JSON.stringify(filteredServices) !== JSON.stringify(prevServicesRef.current);
     
     if (hasChanged) {
-      console.log(`${booking.transportType} - Dispatching booking to Redux:`, booking);
+      console.log(`${booking.transportType} - Dispatching booking to Redux:`, {
+        serviceType,
+        vehicleId: booking.vehicleId,
+        totalPrice: Math.ceil(booking.price || 0),
+        bookingId
+      });
       
       isDispatching.current = true;
       dispatch(setAllServices(filteredServices));
@@ -253,7 +307,9 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
       
       setTimeout(() => {
         isDispatching.current = false;
-      }, 50);
+      }, 100);
+    } else {
+      console.log(`No changes detected for ${booking.transportType} booking, skipping dispatch`);
     }
     
     if (!booking.id) {
@@ -693,7 +749,7 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
           }}
         >
           <CardContent sx={{ p: 2 }}>
-            <SearchLocationTransport Location={Location} dayIndex={dayIndex} />
+            <SearchLocationTransport Location={Location} dayIndex={dayIndex} date={date}/>
           </CardContent>
         </Card>
       </Container>
@@ -741,7 +797,7 @@ export default function LocalTransportComponent({ dayIndex = 0 }) {
       
       {/* Search Section */}
       <Box sx={{ mb: 3 }}>
-        <SearchLocationTransport Location={Location} dayIndex={dayIndex} />
+        <SearchLocationTransport Location={Location} dayIndex={dayIndex} date={date} />
       </Box>
       
       {/* Alerts */}
