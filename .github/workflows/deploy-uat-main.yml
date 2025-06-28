@@ -117,70 +117,12 @@ jobs:
             cp -r public/* deployment/ 2>/dev/null || true
           fi
           
-          # Preserve custom root-level files if available
-          for file in laravel-debug.php startup.sh default; do
-            [ -f "$file" ] && cp "$file" deployment/
+          # Copy your custom root-level files
+          for file in laravel-debug.php startup.sh default .htaccess; do
+            [ -f "$file" ] && cp "$file" deployment/ && echo "✅ Copied your custom $file"
           done
           
-          echo "✅ Deployment package prepared"
-
-      - name: 🔧 Create .htaccess for React routing
-        run: |
-          echo "🔧 Creating .htaccess file for React routing..."
-          
-          # Create .htaccess file for React SPA routing
-          cat > deployment/.htaccess << 'EOF'
-          # React.js SPA routing configuration
-          # This file solves page refresh issues in React applications
-          
-          RewriteEngine On
-          
-          # Handle Angular and React requests for static files
-          RewriteCond %{REQUEST_FILENAME} -f [OR]
-          RewriteCond %{REQUEST_FILENAME} -d
-          RewriteRule ^ - [L]
-          
-          # Fallback to index.html for client-side routing
-          # This ensures that React Router can handle the routing
-          RewriteRule ^ /index.html [L]
-          
-          # Security headers
-          <IfModule mod_headers.c>
-              Header always set X-Content-Type-Options nosniff
-              Header always set X-Frame-Options SAMEORIGIN
-              Header always set X-XSS-Protection "1; mode=block"
-              Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-          </IfModule>
-          
-          # Compression for better performance
-          <IfModule mod_deflate.c>
-              AddOutputFilterByType DEFLATE text/plain
-              AddOutputFilterByType DEFLATE text/html
-              AddOutputFilterByType DEFLATE text/xml
-              AddOutputFilterByType DEFLATE text/css
-              AddOutputFilterByType DEFLATE application/xml
-              AddOutputFilterByType DEFLATE application/xhtml+xml
-              AddOutputFilterByType DEFLATE application/rss+xml
-              AddOutputFilterByType DEFLATE application/javascript
-              AddOutputFilterByType DEFLATE application/x-javascript
-          </IfModule>
-          
-          # Cache static assets
-          <IfModule mod_expires.c>
-              ExpiresActive On
-              ExpiresByType text/css "access plus 1 year"
-              ExpiresByType application/javascript "access plus 1 year"
-              ExpiresByType image/png "access plus 1 year"
-              ExpiresByType image/jpg "access plus 1 year"
-              ExpiresByType image/jpeg "access plus 1 year"
-              ExpiresByType image/gif "access plus 1 year"
-              ExpiresByType image/svg+xml "access plus 1 year"
-              ExpiresByType application/pdf "access plus 1 month"
-              ExpiresByType text/html "access plus 0 seconds"
-          </IfModule>
-          EOF
-          
-          echo "✅ .htaccess file created for React routing"
+          echo "✅ Deployment package prepared with your custom files"
 
       - name: 🔍 Create deployment info
         run: |
@@ -212,18 +154,17 @@ jobs:
                   <ul>
                       <li>✅ React Frontend (Root level)</li>
                       <li>✅ Laravel Backend (/backadm-dmc/)</li>
-                      <li>✅ .htaccess for SPA routing</li>
-                      <li>✅ NGINX configuration applied</li>
+                      <li>✅ Your custom .htaccess for SPA routing</li>
+                      <li>✅ Your custom startup.sh for NGINX configuration</li>
                   </ul>
                   
                   <h3>🔧 Features Configured:</h3>
                   <ul>
-                      <li>✅ Page refresh issues resolved</li>
-                      <li>✅ Static assets optimized</li>
-                      <li>✅ Security headers configured</li>
-                      <li>✅ Laravel artisan commands executed</li>
-                      <li>✅ Storage directories created</li>
-                      <li>✅ Cache optimization applied</li>
+                      <li>✅ React production build optimized</li>
+                      <li>✅ Laravel backend properly deployed</li>
+                      <li>✅ Custom configuration files preserved</li>
+                      <li>✅ Your startup script executed on Azure</li>
+                      <li>✅ All custom files from repository used</li>
                   </ul>
                   
                   <h3>🎯 Access Points:</h3>
@@ -239,116 +180,7 @@ jobs:
           
           echo "✅ Deployment info created"
 
-      - name: ⚙️ Create startup script for Laravel and NGINX setup
-        run: |
-          cat > deployment/startup.sh << 'EOF'
-          #!/bin/bash
-          echo "🚀 Starting Laravel and NGINX setup for UAT..."
 
-          # Remove only specific files if they exist
-          rm -f /home/site/wwwroot/default
-          rm -f /home/site/wwwroot/laravel-debug.php
-          rm -f /home/site/wwwroot/startup.sh
-          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
-          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
-
-          # Clear OPcache
-          if command -v php >/dev/null 2>&1; then
-              php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
-          fi
-
-          # Clear Composer cache
-          composer clear-cache || true
-
-          # Configure NGINX for Laravel + React
-          cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
-          server {
-              listen 8080;
-              root /home/site/wwwroot;
-              index index.php index.html;
-              server_name _;
-
-              if ($http_x_forwarded_proto != "https") {
-                  return 301 https://$host$request_uri;
-              }
-
-              location ^~ /backadm-dmc/ {
-                  alias /home/site/wwwroot/backadm-dmc/public/;
-                  index index.php;
-                  try_files $uri $uri/ @backadm_dmc_fallback;
-
-                  location ~ \.php$ {
-                      include fastcgi_params;
-                      fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
-                      fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
-                      fastcgi_param REQUEST_URI $request_uri;
-                      fastcgi_param HTTPS on;
-                      fastcgi_pass 127.0.0.1:9000;
-                  }
-              }
-
-              location = /backadm-dmc {
-                  return 301 $scheme://$host/backadm-dmc/;
-              }
-
-              location @backadm_dmc_fallback {
-                  rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
-              }
-
-              # React SPA routing - fallback to index.html
-              location / {
-                  try_files $uri $uri/ /index.html;
-              }
-
-              location ~ \.php$ {
-                  include fastcgi_params;
-                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-                  fastcgi_param HTTPS on;
-                  fastcgi_pass 127.0.0.1:9000;
-              }
-
-              add_header X-Content-Type-Options nosniff;
-              add_header X-Frame-Options SAMEORIGIN;
-              add_header X-XSS-Protection "1; mode=block";
-              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-          }
-          NGINX_EOF
-
-          cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-          nginx -t && service nginx reload
-
-          cd /home/site/wwwroot/backadm-dmc
-
-          # Create Laravel directories
-          mkdir -p storage/framework/{sessions,views,cache/data}
-          mkdir -p storage/{logs,app/public} bootstrap/cache
-
-          chmod -R 775 storage bootstrap/cache
-
-          # Laravel optimization commands
-          php artisan optimize:clear || true
-          php artisan storage:link || true
-
-          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-              php artisan key:generate --force || true
-          fi
-
-          # Clear caches
-          php artisan cache:clear || true
-          php artisan route:clear || true
-          php artisan view:clear || true
-          php artisan config:clear || true
-          php artisan optimize || true
-
-          # Cache for production
-          php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
-
-          echo "✅ Laravel and NGINX setup completed for UAT"
-          EOF
-
-          chmod +x deployment/startup.sh
 
       - name: 🔐 Azure Login
         uses: azure/login@v2
@@ -388,8 +220,8 @@ jobs:
           echo "📦 Deployed Components:"
           echo "   → React Frontend: Production build deployed to root"
           echo "   → Laravel Backend: Deployed to /backadm-dmc/ with optimization"
-          echo "   → NGINX Configuration: Configured for both React SPA and Laravel"
-          echo "   → .htaccess: Created for React Router compatibility"
+          echo "   → Your Custom .htaccess: Used for React Router compatibility"
+          echo "   → Your Custom startup.sh: Used for NGINX and Laravel configuration"
           echo ""
           echo "🔧 Laravel Optimizations Applied:"
           echo "   → All caches cleared and rebuilt"
