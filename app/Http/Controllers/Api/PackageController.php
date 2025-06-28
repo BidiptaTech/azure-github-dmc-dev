@@ -576,14 +576,14 @@ class PackageController extends Controller
 
     public function cancelPackageBooking(Request $request)
     {
-        $package_id = $request->input('package_id');
+        $package_id = $request->input('booking_id');
         if (empty($package_id)) {
             return response()->json([
                 'status' => false,
                 'message' => 'Package ID is required.',
             ], 400);
         }
-        $updated = PackageBooking::where('package_id', $package_id)
+        $updated = PackageBooking::where('booking_id', $booking_id)
             ->update(['status' => 4]);
         if ($updated) {
             return response()->json([
