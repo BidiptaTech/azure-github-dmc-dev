@@ -795,7 +795,11 @@
                 </div>
                 @endif
 
+<<<<<<< HEAD
                 @if($userPermissions['canViewPorts'] && isset($counts['ports']))
+=======
+                @if(Auth::user()->role_id == 1 && isset($counts['ports']))
+>>>>>>> 8f1332a634a745061d8a2a43171410f908628470
                 <div class="activity-item">
                     <div class="activity-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
                         <i class="ri-ship-line"></i>
@@ -1087,11 +1091,19 @@ function initializeEnhancedChart() {
     }
     
     // Add ports only for admin users
+<<<<<<< HEAD
     if (userPermissions.canViewPorts && {!! json_encode(isset($counts['ports'])) !!}) {
         chartLabels.push('Ports');
         totalData.push({{ $counts['ports']['total'] ?? 0 }});
         monthData.push({{ $counts['ports']['active'] ?? 0 }});
     }
+=======
+    @if(Auth::user()->role_id == 1 && isset($counts['ports']))
+    chartLabels.push('Ports');
+    totalData.push({{ $counts['ports']['total'] ?? 0 }});
+    monthData.push({{ $counts['ports']['active'] ?? 0 }});
+    @endif
+>>>>>>> 8f1332a634a745061d8a2a43171410f908628470
     
     currentData = {
         labels: chartLabels,
@@ -1497,8 +1509,12 @@ function updateChart(counts, permissions) {
             monthData.push(counts.zones.active);
         }
         
+<<<<<<< HEAD
         // Add ports only for Admin and Super Admin users
         if (userPermissions.canViewPorts && counts.ports) {
+=======
+        if (counts.ports) {
+>>>>>>> 8f1332a634a745061d8a2a43171410f908628470
             chartLabels.push('Ports');
             totalData.push(counts.ports.total);
             monthData.push(counts.ports.active);

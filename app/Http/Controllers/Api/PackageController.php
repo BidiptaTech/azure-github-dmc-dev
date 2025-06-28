@@ -417,74 +417,83 @@ class PackageController extends Controller
 
     public function getBookingLists(Request $request){
         $user = Auth::user();
-        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')->where('booked_by', $user->userId ?? $user->agent_id)->get();
         
-        $data = [];
-        
-        foreach ($booking as $b) {
-            $hotelIds = [];
-            $attractionIds = [];
-            $guideIds = [];
-            $restaurantIds = [];
-            $hotelIds = array_merge($hotelIds, json_decode($b->selected_hotels) ?? []);
-            $attractionIds = array_merge($attractionIds, json_decode($b->selected_attractions) ?? []);
-            $guideIds = array_merge($guideIds, json_decode($b->selected_guides) ?? []);
-            $restaurantIds = array_merge($restaurantIds, json_decode($b->selected_restaurants) ?? []);
+        try {
+            $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                ->where('booked_by', $user->userId ?? $user->agent_id)
+                ->get();
+            
+            $data = [];
+            
+            foreach ($booking as $b) {
+                $hotelIds = json_decode($b->selected_hotels) ?? [];
+                $attractionIds = json_decode($b->selected_attractions) ?? [];
+                $guideIds = json_decode($b->selected_guides) ?? [];
+                $restaurantIds = json_decode($b->selected_restaurants) ?? [];
 
-            $hotelIds = array_unique($hotelIds);
-            $attractionIds = array_unique($attractionIds);
-            $guideIds = array_unique($guideIds);
-            $restaurantIds = array_unique($restaurantIds);
-
-            $hotels = Hotel::select(
-                'hotel_unique_id', 'name', 'main_image', 'images', 'address',
-                'phone', 'email', 'latitude', 'longitude'
-            )->whereIn('hotel_unique_id', $hotelIds)->get();
-            
-            $attractions = Attraction::select(
-                'attraction_id', 'name', 'master_image', 'additional_image',
-                'location', 'latitude', 'longitude'
-            )->whereIn('attraction_id', $attractionIds)->get();
-            
-            // Get guides with languages
-            $selected_guides = Guide::select(
-                'guide_id', 'name', 'image', 'contact_no', 'email'
-            )->whereIn('guide_id', $guideIds)->get();
-            
-            $guides = $selected_guides->map(function ($guide) {
-                $languages = GuideLanguage::where('guide_id', $guide->guide_id)->pluck('language');
-                return [
-                    'guide_id' => $guide->guide_id,
-                    'name' => $guide->name,
-                    'image' => $guide->image,
-                    'contact_no' => $guide->contact_no,
-                    'email' => $guide->email,
-                    'languages' => $languages,
-                ];
-            });
+                // Only fetch related data if IDs exist
+                $hotels = !empty($hotelIds) ? Hotel::select(
+                    'hotel_unique_id', 'name', 'main_image', 'images', 'address',
+                    'phone', 'email', 'latitude', 'longitude'
+                )->whereIn('hotel_unique_id', $hotelIds)->get() : [];
                 
+                $attractions = !empty($attractionIds) ? Attraction::select(
+                    'attraction_id', 'name', 'master_image', 'additional_image',
+                    'location', 'latitude', 'longitude'
+                )->whereIn('attraction_id', $attractionIds)->get() : [];
+                
+                $guides = [];
+                if (!empty($guideIds)) {
+                    $selected_guides = Guide::select(
+                        'guide_id', 'name', 'image', 'contact_no', 'email'
+                    )->whereIn('guide_id', $guideIds)->get();
+                    
+                    $guides = $selected_guides->map(function ($guide) {
+                        $languages = GuideLanguage::where('guide_id', $guide->guide_id)->pluck('language');
+                        return [
+                            'guide_id' => $guide->guide_id,
+                            'name' => $guide->name,
+                            'image' => $guide->image,
+                            'contact_no' => $guide->contact_no,
+                            'email' => $guide->email,
+                            'languages' => $languages,
+                        ];
+                    });
+                }
+                
+                $restaurants = !empty($restaurantIds) ? Restaurant::select(
+                    'restaurant_id', 'name', 'master_image', 'images', 'city',
+                     'latitude', 'longitude'
+                )->whereIn('restaurant_id', $restaurantIds)->get() : [];
+
+                $data[] = [
+                    'booking_id' => $b->booking_id,
+                    'package_id' => $b->package_id,
+                    'booking_details' => json_decode($b->booking_details),
+                    'travel_dates' => json_decode($b->travel_dates),
+                    'hotels' => $hotels,
+                    'attractions' => $attractions,
+                    'guides' => $guides,
+                    'restaurants' => $restaurants,
+                    'package' => json_decode($b->package),
+                    'user_info' => json_decode($b->user_info),
+                    'status' => $b->status
+                ];
+            }
             
-            $restaurants = Restaurant::select(
-                'restaurant_id', 'name', 'master_image', 'images', 'city',
-                 'latitude', 'longitude'
-            )->whereIn('restaurant_id', $restaurantIds)->get();
-
-            $data[] = [
-                'booking_id' => $b->booking_id,
-                'package_id' => $b->package_id,
-                'booking_details' => $b->booking_details,
-                'travel_dates' => $b->travel_dates,
-                'hotels' => $hotels,
-                'attractions' => $attractions,
-                'guides' => $guides,
-                'restaurants' => $restaurants,
-                'package' => $b->package,
-                'user_info' => $b->user_info,
-                'status' => $b->status
-            ];
+            return response()->json([
+                'booking_lists' => $data,
+                'total_bookings' => count($data)
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'package_bookings table does not exist. Please create the table first.',
+                'error' => $e->getMessage(),
+                'booking_lists' => [],
+                'total_bookings' => 0
+            ], 500);
         }
-        
-        return response()->json(['booking_lists' => $data]);
     }
-
+    
 }
