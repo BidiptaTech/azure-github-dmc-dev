@@ -119,6 +119,13 @@ const CuisineChip = styled(Chip)(({ theme }) => ({
   marginBottom: theme.spacing(0.5),
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+}));
+
 const RestaurantSearch = ({ onSelect }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
@@ -132,6 +139,12 @@ const RestaurantSearch = ({ onSelect }) => {
   // Get restaurants from Redux store
   const { restaurants = [], loading, error } = useSelector(state => state.enquiryList || { restaurants: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
+
+  // Helper function to format price
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
 
   // Manual fetch button for testing
   const handleManualFetch = () => {
@@ -290,6 +303,13 @@ const RestaurantSearch = ({ onSelect }) => {
                         <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.4 }}>
                           {getDescriptionSnippet(restaurant.description)}
                         </Typography>
+                      )}
+                      {restaurant['base-price'] && (
+                        <PriceChip 
+                          label={`${formatPrice(restaurant['base-price'])}/person`}
+                          size="small"
+                          sx={{ mt: 1 }}
+                        />
                       )}
                     </RestaurantInfo>
                     {restaurant.master_image && (

@@ -10,10 +10,11 @@ import VehicleListDropdown1 from './vehiclelistdropdown1';
 import { setSelectedVehicle, setSelectedVehicle1 } from '../../../slice/port/pickupDropSlice';
 import CombinedSearchLocationZone from './CombinedSearchLocationZone';
 
-export default function PickupDropComponent({portType, setPortType, portType1, setPortType1}) {
+export default function PickupDropComponent({portType, setPortType, portType1, setPortType1, entryPorts,exitPorts}) {
   // Add useSelector to access AllServices
   const allServices = useSelector((state) => state.tourPackages.AllServices);
-  
+  console.log("entryPorts", entryPorts);
+  console.log("exitPorts", exitPorts);
   // Add a log to see when the component renders and what services exist
   useEffect(() => {
     console.log("%c PickupDropComponent Rendered", "background: #6a89cc; color: white; padding: 4px;");
@@ -144,25 +145,31 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
           Location={Location}
           portType={portType}
           portType1={portType1}
+          entryPorts={entryPorts}
+          exitPorts={exitPorts}
         />
       ) : (
         <SearchLocation 
           Location={Location} 
           portType={portType} 
           portType1={portType1} 
+          entryPorts={entryPorts}
+          exitPorts={exitPorts}
         />
       )}
       
       {/* Show first vehicle dropdown for Entry Port */}
-      {showEntryPort && hasVehicles && (
+      {(showEntryPort && hasVehicles) || (entryPorts && entryPorts.length > 0) ? (
         <Box sx={{ mt: 2 }}>
           <VehicleListDropdown 
             selectedVehicle={selectedVehicleId} 
             onVehicleChange={handleVehicleChange}
-            entryVehicles={entryVehicles}
+            entryVehicles={entryVehicles} 
+            entryPorts={entryPorts}
+         
           />
         </Box>
-      )}
+      ) : null}
       
       {/* Show second vehicle dropdown for Exit Port */}
       {showExitPort && hasVehicles1 && (
@@ -170,7 +177,8 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
           <VehicleListDropdown1
             selectedVehicle={selectedVehicleId1}
             onVehicleChange={handleVehicleChange1}
-            exitVehicles={exitVehicles}
+            exitVehicles={exitVehicles} 
+            exitPorts={exitPorts}
           />
         </Box>
       )}

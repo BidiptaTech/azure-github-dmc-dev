@@ -97,6 +97,7 @@ const EnquiryList = () => {
     country: "",
     city: "",
     dateRange: "all",
+    searchId: "", // Add search by booking ID
   });
   const [order, setOrder] = useState("desc");
   const [orderBy, setOrderBy] = useState("created_at");
@@ -153,6 +154,14 @@ const EnquiryList = () => {
 
   // Custom filtering logic
   const filteredEnquiries = enquiries.filter((enquiry) => {
+    // Filter by booking ID (display_id)
+    if (
+      filters.searchId &&
+      !enquiry.display_id.toLowerCase().includes(filters.searchId.toLowerCase())
+    ) {
+      return false;
+    }
+
     // Filter by country
     if (
       filters.country &&
@@ -235,6 +244,18 @@ const EnquiryList = () => {
         return -1;
       }
       if (servicesB > servicesA) {
+        return 1;
+      }
+      return 0;
+    }
+
+    if (orderBy === "price") {
+      const priceA = parseFloat(a.approx_price) || 0;
+      const priceB = parseFloat(b.approx_price) || 0;
+      if (priceB < priceA) {
+        return -1;
+      }
+      if (priceB > priceA) {
         return 1;
       }
       return 0;
@@ -377,99 +398,204 @@ const EnquiryList = () => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
+      {/* Enhanced Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha("#1976d2", 0.04), height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
+          <Card sx={{ 
+            bgcolor: alpha("#1976d2", 0.04), 
+            height: "100%",
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha("#1976d2", 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: "center", py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <EventIcon />
+                </Avatar>
+              </Box>
               <Typography
                 variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2" }}
+                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
               >
                 {stats.total}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 Total Enquiries
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha("#1976d2", 0.04), height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
+          <Card sx={{ 
+            bgcolor: alpha("#1976d2", 0.04), 
+            height: "100%",
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha("#1976d2", 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: "center", py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <HotelIcon />
+                </Avatar>
+              </Box>
               <Typography
                 variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2" }}
+                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
               >
                 {stats.withHotel}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 With Hotel
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha("#1976d2", 0.04), height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
+          <Card sx={{ 
+            bgcolor: alpha("#1976d2", 0.04), 
+            height: "100%",
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha("#1976d2", 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: "center", py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <LocalTaxiIcon />
+                </Avatar>
+              </Box>
               <Typography
                 variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2" }}
+                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
               >
                 {stats.withPickup}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 With Pickup
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha('#1976d2', 0.04), height: '100%' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2' }}>
+          <Card sx={{ 
+            bgcolor: alpha('#1976d2', 0.04), 
+            height: '100%',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha('#1976d2', 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <DirectionsBoatIcon />
+                </Avatar>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
                 {stats.withPort}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 With Port
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha('#1976d2', 0.04), height: '100%' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2' }}>
+          <Card sx={{ 
+            bgcolor: alpha('#1976d2', 0.04), 
+            height: '100%',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha('#1976d2', 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <AttractionsIcon />
+                </Avatar>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
                 {stats.withAttractions}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
-                With Port
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
+                With Attractions
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha('#1976d2', 0.04), height: '100%' }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2' }}>
+          <Card sx={{ 
+            bgcolor: alpha('#1976d2', 0.04), 
+            height: '100%',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha('#1976d2', 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <RestaurantIcon />
+                </Avatar>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
                 {stats.withRestaurants}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 With Restaurants
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={2}>
-          <Card sx={{ bgcolor: alpha("#1976d2", 0.04), height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
+          <Card sx={{ 
+            bgcolor: alpha("#1976d2", 0.04), 
+            height: "100%",
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha("#1976d2", 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: "center", py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                  <PersonIcon />
+                </Avatar>
+              </Box>
               <Typography
                 variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2" }}
+                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
               >
                 {stats.withGuides}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 With Guides
               </Typography>
             </CardContent>
@@ -477,56 +603,128 @@ const EnquiryList = () => {
         </Grid>
       </Grid>
 
-      {/* Filters */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            name="country"
-            label="Filter by Country"
-            variant="outlined"
-            fullWidth
-            value={filters.country}
-            onChange={handleFilterChange}
-            size="small"
-          />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            name="city"
-            label="Filter by City"
-            variant="outlined"
-            fullWidth
-            value={filters.city}
-            onChange={handleFilterChange}
-            size="small"
-          />
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Date Range</InputLabel>
-            <Select
-              name="dateRange"
-              value={filters.dateRange}
-              label="Date Range"
+      {/* Enhanced Filters Section */}
+      <Paper 
+        sx={{ 
+          p: 3, 
+          mb: 3, 
+          borderRadius: 2, 
+          bgcolor: alpha('#1976d2', 0.02),
+          border: `1px solid ${alpha('#1976d2', 0.1)}`
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
+          Search & Filter Enquiries
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              name="searchId"
+              label="🔍 Search by Booking ID"
+              variant="outlined"
+              fullWidth
+              value={filters.searchId}
               onChange={handleFilterChange}
-            >
-              <MenuItem value="all">All Dates</MenuItem>
-              <MenuItem value="upcoming">Upcoming</MenuItem>
-              <MenuItem value="past">Past</MenuItem>
-            </Select>
-          </FormControl>
+              size="small"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#1976d2',
+                  },
+                },
+              }}
+              placeholder="Enter booking ID..."
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              name="country"
+              label="🌍 Filter by Country"
+              variant="outlined"
+              fullWidth
+              value={filters.country}
+              onChange={handleFilterChange}
+              size="small"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#1976d2',
+                  },
+                },
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              name="city"
+              label="🏙️ Filter by City"
+              variant="outlined"
+              fullWidth
+              value={filters.city}
+              onChange={handleFilterChange}
+              size="small"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#1976d2',
+                  },
+                },
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>📅 Date Range</InputLabel>
+              <Select
+                name="dateRange"
+                value={filters.dateRange}
+                label="📅 Date Range"
+                onChange={handleFilterChange}
+                sx={{
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#1976d2',
+                  },
+                }}
+              >
+                <MenuItem value="all">All Dates</MenuItem>
+                <MenuItem value="upcoming">Upcoming</MenuItem>
+                <MenuItem value="past">Past</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
         </Grid>
-      </Grid>
+        
+        {/* Search Results Info */}
+        {(filters.searchId || filters.country || filters.city || filters.dateRange !== 'all') && (
+          <Box sx={{ mt: 2, p: 2, bgcolor: alpha('#1976d2', 0.05), borderRadius: 1 }}>
+            <Typography variant="body2" color="primary">
+              📊 Showing {filteredEnquiries.length} of {enquiries.length} enquiries
+              {filters.searchId && ` • Searching for: "${filters.searchId}"`}
+              {filters.country && ` • Country: ${filters.country}`}
+              {filters.city && ` • City: ${filters.city}`}
+              {filters.dateRange !== 'all' && ` • Date: ${filters.dateRange}`}
+            </Typography>
+          </Box>
+        )}
+      </Paper>
 
-      <Paper sx={{ width: "100%", overflow: "hidden", borderRadius: 2, mb: 2 }}>
+      <Paper sx={{ 
+        width: "100%", 
+        overflow: "hidden", 
+        borderRadius: 3, 
+        mb: 2,
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        border: `1px solid ${alpha('#1976d2', 0.1)}`
+      }}>
         <TableContainer sx={{ maxHeight: 600 }}>
-          <Table stickyHeader aria-label="sticky table">
+          <Table stickyHeader aria-label="enquiries table">
             <TableHead>
               <TableRow>
                 <SortableTableCell id="display_id" label="ID" />
                 <SortableTableCell id="location" label="Location" />
                 <SortableTableCell id="dates" label="Dates" />
                 <SortableTableCell id="travelers" label="Travelers" />
+                <SortableTableCell id="price" label="Approx Price" />
                 <SortableTableCell id="services" label="Services" />
                 <SortableTableCell id="created_at" label="Created" />
                 {(userRole === "Sales Head(DMC)" ||
@@ -613,6 +811,13 @@ const EnquiryList = () => {
                               : ""}
                           </Typography>
                         </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
+                          {enquiry.approx_price ? `$${parseFloat(enquiry.approx_price).toLocaleString()}` : 'N/A'}
+                        </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -875,4 +1080,4 @@ const EnquiryList = () => {
   );
 };
 
-export default EnquiryList;
+export default EnquiryList; 

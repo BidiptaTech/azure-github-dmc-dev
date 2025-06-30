@@ -88,6 +88,13 @@ const CountBadge = styled(Chip)(({ theme }) => ({
   fontSize: 12,
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+}));
+
 const PreferredCarsSearch = ({ onSelect }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
@@ -101,6 +108,12 @@ const PreferredCarsSearch = ({ onSelect }) => {
   // Get vehicles from Redux store
   const { vehicles = [], loading, error } = useSelector(state => state.enquiryList || { vehicles: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
+
+  // Helper function to format price
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
 
   // Manual fetch button for testing
   const handleManualFetch = () => {
@@ -233,6 +246,13 @@ const PreferredCarsSearch = ({ onSelect }) => {
                           <PersonIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
                           Capacity: {car.seating_capacity}
                         </Box>
+                      )}
+                      {car.base_price && (
+                        <PriceChip 
+                          label={`${formatPrice(car.base_price)}/hour`}
+                          size="small"
+                          sx={{ mt: 1 }}
+                        />
                       )}
                     </CarInfo>
                     {car.image && (

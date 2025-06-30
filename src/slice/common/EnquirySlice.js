@@ -170,6 +170,10 @@ export const submitEnquiryForm = createAsyncThunk(
     const enquiryState = state.enquiry;
     const { selectedServices, serviceDetails } = enquiryState;
     
+    // Get data from enquiry list for real pricing
+    const enquiryListState = state.enquiryList || {};
+    const { hotels = [], attractions = [], restaurants = [], guides = [], vehicles = [] } = enquiryListState;
+    
     // If no ID is provided, try to get it from the state
     const idToUse = enquiryId || enquiryState.enquiryId || enquiryState.id || enquiryState.tourId;
     
@@ -200,6 +204,21 @@ export const submitEnquiryForm = createAsyncThunk(
         throw new Error("Authorization token is missing.");
       }
 
+      // Get approximate price from component state instead of recalculating
+      // This avoids data inconsistency issues between different calculation methods
+      let approxPrice = 0;
+      
+      // Try to get the price from the component's calculation first
+      if (getState().enquiry?.calculatedPrice) {
+        approxPrice = getState().enquiry.calculatedPrice;
+        console.log(`Using pre-calculated price from state: $${approxPrice}`);
+      } else {
+        console.log("No pre-calculated price found, using fallback basic calculation");
+        // Fallback: Simple calculation based on service selection
+        const baseServicePrice = 100; // Base price per service
+        approxPrice = selectedServices.length * baseServicePrice;
+      }
+
       // Format data according to API requirements
       const requestBody = {
         enquiry_id: idToUse,
@@ -209,6 +228,7 @@ export const submitEnquiryForm = createAsyncThunk(
         attraction: selectedServices.includes("attraction"),
         restaurant: selectedServices.includes("restaurant"),
         guide: selectedServices.includes("tourGuide"),
+        approx_price: approxPrice, // Add the calculated approximate price
       };
 
       // Add hotel details if selected
@@ -516,6 +536,7 @@ export const submitEnquiryForm = createAsyncThunk(
         requestBody.guide_remarks = serviceDetails.tourGuide.specialRequirements || "";
       }
 
+      console.log("Calculated approximate price:", approxPrice);
       console.log("Final API request payload:", requestBody);
       console.log("API endpoint:", `${BASE_URL}/update-enquiry-form`);
       
@@ -652,6 +673,7 @@ const EnquirySlice = createSlice({
       }
     },
     selectedServices: [],
+    calculatedPrice: 0, // Store the calculated price from ConfirmDetails
   },
   reducers: {
     setSearchLocation: (state, action) => {
@@ -717,6 +739,10 @@ const EnquirySlice = createSlice({
         ...state.serviceDetails[service],
         ...data
       };
+    },
+    updateCalculatedPrice: (state, action) => {
+      state.calculatedPrice = action.payload;
+      console.log("Updated calculated price in Redux:", action.payload);
     },
     setSelectedServices: (state, action) => {
       state.selectedServices = action.payload;
@@ -784,6 +810,7 @@ export const {
   setCheckOut, 
   setGuest,
   updateServiceDetails,
+  updateCalculatedPrice,
   setSelectedServices
 } = EnquirySlice.actions;
 
