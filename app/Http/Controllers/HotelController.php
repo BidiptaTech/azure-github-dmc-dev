@@ -625,12 +625,27 @@ class HotelController extends Controller
         // ]);
 
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
+        
+        // Handle master image
         $storage_file = $hotel->main_image;
+        
+        // Check if master image is removed
+        if ($request->filled('removed_master_image')) {
+            $removedMasterImage = $request->input('removed_master_image');
+            // Delete the physical file if it exists
+            if ($storage_file && file_exists(public_path($storage_file))) {
+                unlink(public_path($storage_file));
+            }
+            $storage_file = null; // Set to null when removed
+        }
+        
+        // Handle new master image upload
         if ($request->hasFile('master_image')) {
             $image = $request->file('master_image');
             $storage_file = CommonHelper::image_path('file_storage', $image);
         }
 
+        // Handle additional images
         $imagePaths = []; 
         if ($request->hasFile('all_images')) {
             foreach ($request->file('all_images') as $image) {
@@ -640,7 +655,33 @@ class HotelController extends Controller
                 }
             }
         }
+        
+        // Get existing images and filter out removed ones
         $existingImages = $hotel->images ? json_decode($hotel->images, true) : [];
+        
+        // Handle removed images
+        if ($request->filled('removed_images')) {
+            $removedImages = explode(',', $request->input('removed_images'));
+            $removedImages = array_filter($removedImages); // Remove empty values
+            
+            // Delete physical files and filter out from existing images
+            foreach ($removedImages as $removedImage) {
+                // Remove from existing images array
+                $existingImages = array_filter($existingImages, function($img) use ($removedImage) {
+                    return $img !== $removedImage;
+                });
+                
+                // Delete the physical file if it exists
+                if (file_exists(public_path($removedImage))) {
+                    unlink(public_path($removedImage));
+                }
+            }
+            
+            // Re-index the array to avoid gaps
+            $existingImages = array_values($existingImages);
+        }
+        
+        // Merge existing images (after removal) with new images
         $img_path = array_merge($existingImages, $imagePaths);
         $hotel->update([
             'name' => $request->input('name'),
