@@ -293,9 +293,9 @@ class PackageController extends Controller
                 'exclusions' => $validated['exclusions'],
                 'terms_conditions' => $validated['terms_conditions'],
                 'status' => $validated['status'],
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
-                'itinerary' => $itineraryData
+                'created_by' => auth()->user()->userId,
+                'updated_by' => auth()->user()->userId,
+                'itinerary' => $request->day_wise_itinerary
             ]);
             
             DB::commit();
