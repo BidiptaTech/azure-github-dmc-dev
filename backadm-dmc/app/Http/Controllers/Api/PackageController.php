@@ -480,13 +480,14 @@ class PackageController extends Controller
         if(!$tour_id){
             return response()->json(['message' => 'Please add tour_id'], 400);
         }
-        
         $tour = Tour::with('booking')->where('tour_id', $tour_id)->first();
-        
         if(!$tour){
             return response()->json(['message' => 'Tour not found'], 404);
         }
-        
+        $agent_id = $tour->agent_id;
+        $agent = User::where('agent_id', $agent_id)->first();
+        $agent_name = $agent->name;
+        $tour->agent_name = $agent_name;
         return response()->json([
             'tour' => $tour,
         ]);
