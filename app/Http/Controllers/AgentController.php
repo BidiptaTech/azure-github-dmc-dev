@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
 use App\Models\Agent;
+use App\Models\City;
 use App\Models\Country;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -170,9 +171,11 @@ class AgentController extends Controller
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $sales_mg = User::where('role_id', 38)->get();
+        $cityCountry = Country::where('is_active', 1)->get();
         $country = Country::get();
+        $countryCodes = Agent::countryCodes();
 
-        return view('agents.add-agent', compact('sales_mg', 'country', 'authUserCountries', 'card'));
+        return view('agents.add-agent', compact('sales_mg', 'country', 'authUserCountries', 'card', 'cityCountry', 'countryCodes'));
     }
 
 
@@ -191,6 +194,9 @@ class AgentController extends Controller
             // 'country.*' => 'string|max:255',               // 👈 each selected country
             'email' => 'required|email',
             // 'country' => 'required|string|max:255',
+            'user_country' => 'required|string|max:255',
+            'city' => 'required|string|max:255',
+            'code' => 'required|string|max:255',    // 👈 change here
             'id_card' => 'required|string|max:255',
             'card_number' => 'required|string|max:255',
             'image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
@@ -237,6 +243,9 @@ class AgentController extends Controller
                 'role_id' => auth()->user()->role_id,
                 // 'country' => implode(',', $request->input('country')),
                 // 'country' => is_array($request->input('country')) ?? implode(',', $request->input('country')),
+                'user_country' => $request->input('user_country'),
+                'city' => $request->input('city'),
+                'code' => $request->input('code'),  
                 'country' => is_array($request->input('country')) 
                                                 ? implode(',', $request->input('country')) 
                                                 : $request->input('country'),
@@ -271,6 +280,9 @@ class AgentController extends Controller
         $agent->sales_manager_dmc = auth()->user()->userId;
         $agent->role_id = auth()->user()->role_id;
         // $agent->country = $request->input('country');
+        $agent->user_country = $request->input('user_country');
+        $agent->city = $request->input('city');
+        $agent->code = $request->input('code');
         $agent->country = implode(',', $request->input('country', []));
         $agent->id_cards = $request->input('id_card');
         $agent->id_number = $request->input('card_number');
@@ -362,8 +374,10 @@ class AgentController extends Controller
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $country = Country::all();
+        $cityCountry = Country::where('is_active', 1)->get();
+        $countryCodes = Agent::countryCodes();
 
-        return view('agents.edit-agent', compact('agent', 'sales_mg', 'authUserCountries', 'card', 'country'));
+        return view('agents.edit-agent', compact('agent', 'sales_mg', 'authUserCountries', 'card', 'country', 'cityCountry', 'countryCodes'));
     }
 
 
@@ -433,8 +447,11 @@ class AgentController extends Controller
                 'company_name' => 'required|string|max:255',
                 'phone' => 'required|numeric',
                 'email' => 'required|email|unique:agents,email,' . $agent->id,
-                // 'sales_mg' => 'required|exists:users,userId',
-                //'country' => 'required|string|max:255',
+                // NEW FIELDS
+                'user_country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'code' => 'required|string|max:255',
+                // EXISTING FIELDS
                 'country' => 'required|array',
                 'country.*' => 'string', // each country must be a string
                 'id_card' => 'required|string|max:255',
@@ -466,8 +483,11 @@ class AgentController extends Controller
         $agent->company_name = $validated['company_name'];
         $agent->phone = $validated['phone'];
         $agent->email = $validated['email'];
-        // $agent->sales_manager_dmc = $validated['sales_mg'];
-        // $agent->country = $validated['country'];
+        // NEW FIELDS
+        $agent->user_country = $validated['user_country'];
+        $agent->city = $validated['city'];
+        $agent->code = $validated['code'];
+        // EXISTING FIELDS
         $agent->country = implode(',', $validated['country']);
         $agent->id_cards = $validated['id_card'];
         $agent->id_number = $validated['card_number'];
@@ -481,6 +501,34 @@ class AgentController extends Controller
         } else {
             return redirect()->route('agents.index')->with('error', 'Failed to update agent details.');
         }
+    }
+
+    public function fetchCitiesByCountry(Request $request) {
+        $countryName = $request->input('country');
+        
+        $cities = City::where('country', $countryName)
+                ->select('name', 'city_id')
+                ->get();
+                 
+        return response()->json(['cities' => $cities]);
+    }
+
+    public function fetchCountryCode(Request $request) {
+        $countryName = $request->input('country');
+        
+        $country = Country::where('name', $countryName)->first();
+        
+        if ($country) {
+            return response()->json([
+                'success' => true,
+                'country_code' => $country->country_code
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Country not found'
+        ], 404);
     }
 
     /**

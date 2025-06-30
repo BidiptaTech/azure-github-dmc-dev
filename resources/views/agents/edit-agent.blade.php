@@ -121,6 +121,55 @@
                         </select>
                     </div> -->
 
+                    {{-- NEW SECTIONS: Agent Country, Agent City, Country Code --}}
+                    <div class="col-md-3 mb-3" id="user_coun">
+                        <div class="mb-3">
+                            <label for="user_country" class="form-label">
+                                <strong>Agent Country</strong>
+                                <span style="color: red; font-weight: bold;">*</span>
+                            </label>
+                            <select class="form-select" id="user_country" name="user_country" required>
+                                <option selected disabled value>Choose a country...</option>
+                                @foreach($cityCountry as $c)
+                                    <option value="{{ $c->name }}" {{ $agent->user_country == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('user_country')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3" id="city_name">
+                        <div class="mb-3">
+                            <label for="city" class="form-label">
+                                <strong>Agent City</strong>
+                                <span style="color: red; font-weight: bold;">*</span>
+                            </label>
+                            <select class="form-select" id="city" name="city" required>
+                                <option selected disabled value>Select country first...</option>
+                                {{-- Cities will be populated by AJAX based on selected country --}}
+                            </select>
+                            @error('city')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 mb-3">
+                        <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
+                                style="color: red; font-weight: bold;">*</span></label>
+                        <select class="form-select" id="inputCountryCode" name="code" required>
+                            <option selected disabled value>Choose...</option>
+                            @foreach($countryCodes as $key => $value)
+                                <option value="{{ $key }}" {{ $agent->code == $key ? 'selected' : '' }}>{{ $value }}</option>
+                            @endforeach
+                        </select>
+                        @error('code')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="phone" name="phone" value="{{ $agent->phone }}" required oninput="validatePhoneNumber(this)">
@@ -455,6 +504,86 @@
 
     document.getElementById('id_proof_input').addEventListener('change', function(event) {
         previewImage(event, 'id_proof_preview');
+    });
+</script>
+
+{{-- NEW AJAX SCRIPT FOR COUNTRY/CITY SELECTION --}}
+<script>
+    $(document).ready(function() {
+        // Pre-populate city dropdown if agent has existing data
+        @if($agent->user_country && $agent->city)
+            // Fetch cities for the agent's current country and select the current city
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: "{{ $agent->user_country }}" },
+                dataType: 'json',
+                success: function(response) {
+                    $('#city').html('<option selected disabled value>Select city...</option>');
+                    
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function(key, city) {
+                            let selected = (city.name === "{{ $agent->city }}") ? 'selected' : '';
+                            $('#city').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
+                        });
+                    } else {
+                        $('#city').append('<option disabled>No cities found</option>');
+                    }
+                },
+                error: function() {
+                    $('#city').html('<option disabled value>Error loading cities</option>');
+                }
+            });
+        @endif
+
+        // Country selection change handler
+        $('#user_country').on('change', function() {
+            const selectedCountry = $(this).val();
+            if (selectedCountry) {
+                // Show loading state for cities
+                $('#city').html('<option>Loading cities...</option>');
+                
+                // Fetch cities for the selected country
+                $.ajax({
+                    url: "{{ route('fetch-cities-by-country') }}",
+                    type: "GET",
+                    data: { country: selectedCountry },
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset and populate cities dropdown
+                        $('#city').html('<option selected disabled value>Select city...</option>');
+                        
+                        if (response.cities && response.cities.length > 0) {
+                            $.each(response.cities, function(key, city) {
+                                $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
+                            });
+                        } else {
+                            $('#city').append('<option disabled>No cities found</option>');
+                        }
+                    },
+                    error: function() {
+                        $('#city').html('<option disabled value>Error loading cities</option>');
+                    }
+                });
+                
+                // Fetch country code for the selected country
+                $.ajax({
+                    url: "{{ route('fetch-country-code') }}",
+                    type: "GET",
+                    data: { country: selectedCountry },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success && response.country_code) {
+                            // Find and select the country code option
+                            $('#inputCountryCode').val(response.country_code).trigger('change');
+                        }
+                    }
+                });
+            } else {
+                // Reset cities dropdown if no country selected
+                $('#city').html('<option selected disabled value>Select country first...</option>');
+            }
+        });
     });
 </script>
 
