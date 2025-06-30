@@ -2366,7 +2366,7 @@ class UserController extends Controller
         $countryName = $request->input('country');
         
         $cities = City::where('country', $countryName)
-                ->select('name', 'id')
+                ->select('name', 'city_id')
                 ->get();
                  
         return response()->json(['cities' => $cities]);

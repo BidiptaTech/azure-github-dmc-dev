@@ -168,7 +168,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         
         // Country and City API routes
-        Route::get('/get-cities-by-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
+        Route::get('/get-cities-name-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
         Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
 
         Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms']);
@@ -440,6 +440,8 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
 
         Route::resource('agents', AgentController::class);
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails']);
+        Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
+        Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
 
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
