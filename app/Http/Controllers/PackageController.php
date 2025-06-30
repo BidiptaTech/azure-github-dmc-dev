@@ -99,60 +99,49 @@ class PackageController extends Controller
      */
     public function store(Request $request)
     {
+        // Validation
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'destination' => 'required|string|max:255',
+            'city' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'duration_days' => 'required|integer|min:1',
+            'description' => 'nullable|string',
+            'price_adult' => 'required|numeric|min:0',
+            'price_senior' => 'nullable|numeric|min:0',
+            'price_child' => 'nullable|numeric|min:0',
+            'max_pax' => 'required|integer|min:1',
+            'start_date' => 'required|date',
+            'expiry_date' => 'required|date|after:start_date',
+            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'inclusions' => 'nullable|string',
+            'exclusions' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'status' => 'required',
+            'package_type' => 'required|string',
+        ]);
+
         try {
-            // Validation with specific exception handling
-            try {
-                $validated = $request->validate([
-                    'title' => 'required|string|max:255',
-                    'destination' => 'required|string|max:255',
-                    'city' => 'required|string|max:255',
-                    'category' => 'required|string|max:255',
-                    'duration_days' => 'required|integer|min:1',
-                    'package_type' => 'required|string|max:255',
-                    'description' => 'nullable|string',
-                    'price_adult' => 'required|numeric|min:0',
-                    'price_senior' => 'nullable|numeric|min:0',
-                    'price_child' => 'nullable|numeric|min:0',
-                    'max_pax' => 'required|integer|min:1',
-                    'start_date' => 'required|date',
-                    'expiry_date' => 'required|date|after:start_date',
-                    'inclusions' => 'nullable|string',
-                    'exclusions' => 'nullable|string',
-                    'terms_conditions' => 'nullable|string',
-                    'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
-                    'status' => 'required',
-                    'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-                    'selected_hotels' => 'nullable',
-                    'selected_attractions' => 'nullable',
-                    'selected_guide' => 'nullable',
-                    'selected_restaurants' => 'nullable',
-                    'hotel-select-count' => 'nullable|integer|min:1|max:5',
-                    'attraction-select-count' => 'nullable|integer|min:1|max:5',
-                    'restaurant-select-count' => 'nullable|integer|min:1|max:5',
-                    'attraction_with_transfer' => 'nullable|boolean',
-                    'transfer_notes' => 'nullable|string',
-                    'entry_port' => 'nullable|boolean',
-                    'exit_port' => 'nullable|boolean',
-                ]);
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                dd($e->validator->getMessageBag());
-                return redirect()->back()->withErrors($e->validator->getMessageBag())->withInput();
-            } catch (\Exception $e) {
-                dd($e->getMessage());
-                return redirect()->back()->with('error', 'Validation error: ' . $e->getMessage())->withInput();
-            }
-
-
             DB::beginTransaction();
+
+            // Log the JSON data for debugging
+            \Log::info('Package Creation JSON Data:', [
+                'itinerary_json_data' => $request->input('itinerary_json_data'),
+                'hotel_json_data' => $request->input('hotel_json_data'),
+                'day_wise_itinerary' => $request->input('day_wise_itinerary')
+            ]);
 
             // Handle main image upload
             $mainImagePath = null;
             if ($request->hasFile('main_image')) {
                 $imageData = CommonHelper::image_path('file_storage', $request->file('main_image'));
-                $mainImagePath = $imageData['master_value'] ?? null;
+                if (!empty($imageData['master_value'])) {
+                    $mainImagePath = $imageData['master_value'];
+                }
             }
 
-            // Handle gallery images
+            // Handle gallery images upload
             $galleryImages = [];
             if ($request->hasFile('gallery_images')) {
                 foreach ($request->file('gallery_images') as $image) {
@@ -163,11 +152,106 @@ class PackageController extends Controller
                 }
             }
 
-            // Handle hotels, attractions, guide and restaurants
-            $selectedHotels = json_decode($request->input('selected_hotels', '[]'), true) ?: [];
-            $selectedAttractions = json_decode($request->input('selected_attractions', '[]'), true) ?: [];
-            $selectedGuide = json_decode($request->input('selected_guide', '{}'), true) ?: null;
-            $selectedRestaurants = json_decode($request->input('selected_restaurants', '[]'), true) ?: [];
+            // Process the JSON data
+            $itineraryData = $request->input('itinerary_json_data');
+            $hotelJsonData = $request->input('hotel_json_data');
+            
+            // Debug the JSON data
+            \Log::debug('Raw itinerary data', ['data' => $itineraryData]);
+            \Log::debug('Raw hotel data', ['data' => $hotelJsonData]);
+            
+            // Process day-wise itinerary data for backward compatibility
+            $dayWiseItineraryRaw = $request->input('day_wise_itinerary');
+            \Log::debug('Day-wise itinerary data', ['data' => $dayWiseItineraryRaw]);
+            
+            // Extract data from day_wise_itinerary if JSON data is empty
+            if ((empty($itineraryData) || $itineraryData === 'null' || $itineraryData === '[]') && 
+                !empty($dayWiseItineraryRaw)) {
+                $dayWiseData = json_decode($dayWiseItineraryRaw, true);
+                
+                if (is_array($dayWiseData) && isset($dayWiseData['itinerary'])) {
+                    // Create itinerary JSON from day_wise_itinerary
+                    $extractedItinerary = [];
+                    
+                    foreach ($dayWiseData['itinerary'] as $dayData) {
+                        $day = $dayData['day'];
+                        $extractedItinerary[$day] = [
+                            'attractions' => array_map(function($attraction) {
+                                return [
+                                    'id' => $attraction['attraction_id'],
+                                    'name' => $attraction['name'],
+                                    'city' => $attraction['location'],
+                                    'transfer_available' => $attraction['transfer_available'] ?? 0,
+                                    'transfer_type' => $attraction['transfer_type'] ?? 'none'
+                                ];
+                            }, $dayData['attractions'] ?? []),
+                            'guide' => $dayData['guide'],
+                            'arrival_pickup' => $dayData['arrival_pickup'],
+                            'departure_service' => $dayData['departure_service']
+                        ];
+                    }
+                    
+                    $itineraryData = json_encode($extractedItinerary);
+                    \Log::debug('Extracted itinerary data', ['data' => $itineraryData]);
+                }
+                
+                // Extract hotel data from day_wise_itinerary
+                if (is_array($dayWiseData) && isset($dayWiseData['hotels'])) {
+                    $extractedHotels = [];
+                    
+                    foreach ($dayWiseData['hotels'] as $hotel) {
+                        $extractedHotels[$hotel['id']] = [
+                            'name' => $hotel['name'],
+                            'city' => $hotel['city'],
+                            'selected_days' => $hotel['days']
+                        ];
+                    }
+                    
+                    $hotelJsonData = json_encode($extractedHotels);
+                    \Log::debug('Extracted hotel data', ['data' => $hotelJsonData]);
+                }
+            }
+            
+            // Ensure we have valid JSON data
+            if (empty($itineraryData) || $itineraryData === 'null') {
+                $itineraryData = json_encode([]);
+            }
+            
+            if (empty($hotelJsonData) || $hotelJsonData === 'null') {
+                $hotelJsonData = json_encode([]);
+            }
+            
+            // Extract selected attractions, guides, etc. from day_wise_itinerary
+            $selectedAttractions = [];
+            $selectedGuides = [];
+            
+            if (!empty($dayWiseItineraryRaw)) {
+                $dayWiseData = json_decode($dayWiseItineraryRaw, true);
+                
+                if (is_array($dayWiseData) && isset($dayWiseData['itinerary'])) {
+                    foreach ($dayWiseData['itinerary'] as $dayData) {
+                        // Extract attractions
+                        if (!empty($dayData['attractions'])) {
+                            foreach ($dayData['attractions'] as $attraction) {
+                                $selectedAttractions[] = [
+                                    'id' => $attraction['attraction_id'],
+                                    'name' => $attraction['name'],
+                                    'day' => $dayData['day']
+                                ];
+                            }
+                        }
+                        
+                        // Extract guides
+                        if (!empty($dayData['guide'])) {
+                            $selectedGuides[] = [
+                                'id' => $dayData['guide']['id'],
+                                'name' => $dayData['guide']['name'],
+                                'day' => $dayData['day']
+                            ];
+                        }
+                    }
+                }
+            }
 
             $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
             $package_max_id = $lastPackage->package_id ?? 0;
@@ -176,7 +260,7 @@ class PackageController extends Controller
                 $packageId = CommonHelper::createId($packageId);
             }
 
-            // Create package
+            // Create the package
             $package = Package::create([
                 'package_id' => $packageId,
                 'title' => $validated['title'],
@@ -184,35 +268,36 @@ class PackageController extends Controller
                 'city' => $validated['city'],
                 'category' => $validated['category'],
                 'duration_days' => $validated['duration_days'],
-                'package_type' => $validated['package_type'],
+                'package_type' => $request->input('package_type'),
                 'description' => $validated['description'],
                 'price_adult' => $validated['price_adult'],
                 'price_senior' => $validated['price_senior'],
                 'price_child' => $validated['price_child'],
                 'max_pax' => $validated['max_pax'],
-                'selected_hotels' => $selectedHotels,
-                'selected_attractions' => $selectedAttractions,
-                'selected_guide' => $selectedGuide,
-                'selected_restaurants' => $selectedRestaurants,
-                'max_hotels' => $request->input('hotel-select-count'),
-                'max_attractions' => $request->input('attraction-select-count'),
-                'max_restaurants' => $request->input('restaurant-select-count'),
-                'attraction_with_transfer' => $request->has('attraction_with_transfer') ? 1 : 0,
-                'transfer_notes' => $request->input('transfer_notes'),
-                'entry_port' => $request->has('entry_port') ? 1 : 0,
-                'exit_port' => $request->has('exit_port') ? 1 : 0,
+                'selected_hotels' => $request->input('selected_hotels'),
+                'selected_attractions' => json_encode($selectedAttractions),
+                'selected_guide' => json_encode($selectedGuides),
+                'selected_restaurants' => json_encode([]),
+                'max_hotels' => null,
+                'max_attractions' => null,
+                'max_restaurants' => null,
+                'attraction_with_transfer' => false,
+                'transfer_notes' => null,
+                'entry_port' => false,
+                'exit_port' => false,
                 'main_image' => $mainImagePath,
-                'gallery_images' => $galleryImages,
-                'start_date' => $request->input('start_date'),
-                'expire_date' => $request->input('expiry_date'),
+                'gallery_images' => json_encode($galleryImages),
+                'start_date' => $validated['start_date'],
+                'expire_date' => $validated['expiry_date'],
                 'inclusions' => $validated['inclusions'],
                 'exclusions' => $validated['exclusions'],
                 'terms_conditions' => $validated['terms_conditions'],
                 'status' => $validated['status'],
-                'created_by' => auth()->user()->userId,
-                'updated_by' => auth()->user()->userId
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'itinerary' => $itineraryData
             ]);
-
+            
             DB::commit();
 
             return redirect()->route('packages.index')
@@ -234,9 +319,9 @@ class PackageController extends Controller
     /**
      * Display the specified package
      */
-    public function show($id)
+    public function show($package_id)
     {
-        $package = Package::with(['creator', 'updater'])->where('package_id', $id)->firstOrFail();
+        $package = Package::with(['creator', 'updater'])->where('package_id', $package_id)->firstOrFail();
         
         // Increment views
         $package->incrementViews();
@@ -247,9 +332,9 @@ class PackageController extends Controller
     /**
      * Show the form for editing the specified package
      */
-    public function edit($id)
+    public function edit($package_id)
     {
-        $package = Package::where('package_id', $id)->first();
+        $package = Package::where('package_id', $package_id)->first();
         $city = $package->city;
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
 
@@ -266,9 +351,9 @@ class PackageController extends Controller
     /**
      * Update the specified package
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $package_id)
     {
-        $package = Package::where('package_id', $id)->first();
+        $package = Package::where('package_id', $package_id)->first();
 
         // Validation
         $validated = $request->validate([
@@ -296,6 +381,13 @@ class PackageController extends Controller
 
         try {
             DB::beginTransaction();
+            
+            // Log the JSON data for debugging
+            \Log::info('Package Update JSON Data:', [
+                'itinerary_json_data' => $request->input('itinerary_json_data'),
+                'hotel_json_data' => $request->input('hotel_json_data'),
+                'day_wise_itinerary' => $request->input('day_wise_itinerary')
+            ]);
 
             $updateData = [
                 'title' => $validated['title'],
@@ -313,7 +405,7 @@ class PackageController extends Controller
                 'selected_attractions' => $this->processSelectedItems($request->input('selected_attractions', [])),
                 'selected_guide' => $this->processSelectedItems($request->input('selected_guide', [])),
                 'selected_restaurants' => $this->processSelectedItems($request->input('selected_restaurants', [])),
-
+                'hotel_json_data' => $request->input('hotel_json_data'),
                 'max_hotels' => $request->input('hotel-select-count'),
                 'max_attractions' => $request->input('attraction-select-count'),
                 'max_restaurants' => $request->input('restaurant-select-count'),
@@ -322,6 +414,8 @@ class PackageController extends Controller
                 'exclusions' => $validated['exclusions'],
                 'terms_conditions' => $validated['terms_conditions'],
                 'status' => $validated['status'],
+                'itinerary' => $request->input('itinerary_json_data'),
+                'hotel_json_data' => $request->input('hotel_json_data'),
                 'updated_by' => auth()->user()->userId
             ];
 
@@ -358,10 +452,10 @@ class PackageController extends Controller
     /**
      * Remove the specified package
      */
-    public function destroy($id)
+    public function destroy($package_id)
     {
         try {
-            $package = Package::where('package_id', $id)->first();
+            $package = Package::where('package_id', $package_id)->first();
             
             // Note: Image cleanup is handled by the storage system configured in CommonHelper
             // The actual files will be managed based on the file_storage setting (local/s3/azure)

@@ -204,192 +204,64 @@
                 </div>
             </div>
 
-            <!-- Restaurants & Hotels Selection -->
-            <div class="row g-3">
-                <!-- Hotels Selection -->
-                <div class="col-md-12 card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i>Hotels Selection</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-9">
-                                <label class="form-label">Select Hotels</label>
-                                <select class="form-select" id="hotel-select" multiple disabled>
-                                    <option value="">Select Hotels</option>
-                                </select>
-                                <input type="hidden" name="selected_hotels">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">
-                                    Max Select Hotels 
-                                </label>
-                                <select class="form-select" id="hotel-select-count" name="hotel-select-count">
-                                    <option value="">Choose Max...</option>
-                                    <option value="1">1 </option>
-                                    <option value="2">2 </option>
-                                    <option value="3">3 </option>
-                                    <option value="4">4 </option>
-                                    <option value="5">5 </option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="selected-hotels" class="mt-3"></div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Attractions & Guide Selection -->
-            <div class="row g-3">
-                <!-- Attractions Selection -->
-                <div class="col-md-6 card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="ri-map-pin-line me-2 text-info"></i>Attractions Selection</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-9">
-                                <label class="form-label">Select Attractions</label>
-                                <select class="form-select" id="attraction-select" multiple disabled>
-                                    <option value="">Select Attractions</option>
-                                </select>
-                                <input type="hidden" name="selected_attractions">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">
-                                    Max Select Attraction 
-                                </label>
-                                <select class="form-select" id="attraction-select-count" name="attraction-select-count">
-                                    <option value="">Choose Max...</option>
-                                    <option value="1">1 </option>
-                                    <option value="2">2 </option>
-                                    <option value="3">3 </option>
-                                    <option value="4">4 </option>
-                                    <option value="5">5 </option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="selected-attractions" class="mt-3"></div>
-                        
-                        <!-- Local Transfer Section -->
-                        <div class="mt-4 pt-3 border-top border-light">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="flex-shrink-0">
-                                    <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
-                                        <i class="ri-taxi-line fs-5"></i>
-                                    </span>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <h6 class="mb-0 fw-semibold">Local Transfer Included?</h6>
-                                    <small class="text-muted">Transportation for sightseeing visits</small>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="enable-local-transfer" name="attraction_with_transfer" value="1" checked>
-                                    <label class="form-check-label" for="enable-local-transfer">Available</label>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- End Local Transfer Section -->
-                    </div>
-                </div>
-
-                <!-- Guide Selection -->
-                <div class="col-md-6 card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="ri-user-line me-2 text-warning"></i>Guide Selection</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-12">
-                                <label class="form-label">Select Guide (Optional)</label>
-                                <select class="form-select" id="guide-select" disabled>
-                                    <option value="">Select Guide</option>
-                                </select>
-                                <input type="hidden" name="selected_guide">
-                                <small class="text-muted">Choose one guide for this package</small>
-                            </div>
-                        </div>
-                        <div id="selected-guide" class="mt-3"></div>
-                    </div>
-                </div>
-
-                
-
-            </div>
-
-            <!-- Transport Selection -->
+            <!-- Hotels Selection with Day-wise Assignment -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="ri-bus-line me-2 text-primary"></i>Transport Selection</h5>
+                    <h5 class="mb-0"><i class="ri-hotel-line me-2 text-primary"></i>Hotels Selection</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Port Transfer Options -->
-                    <div class="row">
-                        <div class="col-12 mb-3">
-                            <h6 class="fw-semibold mb-3"><i class="ri-flight-takeoff-line me-2 text-success"></i>Port Transfer Options</h6>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100 border-primary border-opacity-25 shadow-sm hover-shadow">
-                                <div class="card-body p-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="flex-shrink-0">
-                                            <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
-                                                <i class="ri-flight-land-line fs-5"></i>
-                                            </span>
-                                        </div>
-                                        <div class="flex-grow-1 ms-3">
-                                            <h6 class="mb-0 fw-semibold">Arrival</h6>
-                                            <small class="text-muted">Airport/port pickup on arrival</small>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="form-check form-switch ps-0 d-flex justify-content-between align-items-center mt-2">
-                                        <label class="form-check-label fw-medium text-body" for="entry-port">
-                                            Include in package?
-                                        </label>
-                                        <div>
-                                            <input class="form-check-input me-0 toggle-lg" type="checkbox" id="entry-port" name="entry_port" value="1" 
-                                                style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                                        </div>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-primary-subtle py-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-hotel-line me-2 text-primary"></i>
+                                        <h6 class="mb-0 fw-semibold">Select Hotels</h6>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100 border-danger border-opacity-25 shadow-sm hover-shadow">
-                                <div class="card-body p-4">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="flex-shrink-0">
-                                            <span class="badge bg-danger-subtle text-danger p-2 rounded-circle">
-                                                <i class="ri-flight-takeoff-line fs-5"></i>
-                                            </span>
-                                        </div>
-                                        <div class="flex-grow-1 ms-3">
-                                            <h6 class="mb-0 fw-semibold">Departure</h6>
-                                            <small class="text-muted">Airport/port dropoff on departure</small>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="form-check form-switch ps-0 d-flex justify-content-between align-items-center mt-2">
-                                        <label class="form-check-label fw-medium text-body" for="exit-port">
-                                            Include in package?
-                                        </label>
-                                        <div>
-                                            <input class="form-check-input me-0 toggle-lg" type="checkbox" id="exit-port" name="exit_port" value="1"
-                                                style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                                        </div>
+                                <div class="card-body">
+                                    <select class="form-select" id="hotel-select" multiple disabled>
+                                        <option value="">Select Hotels</option>
+                                    </select>
+                                    <input type="hidden" name="selected_hotels" id="selected-hotels-input">
+                                    <div class="mt-2 d-flex align-items-center">
+                                        <i class="ri-information-line text-primary me-2"></i>
+                                        <small class="text-muted">Select hotels from the dropdown, then assign them to specific days below</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <div id="hotel-day-assignments" class="mt-4">
+                        <!-- Hotel day assignments will be dynamically populated here -->
+                    </div>
                 </div>
-                <div id="selected-transport" class="mt-3"></div>
+            </div>
+            
+            <!-- Day-wise Itinerary Builder -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="ri-calendar-check-line me-2 text-success"></i>Day-wise Itinerary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        Plan your itinerary for each day of the tour. The number of days is based on the duration you selected.
+                    </div>
+                    
+                    <div id="day-itinerary-accordion" class="accordion">
+                        <!-- Day-wise accordion will be dynamically generated here -->
+                    </div>
+                    
+                    <!-- Hidden inputs for day-wise data -->
+                    <input type="hidden" name="day_wise_itinerary" id="day-wise-itinerary-input">
+                    <input type="hidden" name="day_1_arrival_pickup" value="0">
+                    <input type="hidden" name="day_1_departure_service" value="0">
+                </div>
             </div>
 
+          
             <!-- Inclusions & Exclusions -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -514,13 +386,735 @@
 $(document).ready(function() {
     // Initialize Select2
     $('#country-select, #city-select').select2();
-    $('#hotel-select, #attraction-select, #restaurant-select, #transport-select').select2({
+    $('#hotel-select').select2({
         multiple: true,
-        placeholder: 'Select options'
+        placeholder: 'Select hotels'
     });
     $('#guide-select').select2({
         placeholder: 'Select guide'
     });
+
+    // Store selected hotels with their day assignments
+    let selectedHotelsWithDays = [];
+    
+    // Store day-wise itinerary data
+    let dayWiseItinerary = [];
+    
+    // Create hidden inputs for JSON data if they don't exist
+    if (!$('#itinerary-json-data').length) {
+        $('<input>').attr({
+            type: 'hidden',
+            id: 'itinerary-json-data',
+            name: 'itinerary_json_data',
+            value: '{}'
+        }).appendTo('form');
+    }
+    
+    if (!$('#hotel-json-data').length) {
+        $('<input>').attr({
+            type: 'hidden',
+            id: 'hotel-json-data',
+            name: 'hotel_json_data',
+            value: '{}'
+        }).appendTo('form');
+    }
+    
+    if (!$('#day-wise-itinerary-input').length) {
+        $('<input>').attr({
+            type: 'hidden',
+            id: 'day-wise-itinerary-input',
+            name: 'day_wise_itinerary',
+            value: '{}'
+        }).appendTo('form');
+    }
+
+    // Duration change event to generate day-wise itinerary
+    $('input[name="duration_days"]').on('change keyup', function() {
+        const duration = parseInt($(this).val()) || 0;
+        if (duration > 0) {
+            generateDayWiseItinerary(duration);
+            updateHotelDayAssignments();
+            
+            // If city is already selected, load attractions and guides for each day
+            const city = $('#city-select').val();
+            if (city) {
+                for (let day = 1; day <= duration; day++) {
+                    loadAttractionsForDay(city, day);
+                    loadGuidesForDay(city, day);
+                }
+            }
+        }
+    });
+    
+    // Function to generate day-wise itinerary accordion
+    function generateDayWiseItinerary(duration) {
+        const accordionContainer = $('#day-itinerary-accordion');
+        accordionContainer.empty();
+        dayWiseItinerary = [];
+        
+        // Initialize day-wise itinerary data structure
+        for (let day = 1; day <= duration; day++) {
+            dayWiseItinerary.push({
+                day: day,
+                attractions: [],
+                guide: null,
+                arrival_pickup: day === 1 ? 0 : null,
+                departure_service: day === duration ? 0 : null
+            });
+            
+            // Create accordion item for each day
+            const isFirstDay = day === 1;
+            const isLastDay = day === duration;
+            const dayId = `day-${day}`;
+            const headerId = `heading-${dayId}`;
+            const collapseId = `collapse-${dayId}`;
+            
+            const accordionItem = `
+                <div class="accordion-item mb-3 shadow-sm">
+                    <h2 class="accordion-header" id="${headerId}">
+                        <button class="accordion-button ${day === 1 ? '' : 'collapsed'}" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#${collapseId}" 
+                                aria-expanded="${day === 1 ? 'true' : 'false'}" aria-controls="${collapseId}">
+                            <div class="d-flex align-items-center w-100">
+                                <div class="flex-shrink-0">
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary p-2">
+                                        <i class="ri-calendar-event-line me-1"></i>Day ${day}
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1 ms-3 d-flex align-items-center">
+                                    ${isFirstDay ? '<span class="badge bg-info-subtle text-info ms-2"><i class="ri-flight-land-line me-1"></i>Arrival Day</span>' : ''}
+                                    ${isLastDay ? '<span class="badge bg-warning-subtle text-warning ms-2"><i class="ri-flight-takeoff-line me-1"></i>Departure Day</span>' : ''}
+                                    <span class="ms-auto text-muted small" id="day-${day}-summary">No attractions selected</span>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse ${day === 1 ? 'show' : ''}" 
+                         aria-labelledby="${headerId}" data-bs-parent="#day-itinerary-accordion">
+                        <div class="accordion-body bg-light-subtle">
+                            <div class="row g-3">
+                                ${isFirstDay ? `
+                                <!-- Arrival Transfer Option (Only for Day 1) -->
+                                <div class="col-12 mb-3">
+                                    <div class="card border-info border-opacity-25 shadow-sm hover-shadow">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    <span class="badge bg-info-subtle text-info p-2 rounded-circle">
+                                                        <i class="ri-flight-land-line fs-5"></i>
+                                                    </span>
+                                                </div>
+                                                <div class="flex-grow-1 ms-3">
+                                                    <h6 class="mb-0">Arrival Pickup Service</h6>
+                                                    <small class="text-muted">Airport/port pickup on arrival</small>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input arrival-pickup-toggle" type="checkbox" 
+                                                           id="arrival-pickup-day-${day}" data-day="${day}" value="1">
+                                                    <label class="form-check-label" for="arrival-pickup-day-${day}">Include</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                ${isLastDay ? `
+                                <!-- Departure Transfer Option (Only for Last Day) -->
+                                <div class="col-12 mb-3">
+                                    <div class="card border-warning border-opacity-25 shadow-sm hover-shadow">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    <span class="badge bg-warning-subtle text-warning p-2 rounded-circle">
+                                                        <i class="ri-flight-takeoff-line fs-5"></i>
+                                                    </span>
+                                                </div>
+                                                <div class="flex-grow-1 ms-3">
+                                                    <h6 class="mb-0">Departure Service</h6>
+                                                    <small class="text-muted">Airport/port dropoff on departure</small>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input departure-service-toggle" type="checkbox" 
+                                                           id="departure-service-day-${day}" data-day="${day}" value="1">
+                                                    <label class="form-check-label" for="departure-service-day-${day}">Include</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Attractions Selection -->
+                                <div class="col-md-12 mb-3">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header bg-primary-subtle py-2">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-map-pin-line me-2 text-primary"></i>
+                                                <h6 class="mb-0 fw-semibold">Attractions for Day ${day}</h6>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <select class="form-select day-attraction-select" id="attraction-select-day-${day}" 
+                                                    data-day="${day}" multiple>
+                                                <option value="">Select Attractions</option>
+                                            </select>
+                                            <input type="hidden" name="day_${day}_attractions" id="day-${day}-attractions-input">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Selected Attractions with Service Toggles -->
+                                <div class="col-12 mb-3">
+                                    <div id="day-${day}-selected-attractions" class="selected-attractions-container">
+                                        <!-- Selected attractions will be displayed here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Guide Selection -->
+                                <div class="col-md-12 mb-3">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header bg-success-subtle py-2">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-user-voice-line me-2 text-success"></i>
+                                                <h6 class="mb-0 fw-semibold">Guide for Day ${day}</h6>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <select class="form-select day-guide-select" id="guide-select-day-${day}" data-day="${day}">
+                                                <option value="">Select Guide (Optional)</option>
+                                            </select>
+                                            <input type="hidden" name="day_${day}_guide" id="day-${day}-guide-input">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            accordionContainer.append(accordionItem);
+            
+            // Initialize Select2 for the day's attraction and guide selects
+            $(`#attraction-select-day-${day}`).select2({
+                placeholder: 'Select attractions for Day ' + day,
+                multiple: true
+            });
+            
+            $(`#guide-select-day-${day}`).select2({
+                placeholder: 'Select guide for Day ' + day
+            });
+        }
+        
+        // Bind event handlers for day-wise elements
+        bindDayWiseEventHandlers();
+        
+        // Log the initialized dayWiseItinerary for debugging
+        console.log('Initialized dayWiseItinerary:', dayWiseItinerary);
+    }
+    
+    // Function to update hotel day assignments based on selected hotels
+    function updateHotelDayAssignments() {
+        const container = $('#hotel-day-assignments');
+        container.empty();
+        
+        const selectedOptions = $('#hotel-select').find('option:selected');
+        const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+        
+        if (selectedOptions.length === 0 || duration === 0) {
+            container.html(`
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="ri-information-line fs-4 me-2"></i>
+                    <div>Please select hotels and specify duration to assign hotels to days.</div>
+                </div>
+            `);
+            return;
+        }
+        
+        // Exclude the last day (departure day) for hotel assignments
+        // Ensure we have at least 1 day even if duration is 1
+        const hotelDays = Math.max(1, duration > 1 ? duration - 1 : duration);
+        
+        let hotelAssignmentsHtml = `
+            <div class="card mt-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <div class="d-flex align-items-center">
+                        <i class="ri-hotel-bed-line fs-4 me-2 text-primary"></i>
+                        <h6 class="mb-0 fw-semibold">Assign Hotels to Days</h6>
+                    </div>
+                </div>
+                <div class="card-body">
+        `;
+        
+        if (duration > 1) {
+            hotelAssignmentsHtml += `
+                <div class="alert alert-info d-flex align-items-center mb-3">
+                    <i class="ri-information-line me-2"></i>
+                    <div>Last day (Day ${duration}) is not shown for hotel selection as it's the departure day.</div>
+                </div>
+            `;
+        }
+        
+        hotelAssignmentsHtml += `
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 200px;">Hotel</th>
+        `;
+        
+        // Generate day column headers
+        for (let i = 0; i < hotelDays; i++) {
+            hotelAssignmentsHtml += `
+                <th class="text-center" style="min-width: 80px;">
+                    <span class="badge rounded-pill bg-primary-subtle text-primary p-2">
+                        <i class="ri-calendar-event-line me-1"></i>Day ${i+1}
+                    </span>
+                </th>`;
+        }
+        
+        hotelAssignmentsHtml += `
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        selectedOptions.each(function() {
+            const hotelData = $(this).data('hotel-data');
+            if (hotelData) {
+                const hotelId = hotelData.id;
+                const hotelName = hotelData.name;
+                
+                hotelAssignmentsHtml += `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-secondary-subtle text-secondary p-2 rounded-circle me-2">
+                                    <i class="ri-hotel-line"></i>
+                                </span>
+                                <div>
+                                    <span class="fw-medium">${hotelName}</span>
+                                    <small class="d-block text-muted">${hotelData.city}</small>
+                                </div>
+                            </div>
+                        </td>
+                `;
+                
+                // Generate day checkboxes for each hotel
+                for (let i = 0; i < hotelDays; i++) {
+                    const day = i + 1;
+                    const isChecked = selectedHotelsWithDays.some(h => 
+                        h.id === hotelId && h.days.includes(day)
+                    );
+                    
+                    hotelAssignmentsHtml += `
+                        <td class="text-center align-middle">
+                            <div class="form-check d-flex justify-content-center">
+                                <input class="form-check-input hotel-day-checkbox" type="checkbox" 
+                                       id="hotel-${hotelId}-day-${day}" 
+                                       data-hotel-id="${hotelId}" 
+                                       data-hotel-name="${hotelName}"
+                                       data-day="${day}"
+                                       ${isChecked ? 'checked' : ''}>
+                            </div>
+                        </td>
+                    `;
+                }
+                
+                hotelAssignmentsHtml += `
+                    </tr>
+                `;
+            }
+        });
+        
+        hotelAssignmentsHtml += `
+                    </tbody>
+                </table>
+            </div>
+            <small class="text-muted d-flex align-items-center mt-2">
+                <i class="ri-checkbox-circle-line me-2 text-primary"></i>
+                Check the days when each hotel will be used for accommodation.
+            </small>
+                </div>
+            </div>
+        `;
+        
+        container.html(hotelAssignmentsHtml);
+        
+        // Bind event handler for hotel day checkboxes
+        $('.hotel-day-checkbox').on('change', function() {
+            updateSelectedHotelsWithDays();
+        });
+    }
+    
+    // Function to update the selected hotels with their day assignments
+    function updateSelectedHotelsWithDays() {
+        selectedHotelsWithDays = [];
+        let hotelJsonData = {};
+        
+        // Get all selected hotels
+        const selectedOptions = $('#hotel-select').find('option:selected');
+        const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+        // Exclude the last day (departure day) for hotel assignments
+        const hotelDays = duration > 1 ? duration - 1 : duration;
+        
+        selectedOptions.each(function() {
+            const hotelData = $(this).data('hotel-data');
+            if (hotelData) {
+                const hotelId = hotelData.id;
+                const hotelName = hotelData.name;
+                const hotelCity = hotelData.city;
+                const mainImage = hotelData.main_image || '';
+                const images = hotelData.images || [];
+                
+                // Find all checked days for this hotel
+                const checkedDays = [];
+                $(`.hotel-day-checkbox[data-hotel-id="${hotelId}"]:checked`).each(function() {
+                    const day = parseInt($(this).data('day'));
+                    // Only include days up to hotelDays (excluding the last day)
+                    if (day <= hotelDays) {
+                        checkedDays.push(day);
+                    }
+                });
+                
+                // Add to selected hotels with days
+                if (checkedDays.length > 0) {
+                    selectedHotelsWithDays.push({
+                        id: hotelId,
+                        name: hotelName,
+                        city: hotelCity,
+                        days: checkedDays
+                    });
+                    
+                    // Add to hotel JSON data with hotel_unique_id as key
+                    hotelJsonData[hotelId] = {
+                        name: hotelName,
+                        city: hotelCity,
+                        main_image: mainImage,
+                        images: images,
+                        selected_days: checkedDays
+                    };
+                }
+            }
+        });
+        
+        // Update hidden input with JSON data for backward compatibility
+        $('#selected-hotels-input').val(JSON.stringify(selectedHotelsWithDays));
+        
+        // Convert hotelJsonData object to JSON string
+        const hotelJsonString = JSON.stringify(hotelJsonData);
+        
+        // Create or update the hotel JSON data hidden input
+        if ($('#hotel-json-data').length) {
+            $('#hotel-json-data').val(hotelJsonString);
+        } else {
+            $('<input>').attr({
+                type: 'hidden',
+                id: 'hotel-json-data',
+                name: 'hotel_json_data',
+                value: hotelJsonString
+            }).appendTo('form');
+        }
+        
+        // Debug log
+        console.log('Updated hotel JSON data:', hotelJsonString);
+    }
+    
+    // Function to bind event handlers for day-wise elements
+    function bindDayWiseEventHandlers() {
+        // Arrival pickup toggle
+        $('.arrival-pickup-toggle').on('change', function() {
+            const day = parseInt($(this).data('day'));
+            const isChecked = $(this).is(':checked');
+            
+            // Update day-wise itinerary data
+            if (day === 1 && dayWiseItinerary.length >= 1) {
+                dayWiseItinerary[0].arrival_pickup = isChecked ? 1 : 0;
+            }
+            
+            // Update hidden input for form submission
+            $('input[name="day_1_arrival_pickup"]').val(isChecked ? 1 : 0);
+        });
+        
+        // Departure service toggle
+        $('.departure-service-toggle').on('change', function() {
+            const day = parseInt($(this).data('day'));
+            const isChecked = $(this).is(':checked');
+            const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+            
+            // Update day-wise itinerary data
+            if (day === duration && dayWiseItinerary.length >= duration) {
+                dayWiseItinerary[duration - 1].departure_service = isChecked ? 1 : 0;
+            }
+            
+            // Update hidden input for form submission
+            $(`input[name="day_${day}_departure_service"]`).val(isChecked ? 1 : 0);
+        });
+        
+        // Day attraction select change
+        $('.day-attraction-select').on('change', function() {
+            const day = parseInt($(this).data('day'));
+            const selectedAttractions = [];
+            const selectedOptions = $(this).find('option:selected');
+            
+            // Get selected attractions data
+            selectedOptions.each(function() {
+                const attractionData = $(this).data('attraction-data');
+                if (attractionData) {
+                    // Initialize attraction with proper structure
+                    selectedAttractions.push({
+                        attraction_id: attractionData.attraction_id,
+                        name: attractionData.name,
+                        location: attractionData.location,
+                        transfer_available: 0,
+                        transfer_type: 'none'
+                    });
+                }
+            });
+            
+            // Update day-wise itinerary data
+            if (dayWiseItinerary.length >= day) {
+                // Preserve any existing transfer settings if the attraction is still selected
+                const existingAttractions = dayWiseItinerary[day - 1].attractions || [];
+                
+                // Map new attractions, preserving transfer settings for existing ones
+                const updatedAttractions = selectedAttractions.map(newAttraction => {
+                    // Check if this attraction already exists with transfer settings
+                    const existingAttraction = existingAttractions.find(
+                        a => a.attraction_id === newAttraction.attraction_id
+                    );
+                    
+                    if (existingAttraction) {
+                        // Preserve existing transfer settings
+                        return {
+                            ...newAttraction,
+                            transfer_available: existingAttraction.transfer_available || 0,
+                            transfer_type: existingAttraction.transfer_type || 'none'
+                        };
+                    }
+                    
+                    // Use default settings for new attractions
+                    return newAttraction;
+                });
+                
+                // Update the attractions array
+                dayWiseItinerary[day - 1].attractions = updatedAttractions;
+                
+                console.log(`Day ${day} attractions updated from select:`, JSON.parse(JSON.stringify(updatedAttractions)));
+            }
+            
+            // Update hidden input for form submission
+            $(`#day-${day}-attractions-input`).val(JSON.stringify(dayWiseItinerary[day - 1].attractions));
+            
+            // Update the selected attractions display with service toggles
+            updateSelectedAttractionsDisplay(day, dayWiseItinerary[day - 1].attractions);
+            
+            // Update the day summary in accordion header
+            updateDaySummary(day, dayWiseItinerary[day - 1].attractions);
+        });
+        
+        // Function to update the day summary in accordion header
+        function updateDaySummary(day, attractions) {
+            const summaryElement = $(`#day-${day}-summary`);
+            
+            if (attractions.length === 0) {
+                summaryElement.html('<i class="ri-error-warning-line text-warning me-1"></i>No attractions selected');
+                return;
+            }
+            
+            if (attractions.length === 1) {
+                summaryElement.html(`<i class="ri-map-pin-line text-success me-1"></i>${attractions[0].name}`);
+            } else {
+                summaryElement.html(`<i class="ri-map-pin-line text-success me-1"></i>${attractions.length} attractions selected`);
+            }
+        }
+        
+        // Day guide select change
+        $('.day-guide-select').on('change', function() {
+            const day = parseInt($(this).data('day'));
+            const selectedOption = $(this).find('option:selected');
+            const guideData = selectedOption.data('guide-data');
+            
+            let selectedGuide = null;
+            
+            if (guideData && selectedOption.val()) {
+                selectedGuide = {
+                    id: guideData.id,
+                    name: guideData.name,
+                    languages: guideData.languages,
+                    contact_no: guideData.contact_no
+                };
+            }
+            
+            // Update day-wise itinerary data
+            if (dayWiseItinerary.length >= day) {
+                dayWiseItinerary[day - 1].guide = selectedGuide;
+            }
+            
+            // Update hidden input for form submission
+            $(`#day-${day}-guide-input`).val(selectedGuide ? JSON.stringify(selectedGuide) : '');
+        });
+    }
+    
+    // Function to update the selected attractions display with service toggles
+    function updateSelectedAttractionsDisplay(day, attractions) {
+        const container = $(`#day-${day}-selected-attractions`);
+        container.empty();
+        
+        // Debug log for attractions data
+        console.log(`updateSelectedAttractionsDisplay for Day ${day}:`, JSON.parse(JSON.stringify(attractions)));
+        
+        if (attractions.length === 0) {
+            container.html('<div class="text-muted">No attractions selected for this day.</div>');
+            return;
+        }
+        
+        let attractionsHtml = '';
+        
+        attractions.forEach((attraction, index) => {
+            // Set default values if not present
+            attraction.transfer_available = attraction.transfer_available || 0;
+            attraction.transfer_type = attraction.transfer_type || 'none';
+            
+            // Debug log for each attraction
+            console.log(`Day ${day}, Attraction ${index}:`, {
+                id: attraction.attraction_id,
+                name: attraction.name,
+                location: attraction.location,
+                transfer_available: attraction.transfer_available,
+                transfer_type: attraction.transfer_type
+            });
+            
+            attractionsHtml += `
+                <div class="card mb-3 border-light hover-shadow">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-info-subtle text-info p-2 rounded-circle">
+                                    <i class="ri-map-pin-line fs-5"></i>
+                                </span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 fw-semibold">${attraction.name}</h6>
+                                <small class="text-muted"><i class="ri-building-line me-1"></i>${attraction.location}</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Transfer Options -->
+                        <div class="mt-2 pt-3 border-top border-light">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="flex-shrink-0 me-2">
+                                    <span class="badge bg-primary-subtle text-primary p-1 rounded">
+                                        <i class="ri-taxi-line"></i>
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <label class="form-check-label fw-medium cursor-pointer" for="attraction-${attraction.attraction_id}-day-${day}-transfer">
+                                        Transfer Service Available
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input attraction-transfer-toggle" type="checkbox" 
+                                           id="attraction-${attraction.attraction_id}-day-${day}-transfer" 
+                                           data-day="${day}" 
+                                           data-attraction-id="${attraction.attraction_id}" 
+                                           data-index="${index}"
+                                           ${attraction.transfer_available === 1 ? 'checked' : ''}>
+                                </div>
+                            </div>
+                            
+                            <div class="transfer-options-${attraction.attraction_id}-day-${day} transfer-options-container ms-4" 
+                                 style="${attraction.transfer_available === 1 ? '' : 'display: none;'}">
+                                <div class="mb-2">
+                                    <small class="text-muted fw-medium">Select transfer type:</small>
+                                </div>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input attraction-transfer-type" type="radio" 
+                                               name="transfer-type-${attraction.attraction_id}-day-${day}" 
+                                               id="one-way-${attraction.attraction_id}-day-${day}" 
+                                               value="one_way"
+                                               data-day="${day}" 
+                                               data-attraction-id="${attraction.attraction_id}" 
+                                               data-index="${index}"
+                                               ${attraction.transfer_type === 'one_way' ? 'checked' : ''}>
+                                        <label class="form-check-label d-flex align-items-center" for="one-way-${attraction.attraction_id}-day-${day}">
+                                            <i class="ri-arrow-right-line me-1 text-success"></i>
+                                            One-way
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input attraction-transfer-type" type="radio" 
+                                               name="transfer-type-${attraction.attraction_id}-day-${day}" 
+                                               id="both-way-${attraction.attraction_id}-day-${day}" 
+                                               value="both_way"
+                                               data-day="${day}" 
+                                               data-attraction-id="${attraction.attraction_id}" 
+                                               data-index="${index}"
+                                               ${attraction.transfer_type === 'both_way' ? 'checked' : ''}>
+                                        <label class="form-check-label d-flex align-items-center" for="both-way-${attraction.attraction_id}-day-${day}">
+                                            <i class="ri-arrow-left-right-line me-1 text-primary"></i>
+                                            Round-trip
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.html(attractionsHtml);
+        
+        // Bind event handlers for attraction transfer toggles
+        $(`.attraction-transfer-toggle[data-day="${day}"]`).on('change', function() {
+            const index = parseInt($(this).data('index'));
+            const attractionId = $(this).data('attraction-id');
+            const isChecked = $(this).is(':checked');
+            
+            // Show/hide transfer options based on toggle
+            $(`.transfer-options-${attractionId}-day-${day}`).toggle(isChecked);
+            
+            // Update attraction transfer status
+            if (dayWiseItinerary.length >= day && dayWiseItinerary[day - 1].attractions.length > index) {
+                dayWiseItinerary[day - 1].attractions[index].transfer_available = isChecked ? 1 : 0;
+                
+                // Reset transfer type if transfer is disabled
+                if (!isChecked) {
+                    dayWiseItinerary[day - 1].attractions[index].transfer_type = 'none';
+                } else if (dayWiseItinerary[day - 1].attractions[index].transfer_type === 'none') {
+                    // Default to one_way if none was selected before
+                    dayWiseItinerary[day - 1].attractions[index].transfer_type = 'one_way';
+                    $(`#one-way-${attractionId}-day-${day}`).prop('checked', true);
+                }
+                
+                // Update hidden input
+                $(`#day-${day}-attractions-input`).val(JSON.stringify(dayWiseItinerary[day - 1].attractions));
+                
+                // Log the updated data for debugging
+                console.log(`Day ${day} attractions updated after toggle:`, JSON.parse(JSON.stringify(dayWiseItinerary[day - 1].attractions)));
+            }
+        });
+        
+        // Bind event handlers for attraction transfer type radios
+        $(`.attraction-transfer-type[data-day="${day}"]`).on('change', function() {
+            const index = parseInt($(this).data('index'));
+            const transferType = $(this).val();
+            
+            // Update attraction transfer type
+            if (dayWiseItinerary.length >= day && dayWiseItinerary[day - 1].attractions.length > index) {
+                dayWiseItinerary[day - 1].attractions[index].transfer_type = transferType;
+                
+                // Update hidden input
+                $(`#day-${day}-attractions-input`).val(JSON.stringify(dayWiseItinerary[day - 1].attractions));
+                
+                // Log the updated data for debugging
+                console.log(`Day ${day} attractions updated after transfer type change:`, JSON.parse(JSON.stringify(dayWiseItinerary[day - 1].attractions)));
+            }
+        });
+    }
 
     // Toggle card highlight when port transfer checkboxes change
     $('#entry-port').change(function() {
@@ -565,9 +1159,7 @@ $(document).ready(function() {
         // Reset dependent dropdowns
         citySelect.empty().prop('disabled', true);
         $('#hotel-select').empty().prop('disabled', true);
-        $('#attraction-select').empty().prop('disabled', true);
-        $('#guide-select').empty().prop('disabled', true);
-        $('#restaurant-select').empty().prop('disabled', true);
+        resetDayWiseSelects();
         
         if (country) {
             citySelect.prop('disabled', false);
@@ -590,16 +1182,9 @@ $(document).ready(function() {
     $('#city-select').on('change', function() {
         const city = $(this).val();
         const hotelSelect = $('#hotel-select');
-        const attractionSelect = $('#attraction-select');
-        const guideSelect = $('#guide-select');
-        const restaurantSelect = $('#restaurant-select');
-        const transportSelect = $('#transport-select');
-
+        
         hotelSelect.empty().prop('disabled', true);
-        attractionSelect.empty().prop('disabled', true);
-        guideSelect.empty().prop('disabled', true);
-        restaurantSelect.empty().prop('disabled', true);
-        transportSelect.empty().prop('disabled', true);
+        resetDayWiseSelects();
         
         if (city) {
             // Load hotels
@@ -607,186 +1192,267 @@ $(document).ready(function() {
                 url: `{{ env('APP_URL') }}/hotel-city/${encodeURIComponent(city)}`,
                 method: 'GET',
                 success: function(response) {
-                    console.log("hotel = ", response);
                     hotelSelect.prop('disabled', false);
                     response.forEach(function(hotel) {
-                        const option = new Option(hotel.name, hotel.hotel_unique_id, hotel.city);
+                        const option = new Option(hotel.name, hotel.hotel_unique_id);
                         $(option).data('hotel-data', {
                             id: hotel.hotel_unique_id,
                             name: hotel.name,
-                            city: hotel.city
+                            city: hotel.city,
+                            main_image: hotel.main_image || '',
+                            images: hotel.images || []
                         });
                         hotelSelect.append(option);
                     });
+                    
+                    // Initialize hotel day assignments after loading hotels
+                    if (parseInt($('input[name="duration_days"]').val()) > 0) {
+                        updateHotelDayAssignments();
+                    }
                 }
             });
 
-            // Load attractions
-            $.ajax({
-                url: `{{ env('APP_URL') }}/attractions/${encodeURIComponent(city)}`,
-                method: 'GET',
-                success: function(response) {
-                    attractionSelect.prop('disabled', false);
-                    response.forEach(function(attraction) {
-                        const option = new Option(attraction.name, attraction.attraction_id, attraction.location);
-                        $(option).data('attraction-data', {
-                            id: attraction.attraction_id,
-                            name: attraction.name,
-                            city: attraction.location
-                        });
-                        attractionSelect.append(option);
-                    });
+            // Load attractions for each day
+            const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+            if (duration > 0) {
+                for (let day = 1; day <= duration; day++) {
+                    loadAttractionsForDay(city, day);
+                    loadGuidesForDay(city, day);
                 }
-            });
-
-            // Load guides
-            $.ajax({
-                url: `{{ env('APP_URL') }}/guides/${encodeURIComponent(city)}`,
-                method: 'GET',
-                success: function(response) {
-                    guideSelect.prop('disabled', false);
-                    guideSelect.append('<option value="">Select Guide</option>');
-                    response.forEach(function(guide) {
-                        const option = new Option(`${guide.name} (${guide.languages})`, guide.guide_id);
-                        $(option).data('guide-data', {
-                            id: guide.guide_id,
-                            name: guide.name,
-                            languages: guide.languages,
-                            contact_no: guide.contact_no
-                        });
-                        guideSelect.append(option);
-                    });
-                }
-            });
-
-            // Load restaurants
-            $.ajax({
-                url: `{{ env('APP_URL') }}/restaurants/${encodeURIComponent(city)}`,
-                method: 'GET',
-                success: function(response) {
-                    restaurantSelect.prop('disabled', false);
-                    response.restaurants.forEach(function(restaurant) {
-                        const restaurantName = `${restaurant.name} (${restaurant.cuisine})`;
-                        const option = new Option(restaurantName, restaurant.restaurant_id);
-                        $(option).data('restaurant-data', {
-                            id: restaurant.restaurant_id,
-                            name: restaurant.name,
-                            cuisine: restaurant.cuisine,
-                            city: restaurant.city
-                        });
-                        restaurantSelect.append(option);
-                    });
-                }
-            });
-
-            // Load transport
-            $.ajax({
-                url: `{{ env('APP_URL') }}/get-transport/${encodeURIComponent(city)}`,
-                method: 'GET',
-                success: function(response) {
-                    transportSelect.prop('disabled', false);
-                    response.forEach(function(transport) {
-                        const option = new Option(transport.name, transport.transport_id);
-                        $(option).data('transport-data', {
-                            id: transport.transport_id,
-                            name: transport.name
-                        });
-                        transportSelect.append(option);
-                    });
-                }
-            });
+            }
         }
     });
+    
+    // Function to load attractions for a specific day
+    function loadAttractionsForDay(city, day) {
+        const attractionSelect = $(`#attraction-select-day-${day}`);
+        attractionSelect.empty();
+        
+        $.ajax({
+            url: `{{ env('APP_URL') }}/attractions/${encodeURIComponent(city)}`,
+            method: 'GET',
+            success: function(response) {
+                response.forEach(function(attraction) {
+                    const option = new Option(attraction.name, attraction.attraction_id);
+                    $(option).data('attraction-data', {
+                        attraction_id: attraction.attraction_id,
+                        name: attraction.name,
+                        location: attraction.location
+                    });
+                    attractionSelect.append(option);
+                });
+            }
+        });
+    }
+    
+    // Function to load guides for a specific day
+    function loadGuidesForDay(city, day) {
+        const guideSelect = $(`#guide-select-day-${day}`);
+        guideSelect.empty().append('<option value="">Select Guide</option>');
+        
+        $.ajax({
+            url: `{{ env('APP_URL') }}/guides/${encodeURIComponent(city)}`,
+            method: 'GET',
+            success: function(response) {
+                response.forEach(function(guide) {
+                    const option = new Option(`${guide.name} (${guide.languages})`, guide.guide_id);
+                    $(option).data('guide-data', {
+                        id: guide.guide_id,
+                        name: guide.name,
+                        languages: guide.languages,
+                        contact_no: guide.contact_no
+                    });
+                    guideSelect.append(option);
+                });
+            }
+        });
+    }
+    
+    // Function to reset all day-wise select elements
+    function resetDayWiseSelects() {
+        const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+        
+        for (let day = 1; day <= duration; day++) {
+            $(`#attraction-select-day-${day}`).empty();
+            $(`#guide-select-day-${day}`).empty().append('<option value="">Select Guide</option>');
+            $(`#day-${day}-selected-attractions`).empty();
+        }
+    }
 
     // Hotel selection handler
     $('#hotel-select').on('change', function() {
+        console.log("Hotel selection changed");
         const selectedOptions = $(this).find('option:selected');
-        const selectedHotels = [];
-        
-        selectedOptions.each(function() {
-            const hotelData = $(this).data('hotel-data');
-            if (hotelData) {
-                selectedHotels.push({
-                    id: hotelData.id,
-                    name: hotelData.name,
-                    city: hotelData.city
-                });
-            }
-        });
-
-        // Store the selected hotels data in a hidden input
-        $('input[name="selected_hotels"]').val(JSON.stringify(selectedHotels));
+        console.log("Selected hotel options:", selectedOptions.length);
+        updateHotelDayAssignments();
     });
-
-    // Attraction selection handler
-    $('#attraction-select').on('change', function() {
-        const selectedOptions = $(this).find('option:selected');
-        const selectedAttractions = [];
+    
+    // Form submission handler to compile all day-wise itinerary data
+    $('form').on('submit', function(e) {
+        // Prevent default form submission
+        e.preventDefault();
         
-        selectedOptions.each(function() {
-            const attractionData = $(this).data('attraction-data');
-            if (attractionData) {
-                selectedAttractions.push({
-                    id: attractionData.id,
-                    name: attractionData.name,
-                    city: attractionData.city
-                });
-            }
-        });
-
-        // Store the selected attractions data in a hidden input
-        $('input[name="selected_attractions"]').val(JSON.stringify(selectedAttractions));
-    });
-
-    // Guide selection handler
-    $('#guide-select').on('change', function() {
-        const selectedOption = $(this).find('option:selected');
-        const guideData = selectedOption.data('guide-data');
+        // Create hierarchical itinerary JSON structure
+        const itineraryJson = {};
         
-        if (guideData && selectedOption.val()) {
-            const selectedGuide = {
-                id: guideData.id,
-                name: guideData.name,
-                languages: guideData.languages,
-                contact_no: guideData.contact_no
+        // Get duration
+        const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+        
+        // Debug log the dayWiseItinerary array before processing
+        console.log('dayWiseItinerary before processing:', JSON.parse(JSON.stringify(dayWiseItinerary)));
+        
+        // Process each day's data
+        for (let day = 1; day <= duration; day++) {
+            // Initialize day data object
+            itineraryJson[day] = {
+                attractions: [],
+                guide: null,
+                arrival_pickup: day === 1 ? 0 : null,
+                departure_service: day === duration ? 0 : null
             };
             
-            // Store the selected guide data in a hidden input
-            $('input[name="selected_guide"]').val(JSON.stringify(selectedGuide));
-            
-            // Display selected guide info
-            $('#selected-guide').html(`
-                <div class="selected-item">
-                    <strong>${guideData.name}</strong><br>
-                    <small>Languages: ${guideData.languages} | Contact: ${guideData.contact_no}</small>
-                </div>
-            `);
-        } else {
-            $('input[name="selected_guide"]').val('');
-            $('#selected-guide').html('');
-        }
-    });
-
-    // Restaurant selection handler
-    $('#restaurant-select').on('change', function() {
-        const selectedOptions = $(this).find('option:selected');
-        const selectedRestaurants = [];
-        
-        selectedOptions.each(function() {
-            const restaurantData = $(this).data('restaurant-data');
-            if (restaurantData) {
-                selectedRestaurants.push({
-                    id: restaurantData.id,
-                    name: restaurantData.name,
-                    cuisine: restaurantData.cuisine,
-                    city: restaurantData.city
+            // Get attractions data
+            if (dayWiseItinerary.length >= day && dayWiseItinerary[day - 1].attractions) {
+                console.log(`Day ${day} attractions before mapping:`, JSON.parse(JSON.stringify(dayWiseItinerary[day - 1].attractions)));
+                
+                // Map attractions with the correct property names
+                itineraryJson[day].attractions = dayWiseItinerary[day - 1].attractions.map(attraction => {
+                    // Ensure we have the correct property names for the itinerary JSON
+                    const mappedAttraction = {
+                        id: attraction.attraction_id,
+                        name: attraction.name,
+                        city: attraction.location,
+                        transfer_available: attraction.transfer_available || 0,
+                        transfer_type: attraction.transfer_type || 'none'
+                    };
+                    console.log(`Day ${day}, mapped attraction:`, mappedAttraction);
+                    return mappedAttraction;
                 });
             }
+            
+            // Get guide data
+            if (dayWiseItinerary.length >= day && dayWiseItinerary[day - 1].guide) {
+                itineraryJson[day].guide = dayWiseItinerary[day - 1].guide;
+            }
+            
+            // Get arrival pickup data (only for day 1)
+            if (day === 1) {
+                itineraryJson[day].arrival_pickup = $('input[name="day_1_arrival_pickup"]').val() === '1' ? 1 : 0;
+            }
+            
+            // Get departure service data (only for last day)
+            if (day === duration) {
+                itineraryJson[day].departure_service = $(`.departure-service-toggle[data-day="${day}"]`).is(':checked') ? 1 : 0;
+            }
+        }
+        
+        // Debug log the final itinerary JSON
+        console.log('Final itinerary JSON:', itineraryJson);
+        
+        // Convert itineraryJson object to JSON string
+        const itineraryJsonString = JSON.stringify(itineraryJson);
+        
+        // Create or update the itinerary JSON data hidden input
+        if ($('#itinerary-json-data').length) {
+            $('#itinerary-json-data').val(itineraryJsonString);
+        } else {
+            $('<input>').attr({
+                type: 'hidden',
+                id: 'itinerary-json-data',
+                name: 'itinerary_json_data',
+                value: itineraryJsonString
+            }).appendTo('form');
+        }
+        
+        // Process hotel JSON data
+        const hotelJsonData = {};
+        selectedHotelsWithDays.forEach(hotel => {
+            hotelJsonData[hotel.id] = {
+                name: hotel.name,
+                city: hotel.city,
+                selected_days: hotel.days
+            };
         });
-
-        // Store the selected restaurants data in a hidden input
-        $('input[name="selected_restaurants"]').val(JSON.stringify(selectedRestaurants));
+        
+        // Convert hotelJsonData object to JSON string
+        const hotelJsonString = JSON.stringify(hotelJsonData);
+        
+        // Create or update the hotel JSON data hidden input
+        if ($('#hotel-json-data').length) {
+            $('#hotel-json-data').val(hotelJsonString);
+        } else {
+            $('<input>').attr({
+                type: 'hidden',
+                id: 'hotel-json-data',
+                name: 'hotel_json_data',
+                value: hotelJsonString
+            }).appendTo('form');
+        }
+        
+        // Debug log the hotel JSON data
+        console.log('Hotel JSON data:', hotelJsonString);
+        
+        // Prepare day-wise itinerary data for submission (keep for backward compatibility)
+        const compiledData = {
+            hotels: selectedHotelsWithDays,
+            itinerary: dayWiseItinerary
+        };
+        
+        // Update the hidden input with the compiled data
+        $('#day-wise-itinerary-input').val(JSON.stringify(compiledData));
+        
+        // Debug log all form data being submitted
+        const formData = new FormData(this);
+        const formDataObj = {};
+        formData.forEach((value, key) => {
+            formDataObj[key] = value;
+        });
+        console.log('Form data being submitted:', formDataObj);
+        
+        // Now submit the form
+        this.submit();
     });
+    
+    // Initialize day-wise itinerary if duration is already set
+    const initialDuration = parseInt($('input[name="duration_days"]').val()) || 0;
+    if (initialDuration > 0) {
+        generateDayWiseItinerary(initialDuration);
+        
+        // If city is already selected, load hotels and update assignments
+        const selectedCity = $('#city-select').val();
+        if (selectedCity) {
+            // Load hotels for the selected city
+            $.ajax({
+                url: `{{ env('APP_URL') }}/hotel-city/${encodeURIComponent(selectedCity)}`,
+                method: 'GET',
+                success: function(response) {
+                    const hotelSelect = $('#hotel-select');
+                    hotelSelect.prop('disabled', false);
+                    
+                    response.forEach(function(hotel) {
+                        const option = new Option(hotel.name, hotel.hotel_unique_id);
+                        $(option).data('hotel-data', {
+                            id: hotel.hotel_unique_id,
+                            name: hotel.name,
+                            city: hotel.city,
+                            main_image: hotel.main_image || '',
+                            images: hotel.images || []
+                        });
+                        hotelSelect.append(option);
+                    });
+                    
+                    // Initialize hotel day assignments
+                    updateHotelDayAssignments();
+                    
+                    // Load attractions and guides for each day
+                    for (let day = 1; day <= initialDuration; day++) {
+                        loadAttractionsForDay(selectedCity, day);
+                        loadGuidesForDay(selectedCity, day);
+                    }
+                }
+            });
+        }
+    }
 });
 </script>
 @endsection
@@ -812,6 +1478,7 @@ $(document).ready(function() {
 .select2-container--default .select2-selection--multiple {
     padding: 0.5rem;
     height: auto;
+    min-height: 38px;
     border: 1px solid #d9dee3;
     border-radius: 0.375rem;
 }
@@ -830,10 +1497,26 @@ $(document).ready(function() {
     margin-right: 5px;
 }
 
+.select2-container--default.select2-container--focus .select2-selection--multiple,
+.select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #696cff;
+    box-shadow: 0 0 0.25rem 0.05rem rgba(105, 108, 255, 0.1);
+}
+
+.select2-container--open .select2-dropdown {
+    border-color: #696cff;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+}
+
 .card {
     border: none;
     box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
     border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px 0 rgba(67, 89, 113, 0.16);
 }
 
 .card-header {
@@ -883,6 +1566,8 @@ $(document).ready(function() {
 .btn {
     padding: 0.5rem 1rem;
     font-weight: 500;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
 }
 
 .btn-primary {
@@ -893,6 +1578,8 @@ $(document).ready(function() {
 .btn-primary:hover {
     background-color: #5f61e6;
     border-color: #5f61e6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(105, 108, 255, 0.2);
 }
 
 /* File input styling */
@@ -926,9 +1613,15 @@ $(document).ready(function() {
 }
 
 /* Custom larger toggle switch */
-.toggle-lg {
-    transform: scale(1.3);
-    margin-right: 10px;
+.form-check-input[type="checkbox"].form-switch {
+    height: 1.25rem;
+    width: 2.25rem;
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: #696cff;
+    border-color: #696cff;
 }
 
 /* Custom toggle colors */
@@ -980,6 +1673,186 @@ $(document).ready(function() {
 #exit-port:checked ~ .card {
     border-color: #dc3545 !important;
     background-color: rgba(220, 53, 69, 0.05);
+}
+
+/* Day-wise Itinerary Styling */
+.accordion-item {
+    border: 1px solid rgba(0,0,0,.125);
+    margin-bottom: 0.75rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.accordion-item:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.accordion-button {
+    background-color: #f8f9fa;
+    font-weight: 500;
+    padding: 1rem 1.25rem;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+    box-shadow: none;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0,0,0,.125);
+}
+
+.accordion-button::after {
+    background-size: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.selected-attractions-container {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.selected-attractions-container::-webkit-scrollbar {
+    width: 5px;
+}
+
+.selected-attractions-container::-webkit-scrollbar-thumb {
+    background: #d9dee3;
+    border-radius: 10px;
+}
+
+.hotel-day-checkbox {
+    width: 1.2rem;
+    height: 1.2rem;
+    cursor: pointer;
+}
+
+.hotel-day-checkbox:checked {
+    background-color: #696cff;
+    border-color: #696cff;
+}
+
+/* Attraction service toggle styling */
+.attraction-transfer-toggle:checked {
+    background-color: #20c997;
+    border-color: #20c997;
+}
+
+.arrival-pickup-toggle:checked {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+}
+
+.departure-service-toggle:checked {
+    background-color: #fd7e14;
+    border-color: #fd7e14;
+}
+
+/* Transfer options styling */
+.transfer-options-container {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    border-left: 3px solid #20c997;
+    transition: all 0.3s ease;
+}
+
+/* Day badges */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.badge.bg-info-subtle {
+    background-color: rgba(13, 202, 240, 0.18) !important;
+    color: #0aa2c0 !important;
+}
+
+.badge.bg-warning-subtle {
+    background-color: rgba(253, 126, 20, 0.18) !important;
+    color: #cc6510 !important;
+}
+
+.badge.bg-primary-subtle {
+    background-color: rgba(105, 108, 255, 0.18) !important;
+    color: #5659cc !important;
+}
+
+.badge.bg-success-subtle {
+    background-color: rgba(32, 201, 151, 0.18) !important;
+    color: #18a47c !important;
+}
+
+/* Table styling for hotel day assignments */
+.table-bordered {
+    border-color: #d9dee3;
+}
+
+.table-bordered th {
+    background-color: #f8f9fa;
+    font-weight: 500;
+}
+
+.table-bordered td, .table-bordered th {
+    border-color: #d9dee3;
+    padding: 0.75rem;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(105, 108, 255, 0.04);
+}
+
+/* Animation for accordion */
+.accordion-collapse {
+    transition: all 0.3s ease;
+}
+
+/* Improved alert styling */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.alert-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    color: #087990;
+}
+
+/* Improved form check styling */
+.form-check-label {
+    cursor: pointer;
+}
+
+.form-check-input {
+    cursor: pointer;
+}
+
+/* Card header subtle backgrounds */
+.bg-primary-subtle {
+    background-color: rgba(105, 108, 255, 0.1) !important;
+}
+
+.bg-success-subtle {
+    background-color: rgba(32, 201, 151, 0.1) !important;
+}
+
+.bg-warning-subtle {
+    background-color: rgba(253, 126, 20, 0.1) !important;
+}
+
+.bg-info-subtle {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+.bg-light-subtle {
+    background-color: #f9fafb !important;
 }
 </style>
 @endsection 
