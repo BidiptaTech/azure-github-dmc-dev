@@ -92,16 +92,35 @@
                         </select>
                     </div> -->
 
-                    <div class="col-md-3 mb-3">
-                        <label for="phone" class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" placeholder="Phone No" oninput="validatePhoneNumber(this)">
-                        <small class="validation-message text-danger" id="phone-validation-message"></small>
-                        @error('phone')
-                            <div class="text-danger mt-1">{{ $message }}</div>
-                        @enderror
+
+                    <div class="col-md-3 mb-3" id="user_coun">
+                        <div class="mb-3">
+                            <label for="user_country" class="form-label">
+                                <strong>Agent Country</strong>
+                                <span style="color: red; font-weight: bold;">*</span>
+                            </label>
+                            <select class="form-select" id="user_country" name="user_country">
+                                <option selected disabled value>Choose a country...</option>
+                                @foreach($cityCountry as $c)
+                                    <option value="{{ $c->name }}">{{ $c->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-3 mb-3" id="city_name">
+                        <div class="mb-3">
+                            <label for="city" class="form-label">
+                                <strong>Agent City</strong>
+                                <span style="color: red; font-weight: bold;">*</span>
+                            </label>
+                            <select class="form-select" id="city" name="city">
+                                <option selected disabled value>Select country first...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-4">
                         <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
                         <select class="form-control select2" id="country" name="country[]" multiple required>
                             @foreach($authUserCountries as $countryName)
@@ -113,7 +132,31 @@
                         @error('country')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>                    
+                    </div>                  
+
+                    <div class="col-md-2 mb-3">
+                        <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
+                                style="color: red; font-weight: bold;">*</span></label>
+                        <select class="form-select" id="inputCountryCode" name="code" required>
+                            <option selected disabled value>Choose...</option>
+                            {{-- {{ dd($countryCodes) }} --}}
+                            @foreach($countryCodes as $key => $value)
+                            <option value="{{ $key }}" @if($key == '65') selected @endif >{{ $value }}</option>
+                            @endforeach
+                        </select>
+                        @error('code')
+                        <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label for="phone" class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" placeholder="Phone No" oninput="validatePhoneNumber(this)">
+                        <small class="validation-message text-danger" id="phone-validation-message"></small>
+                        @error('phone')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
 
                     <div class="col-md-3 mb-3">
                         <label for="id_card" class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>
@@ -359,6 +402,61 @@
             $('#country').val('');
             $('#id_card').empty().append('<option value="">Select One</option>');
         }
+    });
+</script>
+
+<!-- Country and City Selection -->
+
+<script>
+    $(document).ready(function() {
+        // Country selection change handler
+        $('#user_country').on('change', function() {
+            const selectedCountry = $(this).val();
+            if (selectedCountry) {
+                // Show loading state for cities
+                $('#city').html('<option>Loading cities...</option>');
+                
+                // Fetch cities for the selected country
+                $.ajax({
+                    url: "{{ route('fetch-cities-by-country') }}",
+                    type: "GET",
+                    data: { country: selectedCountry },
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset and populate cities dropdown
+                        $('#city').html('<option selected disabled value>Select city...</option>');
+                        
+                        if (response.cities && response.cities.length > 0) {
+                            $.each(response.cities, function(key, city) {
+                                $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
+                            });
+                        } else {
+                            $('#city').append('<option disabled>No cities found</option>');
+                        }
+                    },
+                    error: function() {
+                        $('#city').html('<option disabled value>Error loading cities</option>');
+                    }
+                });
+                
+                // Fetch country code for the selected country
+                $.ajax({
+                    url: "{{ route('fetch-country-code') }}",
+                    type: "GET",
+                    data: { country: selectedCountry },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success && response.country_code) {
+                            // Find and select the country code option
+                            $('#inputCountryCode').val(response.country_code).trigger('change');
+                        }
+                    }
+                });
+            } else {
+                // Reset cities dropdown if no country selected
+                $('#city').html('<option selected disabled value>Select country first...</option>');
+            }
+        });
     });
 </script>
 

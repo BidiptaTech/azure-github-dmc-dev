@@ -61,6 +61,9 @@
                             enctype="multipart/form-data">
                             @csrf
                             @method('PUT')
+                            <!-- Hidden input to track removed images -->
+                            <input type="hidden" name="removed_images" id="removed_images" value="">
+                            <input type="hidden" name="removed_master_image" id="removed_master_image" value="">
                             <div class="row">
                                 <!-- Hotel Name -->
                                 @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id ==82|| auth()->user()->role_id == 83)
@@ -609,6 +612,10 @@
                                                 <input type="file" id="master_image" name="master_image" multiple
                                                     style="display: none;">
                                             </div>
+                                            <small class="text-muted mt-1">
+                                                <i class="fas fa-info-circle"></i> 
+                                                Images will be automatically compressed for faster upload.
+                                            </small>
                                         </div>
                                         <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
                                             style="max-width: 30%; overflow-x: auto; white-space: nowrap;"></div>
@@ -633,15 +640,19 @@
 
                                     <!-- Additional Image drop -->
                                     <div class="mt-3 mb-3 col-md-8">
-                                        <div>
-                                            <label for="images" class="form-label"><strong>Additional
-                                                    Images</strong></label>
-                                            <div id="drop-area" class="form-control"
-                                                style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                                Drag & Drop your files here or click to upload.
-                                                <input type="file" id="images" name="images[]" multiple
-                                                    style="display: none;">
-                                            </div>
+                                                                            <div>
+                                        <label for="images" class="form-label"><strong>Additional
+                                                Images</strong></label>
+                                        <div id="drop-area" class="form-control"
+                                            style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
+                                            Drag & Drop your files here or click to upload.
+                                            <input type="file" id="images" name="images[]" multiple
+                                                style="display: none;">
+                                        </div>
+                                        <small class="text-muted mt-1">
+                                            <i class="fas fa-info-circle"></i> 
+                                            Images will be automatically compressed for faster upload and better performance.
+                                        </small>
 
                                             <div id="preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
                                                 style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
@@ -950,16 +961,95 @@
         handleFiles(e.dataTransfer.files);
     });
 
-    function handleFiles(newFiles) {
-        // Append new files to the list
-        Array.from(newFiles).forEach(file => {
+    async function handleFiles(newFiles) {
+        // Show compression progress
+        showCompressionProgress('additional');
+        
+        // Process files sequentially to avoid overwhelming the browser
+        for (const file of Array.from(newFiles)) {
             if (file.type.startsWith('image/')) {
-                files.push(file);
+                try {
+                    // Compress image before adding to the list
+                    const compressedFile = await compressImage(file);
+                    files.push(compressedFile);
+                } catch (error) {
+                    console.error('Error compressing image:', error);
+                    alert(`Error processing ${file.name}. Please try again.`);
+                }
             } else {
                 alert(`${file.name} is not a valid image file.`);
             }
-        });
+        }
+        
+        // Hide compression progress and update file list
+        hideCompressionProgress('additional');
         updateFileList();
+    }
+
+    // Image compression function
+    async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Calculate new dimensions
+                let { width, height } = calculateDimensions(img.width, img.height, maxWidth, maxHeight);
+                
+                // Set canvas dimensions
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to blob
+                canvas.toBlob(function(blob) {
+                    // Create new file with compressed data
+                    const compressedFile = new File([blob], file.name, {
+                        type: file.type,
+                        lastModified: Date.now()
+                    });
+                    
+                    // Show compression results in console
+                    showCompressionResult(file.size, compressedFile.size);
+                    
+                    resolve(compressedFile);
+                }, file.type, quality);
+            };
+            
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    function calculateDimensions(width, height, maxWidth, maxHeight) {
+        if (width <= maxWidth && height <= maxHeight) {
+            return { width, height };
+        }
+        
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        return {
+            width: Math.round(width * ratio),
+            height: Math.round(height * ratio)
+        };
+    }
+
+    // Helper function to format file sizes
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Show compression results
+    function showCompressionResult(originalSize, compressedSize) {
+        if (originalSize > compressedSize) {
+            const savings = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+            console.log(`Image compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} (${savings}% smaller)`);
+        }
     }
 
     function updateFileList() {
@@ -1062,11 +1152,23 @@
                 // Find the image preview wrapper
                 const imageWrapper = button.closest('.existing-image-preview-wrapper');
                 if (imageWrapper) {
-                    // Find and remove the associated hidden input field for the image
+                    // Find and get the image path from the hidden input field
                     const hiddenInput = imageWrapper.querySelector('input[type="hidden"]');
+                    let imagePath = '';
+                    
                     if (hiddenInput) {
+                        imagePath = hiddenInput.value;
                         hiddenInput.remove(); // Remove the hidden input
                     }
+                    
+                    // Add the removed image path to the tracking input
+                    if (imagePath) {
+                        const removedImagesInput = document.getElementById('removed_images');
+                        let removedImages = removedImagesInput.value ? removedImagesInput.value.split(',') : [];
+                        removedImages.push(imagePath);
+                        removedImagesInput.value = removedImages.join(',');
+                    }
+                    
                     // Remove the image wrapper (image and button)
                     imageWrapper.remove();
                 }
@@ -1108,24 +1210,81 @@
     });
 
     // Process and display files
-    function masterHandleFiles(files) {
-        Array.from(files).forEach(file => {
+    async function masterHandleFiles(files) {
+        // Show compression progress
+        showCompressionProgress('master');
+        
+        for (const file of Array.from(files)) {
             if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    // If an image already exists, remove it before adding the new one
-                    if (masterFileCounter > 0) {
-                        masterPreviewContainer.innerHTML = ''; // Clear the existing preview
-                        masterFileCounter = 0; // Reset the file counter
-                    }
-                    masterFileCounter++;
-                    masterImagePreview(e.target.result);
-                };
-                reader.readAsDataURL(file);
+                try {
+                    // Compress the image
+                    const compressedFile = await compressImage(file);
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        // If an image already exists, remove it before adding the new one
+                        if (masterFileCounter > 0) {
+                            masterPreviewContainer.innerHTML = ''; // Clear the existing preview
+                            masterFileCounter = 0; // Reset the file counter
+                        }
+                        masterFileCounter++;
+                        masterImagePreview(e.target.result);
+                        
+                        // Update the file input with compressed file
+                        const dt = new DataTransfer();
+                        dt.items.add(compressedFile);
+                        masterFileInput.files = dt.files;
+                    };
+                    reader.readAsDataURL(compressedFile);
+                } catch (error) {
+                    console.error('Error compressing image:', error);
+                    alert(`Error processing ${file.name}. Please try again.`);
+                }
             } else {
                 alert(`${file.name} is not a valid image file.`);
             }
-        });
+        }
+        
+        // Hide compression progress
+        hideCompressionProgress('master');
+    }
+
+    // Show compression progress
+    function showCompressionProgress(container) {
+        const progressId = container + '-progress';
+        const existingProgress = document.getElementById(progressId);
+        
+        if (!existingProgress) {
+            const progressDiv = document.createElement('div');
+            progressDiv.id = progressId;
+            progressDiv.className = 'compression-progress';
+            progressDiv.innerHTML = `
+                <div class="alert alert-info d-flex align-items-center mb-3" role="alert" style="border-radius: 8px; border: 1px solid #bee5eb;">
+                    <div class="spinner-border spinner-border-sm me-2" role="status" style="color: #0c5460;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div style="color: #0c5460; font-weight: 500;">
+                        <i class="fas fa-compress-alt me-1"></i>
+                        Compressing images for faster upload...
+                    </div>
+                </div>
+            `;
+            
+            if (container === 'master') {
+                masterPreviewContainer.appendChild(progressDiv);
+            } else if (container === 'additional') {
+                fileList.appendChild(progressDiv);
+            }
+        }
+    }
+
+    // Hide compression progress
+    function hideCompressionProgress(container) {
+        const progressId = container + '-progress';
+        const progressDiv = document.getElementById(progressId);
+        if (progressDiv) {
+            progressDiv.remove();
+        }
     }
 
     // Add image preview with limited visibility and a "more" badge
@@ -1218,7 +1377,7 @@
     });
 </script>
 
-<!-- delete existing Image -->
+<!-- delete existing master Image -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Use event delegation for dynamically added elements
@@ -1231,10 +1390,19 @@
                 // Find the image preview wrapper
                 const imageWrapper = button.closest('.image-preview-wrapper');
                 if (imageWrapper) {
-                    // Find and remove the associated hidden input field for the image
-                    const hiddenInput = imageWrapper.querySelector('input[type="hidden"]');
-                    if (hiddenInput) {
-                        hiddenInput.remove(); // Remove the hidden input
+                    // Get the image path from the data attribute or img src
+                    const img = imageWrapper.querySelector('img');
+                    let imagePath = '';
+                    
+                    if (img) {
+                        // Extract the image path from the src attribute
+                        imagePath = button.getAttribute('data-image') || img.src;
+                    }
+                    
+                    // Add the removed master image path to the tracking input
+                    if (imagePath) {
+                        const removedMasterImageInput = document.getElementById('removed_master_image');
+                        removedMasterImageInput.value = imagePath;
                     }
 
                     // Remove the image wrapper (image and button)
