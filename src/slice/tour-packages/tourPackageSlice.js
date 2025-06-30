@@ -51,7 +51,8 @@ export const fetchTourPackages = createAsyncThunk(
       const response = await axios.post(
         `${BASE_URL}/create-tour`, 
         {
-          destination: country || city,
+          destination: country,
+          city: city,
           check_in: checkIn,
           check_out: checkOut,
           adult: guests.adults,

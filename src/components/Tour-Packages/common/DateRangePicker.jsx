@@ -9,14 +9,48 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-const DateRangePicker = ({ onDateChange }) => {
+const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut }) => {
   const today = new DateObject(); // Current date
   const tomorrow = new DateObject().add(1, "day"); // Tomorrow's date
 
-  const [dates, setDates] = useState([today, tomorrow]); // Default selection: today and tomorrow
+  // Check if dates are coming from packageData
+  const isFromPackageData = Boolean(defaultCheckIn && defaultCheckOut);
+
+  // Initialize dates with defaults from packageData if available
+  const getInitialDates = () => {
+    if (defaultCheckIn && defaultCheckOut) {
+      try {
+        // Convert date strings to DateObject
+        const checkInDate = new DateObject(defaultCheckIn);
+        const checkOutDate = new DateObject(defaultCheckOut);
+        console.log('Auto-setting dates from packageData:', { checkInDate, checkOutDate });
+        return [checkInDate, checkOutDate];
+      } catch (error) {
+        console.error('Error parsing default dates:', error);
+        return [today, tomorrow];
+      }
+    }
+    return [today, tomorrow];
+  };
+
+  const [dates, setDates] = useState(getInitialDates()); // Use initial dates
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const prevDatesRef = useRef([today, tomorrow]);
+  const prevDatesRef = useRef(getInitialDates());
+
+  // Update dates when defaultCheckIn/defaultCheckOut changes
+  React.useEffect(() => {
+    if (defaultCheckIn && defaultCheckOut) {
+      try {
+        const checkInDate = new DateObject(defaultCheckIn);
+        const checkOutDate = new DateObject(defaultCheckOut);
+        setDates([checkInDate, checkOutDate]);
+        prevDatesRef.current = [checkInDate, checkOutDate];
+      } catch (error) {
+        console.error('Error updating dates from props:', error);
+      }
+    }
+  }, [defaultCheckIn, defaultCheckOut]);
 
   useEffect(() => {
     // Only call onDateChange if dates actually changed

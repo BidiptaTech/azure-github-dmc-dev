@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSelector, useDispatch } from 'react-redux';
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -6,7 +6,7 @@ import { BASE_URL, endpoints } from "@/services/api";
 
 import { setCity } from "@/slice/common/citySlice";
 
-const LocationSearch = ({ onLocationSelect }) => {
+const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) => {
   const dispatch = useDispatch();
   const [searchValueCountry, setSearchValueCountry] = useState("");
   const [searchValueCity, setSearchValueCity] = useState("");
@@ -19,6 +19,7 @@ const LocationSearch = ({ onLocationSelect }) => {
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [cityList, setCityList] = useState([]);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [isFromPackageData, setIsFromPackageData] = useState(false);
   const countryListRef = useRef(null);
   const cityListRef = useRef(null);
   const countryInputRef = useRef(null);
@@ -36,31 +37,28 @@ const LocationSearch = ({ onLocationSelect }) => {
 
   // Process available countries from user_country
   const availableCountries = useMemo(() => {
-    return user_country && typeof user_country === 'string'
-      ? user_country.split(',').map((country, index) => ({ 
-          name: country.trim(),
-          code: country.trim().toLowerCase(), 
-          key: `country-${index}`
-        }))
-      : defaultCountries;
+    if (user_country && Array.isArray(user_country)) {
+      // Handle array format with objects containing name and code
+      return user_country.map((country, index) => ({
+        name: country.name || country,
+        code: country.code || country.toLowerCase(),
+        key: `country-${index}`
+      }));
+    } else if (user_country && typeof user_country === 'string') {
+      // Handle string format (comma-separated country names)
+      return user_country.split(',').map((country, index) => ({ 
+        name: country.trim(),
+        code: country.trim().toLowerCase(), 
+        key: `country-${index}`
+      }));
+    } else {
+      // Fallback to default countries
+      return defaultCountries;
+    }
   }, [user_country]);
 
-  // Filter and suggest countries based on search input
-  useEffect(() => {
-    if (searchValueCountry && !selectedCountry) {
-      const filtered = availableCountries.filter((country) =>
-        country.name.toLowerCase().includes(searchValueCountry.toLowerCase())
-      );
-      setCountrySuggestions(filtered);
-      setIsCountryDropdownOpen(true);
-    } else {
-      setCountrySuggestions(availableCountries.slice(0, 5));
-      setIsCountryDropdownOpen(false);
-    }
-  }, [searchValueCountry, selectedCountry, availableCountries]);
-
   // Fetch cities when a country is selected
-  const fetchCities = async (country) => {
+  const fetchCities = useCallback(async (country) => {
     setIsLoadingCities(true);
     try {
       // Make API call to fetch cities for the selected country
@@ -104,6 +102,36 @@ const LocationSearch = ({ onLocationSelect }) => {
       dispatch(setCity(response.data.cities));
       setCityList(formattedCities);
       setCitySuggestions(formattedCities);
+
+      // Auto-select city if defaultCity is provided
+      if (defaultCity && formattedCities.length > 0 && !selectedCity) {
+        console.log('Auto-selecting city from packageData:', defaultCity);
+        
+        // Find matching city by name (case-insensitive)
+        const matchingCity = formattedCities.find(city => 
+          city.name.toLowerCase() === defaultCity.toLowerCase()
+        );
+        
+        if (matchingCity) {
+          console.log('Found matching city:', matchingCity);
+          setSearchValueCity(matchingCity.name);
+          setSelectedCity(matchingCity);
+          setIsCityDropdownOpen(false);
+          setIsFromPackageData(true);
+          
+          // Call the callback to notify parent component
+          if (onLocationSelect) {
+            onLocationSelect({
+              country: country.name,
+              countryCode: country.code,
+              city: matchingCity.name,
+              cityCode: matchingCity.code
+            });
+          }
+        } else {
+          console.log('No matching city found for defaultCity:', defaultCity);
+        }
+      }
     } catch (error) {
       console.error("Error fetching cities:", error);
       setCityList([]);
@@ -111,7 +139,53 @@ const LocationSearch = ({ onLocationSelect }) => {
     } finally {
       setIsLoadingCities(false);
     }
-  };
+  }, [dispatch, defaultCity, selectedCity, onLocationSelect]);
+
+  // Auto-select country based on defaultDestination prop
+  useEffect(() => {
+    if (defaultDestination && availableCountries.length > 0 && !selectedCountry) {
+      console.log('Checking defaultDestination:', defaultDestination);
+      console.log('Available countries:', availableCountries);
+      
+      // Find matching country by name (case-insensitive)
+      const matchingCountry = availableCountries.find(country => 
+        country.name.toLowerCase() === defaultDestination.toLowerCase()
+      );
+      
+      if (matchingCountry) {
+        console.log('Found matching country:', matchingCountry);
+        // Auto-select the matching country
+        setSearchValueCountry(matchingCountry.name);
+        setSelectedCountry(matchingCountry);
+        setIsCountryDropdownOpen(false);
+        setIsFromPackageData(true);
+        
+        // Clear any previously selected city
+        setSearchValueCity("");
+        setSelectedCity(null);
+        setCityList([]);
+        
+        // Automatically fetch cities for the selected country
+        fetchCities(matchingCountry);
+      } else {
+        console.log('No matching country found for destination:', defaultDestination);
+      }
+    }
+  }, [defaultDestination, availableCountries, selectedCountry, fetchCities]);
+
+  // Filter and suggest countries based on search input
+  useEffect(() => {
+    if (searchValueCountry && !selectedCountry) {
+      const filtered = availableCountries.filter((country) =>
+        country.name.toLowerCase().includes(searchValueCountry.toLowerCase())
+      );
+      setCountrySuggestions(filtered);
+      setIsCountryDropdownOpen(true);
+    } else {
+      setCountrySuggestions(availableCountries.slice(0, 5));
+      setIsCountryDropdownOpen(false);
+    }
+  }, [searchValueCountry, selectedCountry, availableCountries]);
 
   // Filter and suggest cities based on selected country and search input
   useEffect(() => {
@@ -133,7 +207,7 @@ const LocationSearch = ({ onLocationSelect }) => {
       setCitySuggestions([]);
       setIsCityDropdownOpen(false);
     }
-  }, [searchValueCity, selectedCountry, cityList, isLoadingCities]);
+  }, [searchValueCity, selectedCountry, cityList, isLoadingCities, fetchCities]);
 
   // Ensure highlighted item is visible in scroll
   useEffect(() => {
@@ -374,13 +448,15 @@ const LocationSearch = ({ onLocationSelect }) => {
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 padding: '0 15px',
-                fontSize: '15px'
+                fontSize: '15px',
+                backgroundColor: isFromPackageData ? '#f5f5f5' : 'white',
+                cursor: isFromPackageData ? 'default' : 'text'
               }}
               value={searchValueCountry}
               onChange={handleCountryInputChange}
               onFocus={handleCountryInputFocus}
               onKeyDown={handleCountryKeyDown}
-              readOnly={selectedCountry !== null}
+              readOnly={selectedCountry !== null || isFromPackageData}
             />
             
             {isCountryDropdownOpen && countrySuggestions.length > 0 && (
@@ -472,14 +548,15 @@ const LocationSearch = ({ onLocationSelect }) => {
                 borderRadius: '4px',
                 padding: '0 15px',
                 fontSize: '15px',
-                backgroundColor: selectedCountry ? 'white' : '#f5f5f5'
+                backgroundColor: selectedCountry ? (isFromPackageData ? '#f5f5f5' : 'white') : '#f5f5f5',
+                cursor: isFromPackageData ? 'default' : (selectedCountry ? 'text' : 'not-allowed')
               }}
               value={searchValueCity}
               onChange={handleCityInputChange}
               onFocus={handleCityInputFocus}
               onKeyDown={handleCityKeyDown}
               disabled={!selectedCountry}
-              readOnly={selectedCity !== null}
+              readOnly={selectedCity !== null || isFromPackageData}
             />
             
             {isLoadingCities && (
