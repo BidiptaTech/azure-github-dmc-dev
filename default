@@ -5,21 +5,6 @@ server {
     index index.php index.html index.htm;
     server_name _;
 
-    # Increase client body size for large uploads
-    client_max_body_size 100M;
-    
-    # Increase timeout values
-    client_body_timeout 300s;
-    client_header_timeout 300s;
-    proxy_connect_timeout 300s;
-    proxy_send_timeout 300s;
-    proxy_read_timeout 300s;
-    
-    # Buffer settings for large requests
-    client_body_buffer_size 1M;
-    client_header_buffer_size 1k;
-    large_client_header_buffers 4 16k;
-
     # Force HTTPS for all requests
     if ($http_x_forwarded_proto != "https") {
         return 301 https://$host$request_uri;
@@ -41,16 +26,6 @@ server {
             fastcgi_param SERVER_PORT 443;
             fastcgi_param HTTP_X_FORWARDED_PROTO https;
             fastcgi_pass 127.0.0.1:9000;
-            
-            # Increase FastCGI timeouts
-            fastcgi_read_timeout 300;
-            fastcgi_send_timeout 300;
-            fastcgi_connect_timeout 300;
-            
-            # Increase buffer sizes
-            fastcgi_buffer_size 128k;
-            fastcgi_buffers 4 256k;
-            fastcgi_busy_buffers_size 256k;
         }
     }
     
@@ -77,16 +52,6 @@ server {
         fastcgi_param SERVER_PORT 443;
         fastcgi_param HTTP_X_FORWARDED_PROTO https;
         fastcgi_pass 127.0.0.1:9000;
-        
-        # Increase FastCGI timeouts
-        fastcgi_read_timeout 300;
-        fastcgi_send_timeout 300;
-        fastcgi_connect_timeout 300;
-        
-        # Increase buffer sizes
-        fastcgi_buffer_size 128k;
-        fastcgi_buffers 4 256k;
-        fastcgi_busy_buffers_size 256k;
     }
 
     # Security headers
