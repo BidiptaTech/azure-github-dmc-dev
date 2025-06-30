@@ -35,6 +35,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockIcon from '@mui/icons-material/Lock';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+// import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useDispatch, useSelector } from 'react-redux';
 import { bookPackage, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 
@@ -346,6 +347,8 @@ const selectedDate = searchParams?.date ?
                 </Box>
               </Paper>
             )}
+
+          
 
             <Paper elevation={0} sx={{ p: 3, borderRadius: '12px' }}>
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, color: '#3f51b5' }}>

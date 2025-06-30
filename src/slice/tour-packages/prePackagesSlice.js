@@ -19,6 +19,7 @@ export const fetchPackages = createAsyncThunk(
 // Async thunk for fetching package details
 export const fetchPackageDetails = createAsyncThunk(
   'prePackages/fetchPackageDetails',
+  // async (packageId, { rejectWithValue, getState }) => {
   async (packageId, { rejectWithValue, getState }) => {
     try {
       // Get the searchParams from state
@@ -40,6 +41,27 @@ export const fetchPackageDetails = createAsyncThunk(
           arrival_date: searchParams.arrival_date
         };
       }
+      
+      return packageDetails;
+      // Get the searchParams from state
+      // const state = getState();
+      // const searchParams = state.prePackages.searchParams;
+      
+      // Fetch the package details
+        // const response = await endpoints.fetchPackageDetails({ 
+        //   package_id: packageId,
+        //   // Include arrival_date if available from searchParams
+        //   ...(searchParams?.arrival_date && { arrival_date: searchParams.arrival_date })
+        // });
+      
+      // Merge the arrival_date from searchParams into the response data if available
+      // const packageDetails = response.data;
+      // if (searchParams?.arrival_date) {
+      //   return {
+      //     ...packageDetails,
+      //     arrival_date: searchParams.arrival_date
+      //   };
+      // }
       
       return packageDetails;
     } catch (error) {

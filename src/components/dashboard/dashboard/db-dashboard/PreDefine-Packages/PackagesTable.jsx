@@ -8,8 +8,10 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  
   TableRow,
   Typography,
+  
   Paper,
   IconButton,
   Tooltip,
@@ -41,6 +43,7 @@ import {
 import { getSorting } from "./utils.jsx";
 import { StatusChip, PaymentStatusChip } from "./StatusChips";
 import BookingViewModal from './BookingViewModal';
+// import BookingViewModal from './BookingViewModal';
 
 // Package Table Component
 const PackagesTable = ({ data = [], emptyMessage = "No packages available" }) => {
@@ -156,8 +159,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available" }) =>
     );
   }
 
+
   // Sort the data
   const sortedData = [...data].sort(getSorting(order, orderBy));
+
 
   return (
     <>

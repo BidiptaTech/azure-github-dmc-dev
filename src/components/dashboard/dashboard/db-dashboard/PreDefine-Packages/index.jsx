@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPackageBookingLists } from "../../../../../slice/tour-packages/prePackagesSlice";
+
 import {
     Box,
     Tab,
@@ -24,6 +25,8 @@ import {
     TextField,
     InputAdornment,
     CircularProgress
+    
+    
 } from "@mui/material";
 import {
     DonutLarge,
@@ -54,8 +57,12 @@ import {
     Attractions,
     Restaurant,
     EmojiPeople,
-    FilterAltOff,
+    
     DateRange,
+    
+    
+    FilterAltOff,
+    
     ClearAll
 } from "@mui/icons-material";
 import { TabPanel, a11yProps } from "./TabPanel";
@@ -849,6 +856,7 @@ const PreDefinePackages = () => {
                                 Ongoing
                                 <Badge
                                     badgeContent={processedData.ongoing.length}
+                                    
                                     color="primary"
                                     sx={{
                                         position: 'absolute',
@@ -873,6 +881,7 @@ const PreDefinePackages = () => {
                                 Upcoming
                                 <Badge
                                     badgeContent={processedData.upcoming.length}
+                                
                                     color="primary"
                                     sx={{
                                         position: 'absolute',
@@ -897,6 +906,7 @@ const PreDefinePackages = () => {
                                 Past
                                 <Badge
                                     badgeContent={processedData.past.length}
+                                    
                                     color="primary"
                                     sx={{
                                         position: 'absolute',

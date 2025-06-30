@@ -25,23 +25,6 @@ import {
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
-const countryCodes = [
-  { code: "US", name: "United States", dialCode: "+1" },
-  { code: "AE", name: "United Arab Emirates", dialCode: "+971" },
-  { code: "IN", name: "India", dialCode: "+91" },
-  { code: "SG", name: "Singapore", dialCode: "+65" },
-  { code: "VN", name: "Vietnam", dialCode: "+84" },
-  { code: "MY", name: "Malaysia", dialCode: "+60" },
-  { code: "PH", name: "Philippines", dialCode: "+63" },
-  { code: "ID", name: "Indonesia", dialCode: "+62" },
-  { code: "TH", name: "Thailand", dialCode: "+66" },
-  { code: "HK", name: "Hong Kong", dialCode: "+852" },
-  { code: "MO", name: "Macau", dialCode: "+853" },
-  { code: "JP", name: "Japan", dialCode: "+81" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44" },
-  { code: "AU", name: "Australia", dialCode: "+61" },
-  // Add more country codes as needed
-];
 
 const CustomerInfo = forwardRef(
   (
@@ -55,10 +38,6 @@ const CustomerInfo = forwardRef(
       priceMode,
       handleSubmit: parentHandleSubmit,
       handleEnquirySubmit,
-      // enquiryAmount,
-      // enquiryComment,
-      // onEnquiryAmountChange,
-      // onEnquiryCommentChange,
     },
     ref
   ) => {
@@ -68,13 +47,14 @@ const CustomerInfo = forwardRef(
     );
     const navigate = useNavigate();
 
-    // Get country code and dial length details from Redux auth state
-    const countryCodeFromRedux = useSelector((state) => state.auth.countryCode);
-    const dialMaxLength = useSelector((state) => state.auth.dialMaxLength) || 15; // Default to 15 if not available
-    const dialMinLength = useSelector((state) => state.auth.dialMinLength) || 7;  // Default to 7 if not available
-    console.log("countryCode from Redux:", countryCodeFromRedux);
-    console.log("dialMaxLength from Redux:", dialMaxLength);
-    console.log("dialMinLength from Redux:", dialMinLength);
+    // Get user_country from auth slice (similar to activity-single)
+    const user_country = useSelector((state) => state.auth.user_country);
+    console.log("user_country", user_country);
+
+    // State for selected country and dynamic validation (like activity-single)
+    const [selectedCountry, setSelectedCountry] = useState(null);
+    const [dialMinLength, setDialMinLength] = useState(8);
+    const [dialMaxLength, setDialMaxLength] = useState(15);
 
     // Add this to get existing user info from Redux store
     const existingUserInfo = useSelector(
@@ -128,151 +108,18 @@ const CustomerInfo = forwardRef(
     const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
     const mode = useSelector((state) => state.category.priceMode);
 
-    // Get customer information from various Redux slices
-    // const entryport = useSelector((state) => state.pickupDrop?.entryport?.[0] || {});
-    // const exitport = useSelector((state) => state.pickupDrop?.exitport?.[0] || {});
-    // const travelPoint = useSelector((state) => state.localtour?.pointtopoint?.[0] || {});
-    // const travelHourly = useSelector((state) => state.localtour?.hourly?.[0] || {});
-    // const attraction = useSelector((state) => state.attractions?.services?.[0] || {});
-    // const restaurant = useSelector((state) => state.restaurants?.services?.[0] || {});
-    // const guide = useSelector((state) => state.tourguide?.bookedguide?.[0] || {});
-    // const hotel = useSelector((state) => state.hotels?.submitHotels?.[0] || {});
-
-    // Refs to track previous values
-    // const prevEntryportRef = useRef();
-    // const prevExitportRef = useRef();
-    // const prevAttractionRef = useRef();
-    // const prevRestaurantRef = useRef();
-    // const prevGuideRef = useRef();
-    // const prevHotelRef = useRef();
-    // const prevTravelPointRef = useRef();
-    // const prevTravelHourlyRef = useRef();
-
-    // Calculate converted prices
-    // const convertedTotalPrice = totalPrice * (priceMode === "dmc" ? exchangeRate : usdExchangeRate);
-    // const usdTotalPrice = totalPrice * usdExchangeRate;
-
-    // Add this effect to automatically set country code based on search location
+    // Initialize selected country from user_country array (like activity-single)
     useEffect(() => {
-      if (searchLocation && searchLocation[0]) {
-        const country = countryCodes.find(
-          (c) => c.code.toLowerCase() === searchLocation[0].toLowerCase()
-        );
-        if (country) {
-          setForm((prev) => ({ ...prev, countryCode: country.dialCode }));
-          // Also update localStorage
-          localStorage.setItem(
-            "lastHotelUserInfo",
-            JSON.stringify({
-              ...form,
-              countryCode: country.dialCode,
-            })
-          );
-        }
-      }
-    }, [searchLocation]); // Add searchLocation as dependency
-
-    // Also update the autofill effect to include countryCode
-    // useEffect(() => {
-    //   if (!isAutofilled) {
-    //     const dataSources = [
-    //       entryport,
-    //       exitport,
-    //       attraction,
-    //       restaurant,
-    //       guide,
-    //       hotel,
-    //       travelPoint,
-    //       travelHourly,
-    //     ];
-
-    //     const filledData = dataSources.find(
-    //       (data) => data && Object.keys(data).length > 0
-    //     );
-
-    //     if (filledData) {
-    //       setForm((prevForm) => ({
-    //         ...prevForm,
-    //         fullName: filledData.fullName || prevForm.fullName,
-    //         email: filledData.email || prevForm.email,
-    //         phone: filledData.phone || prevForm.phone,
-    //         countryCode: filledData.countryCode || prevForm.countryCode,
-    //         address1: filledData.address1 || prevForm.address1,
-    //         address2: filledData.address2 || prevForm.address2,
-    //         state: filledData.state || prevForm.state,
-    //         zip: filledData.zip || prevForm.zip,
-    //         specialRequests: filledData.specialRequests || prevForm.specialRequests,
-    //       }));
-    //       setIsAutofilled(true);
-    //     }
-    //   }
-    // }, [
-    //   entryport,
-    //   exitport,
-    //   attraction,
-    //   restaurant,
-    //   guide,
-    //   hotel,
-    //   travelPoint,
-    //   travelHourly,
-    //   isAutofilled,
-    // ]);
-
-    // Effect to log changes for debugging
-    // useEffect(() => {
-    //   if (entryport !== prevEntryportRef.current) {
-    //     console.log("Entryport changed:", entryport);
-    //     prevEntryportRef.current = entryport;
-    //   }
-    //   if (exitport !== prevExitportRef.current) {
-    //     console.log("Exitport changed:", exitport);
-    //     prevExitportRef.current = exitport;
-    //   }
-    //   if (attraction !== prevAttractionRef.current) {
-    //     console.log("Attraction changed:", attraction);
-    //     prevAttractionRef.current = attraction;
-    //   }
-    //   if (restaurant !== prevRestaurantRef.current) {
-    //     console.log("Restaurant changed:", restaurant);
-    //     prevRestaurantRef.current = restaurant;
-    //   }
-    //   if (guide !== prevGuideRef.current) {
-    //     console.log("Guide changed:", guide);
-    //     prevGuideRef.current = guide;
-    //   }
-    //   if (hotel !== prevHotelRef.current) {
-    //     console.log("Hotel changed:", hotel);
-    //     prevHotelRef.current = hotel;
-    //   }
-    //   if (travelPoint !== prevTravelPointRef.current) {
-    //     console.log("Travel Point changed:", travelPoint);
-    //     prevTravelPointRef.current = travelPoint;
-    //   }
-    //   if (travelHourly !== prevTravelHourlyRef.current) {
-    //     console.log("Travel Hourly changed:", travelHourly);
-    //     prevTravelHourlyRef.current = travelHourly;
-    //   }
-    // }, [
-    //   entryport,
-    //   exitport,
-    //   attraction,
-    //   restaurant,
-    //   guide,
-    //   hotel,
-    //   travelPoint,
-    //   travelHourly,
-    // ]);
-
-    // Set the initial country code based on Redux state, similar to activity-single CustomerInfo
-    useEffect(() => {
-      const selectedCountry = countryCodes.find(
-        (country) => country.code === countryCodeFromRedux
-      );
-      if (selectedCountry) {
+      if (user_country && user_country.length > 0) {
+        // Set default to first country in the array
+        const defaultCountry = user_country[0];
+        setSelectedCountry(defaultCountry);
+        setDialMinLength(defaultCountry.contact_min_length);
+        setDialMaxLength(defaultCountry.contact_max_length);
         setForm((prevForm) => {
           const updatedForm = {
             ...prevForm,
-            countryCode: selectedCountry.dialCode, // Set the dial code based on Redux state
+            countryCode: defaultCountry.country_code,
           };
           
           // Also update localStorage
@@ -284,7 +131,63 @@ const CustomerInfo = forwardRef(
           return updatedForm;
         });
       }
-    }, [countryCodeFromRedux]); // Run effect when countryCodeFromRedux changes
+    }, [user_country]);
+
+    // Handler for country selection (like activity-single)
+    const handleCountryChange = (event) => {
+      const selectedCountryCode = event.target.value;
+      const country = user_country.find(c => c.code === selectedCountryCode);
+      
+      if (country) {
+        setSelectedCountry(country);
+        setDialMinLength(country.contact_min_length);
+        setDialMaxLength(country.contact_max_length);
+        const updatedForm = {
+          ...form,
+          countryCode: country.country_code,
+        };
+        setForm(updatedForm);
+        
+        // Update localStorage
+        localStorage.setItem("lastHotelUserInfo", JSON.stringify(updatedForm));
+        
+        // Update parent component
+        onFormChange(updatedForm);
+        
+        // Re-validate phone if it's already touched
+        if (touched.phone && form.phone) {
+          const phoneError = validateField('phone', form.phone);
+          setErrors((prevErrors) => ({
+            ...prevErrors,
+            phone: phoneError,
+          }));
+        }
+      }
+    };
+
+    // Add this effect to automatically set country code based on search location
+    useEffect(() => {
+      if (searchLocation && searchLocation[0] && user_country) {
+        const country = user_country.find(
+          (c) => c.code.toLowerCase() === searchLocation[0].toLowerCase()
+        );
+        if (country) {
+          setSelectedCountry(country);
+          setDialMinLength(country.contact_min_length);
+          setDialMaxLength(country.contact_max_length);
+          const updatedForm = {
+            ...form,
+            countryCode: country.country_code,
+          };
+          setForm(updatedForm);
+          // Also update localStorage
+          localStorage.setItem(
+            "lastHotelUserInfo",
+            JSON.stringify(updatedForm)
+          );
+        }
+      }
+    }, [searchLocation, user_country]);
 
     const validateField = (name, value) => {
       let error = "";
@@ -307,7 +210,7 @@ const CustomerInfo = forwardRef(
           break;
 
         case "phone":
-          // Use the dialMinLength and dialMaxLength from Redux for validation
+          // Use dynamic dial lengths from selected country (like activity-single)
           const phoneRegex = new RegExp(`^\\d{${dialMinLength},${dialMaxLength}}$`);
           if (!value) {
             error = "Phone number is required";
@@ -425,27 +328,6 @@ const CustomerInfo = forwardRef(
       }
     };
 
-    // Add effect to update Redux store when form changes
-    // useEffect(() => {
-    //   if (form.fullName) {
-    //     // Only update if form has some data
-    //     dispatch(setUserInfo(form));
-    //   }
-    // }, [form, dispatch]);
-
-    // Add handlers for enquiry input
-    // const handleEnquiryAmountChange = (e) => {
-    //   const newValue = parseFloat(e.target.value);
-    //   if (newValue <= totalPrice && newValue > 0) {
-    //     onEnquiryAmountChange(newValue);
-    //   }
-    // };
-
-    // const handleEnquiryCommentChange = (e) => {
-    //   onEnquiryCommentChange(e.target.value);
-    //   setCommentError(false);
-    // };
-
     return (
       <>
         <Grid container spacing={4}>
@@ -499,7 +381,45 @@ const CustomerInfo = forwardRef(
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                         <span>{form.countryCode}</span>
+                          <FormControl 
+                            variant="standard" 
+                            sx={{ 
+                              minWidth: 80,
+                              marginRight: 1,
+                              '& .MuiInput-underline:before': { display: 'none' },
+                              '& .MuiInput-underline:after': { display: 'none' },
+                              '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                            }}
+                          >
+                            <Select
+                              value={selectedCountry?.code || ''}
+                              onChange={handleCountryChange}
+                              disableUnderline
+                              sx={{
+                                fontSize: '0.875rem',
+                                '& .MuiSelect-select': {
+                                  paddingRight: '20px !important',
+                                  paddingLeft: 0,
+                                  paddingTop: 0,
+                                  paddingBottom: 0,
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                },
+                                '& .MuiSvgIcon-root': {
+                                  fontSize: '1rem'
+                                }
+                              }}
+                            >
+                              {user_country && user_country.map((country) => (
+                                <MenuItem key={country.code} value={country.code}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                                  </Box>
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
                         </InputAdornment>
                       ),
                     }}
@@ -597,81 +517,6 @@ const CustomerInfo = forwardRef(
                     )}
                   </Box>
                 </Grid>
-
-                {/* Enquiry Form */}
-                {/* {showEnquiry && (
-                  <Grid item xs={12}>
-                    <Box
-                      sx={{
-                        mt: 3,
-                        p: 3,
-                        backgroundColor: "#f8faff",
-                        borderRadius: "8px",
-                        border: "1px solid rgba(53, 84, 209, 0.1)",
-                      }}
-                    >
-                      <Typography variant="h6" sx={{ mb: 3, color: "#3554D1" }}>
-                        Enquiry Details
-                      </Typography>
-                      <Grid container spacing={3}>
-                        <Grid item xs={12} md={6}>
-                          <Typography sx={{ mb: 1 }}>
-                            Negotiated Amount
-                          </Typography>
-                          <TextField
-                            fullWidth
-                            type="number"
-                            value={enquiryAmount}
-                            onChange={handleEnquiryAmountChange}
-                            InputProps={{
-                              inputProps: {
-                                max: totalPrice,
-                                min: 1,
-                              },
-                            }}
-                            helperText={`Maximum amount: $${totalPrice}`}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <Typography sx={{ mb: 1 }}>
-                            Comment<span style={{ color: "red" }}> *</span>
-                          </Typography>
-                          <TextField
-                            fullWidth
-                            multiline
-                            rows={4}
-                            value={enquiryComment}
-                            onChange={handleEnquiryCommentChange}
-                            error={commentError}
-                            helperText={
-                              commentError ? "Comment is required" : ""
-                            }
-                            placeholder="Enter your comment"
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <Box
-                            sx={{ display: "flex", justifyContent: "flex-end" }}
-                          >
-                            <button
-                              className="button h-50 px-24 -dark-1 bg-blue-1 text-white"
-                              onClick={() => {
-                                if (!enquiryComment.trim()) {
-                                  setCommentError(true);
-                                  toast.error("Please enter a comment");
-                                  return;
-                                }
-                                handleEnquirySubmit();
-                              }}
-                            >
-                              Submit Enquiry
-                            </button>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  </Grid>
-                )} */}
               </Grid>
             </Box>
           </Grid>
