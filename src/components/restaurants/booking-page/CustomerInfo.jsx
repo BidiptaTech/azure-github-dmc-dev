@@ -9,6 +9,7 @@ import {
   Select,
   MenuItem,
   InputAdornment,
+  FormControl,
 } from "@mui/material";
 import {
   selectUserInfo,
@@ -47,6 +48,12 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEnquiring, setIsEnquiring] = useState(false);
 
+  // State for selected country
+  const [selectedCountry, setSelectedCountry] = useState(null);
+
+  // Get user country from Redux state
+  const user_country = useSelector((state) => state.auth?.user_country || []);
+  
   // Get country code and phone validation values from Redux
   const countryCodeFromRedux = useSelector((state) => state.auth.countryCode);
   const dialMaxLength = useSelector((state) => state.auth.dialMaxLength) || 15;
@@ -77,34 +84,52 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
     specialRequests: "",
   });
 
-  // const [showEnquiry, setShowEnquiry] = useState(false);
-  // const [enquiryAmount, setEnquiryAmount] = useState(() => {
-  //   return restaurantBookings?.[0]?.data?.[0]?.totalPrice || '';
-  // });
-  // const [enquiryComment, setEnquiryComment] = useState('');
-  // const [commentError, setCommentError] = useState(false);
-
   // Add this to get the bookingMode from Redux
   const bookingMode = useSelector((state) => state.common.bookingMode);
 
-  // Set the initial country code based on Redux state
+  // Initialize selected country from user_country array
   useEffect(() => {
-    const selectedCountry = countryCodes.find(
-      (country) => country.code === countryCodeFromRedux
-    );
-    // console.log("Restaurant selected country based on Redux:", selectedCountry);
-    
-    if (selectedCountry) {
-      setFormData((prevForm) => ({
+    if (user_country && user_country.length > 0) {
+      // Set default to first country in the array
+      const defaultCountry = user_country[0];
+      setSelectedCountry(defaultCountry);
+      setFormData(prevForm => ({
         ...prevForm,
-        countryCode: selectedCountry.dialCode, // Set the dial code based on Redux state
+        countryCode: defaultCountry.country_code,
       }));
-      // console.log("Restaurant setting country code to:", selectedCountry.dialCode);
     }
-  }, [countryCodeFromRedux]); // Run effect when countryCodeFromRedux changes
+  }, [user_country]);
+
+  // Handler for country selection
+  const handleCountryChange = (event) => {
+    const selectedCountryCode = event.target.value;
+    const country = user_country.find(c => c.code === selectedCountryCode);
+    
+    if (country) {
+      setSelectedCountry(country);
+      setFormData(prevForm => ({
+        ...prevForm,
+        countryCode: country.country_code,
+      }));
+      
+      // Re-validate phone if it's already touched
+      if (touched.phone && formData.phone) {
+        const phoneError = validateField('phone', formData.phone);
+        setErrors(prev => ({
+          ...prev,
+          phone: phoneError
+        }));
+      }
+    }
+  };
 
   const validateField = (name, value) => {
     let error = "";
+    
+    // Get dynamic min/max length from selectedCountry if available
+    const phoneMinLength = selectedCountry?.contact_min_length || dialMinLength;
+    const phoneMaxLength = selectedCountry?.contact_max_length || dialMaxLength;
+    
     switch (name) {
       case "fullName":
         if (!value.trim()) {
@@ -124,11 +149,11 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         break;
 
       case "phone":
-        const phoneRegex = new RegExp(`^\\d{${dialMinLength},${dialMaxLength}}$`);
+        const phoneRegex = new RegExp(`^\\d{${phoneMinLength},${phoneMaxLength}}$`);
         if (!value) {
           error = "Phone number is required";
         } else if (!phoneRegex.test(value)) {
-          error = `Enter a valid phone number (${dialMinLength}-${dialMaxLength} digits)`;
+          error = `Enter a valid phone number (${phoneMinLength}-${phoneMaxLength} digits)`;
         }
         break;
 
@@ -549,7 +574,48 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <span>{formData.countryCode}</span>
+                      {user_country && user_country.length > 0 ? (
+                        <FormControl 
+                          variant="standard" 
+                          sx={{ 
+                            minWidth: 80,
+                            '& .MuiInput-underline:before': { display: 'none' },
+                            '& .MuiInput-underline:after': { display: 'none' },
+                            '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                          }}
+                        >
+                          <Select
+                            value={selectedCountry?.code || ''}
+                            onChange={handleCountryChange}
+                            disableUnderline
+                            sx={{
+                              fontSize: '0.875rem',
+                              '& .MuiSelect-select': {
+                                paddingRight: '20px !important',
+                                paddingLeft: 0,
+                                paddingTop: 0,
+                                paddingBottom: 0,
+                                display: 'flex',
+                                alignItems: 'center'
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: '1rem'
+                              }
+                            }}
+                          >
+                            {user_country.map((country) => (
+                              <MenuItem key={country.code} value={country.code}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                                  <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      ) : (
+                        formData.countryCode
+                      )}
                     </InputAdornment>
                   ),
                 }}

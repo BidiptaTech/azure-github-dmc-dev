@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPackageBookingLists } from "../../../../../slice/tour-packages/prePackagesSlice";
+
 import {
     Box,
     Tab,
@@ -24,6 +25,8 @@ import {
     TextField,
     InputAdornment,
     CircularProgress
+    
+    
 } from "@mui/material";
 import {
     DonutLarge,
@@ -51,247 +54,37 @@ import {
     Close,
     ArrowUpward,
     ArrowDownward,
-    Attractions, 
+    Attractions,
     Restaurant,
     EmojiPeople,
-    FilterAltOff,
+    
     DateRange,
+    
+    
+    FilterAltOff,
+    
     ClearAll
 } from "@mui/icons-material";
 import { TabPanel, a11yProps } from "./TabPanel";
 import PackagesTable from "./PackagesTable";
 import DateFilter from "./DateFilter";
 
-// Get status chip based on status value
-const StatusChip = ({ status }) => {
-    let color = "default";
-    let icon = <CheckCircleOutline fontSize="small" />;
 
-    const statusStr = typeof status === 'string' ? status : status !== null && status !== undefined ? String(status) : 'Pending';
 
-    switch (statusStr.toLowerCase()) {
-        case "confirmed":
-            color = "success";
-            icon = <CheckCircleOutline fontSize="small" />;
-            break;
-        case "pending":
-            color = "warning";
-            icon = <DonutLarge fontSize="small" />;
-            break;
-        case "cancelled":
-            color = "error";
-            icon = <Close fontSize="small" />;
-            break;
-        case "completed":
-            color = "info";
-            icon = <EventAvailable fontSize="small" />;
-            break;
-        default:
-            color = "default";
-    }
 
-    return (
-        <Chip
-            icon={icon}
-            label={statusStr}
-            color={color}
-            size="small"
-            sx={{ fontWeight: 500, minWidth: '100px', '& .MuiChip-icon': { fontSize: '16px' } }}
-        />
-    );
-};
 
-// Get payment status chip
-const PaymentStatusChip = ({ status }) => {
-    let color = "default";
-    let icon = <AttachMoney fontSize="small" />;
 
-    const statusStr = typeof status === 'string' ? status : status !== null && status !== undefined ? String(status) : 'Unpaid';
-
-    switch (statusStr.toLowerCase()) {
-        case "paid":
-            color = "success";
-            icon = <AttachMoney fontSize="small" />;
-            break;
-        case "partial":
-            color = "warning";
-            icon = <CreditCard fontSize="small" />;
-            break;
-        case "unpaid":
-            color = "error";
-            icon = <CreditCard fontSize="small" />;
-            break;
-        case "refunded":
-            color = "default";
-            icon = <AttachMoney fontSize="small" />;
-            break;
-        default:
-            color = "default";
-    }
-
-    return (
-        <Chip
-            icon={icon}
-            label={statusStr}
-            color={color}
-            size="small"
-            variant="outlined"
-            sx={{ fontWeight: 500, minWidth: '90px', '& .MuiChip-icon': { fontSize: '16px' } }}
-        />
-    );
-};
-
-// Sortable Column Header
-const SortableColumnHeader = ({ label, icon, field, orderBy, order, onRequestSort }) => {
-    const createSortHandler = (property) => (event) => {
-        onRequestSort(event, property);
-    };
-
-    return (
-        <TableCell
-            sortDirection={orderBy === field ? order : false}
-            sx={{
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                '&:hover': { backgroundColor: '#e3f2fd' },
-                transition: 'background-color 0.2s'
-            }}
-            onClick={createSortHandler(field)}
-        >
-            <Tooltip title={`Sort by ${label}`}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {icon}
-                    <Box sx={{ ml: 0.5 }}>{label}</Box>
-                    {orderBy === field ? (
-                        <Box sx={{ ml: 0.5 }}>
-                            {order === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />}
-                        </Box>
-                    ) : null}
-                </Box>
-            </Tooltip>
-        </TableCell>
-    );
-};
-
-// Table Header component for reusability
-const TableHeader = ({ order, orderBy, onRequestSort }) => {
-    return (
-        <TableHead sx={{ backgroundColor: '#f0f4f8' }}>
-            <TableRow>
-                <TableCell align="center" sx={{ fontWeight: 'bold' }}>
-                    <Tooltip title="Actions">
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Sort fontSize="small" sx={{ mr: 0.5 }} /> Actions
-                        </Box>
-                    </Tooltip>
-                </TableCell>
-                <SortableColumnHeader
-                    label="Booking ID"
-                    icon={<BookmarkBorder fontSize="small" sx={{ mr: 0.5 }} />}
-                    field="bookingId"
-                    orderBy={orderBy}
-                    order={order}
-                    onRequestSort={onRequestSort}
-                />
-                <SortableColumnHeader
-                    label="Start Date"
-                    icon={<CalendarToday fontSize="small" sx={{ mr: 0.5 }} />}
-                    field="startDate"
-                    orderBy={orderBy}
-                    order={order}
-                    onRequestSort={onRequestSort}
-                />
-                <SortableColumnHeader
-                    label="End Date"
-                    icon={<CalendarToday fontSize="small" sx={{ mr: 0.5 }} />}
-                    field="endDate"
-                    orderBy={orderBy}
-                    order={order}
-                    onRequestSort={onRequestSort}
-                />
-                <SortableColumnHeader
-                    label="Pax"
-                    icon={<PeopleAlt fontSize="small" sx={{ mr: 0.5 }} />}
-                    field="pax"
-                    orderBy={orderBy}
-                    order={order}
-                    onRequestSort={onRequestSort}
-                />
-                <SortableColumnHeader
-                    label="Destination"
-                    icon={<LocationOn fontSize="small" sx={{ mr: 0.5 }} />}
-                    field="destination"
-                    orderBy={orderBy}
-                    order={order}
-                    onRequestSort={onRequestSort}
-                />
-                <SortableColumnHeader
-                    label="Customer Name"
-                    icon={<Person fontSize="small" sx={{ mr: 0.5 }} />}
-                    field="customerName"
-                    orderBy={orderBy}
-                    order={order}
-                    onRequestSort={onRequestSort}
-                />
-                <TableCell sx={{ fontWeight: 'bold' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <CheckCircleOutline fontSize="small" sx={{ mr: 0.5 }} /> Status
-                    </Box>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <AttachMoney fontSize="small" sx={{ mr: 0.5 }} /> Payment
-                    </Box>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <CreditCard fontSize="small" sx={{ mr: 0.5 }} /> Payment Status
-                    </Box>
-                </TableCell>
-            </TableRow>
-        </TableHead>
-    );
-};
-
-// Function to sort data
-function getSorting(order, orderBy) {
-    return order === 'desc'
-        ? (a, b) => {
-            if (orderBy === 'pax') {
-                return a[orderBy] < b[orderBy] ? -1 : 1;
-            } else if (orderBy === 'startDate' || orderBy === 'endDate') {
-                // Convert dates like "28 Jun 2023" to Date objects for comparison
-                const dateA = new Date(a[orderBy]);
-                const dateB = new Date(b[orderBy]);
-                return dateA < dateB ? -1 : 1;
-            } else {
-                return a[orderBy].toString().localeCompare(b[orderBy].toString());
-            }
-        }
-        : (a, b) => {
-            if (orderBy === 'pax') {
-                return a[orderBy] > b[orderBy] ? -1 : 1;
-            } else if (orderBy === 'startDate' || orderBy === 'endDate') {
-                // Convert dates like "28 Jun 2023" to Date objects for comparison
-                const dateA = new Date(a[orderBy]);
-                const dateB = new Date(b[orderBy]);
-                return dateA > dateB ? -1 : 1;
-            } else {
-                return b[orderBy].toString().localeCompare(a[orderBy].toString());
-            }
-        };
-}
 
 const PreDefinePackages = () => {
     const dispatch = useDispatch();
-    const { 
-        bookingLists, 
-        bookingListsLoading, 
-        bookingListsError 
+    const {
+        bookingLists,
+        bookingListsLoading,
+        bookingListsError
     } = useSelector((state) => state.prePackages);
-    
+
     const [tabValue, setTabValue] = useState(0);
-    
+
     // Organize booking list data by status
     const [processedData, setProcessedData] = useState({
         ongoing: [],
@@ -318,15 +111,15 @@ const PreDefinePackages = () => {
         // console.log("Raw bookingLists:", bookingLists);
         // console.log("bookingListsLoading:", bookingListsLoading);
         // console.log("bookingListsError:", bookingListsError);
-        
+
         if (bookingLists) {
             // console.log("bookingLists is an array:", Array.isArray(bookingLists));
             // console.log("bookingLists length:", Array.isArray(bookingLists) ? bookingLists.length : 'Not an array');
-            
+
             // It's possible the data is nested in a property of the response
             if (!Array.isArray(bookingLists) && typeof bookingLists === 'object') {
                 // console.log("bookingLists keys:", Object.keys(bookingLists));
-                
+
                 // Common response patterns to check
                 const possibleArrayProps = ['data', 'results', 'items', 'booking_lists', 'bookings', 'packages'];
                 for (const prop of possibleArrayProps) {
@@ -336,7 +129,7 @@ const PreDefinePackages = () => {
                 }
             }
         }
-        
+
         // Only process if we have an array of bookings
         let bookingsArray = [];
         if (Array.isArray(bookingLists) && bookingLists.length > 0) {
@@ -352,9 +145,9 @@ const PreDefinePackages = () => {
             }
             // Add more potential paths if needed
         }
-        
+
         // console.log("Final bookings array to process:", bookingsArray);
-        
+
         if (bookingsArray && bookingsArray.length > 0) {
             try {
                 // Process the booking lists into three categories
@@ -363,68 +156,68 @@ const PreDefinePackages = () => {
                 const ongoing = [];
                 const upcoming = [];
                 const past = [];
-                
+
                 // Format all bookings first, then categorize them
                 bookingsArray.forEach((booking, index) => {
                     if (!booking) {
                         // console.log(`Booking at index ${index} is null or undefined, skipping`);
                         return; // Skip this iteration
                     }
-                    
+
                     try {
                         // console.log(`\n========== PROCESSING BOOKING ${index + 1} ==========`);
-                        
+
                         // Format the booking data
                         const formattedBooking = formatBookingData(booking);
                         // console.log("Formatted booking data:", formattedBooking);
-                        
+
                         // Parse dates for categorization
                         let startDate, endDate;
-                        
+
                         // Parse the start date from the formatted string (e.g., "Jun 12, 2023")
                         if (formattedBooking.startDate && formattedBooking.startDate !== 'Not specified') {
                             startDate = new Date(formattedBooking.startDate);
                             // console.log("Parsed start date from formatted string:", startDate);
                         }
-                        
+
                         // Parse the end date from the formatted string
                         if (formattedBooking.endDate && formattedBooking.endDate !== 'Not specified') {
                             endDate = new Date(formattedBooking.endDate);
                             // console.log("Parsed end date from formatted string:", endDate);
                         }
-                        
+
                         // Final fallback - use current date if dates are invalid
                         if (!startDate || isNaN(startDate.getTime())) {
                             // console.log("Start date invalid, using current date");
                             startDate = new Date(now);
                         }
-                        
+
                         if (!endDate || isNaN(endDate.getTime())) {
                             // console.log("End date invalid, using tomorrow");
                             endDate = new Date(now);
                             endDate.setDate(endDate.getDate() + 1); // Add one day
                         }
-                        
+
                         // console.log("Final dates for categorization:");
                         // console.log("- startDate:", startDate);
                         // console.log("- endDate:", endDate);
-                        
+
                         // Set time to beginning/end of day for accurate comparison
                         const today = new Date(now);
                         today.setHours(0, 0, 0, 0);
-                        
+
                         // Clone dates and set to beginning/end of day for accurate comparison
                         const startOfStartDate = new Date(startDate);
                         startOfStartDate.setHours(0, 0, 0, 0);
-                        
+
                         const endOfEndDate = new Date(endDate);
                         endOfEndDate.setHours(23, 59, 59, 999);
-                        
+
                         // console.log("Comparison dates:");
                         // console.log("- today:", today);
                         // console.log("- startOfStartDate:", startOfStartDate);
                         // console.log("- endOfEndDate:", endOfEndDate);
-                        
+
                         // Determine booking category based on dates
                         // Ongoing: today is between start_date and end_date (inclusive)
                         // Upcoming: start_date is after today
@@ -451,9 +244,9 @@ const PreDefinePackages = () => {
                 // console.log("Upcoming bookings:", upcoming);
                 // console.log("Past bookings:", past);
                 // console.log("Category counts:", {
-                        // ongoing: ongoing.length,
-                        // upcoming: upcoming.length,
-                        // past: past.length
+                // ongoing: ongoing.length,
+                // upcoming: upcoming.length,
+                // past: past.length
                 // });
 
                 setProcessedData({
@@ -491,13 +284,13 @@ const PreDefinePackages = () => {
                 // console.log("Invalid date from string:", dateString);
                 return 'Not specified';
             }
-            
-            const formatted = date.toLocaleDateString('en-US', { 
-                day: 'numeric', 
-                month: 'short', 
-                year: 'numeric' 
+
+            const formatted = date.toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
             });
-            
+
             // console.log("Formatted date result:", formatted);
             return formatted;
         } catch (error) {
@@ -509,13 +302,13 @@ const PreDefinePackages = () => {
     // Format booking data to match the expected structure
     const formatBookingData = (booking) => {
         // console.log("========== FORMATTING BOOKING DATA ==========");
-        // console.log("Original booking:", booking);
+         console.log("Original booking:", booking);
         // Parse the JSON strings in the API response
         let bookingDetails = {};
         let travelDates = {};
         let userInfo = {};
         let packageInfo = {};
-        
+
         try {
             // Parse booking_details if it exists and is a string
             if (booking.booking_details) {
@@ -532,7 +325,7 @@ const PreDefinePackages = () => {
                     // console.log("Using booking_details object directly:", bookingDetails);
                 }
             }
-            
+
             // Parse travel_dates if it exists and is a string
             if (booking.travel_dates) {
                 // console.log("Processing travel_dates:", booking.travel_dates);
@@ -548,7 +341,7 @@ const PreDefinePackages = () => {
                     // console.log("Using travel_dates object directly:", travelDates);
                 }
             }
-            
+
             // Parse user_info if it exists and is a string
             if (booking.user_info) {
                 // console.log("Processing user_info:", booking.user_info);
@@ -564,7 +357,7 @@ const PreDefinePackages = () => {
                     // console.log("Using user_info object directly:", userInfo);
                 }
             }
-            
+
             // Parse package info if it exists and is a string
             if (booking.package) {
                 // console.log("Processing package:", booking.package);
@@ -583,53 +376,53 @@ const PreDefinePackages = () => {
         } catch (error) {
             console.error("Error parsing JSON data:", error);
         }
-        
+
         // Calculate pax from male_count + female_count as specified
-        const maleFemaleCount = 
-            ((bookingDetails && bookingDetails.male_count) || 0) + 
+        const maleFemaleCount =
+            ((bookingDetails && bookingDetails.male_count) || 0) +
             ((bookingDetails && bookingDetails.female_count) || 0);
-        
+
         // console.log("male_count:", bookingDetails && bookingDetails.male_count);
         // console.log("female_count:", bookingDetails && bookingDetails.female_count);
         // console.log("Calculated maleFemaleCount:", maleFemaleCount);
-        
+
         // Use total pax from API or calculated value
-        const totalPax = booking.total_pax || maleFemaleCount || 
-            (bookingDetails && bookingDetails.adult_count && bookingDetails.child_count 
-                ? bookingDetails.adult_count + bookingDetails.child_count 
+        const totalPax = booking.total_pax || maleFemaleCount ||
+            (bookingDetails && bookingDetails.adult_count && bookingDetails.child_count
+                ? bookingDetails.adult_count + bookingDetails.child_count
                 : 0);
         // console.log("Final totalPax:", totalPax);
-        
+
         // Get check-in and check-out dates from travel_dates with safety checks
         let rawStartDate = null;
         let rawEndDate = null;
-        
+
         // console.log("Starting date extraction priority search...");
-        
+
         // PRIORITY 1: Direct travel_dates object on booking
         // console.log("Priority 1: Checking travel_dates object");
         if (travelDates && travelDates.check_in) {
             rawStartDate = travelDates.check_in;
             // console.log("Found start date in travelDates:", rawStartDate);
         }
-        
+
         if (travelDates && travelDates.check_out) {
             rawEndDate = travelDates.check_out;
             // console.log("Found end date in travelDates:", rawEndDate);
         }
-        
+
         // PRIORITY 2: Nested travel_dates in booking_details
         // console.log("Priority 2: Checking booking_details.travel_dates");
         if (!rawStartDate && bookingDetails && bookingDetails.travel_dates && bookingDetails.travel_dates.check_in) {
             rawStartDate = bookingDetails.travel_dates.check_in;
             // console.log("Found start date in bookingDetails.travel_dates:", rawStartDate);
         }
-        
+
         if (!rawEndDate && bookingDetails && bookingDetails.travel_dates && bookingDetails.travel_dates.check_out) {
             rawEndDate = bookingDetails.travel_dates.check_out;
             // console.log("Found end date in bookingDetails.travel_dates:", rawEndDate);
         }
-        
+
         // PRIORITY 3: Direct start_date/end_date fields on booking
         // console.log("Priority 3: Checking direct fields on booking");
         if (!rawStartDate) {
@@ -641,14 +434,14 @@ const PreDefinePackages = () => {
                 // console.log("Found check_in on booking:", rawStartDate);
             }
         }
-        
+
         if (!rawEndDate) {
             if (booking.end_date) {
                 rawEndDate = booking.end_date;
                 // console.log("Found end_date on booking:", rawEndDate);
             }
         }
-        
+
         // PRIORITY 4: Package info dates
         // console.log("Priority 4: Checking package info");
         if (!rawStartDate && packageInfo) {
@@ -663,7 +456,7 @@ const PreDefinePackages = () => {
                 // console.log("Found date in packageInfo:", rawStartDate);
             }
         }
-        
+
         // PRIORITY 5: Check for date field with different names
         // console.log("Priority 5: Checking for alternate date field names");
         if (!rawStartDate) {
@@ -672,7 +465,7 @@ const PreDefinePackages = () => {
                 if (booking[field]) {
                     rawStartDate = booking[field];
                     // console.log(`Found date in booking.${field}:`, rawStartDate);
-                    
+
                     if (!rawEndDate) {
                         // If we found a start date but no end date, set end date to start date + 1 day
                         const endDate = new Date(rawStartDate);
@@ -686,36 +479,36 @@ const PreDefinePackages = () => {
                 }
             }
         }
-            
+
         // console.log("Final raw dates for formatting:", {
         //     startDate: rawStartDate,
         //     endDate: rawEndDate
         // });
-        
+
         const formattedStartDate = formatDate(rawStartDate);
         const formattedEndDate = formatDate(rawEndDate);
-        
+
         // console.log("Formatted dates:", {
         //     startDate: formattedStartDate,
         //     endDate: formattedEndDate
         // });
-        
+
         // Get customer name from user_info if available
-        const customerName = 
-            (userInfo && userInfo.fullName) || 
-            booking.customer_name || 
-            booking.name || 
+        const customerName =
+            (userInfo && userInfo.fullName) ||
+            booking.customer_name ||
+            booking.name ||
             'Unknown customer';
-            
+
         // Get destination from package if available
-        const destination = 
+        const destination =
             (packageInfo && packageInfo.destination) ||
-            booking.destination || 
-            booking.location || 
+            booking.destination ||
+            booking.location ||
             'Unknown destination';
-            
-        
-        
+
+
+
         // Use default values for missing properties
         const result = {
             // Keep essential formatted display properties
@@ -725,33 +518,45 @@ const PreDefinePackages = () => {
             pax: totalPax || 0,
             destination: destination,
             customerName: customerName,
-            status: booking.status || 'Pending',
-            payment: (bookingDetails && bookingDetails.total_price) || 
+            status: (() => {
+                // Handle numeric status codes
+                if (booking.status) {
+                    switch (Number(booking.status)) {
+                        case 1: return 'Pending';
+                        case 2: return 'Confirmed';
+                        case 3: return 'On Hold';
+                        case 4: return 'Cancelled';
+                        default: return 'Unknown'; // Return Unknown for any other status code
+                    }
+                }
+                return 'Pending'; // Default status
+            })(),
+            payment: (bookingDetails && bookingDetails.total_price) ||
                 booking.payment_amount || booking.total_payment || '0',
             paymentStatus: booking.payment_status || 'Unpaid',
-            
+
             // Preserve original data for modal
             booking_id: booking.booking_id || booking.id,
             booking_details: booking.booking_details,
             travel_dates: booking.travel_dates,
             package: booking.package,
             user_info: booking.user_info,
-            
+
             // Include other important fields from API
             hotels: booking.hotels || [],
             attractions: booking.attractions || [],
             guides: booking.guides || [],
             restaurants: booking.restaurants || []
         };
-        
+
         //  console.log("Final formatted booking:", result);
         return result;
     };
 
     // Check if date range is valid and has both start and end dates
     const hasValidDateRange = () => {
-        return dateRange && Array.isArray(dateRange) && dateRange.length === 2 && 
-               dateRange[0] && dateRange[1];
+        return dateRange && Array.isArray(dateRange) && dateRange.length === 2 &&
+            dateRange[0] && dateRange[1];
     };
 
     // Update the date filter active state whenever dateRange changes
@@ -762,25 +567,25 @@ const PreDefinePackages = () => {
     // Filter data based on search term (destination)
     const filterData = (data) => {
         let filteredData = data;
-        
+
         // Filter by destination name if search term exists
         if (searchTerm) {
-            filteredData = filteredData.filter(item => 
+            filteredData = filteredData.filter(item =>
                 item.destination.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
-        
+
         // Filter by date range if date range exists
         if (hasValidDateRange()) {
             filteredData = filteredData.filter(item => {
                 // Parse dates from strings like "12 Jun 2023"
                 const startDate = new Date(item.startDate);
                 const endDate = new Date(item.endDate);
-                
+
                 // Convert DateObject to JavaScript Date for comparison
                 const filterStartDate = dateRange[0].toDate();
                 const filterEndDate = dateRange[1].toDate();
-                
+
                 // Check if package dates overlap with filter date range
                 // A package is included if:
                 // 1. Its start date falls within the filter range, or
@@ -793,13 +598,13 @@ const PreDefinePackages = () => {
                 );
             });
         }
-        
+
         return filteredData;
     };
 
     // Get filtered data for current tab, using only API data
     const getCurrentFilteredData = () => {
-        switch(tabValue) {
+        switch (tabValue) {
             case 0:
                 return filterData(processedData.ongoing);
             case 1:
@@ -827,22 +632,22 @@ const PreDefinePackages = () => {
             setSearchTerm('');
         }
     };
-    
+
     const toggleDateFilter = () => {
         setShowDateFilter(!showDateFilter);
     };
-    
+
     const handleDateChange = (newDates) => {
         setDateRange(newDates);
     };
-    
+
     // Memoized clear function to avoid recreation on every render
     const clearDateFilter = useCallback(() => {
         // Reset all date filter related state
         setDateRange(null);
         setShowDateFilter(false);
         setIsDateFilterActive(false);
-        
+
         // Force DateFilter component to reset by changing its key
         setFilterKey(prevKey => prevKey + 1);
     }, []);
@@ -851,10 +656,10 @@ const PreDefinePackages = () => {
     const renderActiveFilters = () => {
         if (isDateFilterActive && hasValidDateRange()) {
             return (
-                <Box sx={{ 
-                    mb: 2, 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                <Box sx={{
+                    mb: 2,
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'space-between',
                     backgroundColor: '#f8f9fa',
                     borderRadius: '8px',
@@ -865,7 +670,7 @@ const PreDefinePackages = () => {
                         <Typography variant="body2" sx={{ fontWeight: 500, color: '#2c3e50' }}>
                             Active Date Filter:
                         </Typography>
-                        <Chip 
+                        <Chip
                             label={`${dateRange[0].format("MMM DD, YYYY")} - ${dateRange[1].format("MMM DD, YYYY")}`}
                             onDelete={clearDateFilter}
                             color="primary"
@@ -880,7 +685,7 @@ const PreDefinePackages = () => {
                         size="small"
                         startIcon={<FilterAltOff />}
                         onClick={clearDateFilter}
-                        sx={{ 
+                        sx={{
                             textTransform: 'none',
                             boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)',
                             '&:hover': {
@@ -909,9 +714,9 @@ const PreDefinePackages = () => {
 
         if (bookingListsError) {
             return (
-                <Box sx={{ 
-                    textAlign: 'center', 
-                    py: 6, 
+                <Box sx={{
+                    textAlign: 'center',
+                    py: 6,
                     px: 2,
                     display: 'flex',
                     flexDirection: 'column',
@@ -939,7 +744,7 @@ const PreDefinePackages = () => {
             let backgroundColor = '#f0f7ff'; // Default background color
             let borderColor = '#cce3ff'; // Default border color
             let iconColor = '#4361ee'; // Default icon color
-            
+
             if (emptyMessage.includes("ongoing")) {
                 EmptyIcon = DonutLarge;
                 backgroundColor = '#f0f7ff';
@@ -956,7 +761,7 @@ const PreDefinePackages = () => {
                 borderColor = '#e0e0e0';
                 iconColor = '#757575';
             }
-            
+
             return (
                 <Paper
                     elevation={0}
@@ -998,10 +803,10 @@ const PreDefinePackages = () => {
                             "No historical package data is available. Past completed packages will appear here."
                         )}
                     </Typography>
-                    <Button 
-                        variant="outlined" 
-                        startIcon={<FilterAltOff />} 
-                        size="small" 
+                    <Button
+                        variant="outlined"
+                        startIcon={<FilterAltOff />}
+                        size="small"
                         sx={{ mt: 3 }}
                         onClick={clearDateFilter}
                         disabled={!isDateFilterActive}
@@ -1051,6 +856,7 @@ const PreDefinePackages = () => {
                                 Ongoing
                                 <Badge
                                     badgeContent={processedData.ongoing.length}
+                                    
                                     color="primary"
                                     sx={{
                                         position: 'absolute',
@@ -1075,6 +881,7 @@ const PreDefinePackages = () => {
                                 Upcoming
                                 <Badge
                                     badgeContent={processedData.upcoming.length}
+                                
                                     color="primary"
                                     sx={{
                                         position: 'absolute',
@@ -1099,6 +906,7 @@ const PreDefinePackages = () => {
                                 Past
                                 <Badge
                                     badgeContent={processedData.past.length}
+                                    
                                     color="primary"
                                     sx={{
                                         position: 'absolute',
@@ -1144,17 +952,17 @@ const PreDefinePackages = () => {
                                     autoFocus
                                 />
                             ) : null}
-                            <Button 
-                                startIcon={<Search />} 
-                                variant="outlined" 
-                                size="small" 
+                            <Button
+                                startIcon={<Search />}
+                                variant="outlined"
+                                size="small"
                                 onClick={toggleSearch}
                                 color={showSearchInput ? "primary" : "inherit"}
                             >
                                 {showSearchInput ? "Close" : "Search"}
                             </Button>
                             <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button>
-                            <DateFilter 
+                            <DateFilter
                                 key={`date-filter-${filterKey}`}
                                 onDateChange={handleDateChange}
                                 isOpen={showDateFilter}
@@ -1185,7 +993,7 @@ const PreDefinePackages = () => {
                             <Chip icon={<Hotel />} label="Hotels" size="small" variant="outlined" />
                             <Chip icon={<DirectionsCar />} label="Transport" size="small" variant="outlined" />
                             <Chip icon={<Attractions />} label="Attractions" size="small" variant="outlined" />
-                            <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" />
+                            {/* <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" /> */}
                             <Chip icon={<EmojiPeople />} label="Tour Guide" size="small" variant="outlined" />
                         </Stack>
                     </Box>
@@ -1218,17 +1026,17 @@ const PreDefinePackages = () => {
                                     autoFocus
                                 />
                             ) : null}
-                            <Button 
-                                startIcon={<Search />} 
-                                variant="outlined" 
-                                size="small" 
+                            <Button
+                                startIcon={<Search />}
+                                variant="outlined"
+                                size="small"
                                 onClick={toggleSearch}
                                 color={showSearchInput ? "primary" : "inherit"}
                             >
                                 {showSearchInput ? "Close" : "Search"}
                             </Button>
                             <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button>
-                            <DateFilter 
+                            <DateFilter
                                 key={`date-filter-${filterKey}`}
                                 onDateChange={handleDateChange}
                                 isOpen={showDateFilter}
@@ -1259,7 +1067,7 @@ const PreDefinePackages = () => {
                             <Chip icon={<Hotel />} label="Hotels" size="small" variant="outlined" />
                             <Chip icon={<DirectionsCar />} label="Transport" size="small" variant="outlined" />
                             <Chip icon={<Attractions />} label="Attractions" size="small" variant="outlined" />
-                            <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" />
+                            {/* <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" /> */}
                             <Chip icon={<EmojiPeople />} label="Tour Guide" size="small" variant="outlined" />
                         </Stack>
                     </Box>
@@ -1292,17 +1100,17 @@ const PreDefinePackages = () => {
                                     autoFocus
                                 />
                             ) : null}
-                            <Button 
-                                startIcon={<Search />} 
-                                variant="outlined" 
-                                size="small" 
+                            <Button
+                                startIcon={<Search />}
+                                variant="outlined"
+                                size="small"
                                 onClick={toggleSearch}
                                 color={showSearchInput ? "primary" : "inherit"}
                             >
                                 {showSearchInput ? "Close" : "Search"}
                             </Button>
                             <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button>
-                            <DateFilter 
+                            <DateFilter
                                 key={`date-filter-${filterKey}`}
                                 onDateChange={handleDateChange}
                                 isOpen={showDateFilter}
@@ -1333,7 +1141,7 @@ const PreDefinePackages = () => {
                             <Chip icon={<Hotel />} label="Hotels" size="small" variant="outlined" />
                             <Chip icon={<DirectionsCar />} label="Transport" size="small" variant="outlined" />
                             <Chip icon={<Attractions />} label="Attractions" size="small" variant="outlined" />
-                            <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" />
+                            {/* <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" /> */}
                             <Chip icon={<EmojiPeople />} label="Tour Guide" size="small" variant="outlined" />
                         </Stack>
                     </Box>
