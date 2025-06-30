@@ -78,7 +78,8 @@ class Package extends Model
         'terms_conditions',
         'status',
         'created_by',
-        'updated_by'
+        'updated_by',
+        'itinerary'
     ];
 
     const CATEGORIES = [

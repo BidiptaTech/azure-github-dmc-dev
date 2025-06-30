@@ -149,7 +149,7 @@ class PackageController extends Controller
                 'max_attractions', 'main_image', 'gallery_images', 'inclusions', 
                 'exclusions', 'terms_conditions', 'views_count', 
                 'rating', 'reviews_count', 'city', 'expire_date', 'start_date', 
-                'selected_guide', 'selected_restaurants', 'max_restaurants','package_type','attraction_with_transfer','entry_port', 'exit_port', 'status'
+                'selected_guide', 'selected_restaurants', 'max_restaurants','package_type','attraction_with_transfer','entry_port', 'exit_port', 'status', 'itinerary'
             )
             ->first();
         if (!$package) {

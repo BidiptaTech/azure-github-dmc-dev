@@ -213,11 +213,11 @@
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
                         <div class="d-flex gap-2">
-                            <a href="{{ route('packages.show', ['id' => $package->package_id]) }}" class="btn btn-primary btn-sm w-100">
+                            <a href="{{ route('packages.show', ['package_id' => $package->package_id]) }}" class="btn btn-primary btn-sm w-100">
                                 <i class="ri-eye-line me-1"></i>View
                             </a>
                             <!-- edit field -->
-                            <form action="{{ route('packages.destroy', ['id' => $package->package_id]) }}" method="POST" class="w-100">
+                            <form action="{{ route('packages.destroy', ['package_id' => $package->package_id]) }}" method="POST" class="w-100">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-danger btn-sm w-100" 
