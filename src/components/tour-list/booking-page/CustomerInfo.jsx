@@ -46,6 +46,12 @@ const CustomerInfo = forwardRef((props, ref) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
+  // State for selected country
+  const [selectedCountry, setSelectedCountry] = useState(null);
+
+  // Get user country from Redux state
+  const user_country = useSelector((state) => state.auth?.user_country || []);
+
   // Get the bookingMode from Redux
   const bookingMode = useSelector((state) => state.common.bookingMode);
   // console.log('bookingMode bookingMode bookingMode',bookingMode);
@@ -110,24 +116,49 @@ const CustomerInfo = forwardRef((props, ref) => {
   const [enquiryComment, setEnquiryComment] = useState('');
   const [commentError, setCommentError] = useState(false);
 
-  // Set the initial country code based on Redux state
+  // Initialize selected country from user_country array
   useEffect(() => {
-    const selectedCountry = countryCodes.find(
-      (country) => country.code === countryCodeFromRedux
-    );
-    // console.log("Attraction selected country based on Redux:", selectedCountry);
-    
-    if (selectedCountry) {
-      setFormData((prevForm) => ({
+    if (user_country && user_country.length > 0) {
+      // Set default to first country in the array
+      const defaultCountry = user_country[0];
+      setSelectedCountry(defaultCountry);
+      setFormData(prevForm => ({
         ...prevForm,
-        countryCode: selectedCountry.dialCode, // Set the dial code based on Redux state
+        countryCode: defaultCountry.country_code,
       }));
-      // console.log("Attraction setting country code to:", selectedCountry.dialCode);
     }
-  }, [countryCodeFromRedux]); // Run effect when countryCodeFromRedux changes
+  }, [user_country]);
+
+  // Handler for country selection
+  const handleCountryChange = (event) => {
+    const selectedCountryCode = event.target.value;
+    const country = user_country.find(c => c.code === selectedCountryCode);
+    
+    if (country) {
+      setSelectedCountry(country);
+      setFormData(prevForm => ({
+        ...prevForm,
+        countryCode: country.country_code,
+      }));
+      
+      // Re-validate phone if it's already touched
+      if (touched.phone && formData.phone) {
+        const phoneError = validateField('phone', formData.phone);
+        setErrors(prev => ({
+          ...prev,
+          phone: phoneError
+        }));
+      }
+    }
+  };
 
   const validateField = (name, value) => {
     let error = "";
+    
+    // Get dynamic min/max length from selectedCountry if available
+    const phoneMinLength = selectedCountry?.contact_min_length || dialMinLength;
+    const phoneMaxLength = selectedCountry?.contact_max_length || dialMaxLength;
+    
     switch (name) {
       case "fullName":
         if (!value.trim()) {
@@ -147,11 +178,11 @@ const CustomerInfo = forwardRef((props, ref) => {
         break;
 
       case "phone":
-        const phoneRegex = new RegExp(`^\\d{${dialMinLength},${dialMaxLength}}$`);
+        const phoneRegex = new RegExp(`^\\d{${phoneMinLength},${phoneMaxLength}}$`);
         if (!value) {
           error = "Phone number is required";
         } else if (!phoneRegex.test(value)) {
-          error = `Enter a valid phone number (${dialMinLength}-${dialMaxLength} digits)`;
+          error = `Enter a valid phone number (${phoneMinLength}-${phoneMaxLength} digits)`;
         }
         break;
 
@@ -577,7 +608,48 @@ const CustomerInfo = forwardRef((props, ref) => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <span>{formData.countryCode}</span>
+                        {user_country && user_country.length > 0 ? (
+                          <FormControl 
+                            variant="standard" 
+                            sx={{ 
+                              minWidth: 80,
+                              '& .MuiInput-underline:before': { display: 'none' },
+                              '& .MuiInput-underline:after': { display: 'none' },
+                              '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                            }}
+                          >
+                            <Select
+                              value={selectedCountry?.code || ''}
+                              onChange={handleCountryChange}
+                              disableUnderline
+                              sx={{
+                                fontSize: '0.875rem',
+                                '& .MuiSelect-select': {
+                                  paddingRight: '20px !important',
+                                  paddingLeft: 0,
+                                  paddingTop: 0,
+                                  paddingBottom: 0,
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                },
+                                '& .MuiSvgIcon-root': {
+                                  fontSize: '1rem'
+                                }
+                              }}
+                            >
+                              {user_country.map((country) => (
+                                <MenuItem key={country.code} value={country.code}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                                  </Box>
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          formData.countryCode
+                        )}
                       </InputAdornment>
                     ),
                   }}

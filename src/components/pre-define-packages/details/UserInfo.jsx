@@ -35,21 +35,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockIcon from '@mui/icons-material/Lock';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+// import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useDispatch, useSelector } from 'react-redux';
 import { bookPackage, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 
-// Add country codes array
-const countryCodes = [
-  { code: "US", name: "United States", dialCode: "+1" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44" },
-  { code: "IN", name: "India", dialCode: "+91" },
-  { code: "AU", name: "Australia", dialCode: "+61" },
-  { code: "SG", name: "Singapore", dialCode: "+65" },
-  { code: "AE", name: "UAE", dialCode: "+971" },
-  { code: "MY", name: "Malaysia", dialCode: "+60" },
-  { code: "TH", name: "Thailand", dialCode: "+66" },
-  // Add more country codes as needed
-];
+
 
 const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   const dispatch = useDispatch();
@@ -57,6 +47,9 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   
   // Get search params to access the selected date
   const searchParams = useSelector(state => state.prePackages.searchParams);
+  
+  // Get user_role from auth slice
+  const userRole = useSelector(state => state.auth?.userRole);
   
   // Format the arrival date to dd-mm-yyyy
   const formatDateToDDMMYYYY = (dateString) => {
@@ -72,13 +65,16 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
 const selectedDate = searchParams?.date ? 
   formatDateToDDMMYYYY(searchParams.date) : '';
   
-  // Get country code from Redux state (adjust the path based on your Redux structure)
+  // Get user country from Redux state
+  const user_country = useSelector((state) => state.auth?.user_country || []);
+  // Get country code from Redux state
   const countryCodeFromRedux = useSelector((state) => state.auth?.countryCode);
-  console.log(countryCodeFromRedux);
-  // const dialMaxLength = useSelector((state) => state.auth?.dialMaxLength) || 15;
-  // const dialMinLength = useSelector((state) => state.auth?.dialMinLength) || 8;
-  const dialMaxLength =  15;
-  const dialMinLength =  8;
+  
+  const dialMaxLength = 15;
+  const dialMinLength = 8;
+  
+  // State for selected country
+  const [selectedCountry, setSelectedCountry] = useState(null);
   
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -90,7 +86,7 @@ const selectedDate = searchParams?.date ?
     fullName: '',
     email: '',
     phone: '',
-    countryCode: '+65',
+    countryCode: '+91',
     address1: '',
     address2: '',
     state: '',
@@ -98,19 +94,41 @@ const selectedDate = searchParams?.date ?
     specialRequests: ''
   });
 
-  // Set the initial country code based on Redux state
+  // Initialize selected country from user_country array
   useEffect(() => {
-    const selectedCountry = countryCodes.find(
-      (country) => country.code === countryCodeFromRedux
-    );
-    
-    if (selectedCountry) {
-      setFormData((prevForm) => ({
+    if (user_country && user_country.length > 0) {
+      // Set default to first country in the array
+      const defaultCountry = user_country[0];
+      setSelectedCountry(defaultCountry);
+      setFormData(prevForm => ({
         ...prevForm,
-        countryCode: selectedCountry.dialCode,
+        countryCode: defaultCountry.country_code,
       }));
     }
-  }, [countryCodeFromRedux]);
+  }, [user_country]);
+
+  // Handler for country selection
+  const handleCountryChange = (event) => {
+    const selectedCountryCode = event.target.value;
+    const country = user_country.find(c => c.code === selectedCountryCode);
+    
+    if (country) {
+      setSelectedCountry(country);
+      setFormData(prevForm => ({
+        ...prevForm,
+        countryCode: country.country_code,
+      }));
+      
+      // Re-validate phone if it's already touched
+      if (touched.phone && formData.phone) {
+        const phoneError = validateField('phone', formData.phone);
+        setErrors(prev => ({
+          ...prev,
+          phone: phoneError
+        }));
+      }
+    }
+  };
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -152,6 +170,11 @@ const selectedDate = searchParams?.date ?
 
   const validateField = (name, value) => {
     let error = '';
+    
+    // Get dynamic min/max length from selectedCountry if available
+    const phoneMinLength = selectedCountry?.contact_min_length || dialMinLength;
+    const phoneMaxLength = selectedCountry?.contact_max_length || dialMaxLength;
+    
     switch (name) {
       case 'fullName':
         error = !value ? 'Full name is required' : '';
@@ -161,11 +184,11 @@ const selectedDate = searchParams?.date ?
                 !/\S+@\S+\.\S+/.test(value) ? 'Email is invalid' : '';
         break;
       case 'phone':
-        const phoneRegex = new RegExp(`^\\d{${dialMinLength},${dialMaxLength}}$`);
+        const phoneRegex = new RegExp(`^\\d{${phoneMinLength},${phoneMaxLength}}$`);
         if (!value) {
           error = 'Phone number is required';
         } else if (!phoneRegex.test(value)) {
-          error = `Enter a valid phone number (${dialMinLength}-${dialMaxLength} digits)`;
+          error = `Enter a valid phone number (${phoneMinLength}-${phoneMaxLength} digits)`;
         }
         break;
       case 'address1':
@@ -226,7 +249,9 @@ const selectedDate = searchParams?.date ?
           ...formData
         },
         // Add the selected date in dd/mm/yyyy format
-        date: selectedDate
+        date: selectedDate,
+        // Add user_role from auth state
+        user_role: userRole
       };
       
       // Dispatch the booking action
@@ -323,6 +348,8 @@ const selectedDate = searchParams?.date ?
               </Paper>
             )}
 
+          
+
             <Paper elevation={0} sx={{ p: 3, borderRadius: '12px' }}>
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, color: '#3f51b5' }}>
                 <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -377,23 +404,6 @@ const selectedDate = searchParams?.date ?
 
                 <Grid item xs={12} md={6}>
                   <Box display="flex" alignItems="flex-start" gap={1}>
-                    <FormControl variant="outlined" sx={{ minWidth: 120 }}>
-                      <InputLabel id="country-code-label">Code</InputLabel>
-                      <Select
-                        labelId="country-code-label"
-                        id="country-code-select"
-                        value={formData.countryCode}
-                        onChange={(e) => setFormData(prev => ({ ...prev, countryCode: e.target.value }))}
-                        label="Code"
-                        size="medium"
-                      >
-                        {countryCodes.map((country) => (
-                          <MenuItem key={country.code} value={country.dialCode}>
-                            {country.dialCode} ({country.name})
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
                     <TextField
                       fullWidth
                       label="Phone Number"
@@ -408,7 +418,49 @@ const selectedDate = searchParams?.date ?
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <PhoneIcon color="primary" />
+                            <PhoneIcon color="primary" sx={{ mr: 0.5 }} />
+                            {user_country && user_country.length > 0 ? (
+                              <FormControl 
+                                variant="standard" 
+                                sx={{ 
+                                  minWidth: 80,
+                                  '& .MuiInput-underline:before': { display: 'none' },
+                                  '& .MuiInput-underline:after': { display: 'none' },
+                                  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                                }}
+                              >
+                                <Select
+                                  value={selectedCountry?.code || ''}
+                                  onChange={handleCountryChange}
+                                  disableUnderline
+                                  sx={{
+                                    fontSize: '0.875rem',
+                                    '& .MuiSelect-select': {
+                                      paddingRight: '20px !important',
+                                      paddingLeft: 0,
+                                      paddingTop: 0,
+                                      paddingBottom: 0,
+                                      display: 'flex',
+                                      alignItems: 'center'
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                      fontSize: '1rem'
+                                    }
+                                  }}
+                                >
+                                  {user_country.map((country) => (
+                                    <MenuItem key={country.code} value={country.code}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                                        <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                                      </Box>
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            ) : (
+                              formData.countryCode
+                            )}
                           </InputAdornment>
                         ),
                       }}

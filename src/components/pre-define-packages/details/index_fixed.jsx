@@ -59,8 +59,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormGroup from '@mui/material/FormGroup';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
-
-
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 
 // Import components
 import PackageHeader from './PackageHeader';
@@ -86,7 +86,7 @@ import GuideItemRenderer from './selection-components/GuideItemRenderer';
 // Import API endpoints
 import { endpoints } from '../../../services/api';
 import { formatDate, getItineraryDayDate } from './shared-date-utils';
-// import { formatDate, getItineraryDayDate } from './shared-date-utils';
+import { formatDate, getItineraryDayDate } from './shared-date-utils';
 
 // Navigation arrow for section navigation
 const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label }) => {
@@ -236,12 +236,9 @@ const PackageDetailsContainer = () => {
   const [activeDay, setActiveDay] = useState(0);
   const [currentPackageDetails, setCurrentPackageDetails] = useState(null);
   
-  
-  
   // State for modals
   const [hotelsModalOpen, setHotelsModalOpen] = useState(false);
   const [attractionsModalOpen, setAttractionsModalOpen] = useState(false);
-  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   const [guidesModalOpen, setGuidesModalOpen] = useState(false);
   
@@ -249,13 +246,11 @@ const PackageDetailsContainer = () => {
   const [availableHotels, setAvailableHotels] = useState([]);
   const [availableAttractions, setAvailableAttractions] = useState([]);
   /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
-  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
   const [availableGuides, setAvailableGuides] = useState([]);
   
   // State for selected items
   const [selectedHotels, setSelectedHotels] = useState([]);
   const [selectedAttractions, setSelectedAttractions] = useState([]);
-  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   const [selectedGuides, setSelectedGuides] = useState([]);
   
@@ -273,20 +268,6 @@ const PackageDetailsContainer = () => {
   
   // Track active service tab for each day
   const [dayServiceTabs, setDayServiceTabs] = useState({});
-  
-  // Ref for content scrolling
-  // State for globally selected hotel and guide across all days
-  
- 
-  
-  // Track booked attractions by day - { attractionId: dayIndex }
- 
-  
-  // Track transport options
-  
-  
-  // Track active service tab for each day
- 
   
   // Ref for content scrolling
   const contentRef = useRef(null);
@@ -324,7 +305,6 @@ const PackageDetailsContainer = () => {
   };
   
   const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
-  // const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
   
   useEffect(() => {
     if (id) {
@@ -355,8 +335,6 @@ const PackageDetailsContainer = () => {
       // Create refs for each day in the itinerary
       if (updatedPackageDetails.duration_days) {
         dayRefs.current = Array(updatedPackageDetails.duration_days)
-      if (updatedPackageDetails.duration_days) {
-        dayRefs.current = Array(updatedPackageDetails.duration_days)
           .fill()
           .map((_, i) => dayRefs.current[i] || React.createRef());
       }
@@ -365,12 +343,8 @@ const PackageDetailsContainer = () => {
       setSelectedHotels(updatedPackageDetails.selected_hotels || []);
       setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
       /* setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []); */
-      setSelectedHotels(updatedPackageDetails.selected_hotels || []);
-      setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
-      /* setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []); */
       
       // Check for both property names for guides (selected_guides or selected_guide)
-      // const guides = updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || [];
       const guides = updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || [];
       
       // If no guides are found, add a sample guide for testing
@@ -395,14 +369,8 @@ const PackageDetailsContainer = () => {
       
       // Update PackageItinerary component props with the updated package details including date
       setCurrentPackageDetails(updatedPackageDetails);
-      
-      // Update PackageItinerary component props with the updated package details including date
-      setCurrentPackageDetails(updatedPackageDetails);
     }
-  }
   }, [packageDetails, searchParams]);
-
-  // }, [packageDetails, searchParams]);
   
   // Add loading state
   const [isLoading, setIsLoading] = useState(false);
@@ -584,7 +552,7 @@ const PackageDetailsContainer = () => {
     }
   };
   */
-  
+  */
   
   const handleOpenGuidesModal = async () => {
     try {
@@ -929,7 +897,6 @@ const PackageDetailsContainer = () => {
                   contentRef={contentRef}
                   dayRefs={dayRefs}
                 />
-              
               </Grid>
               
               {/* Content Columns - Container for main content and price */}
@@ -1462,10 +1429,6 @@ const PackageDetailsContainer = () => {
                         selectedHotelId={selectedHotelId}
                         selectedGuideId={selectedGuideId}
                         itineraryDates={getItineraryDates()}
-                        // bookedAttractions={bookedAttractions}
-                        // selectedHotelId={selectedHotelId}
-                        // selectedGuideId={selectedGuideId}
-                        // itineraryDates={getItineraryDates()}
                       />
                     </Box>
                   </Grid>
@@ -1538,7 +1501,7 @@ const PackageDetailsContainer = () => {
         loading={isLoading}
       />
       */}
-      
+      */}
       
       <SelectionModal
         open={guidesModalOpen}
