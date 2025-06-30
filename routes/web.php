@@ -111,10 +111,10 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        Route::get('/packages/{id}', [PackageController::class, 'show'])->name('packages.show');
-        // Route::get('/packages/{id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
-        Route::put('/packages/{id}', [PackageController::class, 'update'])->name('packages.update');
-        Route::delete('/packages/{id}', [PackageController::class, 'destroy'])->name('packages.destroy');
+        Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
+        Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
+        Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
         Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
