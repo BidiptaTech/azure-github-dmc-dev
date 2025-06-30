@@ -1,0 +1,25 @@
+# Apache Configuration for Large File Uploads
+# Add these directives to your .htaccess file
+
+# Increase PHP limits via Apache
+php_value post_max_size 100M
+php_value upload_max_filesize 20M
+php_value max_file_uploads 50
+php_value max_execution_time 300
+php_value max_input_time 300
+php_value memory_limit 512M
+php_value max_input_vars 3000
+
+# Apache specific settings
+LimitRequestBody 104857600  # 100MB in bytes
+LimitRequestFields 1000
+LimitRequestFieldSize 8190
+
+# Enable compression for better performance
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Increase timeout values
+TimeOut 300
+KeepAliveTimeout 300 
