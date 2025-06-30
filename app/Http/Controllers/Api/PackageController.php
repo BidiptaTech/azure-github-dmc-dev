@@ -444,9 +444,6 @@ class PackageController extends Controller
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
         $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
-        
-
-       
         $booking = new PackageBooking();
         $booking->booking_id = $bookingId;
         $booking->package_id = $package_id;
