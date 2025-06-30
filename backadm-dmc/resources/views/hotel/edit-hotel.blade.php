@@ -962,18 +962,36 @@
     });
 
     async function handleFiles(newFiles) {
-        // Show compression progress
-        showCompressionProgress('additional');
-        
+        // Show loading message
+        const loadingDiv = document.createElement('div');
+        loadingDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Compressing images for faster upload...</div>';
+        fileList.appendChild(loadingDiv);
+
         // Process files sequentially to avoid overwhelming the browser
         for (const file of Array.from(newFiles)) {
             if (file.type.startsWith('image/')) {
                 try {
-                    // Compress image before adding to the list
-                    const compressedFile = await compressImage(file);
-                    files.push(compressedFile);
+                    // Check file size before compression
+                    const fileSizeMB = file.size / 1024 / 1024;
+                    
+                    // Only compress if file is larger than 1MB or if we already have many files
+                    let finalFile = file;
+                    if (fileSizeMB > 1 || files.length >= 3) {
+                        finalFile = await compressImage(file, 0.7, 1600, 1200); // More aggressive compression for multiple files
+                    }
+                    
+                    // Check total size limit (keep under 80MB total)
+                    const currentTotalSize = files.reduce((total, f) => total + f.size, 0);
+                    const totalSizeMB = (currentTotalSize + finalFile.size) / 1024 / 1024;
+                    
+                    if (totalSizeMB > 80) {
+                        alert(`Total upload size would exceed 80MB limit. Please remove some images or upload in smaller batches.`);
+                        break;
+                    }
+                    
+                    files.push(finalFile);
                 } catch (error) {
-                    console.error('Error compressing image:', error);
+                    console.error('Error processing image:', error);
                     alert(`Error processing ${file.name}. Please try again.`);
                 }
             } else {
@@ -981,75 +999,59 @@
             }
         }
         
-        // Hide compression progress and update file list
-        hideCompressionProgress('additional');
+        // Remove loading message and update display
+        loadingDiv.remove();
         updateFileList();
     }
 
     // Image compression function
-    async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
-        return new Promise((resolve) => {
+    function compressImage(file, quality = 0.8, maxWidth = 1920, maxHeight = 1080) {
+        return new Promise((resolve, reject) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
             
             img.onload = function() {
-                // Calculate new dimensions
-                let { width, height } = calculateDimensions(img.width, img.height, maxWidth, maxHeight);
+                // Calculate new dimensions while maintaining aspect ratio
+                let { width, height } = img;
                 
-                // Set canvas dimensions
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = (width * maxHeight) / height;
+                        height = maxHeight;
+                    }
+                }
+                
                 canvas.width = width;
                 canvas.height = height;
                 
                 // Draw and compress
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Convert to blob
-                canvas.toBlob(function(blob) {
-                    // Create new file with compressed data
-                    const compressedFile = new File([blob], file.name, {
-                        type: file.type,
-                        lastModified: Date.now()
-                    });
-                    
-                    // Show compression results in console
-                    showCompressionResult(file.size, compressedFile.size);
-                    
-                    resolve(compressedFile);
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create a new File object with the same name but compressed data
+                        const compressedFile = new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        });
+                        
+                        console.log(`Compressed ${file.name} from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+                        resolve(compressedFile);
+                    } else {
+                        reject(new Error('Compression failed'));
+                    }
                 }, file.type, quality);
             };
             
+            img.onerror = () => reject(new Error('Failed to load image'));
             img.src = URL.createObjectURL(file);
         });
-    }
-
-    function calculateDimensions(width, height, maxWidth, maxHeight) {
-        if (width <= maxWidth && height <= maxHeight) {
-            return { width, height };
-        }
-        
-        const ratio = Math.min(maxWidth / width, maxHeight / height);
-        return {
-            width: Math.round(width * ratio),
-            height: Math.round(height * ratio)
-        };
-    }
-
-    // Helper function to format file sizes
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // Show compression results
-    function showCompressionResult(originalSize, compressedSize) {
-        if (originalSize > compressedSize) {
-            const savings = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
-            console.log(`Image compressed: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} (${savings}% smaller)`);
-        }
     }
 
     function updateFileList() {
@@ -1136,7 +1138,71 @@
 
             fileList.appendChild(moreBadge);
         }
+
+        // Show total size information
+        if (files.length > 0) {
+            const totalSize = files.reduce((total, f) => total + f.size, 0);
+            const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
+            const sizeInfo = document.createElement('div');
+            sizeInfo.innerHTML = `<small class="text-muted">Total: ${files.length} images (${totalSizeMB}MB)</small>`;
+            fileList.appendChild(sizeInfo);
+        }
     }
+
+    // Form submission handler with upload progress and error handling
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('hotelForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Check if we have files to upload
+                const totalFiles = files.length;
+                if (totalFiles > 10) {
+                    e.preventDefault();
+                    alert('Please upload maximum 10 images at a time to avoid server limits.');
+                    return false;
+                }
+
+                // Check total upload size
+                const totalSize = files.reduce((total, f) => total + f.size, 0);
+                const totalSizeMB = totalSize / 1024 / 1024;
+                
+                if (totalSizeMB > 90) {
+                    e.preventDefault();
+                    alert('Total upload size is too large. Please reduce image sizes or upload fewer images.');
+                    return false;
+                }
+
+                // Show upload progress
+                if (totalFiles > 0) {
+                    const progressDiv = document.createElement('div');
+                    progressDiv.innerHTML = `
+                        <div class="alert alert-info" id="upload-progress">
+                            <i class="fas fa-cloud-upload-alt"></i> Uploading ${totalFiles} images (${totalSizeMB.toFixed(1)}MB)...
+                            <div class="progress mt-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Insert progress indicator before the form
+                    form.parentNode.insertBefore(progressDiv, form);
+                    
+                    // Simulate progress (since we can't get real upload progress easily)
+                    const progressBar = progressDiv.querySelector('.progress-bar');
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += Math.random() * 15;
+                        if (progress > 90) progress = 90;
+                        progressBar.style.width = progress + '%';
+                    }, 500);
+                    
+                    // Clear interval after form submission
+                    setTimeout(() => clearInterval(interval), 30000);
+                                 }
+             });
+         }
+     });
 </script>
 
 <!-- delete existing Image -->
