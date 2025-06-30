@@ -554,8 +554,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     dispatch(setSearchCriteria({
       country: country,
       city: city,
-      checkIn: packageData?.tour?.check_in_time,
-      checkOut: packageData?.tour?.check_out_time,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
       guests: {
         adults: guestCounts.Adults.toString(),
         children: guestCounts.Children.toString(),
