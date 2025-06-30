@@ -73,7 +73,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h4 class="fw-bold py-3 mb-2">
-                    <span class="text-muted fw-light">Packages /</span> Edit Package
+                    <span class="text-muted fw-light">Packages /</span> Edit Package: {{ $package->title }}
                 </h4>
                 <p class="text-muted">Update package details and settings</p>
             </div>
@@ -81,8 +81,8 @@
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary me-2">
                     <i class="ri-arrow-left-line me-1"></i>Back to Packages
                 </a>
-                <a href="{{ route('packages.show', $package->package_id) }}" class="btn btn-outline-info">
-                    <i class="ri-eye-line me-1"></i>Preview
+                <a href="{{ route('packages.show', ['package_id' => $package->package_id]) }}" class="btn btn-outline-info">
+                    <i class="ri-eye-line me-1"></i>View Package
                 </a>
             </div>
         </div>
@@ -101,8 +101,18 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <!-- Package Edit Form -->
-        <form action="{{ route('packages.update', $package->package_id) }}" method="POST" enctype="multipart/form-data" id="packageForm">
+        <form action="{{ route('packages.update', ['package_id' => $package->package_id]) }}" method="POST" enctype="multipart/form-data" id="packageForm">
             @csrf
             @method('PUT')
             
