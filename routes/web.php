@@ -118,6 +118,9 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
+        Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');
+        Route::post('/package-booking/{booking_id}/add-payment', [PackageController::class, 'addPayment'])->name('package.add-payment');
+        Route::post('/package-booking/{booking_id}/confirm-payment', [PackageController::class, 'confirmPayment'])->name('package.confirm-payment');
 
         Route::resource('zones', ZoneController::class);
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
