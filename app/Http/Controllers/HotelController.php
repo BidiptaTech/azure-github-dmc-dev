@@ -586,6 +586,12 @@ class HotelController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            // Check total request size before processing
+            $contentLength = $request->header('Content-Length');
+            if ($contentLength && $contentLength > 100 * 1024 * 1024) { // 100MB limit
+                return redirect()->back()->withInput()->with('error', 'Upload size too large. Please reduce image sizes or upload fewer images.');
+            }
+            
             $request->validate([
                 'name' => 'required|string',
                 'phone' => 'required|string',
@@ -599,12 +605,12 @@ class HotelController extends Controller
                 'time_range' => 'required',
                 'longitude' => 'required',
                 // 'is_active' => 'required|integer',
-                'master_image' => 'nullable|image',
-                'images.*' => 'nullable|image',
+                'master_image' => 'nullable|image|max:20480', // 20MB limit
+                'all_images.*' => 'nullable|image|max:20480', // 20MB limit per image
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            // Catch Validation Errors
-            dd($e->errors());
+            // Return user-friendly validation errors
+            return redirect()->back()->withInput()->withErrors($e->errors())->with('error', 'Please check the form errors and try again.');
         }
         // $validatedData = $request->validate([
         //     'name' => 'required|string',
@@ -645,15 +651,38 @@ class HotelController extends Controller
             $storage_file = CommonHelper::image_path('file_storage', $image);
         }
 
-        // Handle additional images
+        // Handle additional images with better error handling
         $imagePaths = []; 
         if ($request->hasFile('all_images')) {
+            $uploadedCount = 0;
+            $maxImages = 10; // Limit to prevent overwhelming the server
+            
             foreach ($request->file('all_images') as $image) {
-                $pathData = CommonHelper::image_path('file_storage', $image);
-                if (!empty($pathData['master_value'])) {
-                    $imagePaths[] = $pathData['master_value']; 
+                if ($uploadedCount >= $maxImages) {
+                    Log::warning("Maximum image limit reached, skipping remaining images");
+                    break;
+                }
+                
+                try {
+                    // Validate image size
+                    if ($image->getSize() > 20 * 1024 * 1024) { // 20MB limit per image
+                        Log::warning("Image too large, skipping: " . $image->getClientOriginalName());
+                        continue;
+                    }
+                    
+                    $pathData = CommonHelper::image_path('file_storage', $image);
+                    if (!empty($pathData['master_value'])) {
+                        $imagePaths[] = $pathData['master_value'];
+                        $uploadedCount++;
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Error uploading image: " . $e->getMessage());
+                    // Continue with other images instead of failing completely
+                    continue;
                 }
             }
+            
+            Log::info("Successfully uploaded {$uploadedCount} additional images");
         }
         
         // Get existing images and filter out removed ones

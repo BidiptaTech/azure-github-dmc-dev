@@ -147,8 +147,8 @@ jobs:
               index index.php index.html index.htm;
               server_name _;
 
-              # Increase client body size for large uploads
-              client_max_body_size 100M;
+              # Increase client body size for large uploads (increased for multiple images)
+              client_max_body_size 120M;
               
               # Increase timeout values
               client_body_timeout 300s;
