@@ -95,6 +95,7 @@ import PrintModal from "./PrintModal";
 import { setSelectedCity } from "@/slice/common/commonSlice";
 import { clearAttractions } from "@/slice/attractions/attractionSlice";
 import { clearRestaurants } from "@/slice/restaurant/RestaurantsSlice";
+import { UpdateCustomPackage } from "@/slice/tour-packages/tourPackageSlice";
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
@@ -767,10 +768,10 @@ export default function Pending() {
     setSnackbarMessage("Submitting Id...");
     setSnackbarSeverity("info");
     setOpenSnackbar(true);
-    dispatch(fetchViewDetails({ tour_id: tourId }))
+    dispatch(UpdateCustomPackage({ tour_id: tourId }))
     .unwrap()
     .then((response) => {
-      navigate("/dashboard/db-dashboard/updatebooking");
+      navigate("/dashboard/tour-packages");
       console.log("Full Response Data:", response);
     })
     .catch((error) => {

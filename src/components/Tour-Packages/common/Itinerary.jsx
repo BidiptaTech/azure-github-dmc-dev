@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState , useEffect} from 'react';
 import { 
   Box, 
   Typography, 
@@ -59,16 +59,101 @@ import PickupDropComponent from '../../Tour-Packages/PickUp-Drop';
 import SimpleCustomerInfo from './SimpleCustomerInfo';
 import ServicesSummaryModal from './ServicesSummaryModal';
 
-export default function Itinerary() {
+export default function Itinerary({ onBookingSuccess }) {
   // Get data from Redux store
   const { searchCriteria } = useSelector((state) => state.tourPackages);
+  console.log("searchCriteria", searchCriteria);
   const { hotels } = useSelector((state) => state.hotels);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
   const [portType,setPortType] = useState("Entry Port");
   const [portType1,setPortType1] = useState("Exit Port");
   const dispatch = useDispatch();
-  
+  const packageData = useSelector((state) => state.tourPackages.packageData);
+  console.log("packageData", packageData);
+
+  // Categorize package data by service type
+  const categorizedServices = useMemo(() => {
+    if (!packageData?.tour?.booking) {
+      return {
+        hotels: [],
+        entryPorts: [],
+        exitPorts: [],
+        attractions: [],
+        restaurants: [],
+        guides: [],
+        travelPoints: [],
+        travelHourly: [],
+        localTransports: []
+      };
+    }
+
+    const services = {
+      hotels: [],
+      entryPorts: [],
+      exitPorts: [],
+      attractions: [],
+      restaurants: [],
+      guides: [],
+      travelPoints: [],
+      travelHourly: [],
+      localTransports: []
+    };
+
+    packageData.tour.booking.forEach(booking => {
+      const serviceType = booking.type?.toLowerCase();
+      
+      switch (serviceType) {
+        case 'hotel':
+          services.hotels.push(booking);
+          break;
+        case 'entry_port':
+          services.entryPorts.push(booking);
+          break;
+        case 'exit_port':
+          services.exitPorts.push(booking);
+          break;
+        case 'attraction':
+          services.attractions.push(booking);
+          break;
+        case 'restaurant':
+          services.restaurants.push(booking);
+          break;
+        case 'guide':
+          services.guides.push(booking);
+          break;
+        case 'travel_point':
+          services.travelPoints.push(booking);
+          break;
+        case 'travel_hourly':
+          services.travelHourly.push(booking);
+          break;
+        case 'local_transport':
+          services.localTransports.push(booking);
+          break;
+        default:
+          console.warn(`Unknown service type: ${booking.type}`);
+      }
+    });
+
+    return services;
+  }, [packageData]);
+
+  // Log categorized services for debugging
+  useEffect(() => {
+    if (packageData?.tour?.booking) {
+      console.log("Categorized Services:", categorizedServices);
+      console.log("Hotels:", categorizedServices.hotels);
+      console.log("Entry Ports:", categorizedServices.entryPorts);
+      console.log("Exit Ports:", categorizedServices.exitPorts);
+      console.log("Attractions:", categorizedServices.attractions);
+      console.log("Restaurants:", categorizedServices.restaurants);
+      console.log("Guides:", categorizedServices.guides);
+      console.log("Travel Points:", categorizedServices.travelPoints);
+      console.log("Travel Hourly:", categorizedServices.travelHourly);
+      console.log("Local Transports:", categorizedServices.localTransports);
+    }
+  }, [categorizedServices, packageData]);
   // State for active service tab
   const [activeServiceTab, setActiveServiceTab] = useState(0);
   
@@ -85,8 +170,23 @@ export default function Itinerary() {
   const dates = useMemo(() => {
     if (!searchCriteria?.checkIn || !searchCriteria?.checkOut) return [];
     
-    const startDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
-    const endDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
+    // Detect date format and parse accordingly
+    const checkInDate = searchCriteria.checkIn;
+    const checkOutDate = searchCriteria.checkOut;
+    
+    let startDate, endDate;
+    
+    // Check if dates are in YYYY-MM-DD format (from loaded package) or DD/MM/YYYY format (from search form)
+    if (checkInDate.includes('-') && checkInDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // YYYY-MM-DD format (from loaded package data)
+      startDate = moment(checkInDate, 'YYYY-MM-DD');
+      endDate = moment(checkOutDate, 'YYYY-MM-DD');
+    } else {
+      // DD/MM/YYYY format (from search form)
+      startDate = moment(checkInDate, 'DD/MM/YYYY');
+      endDate = moment(checkOutDate, 'DD/MM/YYYY');
+    }
+    
     const dayDiff = endDate.diff(startDate, 'days');
 
     // Generate an array of all dates in the range
@@ -123,6 +223,11 @@ export default function Itinerary() {
         setSnackbarMessage('Package booked successfully!');
         setSnackbarSeverity('success');
         setOpenSnackbar(true);
+        
+        // Call the callback to reset current step in parent component
+        if (onBookingSuccess) {
+          onBookingSuccess();
+        }
       })
       .catch((error) => {
         setSnackbarMessage(error?.message || 'Failed to book package. Please try again.');
@@ -170,7 +275,7 @@ export default function Itinerary() {
         </Box> */}
         
         {/* Hotel Component */}
-        <HotelComponent />
+        <HotelComponent hotels={categorizedServices.hotels} />
 
       </Paper>
 
@@ -218,7 +323,14 @@ export default function Itinerary() {
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
       {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
-      <PickupDropComponent portType={portType} setPortType={() => setPortType("Entry Port")} />
+      <PickupDropComponent 
+        portType={portType} 
+        setPortType={() => setPortType("Entry Port")} 
+        date={date}
+        dayIndex={index}
+        entryPorts={categorizedServices.entryPorts}
+        exitPorts={categorizedServices.exitPorts}
+      />
     </Paper>
   </Box>
 )}
@@ -228,7 +340,11 @@ export default function Itinerary() {
             <Box sx={{ mb: 2 }}>
               <Paper elevation={1} sx={{ p: 0, borderLeft: '4px solid #f44336' }}>
                 
-                <AttractionComponent />
+                <AttractionComponent 
+                  date={date}
+                  dayIndex={index}
+                  attractions={categorizedServices.attractions}
+                />
               </Paper>
             </Box>
 
@@ -236,7 +352,11 @@ export default function Itinerary() {
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
                 {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography> */}
-                <GuideComponent />
+                <GuideComponent 
+                  date={date}
+                  dayIndex={index}
+                  guides={categorizedServices.guides}
+                />
               </Paper>
             </Box>
 
@@ -244,14 +364,24 @@ export default function Itinerary() {
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #ff9800' }}>
                 <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Restaurant</Typography>
-                <RestaurantComponent />
+                <RestaurantComponent 
+                  date={date}
+                  dayIndex={index}
+                  restaurants={categorizedServices.restaurants}
+                />
               </Paper>
             </Box>
 
             {/* Transport Component */}
             <Box sx={{ mb: 2 }}>
               <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
-                <TransportComponent dayIndex={index} />
+                <TransportComponent 
+                  dayIndex={index}
+                  date={date}
+                  PointToPoint={categorizedServices.travelPoints}
+                  Hourly={categorizedServices.travelHourly}
+                  LocalTransports={categorizedServices.localTransports}
+                />
               </Paper>
             </Box>
 
@@ -260,7 +390,14 @@ export default function Itinerary() {
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
       {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Departure</Typography> */}
-      <PickupDropComponent portType1={portType1} setPortType1={() => setPortType1("Exit Port")} />
+      <PickupDropComponent 
+        portType1={portType1} 
+        setPortType1={() => setPortType1("Exit Port")} 
+        date={date}
+        dayIndex={index}
+        entryPorts={categorizedServices.entryPorts}
+        exitPorts={categorizedServices.exitPorts}
+      />
     </Paper>
   </Box>
 )}

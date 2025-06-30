@@ -17,10 +17,11 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import EntryPortSearchZone from "./EntryPortSearchZone";
 import ExitPortSearchZone from "./ExitPortSearchZone";
 
-const CombinedSearchLocationZone = ({ Location, portType, portType1 }) => {
+const CombinedSearchLocationZone = ({ Location, portType, portType1, entryPorts, exitPorts }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  
+  console.log("entryPorts", entryPorts);
+  console.log("exitPorts", exitPorts);
   // Check and log the Google Maps API availability
   useEffect(() => {
     const checkGoogleMapsApi = () => {

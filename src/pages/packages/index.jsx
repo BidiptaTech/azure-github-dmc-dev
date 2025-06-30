@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PreDefinePackagesPage from '../pre-define-packages';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Button, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { setPackageData } from '@/slice/tour-packages/tourPackageSlice';
 
 // Create a custom theme for the button
 const theme = createTheme({
@@ -42,11 +43,12 @@ const theme = createTheme({
 const Packages = () => {
     const navigate = useNavigate();
     const userRole = useSelector((state) => state.auth.userRole);
-    
+    const dispatch = useDispatch();
     // console.log("Current userRole:", userRole);
     // console.log("Is userRole exactly 'Agent'?", userRole === "Agent");
     
     const handleTourPackagesClick = () => {
+        dispatch(setPackageData(null));
         navigate('/dashboard/tour-packages');
     };
     
