@@ -86,6 +86,7 @@ class TourController extends Controller
             $tour->check_out_time = $checkOutTime;
             $tour->display_id = $display_id;
             $tour->tour_status = "Pending";
+            $tour->city = $request->city;
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->save();
             $tour->refresh();
