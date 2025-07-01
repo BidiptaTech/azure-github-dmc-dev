@@ -22,6 +22,8 @@ class PackageBooking extends Model
      */
     protected $casts = [
         'booking_details' => 'json',
+        'package' => 'json',
+        'user_info' => 'json',
         'travel_dates' => 'json',
         'selected_hotels' => 'json',
         'selected_attractions' => 'json',

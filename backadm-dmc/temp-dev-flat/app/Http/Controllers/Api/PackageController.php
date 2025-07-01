@@ -449,15 +449,15 @@ class PackageController extends Controller
         $booking->package_id = $package_id;
         $booking->type = $type; // Save the type (agent/user)
         $booking->dmc_id = $dmc_id; // Save the DMC ID
-        $booking->booking_details = json_encode($data['booking_details']);
-        $booking->package = json_encode($data['package']);
-        $booking->user_info = json_encode($data['user_info']);
-        $booking->travel_dates = json_encode(["check_in" => $check_in, "check_out" => $check_out]);
+        $booking->booking_details = $data['booking_details'];
+        $booking->package = $data['package'];
+        $booking->user_info = $data['user_info'];
+        $booking->travel_dates = ["check_in" => $check_in, "check_out" => $check_out];
 
         
-        $booking->selected_hotels = json_encode($hotelIds);
-        $booking->selected_attractions = json_encode($attractionIds);
-        $booking->selected_guides = json_encode($guideIds);
+        $booking->selected_hotels = $hotelIds;
+        $booking->selected_attractions = $attractionIds;
+        $booking->selected_guides = $guideIds;
 
         $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
