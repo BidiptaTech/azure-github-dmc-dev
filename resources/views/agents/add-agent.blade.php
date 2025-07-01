@@ -2,6 +2,7 @@
 @section('title', 'Add Agent')
 @section('content')
 
+
 <style>
    /* Adjust the height and padding of the multi-select container */
     .select2-container--default .select2-selection--multiple {
