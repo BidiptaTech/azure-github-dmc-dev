@@ -555,7 +555,7 @@
                     <span class="menu-header-text" data-i18n="Packages">Packages</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('package*')) open active @endif">
+                <li class="menu-item @if(Request::is('package*') || Request::is('predefined-package-booking-list')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-gift-line"></i>
                         <div data-i18n="Packages">Predefined Packages</div>
@@ -571,6 +571,14 @@
                                 <div data-i18n="Create Package">Create Package</div>
                             </a>
                         </li>
+                        @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+                        <!-- Show Booking -->
+                        <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                            <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
+                                <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </li>
                 <!-- End Packages -->
@@ -628,7 +636,7 @@
             <!-- End Booking List -->
 
             <!-- Predefined Packages Booking List -->
-            @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+            {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
                 </li>
@@ -648,7 +656,7 @@
                         </li>
                     </ul>
                 </li>
-            @endif
+            @endif --}}
             <!-- End Predefined Packages Booking List -->
 
             <!-- Reports -->

@@ -192,7 +192,7 @@
                                         <span class="badge bg-warning">{{ $childCount }} Children</span>
                                     @endif
                                 </td>
-                                <td>{{ $currency }} {{ number_format($totalPrice, 2) }}</td>
+                                <td> SGD {{ number_format($totalPrice, 2) }}</td>
                                 <td>
                                     @php
                                         $statusClass = '';

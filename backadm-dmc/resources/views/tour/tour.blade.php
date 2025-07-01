@@ -1725,8 +1725,6 @@
                                     oninput="validateAmount(this, {{ $remainingAmount }})"
                                     onkeypress="return event.charCode >= 48 && event.charCode <= 57"
                                     readonly>
-                                    onkeypress="return event.charCode >= 48 && event.charCode <= 57"
-                                    readonly>
                         </div>
                             <div class="mt-2">
                                 <small class="text-muted">
