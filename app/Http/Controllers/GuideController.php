@@ -773,17 +773,19 @@ class GuideController extends Controller
         if (!hasPermission('delete guide')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        // Get guide and delete images from Azure
+        $guide = Guide::where('guide_id', $id)->first();
+        if($guide) {
+            if($guide->image) {
+                CommonHelper::deleteAzureImage($guide->image);
+            }
+            if($guide->license_image) {
+                CommonHelper::deleteAzureImage($guide->license_image);
+            }
+        }
         $delete = Guide::where('guide_id', $id)->delete();
-        // if($delete){
-        //     LogActivityService::log('deleted_guide_details', 'App\Models\Guide', $id, 'Guide details deleted.');
-            return redirect()->route('guide.index')
+        return redirect()->route('guide.index')
             ->with('error', 'Guide deleted successfully');
-        // }
-        // else{
-        //     LogActivityService::log('Attempted_to_delete_guide_details', 'App\Models\Guide', $id, 'Guide details deleted.');
-        //     return redirect()->route('guide.index')
-        //     ->with('error', 'Unknown error occured while deleting the guide');
-        // }
     }
 
     public function approveOrDecline($guideId, Request $request)
