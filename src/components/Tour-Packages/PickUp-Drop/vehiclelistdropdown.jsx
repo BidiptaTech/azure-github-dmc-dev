@@ -336,6 +336,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
           children: entryData.children || 0,
           mode: entryData.Mode || 'dmc',
           dmcId: entryData.dmc_id,
+          entrypickup:entryData.entrypickup,
+          entrydropoff:entryData.entrydropoff,
+          bookingDate:entryData.bookingDate,
+          pickupdate:entryData.pickupdate,
+          entrytime:entryData.entrytime,
           // Store original loaded data for reference
           originalData: entryData
         };
@@ -523,6 +528,24 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
         // Find any existing customer info in current services
         const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
         
+        // Check if this is a loaded booking or a new booking
+        const isLoadedBooking = booking.originalData !== undefined;
+        
+        // Get location and timing data based on booking type
+        const locationData = isLoadedBooking ? {
+          entrypickup: booking.originalData.entrypickup,
+          entrydropoff: booking.originalData.entrydropoff,
+          bookingDate: booking.originalData.pickupdate,
+          pickupdate: booking.originalData.pickupdate,
+          entrytime: booking.originalData.entrytime
+        } : {
+          entrypickup: entryPickup,
+          entrydropoff: entryDropoff,
+          bookingDate: pickupDate,
+          pickupdate: pickupDate,
+          entrytime: entryTime
+        };
+
         // Create booking data in the same format as currently used
         const bookingData = {
           // If we have customer info, spread it into the booking data
@@ -538,21 +561,17 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
             countryCode: customerInfoService.countryCode
           } : {}),
           
-          // Core booking details
+          // Core booking details with correct location and timing data
           id: booking.id,
-          bookingDate: pickupDate,
           vehicles_id: vehicle.id,
           image: vehicle.image,
           dmc_id: booking.dmcId,
           vehicles_name: vehicle.vehicle_name,
           Mode: booking.mode,
           type: booking.priceMode === "Sharable" ? "shared" : "private",
-          entrypickup: entryPickup,
-          entrydropoff: entryDropoff,
+          ...locationData, // Use the correct location and timing data
           PickupPlaceid: booking.PickupPlaceid || null,
           DropoffPlaceid: booking.DropoffPlaceid || null,
-          pickupdate: pickupDate,
-          entrytime: entryTime,
           adults: bookingAdultCount,
           children: bookingChildCount,
           totalPrice: Math.ceil(price),
@@ -723,82 +742,23 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
       // Trigger re-render
       setBookingsVersion(prev => prev + 1);
       
-      // Dispatch completed bookings to Redux
+      // Dispatch newly completed bookings to Redux
       const completedBookings = updatedBookings.filter(booking => booking.isComplete);
       console.log("Entry Vehicle - Completed bookings:", completedBookings);
       
-      if (completedBookings.length > 0) {
-        // Format the bookings for setAllServices
-        const bookingsForRedux = completedBookings.map(booking => {
-          const vehicle = booking.vehicle;
-          const vehicleData = booking.vehicleData;
-          const bookingAdultCount = booking.adults || adultCount;
-          const bookingChildCount = booking.children || childCount;
-          const totalGuests = bookingAdultCount + bookingChildCount;
-          
-          // Calculate price based on price mode
-          const price = booking.priceMode === "Sharable"
-            ? (vehicleData.prices && vehicleData.prices.sharablePrice 
-                ? vehicleData.prices.sharablePrice * totalGuests 
-                : (vehicleData.shared_price ? parseFloat(vehicleData.shared_price) * totalGuests : 0))
-            : (vehicleData.prices && vehicleData.prices.privatePrice 
-                ? vehicleData.prices.privatePrice 
-                : (vehicleData.private_price ? parseFloat(vehicleData.private_price) : 0));
-          
-          return {
-            id: booking.id, // Include the unique ID
-            type: "Entry Port",
-            vehicleName: vehicle.vehicle_name,
-            vehicleType: vehicle.vehicle_type,
-            vehicleModel: vehicle.vehicle_model,
-            modelYear: vehicle.model_year,
-            seatingCapacity: vehicle.seating_capacity,
-            vehicleImage: vehicle.image,
-            city: vehicle.city,
-            country: vehicle.country,
-            pickupLocation: entryPickup,
-            dropoffLocation: entryDropoff,
-            bookingDate: pickupDate,
-            pickupTime: entryTime,
-            adults: bookingAdultCount,
-            children: bookingChildCount,
-            price: price,
-            taxPercentage: vehicle.tax_percentage,
-            priceMode: booking.priceMode,
-            mode: booking.mode,
-            dmcId: booking.dmcId,
-            vehicleId: vehicle.id
-          };
-        });
-        
-        console.log("Entry Vehicle - Formatted bookings for Redux:", bookingsForRedux);
-        
-        // Create a map of existing services by ID for faster lookup
-        const existingServicesMap = {};
-        existingServices.forEach(service => {
-          if (service.id) {
-            existingServicesMap[service.id] = service;
+      // For each newly completed booking, dispatch to Redux individually
+      completedBookings.forEach((booking, index) => {
+        // Find the actual index of this booking in the bookings array
+        const actualIndex = updatedBookings.findIndex(b => b.id === booking.id);
+        if (actualIndex !== -1) {
+          // Check if this booking was just completed (isComplete changed from false to true)
+          const originalBooking = bookings.find(b => b.id === booking.id);
+          if (originalBooking && !originalBooking.isComplete && booking.isComplete) {
+            console.log("Entry Vehicle - Newly completed booking, dispatching to Redux:", booking.id);
+            dispatchBookingToRedux(actualIndex, true); // Force update for newly completed bookings
           }
-        });
-        
-        // First, filter out any existing Entry Port bookings
-        const nonEntryPortServices = existingServices.filter(service => service.type !== "Entry Port");
-        
-        // Then, filter out any Exit Port services that have the same IDs as our bookings
-        const finalServices = [...nonEntryPortServices];
-        
-        // Add the new Entry Port bookings
-        bookingsForRedux.forEach(booking => {
-          // Only add if it doesn't already exist
-          if (!existingServicesMap[booking.id]) {
-            finalServices.push(booking);
-          }
-        });
-        
-        console.log("Entry Vehicle - Dispatching finalServices to Redux:", finalServices);
-        // Dispatch to Redux with the properly filtered services
-        dispatch(setAllServices(finalServices));
-      }
+        }
+      });
     }
   }, [entryPickup, entryDropoff, pickupDate, entryTime, adultCount, childCount, existingServices, dispatch]);
   
@@ -904,19 +864,33 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
       
       // Directly dispatch to Redux after price mode is selected and all fields are filled
       if (hasAllRequiredFields) {
-        dispatchBookingToRedux(bookingIndex);
+        dispatchBookingToRedux(bookingIndex, true); // Force update since this is a new completion
       }
     }
   };
   
   // Add a function to directly dispatch a specific booking to Redux
-  const dispatchBookingToRedux = (bookingIndex) => {
+  const dispatchBookingToRedux = (bookingIndex, forceUpdate = false) => {
     const bookings = getBookings();
     const booking = bookings[bookingIndex];
     
     if (!booking || !booking.vehicle || !booking.vehicleData) {
       console.error("Cannot dispatch incomplete booking to Redux", booking);
       return;
+    }
+    
+    // Check if this booking is already in Redux state to prevent duplicates
+    if (!forceUpdate) {
+      const existingBooking = existingServices.find(service => 
+        service.type === "entry_port" && 
+        service.data && 
+        service.data.some(item => item.id === booking.id)
+      );
+      
+      if (existingBooking) {
+        console.log("Entry Vehicle - Booking already exists in Redux, skipping dispatch:", booking.id);
+        return;
+      }
     }
     
     console.log("Entry Vehicle - Directly dispatching booking to Redux:", booking);
@@ -926,6 +900,24 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
     const bookingAdultCount = booking.adults || adultCount;
     const bookingChildCount = booking.children || childCount;
     const totalGuests = bookingAdultCount + bookingChildCount;
+    
+    // Check if this is a loaded booking or a new booking
+    const isLoadedBooking = booking.originalData !== undefined;
+    
+    // Get location and timing data based on booking type
+    const locationData = isLoadedBooking ? {
+      entrypickup: booking.originalData.entrypickup,
+      entrydropoff: booking.originalData.entrydropoff,
+      bookingDate: booking.originalData.pickupdate,
+      pickupdate: booking.originalData.pickupdate,
+      entrytime: booking.originalData.entrytime
+    } : {
+      entrypickup: entryPickup,
+      entrydropoff: entryDropoff,
+      bookingDate: pickupDate,
+      pickupdate: pickupDate,
+      entrytime: entryTime
+    };
     
     // Calculate price based on price mode
     const price = booking.priceMode === "Sharable"
@@ -954,25 +946,21 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
         countryCode: customerInfoService.countryCode
       } : {}),
       
-      // Core booking details matching index1.jsx details structure
-      bookingDate: pickupDate,
+      // Core booking details with correct location and timing data
       vehicles_id: vehicle.id,
       image: vehicle.image,
       dmc_id: booking.dmcId,
       vehicles_name: vehicle.vehicle_name,
       Mode: booking.mode,
       type: booking.priceMode === "Sharable" ? "shared" : "private",
-      entrypickup: entryPickup,
-      entrydropoff: entryDropoff,
+      ...locationData, // Use the correct location and timing data
       PickupPlaceid: booking.PickupPlaceid || null,
       DropoffPlaceid: booking.DropoffPlaceid || null,
-      pickupdate: pickupDate,
-      entrytime: entryTime,
       adults: bookingAdultCount,
       children: bookingChildCount,
       totalPrice: Math.ceil(price),
       Tax: vehicle.tax_percentage,
-      distance: vehicle.distance || vehicleData.$distanceInKM || null,
+      distance: vehicle.distance || vehicleData.$distanceInKM || booking.originalData?.distance || null,
       Night_Start_Time: vehicle.night_start_time || vehicleData.Night_Start_Time || null,
       Night_End_Time: vehicle.night_end_time || vehicleData.Night_End_Time || null,
       city: vehicle.city,
@@ -993,8 +981,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
     
     // Remove any existing Entry Port service with the same booking ID
     const filteredServices = allCurrentServices.filter(service => {
-      if (service.type === "Entry Port") {
-        // If this is an Entry Port service, check if it contains our booking ID
+      if (service.type === "entry_port") {
+        // If this is an entry_port service, check if it contains our booking ID
         if (service.data && service.data.some(item => item.id === booking.id)) {
           // This service contains our booking ID, so filter it out
           return false;
@@ -1023,8 +1011,24 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
   
   // Modify handleOpenSummaryModal to ensure data is in Redux before showing modal
   const handleOpenSummaryModal = (index) => {
-    // Make sure the data is in Redux before showing the modal
-    dispatchBookingToRedux(index);
+    const bookings = getBookings();
+    const booking = bookings[index];
+    
+    // Only dispatch to Redux if booking is complete and not already in Redux
+    if (booking && booking.isComplete) {
+      const existingBooking = existingServices.find(service => 
+        service.type === "entry_port" && 
+        service.data && 
+        service.data.some(item => item.id === booking.id)
+      );
+      
+      if (!existingBooking) {
+        console.log("Entry Vehicle - Booking not in Redux, dispatching before showing modal");
+        dispatchBookingToRedux(index);
+      } else {
+        console.log("Entry Vehicle - Booking already in Redux, showing modal directly");
+      }
+    }
     
     setSummaryBookingIndex(index);
     setOpenSummaryModal(true);

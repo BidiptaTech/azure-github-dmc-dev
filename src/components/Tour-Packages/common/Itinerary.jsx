@@ -343,7 +343,7 @@ export default function Itinerary({ onBookingSuccess }) {
                 <AttractionComponent 
                   date={date}
                   dayIndex={index}
-                  attractions={categorizedServices.attractions}
+                  attractionspack={categorizedServices.attractions}
                 />
               </Paper>
             </Box>
@@ -355,7 +355,7 @@ export default function Itinerary({ onBookingSuccess }) {
                 <GuideComponent 
                   date={date}
                   dayIndex={index}
-                  guides={categorizedServices.guides}
+                  guidespack={categorizedServices.guides}
                 />
               </Paper>
             </Box>
@@ -367,7 +367,7 @@ export default function Itinerary({ onBookingSuccess }) {
                 <RestaurantComponent 
                   date={date}
                   dayIndex={index}
-                  restaurants={categorizedServices.restaurants}
+                  restaurantspack={categorizedServices.restaurants}
                 />
               </Paper>
             </Box>

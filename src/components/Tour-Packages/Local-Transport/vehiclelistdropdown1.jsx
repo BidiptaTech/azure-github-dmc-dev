@@ -236,7 +236,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
         setpricemode("Sharable");
       }
     }
-  }, [vehicles, pricemode, setpricemode, hasPrivatePrice, hasSharablePrice]);
+  }, [vehicles, pricemode, hasPrivatePrice, hasSharablePrice]); // Removed setpricemode to prevent loops
   
   return (
     <Grid item xs={12} sm={6} md={12}>
@@ -289,7 +289,8 @@ const VehicleListDropdown = ({
   isNewBooking,
   cachedVehicles,
   cachedVehicleName,
-  isGridLayout = false
+  isGridLayout = false,
+  preloadedBooking = null
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   const portZoneType = useSelector((state) => state.localtour.portZoneType);
@@ -307,10 +308,10 @@ const VehicleListDropdown = ({
   // Use optional chaining for safe access to nested properties
   const adultsMax = tourDetails?.data?.adult ?? 1;
   const childrenMax = tourDetails?.data?.child ?? 0;
-  const [selectedHours, setSelectedHours] = useState(1);
+  const [selectedHours, setSelectedHours] = useState(preloadedBooking?.hours || 1);
 
-  const [adults, setAdults] = useState(adultsMax);
-  const [children, setChildren] = useState(childrenMax);
+  const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
+  const [children, setChildren] = useState(preloadedBooking?.children || childrenMax);
   const [seatingCapacity, setSeatingCapacity] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -326,7 +327,7 @@ const VehicleListDropdown = ({
     if (onPaxChange) {
       onPaxChange(adults, children);
     }
-  }, [adults, children, onPaxChange]);
+  }, [adults, children]); // Removed onPaxChange to prevent loops
   
   // Filter vehicles that have at least one pricing mode
   const filteredVehicles = vehiclesToUse.filter(vehicle => {
@@ -368,56 +369,93 @@ const VehicleListDropdown = ({
     }, 300); // 300ms delay
   };
 
-  const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
+  const [pricemode, setpricemode] = useState(preloadedBooking?.priceMode || ""); // Set from preloaded data or default
   
   // Notify parent when price mode changes
   useEffect(() => {
     if (onPriceModeChange && pricemode) {
       onPriceModeChange(pricemode);
     }
-  }, [pricemode, onPriceModeChange]);
+  }, [pricemode]); // Removed onPriceModeChange to prevent loops
 
   
   const calculateHourlyPrice = (hours = selectedHours) => {
     // Use the hours parameter instead of selectedHours
     let totalPrice = 0;
-    let currentTime = entryytime; // Using existing entryytime variable in format "11:00 AM"
+    let currentTime = entryytime || "09:00 AM"; // Using existing entryytime variable with fallback
     let hasNightHours = false; // Track if any night hours are found
 
-    // Set base prices based on price mode
+    // Early return if data is not available
+    if (!data || !data.prices) {
+      return 0;
+    }
 
-    const dayPrice =
-      pricemode === "Sharable"
-        ? data.prices.day_sharable_price * totalGuests
-        : data.prices.day_private_price;
-    const daybaseprice =
-      pricemode === "Sharable"
-        ? data.prices.sharable_day_base_price
-        : data.prices.private_day_base_price;
+    // Add safety checks for price values to prevent NaN/Infinity
+    const safeParseFloat = (value) => {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) || !isFinite(parsed) ? 0 : parsed;
+    };
 
-    const nightPrice =
+    // Set base prices based on price mode with safety checks
+    const dayPrice = safeParseFloat(
       pricemode === "Sharable"
-        ? data.prices.night_sharable_price * totalGuests
-        : data.prices.night_private_price;
-    const nightbaseprice =
+        ? (data.prices.day_sharable_price || 0) * totalGuests
+        : (data.prices.day_private_price || 0)
+    );
+    
+    const daybaseprice = safeParseFloat(
       pricemode === "Sharable"
-        ? data.prices.sharable_night_base_price
-        : data.prices.private_night_base_price;
+        ? (data.prices.sharable_day_base_price || 0)
+        : (data.prices.private_day_base_price || 0)
+    );
 
-    // Parse night start and end times - format "20:00:00", "05:00:00"
-    const startNightTime = data.night_start_time
+    const nightPrice = safeParseFloat(
+      pricemode === "Sharable"
+        ? (data.prices.night_sharable_price || 0) * totalGuests
+        : (data.prices.night_private_price || 0)
+    );
+    
+    const nightbaseprice = safeParseFloat(
+      pricemode === "Sharable"
+        ? (data.prices.sharable_night_base_price || 0)
+        : (data.prices.private_night_base_price || 0)
+    );
+
+    // Parse night start and end times with fallback values
+    const startNightTime = (data.night_start_time || "20:00:00")
       .split(":")
       .slice(0, 2)
       .join(":");
-    const endNightTime = data.night_end_time
+    const endNightTime = (data.night_end_time || "06:00:00")
       .split(":")
       .slice(0, 2)
       .join(":");
 
     // Helper function to convert 12-hour format to 24-hour format
     const convertTo24Hour = (time12h) => {
-      const [time, period] = time12h.split(" ");
-      let [hours, minutes] = time.split(":").map(Number);
+      // Add null check and default value
+      if (!time12h || typeof time12h !== 'string') {
+        return "09:00"; // Default fallback time
+      }
+
+      const timeParts = time12h.split(" ");
+      if (timeParts.length !== 2) {
+        return "09:00"; // Default fallback if format is incorrect
+      }
+
+      const [time, period] = timeParts;
+      const timeComponents = time.split(":");
+      
+      if (timeComponents.length !== 2) {
+        return "09:00"; // Default fallback if time format is incorrect
+      }
+
+      let [hours, minutes] = timeComponents.map(Number);
+
+      // Check if hours and minutes are valid numbers
+      if (isNaN(hours) || isNaN(minutes)) {
+        return "09:00"; // Default fallback for invalid numbers
+      }
 
       if (period === "PM" && hours !== 12) {
         hours += 12;
@@ -464,10 +502,12 @@ const VehicleListDropdown = ({
     for (let i = 0; i < hours; i++) {
       // Check if current time is within night hours
       if (isNightTime(currentTime24h)) {
-        totalPrice += parseFloat(nightPrice) + parseFloat(nightbaseprice);
+        const hourPrice = safeParseFloat(nightPrice) + safeParseFloat(nightbaseprice);
+        totalPrice += hourPrice;
         hasNightHours = true; // Mark that we found a night hour
       } else {
-        totalPrice += parseFloat(dayPrice) + parseFloat(daybaseprice);
+        const hourPrice = safeParseFloat(dayPrice) + safeParseFloat(daybaseprice);
+        totalPrice += hourPrice;
       }
 
       // Add 1 hour to current time for next iteration
@@ -477,22 +517,30 @@ const VehicleListDropdown = ({
     // Set isNight based on whether any night hours were found
     setIsNight(hasNightHours);
 
-    return totalPrice;
+    // Final safety check to prevent NaN/Infinity
+    const finalPrice = safeParseFloat(totalPrice);
+    return finalPrice;
   };
   
   useEffect(() => {
-    if (data && data.prices) {
+    if (data && data.prices && pricemode && selectedHours > 0) {
       const calculatedPrice = calculateHourlyPrice(selectedHours);
-      setTotalHourlyPrice(calculatedPrice);
+      // Add safety check to prevent setting NaN or Infinity
+      if (calculatedPrice && isFinite(calculatedPrice) && calculatedPrice > 0) {
+        setTotalHourlyPrice(calculatedPrice);
+      } else {
+        console.warn('Invalid calculated price:', calculatedPrice, 'for data:', data);
+        setTotalHourlyPrice(0);
+      }
     }
   }, [selectedHours, pricemode, entryytime, data, totalGuests]);
 
   // Pass the hourly price to parent component when it changes
   useEffect(() => {
-    if (onHourlyPriceChange && totalHourlyPrice > 0) {
+    if (onHourlyPriceChange && totalHourlyPrice > 0 && isFinite(totalHourlyPrice)) {
       onHourlyPriceChange(totalHourlyPrice);
     }
-  }, [totalHourlyPrice, onHourlyPriceChange]);
+  }, [totalHourlyPrice]); // Removed onHourlyPriceChange to prevent loops
   //console.log("totalHourlyPrice", totalHourlyPrice);
  
   const FinalPrice = totalHourlyPrice;
@@ -506,6 +554,49 @@ const VehicleListDropdown = ({
   const handleChildChange = (value) => {
     setChildren(value);
   };
+
+  // Initialize data when preloaded booking is available
+  useEffect(() => {
+    if (preloadedBooking && preloadedBooking.vehicleId && preloadedBooking.price > 0) {
+      console.log("Hourly - Initializing with preloaded booking data:", preloadedBooking);
+      
+      // Calculate price per hour for the preloaded booking
+      const pricePerHour = preloadedBooking.hours > 0 ? preloadedBooking.price / preloadedBooking.hours : preloadedBooking.price;
+      
+      // Set up mock data structure for preloaded booking - Hourly has different price structure
+      const mockData = {
+        prices: {
+          day_private_price: preloadedBooking.priceMode === "Private" ? pricePerHour : 0,
+          day_sharable_price: preloadedBooking.priceMode === "Sharable" ? pricePerHour : 0,
+          night_private_price: preloadedBooking.priceMode === "Private" ? pricePerHour : 0,
+          night_sharable_price: preloadedBooking.priceMode === "Sharable" ? pricePerHour : 0,
+          private_day_base_price: 0,
+          sharable_day_base_price: 0,
+          sharable_night_base_price: 0,
+          private_night_base_price: 0
+        },
+        night_start_time: "20:00:00",
+        night_end_time: "06:00:00"
+      };
+      
+      setData(mockData);
+      setSeatingCapacity(0); // Will be updated if needed
+      
+      // Set the total price directly from preloaded booking
+      const finalPrice = preloadedBooking.price || 0;
+      setTotalHourlyPrice(finalPrice);
+      
+      // Trigger price change to parent
+      if (onHourlyPriceChange) {
+        onHourlyPriceChange(finalPrice);
+      }
+      
+      // Trigger hour change to parent
+      if (onHourChange && preloadedBooking.hours) {
+        onHourChange(preloadedBooking.hours);
+      }
+    }
+  }, [preloadedBooking?.vehicleId, preloadedBooking?.price, preloadedBooking?.priceMode, preloadedBooking?.hours]); // Added hours dependency
 
   // If it's grid layout, return just the autocomplete for the vehicle selection column
   if (isGridLayout) {
