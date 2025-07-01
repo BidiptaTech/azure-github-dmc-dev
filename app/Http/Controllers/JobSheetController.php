@@ -1031,6 +1031,7 @@ class JobSheetController extends Controller
     {
         try {
             $jobsheet = null;
+            $vehicle = null;
             // Check if a record with the same date, order_type, type, and entry_time exists
             $existingJobsheet = Jobsheet::where('date', $request->date)
                 ->where('type', $request->order_type)
@@ -1048,6 +1049,8 @@ class JobSheetController extends Controller
                 // Update existing record
                 if ($request->has('driver_id')) {
                     $existingJobsheet->driver_id = $request->driver_id;
+                    $drivers = Driver::where('driver_id', $request->driver_id)->first();
+                    $vehicle = Vehicle::where('driver_id', $request->driver_id)->where('dmc_id', $request->dmc_id)->orderBy('created_at', 'desc')->first();
                 }
                 if ($request->has('vehicle_id')) {
                     $existingJobsheet->vehicle_id = $request->vehicle_id;
@@ -1085,11 +1088,13 @@ class JobSheetController extends Controller
                 $jobsheet->save();
             }
             
+
             // Return success
             return response()->json([
                 'success' => true,
                 'message' => 'Driver jobsheet updated successfully',
-                'jobsheet' => $jobsheet
+                'jobsheet' => $jobsheet,
+                'vehicle' => $vehicle
             ]);
         } catch (\Exception $e) {
             \Log::error('Error updating driver/vehicle/guide assignment: ' . $e->getMessage());
