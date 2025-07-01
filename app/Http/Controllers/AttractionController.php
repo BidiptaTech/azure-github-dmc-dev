@@ -145,6 +145,17 @@ class AttractionController extends Controller
 
         // Handling images
         $existingImages = $request->input('existing_images', []);
+        
+        // Get current additional images and find removed ones
+        $currentImages = $attraction->additional_image ? json_decode($attraction->additional_image, true) : [];
+        if(is_array($currentImages) && is_array($existingImages)) {
+            $removedImages = array_diff($currentImages, $existingImages);
+            // Delete removed images from Azure
+            foreach($removedImages as $removedImage) {
+                CommonHelper::deleteAzureImage($removedImage);
+            }
+        }
+        
         $imagePaths = [];
 
         if ($request->hasFile('all_images')) {
@@ -160,6 +171,11 @@ class AttractionController extends Controller
 
         // Process master image
         if ($request->hasFile('master_image')) {
+            // Delete old master image from Azure before uploading new one
+            if ($attraction->master_image) {
+                CommonHelper::deleteAzureImage($attraction->master_image);
+            }
+            
             $masterImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
             if (!empty($masterImagePath['master_value'])) {
                 $attraction->master_image = $masterImagePath['master_value'];
@@ -449,6 +465,8 @@ class AttractionController extends Controller
     */
     public function update(Request $request, $id)
     {
+        $attraction = Attraction::where('attraction_id',$id)->first();
+
         // dd($request->all());
         $request->validate([
             'name' => 'required|string|max:255',
@@ -468,6 +486,17 @@ class AttractionController extends Controller
 
         $allImages = $request->all_images;
         $existingImages = $request->input('existing_images', []);
+        
+        // Get current additional images and find removed ones
+        $currentImages = $attraction->additional_image ? json_decode($attraction->additional_image, true) : [];
+        if(is_array($currentImages) && is_array($existingImages)) {
+            $removedImages = array_diff($currentImages, $existingImages);
+            // Delete removed images from Azure
+            foreach($removedImages as $removedImage) {
+                CommonHelper::deleteAzureImage($removedImage);
+            }
+        }
+        
         $imagePaths = []; 
         if ($request->hasFile('all_images')) {    
             foreach ($request->file('all_images') as $image) {
@@ -478,11 +507,14 @@ class AttractionController extends Controller
             }
         }
         $img_path = array_merge($existingImages, $imagePaths);
-
-        $attraction = Attraction::where('attraction_id',$id)->first();
         // Process master image
         $master_image = $attraction->master_image ?? '';
         if ($request->hasFile('master_image')) {
+            // Delete old master image from Azure before uploading new one
+            if ($attraction->master_image) {
+                CommonHelper::deleteAzureImage($attraction->master_image);
+            }
+            
             $masterImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
             if (!empty($masterImagePath['master_value'])) {
                 $master_image = $masterImagePath['master_value'];
@@ -527,6 +559,26 @@ class AttractionController extends Controller
         if (!hasPermission('delete attraction')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        
+        // Get attraction and delete images from Azure
+        $attraction = Attraction::where('attraction_id', $id)->first();
+        if($attraction) {
+            // Delete master image
+            if($attraction->master_image) {
+                CommonHelper::deleteAzureImage($attraction->master_image);
+            }
+            
+            // Delete additional images
+            if($attraction->additional_image) {
+                $images = json_decode($attraction->additional_image, true);
+                if(is_array($images)) {
+                    foreach($images as $image) {
+                        CommonHelper::deleteAzureImage($image);
+                    }
+                }
+            }
+        }
+        
         Attraction::where('attraction_id', $id)->delete();
         return redirect()->route('attraction.index')
         ->with('success', 'Attraction deleted successfully');

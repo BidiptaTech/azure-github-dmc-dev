@@ -181,7 +181,20 @@ class RestaurantController extends Controller
         // Process master image
         $master_image = $restaurant->master_image ?? '';
 
+        // Unlink removed additional images
+        $currentImages = $restaurant->images ? json_decode($restaurant->images, true) : [];
+        if(is_array($currentImages) && is_array($existingImages)) {
+            $removedImages = array_diff($currentImages, $existingImages);
+            foreach($removedImages as $removedImage) {
+                CommonHelper::deleteAzureImage($removedImage);
+            }
+        }
+
         if ($request->hasFile('master_image')) {
+            // Delete old master image from Azure before uploading new one
+            if ($restaurant->master_image) {
+                CommonHelper::deleteAzureImage($restaurant->master_image);
+            }
             $masterImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
             if (!empty($masterImagePath['master_value'])) {
                 $master_image = $masterImagePath['master_value'];
@@ -570,7 +583,20 @@ class RestaurantController extends Controller
         // Process master image
         $master_image = $restaurant->master_image ?? '';
 
+        // Unlink removed additional images
+        $currentImages = $restaurant->images ? json_decode($restaurant->images, true) : [];
+        if(is_array($currentImages) && is_array($existingImages)) {
+            $removedImages = array_diff($currentImages, $existingImages);
+            foreach($removedImages as $removedImage) {
+                CommonHelper::deleteAzureImage($removedImage);
+            }
+        }
+
         if ($request->hasFile('master_image')) {
+            // Delete old master image from Azure before uploading new one
+            if ($restaurant->master_image) {
+                CommonHelper::deleteAzureImage($restaurant->master_image);
+            }
             $masterImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
             if (!empty($masterImagePath['master_value'])) {
                 $master_image = $masterImagePath['master_value'];
@@ -627,6 +653,25 @@ class RestaurantController extends Controller
         // The restaurant is being used in the rooms table, so do not delete it
         return redirect()->route('restaurant.index')
         ->with('error', 'This Restaurant is in use, cannot be deleted!');
+        }
+
+        // Get restaurant and delete images from Azure
+        $restaurant = Restaurant::where('restaurant_id', $id)->first();
+        if($restaurant) {
+            // Delete master image
+            if($restaurant->master_image) {
+                CommonHelper::deleteAzureImage($restaurant->master_image);
+            }
+            
+            // Delete additional images
+            if($restaurant->images) {
+                $images = json_decode($restaurant->images, true);
+                if(is_array($images)) {
+                    foreach($images as $image) {
+                        CommonHelper::deleteAzureImage($image);
+                    }
+                }
+            }
         }
 
         Restaurant::where('restaurant_id', $id)->delete();
