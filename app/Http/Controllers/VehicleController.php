@@ -146,58 +146,58 @@ class VehicleController extends Controller
     }
 
     public function fetchDrivers(Request $request)
-{
-    $user = auth()->user();
-    $dmc_id = $request->country_name;
-    $drivers = collect(); // Default empty
+    {
+        $user = auth()->user();
+        $dmc_id = $request->country_name;
+        $drivers = collect(); // Default empty
 
-    if ($user->role_id == 11) {
-        // DMC sees their own drivers
-        $drivers = Driver::where('status', 1)
-            ->where('dmc_id', $user->userId)
-            ->orderByDesc('updated_at')
-            ->get();
+        if ($user->role_id == 11) {
+            // DMC sees their own drivers
+            $drivers = Driver::where('status', 1)
+                ->where('dmc_id', $user->userId)
+                ->orderByDesc('updated_at')
+                ->get();
 
-    } elseif ($user->role_id == 35) {
-        // Product Head sees own and APMs they created
-        $createdByIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
-        $createdByIds[] = $user->userId;
+        } elseif ($user->role_id == 35) {
+            // Product Head sees own and APMs they created
+            $createdByIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
+            $createdByIds[] = $user->userId;
 
-        $drivers = Driver::where('status', 1)
-            ->where('dmc_id', $dmc_id)
-            ->whereIn('created_by', $createdByIds)
-            ->orderByDesc('updated_at')
-            ->get();
+            $drivers = Driver::where('status', 1)
+                ->where('dmc_id', $dmc_id)
+                ->whereIn('created_by', $createdByIds)
+                ->orderByDesc('updated_at')
+                ->get();
 
-    } elseif ($user->role_id == 76) {
-        // Product Manager sees APMs they created and self
-        $apmIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
-        $createdByIds = array_merge($apmIds, [$user->userId]);
+        } elseif ($user->role_id == 76) {
+            // Product Manager sees APMs they created and self
+            $apmIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
+            $createdByIds = array_merge($apmIds, [$user->userId]);
 
-        $drivers = Driver::where('status', 1)
-            ->where('dmc_id', $dmc_id)
-            ->whereIn('created_by', $createdByIds)
-            ->orderByDesc('updated_at')
-            ->get();
+            $drivers = Driver::where('status', 1)
+                ->where('dmc_id', $dmc_id)
+                ->whereIn('created_by', $createdByIds)
+                ->orderByDesc('updated_at')
+                ->get();
 
-    } elseif ($user->role_id == 111) {
-        // APM sees only own drivers
-        $drivers = Driver::where('status', 1)
-            ->where('dmc_id', $dmc_id)
-            ->where('created_by', $user->userId)
-            ->orderByDesc('updated_at')
-            ->get();
+        } elseif ($user->role_id == 111) {
+            // APM sees only own drivers
+            $drivers = Driver::where('status', 1)
+                ->where('dmc_id', $dmc_id)
+                ->where('created_by', $user->userId)
+                ->orderByDesc('updated_at')
+                ->get();
 
-    } else {
-        // Admins or others
-        $drivers = Driver::where('status', 1)
-            ->where('dmc_id', $dmc_id)
-            ->orderByDesc('updated_at')
-            ->get();
+        } else {
+            // Admins or others
+            $drivers = Driver::where('status', 1)
+                ->where('dmc_id', $dmc_id)
+                ->orderByDesc('updated_at')
+                ->get();
+        }
+
+        return response()->json($drivers);
     }
-
-    return response()->json($drivers);
-}
 
 
     public function fetchCities(Request $request)
@@ -923,6 +923,26 @@ class VehicleController extends Controller
         if (!hasPermission('delete vehicle')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        
+        // Get vehicle and delete images from Azure
+        $vehicle = Vehicle::where('vehicle_id', $id)->first();
+        if($vehicle) {
+            // Delete main image
+            if($vehicle->image) {
+                CommonHelper::deleteAzureImage($vehicle->image);
+            }
+            
+            // Delete additional images
+            if($vehicle->images) {
+                $images = json_decode($vehicle->images, true);
+                if(is_array($images)) {
+                    foreach($images as $image) {
+                        CommonHelper::deleteAzureImage($image);
+                    }
+                }
+            }
+        }
+        
         Vehicle::where('vehicle_id', $id)->delete();
         return redirect()->route('vehicle.index')
         ->with('error', 'Vehicle deleted successfully');
