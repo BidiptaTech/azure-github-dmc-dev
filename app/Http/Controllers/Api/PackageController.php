@@ -664,7 +664,7 @@ class PackageController extends Controller
                 'message' => 'Package ID is required.',
             ], 400);
         }
-        $updated = PackageBooking::where('booking_id', $booking_id)
+        $updated = PackageBooking::where('booking_id', $package_id)
             ->update(['status' => 4]);
         if ($updated) {
             return response()->json([
