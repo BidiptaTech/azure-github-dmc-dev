@@ -23,14 +23,7 @@ export const formatDate = (date) => {
  */
 export const getItineraryDayDate = (packageDetails, dayIndex) => {
   // Debug the inputs to see what's being passed
-  console.log(`[getItineraryDayDate] called with:`, { 
-    caller: new Error().stack.split('\n')[2].trim(), // Shows which component is calling
-    dayIndex,
-    packageDate: packageDetails.date, 
-    packageStartDate: packageDetails.start_date,
-    searchParamsDate: packageDetails.searchParams?.date,
-    currentPackageDetails: packageDetails,
-  });
+
 
   // Get the starting date, with fallbacks - ALWAYS prioritize searchParams.date if available
   let startDate;
@@ -58,13 +51,7 @@ export const getItineraryDayDate = (packageDetails, dayIndex) => {
     startDate = new Date();
   }
   
-  console.log(`[getItineraryDayDate] using start date:`, { 
-    startDateObj: startDate,
-    startDateStr: startDate.toISOString(),
-    source: packageDetails.searchParams?.date ? 'searchParams.date' : 
-           packageDetails.date ? 'packageDetails.date' : 
-           packageDetails.start_date ? 'packageDetails.start_date' : 'current date'
-  });
+
   
   // Create a new date object to avoid modifying the original
   const dayDate = new Date(startDate);
@@ -72,11 +59,8 @@ export const getItineraryDayDate = (packageDetails, dayIndex) => {
   // Add the day index to get the specific day's date
   dayDate.setDate(startDate.getDate() + dayIndex);
 
-  const formatted = formatDate(dayDate);
-  console.log(`[getItineraryDayDate] day ${dayIndex + 1} date:`, {
-    dayDate,
-    formatted
-  });
+  // const formatted = formatDate(dayDate);
+
   
   return dayDate;
 };
