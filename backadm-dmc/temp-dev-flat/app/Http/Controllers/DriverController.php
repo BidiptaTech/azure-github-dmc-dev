@@ -647,6 +647,21 @@ class DriverController extends Controller
         if (!hasPermission('delete driver')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        
+        // Get driver and delete images from Azure
+        $driver = Driver::where('driver_id', $id)->first();
+        if($driver) {
+            // Delete driver image
+            if($driver->image) {
+                CommonHelper::deleteAzureImage($driver->image);
+            }
+            
+            // Delete license image
+            if($driver->license_image) {
+                CommonHelper::deleteAzureImage($driver->license_image);
+            }
+        }
+        
         Driver::where('driver_id', $id)->delete();
         return redirect()->route('driver.index')
         ->with('success', 'Driver deleted successfully');

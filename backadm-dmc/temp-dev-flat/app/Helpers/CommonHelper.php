@@ -1001,6 +1001,34 @@ class CommonHelper
         }
     }
 
+    /*
+    * Delete image from Azure blob storage
+    * Date [Current Date]
+    */
+    public static function deleteAzureImage($imageUrl)
+    {
+        try {
+            $config = config('filesystems.disks.azure');
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+            
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            
+            // Extract filename from URL
+            $fileName = basename(parse_url($imageUrl, PHP_URL_PATH));
+            
+            // Delete the blob
+            $blobClient->deleteBlob('uploads', $fileName);
+            
+        } catch (\Exception $e) {
+            // Ignore errors, just log
+            Log::error('Azure image deletion failed: ' . $e->getMessage());
+        }
+    }
+
     public static function sendEmail($email, $type, $subject, $body, $orderData)
     {
         try {

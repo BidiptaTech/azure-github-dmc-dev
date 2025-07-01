@@ -132,7 +132,14 @@ class FacilityController extends Controller
         if (!hasPermission('delete facility')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        $delete =Facility::where('id', $id)->delete();
+        
+        // Get facility and delete image from Azure
+        $facility = Facility::where('id', $id)->first();
+        if($facility && $facility->icon) {
+            CommonHelper::deleteAzureImage($facility->icon);
+        }
+        
+        $delete = Facility::where('id', $id)->delete();
         return redirect()->route('facility.index')
         ->with('success','Facility deleted successfully');
     

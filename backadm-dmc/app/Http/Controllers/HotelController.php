@@ -638,15 +638,20 @@ class HotelController extends Controller
         // Check if master image is removed
         if ($request->filled('removed_master_image')) {
             $removedMasterImage = $request->input('removed_master_image');
-            // Delete the physical file if it exists
-            if ($storage_file && file_exists(public_path($storage_file))) {
-                unlink(public_path($storage_file));
+            // Delete from Azure blob storage
+            if ($storage_file) {
+                CommonHelper::deleteAzureImage($storage_file);
             }
             $storage_file = null; // Set to null when removed
         }
         
         // Handle new master image upload
         if ($request->hasFile('master_image')) {
+            // Delete old main image from Azure before uploading new one
+            if ($hotel->main_image) {
+                CommonHelper::deleteAzureImage($hotel->main_image);
+            }
+            
             $image = $request->file('master_image');
             $storage_file = CommonHelper::image_path('file_storage', $image);
         }
@@ -693,17 +698,15 @@ class HotelController extends Controller
             $removedImages = explode(',', $request->input('removed_images'));
             $removedImages = array_filter($removedImages); // Remove empty values
             
-            // Delete physical files and filter out from existing images
+            // Delete from Azure and filter out from existing images
             foreach ($removedImages as $removedImage) {
                 // Remove from existing images array
                 $existingImages = array_filter($existingImages, function($img) use ($removedImage) {
                     return $img !== $removedImage;
                 });
                 
-                // Delete the physical file if it exists
-                if (file_exists(public_path($removedImage))) {
-                    unlink(public_path($removedImage));
-                }
+                // Delete from Azure blob storage
+                CommonHelper::deleteAzureImage($removedImage);
             }
             
             // Re-index the array to avoid gaps
@@ -762,8 +765,28 @@ class HotelController extends Controller
         if (!hasPermission('delete hotel')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        $delete =Hotel::where('hotel_unique_id', $id)->delete();
-        $delete =Room::where('hotel_id', $id)->delete();
+        
+        // Get hotel and delete images from Azure
+        $hotel = Hotel::where('hotel_unique_id', $id)->first();
+        if($hotel) {
+            // Delete main image
+            if($hotel->main_image) {
+                CommonHelper::deleteAzureImage($hotel->main_image);
+            }
+            
+            // Delete additional images
+            if($hotel->images) {
+                $images = json_decode($hotel->images, true);
+                if(is_array($images)) {
+                    foreach($images as $image) {
+                        CommonHelper::deleteAzureImage($image);
+                    }
+                }
+            }
+        }
+        
+        $delete = Hotel::where('hotel_unique_id', $id)->delete();
+        $delete = Room::where('hotel_id', $id)->delete();
         return redirect()->route('hotels.index')
         ->with('success','Hotel deleted successfully');
     }
@@ -1433,8 +1456,45 @@ class HotelController extends Controller
             return redirect()->back()->withErrors('Room not found or invalid room ID.');
         }
 
+        // Handle master image
+        $master_image = $room->master_image ?? '';
+        
+        // Check if master image is removed
+        if ($request->filled('removed_master_image')) {
+            $removedMasterImage = $request->input('removed_master_image');
+            // Delete from Azure blob storage
+            if ($master_image) {
+                CommonHelper::deleteAzureImage($master_image);
+            }
+            $master_image = null; // Set to null when removed
+        }
+        
+        // Handle new master image upload
+        if ($request->hasFile('master_image')) {
+            // Delete old master image from Azure before uploading new one
+            if ($room->master_image) {
+                CommonHelper::deleteAzureImage($room->master_image);
+            }
+            
+            $masterImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
+            if (!empty($masterImagePath['master_value'])) {
+                $master_image = $masterImagePath['master_value'];
+            }
+        }
+
         $allImages = $request->all_images;
         $existingImages = $request->input('existing_images', []);
+        
+        // Get current images and find removed ones
+        $currentImages = $room->images ? json_decode($room->images, true) : [];
+        if(is_array($currentImages) && is_array($existingImages)) {
+            $removedImages = array_diff($currentImages, $existingImages);
+            // Delete removed images from Azure
+            foreach($removedImages as $removedImage) {
+                CommonHelper::deleteAzureImage($removedImage);
+            }
+        }
+        
         $imagePaths = []; 
 
         if ($request->hasFile('all_images')) {
@@ -1467,6 +1527,7 @@ class HotelController extends Controller
             'dinner_type' => $request->dinner_included ? $request->dinner_type : null,
             'dinner_price' => $request->dinner_included ? $request->dinner_price : null,
             'breakfast_included' => $request->supplementary_breakfast ?? false,
+            'master_image' => $master_image,
             'images' => json_encode($img_path)
         ]);
 
@@ -1491,7 +1552,25 @@ class HotelController extends Controller
         ->with('error', 'This Room is in use, cannot be deleted!');
         }
         
-        $delete =Room::where('room_id', $id)->delete();
+        // Delete room images from Azure before deleting the record
+        if($room) {
+            // Delete master image
+            if($room->master_image) {
+                CommonHelper::deleteAzureImage($room->master_image);
+            }
+            
+            // Delete additional images
+            if($room->images) {
+                $images = json_decode($room->images, true);
+                if(is_array($images)) {
+                    foreach($images as $image) {
+                        CommonHelper::deleteAzureImage($image);
+                    }
+                }
+            }
+        }
+        
+        $delete = Room::where('room_id', $id)->delete();
         if ($delete){
             return redirect()->route('hotels.createroom', ['id' => $room->hotel_id])
                 ->with('success', 'Room details deleted successfully!');

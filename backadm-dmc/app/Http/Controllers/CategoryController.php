@@ -111,7 +111,13 @@ class CategoryController extends Controller
         $facility = Facility::where('category_id',$id)->get();
         
         if(count($facility) == 0){
-            $delete =Category::where('category_id', $id)->delete();
+            // Get category and delete image from Azure
+            $category = Category::where('category_id', $id)->first();
+            if($category && $category->icon) {
+                CommonHelper::deleteAzureImage($category->icon);
+            }
+            
+            $delete = Category::where('category_id', $id)->delete();
             return redirect()->route('category.index')
             ->with('success','Category deleted successfully');
         }
@@ -119,8 +125,6 @@ class CategoryController extends Controller
             return redirect()->route(route: 'category.index')
             ->with('denied','This Category is in use, Cannot be delete!');
         }
-        
-    
     }
 
 }
