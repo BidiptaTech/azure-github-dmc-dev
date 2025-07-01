@@ -589,6 +589,31 @@
                                                                                         data-details="{{ htmlspecialchars(json_encode($service->data_decoded)) }}">
                                                                                     <i class="fas fa-eye"></i> View
                                                                                 </button>
+                                                                                
+                                                                                @if(strtolower(str_replace(' ', '_', $service->type)) === 'hotel')
+                                                                                <button type="button" class="btn btn-sm btn-outline-info mail-preview" 
+                                                                                        data-id="{{ $service->id }}"
+                                                                                        data-type="{{ strtolower(str_replace(' ', '_', $service->type)) }}"
+                                                                                        data-tour-id="{{ $tour['tour_id'] }}"
+                                                                                        data-booking-id="{{ $service->booking_id }}"
+                                                                                        data-agent-name="{{ $tour['agent_name'] ?? 'N/A' }}"
+                                                                                        data-dmc-company="{{ $tour['dmc_company'] ?? 'N/A' }}"
+                                                                                        data-destination="{{ $tour['destination'] }}"
+                                                                                        data-display-id="{{ $tour_date->display_id ?? 'N/A' }}"
+                                                                                        data-check-in="{{ $tour_date->check_in_time ?? '' }}"
+                                                                                        data-check-out="{{ $tour_date->check_out_time ?? '' }}"
+                                                                                        data-total-pax="{{ $totalPax }}"
+                                                                                        data-adults="{{ $tour['adult'] ?? 0 }}"
+                                                                                        data-children="{{ $tour['child'] ?? 0 }}"
+                                                                                        data-infants="{{ $tour['infant'] ?? 0 }}"
+                                                                                        data-males="{{ $tour['male_count'] ?? 0 }}"
+                                                                                        data-females="{{ $tour['female_count'] ?? 0 }}"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#mailPreviewModal"
+                                                                                        data-details="{{ htmlspecialchars(json_encode($service->data_decoded)) }}">
+                                                                                    <i class="fas fa-envelope"></i> Mail Preview
+                                                                                </button>
+                                                                                @endif
                                                                               @if(in_array(Auth::user()->role_id, $allowedRoles) && $tour['is_approve'] == 1)
                                                                                 <button type="button" class="btn btn-sm btn-outline-warning edit-details" 
                                                                                         data-id="{{ $service->id }}"
@@ -800,6 +825,48 @@
 </div>
 @endif
 
+<!-- Mail Preview Modal -->
+<div class="modal fade" id="mailPreviewModal" tabindex="-1" aria-labelledby="mailPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mailPreviewModalLabel">
+                    <i class="fas fa-envelope me-2"></i>Email Preview - Booking Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Subject:</label>
+                        <input type="text" id="emailSubject" class="form-control" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-success w-100" id="copyEmailBtn">
+                            <i class="fas fa-copy me-1"></i> Copy Email Content
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="border rounded p-3" style="background-color: #f8f9fa;">
+                    <pre id="emailContent" style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin: 0; color: #333;"></pre>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Instructions:</strong> Click the "Copy Email Content" button to copy the subject and message to your clipboard. Then paste it into your email client.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="copyEmailBtn2">
+                    <i class="fas fa-copy me-1"></i> Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Itinerary Modal -->
 <div class="modal fade" id="itineraryModal" tabindex="-1" aria-labelledby="itineraryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -865,6 +932,257 @@
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
+
+        // Mail Preview Button Click Handler
+        $('.mail-preview').on('click', function() {
+            let tourId = $(this).data('tour-id');
+            let bookingId = $(this).data('booking-id');
+            let agentName = $(this).data('agent-name');
+            let dmcCompany = $(this).data('dmc-company');
+            let destination = $(this).data('destination');
+            let displayId = $(this).data('display-id');
+            let checkIn = $(this).data('check-in');
+            let checkOut = $(this).data('check-out');
+            let totalPax = $(this).data('total-pax');
+            let adults = $(this).data('adults');
+            let children = $(this).data('children');
+            let infants = $(this).data('infants');
+            let males = $(this).data('males');
+            let females = $(this).data('females');
+            let type = $(this).data('type');
+            let encodedDetails = $(this).data('details');
+            
+            // Decode and parse service details
+            let serviceDetails;
+            try {
+                let decodedDetails = $('<div/>').html(encodedDetails).text();
+                serviceDetails = JSON.parse(decodedDetails);
+            } catch (e) {
+                console.error("Error parsing service details:", e);
+                serviceDetails = {};
+            }
+            
+            // Generate email subject
+            let subject = `Booking Confirmation - ${displayId} - ${dmcCompany}`;
+            $('#emailSubject').val(subject);
+            
+            // Generate email content
+            let emailContent = generateEmailContent({
+                tourId: tourId,
+                bookingId: bookingId,
+                agentName: agentName,
+                dmcCompany: dmcCompany,
+                destination: destination,
+                displayId: displayId,
+                checkIn: checkIn,
+                checkOut: checkOut,
+                totalPax: totalPax,
+                adults: adults,
+                children: children,
+                infants: infants,
+                males: males,
+                females: females,
+                type: type,
+                serviceDetails: serviceDetails
+            });
+            
+            $('#emailContent').text(emailContent);
+        });
+
+        // Copy email content to clipboard
+        $('#copyEmailBtn, #copyEmailBtn2').on('click', function() {
+            let subject = $('#emailSubject').val();
+            let content = $('#emailContent').text();
+            let fullEmail = subject + '\n\n' + content;
+            
+            // Try to copy to clipboard
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(fullEmail).then(function() {
+                    // Show success message
+                    showToast('Email content copied to clipboard!', 'success');
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    fallbackCopyTextToClipboard(fullEmail);
+                });
+            } else {
+                // Fallback for older browsers
+                fallbackCopyTextToClipboard(fullEmail);
+            }
+        });
+
+        // Fallback copy function for older browsers
+        function fallbackCopyTextToClipboard(text) {
+            let textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                let successful = document.execCommand('copy');
+                let msg = successful ? 'successful' : 'unsuccessful';
+                console.log('Fallback: Copying text command was ' + msg);
+                showToast('Email content copied to clipboard!', 'success');
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                showToast('Failed to copy to clipboard', 'error');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        // Show toast notification
+        function showToast(message, type) {
+            // Create toast element
+            let toast = $(`
+                <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `);
+            
+            $('body').append(toast);
+            let bsToast = new bootstrap.Toast(toast[0]);
+            bsToast.show();
+            
+            // Remove toast after hiding
+            toast.on('hidden.bs.toast', function() {
+                $(this).remove();
+            });
+        }
+
+        // Helper function to pad text to the right
+        function padRight(text, length) {
+            if (!text) text = '';
+            text = text.toString();
+            if (text.length > length) {
+                return text.substring(0, length);
+            }
+            return text + ' '.repeat(length - text.length);
+        }
+
+        // Helper to center text
+        function centerText(text, width) {
+            const totalPadding = width - text.length;
+            const left = Math.floor(totalPadding / 2);
+            const right = totalPadding - left;
+            return ' '.repeat(left) + text + ' '.repeat(right);
+        }
+
+        // Generate email content based on booking data
+        function generateEmailContent(data) {
+            const WIDTH = 66;
+            const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+            const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+            const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+            const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+            const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+            const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+            const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+            const fullRow = (text) => `│ ${padRight(text, WIDTH - 4)} │`;
+            let content = `Dear Valued Partner,\n\nWe are pleased to confirm your booking request. Please find the details below:\n\n${header}\n║${centerText('=== BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+            content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+            content += `${row('Reference ID', data.displayId)}\n`;
+            content += `${row('Tour ID', data.tourId.toString())}\n`;
+            content += `${row('Booking ID', data.bookingId.toString())}\n`;
+            content += `${row('DMC Company', data.dmcCompany)}\n`;
+            content += `${endBorder}\n\n`;
+            content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+            content += `${row('Destination', data.destination)}\n`;
+            content += `${row('Check-in Date', formatEmailDate(data.checkIn))}\n`;
+            content += `${row('Check-out Date', formatEmailDate(data.checkOut))}\n`;
+            content += `${endBorder}\n\n`;
+            content += `${border}\n${sectionHeader('PASSENGER BREAKDOWN')}\n${sectionBorder}\n`;
+            content += `${row('Total Passengers', data.totalPax.toString() + ' people')}\n`;
+            if (data.adults > 0) {
+                content += `${row('Adults', data.adults.toString())}\n`;
+            }
+            if (data.children > 0) {
+                content += `${row('Children', data.children.toString())}\n`;
+            }
+            if (data.infants > 0) {
+                content += `${row('Infants', data.infants.toString())}\n`;
+            }
+            content += `${row('Male Passengers', data.males.toString())}\n`;
+            content += `${row('Female Passengers', data.females.toString())}\n`;
+            content += `${endBorder}\n\n`;
+            content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+            content += `${row('Service Type', data.type.charAt(0).toUpperCase() + data.type.slice(1).replace('_', ' '))}\n`;
+            if (data.type === 'hotel' && data.serviceDetails && Array.isArray(data.serviceDetails) && data.serviceDetails.length > 0) {
+                const service = data.serviceDetails[0];
+                const hotelName = service.hotelDetails?.hotel_name;
+                const roomType = service.rooms?.[0]?.room_type;
+                const bedType = service.rooms?.[0]?.beds?.[0]?.bed_type;
+                const occupancy = service.rooms?.[0]?.beds?.[0]?.head_count;
+                const numberOfRooms = service.rooms?.length;
+                const mealPlan = service.rooms?.[0]?.beds?.[0]?.selectedMeals?.meal_1?.type;
+                if (hotelName) content += `${row('Hotel Name', hotelName)}\n`;
+                if (roomType) content += `${row('Room Type', roomType)}\n`;
+                if (bedType) content += `${row('Bed Type', bedType)}\n`;
+                if (occupancy) content += `${row('Room Occupancy', occupancy + ' person(s)')}\n`;
+                if (numberOfRooms) content += `${row('Number of Rooms', numberOfRooms.toString())}\n`;
+                if (mealPlan) content += `${row('Meal Plan', mealPlan)}\n`;
+            }
+            content += `${endBorder}\n\n`;
+            content += `${border}\n${sectionHeader('CUSTOMER DETAILS')}\n${sectionBorder}\n`;
+            let hasCustomerData = false;
+            if (data.type === 'hotel' && data.serviceDetails && Array.isArray(data.serviceDetails) && data.serviceDetails.length > 0) {
+                const service = data.serviceDetails[0];
+                const customerName = service.fullName;
+                const customerEmail = service.email;
+                const customerPhone = service.countryCode && service.phone ? service.countryCode + ' ' + service.phone : service.phone;
+                const customerAddress = service.address1;
+                const customerCity = service.city;
+                const customerState = service.state;
+                const specialRequests = service.specialRequests;
+                if (customerName) { hasCustomerData = true; content += `${row('Customer Name', customerName)}\n`; }
+                if (customerEmail) { hasCustomerData = true; content += `${row('Email Address', customerEmail)}\n`; }
+                if (customerPhone) { hasCustomerData = true; content += `${row('Phone Number', customerPhone)}\n`; }
+                if (customerAddress) { hasCustomerData = true; content += `${row('Address', customerAddress)}\n`; }
+                if (customerCity) { hasCustomerData = true; content += `${row('City', customerCity)}\n`; }
+                if (customerState) { hasCustomerData = true; content += `${row('State/Province', customerState)}\n`; }
+                if (specialRequests) { hasCustomerData = true; content += `${row('Special Requests', specialRequests)}\n`; }
+            }
+            if (!hasCustomerData) {
+                content += `${row('Note', 'Customer details to be provided')}\n`;
+            }
+            content += `${endBorder}\n\n`;
+            content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+            content += `${fullRow('• Please confirm this booking within 24 hours')}\n`;
+            content += `${fullRow('• All timings are local time')}\n`;
+            content += `${fullRow('• Prices are subject to availability and confirmation')}\n`;
+            content += `${fullRow('• Terms and conditions apply')}\n`;
+            content += `${fullRow('')}\n`;
+            content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
+            content += `${endBorder}\n\nBest regards,\n${data.dmcCompany}`;
+            return content;
+        }
+
+        // Format date for email display
+        function formatEmailDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                let date = new Date(dateString);
+                return date.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            } catch (e) {
+                return dateString;
+            }
+        }
 
         // View Details Button Click Handler
         $('.view-details').on('click', function() {
