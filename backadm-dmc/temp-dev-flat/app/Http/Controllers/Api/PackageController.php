@@ -500,23 +500,29 @@ class PackageController extends Controller
             
             $data = [];
             foreach ($booking as $b) {
-                $hotelIds = json_decode($b->selected_hotels) ?? [];
-                $attractionIds = json_decode($b->selected_attractions) ?? [];
-                $guideIds = json_decode($b->selected_guides) ?? [];
+                // Ensure the values are arrays, even if they come as strings
+                $hotelIds = is_array($b->selected_hotels) ? $b->selected_hotels : (is_string($b->selected_hotels) ? json_decode($b->selected_hotels, true) : []);
+                $attractionIds = is_array($b->selected_attractions) ? $b->selected_attractions : (is_string($b->selected_attractions) ? json_decode($b->selected_attractions, true) : []);
+                $guideIds = is_array($b->selected_guides) ? $b->selected_guides : (is_string($b->selected_guides) ? json_decode($b->selected_guides, true) : []);
+
+                // Fallback to empty arrays if null or invalid
+                $hotelIds = $hotelIds ?? [];
+                $attractionIds = $attractionIds ?? [];
+                $guideIds = $guideIds ?? [];
 
                 // Only fetch related data if IDs exist
-                $hotels = !empty($hotelIds) ? Hotel::select(
+                $hotels = !empty($hotelIds) && is_array($hotelIds) ? Hotel::select(
                     'hotel_unique_id', 'name', 'main_image', 'images', 'address',
                     'phone', 'email', 'latitude', 'longitude'
                 )->whereIn('hotel_unique_id', $hotelIds)->get() : [];
                 
-                $attractions = !empty($attractionIds) ? Attraction::select(
+                $attractions = !empty($attractionIds) && is_array($attractionIds) ? Attraction::select(
                     'attraction_id', 'name', 'master_image', 'additional_image',
                     'location', 'latitude', 'longitude'
                 )->whereIn('attraction_id', $attractionIds)->get() : [];
                 
                 $guides = [];
-                if (!empty($guideIds)) {
+                if (!empty($guideIds) && is_array($guideIds)) {
                     $selected_guides = Guide::select(
                         'guide_id', 'name', 'image', 'contact_no', 'email'
                     )->whereIn('guide_id', $guideIds)->get();
@@ -536,16 +542,22 @@ class PackageController extends Controller
                 
                 
 
+                // Ensure JSON fields are properly decoded
+                $bookingDetails = is_array($b->booking_details) ? $b->booking_details : (is_string($b->booking_details) ? json_decode($b->booking_details, true) : []);
+                $travelDates = is_array($b->travel_dates) ? $b->travel_dates : (is_string($b->travel_dates) ? json_decode($b->travel_dates, true) : []);
+                $package = is_array($b->package) ? $b->package : (is_string($b->package) ? json_decode($b->package, true) : []);
+                $userInfo = is_array($b->user_info) ? $b->user_info : (is_string($b->user_info) ? json_decode($b->user_info, true) : []);
+
                 $data[] = [
                     'booking_id' => $b->booking_id,
                     'package_id' => $b->package_id,
-                    'booking_details' => json_decode($b->booking_details),
-                    'travel_dates' => json_decode($b->travel_dates),
+                    'booking_details' => $bookingDetails,
+                    'travel_dates' => $travelDates,
                     'hotels' => $hotels,
                     'attractions' => $attractions,
                     'guides' => $guides,
-                    'package' => json_decode($b->package),
-                    'user_info' => json_decode($b->user_info),
+                    'package' => $package,
+                    'user_info' => $userInfo,
                     'status' => $b->status
                 ];
             }
