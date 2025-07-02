@@ -763,14 +763,14 @@ $(document).ready(function() {
                     // If we have a vehicle from the response, select it
                     if (vehicle) {
                          // First try with vehicle_id
-                         $vehicleSelect.find('option').each(function() {
-                             if ($(this).val() === vehicle.vehicle_id.toString() || 
-                                 $(this).text() === vehicle.vehicle_name) {
-                                 $vehicleSelect.val($(this).val());
-                                 return false; // break the loop
-                             }
-                         });
-                         $vehicleSelect.trigger('change');
+                        $vehicleSelect.find('option').each(function() {
+                            if ($(this).val() === vehicle.vehicle_id.toString() || 
+                                $(this).text() === vehicle.vehicle_name) {
+                                $vehicleSelect.val($(this).val());
+                                return false; // break the loop
+                            }
+                        });
+                        $vehicleSelect.trigger('change');
                     }
                     
                     showAlert('success', 'Driver assigned successfully');

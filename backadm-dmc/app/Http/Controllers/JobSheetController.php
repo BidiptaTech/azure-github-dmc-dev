@@ -97,19 +97,19 @@ class JobSheetController extends Controller
             $drivers = [];
             $vehicles = [];
             $tomorrow = Carbon::tomorrow()->toDateString(); // e.g., '2025-06-12'
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
+            if (in_array($user->role_id, [11, 34, 66, 108])) {
                 
                 if($user->role_id == 11){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 34){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 78){
+                elseif($user->role_id == 66){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
-                elseif($user->role_id == 120){
+                elseif($user->role_id == 108){
                     $operation_manager = User::where('userId', $user->created_by)->first();
                     $operation_head = $operation_manager ? User::where('userId', $operation_manager->created_by)->first() : null;
                     $dmcId = $operation_head ? $operation_head->created_by : null;
@@ -117,7 +117,6 @@ class JobSheetController extends Controller
 
                 $drivers = Driver::where('dmc_id', $dmcId)->get();
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
-    
                 if(!is_null($dmcId)){
                     $tomorrow = Carbon::tomorrow()->toDateString();
                     $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
