@@ -483,7 +483,7 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city']);
+        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image']);
         return response()->json($hotels);
     }
 
@@ -492,7 +492,7 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location']);
+        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location','master_image']);
         return response()->json($attractions);
     }
 
