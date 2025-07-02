@@ -1,1 +1,62 @@
 @import "../../public/sass/main.scss";
+
+// Custom slide-up animation for pre-define packages page
+.slide-up-animation {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  
+  &.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Additional smooth transition for child elements
+.tour-packages-page {
+  overflow: hidden;
+  
+  .slide-up-animation {
+    will-change: transform, opacity;
+  }
+}
+
+// Background image container for pre-define packages page
+.pre-define-packages-background {
+  position: relative;
+  min-height: 100vh;
+  background-image: url('/public/Images/beach.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  
+  .background-image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 1;
+  }
+  
+  .tour-packages-page {
+    position: relative;
+    z-index: 2;
+    margin: 20px;
+    
+    // Ensure text is readable without white backgrounds
+    // h1, h2, h3, h4, h5, h6, p, span, label {
+    //   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+    //   color: rgb(53, 52, 52) !important;
+    // }
+    
+    // Style form elements for visibility
+    // input, select, textarea, button {
+    //   background: rgba(255, 255, 255, 0.9) !important;
+    //   border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    //   color: #333 !important;
+    // }
+  }
+}

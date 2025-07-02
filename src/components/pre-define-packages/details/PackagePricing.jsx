@@ -14,6 +14,7 @@ const PackagePricing = ({
   bookedAttractions = {},
   selectedHotelId, 
   selectedGuideId,
+  guidesByDay = {},
   itineraryDates = [],
 }) => {
   // console.log('packageData', packageData);
@@ -262,23 +263,22 @@ const PackagePricing = ({
         });
       }
 
-      // Add guides if selected - assign to each day as appropriate
-      if (guidesToUse.length > 0) {
-        // If guides have specific day assignments, filter for this day
-        const guidesForThisDay = guidesToUse.filter(guide => 
-          !guide.days || // If no days specified, assume guide is for all days
-          (guide.days && Array.isArray(guide.days) && guide.days.includes(dayInfo.day))
-        );
-
-        guidesForThisDay.forEach(guide => {
-          enhancedDay.services.push({
-            service_type: 'guide',
-            service_id: guide.id || guide._id,
-            service_name: guide.name,
-            details: guide
-          });
-        });
-      }
+             // Add guides if selected - use day-wise guide mapping
+       const dayGuide = guidesByDay[dayInfo.day - 1]; // guidesByDay uses 0-based index
+       if (dayGuide) {
+         enhancedDay.services.push({
+           service_type: 'guide',
+           service_id: dayGuide.id || dayGuide._id || dayGuide.guide_id,
+           service_name: dayGuide.name,
+           guide_id: dayGuide.id || dayGuide._id || dayGuide.guide_id,
+           day: dayInfo.day,
+           assigned_day: dayInfo.day,
+           languages: dayGuide.languages || [dayGuide.language] || ['English'],
+           contact_no: dayGuide.contact_no,
+           experience: dayGuide.experience,
+           details: dayGuide
+         });
+       }
 
       return enhancedDay;
     });
@@ -317,10 +317,20 @@ const PackagePricing = ({
             };
           }) : [],
         /* restaurants: restaurantToUse ? [{ ...restaurantToUse, type: 'restaurant' }] : [], */
-        guides: guidesToUse.map(guide => ({
-          ...guide,
-          type: 'guide'
-        }))
+        guides: Object.keys(guidesByDay).map(dayIndex => {
+          const guide = guidesByDay[dayIndex];
+          return {
+            ...guide,
+            type: 'guide',
+            day: parseInt(dayIndex) + 1, // Convert 0-based index to 1-based day
+            assigned_day: parseInt(dayIndex) + 1,
+            guide_id: guide.id || guide._id || guide.guide_id,
+            name: guide.name,
+            languages: guide.languages || [guide.language] || ['English'],
+            contact_no: guide.contact_no,
+            experience: guide.experience
+          };
+        })
       },
       booking_details: {
         adult_count: adultCount,
@@ -375,6 +385,11 @@ const PackagePricing = ({
         has_departure_service: hasExitPortTransfer() ? 1 : 0
       }
     };
+
+    // Debug: Log the booking data to see what guides are being sent
+    console.log('Booking Data - Guides by Day:', guidesByDay);
+    console.log('Booking Data - Selected Guides:', bookingData.selected.guides);
+    console.log('Booking Data - Enhanced Itinerary:', bookingData.booking_details.itinerary);
 
     // Save booking data to state and open the user info modal
     setBookingData(bookingData);

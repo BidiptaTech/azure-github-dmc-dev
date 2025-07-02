@@ -345,30 +345,59 @@ const createCustomPDFHTML = (bookingData) => {
   if (!bookingData) return '<div>No booking data available</div>';
 
   const itineraryHTML = bookingData.itinerary.map((day, index) => {
-    // Organize services by category (excluding transport which will be shown separately)
+    // Organize services by category
     const hotels = day.services.filter(s => s.category === 'hotel' || s.activity.toLowerCase().includes('hotel') || s.activity.toLowerCase().includes('accommodation'));
     const attractions = day.services.filter(s => s.category === 'attraction' || s.activity.toLowerCase().includes('attraction') || s.activity.toLowerCase().includes('sightseeing') || s.activity.toLowerCase().includes('visit'));
     const restaurants = day.services.filter(s => s.category === 'restaurant' || s.activity.toLowerCase().includes('restaurant') || s.activity.toLowerCase().includes('dining') || s.activity.toLowerCase().includes('lunch') || s.activity.toLowerCase().includes('dinner'));
     const guides = day.services.filter(s => s.category === 'guide' || s.activity.toLowerCase().includes('guide') || s.activity.toLowerCase().includes('tour guide'));
-    const transport = day.services.filter(s => s.category === 'transport' || s.activity.toLowerCase().includes('pickup') || s.activity.toLowerCase().includes('transfer') || s.activity.toLowerCase().includes('transport'));
+    
+    // Only include general transport services (arrival/departure), NOT attraction transfers
+    // Attraction transfers should only appear under the attraction itself, not as separate transport
+    const transport = day.services.filter(s => {
+      const isTransport = s.category === 'transport' || s.activity.toLowerCase().includes('pickup') || s.activity.toLowerCase().includes('transfer') || s.activity.toLowerCase().includes('transport');
+      const isAttractionTransfer = s.hasAttractionTransfer; // This indicates it's an attraction-specific transfer
+      
+      // Only include if it's transport but NOT an attraction transfer
+      return isTransport && !isAttractionTransfer;
+    });
+    
     const others = day.services.filter(s => !hotels.includes(s) && !attractions.includes(s) && !restaurants.includes(s) && !guides.includes(s) && !transport.includes(s));
+
+    // Debug: Log service categorization (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Day ${index + 1} service categorization:`, {
+        hotels: hotels.length,
+        attractions: attractions.length,
+        restaurants: restaurants.length,
+        guides: guides.length,
+        transport: transport.length,
+        others: others.length,
+        attractionTransfers: day.services.filter(s => s.hasAttractionTransfer).length
+      });
+    }
 
     // Create service sections with headings
     const createServiceSection = (services, title, icon, color) => {
       if (services.length === 0) return '';
       
       const servicesHTML = services.map(service => {
-        // Create transport indicators
+        // Create transport indicators - show attraction transfers only for attraction services
         let transportIndicators = '';
         if (service.hasAttractionTransfer || service.hasEntryTransport || service.hasExitTransport) {
           const indicators = [];
-          if (service.hasEntryTransport) {
-            indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Arrival</span>');
+          
+          // Only show entry/exit transport for hotel services
+          if ((title === 'Accommodation') && (service.hasEntryTransport || service.hasExitTransport)) {
+            if (service.hasEntryTransport) {
+              indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Arrival</span>');
+            }
+            if (service.hasExitTransport) {
+              indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Departure</span>');
+            }
           }
-          if (service.hasExitTransport) {
-            indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Departure</span>');
-          }
-          if (service.hasAttractionTransfer) {
+          
+          // Only show attraction transfers for attraction services
+          if ((title === 'Attractions & Experiences') && service.hasAttractionTransfer) {
             // Try to get more specific transfer information from the service name
             let transferType = 'Transfer';
             if (service.activity && service.activity.includes('One-Way Transfer')) {
@@ -378,7 +407,10 @@ const createCustomPDFHTML = (bookingData) => {
             }
             indicators.push(`<span style="background: #e8f5e8; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🚗 ${transferType}</span>`);
           }
-          transportIndicators = `<div style="margin-top: 4px;">${indicators.join('')}</div>`;
+          
+          if (indicators.length > 0) {
+            transportIndicators = `<div style="margin-top: 4px;">${indicators.join('')}</div>`;
+          }
         }
         
         return `
@@ -405,7 +437,7 @@ const createCustomPDFHTML = (bookingData) => {
       `;
     };
 
-    // Create transportation section separately (shown first)
+    // Create transportation section separately (only for general transport like arrival/departure)
     const transportSection = transport.length > 0 ? `
       <tr>
         <td colspan="2" style="padding: 16px 20px 8px 20px; background: #f8f9fa;">
@@ -416,25 +448,15 @@ const createCustomPDFHTML = (bookingData) => {
         </td>
       </tr>
       ${transport.map(service => {
-        // Create transport indicators for transport services
+        // Only show general transport indicators (entry/exit), not attraction transfers
         let transportIndicators = '';
-        if (service.hasAttractionTransfer || service.hasEntryTransport || service.hasExitTransport) {
+        if (service.hasEntryTransport || service.hasExitTransport) {
           const indicators = [];
           if (service.hasEntryTransport) {
             indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Arrival</span>');
           }
           if (service.hasExitTransport) {
             indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Departure</span>');
-          }
-          if (service.hasAttractionTransfer) {
-            // Try to get more specific transfer information from the service name
-            let transferType = 'Transfer';
-            if (service.activity && service.activity.includes('One-Way Transfer')) {
-              transferType = 'One-Way Transfer';
-            } else if (service.activity && service.activity.includes('Round-Trip Transfer')) {
-              transferType = 'Round-Trip Transfer';
-            }
-            indicators.push(`<span style="background: #e8f5e8; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🚗 ${transferType}</span>`);
           }
           transportIndicators = `<div style="margin-top: 4px;">${indicators.join('')}</div>`;
         }

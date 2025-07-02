@@ -274,6 +274,12 @@ const PackageDetailsContainer = () => {
   // Track booked attractions by day - { attractionId: dayIndex }
   const [bookedAttractions, setBookedAttractions] = useState({});
 
+  // Track guides by day - { dayIndex: guide }
+  const [guidesByDay, setGuidesByDay] = useState({});
+
+  // Store parsed itinerary for transport service checks
+  const [parsedItineraryData, setParsedItineraryData] = useState(null);
+
   // Ref for content scrolling
   const contentRef = useRef(null);
 
@@ -498,120 +504,139 @@ const PackageDetailsContainer = () => {
       try {
         // console.log('Processing package details...');
         
-        // Handle hotels from the API response
-        if (updatedPackageDetails.selected_hotels && Array.isArray(updatedPackageDetails.selected_hotels)) {
-          // console.log('Setting hotels:', updatedPackageDetails.selected_hotels);
-          setSelectedHotels(updatedPackageDetails.selected_hotels.map(hotel => ({
+        // First, try to parse the itinerary JSON if it exists (this contains the detailed day-wise data)
+        let parsedItinerary = null;
+        if (typeof updatedPackageDetails.itinerary === 'string' && updatedPackageDetails.itinerary) {
+          try {
+            parsedItinerary = JSON.parse(updatedPackageDetails.itinerary);
+            // console.log('Parsed itinerary:', parsedItinerary);
+          } catch (e) {
+            console.error('Error parsing itinerary JSON:', e);
+          }
+        }
+
+        // Handle hotels - prioritize parsed itinerary data
+        if (parsedItinerary && parsedItinerary.hotels && Array.isArray(parsedItinerary.hotels)) {
+          // console.log('Setting hotels from parsed itinerary:', parsedItinerary.hotels);
+          setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
             ...hotel,
-            // Ensure required fields exist
             name: hotel.name || "Unknown Hotel",
             image: hotel.image || '/img/hotels/1.png',
-            // Ensure days array is valid
+            days: Array.isArray(hotel.days) ? hotel.days : []
+          })));
+        } else if (updatedPackageDetails.selected_hotels && Array.isArray(updatedPackageDetails.selected_hotels)) {
+          // Fallback to direct API response
+          setSelectedHotels(updatedPackageDetails.selected_hotels.map(hotel => ({
+            ...hotel,
+            name: hotel.name || "Unknown Hotel",
+            image: hotel.image || '/img/hotels/1.png',
             days: Array.isArray(hotel.days) ? hotel.days : []
           })));
         }
 
-        // Handle attractions from the API response
-        if (updatedPackageDetails.selected_attractions && Array.isArray(updatedPackageDetails.selected_attractions)) {
-          // console.log('Setting attractions:', updatedPackageDetails.selected_attractions);
+        // Handle attractions and guides from parsed itinerary (day-wise data)
+        if (parsedItinerary && parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
+          // console.log('Processing day-wise itinerary data:', parsedItinerary.itinerary);
+          
           const allAttractions = [];
           const bookedByDay = {};
+          const allGuides = [];
+          const guidesByDay = {};
 
-          updatedPackageDetails.selected_attractions.forEach(attraction => {
-            // Ensure required fields exist
-            const safeAttraction = {
-              ...attraction,
-              name: attraction.name || "Unknown Attraction",
-              image: attraction.image || '/img/attractions/1.png'
-            };
+          parsedItinerary.itinerary.forEach((dayData, index) => {
+            // console.log(`Processing day ${index + 1}:`, dayData);
+            
+            // Process attractions for this day
+            if (dayData && dayData.attractions && Array.isArray(dayData.attractions)) {
+              const safeAttractions = dayData.attractions.map(attraction => ({
+                ...attraction,
+                name: attraction.name || "Unknown Attraction",
+                image: attraction.image || '/img/attractions/1.png',
+                transfer_available: attraction.transfer_available,
+                transfer_type: attraction.transfer_type
+              }));
 
-            allAttractions.push(safeAttraction);
+              allAttractions.push(...safeAttractions);
 
-            // Map attractions to days using the 'day' field from API response
-            if (attraction.day && typeof attraction.day === 'number') {
-              // Convert to 0-based index for internal use
-              bookedByDay[attraction.id] = attraction.day - 1;
+              // Map attractions to days using attraction_id
+              safeAttractions.forEach(attraction => {
+                if (attraction && attraction.attraction_id) {
+                  bookedByDay[attraction.attraction_id] = index;
+                }
+              });
+            }
+
+            // Process guide for this day
+            if (dayData && dayData.guide) {
+              const safeGuide = {
+                ...dayData.guide,
+                name: dayData.guide.name || "Tour Guide",
+                image: dayData.guide.image || '/img/team/1.png',
+                languages: dayData.guide.languages || ["English"],
+                day: index + 1 // Add day information
+              };
+
+              allGuides.push(safeGuide);
+              guidesByDay[index] = safeGuide;
             }
           });
 
           // console.log('Processed attractions:', allAttractions);
           // console.log('Booked attractions by day:', bookedByDay);
+          // console.log('Processed guides:', allGuides);
+          // console.log('Guides by day:', guidesByDay);
+
           setSelectedAttractions(allAttractions);
           setBookedAttractions(bookedByDay);
-        }
-
-        // Handle guides from the API response (if available)
-        if (updatedPackageDetails.selected_guides && Array.isArray(updatedPackageDetails.selected_guides)) {
-          setSelectedGuides(updatedPackageDetails.selected_guides.map(guide => ({
-            ...guide,
-            // Ensure required fields exist
-            name: guide.name || "Tour Guide",
-            image: guide.image || '/img/team/1.png',
-            languages: guide.languages || ["English"],
-          })));
-        } else if (updatedPackageDetails.selected_guide) {
-          // Handle single guide case
-          setSelectedGuides([{
-            ...updatedPackageDetails.selected_guide,
-            name: updatedPackageDetails.selected_guide.name || "Tour Guide",
-            image: updatedPackageDetails.selected_guide.image || '/img/team/1.png',
-            languages: updatedPackageDetails.selected_guide.languages || ["English"],
-          }]);
-        }
-
-        // Also try to parse itinerary JSON if it exists (for backward compatibility)
-        if (typeof updatedPackageDetails.itinerary === 'string' && updatedPackageDetails.itinerary) {
-          const parsedItinerary = JSON.parse(updatedPackageDetails.itinerary);
+          setSelectedGuides(allGuides);
           
-          // If we have parsed itinerary data, it might override the direct fields
-          if (parsedItinerary && parsedItinerary.hotels && Array.isArray(parsedItinerary.hotels)) {
-            setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
-              ...hotel,
-              name: hotel.name || "Unknown Hotel",
-              image: hotel.image || '/img/hotels/1.png',
-              days: Array.isArray(hotel.days) ? hotel.days : []
-            })));
-          }
-
-          if (parsedItinerary && parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
+          // Store guides by day for easy access
+          setGuidesByDay(guidesByDay);
+          
+          // Debug: Log guides by day
+          console.log('Main Component - Guides by day set:', guidesByDay);
+          
+          // Store parsed itinerary for transport service checks
+          setParsedItineraryData(parsedItinerary);
+        } else {
+          // Fallback to direct API response for attractions
+          if (updatedPackageDetails.selected_attractions && Array.isArray(updatedPackageDetails.selected_attractions)) {
             const allAttractions = [];
             const bookedByDay = {};
 
-            parsedItinerary.itinerary.forEach((dayData, index) => {
-              if (dayData && dayData.attractions && Array.isArray(dayData.attractions)) {
-                const safeAttractions = dayData.attractions.map(attraction => ({
-                  ...attraction,
-                  name: attraction.name || "Unknown Attraction",
-                  image: attraction.image || '/img/attractions/1.png'
-                }));
+            updatedPackageDetails.selected_attractions.forEach(attraction => {
+              const safeAttraction = {
+                ...attraction,
+                name: attraction.name || "Unknown Attraction",
+                image: attraction.image || '/img/attractions/1.png'
+              };
 
-                allAttractions.push(...safeAttractions);
+              allAttractions.push(safeAttraction);
 
-                safeAttractions.forEach(attraction => {
-                  if (attraction && attraction.attraction_id) {
-                    bookedByDay[attraction.attraction_id] = index;
-                  }
-                });
+              if (attraction.day && typeof attraction.day === 'number') {
+                bookedByDay[attraction.id] = attraction.day - 1;
               }
             });
 
-            if (allAttractions.length > 0) {
-              setSelectedAttractions(allAttractions);
-              setBookedAttractions(bookedByDay);
-            }
+            setSelectedAttractions(allAttractions);
+            setBookedAttractions(bookedByDay);
+          }
 
-            const guides = parsedItinerary.itinerary
-              .filter(day => day && day.guide)
-              .map(day => ({
-                ...day.guide,
-                name: day.guide.name || "Tour Guide",
-                image: day.guide.image || '/img/team/1.png',
-                languages: day.guide.languages || ["English"],
-              }));
-
-            if (guides.length > 0) {
-              setSelectedGuides(guides);
-            }
+          // Fallback to direct API response for guides
+          if (updatedPackageDetails.selected_guides && Array.isArray(updatedPackageDetails.selected_guides)) {
+            setSelectedGuides(updatedPackageDetails.selected_guides.map(guide => ({
+              ...guide,
+              name: guide.name || "Tour Guide",
+              image: guide.image || '/img/team/1.png',
+              languages: guide.languages || ["English"],
+            })));
+          } else if (updatedPackageDetails.selected_guide) {
+            setSelectedGuides([{
+              ...updatedPackageDetails.selected_guide,
+              name: updatedPackageDetails.selected_guide.name || "Tour Guide",
+              image: updatedPackageDetails.selected_guide.image || '/img/team/1.png',
+              languages: updatedPackageDetails.selected_guide.languages || ["English"],
+            }]);
           }
         }
       } catch (error) {
@@ -681,7 +706,7 @@ const PackageDetailsContainer = () => {
   // Helper function to ensure consistent ID handling
   const getEntityId = (entity, index, prefix) => {
     // Try to get ID in different formats that might exist in the data
-    if (entity.attraction_id) return entity.attraction_id; // New format for attractions
+    if (entity.attraction_id) return entity.attraction_id; // New format for attractions from itinerary
     if (entity.id) return entity.id; // Generic id field
     if (entity._id) return entity._id; // MongoDB style id
     return `${prefix}-${index}`; // Fallback to index-based id
@@ -700,13 +725,15 @@ const PackageDetailsContainer = () => {
 
     if (!attraction) return null;
 
-    // Check for transfer_type in the new structure
+    // Check for transfer_type in the new structure (from parsed itinerary)
     if (attraction.transfer_type === 'both_way') return 'bidirectional';
     if (attraction.transfer_type === 'one_way') return 'unidirectional';
 
-    // Check for transfer_available in the new structure
-    if (attraction.transfer_available === 1 || attraction.transfer_available === true)
-      return 'unidirectional';
+    // Check for transfer_available in the new structure (from parsed itinerary)
+    if (attraction.transfer_available === 1 || attraction.transfer_available === true) {
+      // If transfer_type is not specified but transfer is available, default to unidirectional
+      return attraction.transfer_type ? attraction.transfer_type === 'both_way' ? 'bidirectional' : 'unidirectional' : 'unidirectional';
+    }
 
     // Fall back to legacy checks
     if (attraction?.with_transfer === 2) return 'bidirectional';
@@ -942,7 +969,13 @@ const PackageDetailsContainer = () => {
                                       {/* Entry port transfer for first day - Check if entry port transfer is enabled */}
                                       {dayIndex === 0 && (() => {
                                         const details = currentPackageDetails || packageDetails;
-                                        // Check for explicit transport flags
+                                        
+                                        // First check parsed itinerary data for this specific day
+                                        if (parsedItineraryData?.itinerary?.[dayIndex]?.arrival_pickup === 1) {
+                                          return true;
+                                        }
+                                        
+                                        // Check for explicit transport flags in package details
                                         const hasEntryTransfer = details?.entry_port_transfer === 1 || 
                                                                details?.entry_port === 1 || 
                                                                details?.arrival_pickup === 1 ||
@@ -958,11 +991,7 @@ const PackageDetailsContainer = () => {
                                                                        details?.inclusions?.toLowerCase().includes('airport transfer') ||
                                                                        details?.inclusions?.toLowerCase().includes('pickup service');
                                         
-                                        // For now, let's show airport pickup for first day as it's common in packages
-                                        // You can remove this fallback if you want to be more strict
-                                        const showPickupByDefault = true; // Set to false if you want to be strict
-                                        
-                                        return hasEntryTransfer || descriptionIncludesPickup || inclusionsIncludePickup || showPickupByDefault;
+                                        return hasEntryTransfer || descriptionIncludesPickup || inclusionsIncludePickup;
                                       })() && (
                                           <Grid item xs={12}>
                                             <Box sx={{
@@ -1004,7 +1033,13 @@ const PackageDetailsContainer = () => {
                                       {/* Exit port transfer for last day - Check if exit port transfer is enabled */}
                                       {dayIndex === (packageDetails.duration_days - 1) && (() => {
                                         const details = currentPackageDetails || packageDetails;
-                                        // Check for explicit transport flags
+                                        
+                                        // First check parsed itinerary data for this specific day
+                                        if (parsedItineraryData?.itinerary?.[dayIndex]?.departure_service === 1) {
+                                          return true;
+                                        }
+                                        
+                                        // Check for explicit transport flags in package details
                                         const hasExitTransfer = details?.exit_port_transfer === 1 || 
                                                               details?.exit_port === 1 || 
                                                               details?.departure_service === 1 ||
@@ -1020,11 +1055,7 @@ const PackageDetailsContainer = () => {
                                                                         details?.inclusions?.toLowerCase().includes('airport transfer') ||
                                                                         details?.inclusions?.toLowerCase().includes('drop-off service');
                                         
-                                        // For now, let's show airport drop-off for last day as it's common in packages
-                                        // You can remove this fallback if you want to be more strict
-                                        const showDropoffByDefault = true; // Set to false if you want to be strict
-                                        
-                                        return hasExitTransfer || descriptionIncludesDropoff || inclusionsIncludeDropoff || showDropoffByDefault;
+                                        return hasExitTransfer || descriptionIncludesDropoff || inclusionsIncludeDropoff;
                                       })() && (
                                           <Grid item xs={12}>
                                             <Box sx={{
@@ -1312,12 +1343,15 @@ const PackageDetailsContainer = () => {
                                     </Box>
 
                                     <Grid container spacing={2} sx={{ mt: 2 }}>
-                                      {selectedGuides && selectedGuides.length > 0 ? (
-                                        selectedGuides.map((guide, idx) => {
-                                          const guideId = getEntityId(guide, idx, 'guide');
-
+                                      {(() => {
+                                        // Get guide for this specific day
+                                        const dayGuide = guidesByDay[dayIndex];
+                                        
+                                        if (dayGuide) {
+                                          const guideId = getEntityId(dayGuide, dayIndex, 'guide');
+                                          
                                           return (
-                                            <Grid item xs={12} sm={6} md={4} key={`guide-${dayIndex}-${idx}`}>
+                                            <Grid item xs={12} sm={6} md={4} key={`guide-${dayIndex}`}>
                                               <Card
                                                 variant="outlined"
                                                 sx={{
@@ -1340,18 +1374,23 @@ const PackageDetailsContainer = () => {
                                                   borderColor: 'divider'
                                                 }}>
                                                   <Avatar
-                                                    src={guide.image || '/img/team/1.png'}
-                                                    alt={guide.name}
+                                                    src={dayGuide.image || '/img/team/1.png'}
+                                                    alt={dayGuide.name}
                                                     sx={{ width: 80, height: 80 }}
                                                   />
                                                 </Box>
                                                 <CardContent sx={{ p: 2 }}>
                                                   <Typography variant="subtitle1" fontWeight="bold" align="center" noWrap>
-                                                    {guide.name}
+                                                    {dayGuide.name}
                                                   </Typography>
                                                   <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>
-                                                    {guide.language || 'English'} • {guide.experience || '5'} years exp.
+                                                    {Array.isArray(dayGuide.languages) ? dayGuide.languages.join(', ') : (dayGuide.language || 'English')} • {dayGuide.experience || '5'} years exp.
                                                   </Typography>
+                                                  {dayGuide.contact_no && (
+                                                    <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block', mt: 0.5 }}>
+                                                      Contact: {dayGuide.contact_no}
+                                                    </Typography>
+                                                  )}
 
                                                   {/* Replace selection with assigned label */}
                                                   <Box sx={{
@@ -1368,18 +1407,20 @@ const PackageDetailsContainer = () => {
                                                     fontWeight: 'medium'
                                                   }}>
                                                     <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                                                    Assigned by Tour Operator
+                                                    Assigned for Day {dayIndex + 1}
                                                   </Box>
                                                 </CardContent>
                                               </Card>
                                             </Grid>
                                           );
-                                        })
-                                      ) : (
-                                        <Grid item xs={12}>
-                                          <Alert severity="info" sx={{ mb: 1 }}>No guides available for this day.</Alert>
-                                        </Grid>
-                                      )}
+                                        } else {
+                                          return (
+                                            <Grid item xs={12} key={`no-guide-${dayIndex}`}>
+                                              <Alert severity="info" sx={{ mb: 1 }}>No guide assigned for Day {dayIndex + 1}.</Alert>
+                                            </Grid>
+                                          );
+                                        }
+                                      })()}
                                     </Grid>
                                   </Box>
                                 </ContentSection>
@@ -1423,11 +1464,8 @@ const PackageDetailsContainer = () => {
                         bookedAttractions={bookedAttractions}
                         selectedHotelId={selectedHotelId}
                         selectedGuideId={selectedGuideId}
+                        guidesByDay={guidesByDay}
                         itineraryDates={getItineraryDates()}
-                      // bookedAttractions={bookedAttractions}
-                      // selectedHotelId={selectedHotelId}
-                      // selectedGuideId={selectedGuideId}
-                      // itineraryDates={getItineraryDates()}
                       />
                     </Box>
                   </Grid>
