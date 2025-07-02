@@ -323,35 +323,36 @@ class HotelController extends Controller
                 }
             }
             $auth_user = Auth::user();
-            if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
-                $dmc_id = $request->dmc;
-                $status = 1;
-            } elseif ($auth_user->role_id == 11) {
-                $dmc_id = $auth_user->userId;
-                $status = 1;
-            } elseif(auth()->user()->role_id ==35){
-                $userdmc = User::where('userId', auth()->user()->created_by)->first();
-                $dmc_id = $userdmc->userId;
-                $status = 1;
-            }
-            elseif(auth()->user()->role_id == 77){
-                $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $status = 1;
-                $dmc_id = $user_product_head_dmc->userId;
-            }
-            elseif(auth()->user()->role_id == 84){
-                $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $dmc_id = $user_product_head_dmc->userId;
-                $status = 1;
-            }
-            else{
-                $dmc_id = $request->dmc;
-                $status = 1;
-            }
-            
+            // if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
+            //     $dmc_id = $request->dmc;
+            //     $status = 1;
+            // } elseif ($auth_user->role_id == 11) {
+            //     $dmc_id = $auth_user->userId;
+            //     $status = 1;
+            // } elseif(auth()->user()->role_id ==35){
+            //     $userdmc = User::where('userId', auth()->user()->created_by)->first();
+            //     $dmc_id = $userdmc->userId;
+            //     $status = 1;
+            // }
+            // elseif(auth()->user()->role_id == 77){
+            //     $user_product_head = User::where('userId', auth()->user()->created_by)->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            //     $status = 1;
+            //     $dmc_id = $user_product_head_dmc->userId;
+            // }
+            // elseif(auth()->user()->role_id == 84){
+            //     $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
+            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            //     $dmc_id = $user_product_head_dmc->userId;
+            //     $status = 1;
+            // }
+            // else{
+            //     $dmc_id = $request->dmc;
+            //     $status = 1;
+            // }
+            $dmc_id = 1;
+            $status = 1;
             // 🔍 Check for existing hotel at same lat/lng for this DMC
             $existingHotel = Hotel::where([
                 ['latitude', $request->latitude],

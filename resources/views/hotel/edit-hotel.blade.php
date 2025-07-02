@@ -66,7 +66,7 @@
                             <input type="hidden" name="removed_master_image" id="removed_master_image" value="">
                             <div class="row">
                                 <!-- Hotel Name -->
-                                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id ==82|| auth()->user()->role_id == 83)
+                                <!-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id ==82|| auth()->user()->role_id == 83)
                                 <div class="mb-3 col-md-4" id="dmc-container">
                                     <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <select id="dmc" class="form-control" disabled>
@@ -77,7 +77,7 @@
                                     </select>
                                     <input type="hidden" name="dmc_id" value="{{ $hotel->dmc_id }}">
                                 </div>
-                                @endif
+                                @endif -->
                                 <div class="mb-3 col-md-4">
                                     <label for="input35" class="form-label"><strong>Hotel Name</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
