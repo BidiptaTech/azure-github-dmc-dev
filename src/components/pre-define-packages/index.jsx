@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -66,6 +66,7 @@ const IconContainer = styled(Box)(({ theme }) => ({
 
 const PreDefinePackages = () => {
   const dispatch = useDispatch();
+  const { searchParams } = useSelector(state => state.prePackages);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
@@ -81,6 +82,28 @@ const PreDefinePackages = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Check if search parameters exist when component mounts
+  useEffect(() => {
+    if (searchParams) {
+      setHasSearched(true);
+      // Optionally restore form values from searchParams
+      if (searchParams.country) setSelectedLocation(searchParams.country);
+      if (searchParams.city) setSelectedCity(searchParams.city);
+      if (searchParams.date) setSelectedDate(searchParams.date);
+      
+      // Restore guest counts
+      const updatedGuestCounts = {
+        Adults: searchParams.adults || 1,
+        Children: searchParams.children || 0,
+        Infants: searchParams.infants || 0,
+        maleCount: searchParams.male_count || 0,
+        femaleCount: searchParams.female_count || 0,
+        ages: searchParams.children_ages ? searchParams.children_ages.split(',') : []
+      };
+      setGuestCounts(updatedGuestCounts);
+    }
+  }, [searchParams]);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -204,19 +227,20 @@ const PreDefinePackages = () => {
       infants: guestCounts.Infants
     };
     
+    // Set search status to true
+    setHasSearched(true);
+    
     // Dispatch actions to fetch packages and store search parameters
     dispatch(setSearchParams(searchParams));
     dispatch(fetchPackages(searchParams))
       .unwrap()
       .then(() => {
-        setHasSearched(true); // Set search performed flag
         setSnackbarMessage("Search successful! Fetching packages...");
         setSnackbarSeverity("success");
         setOpenSnackbar(true);
         // Here you can add navigation to packages list page if needed
       })
       .catch((error) => {
-        setHasSearched(true); // Set search performed flag even on error
         setSnackbarMessage(error || "Failed to fetch packages. Please try again.");
         setSnackbarSeverity("error");
         setOpenSnackbar(true);
@@ -225,7 +249,7 @@ const PreDefinePackages = () => {
 
   return (
     <StyledContainer maxWidth="lg">
-      <Box p={4}>
+      <Box p={4} sx={{ position: 'relative', zIndex: 1 }}>
         <TitleSection>
           <IconContainer>
             <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} />
@@ -255,11 +279,11 @@ const PreDefinePackages = () => {
           <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">
             <div className="button-grid items-center" style={{ display: 'flex', flexWrap: 'nowrap' }}>
               <div style={{ flex: '1', minWidth: '0' }}>
-                <LocationSearch onLocationSelect={handleLocationSelect} />
+                <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
               </div>
               
               <div style={{ flex: '1', minWidth: '0' }}>
-                <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} />
+                <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
               </div>
 
               <div style={{ flex: '1.2', minWidth: '0' }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
@@ -278,19 +302,18 @@ const PreDefinePackages = () => {
               <div className="button-item" style={{ width: 'auto', padding: '0 15px', display: 'flex', alignItems: 'flex-end' }}>
                 <button
                   className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
-          onClick={handleSubmit}
+                  onClick={handleSubmit}
                   style={{ whiteSpace: 'nowrap', marginBottom: '5px' }}
-        >
+                >
                   <i className="icon-search text-20 mr-10" />
-          Search Packages
+                  Search Packages
                 </button>
               </div>
             </div>
           </div>
         </Paper>
         
-        {/* {hasSearched && <ListingCards />} */}
-         <ListingCards />
+        <ListingCards hasSearched={hasSearched} />
       </Box>
       
       <Snackbar
