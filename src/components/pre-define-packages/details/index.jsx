@@ -62,6 +62,8 @@ import RadioGroup from '@mui/material/RadioGroup';
 
 
 
+
+
 // Import components
 import PackageHeader from './PackageHeader';
 import PackageOverview from './PackageOverview';
@@ -69,6 +71,7 @@ import InclusionsExclusions from './InclusionsExclusions';
 import PackageItinerary from './PackageItinerary';
 import AccommodationDetails from './AccommodationDetails';
 import AttractionsDetails from './AttractionsDetails';
+/* import RestaurantsDetails from './RestaurantsDetails'; */
 /* import RestaurantsDetails from './RestaurantsDetails'; */
 /* import RestaurantsDetails from './RestaurantsDetails'; */
 import GuideDetails from './GuideDetails';
@@ -81,11 +84,13 @@ import HotelItemRenderer from './selection-components/HotelItemRenderer';
 import AttractionItemRenderer from './selection-components/AttractionItemRenderer';
 /* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
 /* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
+/* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
 import GuideItemRenderer from './selection-components/GuideItemRenderer';
 
 // Import API endpoints
 import { endpoints } from '../../../services/api';
 import { formatDate, getItineraryDayDate } from './shared-date-utils';
+// import { formatDate, getItineraryDayDate } from './shared-date-utils';
 // import { formatDate, getItineraryDayDate } from './shared-date-utils';
 
 // Navigation arrow for section navigation
@@ -243,6 +248,7 @@ const PackageDetailsContainer = () => {
   const [attractionsModalOpen, setAttractionsModalOpen] = useState(false);
   /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
+  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   const [guidesModalOpen, setGuidesModalOpen] = useState(false);
 
   // State for available items (items fetched from API)
@@ -250,11 +256,13 @@ const PackageDetailsContainer = () => {
   const [availableAttractions, setAvailableAttractions] = useState([]);
   /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
   /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
+  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
   const [availableGuides, setAvailableGuides] = useState([]);
 
   // State for selected items
   const [selectedHotels, setSelectedHotels] = useState([]);
   const [selectedAttractions, setSelectedAttractions] = useState([]);
+  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   const [selectedGuides, setSelectedGuides] = useState([]);
@@ -462,47 +470,14 @@ const PackageDetailsContainer = () => {
   useEffect(() => {
     if (packageDetails) {
       // console.log('API Response - Package Details:', packageDetails);
-      // console.log('API Response - Package Details - Itinerary:', packageDetails.itinerary);
-
-      // Try to parse and log the itinerary structure if available
-      if (packageDetails.itinerary && typeof packageDetails.itinerary === 'string') {
-        try {
-          const parsedItinerary = JSON.parse(packageDetails.itinerary);
-          // console.log('API Response - Parsed Itinerary:', parsedItinerary);
-
-          // Log arrival_pickup and departure_service for each day
-          if (parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
-            parsedItinerary.itinerary.forEach((day, index) => {
-              // console.log('Day:', day);
-              // console.log(`API Response - Day ${index + 1} transport services:`, {
-              // day: index + 1,
-              // arrival_pickup: day.arrival_pickup,
-              // arrival_pickup_type: typeof day.arrival_pickup,
-              // departure_service: day.departure_service,
-              // departure_service_type: typeof day.departure_service
-              // });
-            });
-          }
-        } catch (error) {
-          console.error('Error parsing itinerary JSON from API response:', error);
-        }
-      }
+      // console.log('API Response - Selected Hotels:', packageDetails.selected_hotels);
+      // console.log('API Response - Selected Attractions:', packageDetails.selected_attractions);
     }
   }, [packageDetails]);
 
   // Initialize day refs and selected items when package details load
   useEffect(() => {
     if (packageDetails) {
-      //     // Debug package details to see if departure_service is present
-      //     // console.log('Package details departure/arrival services:', {
-      //       arrival_pickup: packageDetails.arrival_pickup,
-      //       departure_service: packageDetails.departure_service,
-      //       entry_port: packageDetails.entry_port,
-      //       exit_port: packageDetails.exit_port,
-      //       entry_port_transfer: packageDetails.entry_port_transfer,
-      //       exit_port_transfer: packageDetails.exit_port_transfer,
-      //     });
-
       // Create a memoized version of packageDetails with date from searchParams
       const updatedPackageDetails = {
         ...packageDetails,
@@ -511,7 +486,6 @@ const PackageDetailsContainer = () => {
         searchParams
       };
 
-
       // Create refs for each day in the itinerary
       if (updatedPackageDetails.duration_days) {
         dayRefs.current = Array(updatedPackageDetails.duration_days)
@@ -519,47 +493,99 @@ const PackageDetailsContainer = () => {
           .map((_, i) => dayRefs.current[i] || React.createRef());
       }
 
-      // Parse the backend itinerary JSON if available
+      // Process the API response data structure
       try {
+        // console.log('Processing package details...');
+        
+        // Handle hotels from the API response
+        if (updatedPackageDetails.selected_hotels && Array.isArray(updatedPackageDetails.selected_hotels)) {
+          // console.log('Setting hotels:', updatedPackageDetails.selected_hotels);
+          setSelectedHotels(updatedPackageDetails.selected_hotels.map(hotel => ({
+            ...hotel,
+            // Ensure required fields exist
+            name: hotel.name || "Unknown Hotel",
+            image: hotel.image || '/img/hotels/1.png',
+            // Ensure days array is valid
+            days: Array.isArray(hotel.days) ? hotel.days : []
+          })));
+        }
+
+        // Handle attractions from the API response
+        if (updatedPackageDetails.selected_attractions && Array.isArray(updatedPackageDetails.selected_attractions)) {
+          // console.log('Setting attractions:', updatedPackageDetails.selected_attractions);
+          const allAttractions = [];
+          const bookedByDay = {};
+
+          updatedPackageDetails.selected_attractions.forEach(attraction => {
+            // Ensure required fields exist
+            const safeAttraction = {
+              ...attraction,
+              name: attraction.name || "Unknown Attraction",
+              image: attraction.image || '/img/attractions/1.png'
+            };
+
+            allAttractions.push(safeAttraction);
+
+            // Map attractions to days using the 'day' field from API response
+            if (attraction.day && typeof attraction.day === 'number') {
+              // Convert to 0-based index for internal use
+              bookedByDay[attraction.id] = attraction.day - 1;
+            }
+          });
+
+          // console.log('Processed attractions:', allAttractions);
+          // console.log('Booked attractions by day:', bookedByDay);
+          setSelectedAttractions(allAttractions);
+          setBookedAttractions(bookedByDay);
+        }
+
+        // Handle guides from the API response (if available)
+        if (updatedPackageDetails.selected_guides && Array.isArray(updatedPackageDetails.selected_guides)) {
+          setSelectedGuides(updatedPackageDetails.selected_guides.map(guide => ({
+            ...guide,
+            // Ensure required fields exist
+            name: guide.name || "Tour Guide",
+            image: guide.image || '/img/team/1.png',
+            languages: guide.languages || ["English"],
+          })));
+        } else if (updatedPackageDetails.selected_guide) {
+          // Handle single guide case
+          setSelectedGuides([{
+            ...updatedPackageDetails.selected_guide,
+            name: updatedPackageDetails.selected_guide.name || "Tour Guide",
+            image: updatedPackageDetails.selected_guide.image || '/img/team/1.png',
+            languages: updatedPackageDetails.selected_guide.languages || ["English"],
+          }]);
+        }
+
+        // Also try to parse itinerary JSON if it exists (for backward compatibility)
         if (typeof updatedPackageDetails.itinerary === 'string' && updatedPackageDetails.itinerary) {
           const parsedItinerary = JSON.parse(updatedPackageDetails.itinerary);
-
-          // Log the parsed itinerary to debug day-specific arrival_pickup and departure_service
-
-
-
-
-          // Extract hotels, itinerary days, guides, etc. from the parsed JSON
+          
+          // If we have parsed itinerary data, it might override the direct fields
           if (parsedItinerary && parsedItinerary.hotels && Array.isArray(parsedItinerary.hotels)) {
             setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
               ...hotel,
-              // Ensure required fields exist
               name: hotel.name || "Unknown Hotel",
               image: hotel.image || '/img/hotels/1.png',
-              // Ensure days array is valid
               days: Array.isArray(hotel.days) ? hotel.days : []
             })));
           }
 
-          // Process day-by-day itinerary
           if (parsedItinerary && parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
-            // Extract attractions for each day
             const allAttractions = [];
             const bookedByDay = {};
 
             parsedItinerary.itinerary.forEach((dayData, index) => {
               if (dayData && dayData.attractions && Array.isArray(dayData.attractions)) {
-                // Add attractions to the master list
                 const safeAttractions = dayData.attractions.map(attraction => ({
                   ...attraction,
-                  // Ensure required fields exist
                   name: attraction.name || "Unknown Attraction",
                   image: attraction.image || '/img/attractions/1.png'
                 }));
 
                 allAttractions.push(...safeAttractions);
 
-                // Map attractions to days
                 safeAttractions.forEach(attraction => {
                   if (attraction && attraction.attraction_id) {
                     bookedByDay[attraction.attraction_id] = index;
@@ -568,18 +594,15 @@ const PackageDetailsContainer = () => {
               }
             });
 
-            // Set attractions and booking data if we have any
             if (allAttractions.length > 0) {
               setSelectedAttractions(allAttractions);
               setBookedAttractions(bookedByDay);
             }
 
-            // Extract guides with fallback values
             const guides = parsedItinerary.itinerary
               .filter(day => day && day.guide)
               .map(day => ({
                 ...day.guide,
-                // Ensure required fields exist
                 name: day.guide.name || "Tour Guide",
                 image: day.guide.image || '/img/team/1.png',
                 languages: day.guide.languages || ["English"],
@@ -591,7 +614,7 @@ const PackageDetailsContainer = () => {
           }
         }
       } catch (error) {
-        console.error('Error parsing itinerary JSON:', error);
+        console.error('Error processing package details:', error);
         // Use existing data from packageDetails as fallback
         setSelectedHotels(updatedPackageDetails.selected_hotels || []);
         setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
@@ -600,6 +623,7 @@ const PackageDetailsContainer = () => {
 
       // Set current package details with updates
       setCurrentPackageDetails(updatedPackageDetails);
+      // console.log('Set current package details:', updatedPackageDetails);
     }
   }, [packageDetails, searchParams]);
 
@@ -722,6 +746,7 @@ const PackageDetailsContainer = () => {
   }
 
   if (!packageDetails) {
+    // console.log('No package details found');
     return (
       <Container>
         <Box sx={{ mt: 4 }}>
@@ -738,6 +763,11 @@ const PackageDetailsContainer = () => {
       </Container>
     );
   }
+
+  // console.log('Rendering with package details:', packageDetails);
+  // console.log('Selected hotels:', selectedHotels);
+  // console.log('Selected attractions:', selectedAttractions);
+  // console.log('Booked attractions:', bookedAttractions);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -836,12 +866,9 @@ const PackageDetailsContainer = () => {
 
                           // Get description for the day
                           const currentDetails = detailsWithSearchParams;
-                          const dayDescription = currentDetails.itinerary &&
-                            currentDetails.itinerary[dayIndex] &&
-                            currentDetails.itinerary[dayIndex].title &&
-                            typeof currentDetails.itinerary[dayIndex].title === 'string' ?
-                            currentDetails.itinerary[dayIndex].title.split(' - ')[1] || '' :
-                            dayIndex === 0 ? 'Arrival' : dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 'Exploration';
+                          const dayDescription = dayIndex === 0 ? 'Arrival' : 
+                            dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 
+                            'Exploration';
 
                           return (
                             <Box
@@ -911,23 +938,8 @@ const PackageDetailsContainer = () => {
 
                                     {/* Entry/Exit port options for first/last day */}
                                     <Grid container spacing={2} sx={{ mt: 2 }}>
-                                      {/* Entry port transfer for first day - ONLY show if this specific day has arrival_pickup === 1 */}
-                                      {dayIndex === 0 && (currentPackageDetails || packageDetails)?.itinerary && (() => {
-                                        try {
-                                          const details = currentPackageDetails || packageDetails;
-                                          const parsedItinerary = typeof details.itinerary === 'string'
-                                            ? JSON.parse(details.itinerary)
-                                            : details.itinerary;
-
-                                          if (parsedItinerary?.itinerary?.[dayIndex]?.arrival_pickup === 1) {
-                                            return true;
-                                          }
-                                          return false;
-                                        } catch (e) {
-                                          console.error('Error checking arrival pickup:', e);
-                                          return false;
-                                        }
-                                      })() && (
+                                      {/* Entry port transfer for first day - Check if arrival_pickup is enabled */}
+                                      {dayIndex === 0 && (currentPackageDetails || packageDetails)?.arrival_pickup === 1 && (
                                           <Grid item xs={12}>
                                             <Box sx={{
                                               display: 'flex',
@@ -965,23 +977,8 @@ const PackageDetailsContainer = () => {
                                           </Grid>
                                         )}
 
-                                      {/* Exit port transfer for last day - ONLY show if this specific day has departure_service === 1 */}
-                                      {dayIndex === (packageDetails.duration_days - 1) && (currentPackageDetails || packageDetails)?.itinerary && (() => {
-                                        try {
-                                          const details = currentPackageDetails || packageDetails;
-                                          const parsedItinerary = typeof details.itinerary === 'string'
-                                            ? JSON.parse(details.itinerary)
-                                            : details.itinerary;
-
-                                          if (parsedItinerary?.itinerary?.[dayIndex]?.departure_service === 1) {
-                                            return true;
-                                          }
-                                          return false;
-                                        } catch (e) {
-                                          console.error('Error checking departure service:', e);
-                                          return false;
-                                        }
-                                      })() && (
+                                      {/* Exit port transfer for last day - Check if departure_service is enabled */}
+                                      {dayIndex === (packageDetails.duration_days - 1) && (currentPackageDetails || packageDetails)?.departure_service === 1 && (
                                           <Grid item xs={12}>
                                             <Box sx={{
                                               display: 'flex',

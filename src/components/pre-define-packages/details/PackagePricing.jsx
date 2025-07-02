@@ -16,7 +16,7 @@ const PackagePricing = ({
   selectedGuideId,
   itineraryDates = [],
 }) => {
-  console.log('packageData', packageData);
+  // console.log('packageData', packageData);
   // State for the UserInfo modal
   const [isUserInfoModalOpen, setIsUserInfoModalOpen] = useState(false);
   const [bookingData, setBookingData] = useState(null);
@@ -27,7 +27,10 @@ const PackagePricing = ({
     severity: 'success'
   });
 
-  const originalItinerary = JSON.parse(packageData.itinerary); // raw JSON string from API
+  // Try to parse itinerary if it exists, otherwise use empty object
+  const originalItinerary = packageData.itinerary ? 
+    (typeof packageData.itinerary === 'string' ? JSON.parse(packageData.itinerary) : packageData.itinerary) : 
+    {};
 
 
   const dispatch = useDispatch();

@@ -668,6 +668,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
     onClose();
   };
   
+  
   // Parse booking_details and travel_dates if present
   const bookingDetails = parseJsonSafely(bookingData.booking_details);
   const travelDates = parseJsonSafely(bookingData.travel_dates);
@@ -678,6 +679,13 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
   if (process.env.NODE_ENV === 'development') {
     console.log('Itinerary data:', itinerary);
   }
+  
+  // const itinerary = bookingDetails?.itinerary || [];
+  
+  // // Log the itinerary data for debugging
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('Itinerary data:', itinerary);
+  // }
   
   return (
     <PDFGenerator bookingData={bookingData}>
@@ -701,201 +709,182 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
           }
         }}
       >
-      {/* Dialog header */}
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        p: 1.5,
-        '@media print': {
-          display: 'none'
-        }
-      }}>
-        <Typography variant="h6" fontWeight={600}>
-          Booking #{bookingData.bookingId || bookingData.booking_id}
-        </Typography>
-        {/* <Box>
-          <PDFPrintButton 
-            variant="contained" 
-            color="primary" 
-            size="small" 
-            sx={{ mr: 1 }}
+        {/* Dialog header */}
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          p: 1.5,
+          '@media print': {
+            display: 'none'
+          }
+        }}>
+          <Typography variant="h6" fontWeight={600}>
+            Booking #{bookingData.bookingId || bookingData.booking_id}
+          </Typography>
+        </DialogTitle>
+        
+        {/* Dialog content */}
+        <DialogContent sx={{ p: 2 }}>
+          {/* Redesigned Customer and booking summary */}
+          <Paper 
+            elevation={1} 
+            sx={{ 
+              borderRadius: '8px', 
+              mb: 2,
+              overflow: 'hidden'
+            }}
           >
-            Download PDF
-          </PDFPrintButton>
-          <Button 
-            variant="contained" 
-            color="error" 
-            size="small" 
-            startIcon={<Close />}
-            onClick={handleClose}
-          >
-            Close
-          </Button>
-        </Box> */}
-      </DialogTitle>
-      
-      {/* Dialog content */}
-      <DialogContent sx={{ p: 2 }}>
-        {/* Redesigned Customer and booking summary */}
-        <Paper 
-          elevation={1} 
-          sx={{ 
-            borderRadius: '8px', 
-            mb: 2,
-            overflow: 'hidden'
-          }}
-        >
-          <Box sx={{ 
-            bgcolor: theme.palette.primary.main, 
-            color: 'white',
-            py: 0.75,
-            px: 2,
-            borderTopLeftRadius: '8px',
-            borderTopRightRadius: '8px',
-          }}>
-            <Typography variant="subtitle1" fontWeight="600">Booking Summary</Typography>
-          </Box>
-          
-          <Grid container sx={{ p: 2 }} spacing={2}>
-            <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid', xs: 'none' }, borderColor: 'divider' }}>
-              {/* Left Column - Customer Details */}
-              <Grid container spacing={1}>
-                {/* Customer */}
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <Person sx={{ color: 'primary.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Customer</Typography>
-                      <Typography variant="body1" fontWeight={500}>{bookingData.customerName}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                {/* Destination */}
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <LocationOn sx={{ color: 'error.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Destination</Typography>
-                      <Typography variant="body1" fontWeight={500}>{bookingData.destination}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                {/* Payment Amount */}
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <AttachMoney sx={{ color: 'success.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Payment Amount</Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        SGD {bookingDetails?.total_price || bookingData.payment}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                {/* Number of Guests */}
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <PeopleAlt sx={{ color: 'info.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Number of Guests</Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        {/* Use the detailed guest info if available */}
-                        {bookingDetails ? (
-                          <>
-                            {(bookingDetails.adult_count || 0) + (bookingDetails.child_count || 0)} person(s)
-                            {(bookingDetails.adult_count > 0 || bookingDetails.child_count > 0 || 
-                              bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && (
-                              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                                {bookingDetails.adult_count > 0 && `${bookingDetails.adult_count} adults`}
-                                {bookingDetails.child_count > 0 && (bookingDetails.adult_count > 0 ? ', ' : '') + `${bookingDetails.child_count} children`}
-                                {(bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && ' • '}
-                                {bookingDetails.male_count > 0 && `${bookingDetails.male_count} male`}
-                                {bookingDetails.female_count > 0 && (bookingDetails.male_count > 0 ? ', ' : '') + `${bookingDetails.female_count} female`}
-                              </Typography>
-                            )}
-                          </>
-                        ) : (
-                          `${bookingData.pax} person(s)`
-                        )}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Grid>
+            <Box sx={{ 
+              bgcolor: theme.palette.primary.main, 
+              color: 'white',
+              py: 0.75,
+              px: 2,
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}>
+              <Typography variant="subtitle1" fontWeight="600">Booking Summary</Typography>
+            </Box>
             
-            <Grid item xs={12} md={6}>
-              {/* Right Column - Booking Details */}
-              <Grid container spacing={1}>
-                {/* Dates Row */}
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarToday color="primary" fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body2" color="text.secondary">Start Date</Typography>
+            <Grid container sx={{ p: 2 }} spacing={2}>
+              <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid', xs: 'none' }, borderColor: 'divider' }}>
+                {/* Left Column - Customer Details */}
+                <Grid container spacing={1}>
+                  {/* Customer */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <Person sx={{ color: 'primary.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Customer</Typography>
+                        <Typography variant="body1" fontWeight={500}>{bookingData.customerName}</Typography>
+                      </Box>
                     </Box>
-                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.startDate}</Typography>
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarToday color="error" fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body2" color="text.secondary">End Date</Typography>
+                  </Grid>
+                  
+                  {/* Destination */}
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <LocationOn sx={{ color: 'error.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Destination</Typography>
+                        <Typography variant="body1" fontWeight={500}>{bookingData.destination}</Typography>
+                      </Box>
                     </Box>
-                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.endDate}</Typography>
-                  </Box>
+                  </Grid>
+                  
+                  {/* Payment Amount */}
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <AttachMoney sx={{ color: 'success.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Payment Amount</Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                          SGD {bookingDetails?.total_price || bookingData.payment}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  
+                  {/* Number of Guests */}
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <PeopleAlt sx={{ color: 'info.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Number of Guests</Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                          {/* Use the detailed guest info if available */}
+                          {bookingDetails ? (
+                            <>
+                              {(bookingDetails.adult_count || 0) + (bookingDetails.child_count || 0)} person(s)
+                              {(bookingDetails.adult_count > 0 || bookingDetails.child_count > 0 || 
+                                bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && (
+                                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {bookingDetails.adult_count > 0 && `${bookingDetails.adult_count} adults`}
+                                  {bookingDetails.child_count > 0 && (bookingDetails.adult_count > 0 ? ', ' : '') + `${bookingDetails.child_count} children`}
+                                  {(bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && ' • '}
+                                  {bookingDetails.male_count > 0 && `${bookingDetails.male_count} male`}
+                                  {bookingDetails.female_count > 0 && (bookingDetails.male_count > 0 ? ', ' : '') + `${bookingDetails.female_count} female`}
+                                </Typography>
+                              )}
+                            </>
+                          ) : (
+                            `${bookingData.pax} person(s)`
+                          )}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
                 </Grid>
-                
-                {/* Status Row */}
-                <Grid item xs={6} sx={{ mt: 1 }}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%'
-                  }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>Booking Status</Typography>
-                    <StatusChip status={bookingData.status} />
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={6} sx={{ mt: 1 }}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%'
-                  }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>Payment Status</Typography>
-                    <PaymentStatusChip status={bookingData.paymentStatus} />
-                  </Box>
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                {/* Right Column - Booking Details */}
+                <Grid container spacing={1}>
+                  {/* Dates Row */}
+                  <Grid item xs={6}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CalendarToday color="primary" fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="body2" color="text.secondary">Start Date</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.startDate}</Typography>
+                    </Box>
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CalendarToday color="error" fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="body2" color="text.secondary">End Date</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.endDate}</Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {/* Status Row */}
+                  <Grid item xs={6} sx={{ mt: 1 }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%'
+                    }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>Booking Status</Typography>
+                      <StatusChip status={bookingData.status} />
+                    </Box>
+                  </Grid>
+                  
+                  <Grid item xs={6} sx={{ mt: 1 }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%'
+                    }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>Payment Status</Typography>
+                      <PaymentStatusChip status={bookingData.paymentStatus} />
+                    </Box>
+                  </Grid>
                 </Grid>
               </Grid>
             </Grid>
-          </Grid>
-        </Paper>
+          </Paper>
 
         {/* Itinerary Section - All days displayed with collapse/expand */}
         {itinerary.length > 0 ? (

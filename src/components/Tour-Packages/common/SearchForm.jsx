@@ -70,32 +70,112 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-export default function SearchForm({ onNext, setActiveTab }) {
+export default function SearchForm({ onNext, setActiveTab, packageData }) {
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [guestCounts, setGuestCounts] = useState({
-    Adults: 1,
-    Children: 0,
-    Infants: 0,
-    genders: [""], // Store gender selections for adults
-    ages: [""], // Store age selections for children
-  });
+  
+  // Initialize dates with packageData if available
+  const getInitialStartDate = () => {
+    if (packageData?.tour?.check_in_time) {
+      try {
+        return moment(packageData.tour.check_in_time).toDate();
+      } catch (error) {
+        console.error('Error parsing check_in_time:', error);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const getInitialEndDate = () => {
+    if (packageData?.tour?.check_out_time) {
+      try {
+        return moment(packageData.tour.check_out_time).toDate();
+      } catch (error) {
+        console.error('Error parsing check_out_time:', error);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // Initialize guest counts with packageData if available
+  const getInitialGuestCounts = () => {
+    if (packageData?.tour) {
+      const tour = packageData.tour;
+      return {
+        Adults: tour.adult || 1,
+        Children: tour.child || 0,
+        Infants: tour.infant || 0,
+        maleCount: tour.male_count || 0,
+        femaleCount: tour.female_count || 0,
+        genders: [], // Initialize empty array for compatibility
+        ages: tour.child_ages ? 
+          (Array.isArray(tour.child_ages) ? tour.child_ages : 
+           JSON.parse(tour.child_ages || '[]')) : [],
+      };
+    }
+    return {
+      Adults: 1,
+      Children: 0,
+      Infants: 0,
+      genders: [""], // Store gender selections for adults
+      ages: [""], // Store age selections for children
+    };
+  };
+
+  const [startDate, setStartDate] = useState(getInitialStartDate());
+  const [endDate, setEndDate] = useState(getInitialEndDate());
+  const [guestCounts, setGuestCounts] = useState(getInitialGuestCounts());
   const user_country = useSelector((state) => state.auth.user_country);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
-  
+  console.log("packageDatasss", packageData);
+
+  // Log the initialization values for debugging
+  React.useEffect(() => {
+    if (packageData?.tour) {
+      console.log('Initializing form with packageData:', {
+        destination: packageData.tour.destination,
+        checkIn: packageData.tour.check_in_time,
+        checkOut: packageData.tour.check_out_time,
+        adults: packageData.tour.adult,
+        children: packageData.tour.child,
+        maleCount: packageData.tour.male_count,
+        femaleCount: packageData.tour.female_count,
+        agentId: packageData.tour.agent_id
+      });
+    }
+  }, [packageData]);
+
   // Agent selection state
   const [selectedAgent, setSelectedAgent] = useState('');
+  const [selectedAgentName, setSelectedAgentName] = useState('');
+  const [isAgentFromPackageData, setIsAgentFromPackageData] = useState(false);
   const { agents } = useSelector((state) => state.agentList);
   
   // Fetch agents on component mount
   React.useEffect(() => {
     dispatch(fetchAgentList());
   }, [dispatch]);
+
+  // Auto-select agent based on packageData agent_id and agent_name
+  React.useEffect(() => {
+    if (packageData?.tour?.agent_id && packageData?.tour?.agent_name && !selectedAgent) {
+      const agentId = packageData.tour.agent_id.toString();
+      const agentName = packageData.tour.agent_name;
+      
+      console.log('Auto-selecting agent from packageData:', { agentId, agentName });
+      
+      // Set agent directly from packageData
+      setSelectedAgent(agentId);
+      setSelectedAgentName(agentName);
+      setIsAgentFromPackageData(true);
+      dispatch(setAgentId(agentId));
+    }
+  }, [packageData?.tour?.agent_id, packageData?.tour?.agent_name, selectedAgent, dispatch]);
   
   // Create mapping for country codes to names
   const countryCodeToName = useMemo(() => {
@@ -221,6 +301,7 @@ export default function SearchForm({ onNext, setActiveTab }) {
     dispatch(clearAllServices());
     // Clear previous data
     dispatch(clearAttractions());
+    dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 
     dispatch(resetguide());
@@ -432,8 +513,186 @@ export default function SearchForm({ onNext, setActiveTab }) {
     //   });
   };
 
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    // Clear previous customer info when starting update
+    dispatch(clearUserInfo());
+    dispatch(clearAllServices());
+    // Clear previous data
+    dispatch(clearAttractions());
+    dispatch(clearRestaurants());
+    dispatch(resetVehicles());
+    dispatch(resetVehicles1()); 
+    dispatch(resetguide());
+    
+    // Format Dates
+    const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
+    const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
+
+    // Get the country and city data
+    const country = selectedLocation.country;
+    const city = selectedLocation.city;
+    const countryCode = selectedLocation.countryCode;
+    console.log("countryCode",countryCode);
+    const cityCode = selectedLocation.cityCode;
+    
+    // Create genders array based on male and female counts
+    const maleCount = guestCounts.maleCount || 0;
+    const femaleCount = guestCounts.femaleCount || 0;
+    const genders = [
+      ...Array(maleCount).fill("Male"),
+      ...Array(femaleCount).fill("Female")
+    ];
+
+    // Get tour_id from packageData
+    const tourId = packageData?.tour?.tour_id;
+
+    // Update tour packages search criteria in Redux
+    dispatch(setSearchCriteria({
+      country: country,
+      city: city,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
+    // Set attraction search parameters
+    const formattedAttractionDate = moment(startDate).format("YYYY-MM-DD"); // Format date for attraction API
+    
+    dispatch(setAttractionSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+
+    // Update the guide search params and fetch guides
+    dispatch(setGuideSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+
+    // Fetch guides with the required parameters
+    dispatch(fetchGuides({
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate
+    }));
+
+    // Fetch attractions based on search criteria
+    dispatch(fetchAttractions({
+      city: `${city}, (${country})`, // Format city with country
+      date: formattedAttractionDate, // Use YYYY-MM-DD format
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId, // Use tour_id from packageData
+      selectedDate: moment(startDate),
+      fromMainSearch: false
+    }));
+
+    // Fetch restaurants based on search criteria
+    console.log('Dispatching fetchRestaurants with params:', {
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate,
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId,
+      fromMainSearch: false
+    });
+
+    dispatch(fetchRestaurants({
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate,
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId, // Use tour_id from packageData
+      fromMainSearch: false
+    }))
+    .then((response) => {
+      console.log('fetchRestaurants response:', response);
+    })
+    .catch((error) => {
+      console.error('fetchRestaurants error:', error);
+    });
+
+    // Also update the enquiry slice data for compatibility with other parts of the app
+    // Set location data in the right format for EnquirySlice
+    
+    dispatch(setSearchLocation(countryCode));
+    dispatch(setCheckIn(formattedCheckIn));
+    dispatch(setCheckOut(formattedCheckOut));
+    
+    // Set the selected city in common slice
+    dispatch(setSelectedCity({
+      countryCode: countryCode,
+      countryName: country,
+      cityCode: cityCode,
+      cityName: city,
+      combinedCode: cityCode
+    }));
+    
+    // Dispatch guest details to EnquirySlice
+    dispatch(
+      setGuest({
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infant: guestCounts.Infants.toString(),
+        adultGenders: genders,
+        childrenAges: guestCounts.ages || [],
+        maleCount: maleCount,
+        femaleCount: femaleCount
+      })
+    );
+
+    // Set existing tour data in Redux state
+    dispatch(updateSearchState({ location: packageData?.tour?.destination }));
+    dispatch(setId(tourId));
+    dispatch(settourdetails(packageData.tour));
+
+    // Move to the first tab (Itinerary) after update completes
+    if (onNext) {
+      onNext();
+      // If the parent component has a setActiveTab function, call it to show the Itinerary tab
+      if (typeof setActiveTab === 'function') {
+        setActiveTab(0); // Select the first tab (Itinerary)
+      }
+    }
+
+    console.log("Tour package updated successfully with tour_id:", tourId);
+  };
+
+  // Determine which handler to use based on packageData presence
+  const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id);
+  const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;
+
   return (
-    <Box component="form" onSubmit={handleSearch} sx={{ width: '100%' }}>
+    <Box component="form" onSubmit={handleFormSubmit} sx={{ width: '100%' }}>
       <Grid container spacing={1.5}>
         {/* Single Row: All Form Fields */}
         <Grid item xs={12}>
@@ -476,6 +735,8 @@ export default function SearchForm({ onNext, setActiveTab }) {
                 </Typography>
                 <LocationSearch 
                   onLocationSelect={handleLocationSelect}
+                  defaultDestination={packageData?.tour?.destination}
+                  defaultCity={packageData?.tour?.city}
                 />
               </Box>
             </Grid>
@@ -519,6 +780,8 @@ export default function SearchForm({ onNext, setActiveTab }) {
                 </Typography>
                 <DateRangePicker 
                   onDateChange={handleDateChange}
+                  defaultCheckIn={packageData?.tour?.check_in_time}
+                  defaultCheckOut={packageData?.tour?.check_out_time}
                 />
               </Box>
             </Grid>
@@ -611,14 +874,14 @@ export default function SearchForm({ onNext, setActiveTab }) {
                   sx={{ 
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
-                      bgcolor: '#f8fafc',
+                      bgcolor: isAgentFromPackageData ? '#f5f5f5' : '#f8fafc',
                       fontSize: '0.8rem',
                       minHeight: '32px',
                       '&:hover': {
-                        bgcolor: 'white'
+                        bgcolor: isAgentFromPackageData ? '#f5f5f5' : 'white'
                       },
                       '&.Mui-focused': {
-                        bgcolor: 'white'
+                        bgcolor: isAgentFromPackageData ? '#f5f5f5' : 'white'
                       }
                     },
                     '& .MuiInputLabel-root': {
@@ -630,49 +893,66 @@ export default function SearchForm({ onNext, setActiveTab }) {
                     }
                   }}
                 >
-              
-                  <Select
-                    labelId="agent-select-label"
-                    id="agent-select"
-                    value={selectedAgent}
-                    onChange={handleAgentChange}
-                    label="Select Agent *"
-                    required
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          maxHeight: 200,
-                          mt: 1,
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                          borderRadius: 2
-                        }
-                      }
-                    }}
-                  >
-                    <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
-                      Choose an agent
-                    </MenuItem>
-                    {agents && agents.map((agent) => (
-                      <MenuItem 
-                        key={agent.id} 
-                        value={agent.agent_id}
-                        sx={{
-                          '&:hover': {
-                            bgcolor: '#f3f4f6'
+                  {isAgentFromPackageData ? (
+                    // Show readonly input when agent comes from packageData
+                    <input
+                      type="text"
+                      value={`${selectedAgentName} (ID: ${selectedAgent})`}
+                      readOnly
+                      style={{
+                        width: '100%',
+                        height: '32px',
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '0.8rem',
+                        padding: '0 8px',
+                        cursor: 'default'
+                      }}
+                    />
+                  ) : (
+                    <Select
+                      labelId="agent-select-label"
+                      id="agent-select"
+                      value={selectedAgent}
+                      onChange={handleAgentChange}
+                      label="Select Agent *"
+                      required
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            maxHeight: 200,
+                            mt: 1,
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                            borderRadius: 2
                           }
-                        }}
-                      >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                            {agent.name}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
-                            ID: {agent.agent_id}
-                          </Typography>
-                        </Box>
+                        }
+                      }}
+                    >
+                      <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
+                        Choose an agent
                       </MenuItem>
-                    ))}
-                  </Select>
+                      {agents && agents.map((agent) => (
+                        <MenuItem 
+                          key={agent.id} 
+                          value={agent.agent_id}
+                          sx={{
+                            '&:hover': {
+                              bgcolor: '#f3f4f6'
+                            }
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                              {agent.name}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
+                              ID: {agent.agent_id}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
                 </FormControl>
               </Box>
             </Grid>
@@ -703,8 +983,12 @@ export default function SearchForm({ onNext, setActiveTab }) {
                 fontWeight: 700,
                 textTransform: 'none',
                 minWidth: '280px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4)',
+                background: isUpdatingExistingPackage 
+                  ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: isUpdatingExistingPackage
+                  ? '0 8px 32px rgba(16, 185, 129, 0.4)'
+                  : '0 8px 32px rgba(102, 126, 234, 0.4)',
                 position: 'relative',
                 overflow: 'hidden',
                 '&::before': {
@@ -718,8 +1002,12 @@ export default function SearchForm({ onNext, setActiveTab }) {
                   transition: 'left 0.5s ease'
                 },
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                  boxShadow: '0 12px 40px rgba(102, 126, 234, 0.6)',
+                  background: isUpdatingExistingPackage
+                    ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                    : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                  boxShadow: isUpdatingExistingPackage
+                    ? '0 12px 40px rgba(16, 185, 129, 0.6)'
+                    : '0 12px 40px rgba(102, 126, 234, 0.6)',
                   transform: 'translateY(-3px) scale(1.02)',
                   '&::before': {
                     left: '100%'
@@ -731,7 +1019,7 @@ export default function SearchForm({ onNext, setActiveTab }) {
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
             >
-              🚀 Create Amazing Tour Package
+              {isUpdatingExistingPackage ? '🔄 Update Tour Package' : '🚀 Create Amazing Tour Package'}
             </Button>
           </Box>
           
@@ -745,7 +1033,9 @@ export default function SearchForm({ onNext, setActiveTab }) {
                 fontStyle: 'italic'
               }}
             >
-              ✨ Build personalized travel experiences in seconds
+              {isUpdatingExistingPackage 
+                ? '📝 Modify existing tour package details' 
+                : '✨ Build personalized travel experiences in seconds'}
             </Typography>
           </Box>
         </Grid>

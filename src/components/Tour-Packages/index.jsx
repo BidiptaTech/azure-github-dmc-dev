@@ -25,41 +25,41 @@ export default function TourPackages() {
    // Fetch cities when a country is selected
    
   console.log("packageData", packageData);
-  useEffect(() => {
-    if(packageData){
-      dispatch(settourdetails(packageData.tour));
-      dispatch(fetchCitiesByCountry(packageData.tour.destination))
-      .unwrap()
-      .then((response) => {
-        dispatch(setCity(response.data));
-      })
-      .catch((error) => {
-        console.error("Error fetching cities:", error);
-      });
-      // fetchCities(packageData.tour.destination);
-      dispatch(updateSearchState({ location: packageData.tour.destination }));
-      dispatch(setSearchCriteria({
-        destination: packageData.tour.destination,
-        checkIn: packageData.tour.check_in_time,
-        checkOut: packageData.tour.check_out_time,
-        guests: {
-          adults: packageData.tour.adult,
-          children: packageData.tour.child,
-          infants: packageData.tour.infant,
-          maleCount: packageData.tour.male_count,
-          femaleCount: packageData.tour.female_count,
-          childrenAges: packageData.tour.child_ages ? packageData.tour.child_ages.split(', ') : [],
-        }
-      }));
+  // useEffect(() => {
+  //   if(packageData){
+  //     dispatch(settourdetails(packageData.tour));
+  //     // dispatch(fetchCitiesByCountry(packageData.tour.destination))
+  //     // .unwrap()
+  //     // .then((response) => {
+  //     //   dispatch(setCity(response.data));
+  //     // })
+  //     // .catch((error) => {
+  //     //   console.error("Error fetching cities:", error);
+  //     // });
+  //     // fetchCities(packageData.tour.destination);
+  //     dispatch(updateSearchState({ location: packageData.tour.destination }));
+  //     dispatch(setSearchCriteria({
+  //       destination: packageData.tour.destination,
+  //       checkIn: packageData.tour.check_in_time,
+  //       checkOut: packageData.tour.check_out_time,
+  //       guests: {
+  //         adults: packageData.tour.adult,
+  //         children: packageData.tour.child,
+  //         infants: packageData.tour.infant,
+  //         maleCount: packageData.tour.male_count,
+  //         femaleCount: packageData.tour.female_count,
+  //         childrenAges: packageData.tour.child_ages ? packageData.tour.child_ages.split(', ') : [],
+  //       }
+  //     }));
       
-      // Dispatch the booking services if they exist
-      // if (packageData.tour.booking && Array.isArray(packageData.tour.booking)) {
-      //   dispatch(setAllServices(packageData.tour.booking));
-      // }
+  //     // Dispatch the booking services if they exist
+  //     // if (packageData.tour.booking && Array.isArray(packageData.tour.booking)) {
+  //     //   dispatch(setAllServices(packageData.tour.booking));
+  //     // }
       
-      setCurrentStep(2);
-    }
-  }, [packageData]);
+  //     //setCurrentStep(2);
+  //   }
+  // }, [packageData]);
 
 
 
@@ -175,7 +175,7 @@ export default function TourPackages() {
             overflow: 'visible',
             position: 'relative'
           }}>
-            {packageData ? <></> : <SearchForm onNext={handleNext} />}
+           <SearchForm onNext={handleNext} packageData={packageData}/>
           </Box>
         </Paper>
       </Box>

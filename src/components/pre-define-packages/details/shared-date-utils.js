@@ -22,9 +22,6 @@ export const formatDate = (date) => {
  * IMPORTANT: Always prioritizes the user's search date from searchParams over package details date
  */
 export const getItineraryDayDate = (packageDetails, dayIndex) => {
-  // Debug the inputs to see what's being passed
-
-
   // Get the starting date, with fallbacks - ALWAYS prioritize searchParams.date if available
   let startDate;
   
