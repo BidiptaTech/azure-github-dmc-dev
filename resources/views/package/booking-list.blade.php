@@ -197,14 +197,17 @@
                                     @php
                                         $statusClass = '';
                                         switch($booking->status) {
-                                            case 'pending':
+                                            case '1':
                                                 $statusClass = 'status-pending';
                                                 break;
-                                            case 'confirmed':
+                                            case '2':
                                                 $statusClass = 'status-confirmed';
                                                 break;
-                                            case 'cancelled':
+                                            case '4':
                                                 $statusClass = 'status-cancelled';
+                                                break;
+                                            case '3':
+                                                $statusClass = 'status-on-hold';
                                                 break;
                                             default:
                                                 $statusClass = 'status-pending';

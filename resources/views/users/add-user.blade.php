@@ -473,13 +473,13 @@
         // Show elements based on userRole
         if (userRole >= 5 && userRole <= 9) {
             if (country_names) country_names.style.display = 'block';
-        } else if (userRole === 10) {
+        } else if (userRole === 10 || userRole === 19) {
             if (country_names) country_names.style.display = 'block';
             if (master_logo) master_logo.style.display = 'block';
             if (company_name) company_name.style.display = 'block';
-        } else if (userRole === 11) {
-            if ({{ auth()->user()->role_id }} == 10) {
-            if (country_name) country_name.style.display = 'block';
+        } else if (userRole === 11 || userRole === 20) {
+            if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
+                if (country_name) country_name.style.display = 'block';
             }
             if (inputRoleContainer) inputRoleContainer.style.display = 'block';
             if (company_name) company_name.style.display = 'block';
