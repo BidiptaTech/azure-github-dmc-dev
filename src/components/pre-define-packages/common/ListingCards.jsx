@@ -41,6 +41,34 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
 
+// Styled components for blur effect
+const BlurOverlay = ({ children, active, hasSearched }) => {
+  // Ensure the blur effect is displayed when we have search results
+  const shouldShowBlur = active && (hasSearched || window.location.hash.includes('#search-results'));
+  
+  return (
+    <Box sx={{
+      position: 'relative',
+      width: '100%',
+      '&::before': shouldShowBlur ? {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '100vw',
+        height: '100%',
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        zIndex: -1,
+      } : {}
+    }}>
+      {children}
+    </Box>
+  );
+};
+
 const PackageCard = ({ packageData }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -309,118 +337,132 @@ const LoadingSkeleton = () => (
   </Grid>
 );
 
-const ListingCards = () => {
-  const { packages, loading, error } = useSelector(state => state.prePackages);
+const ListingCards = ({ hasSearched = false }) => {
+  const { packages, loading, error, searchParams } = useSelector(state => state.prePackages);
+  
+  // Show empty space if no search has been performed yet
+  if (!searchParams) {
+    return (
+      <Box sx={{ mt: 4, minHeight: '570px' }}>
+        {/* Empty space - content will appear here after search */}
+      </Box>
+    );
+  }
   
   if (loading) {
     return (
-      <Box sx={{ mt: 4 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            mb: 3,
-            borderRadius: 2,
-            background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
-            border: '1px solid #e0e7ee',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Box sx={{ position: 'relative', mr: 2 }}>
-              <SearchIcon
+      <BlurOverlay active={true} hasSearched={hasSearched}>
+        <Box sx={{ mt: 4 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              mb: 3,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
+              border: '1px solid #e0e7ee',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ position: 'relative', mr: 2 }}>
+                <SearchIcon
+                  sx={{
+                    fontSize: 28,
+                    color: 'primary.main'
+                  }}
+                />
+                <CircularProgress
+                  size={36}
+                  thickness={2}
+                  sx={{
+                    position: 'absolute',
+                    top: -4,
+                    left: -4,
+                    color: 'primary.main',
+                    opacity: 0.8
+                  }}
+                />
+              </Box>
+              <Typography
+                variant="h5"
                 sx={{
-                  fontSize: 28,
-                  color: 'primary.main'
+                  fontWeight: 600,
+                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
                 }}
-              />
-              <CircularProgress
-                size={36}
-                thickness={2}
-                sx={{
-                  position: 'absolute',
-                  top: -4,
-                  left: -4,
-                  color: 'primary.main',
-                  opacity: 0.8
-                }}
-              />
+              >
+                Searching for packages...
+              </Typography>
             </Box>
-            <Typography
-              variant="h5"
+            <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
+              <HourglassTopIcon
+                sx={{
+                  fontSize: 16,
+                  mr: 1,
+                  color: 'text.secondary'
+                }}
+              />
+              <Typography
+                variant="body1"
+                sx={{
+                  fontWeight: 500,
+                  color: 'text.secondary'
+                }}
+              >
+                Finding the best travel options for you
+              </Typography>
+            </Box>
+            <LinearProgress
               sx={{
-                fontWeight: 600,
-                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}
-            >
-              Searching for packages...
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
-            <HourglassTopIcon
-              sx={{
-                fontSize: 16,
-                mr: 1,
-                color: 'text.secondary'
+                mt: 1.5,
+                mb: 0.5,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'rgba(25, 118, 210, 0.1)'
               }}
             />
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: 500,
-                color: 'text.secondary'
-              }}
-            >
-              Finding the best travel options for you
-            </Typography>
-          </Box>
-          <LinearProgress
-            sx={{
-              mt: 1.5,
-              mb: 0.5,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: 'rgba(25, 118, 210, 0.1)'
-            }}
-          />
-        </Paper>
-        <Grid container spacing={3}>
-          {[1, 2, 3].map(item => (
-            <LoadingSkeleton key={item} />
-          ))}
-        </Grid>
-      </Box>
+          </Paper>
+          <Grid container spacing={3}>
+            {[1, 2, 3].map(item => (
+              <LoadingSkeleton key={item} />
+            ))}
+          </Grid>
+        </Box>
+      </BlurOverlay>
     );
   }
   
   if (error) {
     return (
-      <Box sx={{ mt: 4, p: 3, bgcolor: '#FFF4F4', borderRadius: 2 }}>
-        <Typography color="error" variant="h6" gutterBottom>
-          Error loading packages
-        </Typography>
-        <Typography color="error.light">{error}</Typography>
-      </Box>
+      <BlurOverlay active={true} hasSearched={hasSearched}>
+        <Box sx={{ mt: 4, p: 3, bgcolor: '#FFF4F4', borderRadius: 2 }}>
+          <Typography color="error" variant="h6" gutterBottom>
+            Error loading packages
+          </Typography>
+          <Typography color="error.light">{error}</Typography>
+        </Box>
+      </BlurOverlay>
     );
   }
   
   if (!packages || packages.length === 0) {
     return (
-      <Box sx={{ mt: 4 }}>
-        <Paper 
-        elevation={0} 
-        sx={{ 
-          p: 2.5, 
-          mb: 3, 
-          borderRadius: 2, 
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
-          border: '1px solid #e0e7ee'
-        }}
-      >
+      <BlurOverlay active={true} hasSearched={hasSearched}>
+        <Box sx={{ mt: 4 }}>
+          <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 2.5, 
+            mb: 3, 
+            borderRadius: 2, 
+            background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
+            border: '1px solid #e0e7ee'
+          }}
+        >
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
           <TravelExploreIcon 
             sx={{ 
@@ -445,79 +487,83 @@ const ListingCards = () => {
       </Paper>
         <NoResults />
       </Box>
+      </BlurOverlay>
     );
   }
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Paper 
-        elevation={0} 
-        sx={{ 
-          p: 2.5, 
-          mb: 3, 
-          borderRadius: 2, 
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
-          border: '1px solid #e0e7ee'
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <TravelExploreIcon 
-            sx={{ 
-              fontSize: 32, 
-              mr: 1.5, 
-              color: 'primary.main' 
-            }} 
-          />
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 600,
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
-          >
-            Package Search Results
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
-          <LuggageIcon 
-            sx={{ 
-              fontSize: 18, 
-              mr: 1, 
-              color: 'text.secondary' 
-            }} 
-          />
-          <Typography 
-            variant="subtitle1" 
-            sx={{ 
-              fontWeight: 500, 
-              color: 'text.secondary',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            Found <Box component="span" sx={{ mx: 0.5, fontWeight: 600, color: 'primary.main' }}>{packages.length}</Box> 
-            package{packages.length !== 1 ? 's' : ''} for you
-          </Typography>
-        </Box>
-      </Paper>
-      
-      <Grid container spacing={3}>
-        {Array.isArray(packages) ? (
-          packages.map(packageItem => (
-            <Grid item xs={12} sm={6} md={4} key={packageItem.package_id}>
-              <PackageCard packageData={packageItem} />
+    <BlurOverlay active={true} hasSearched={hasSearched}>
+      <Box sx={{ mt: 4 }}>
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 2.5, 
+            mb: 3, 
+            borderRadius: 2, 
+            background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
+            border: '1px solid #e0e7ee'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <TravelExploreIcon 
+              sx={{ 
+                fontSize: 32, 
+                mr: 1.5, 
+                color: 'primary.main' 
+              }} 
+            />
+            <Typography 
+              variant="h5" 
+              sx={{ 
+                fontWeight: 600,
+                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Package Search Results
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: 0.5 }}>
+            <LuggageIcon 
+              sx={{ 
+                fontSize: 18, 
+                mr: 1, 
+                color: 'text.secondary' 
+              }} 
+            />
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontWeight: 500, 
+                color: 'text.secondary',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              Found <Box component="span" sx={{ mx: 0.5, fontWeight: 600, color: 'primary.main' }}>{packages.length}</Box> 
+              package{packages.length !== 1 ? 's' : ''} for you
+            </Typography>
+          </Box>
+        </Paper>
+        
+        <Grid container spacing={3}>
+          {Array.isArray(packages) ? (
+            packages.map(packageItem => (
+              <Grid item xs={12} sm={6} md={4} key={packageItem.package_id}>
+                <PackageCard packageData={packageItem} />
+              </Grid>
+            ))
+          ) : (
+            <Grid item xs={12}>
+              <Typography variant="body1" color="text.secondary">
+                No packages available
+              </Typography>
             </Grid>
-          ))
-        ) : (
-          // Handle if packages is an object rather than array
-          <Grid item xs={12} sm={6} md={4}>
-            <PackageCard packageData={packages} />
-          </Grid>
-        )}
-      </Grid>
-    </Box>
+          )}
+        </Grid>
+      </Box>
+    </BlurOverlay>
   );
 };
 

@@ -258,26 +258,19 @@ const Counter = ({
 const PaxSelect = ({ onChange, value = { Adults: 1, Children: 0, Infants: 0 }, label = "Passengers" }) => {
   const [expanded, setExpanded] = useState(false);
   const [guestCounts, setGuestCounts] = useState({
-    Adults: value.Adults || 1,
-    Children: value.Children || 0,
-    Infants: value.Infants || 0,
+    ...value,
     maleCount: value.maleCount || 0,
-    femaleCount: value.femaleCount || 0,
+    femaleCount: value.femaleCount || (value.Adults || 1),
     ages: value.ages || []
   });
 
-  // Update internal state when props change
   useEffect(() => {
-    if (value) {
-      setGuestCounts({
-        Adults: value.Adults !== undefined ? value.Adults : 1,
-        Children: value.Children !== undefined ? value.Children : 0,
-        Infants: value.Infants !== undefined ? value.Infants : 0,
-        maleCount: value.maleCount !== undefined ? value.maleCount : 0,
-        femaleCount: value.femaleCount !== undefined ? value.femaleCount : 0,
-        ages: value.ages || []
-      });
-    }
+    setGuestCounts({
+      ...value,
+      maleCount: value.maleCount || 0,
+      femaleCount: value.femaleCount || (value.Adults || 1),
+      ages: value.ages || []
+    });
   }, [value]);
 
   const handleCounterChange = (name, newValue, index) => {
@@ -436,103 +429,84 @@ const PaxSelect = ({ onChange, value = { Adults: 1, Children: 0, Infants: 0 }, l
   };
 
   return (
-    <Box sx={{ minWidth: 200, maxWidth: '100%' }}>
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>{label}</Typography>
-      
-      <Box 
-        onClick={toggleExpanded}
-        sx={{ 
-          position: 'relative',
-          border: '1px solid #ddd',
-          borderRadius: '4px',
-          p: 1.5,
-          cursor: 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          '&:hover': {
-            borderColor: '#aaa',
-          },
-        }}
+    <Box className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative">
+      <div
+        data-bs-toggle="dropdown"
+        data-bs-auto-close="outside"
+        aria-expanded="false"
+        data-bs-offset="0,10"
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
-          <Typography>{getPaxDisplayText()}</Typography>
-        </Box>
-        <IconButton 
-          size="small"
-          sx={{ 
-            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.3s'
-          }}
-        >
-          <DownIcon />
-        </IconButton>
-      </Box>
-      
+        <h4 className="text-15 fw-500 ls-2 lh-16">{label}</h4>
+        <div className="text-15 text-light-1 ls-2 lh-16" onClick={toggleExpanded}>
+          <span className="js-count-adult">{getPaxDisplayText()}</span>
+        </div>
+      </div>
+
       <Collapse in={expanded}>
-        <Paper 
-          elevation={3}
-          sx={{ 
-            mt: 0.5, 
-            p: 2,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+        <Paper
+          className="shadow-2"
+          sx={{
+            position: 'absolute',
+            top: '100%',
+            width: '320px',
+            maxWidth: '100%',
+            zIndex: 1060,
+            mt: 1,
+            p: 2.5,
+            border: '1px solid #e5e7eb',
+            borderRadius: 1,
+            bgcolor: 'white',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.08)'
           }}
         >
-          {/* Adults Counter */}
-          <Counter
-            name="Adults"
-            value={guestCounts.Adults}
-            onCounterChange={handleCounterChange}
-            minValue={1}
-            maxValue={10}
-            icon={<PersonIcon color="primary" />}
-            subLabel="Ages 12+"
-            genderCounts={{
-              maleCount: guestCounts.maleCount || 0,
-              femaleCount: guestCounts.femaleCount || 0
-            }}
-            onGenderCountChange={handleGenderCountChange}
-            totalAdults={guestCounts.Adults}
-          />
-          
-          <Divider sx={{ my: 1.5 }} />
-          
-          {/* Children Counter */}
-          <Counter
-            name="Children"
-            value={guestCounts.Children}
-            onCounterChange={handleCounterChange}
-            minValue={0}
-            maxValue={10}
-            icon={<ChildCareIcon color="primary" />}
-            subLabel="Ages 2-11 years"
-            genderCounts={guestCounts}
-          />
-          
-          <Divider sx={{ my: 1.5 }} />
-          
-          {/* Infants Counter */}
-          <Counter
-            name="Infants"
-            value={guestCounts.Infants}
-            onCounterChange={handleCounterChange}
-            minValue={0}
-            maxValue={5}
-            icon={<InfantIcon color="primary" />}
-            subLabel="Under 2 years"
-          />
-          
-          {/* <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={toggleExpanded}
-              size="small"
-            >
-              Done
-            </Button>
-          </Box> */}
+          <Box className="counter-box">
+            <Counter
+              name="Adults"
+              value={guestCounts.Adults}
+              onCounterChange={handleCounterChange}
+              minValue={1}
+              icon={<PersonIcon sx={{ color: 'primary.main' }} />}
+              subLabel="Ages 18+"
+              genderCounts={guestCounts}
+              onGenderCountChange={handleGenderCountChange}
+              totalAdults={guestCounts.Adults}
+            />
+            
+            <Divider sx={{ my: 1.5 }} />
+
+            <Counter
+              name="Children"
+              value={guestCounts.Children}
+              onCounterChange={handleCounterChange}
+              icon={<ChildCareIcon sx={{ color: 'secondary.main' }} />}
+              subLabel="Ages 1-17"
+              genderCounts={guestCounts}
+              onGenderCountChange={handleGenderCountChange}
+            />
+
+            <Divider sx={{ my: 1.5 }} />
+
+            <Counter
+              name="Infants"
+              value={guestCounts.Infants}
+              onCounterChange={handleCounterChange}
+              icon={<InfantIcon sx={{ color: 'warning.main' }} />}
+              subLabel="Under 1"
+            />
+
+            <Box sx={{ mt: 3, textAlign: 'right' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  onChange(guestCounts);
+                  toggleExpanded();
+                }}
+              >
+                Apply
+              </Button>
+            </Box>
+          </Box>
         </Paper>
       </Collapse>
     </Box>

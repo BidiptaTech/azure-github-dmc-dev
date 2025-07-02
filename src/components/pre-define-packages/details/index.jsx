@@ -521,7 +521,7 @@ const PackageDetailsContainer = () => {
           setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
             ...hotel,
             name: hotel.name || "Unknown Hotel",
-            image: hotel.image || '/img/hotels/1.png',
+            image: hotel.main_image || '/img/hotels/1.png',
             days: Array.isArray(hotel.days) ? hotel.days : []
           })));
         } else if (updatedPackageDetails.selected_hotels && Array.isArray(updatedPackageDetails.selected_hotels)) {
@@ -529,7 +529,7 @@ const PackageDetailsContainer = () => {
           setSelectedHotels(updatedPackageDetails.selected_hotels.map(hotel => ({
             ...hotel,
             name: hotel.name || "Unknown Hotel",
-            image: hotel.image || '/img/hotels/1.png',
+            image: hotel.main_image || '/img/hotels/1.png',
             days: Array.isArray(hotel.days) ? hotel.days : []
           })));
         }
@@ -1127,7 +1127,7 @@ const PackageDetailsContainer = () => {
                                                   >
                                                     <Box
                                                       component="img"
-                                                      src={hotel.image || '/img/hotels/1.png'}
+                                                      src={hotel.main_image || '/img/hotels/1.png'}
                                                       alt={hotel.name}
                                                       sx={{
                                                         width: '100%',
