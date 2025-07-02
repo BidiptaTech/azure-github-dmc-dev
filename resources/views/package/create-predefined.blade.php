@@ -780,11 +780,13 @@ $(document).ready(function() {
                 
                 // Add to selected hotels with days
                 if (checkedDays.length > 0) {
+                    const hotelData = $('#hotel-select').find(`option[value="${hotelId}"]`).data('hotel-data');
                     selectedHotelsWithDays.push({
                         id: hotelId,
                         name: hotelName,
                         city: hotelCity,
-                        days: checkedDays
+                        days: checkedDays,
+                        main_image: hotelData ? hotelData.main_image : ''  // Changed from 'image' to 'main_image' for consistency
                     });
                     
                     // Add to hotel JSON data with hotel_unique_id as key
@@ -862,22 +864,25 @@ $(document).ready(function() {
             selectedOptions.each(function() {
                 const attractionData = $(this).data('attraction-data');
                 if (attractionData) {
+                    console.log('Raw attraction data:', attractionData);
                     // Initialize attraction with proper structure
                     selectedAttractions.push({
                         attraction_id: attractionData.attraction_id,
                         name: attractionData.name,
                         location: attractionData.location,
                         transfer_available: 0,
-                        transfer_type: 'none'
+                        transfer_type: 'none',
+                        image: attractionData.image || ''
                     });
+                    console.log('Pushed attraction with image:', selectedAttractions[selectedAttractions.length - 1]);
                 }
             });
+            console.log("selectedAttractions = ", selectedAttractions);
             
             // Update day-wise itinerary data
             if (dayWiseItinerary.length >= day) {
                 // Preserve any existing transfer settings if the attraction is still selected
                 const existingAttractions = dayWiseItinerary[day - 1].attractions || [];
-                
                 // Map new attractions, preserving transfer settings for existing ones
                 const updatedAttractions = selectedAttractions.map(newAttraction => {
                     // Check if this attraction already exists with transfer settings
@@ -886,18 +891,22 @@ $(document).ready(function() {
                     );
                     
                     if (existingAttraction) {
-                        // Preserve existing transfer settings
+                        // Preserve existing transfer settings and add image
                         return {
                             ...newAttraction,
                             transfer_available: existingAttraction.transfer_available || 0,
-                            transfer_type: existingAttraction.transfer_type || 'none'
+                            transfer_type: existingAttraction.transfer_type || 'none',
+                            image: newAttraction.image
                         };
                     }
                     
                     // Use default settings for new attractions
-                    return newAttraction;
+                    return {
+                        ...newAttraction,
+                        image: newAttraction.image
+                    };
                 });
-                
+                console.log("updatedAttractions = ", updatedAttractions);
                 // Update the attractions array
                 dayWiseItinerary[day - 1].attractions = updatedAttractions;
                 
@@ -1199,8 +1208,7 @@ $(document).ready(function() {
                             id: hotel.hotel_unique_id,
                             name: hotel.name,
                             city: hotel.city,
-                            main_image: hotel.main_image || '',
-                            images: hotel.images || []
+                            main_image: hotel.main_image || ''
                         });
                         hotelSelect.append(option);
                     });
@@ -1237,7 +1245,8 @@ $(document).ready(function() {
                     $(option).data('attraction-data', {
                         attraction_id: attraction.attraction_id,
                         name: attraction.name,
-                        location: attraction.location
+                        location: attraction.location,
+                        image: attraction.master_image || ''
                     });
                     attractionSelect.append(option);
                 });
@@ -1260,7 +1269,7 @@ $(document).ready(function() {
                         id: guide.guide_id,
                         name: guide.name,
                         languages: guide.languages,
-                        contact_no: guide.contact_no
+                        contact_no: guide.contact_no,
                     });
                     guideSelect.append(option);
                 });
@@ -1295,21 +1304,42 @@ $(document).ready(function() {
         // Create hierarchical itinerary JSON structure
         const itineraryJson = {};
         
-        // Get duration
-        const duration = parseInt($('input[name="duration_days"]').val()) || 0;
-        
-        // Debug log the dayWiseItinerary array before processing
-        console.log('dayWiseItinerary before processing:', JSON.parse(JSON.stringify(dayWiseItinerary)));
-        
-        // Process each day's data
-        for (let day = 1; day <= duration; day++) {
-            // Initialize day data object
-            itineraryJson[day] = {
-                attractions: [],
-                guide: null,
-                arrival_pickup: day === 1 ? 0 : null,
-                departure_service: day === duration ? 0 : null
-            };
+                    // Get duration
+            const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+            
+            // Get selected hotels data
+            const selectedHotels = {};
+            $('#hotel-select option:selected').each(function() {
+                const hotelData = $(this).data('hotel-data');
+                if (hotelData) {
+                    selectedHotels[hotelData.id] = hotelData;
+                }
+            });
+            
+            // Debug log the dayWiseItinerary array before processing
+            console.log('dayWiseItinerary before processing:', JSON.parse(JSON.stringify(dayWiseItinerary)));
+            console.log('Selected hotels data:', selectedHotels);
+            
+            // Process each day's data
+            for (let day = 1; day <= duration; day++) {
+                // Get hotels assigned to this day
+                const dayHotels = selectedHotelsWithDays
+                    .filter(hotel => hotel.days.includes(day))
+                    .map(hotel => ({
+                        id: hotel.id,
+                        name: hotel.name,
+                        city: hotel.city,
+                        main_image: selectedHotels[hotel.id] ? selectedHotels[hotel.id].main_image : ''
+                    }));
+                
+                // Initialize day data object
+                itineraryJson[day] = {
+                    attractions: [],
+                    hotels: dayHotels,
+                    guide: null,
+                    arrival_pickup: day === 1 ? 0 : null,
+                    departure_service: day === duration ? 0 : null
+                };
             
             // Get attractions data
             if (dayWiseItinerary.length >= day && dayWiseItinerary[day - 1].attractions) {
@@ -1318,12 +1348,15 @@ $(document).ready(function() {
                 // Map attractions with the correct property names
                 itineraryJson[day].attractions = dayWiseItinerary[day - 1].attractions.map(attraction => {
                     // Ensure we have the correct property names for the itinerary JSON
-                    const mappedAttraction = {
-                        id: attraction.attraction_id,
-                        name: attraction.name,
-                        city: attraction.location,
-                        transfer_available: attraction.transfer_available || 0,
-                        transfer_type: attraction.transfer_type || 'none'
+                                    console.log('Original attraction before mapping:', attraction);
+                const mappedAttraction = {
+                    ...attraction,  // Preserve all existing properties
+                    id: attraction.attraction_id || attraction.id,
+                    name: attraction.name,
+                    city: attraction.location,
+                    location: attraction.location,
+                    transfer_available: attraction.transfer_available || 0,
+                    transfer_type: attraction.transfer_type || 'none'
                     };
                     console.log(`Day ${day}, mapped attraction:`, mappedAttraction);
                     return mappedAttraction;
@@ -1367,10 +1400,15 @@ $(document).ready(function() {
         // Process hotel JSON data
         const hotelJsonData = {};
         selectedHotelsWithDays.forEach(hotel => {
+            // Get the original hotel data from the select option
+            const hotelData = $('#hotel-select').find(`option[value="${hotel.id}"]`).data('hotel-data');
+            console.log('Original hotel data:', hotelData);
+            
             hotelJsonData[hotel.id] = {
                 name: hotel.name,
                 city: hotel.city,
-                selected_days: hotel.days
+                selected_days: hotel.days,
+                main_image: hotelData ? hotelData.main_image : '',  // Using 'main_image' consistently
             };
         });
         
@@ -1397,6 +1435,7 @@ $(document).ready(function() {
             hotels: selectedHotelsWithDays,
             itinerary: dayWiseItinerary
         };
+        console.log("compiledData = ", compiledData);
         
         // Update the hidden input with the compiled data
         $('#day-wise-itinerary-input').val(JSON.stringify(compiledData));
@@ -1430,13 +1469,13 @@ $(document).ready(function() {
                     hotelSelect.prop('disabled', false);
                     
                     response.forEach(function(hotel) {
+                        console.log('Raw hotel data:', hotel);
                         const option = new Option(hotel.name, hotel.hotel_unique_id);
                         $(option).data('hotel-data', {
                             id: hotel.hotel_unique_id,
                             name: hotel.name,
                             city: hotel.city,
-                            main_image: hotel.main_image || '',
-                            images: hotel.images || []
+                            main_image: hotel.main_image
                         });
                         hotelSelect.append(option);
                     });

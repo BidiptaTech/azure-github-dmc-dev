@@ -685,7 +685,7 @@
             <!-- End Reports -->
 
                 <!-- Jobsheets -->
-                @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,35, 78, 120]))
+                @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,34, 66, 108]))
                     <li class="menu-header small text-uppercase">
                         <span class="menu-header-text">View Jobsheets</span>
                     </li>
