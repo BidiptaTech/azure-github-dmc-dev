@@ -80,6 +80,7 @@ const PreDefinePackages = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -208,12 +209,14 @@ const PreDefinePackages = () => {
     dispatch(fetchPackages(searchParams))
       .unwrap()
       .then(() => {
+        setHasSearched(true); // Set search performed flag
         setSnackbarMessage("Search successful! Fetching packages...");
         setSnackbarSeverity("success");
         setOpenSnackbar(true);
         // Here you can add navigation to packages list page if needed
       })
       .catch((error) => {
+        setHasSearched(true); // Set search performed flag even on error
         setSnackbarMessage(error || "Failed to fetch packages. Please try again.");
         setSnackbarSeverity("error");
         setOpenSnackbar(true);
@@ -225,20 +228,20 @@ const PreDefinePackages = () => {
       <Box p={4}>
         <TitleSection>
           <IconContainer>
-            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1 }} />
+            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} />
             <Typography 
               variant="h3" 
               component="h1" 
               sx={{ 
                 fontWeight: 700, 
                 color: 'primary.main',
-                textTransform: 'uppercase',
+                mt: 3,
                 letterSpacing: '0.5px',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
-              Pre Define Packages
+              Fixed Itinerary Packages
               <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
             </Typography>
           </IconContainer>
@@ -286,7 +289,8 @@ const PreDefinePackages = () => {
           </div>
         </Paper>
         
-        <ListingCards />
+        {/* {hasSearched && <ListingCards />} */}
+         <ListingCards />
       </Box>
       
       <Snackbar

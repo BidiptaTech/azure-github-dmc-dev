@@ -65,14 +65,14 @@ const LocationSearch = ({ onLocationSelect }) => {
       );
       setSuggestions(filtered);
       setIsDropdownVisible(filtered.length > 0);
-    } else if (!selectedItem) {
+    } else if (!selectedItem && isDropdownVisible) {
+      // Only show initial suggestions if dropdown is already visible (user has interacted)
       const initialSuggestions = locationSearchContent.slice(0, 5);
       setSuggestions(initialSuggestions);
-      setIsDropdownVisible(initialSuggestions.length > 0); // Use initialSuggestions instead of suggestions
     } else {
       setIsDropdownVisible(false);
     }
-  }, [searchValue, selectedItem, locationSearchContent]);
+  }, [searchValue, selectedItem, locationSearchContent, isDropdownVisible]);
 
   // Ensure highlighted item is visible in scroll
   useEffect(() => {
@@ -129,6 +129,8 @@ const LocationSearch = ({ onLocationSelect }) => {
 
   const handleInputFocus = () => {
     if (!selectedItem) {
+      const initialSuggestions = locationSearchContent.slice(0, 5);
+      setSuggestions(initialSuggestions);
       setIsDropdownVisible(true);
     }
   };
