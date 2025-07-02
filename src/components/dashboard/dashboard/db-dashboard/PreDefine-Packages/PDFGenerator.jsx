@@ -80,24 +80,43 @@ const parseJsonSafely = (jsonString) => {
 const extractServiceName = (service) => {
   if (!service || typeof service !== 'object') return 'Unknown Service';
   
+  let serviceName = '';
+  
   // Handle the specific format from BookingViewModal
   if (service.service_type && service.service_name) {
-    return service.service_name;
-  }
-  
-  if (service.type) {
-    return service.name || service.title || service.hotel_name || 
+    serviceName = service.service_name;
+  } else if (service.type) {
+    serviceName = service.name || service.title || service.hotel_name || 
            service.attraction_name || service.restaurant_name || 'Unknown Service';
-  }
-  
-  // Try to find any name-like property
-  for (const key of Object.keys(service)) {
-    if (key.includes('name') || key.includes('title')) {
-      return service[key];
+  } else {
+    // Try to find any name-like property
+    for (const key of Object.keys(service)) {
+      if (key.includes('name') || key.includes('title')) {
+        serviceName = service[key];
+        break;
+      }
     }
   }
   
-  return 'Unknown Service';
+  // Add transport information for attractions if available
+  if (service.attraction_with_transfer) {
+    const transferValue = parseInt(service.attraction_with_transfer);
+    if (transferValue === 1) {
+      serviceName += ' (One-Way Transfer)';
+    } else if (transferValue === 2) {
+      serviceName += ' (Round-Trip Transfer)';
+    }
+  }
+  
+  // Add entry/exit transport information if available
+  if (service.entry_port === 1 || service.entry_port === true) {
+    serviceName += ' (Arrival Transport)';
+  }
+  if (service.exit_port === 1 || service.exit_port === true) {
+    serviceName += ' (Departure Transport)';
+  }
+  
+  return serviceName || 'Unknown Service';
 };
 
 // Helper function to categorize service type
@@ -125,6 +144,9 @@ const categorizeService = (service) => {
   if (service.hotel_id || service.hotel_name) return 'hotel';
   if (service.attraction_id || service.attraction_name) return 'attraction';
   if (service.restaurant_id || service.restaurant_name) return 'restaurant';
+  
+  // Check for attraction_with_transfer to identify attractions
+  if (service.attraction_with_transfer) return 'attraction';
   
   return 'other';
 };
@@ -226,10 +248,19 @@ const extractBookingData = () => {
           const serviceCategory = categorizeService(service);
           const serviceTime = extractServiceTime(service);
           
+          // Check if this service has transport information that should be highlighted
+          const hasAttractionTransfer = service.attraction_with_transfer && 
+            (parseInt(service.attraction_with_transfer) === 1 || parseInt(service.attraction_with_transfer) === 2);
+          const hasEntryTransport = service.entry_port === 1 || service.entry_port === true;
+          const hasExitTransport = service.exit_port === 1 || service.exit_port === true;
+          
           services.push({
             time: serviceTime,
             activity: serviceName,
-            category: serviceCategory
+            category: serviceCategory,
+            hasAttractionTransfer,
+            hasEntryTransport,
+            hasExitTransport
           });
         });
       }
@@ -288,6 +319,24 @@ const extractBookingData = () => {
   };
 
   console.log('Extracted booking data:', result);
+  
+  // Debug: Log detailed service information
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Detailed service extraction:');
+    result.itinerary.forEach((day, dayIndex) => {
+      console.log(`Day ${dayIndex + 1}:`, day.day);
+      day.services.forEach((service, serviceIndex) => {
+        console.log(`  Service ${serviceIndex + 1}:`, {
+          activity: service.activity,
+          category: service.category,
+          hasAttractionTransfer: service.hasAttractionTransfer,
+          hasEntryTransport: service.hasEntryTransport,
+          hasExitTransport: service.hasExitTransport
+        });
+      });
+    });
+  }
+  
   return result;
 };
 
@@ -308,14 +357,40 @@ const createCustomPDFHTML = (bookingData) => {
     const createServiceSection = (services, title, icon, color) => {
       if (services.length === 0) return '';
       
-      const servicesHTML = services.map(service => `
-        <tr style="border-bottom: 1px solid #f8f9fa;">
-         
-          <td style="padding: 12px 20px; color: #333; font-size: 14px; line-height: 1.5; vertical-align: top;">
-            <div style="font-weight: 500;">${service.activity}</div>
-          </td>
-        </tr>
-      `).join('');
+      const servicesHTML = services.map(service => {
+        // Create transport indicators
+        let transportIndicators = '';
+        if (service.hasAttractionTransfer || service.hasEntryTransport || service.hasExitTransport) {
+          const indicators = [];
+          if (service.hasEntryTransport) {
+            indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Arrival</span>');
+          }
+          if (service.hasExitTransport) {
+            indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Departure</span>');
+          }
+          if (service.hasAttractionTransfer) {
+            // Try to get more specific transfer information from the service name
+            let transferType = 'Transfer';
+            if (service.activity && service.activity.includes('One-Way Transfer')) {
+              transferType = 'One-Way Transfer';
+            } else if (service.activity && service.activity.includes('Round-Trip Transfer')) {
+              transferType = 'Round-Trip Transfer';
+            }
+            indicators.push(`<span style="background: #e8f5e8; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🚗 ${transferType}</span>`);
+          }
+          transportIndicators = `<div style="margin-top: 4px;">${indicators.join('')}</div>`;
+        }
+        
+        return `
+          <tr style="border-bottom: 1px solid #f8f9fa;">
+           
+            <td style="padding: 12px 20px; color: #333; font-size: 14px; line-height: 1.5; vertical-align: top;">
+              <div style="font-weight: 500;">${service.activity}</div>
+              ${transportIndicators}
+            </td>
+          </tr>
+        `;
+      }).join('');
 
       return `
         <tr>
@@ -340,14 +415,40 @@ const createCustomPDFHTML = (bookingData) => {
           </div>
         </td>
       </tr>
-      ${transport.map(service => `
-        <tr style="border-bottom: 1px solid #e9ecef; background: #f8f9fa;">
-         
-          <td style="padding: 12px 20px; color: #333; font-size: 14px; line-height: 1.5; vertical-align: top;">
-            <div style="font-weight: 500;">${service.activity}</div>
-          </td>
-        </tr>
-      `).join('')}
+      ${transport.map(service => {
+        // Create transport indicators for transport services
+        let transportIndicators = '';
+        if (service.hasAttractionTransfer || service.hasEntryTransport || service.hasExitTransport) {
+          const indicators = [];
+          if (service.hasEntryTransport) {
+            indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Arrival</span>');
+          }
+          if (service.hasExitTransport) {
+            indicators.push('<span style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">🚗 Departure</span>');
+          }
+          if (service.hasAttractionTransfer) {
+            // Try to get more specific transfer information from the service name
+            let transferType = 'Transfer';
+            if (service.activity && service.activity.includes('One-Way Transfer')) {
+              transferType = 'One-Way Transfer';
+            } else if (service.activity && service.activity.includes('Round-Trip Transfer')) {
+              transferType = 'Round-Trip Transfer';
+            }
+            indicators.push(`<span style="background: #e8f5e8; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🚗 ${transferType}</span>`);
+          }
+          transportIndicators = `<div style="margin-top: 4px;">${indicators.join('')}</div>`;
+        }
+        
+        return `
+          <tr style="border-bottom: 1px solid #e9ecef; background: #f8f9fa;">
+           
+            <td style="padding: 12px 20px; color: #333; font-size: 14px; line-height: 1.5; vertical-align: top;">
+              <div style="font-weight: 500;">${service.activity}</div>
+              ${transportIndicators}
+            </td>
+          </tr>
+        `;
+      }).join('')}
     ` : '';
 
     const servicesHTML = [
@@ -360,11 +461,11 @@ const createCustomPDFHTML = (bookingData) => {
 
     return `
       <div style="margin-bottom: 32px; break-inside: avoid; page-break-inside: avoid; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 20px 24px; position: relative;">
+        <div style="background: linear-gradient(135deg, #7ed6fb 0%, #b2f7ef 100%); color: #222; padding: 20px 24px; position: relative;">
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center;">
               <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
-                <span style="color: white; font-weight: bold; font-size: 14px;">${index + 1}</span>
+                <span style="color:rgb(10, 9, 9); font-weight: bold; font-size: 14px;">${index + 1}</span>
               </div>
               <div>
                 <h3 style="margin: 0; font-size: 18px; font-weight: 600;">${day.day}</h3>
@@ -388,11 +489,11 @@ const createCustomPDFHTML = (bookingData) => {
 
     return `
       <div style="margin-bottom: 32px; break-inside: avoid; page-break-inside: avoid; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 20px 24px; position: relative;">
+        <div style="background: linear-gradient(135deg, #7ed6fb 0%, #b2f7ef 100%); color: #222; padding: 20px 24px; position: relative;">
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center;">
               <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
-                <span style="color: white; font-weight: bold; font-size: 14px;">${index + 1}</span>
+                <span style="color:rgb(21, 10, 10); font-weight: bold; font-size: 14px;">${index + 1}</span>
               </div>
               <div>
                 <h3 style="margin: 0; font-size: 18px; font-weight: 600;">${day.day}</h3>
@@ -426,7 +527,7 @@ const createCustomPDFHTML = (bookingData) => {
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
             <div>
               <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Trip Itinerary</h1>
-              <p style="margin: 0; font-size: 16px; opacity: 0.9; font-weight: 400;">Complete Travel Plan & Schedule</p>
+              <p style="margin: 0; font-size: 16px; opacity: 0.9; font-weight: 400; color: black;">Complete Travel Plan & Schedule</p>
             </div>
             <div style="text-align: right;">
               <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; display: inline-block;">

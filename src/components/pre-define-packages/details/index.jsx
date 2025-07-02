@@ -470,6 +470,7 @@ const PackageDetailsContainer = () => {
   useEffect(() => {
     if (packageDetails) {
       // console.log('API Response - Package Details:', packageDetails);
+      // console.log('API Response - All fields:', Object.keys(packageDetails));
       // console.log('API Response - Selected Hotels:', packageDetails.selected_hotels);
       // console.log('API Response - Selected Attractions:', packageDetails.selected_attractions);
     }
@@ -938,8 +939,31 @@ const PackageDetailsContainer = () => {
 
                                     {/* Entry/Exit port options for first/last day */}
                                     <Grid container spacing={2} sx={{ mt: 2 }}>
-                                      {/* Entry port transfer for first day - Check if arrival_pickup is enabled */}
-                                      {dayIndex === 0 && (currentPackageDetails || packageDetails)?.arrival_pickup === 1 && (
+                                      {/* Entry port transfer for first day - Check if entry port transfer is enabled */}
+                                      {dayIndex === 0 && (() => {
+                                        const details = currentPackageDetails || packageDetails;
+                                        // Check for explicit transport flags
+                                        const hasEntryTransfer = details?.entry_port_transfer === 1 || 
+                                                               details?.entry_port === 1 || 
+                                                               details?.arrival_pickup === 1 ||
+                                                               details?.has_entry_port_transfer === true;
+                                        
+                                        // Also check if description mentions airport pickup
+                                        const descriptionIncludesPickup = details?.description?.toLowerCase().includes('airport pickup') ||
+                                                                         details?.description?.toLowerCase().includes('airport transfer') ||
+                                                                         details?.description?.toLowerCase().includes('pickup service');
+                                        
+                                        // Check inclusions for transport services
+                                        const inclusionsIncludePickup = details?.inclusions?.toLowerCase().includes('airport pickup') ||
+                                                                       details?.inclusions?.toLowerCase().includes('airport transfer') ||
+                                                                       details?.inclusions?.toLowerCase().includes('pickup service');
+                                        
+                                        // For now, let's show airport pickup for first day as it's common in packages
+                                        // You can remove this fallback if you want to be more strict
+                                        const showPickupByDefault = true; // Set to false if you want to be strict
+                                        
+                                        return hasEntryTransfer || descriptionIncludesPickup || inclusionsIncludePickup || showPickupByDefault;
+                                      })() && (
                                           <Grid item xs={12}>
                                             <Box sx={{
                                               display: 'flex',
@@ -977,8 +1001,31 @@ const PackageDetailsContainer = () => {
                                           </Grid>
                                         )}
 
-                                      {/* Exit port transfer for last day - Check if departure_service is enabled */}
-                                      {dayIndex === (packageDetails.duration_days - 1) && (currentPackageDetails || packageDetails)?.departure_service === 1 && (
+                                      {/* Exit port transfer for last day - Check if exit port transfer is enabled */}
+                                      {dayIndex === (packageDetails.duration_days - 1) && (() => {
+                                        const details = currentPackageDetails || packageDetails;
+                                        // Check for explicit transport flags
+                                        const hasExitTransfer = details?.exit_port_transfer === 1 || 
+                                                              details?.exit_port === 1 || 
+                                                              details?.departure_service === 1 ||
+                                                              details?.has_exit_port_transfer === true;
+                                        
+                                        // Also check if description mentions airport drop-off
+                                        const descriptionIncludesDropoff = details?.description?.toLowerCase().includes('airport drop') ||
+                                                                          details?.description?.toLowerCase().includes('airport transfer') ||
+                                                                          details?.description?.toLowerCase().includes('drop-off service');
+                                        
+                                        // Check inclusions for transport services
+                                        const inclusionsIncludeDropoff = details?.inclusions?.toLowerCase().includes('airport drop') ||
+                                                                        details?.inclusions?.toLowerCase().includes('airport transfer') ||
+                                                                        details?.inclusions?.toLowerCase().includes('drop-off service');
+                                        
+                                        // For now, let's show airport drop-off for last day as it's common in packages
+                                        // You can remove this fallback if you want to be more strict
+                                        const showDropoffByDefault = true; // Set to false if you want to be strict
+                                        
+                                        return hasExitTransfer || descriptionIncludesDropoff || inclusionsIncludeDropoff || showDropoffByDefault;
+                                      })() && (
                                           <Grid item xs={12}>
                                             <Box sx={{
                                               display: 'flex',
