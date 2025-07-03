@@ -81,6 +81,22 @@ class PackageController extends Controller
         }
 
         $packages = $query->paginate(12);
+        
+        // Pre-process itinerary data for each package
+        foreach ($packages as $package) {
+            // We'll let the view handle JSON decoding to avoid double-decoding issues
+            // Just ensure the itinerary field exists
+            if (is_null($package->itinerary)) {
+                $package->itinerary = '{}';
+            } elseif (is_string($package->itinerary) && !empty($package->itinerary)) {
+                // Validate JSON string to avoid errors in the view
+                $decoded = json_decode($package->itinerary, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // Invalid JSON, set to empty object
+                    $package->itinerary = '{}';
+                }
+            }
+        }
 
         return view('package.package', compact('packages'));
     }
