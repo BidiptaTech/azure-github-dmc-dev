@@ -75,6 +75,7 @@ const ExitPortSearch = ({ Location }) => {
 
   useEffect(() => {
     if (entryytime1) {
+      console.log("ExitPortSearch - Setting entry/exit time in Redux:", entryytime1);
       dispatch(setentrytime(entryytime1));
       dispatch(setexittime(entryytime1));
     }
@@ -107,37 +108,98 @@ const ExitPortSearch = ({ Location }) => {
   useEffect(() => {
     console.log("exitDropoffFromAutocomplete changed:", exitDropoffFromAutocomplete);
   }, [exitDropoffFromAutocomplete]);
+  
+  // Set time1 to true whenever entryytime1 has a value
+  useEffect(() => {
+    if (entryytime1) {
+      console.log("Setting time1 to true because entryytime1 has value:", entryytime1);
+      setTime1(true);
+    } else {
+      setTime1(false);
+    }
+  }, [entryytime1]);
 
   // Handler for the button search click event
   const buttonsearch = () => {
-    // Set validation triggered to true when search button is clicked
-    setValidationTriggered(true);
+    console.log("ExitPortSearch - Search button clicked");
+    console.log("ExitPortSearch - Current state before search:", {
+      exitpickUpLocation,
+      exitdropOffLocation,
+      selectedDate1,
+      entryytime1,
+      time1,
+      exitPickupFromAutocomplete,
+      exitDropoffFromAutocomplete,
+      pickUpLatLng,
+      dropOffLatLng
+    });
+    
+    // IMPORTANT: Set selection type to Exit Port FIRST
+    // This ensures the correct slice of the Redux store is updated
+    dispatch(setSelectionType("Exit Port"));
     dispatch(setPortZoneType(""));
     
-    // Only proceed if both locations are selected from autocomplete
-    const locationsValid = exitPickupFromAutocomplete && exitDropoffFromAutocomplete;
-    console.log("Locations valid for search:", locationsValid, {
-      exitPickupFromAutocomplete,
-      exitDropoffFromAutocomplete
-    });
-
+    // Set validation triggered to true when search button is clicked
+    setValidationTriggered(true);
+    
+    // Update all Redux values
     dispatch(setexitpickup(exitpickUpLocation));
     dispatch(setexitdropoff(exitdropOffLocation));
     dispatch(setentrytime(entryytime1));
     dispatch(setexittime(entryytime1));
     dispatch(setpickupdate(selectedDate1));
-    dispatch(setSelectionType("Exit Port"));
     dispatch(setPickupPlaceid1(pickUpLatLng));
     dispatch(setDropoffPlaceid1(dropOffLatLng));
+    
+    // Only proceed if both locations are selected from autocomplete
+    const locationsValid = exitPickupFromAutocomplete && exitDropoffFromAutocomplete;
+    console.log("ExitPortSearch - Locations valid for search:", locationsValid, {
+      exitPickupFromAutocomplete,
+      exitDropoffFromAutocomplete
+    });
+    
+    console.log("ExitPortSearch - Current time1 state:", time1, "Current entryytime1:", entryytime1);
 
-    // Only fetch vehicles if both locations are valid
-    if (locationsValid && time1) {
-      console.log("Fetching vehicles...");
+    // Check if we have a time value but time1 state is false (possible state inconsistency)
+    if (entryytime1 && !time1) {
+      console.log("ExitPortSearch - Time value exists but time1 is false. Fixing state inconsistency.");
+      setTime1(true);
+    }
+
+    // Only fetch vehicles if both locations are valid and time is selected
+    if (locationsValid && (time1 || entryytime1)) {
+      console.log("ExitPortSearch - All conditions met, fetching vehicles for Exit Port...");
+      
+      // Use setTimeout to ensure all Redux state updates have been processed
       setTimeout(() => {
+        // Make sure selectionType is set to Exit Port before fetching
+        dispatch(setSelectionType("Exit Port"));
+        console.log("ExitPortSearch - Dispatching fetchVehicles with Exit Port selection type");
         dispatch(fetchVehicles());
-      }, 500);
+      }, 300);
     } else {
-      console.log("Not fetching vehicles due to invalid data:", { locationsValid, time1 });
+      console.log("ExitPortSearch - Not fetching vehicles due to invalid data:", { 
+        locationsValid, 
+        time1, 
+        exitPickupFromAutocomplete,
+        exitDropoffFromAutocomplete,
+        entryytime1
+      });
+      
+      // If we have all required data but there might be a state inconsistency, try again
+      if (locationsValid && entryytime1) {
+        console.log("ExitPortSearch - We have all required data but possible state inconsistency. Trying again.");
+        
+        // Force set time1 to true
+        setTime1(true);
+        
+        // Use setTimeout to ensure all state updates have been processed
+        setTimeout(() => {
+          console.log("ExitPortSearch - Retry: Dispatching fetchVehicles with Exit Port selection type");
+          dispatch(setSelectionType("Exit Port"));
+          dispatch(fetchVehicles());
+        }, 500);
+      }
     }
   };
 

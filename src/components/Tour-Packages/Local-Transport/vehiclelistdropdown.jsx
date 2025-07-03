@@ -232,7 +232,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
         setpricemode("Sharable");
       }
     }
-  }, [vehicles, pricemode, setpricemode, hasPrivatePrice, hasSharablePrice]);
+  }, [vehicles, pricemode, hasPrivatePrice, hasSharablePrice]); // Removed setpricemode to prevent loops
   
   return (
     <Grid item xs={12} sm={6} md={12}>
@@ -285,12 +285,14 @@ const VehicleListDropdown = ({
   isNewBooking,
   cachedVehicles,
   cachedVehicleName,
-  isGridLayout = false
+  isGridLayout = false,
+  preloadedBooking = null
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   const portZoneType = useSelector((state) => state.localtour.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
+  console.log("tourDetailsdd", tourDetails);
   
   // Use cached vehicles if provided, otherwise use Redux vehicles
   const vehiclesToUse = cachedVehicles && cachedVehicles.length > 0 ? cachedVehicles : vehicles;
@@ -299,12 +301,12 @@ const VehicleListDropdown = ({
   const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
 
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult ?? 1;
-  const childrenMax = tourDetails?.data?.child ?? 0;
+  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
+  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
 
-  // Get initial passenger counts from parent component if available
-  const [adults, setAdults] = useState(adultsMax);
-  const [children, setChildren] = useState(childrenMax);
+  // Get initial passenger counts from preloaded booking or parent component
+  const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
+  const [children, setChildren] = useState(preloadedBooking?.children || childrenMax);
   const [seatingCapacity, setSeatingCapacity] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -318,7 +320,7 @@ const VehicleListDropdown = ({
     if (onPaxChange) {
       onPaxChange(adults, children);
     }
-  }, [adults, children, onPaxChange]);
+  }, [adults, children]); // Removed onPaxChange to prevent loops
   
   // Filter vehicles that have at least one pricing mode
   const filteredVehicles = vehiclesToUse.filter(vehicle => {
@@ -360,14 +362,14 @@ const VehicleListDropdown = ({
     }, 300); // 300ms delay
   };
 
-  const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
+  const [pricemode, setpricemode] = useState(preloadedBooking?.priceMode || ""); // Set from preloaded data or default
   
   // Notify parent when price mode changes
   useEffect(() => {
     if (onPriceModeChange && pricemode) {
       onPriceModeChange(pricemode);
     }
-  }, [pricemode, onPriceModeChange]);
+  }, [pricemode]); // Removed onPriceModeChange to prevent loops
   
   // Add null check for data and data.prices
   const Price = data && data.prices 
@@ -381,7 +383,7 @@ const VehicleListDropdown = ({
     if (onPriceChange && Price > 0) {
       onPriceChange(Price);
     }
-  }, [Price, onPriceChange, pricemode, totalGuests]);
+  }, [Price, pricemode, totalGuests]); // Removed onPriceChange to prevent loops
   
   // Handle adult count change for this specific booking
   const handleAdultChange = (value) => {
@@ -392,6 +394,29 @@ const VehicleListDropdown = ({
   const handleChildChange = (value) => {
     setChildren(value);
   };
+
+  // Initialize data when preloaded booking is available
+  useEffect(() => {
+    if (preloadedBooking && preloadedBooking.vehicleId && preloadedBooking.price > 0) {
+      console.log("Point To Point - Initializing with preloaded booking data:", preloadedBooking);
+      
+      // Set up mock data structure for preloaded booking
+      const mockData = {
+        prices: {
+          privatePrice: preloadedBooking.priceMode === "Private" ? preloadedBooking.price : 0,
+          sharablePrice: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0
+        }
+      };
+      
+      setData(mockData);
+      setSeatingCapacity(0); // Will be updated if needed
+      
+      // Trigger price change to parent
+      if (onPriceChange) {
+        onPriceChange(preloadedBooking.price);
+      }
+    }
+  }, [preloadedBooking?.vehicleId, preloadedBooking?.price, preloadedBooking?.priceMode]); // More specific dependencies
 
   // If it's grid layout, return just the autocomplete for the vehicle selection column
   if (isGridLayout) {

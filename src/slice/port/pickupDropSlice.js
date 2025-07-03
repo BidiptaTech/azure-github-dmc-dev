@@ -14,70 +14,93 @@ export const fetchVehicles = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
-      const { PickupPlaceid, DropoffPlaceid, pickupdate, entrytime, PickupPlaceid1, DropoffPlaceid1, selectionType } =
-        state.pickupDrop;
-        console.log("PickupPlaceid", PickupPlaceid);
-        console.log("DropoffPlaceid", DropoffPlaceid);
-        console.log("PickupPlaceid1exit", PickupPlaceid1);
-        console.log("DropoffPlaceid1exit", DropoffPlaceid1);
-        console.log("entrytimeexit", entrytime);
-        console.log("pickupdateexit", pickupdate);
-        console.log("selectionTypeexit", selectionType);
-
+      const { 
+        PickupPlaceid, 
+        DropoffPlaceid, 
+        pickupdate, 
+        entrytime, 
+        PickupPlaceid1, 
+        DropoffPlaceid1, 
+        selectionType 
+      } = state.pickupDrop;
       
+      console.log("fetchVehicles - Selection Type:", selectionType);
+      console.log("fetchVehicles - Entry Port data:", {
+        PickupPlaceid,
+        DropoffPlaceid
+      });
+      console.log("fetchVehicles - Exit Port data:", {
+        PickupPlaceid1,
+        DropoffPlaceid1,
+        entrytime,
+        pickupdate
+      });
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
       // ✅ Determine which date to use
       const travelDate = JSON.stringify({ 0: pickupdate });
-
-      // if (pickupdate) {
-      //   travelDate = pickupdate;
-      // } else if (exitpickupdate) {
-      //   travelDate = exitpickupdate;
-      // }
+      console.log("fetchVehicles - Using travel date:", travelDate);
 
       // ✅ Build query parameters dynamically
       let params;
+      
+      // Ensure we're using the correct selection type
       if (selectionType === "Entry Port") {
-        if (!PickupPlaceid ) {
+        console.log("fetchVehicles - Preparing Entry Port request parameters");
+        if (!PickupPlaceid) {
+          console.error("fetchVehicles - Missing Entry Port pickup location");
           throw new Error("Pickup location is required");
         }
-       params = {
-        pickup: JSON.stringify(PickupPlaceid),
-        date: travelDate, // ✅ Include date
-        time: JSON.stringify(entrytime),
-      };
-    }
-    else if (selectionType === "Exit Port") {
-       // No need to parse JSON string as it's already an object
-       const pickupCoords = PickupPlaceid1;
-       
-       if (!pickupCoords) {
-         throw new Error("Pickup location is required");
-       }
-       
-       params = {
-        pickup: JSON.stringify(pickupCoords),
-        date: travelDate, // ✅ Include date
-        time: JSON.stringify(entrytime),
-      };
-    }
-
-      if (selectionType === "Entry Port") {
+        
+        params = {
+          pickup: JSON.stringify(PickupPlaceid),
+          date: travelDate, // ✅ Include date
+          time: JSON.stringify(entrytime),
+        };
+        
         if (DropoffPlaceid) {
           params.dropoff = JSON.stringify(DropoffPlaceid); // ✅ Add dropoff only if available
         }
       }
       else if (selectionType === "Exit Port") {
+        console.log("fetchVehicles - Preparing Exit Port request parameters");
+        // No need to parse JSON string as it's already an object
+        const pickupCoords = PickupPlaceid1;
+        
+        if (!pickupCoords) {
+          console.error("fetchVehicles - Missing Exit Port pickup location");
+          throw new Error("Pickup location is required for Exit Port");
+        }
+        
+        console.log("Exit Port fetch vehicles - Using pickupCoords:", pickupCoords);
+        console.log("Exit Port fetch vehicles - Using date:", travelDate);
+        console.log("Exit Port fetch vehicles - Using time:", entrytime);
+        
+        params = {
+          pickup: JSON.stringify(pickupCoords),
+          date: travelDate, // ✅ Include date
+          time: JSON.stringify(entrytime),
+        };
+        
         if (DropoffPlaceid1) {
           // No need to parse JSON string as it's already an object
           const dropoffCoords = DropoffPlaceid1;
           params.dropoff = JSON.stringify(dropoffCoords); // ✅ Add dropoff only if available
+          console.log("Exit Port fetch vehicles - Added dropoff coordinates:", dropoffCoords);
         }
+      } else {
+        console.error("fetchVehicles - Invalid selection type:", selectionType);
+        throw new Error(`Invalid selection type: ${selectionType}`);
       }
+      
+      // Log the final params and selection type before making the API call
+      console.log("fetchVehicles - Final API params:", params);
+      console.log("fetchVehicles - Selection type:", selectionType);
+      
       // ✅ Make API request with dynamic params
+      console.log("fetchVehicles - Making API request to /vehicles-list");
       const response = await axios.get(`${BASE_URL}/vehicles-list`, {
         params, // Axios automatically adds available parameters
         headers: {
@@ -86,8 +109,10 @@ export const fetchVehicles = createAsyncThunk(
         },
       });
 
+      console.log(`fetchVehicles - API response for ${selectionType}:`, response.data);
       return response.data;
     } catch (error) {
+      console.error("fetchVehicles - Error:", error);
       if (error.response?.status === 401) {
         console.log("Unauthorized! Dispatching logout...");
         await dispatch(logoutUser()); // Ensure the logout process completes
@@ -1030,14 +1055,12 @@ const pickupDropSlice = createSlice({
         state.status = "succeeded";
         if(state.selectionType === "Entry Port"){
           state.vehicles = action.payload;
-          console.log("vehicle", state.vehicles);
+          console.log("fetchVehicles - Updated Entry Port vehicles:", state.vehicles);
         }
         if(state.selectionType === "Exit Port"){
           state.vehicles1 = action.payload;
-          console.log("vehicle1", state.vehicles1);
+          console.log("fetchVehicles - Updated Exit Port vehicles:", state.vehicles1);
         }
-
-        //console.log("Fetched Attractions Data:", action.payload); // Log the fetched data
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
         state.status = "failed";

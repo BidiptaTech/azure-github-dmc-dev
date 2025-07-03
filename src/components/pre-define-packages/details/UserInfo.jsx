@@ -257,8 +257,8 @@ const selectedDate = searchParams?.date ?
       // Dispatch the booking action
       dispatch(bookPackage(finalBookingData));
       
-      // Log the complete booking data to console
-      console.log('Complete booking data:', JSON.stringify(finalBookingData, null, 2));
+      // Log the complete booking data to console for debugging
+      console.log('Complete booking data:', finalBookingData);
     }
   };
   

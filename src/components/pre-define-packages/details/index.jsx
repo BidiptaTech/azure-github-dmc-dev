@@ -2,9 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchPackageDetails } from '../../../slice/tour-packages/prePackagesSlice';
-import { 
-  Container, 
-  Box, 
+import {
+  Container,
+  Box,
   Button,
   CircularProgress,
   Alert,
@@ -62,6 +62,8 @@ import RadioGroup from '@mui/material/RadioGroup';
 
 
 
+
+
 // Import components
 import PackageHeader from './PackageHeader';
 import PackageOverview from './PackageOverview';
@@ -69,6 +71,7 @@ import InclusionsExclusions from './InclusionsExclusions';
 import PackageItinerary from './PackageItinerary';
 import AccommodationDetails from './AccommodationDetails';
 import AttractionsDetails from './AttractionsDetails';
+/* import RestaurantsDetails from './RestaurantsDetails'; */
 /* import RestaurantsDetails from './RestaurantsDetails'; */
 /* import RestaurantsDetails from './RestaurantsDetails'; */
 import GuideDetails from './GuideDetails';
@@ -81,17 +84,19 @@ import HotelItemRenderer from './selection-components/HotelItemRenderer';
 import AttractionItemRenderer from './selection-components/AttractionItemRenderer';
 /* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
 /* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
+/* import RestaurantItemRenderer from './selection-components/RestaurantItemRenderer'; */
 import GuideItemRenderer from './selection-components/GuideItemRenderer';
 
 // Import API endpoints
 import { endpoints } from '../../../services/api';
 import { formatDate, getItineraryDayDate } from './shared-date-utils';
 // import { formatDate, getItineraryDayDate } from './shared-date-utils';
+// import { formatDate, getItineraryDayDate } from './shared-date-utils';
 
 // Navigation arrow for section navigation
 const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label }) => {
   const Icon = direction === 'next' ? KeyboardArrowRightIcon : KeyboardArrowLeftIcon;
-  
+
   return (
     <Button
       variant="text"
@@ -101,7 +106,7 @@ const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label 
       endIcon={direction === 'next' ? <Icon fontSize="small" /> : null}
       onClick={onClick}
       disabled={disabled}
-      sx={{ 
+      sx={{
         borderRadius: '16px',
         fontSize: '0.75rem',
         py: 0.25,
@@ -119,20 +124,20 @@ const NavigationArrow = ({ direction = 'next', onClick, disabled = false, label 
 
 // Section header component with change button
 const SectionHeader = ({ icon: Icon, title, count, onChangeClick }) => (
-  <Box sx={{ 
-    display: 'flex', 
-    alignItems: 'center', 
+  <Box sx={{
+    display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'primary.main',
     color: 'primary.contrastText',
-    px: 2, 
+    px: 2,
     py: 0.8,
     borderRadius: '8px 8px 0 0'
   }}>
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Avatar 
-        sx={{ 
-          bgcolor: 'rgba(255, 255, 255, 0.2)', 
+      <Avatar
+        sx={{
+          bgcolor: 'rgba(255, 255, 255, 0.2)',
           width: 28,
           height: 28,
           mr: 1.5
@@ -144,29 +149,29 @@ const SectionHeader = ({ icon: Icon, title, count, onChangeClick }) => (
         {title}
       </Typography>
     </Box>
-    
+
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       {count && (
-        <Chip 
-          label={`${count}`} 
-          size="small" 
-          sx={{ 
-            bgcolor: 'rgba(255, 255, 255, 0.2)', 
+        <Chip
+          label={`${count}`}
+          size="small"
+          sx={{
+            bgcolor: 'rgba(255, 255, 255, 0.2)',
             color: 'inherit',
             fontWeight: 'bold',
             height: 20,
             mr: 1,
             '& .MuiChip-label': { px: 0.8, py: 0 }
-          }} 
+          }}
         />
       )}
-      
+
       {onChangeClick && (
-        <IconButton 
-          size="small" 
+        <IconButton
+          size="small"
           onClick={onChangeClick}
-          sx={{ 
-            color: 'inherit', 
+          sx={{
+            color: 'inherit',
             bgcolor: 'rgba(255, 255, 255, 0.2)',
             p: 0.5,
             '&:hover': {
@@ -183,7 +188,7 @@ const SectionHeader = ({ icon: Icon, title, count, onChangeClick }) => (
 
 // Compact content section wrapper
 const ContentSection = ({ children }) => (
-  <Box sx={{ 
+  <Box sx={{
     p: 1.5,
     '& .MuiTypography-h5': {
       fontSize: '1rem',
@@ -231,90 +236,77 @@ const PackageDetailsContainer = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   const [mainTab, setMainTab] = useState(0);
   const [activeDay, setActiveDay] = useState(0);
   const [currentPackageDetails, setCurrentPackageDetails] = useState(null);
-  
-  
-  
+
+
+
   // State for modals
   const [hotelsModalOpen, setHotelsModalOpen] = useState(false);
   const [attractionsModalOpen, setAttractionsModalOpen] = useState(false);
   /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
+  /* const [restaurantsModalOpen, setRestaurantsModalOpen] = useState(false); */
   const [guidesModalOpen, setGuidesModalOpen] = useState(false);
-  
+
   // State for available items (items fetched from API)
   const [availableHotels, setAvailableHotels] = useState([]);
   const [availableAttractions, setAvailableAttractions] = useState([]);
   /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
   /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
+  /* const [availableRestaurants, setAvailableRestaurants] = useState([]); */
   const [availableGuides, setAvailableGuides] = useState([]);
-  
+
   // State for selected items
   const [selectedHotels, setSelectedHotels] = useState([]);
   const [selectedAttractions, setSelectedAttractions] = useState([]);
   /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
+  /* const [selectedRestaurants, setSelectedRestaurants] = useState([]); */
   const [selectedGuides, setSelectedGuides] = useState([]);
-  
+
   // State for globally selected hotel and guide across all days
   const [selectedHotelId, setSelectedHotelId] = useState(null);
   const [selectedGuideId, setSelectedGuideId] = useState(null);
-  
+
   // Track booked attractions by day - { attractionId: dayIndex }
   const [bookedAttractions, setBookedAttractions] = useState({});
-  
-  // Track transport options
-  const [entryPortTransfer, setEntryPortTransfer] = useState(0);
-  const [exitPortTransfer, setExitPortTransfer] = useState(0);
-  const [attractionWithTransfer, setAttractionWithTransfer] = useState({});
-  
-  // Track active service tab for each day
-  const [dayServiceTabs, setDayServiceTabs] = useState({});
-  
-  // Ref for content scrolling
-  // State for globally selected hotel and guide across all days
-  
- 
-  
-  // Track booked attractions by day - { attractionId: dayIndex }
- 
-  
-  // Track transport options
-  
-  
-  // Track active service tab for each day
- 
-  
+
+  // Track guides by day - { dayIndex: guide }
+  const [guidesByDay, setGuidesByDay] = useState({});
+
+  // Store parsed itinerary for transport service checks
+  const [parsedItineraryData, setParsedItineraryData] = useState(null);
+
   // Ref for content scrolling
   const contentRef = useRef(null);
 
   // Refs for days in itinerary (will be populated dynamically)
   const dayRefs = useRef([]);
-  
+
   const handleMainTabChange = (event, newValue) => {
     setMainTab(newValue);
   };
-  
+
   // Scroll to specific day in itinerary
   const scrollToDay = (dayIndex) => {
     setActiveDay(dayIndex);
     if (dayRefs.current[dayIndex] && dayRefs.current[dayIndex].current && contentRef.current) {
       const contentContainer = contentRef.current;
       const dayElement = dayRefs.current[dayIndex].current;
-      
+
       // Calculate the day element's position relative to the content container
       const dayRect = dayElement.getBoundingClientRect();
       const containerRect = contentContainer.getBoundingClientRect();
-      
+
       // Calculate the correct scroll position
       const scrollPosition = contentContainer.scrollTop + (dayRect.top - containerRect.top);
-      
+
       // Add a small offset for better visibility
       const scrollOffset = -20;
-      
+
       // Scroll to the calculated position
       contentContainer.scrollTo({
         top: scrollPosition + scrollOffset,
@@ -322,16 +314,174 @@ const PackageDetailsContainer = () => {
       });
     }
   };
-  
+
+  // Add scroll stabilization with hysteresis
+  useEffect(() => {
+    if (!contentRef.current || dayRefs.current.length === 0) return;
+
+    let scrollTimer = null;
+    let isScrolling = false;
+    let lastSetDayIndex = activeDay;
+    let selectionLocked = false;
+    let unlockSelectionTimer = null;
+
+    // Disable the intersection observer approach completely
+    // as it's causing too much instability
+
+    // Calculate which day is most visible and in focus
+    const calculateMostVisibleDay = () => {
+      if (!contentRef.current) return null;
+
+      const containerRect = contentRef.current.getBoundingClientRect();
+      const containerTop = containerRect.top;
+      const containerHeight = containerRect.height;
+
+      // Create structure to track visibility of days
+      const visibilityData = [];
+
+      for (let i = 0; i < dayRefs.current.length; i++) {
+        if (dayRefs.current[i] && dayRefs.current[i].current) {
+          const dayRect = dayRefs.current[i].current.getBoundingClientRect();
+
+          // Calculate how much of this day is visible in the viewport
+          const visibleTop = Math.max(dayRect.top, containerTop);
+          const visibleBottom = Math.min(dayRect.bottom, containerTop + containerHeight);
+
+          if (visibleBottom > visibleTop) {
+            const visibleHeight = visibleBottom - visibleTop;
+            const visiblePercentage = visibleHeight / dayRect.height;
+            const topPosition = dayRect.top - containerTop;
+
+            visibilityData.push({
+              dayIndex: i,
+              visiblePercentage,
+              topPosition
+            });
+          }
+        }
+      }
+
+      // No days visible
+      if (visibilityData.length === 0) return null;
+
+      // Sort by visible percentage
+      visibilityData.sort((a, b) => b.visiblePercentage - a.visiblePercentage);
+
+      // Get the current most visible day
+      const mostVisible = visibilityData[0];
+
+      // If selection is locked, don't change unless the new day is significantly more visible
+      if (selectionLocked && lastSetDayIndex !== null) {
+        // Find the current day in the visibility data
+        const currentDayData = visibilityData.find(d => d.dayIndex === lastSetDayIndex);
+
+        // If current day is still reasonably visible (at least 20%), stick with it
+        if (currentDayData && currentDayData.visiblePercentage >= 0.2) {
+          return lastSetDayIndex;
+        }
+
+        // If most visible day is very dominant (over 60%), switch to it
+        if (mostVisible.visiblePercentage >= 0.6) {
+          // Unlock for this significant change
+          selectionLocked = false;
+          if (unlockSelectionTimer) clearTimeout(unlockSelectionTimer);
+          unlockSelectionTimer = setTimeout(() => {
+            selectionLocked = false;
+          }, 1000);
+          return mostVisible.dayIndex;
+        }
+
+        // Otherwise, stay with current selection while locked
+        return lastSetDayIndex;
+      }
+
+      // Apply hysteresis - require at least 30% visibility to change days
+      if (mostVisible.visiblePercentage >= 0.3) {
+        return mostVisible.dayIndex;
+      }
+
+      // If nothing is significantly visible, don't change selection
+      return lastSetDayIndex;
+    };
+
+    // Improved scroll handler with strong hysteresis
+    const handleScroll = () => {
+      // Mark that we're scrolling
+      isScrolling = true;
+
+      // Clear any existing timer
+      if (scrollTimer) {
+        clearTimeout(scrollTimer);
+      }
+
+      // Set a new timer to update ONLY after scrolling has completely stopped
+      scrollTimer = setTimeout(() => {
+        isScrolling = false;
+
+        // Find the most visible day
+        const mostVisibleDay = calculateMostVisibleDay();
+
+        if (mostVisibleDay !== null && mostVisibleDay !== activeDay) {
+          setActiveDay(mostVisibleDay);
+          lastSetDayIndex = mostVisibleDay;
+
+          // Lock selection for a short period to prevent flickering
+          selectionLocked = true;
+
+          // Set a timer to unlock the selection after 1 second
+          if (unlockSelectionTimer) clearTimeout(unlockSelectionTimer);
+          unlockSelectionTimer = setTimeout(() => {
+            selectionLocked = false;
+          }, 1000);
+        }
+      }, 350); // Even longer debounce for more stability
+    };
+
+    const scrollContainer = contentRef.current;
+    scrollContainer.addEventListener('scroll', handleScroll);
+
+    // Initial check to set the correct active day on mount
+    setTimeout(() => {
+      const initialDay = calculateMostVisibleDay();
+      if (initialDay !== null && initialDay !== activeDay) {
+        setActiveDay(initialDay);
+        lastSetDayIndex = initialDay;
+      }
+    }, 100);
+
+    return () => {
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      }
+      if (scrollTimer) {
+        clearTimeout(scrollTimer);
+      }
+      if (unlockSelectionTimer) {
+        clearTimeout(unlockSelectionTimer);
+      }
+    };
+  }, [activeDay, dayRefs.current.length]);
+
   const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
   // const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
-  
+
   useEffect(() => {
     if (id) {
+      // console.log('Fetching package details for ID:', id);
       dispatch(fetchPackageDetails(id));
     }
   }, [dispatch, id]);
-  
+
+  // Add a separate effect to log package details when they're loaded
+  useEffect(() => {
+    if (packageDetails) {
+      // console.log('API Response - Package Details:', packageDetails);
+      // console.log('API Response - All fields:', Object.keys(packageDetails));
+      // console.log('API Response - Selected Hotels:', packageDetails.selected_hotels);
+      // console.log('API Response - Selected Attractions:', packageDetails.selected_attractions);
+    }
+  }, [packageDetails]);
+
   // Initialize day refs and selected items when package details load
   useEffect(() => {
     if (packageDetails) {
@@ -342,499 +492,258 @@ const PackageDetailsContainer = () => {
         // Include searchParams directly to ensure getItineraryDayDate has access to it
         searchParams
       };
-      
-      console.log('Setting package details in parent component:', {
-        originalDate: packageDetails.date,
-        originalStartDate: packageDetails.start_date,
-        searchParamsDate: searchParams?.date,
-        finalDate: updatedPackageDetails.date,
-        finalStartDate: updatedPackageDetails.start_date,
-        searchParams
-      });
-      
+
       // Create refs for each day in the itinerary
-      if (updatedPackageDetails.duration_days) {
-        dayRefs.current = Array(updatedPackageDetails.duration_days)
       if (updatedPackageDetails.duration_days) {
         dayRefs.current = Array(updatedPackageDetails.duration_days)
           .fill()
           .map((_, i) => dayRefs.current[i] || React.createRef());
       }
-      
-      // Set selected items from package details
-      setSelectedHotels(updatedPackageDetails.selected_hotels || []);
-      setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
-      /* setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []); */
-      setSelectedHotels(updatedPackageDetails.selected_hotels || []);
-      setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
-      /* setSelectedRestaurants(updatedPackageDetails.selected_restaurants || []); */
-      
-      // Check for both property names for guides (selected_guides or selected_guide)
-      // const guides = updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || [];
-      const guides = updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || [];
-      
-      // If no guides are found, add a sample guide for testing
-      if (!guides.length) {
-        const sampleGuides = [
-          {
-            id: 'g1',
-            name: 'John Smith',
-            image: '/img/team/1.png',
-            language: 'English, Spanish',
-            experience: 5,
-            specialization: 'Cultural Tours',
-            certified: true,
-            rating: 4.8,
-            reviews: 120
+
+      // Process the API response data structure
+      try {
+        // console.log('Processing package details...');
+        
+        // First, try to parse the itinerary JSON if it exists (this contains the detailed day-wise data)
+        let parsedItinerary = null;
+        if (typeof updatedPackageDetails.itinerary === 'string' && updatedPackageDetails.itinerary) {
+          try {
+            parsedItinerary = JSON.parse(updatedPackageDetails.itinerary);
+            // console.log('Parsed itinerary:', parsedItinerary);
+          } catch (e) {
+            console.error('Error parsing itinerary JSON:', e);
           }
-        ];
-        setSelectedGuides(sampleGuides);
-      } else {
-        setSelectedGuides(guides);
+        }
+
+        // Handle hotels - prioritize parsed itinerary data
+        if (parsedItinerary && parsedItinerary.hotels && Array.isArray(parsedItinerary.hotels)) {
+          // console.log('Setting hotels from parsed itinerary:', parsedItinerary.hotels);
+          setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
+            ...hotel,
+            name: hotel.name || "Unknown Hotel",
+            image: hotel.main_image || '/img/hotels/1.png',
+            days: Array.isArray(hotel.days) ? hotel.days : []
+          })));
+        } else if (updatedPackageDetails.selected_hotels && Array.isArray(updatedPackageDetails.selected_hotels)) {
+          // Fallback to direct API response
+          setSelectedHotels(updatedPackageDetails.selected_hotels.map(hotel => ({
+            ...hotel,
+            name: hotel.name || "Unknown Hotel",
+            image: hotel.main_image || '/img/hotels/1.png',
+            days: Array.isArray(hotel.days) ? hotel.days : []
+          })));
+        }
+
+        // Handle attractions and guides from parsed itinerary (day-wise data)
+        if (parsedItinerary && parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
+          // console.log('Processing day-wise itinerary data:', parsedItinerary.itinerary);
+          
+          const allAttractions = [];
+          const bookedByDay = {};
+          const allGuides = [];
+          const guidesByDay = {};
+
+          parsedItinerary.itinerary.forEach((dayData, index) => {
+            // console.log(`Processing day ${index + 1}:`, dayData);
+            
+            // Process attractions for this day
+            if (dayData && dayData.attractions && Array.isArray(dayData.attractions)) {
+              const safeAttractions = dayData.attractions.map(attraction => ({
+                ...attraction,
+                name: attraction.name || "Unknown Attraction",
+                image: attraction.image || '/img/attractions/1.png',
+                transfer_available: attraction.transfer_available,
+                transfer_type: attraction.transfer_type
+              }));
+
+              allAttractions.push(...safeAttractions);
+
+              // Map attractions to days using attraction_id
+              safeAttractions.forEach(attraction => {
+                if (attraction && attraction.attraction_id) {
+                  bookedByDay[attraction.attraction_id] = index;
+                }
+              });
+            }
+
+            // Process guide for this day
+            if (dayData && dayData.guide) {
+              const safeGuide = {
+                ...dayData.guide,
+                name: dayData.guide.name || "Tour Guide",
+                image: dayData.guide.image || '/img/team/1.png',
+                languages: dayData.guide.languages || ["English"],
+                day: index + 1 // Add day information
+              };
+
+              allGuides.push(safeGuide);
+              guidesByDay[index] = safeGuide;
+            }
+          });
+
+          // console.log('Processed attractions:', allAttractions);
+          // console.log('Booked attractions by day:', bookedByDay);
+          // console.log('Processed guides:', allGuides);
+          // console.log('Guides by day:', guidesByDay);
+
+          setSelectedAttractions(allAttractions);
+          setBookedAttractions(bookedByDay);
+          setSelectedGuides(allGuides);
+          
+          // Store guides by day for easy access
+          setGuidesByDay(guidesByDay);
+          
+          // Debug: Log guides by day
+          console.log('Main Component - Guides by day set:', guidesByDay);
+          
+          // Store parsed itinerary for transport service checks
+          setParsedItineraryData(parsedItinerary);
+        } else {
+          // Fallback to direct API response for attractions
+          if (updatedPackageDetails.selected_attractions && Array.isArray(updatedPackageDetails.selected_attractions)) {
+            const allAttractions = [];
+            const bookedByDay = {};
+
+            updatedPackageDetails.selected_attractions.forEach(attraction => {
+              const safeAttraction = {
+                ...attraction,
+                name: attraction.name || "Unknown Attraction",
+                image: attraction.image || '/img/attractions/1.png'
+              };
+
+              allAttractions.push(safeAttraction);
+
+              if (attraction.day && typeof attraction.day === 'number') {
+                bookedByDay[attraction.id] = attraction.day - 1;
+              }
+            });
+
+            setSelectedAttractions(allAttractions);
+            setBookedAttractions(bookedByDay);
+          }
+
+          // Fallback to direct API response for guides
+          if (updatedPackageDetails.selected_guides && Array.isArray(updatedPackageDetails.selected_guides)) {
+            setSelectedGuides(updatedPackageDetails.selected_guides.map(guide => ({
+              ...guide,
+              name: guide.name || "Tour Guide",
+              image: guide.image || '/img/team/1.png',
+              languages: guide.languages || ["English"],
+            })));
+          } else if (updatedPackageDetails.selected_guide) {
+            setSelectedGuides([{
+              ...updatedPackageDetails.selected_guide,
+              name: updatedPackageDetails.selected_guide.name || "Tour Guide",
+              image: updatedPackageDetails.selected_guide.image || '/img/team/1.png',
+              languages: updatedPackageDetails.selected_guide.languages || ["English"],
+            }]);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing package details:', error);
+        // Use existing data from packageDetails as fallback
+        setSelectedHotels(updatedPackageDetails.selected_hotels || []);
+        setSelectedAttractions(updatedPackageDetails.selected_attractions || []);
+        setSelectedGuides(updatedPackageDetails.selected_guides || updatedPackageDetails.selected_guide || []);
       }
-      
-      // Update PackageItinerary component props with the updated package details including date
+
+      // Set current package details with updates
       setCurrentPackageDetails(updatedPackageDetails);
-      
-      // Update PackageItinerary component props with the updated package details including date
-      setCurrentPackageDetails(updatedPackageDetails);
+      // console.log('Set current package details:', updatedPackageDetails);
     }
-  }
   }, [packageDetails, searchParams]);
 
   // }, [packageDetails, searchParams]);
-  
+
   // Add loading state
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Update the handlers for opening modals
-  const handleOpenHotelsModal = async () => {
-    try {
-      // Show loading state
-      setIsLoading(true);
-      
-      // If we already have available hotels, just open the modal
-      if (availableHotels.length > 0) {
-        setHotelsModalOpen(true);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Get the destination from package details for API request
-      const destination = packageDetails.destination || packageDetails.city || '';
-      
-      // Fetch hotels from API
-      const response = await endpoints.fetchHotels({
-        city: destination,
-        // Add any other required parameters
-        limit: 10 // Limit the number of results
-      });
-      
-      // Process API response
-      let hotels = [];
-      
-      if (response.data && Array.isArray(response.data)) {
-        hotels = response.data;
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        hotels = response.data.data;
-      } else {
-        console.warn('No hotels found in API response');
-        hotels = [];
-      }
-      
-      // Make sure the selected hotel is included in the available hotels
-      if (selectedHotels.length > 0) {
-        const selectedHotel = selectedHotels[0];
-        const selectedHotelExists = hotels.some(
-          hotel => (hotel.id === selectedHotel.id) || (hotel._id === selectedHotel._id)
-        );
-        
-        if (!selectedHotelExists) {
-          hotels = [...hotels, selectedHotel];
-        }
-      }
-      
-      setAvailableHotels(hotels);
-      setHotelsModalOpen(true);
-    } catch (error) {
-      console.error('Error fetching hotels:', error);
-      // Fallback to selected hotels in case of error
-      setAvailableHotels(selectedHotels.length > 0 ? selectedHotels : []);
-      setHotelsModalOpen(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleOpenAttractionsModal = async () => {
-    try {
-      // Show loading state
-      setIsLoading(true);
-      
-      // If we already have available attractions, just open the modal
-      if (availableAttractions.length > 0) {
-        setAttractionsModalOpen(true);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Get the destination from package details for API request
-      const destination = packageDetails.destination || packageDetails.city || '';
-      
-      // Fetch attractions from API
-      const response = await endpoints.fetchAttractions({
-        city: destination,
-        // Add any other required parameters
-        limit: 10 // Limit the number of results
-      });
-      
-      // Process API response
-      let attractions = [];
-      
-      if (response.data && Array.isArray(response.data)) {
-        attractions = response.data;
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        attractions = response.data.data;
-      } else {
-        console.warn('No attractions found in API response');
-        attractions = [];
-      }
-      
-      // Make sure the selected attraction is included in the available attractions
-      if (selectedAttractions.length > 0) {
-        const selectedAttraction = selectedAttractions[0];
-        const selectedAttractionExists = attractions.some(
-          attraction => (attraction.id === selectedAttraction.id) || (attraction._id === selectedAttraction._id)
-        );
-        
-        if (!selectedAttractionExists) {
-          attractions = [...attractions, selectedAttraction];
-        }
-      }
-      
-      setAvailableAttractions(attractions);
-      setAttractionsModalOpen(true);
-    } catch (error) {
-      console.error('Error fetching attractions:', error);
-      // Fallback to selected attractions in case of error
-      setAvailableAttractions(selectedAttractions.length > 0 ? selectedAttractions : []);
-      setAttractionsModalOpen(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  /* 
-  /* 
-  const handleOpenRestaurantsModal = async () => {
-    try {
-      // Show loading state
-      setIsLoading(true);
-      
-      // If we already have available restaurants, just open the modal
-      if (availableRestaurants.length > 0) {
-        setRestaurantsModalOpen(true);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Get the destination from package details for API request
-      const destination = packageDetails.destination || packageDetails.city || '';
-      
-      // Fetch restaurants from API
-      const response = await endpoints.fetchRestaurants({
-        city: destination,
-        // Add any other required parameters
-        limit: 10 // Limit the number of results
-      });
-      
-      // Process API response
-      let restaurantItems = [];
-      
-      if (response.data && Array.isArray(response.data)) {
-        restaurantItems = response.data;
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        restaurantItems = response.data.data;
-      } else {
-        console.warn('No restaurants found in API response');
-        restaurantItems = [];
-      }
-      
-      // Make sure the selected restaurant is included in the available restaurants
-      if (selectedRestaurants.length > 0) {
-        const selectedRestaurant = selectedRestaurants[0];
-        const isSelectedIncluded = restaurantItems.some(
-          item => (item.id === selectedRestaurant.id) || (item._id === selectedRestaurant._id)
-        );
-        
-        if (!isSelectedIncluded) {
-          restaurantItems = [...restaurantItems, selectedRestaurant];
-        }
-      }
-      
-      setAvailableRestaurants(restaurantItems);
-      setRestaurantsModalOpen(true);
-    } catch (error) {
-      console.error('Error fetching restaurants:', error);
-      // Fallback to selected restaurants in case of error
-      setAvailableRestaurants(selectedRestaurants.length > 0 ? selectedRestaurants : []);
-      setRestaurantsModalOpen(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  */
-  
-  
-  const handleOpenGuidesModal = async () => {
-    try {
-      // Show loading state
-      setIsLoading(true);
-      
-      // If we already have available guides, just open the modal
-      if (availableGuides.length > 0) {
-        setGuidesModalOpen(true);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Get the destination from package details for API request
-      const destination = packageDetails.destination || packageDetails.city || '';
-      
-      // Fetch guides from API using the fetchGuides endpoint
-      try {
-        const response = await endpoints.fetchGuides({
-          city: destination,
-          limit: 10 // Limit the number of results
-        });
-        
-        // Process API response
-        let guides = [];
-        
-        if (response.data && Array.isArray(response.data)) {
-          guides = response.data;
-        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          guides = response.data.data;
-        } else {
-          console.warn('No guides found in API response');
-          guides = [];
-        }
-        
-        // Make sure the selected guide is included in the available guides
-        if (selectedGuides.length > 0) {
-          const selectedGuide = selectedGuides[0];
-          const selectedGuideExists = guides.some(
-            guide => (guide.id === selectedGuide.id) || (guide._id === selectedGuide._id)
-          );
-          
-          if (!selectedGuideExists) {
-            guides = [...guides, selectedGuide];
-          }
-        }
-        
-        setAvailableGuides(guides);
-      } catch (apiError) {
-        console.warn('Guide API endpoint error:', apiError);
-        // If API fails, just use the currently selected guides
-        setAvailableGuides(selectedGuides.length > 0 ? selectedGuides : []);
-      }
-      
-      setGuidesModalOpen(true);
-    } catch (error) {
-      console.error('Error fetching guides:', error);
-      // Fallback to selected guides in case of error
-      setAvailableGuides(selectedGuides.length > 0 ? selectedGuides : []);
-      setGuidesModalOpen(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handler for booking/unbooking an attraction for a specific day
-  const handleAttractionToggle = (attractionId, dayIndex, isChecked) => {
-    console.log(`Attraction ${attractionId} on day ${dayIndex + 1} ${isChecked ? 'booked' : 'unbooked'}`);
-    
-    setBookedAttractions(prev => {
-      const updated = {...prev};
-      
-      if (isChecked) {
-        // Book the attraction for this day
-        updated[attractionId] = dayIndex;
-      } else {
-        // Remove the booking if it exists
-        if (updated[attractionId] === dayIndex) {
-          delete updated[attractionId];
-        }
-      }
-      
-      return updated;
-    });
-  };
-  
-  // Handler for toggling attraction transfer
-  const handleAttractionTransferToggle = (attractionId, isChecked) => {
-    console.log(`Attraction transfer for ${attractionId} ${isChecked ? 'enabled' : 'disabled'}`);
-    
-    setAttractionWithTransfer(prev => {
-      const updated = {...prev};
-      
-      if (isChecked) {
-        // Add transport for this attraction
-        updated[attractionId] = 1;
-      } else {
-        // Remove transport if it exists
-        delete updated[attractionId];
-      }
-      
-      return updated;
-    });
-  };
-  
-  // Helper to check if an attraction has transfer
-  const hasAttractionTransfer = (attractionId) => {
-    return attractionWithTransfer[attractionId] === 1;
-  };
-  
+
+
+
   // Helper to check if an attraction is already booked
   const isAttractionBooked = (attractionId) => {
     return attractionId in bookedAttractions;
   };
-  
+
   // Helper to check if an attraction is booked for a specific day
   const isAttractionBookedForDay = (attractionId, dayIndex) => {
+    // First, check if we have parsed data from JSON structure
+    if (typeof bookedAttractions[attractionId] === 'number') {
+      return bookedAttractions[attractionId] === dayIndex;
+    }
+
+    // For compatibility with any legacy data
     return bookedAttractions[attractionId] === dayIndex;
   };
-  
+
   // Handlers for hotel and guide selection
   const handleHotelSelect = (hotelId) => {
-    console.log(`Selected hotel: ${hotelId}`);
+    // console.log(`Selected hotel: ${hotelId}`);
     setSelectedHotelId(hotelId);
   };
-  
-  const handleGuideSelect = (guideId) => {
-    console.log(`Selected guide: ${guideId}`);
-    setSelectedGuideId(guideId);
-  };
+
+
 
   // Get itinerary dates for all days
   const getItineraryDates = () => {
     // Use currentPackageDetails that has searchParams attached to it
     const detailsWithSearchParams = currentPackageDetails || packageDetails;
-    
+
     if (!detailsWithSearchParams || !detailsWithSearchParams.duration_days) return [];
-    
+
     const dates = [];
     for (let i = 0; i < detailsWithSearchParams.duration_days; i++) {
       const dayDate = getItineraryDayDate(detailsWithSearchParams, i);
       dates.push({
-        day: i + 1, 
+        day: i + 1,
         date: formatDate(dayDate),
         full_date: dayDate
       });
     }
     return dates;
   };
-  
+
   // Helper function to ensure consistent ID handling
   const getEntityId = (entity, index, prefix) => {
     // Try to get ID in different formats that might exist in the data
-    return entity.id || entity._id || `${prefix}-${index}`;
-  };
-  
-  // Helper to get navigation details for sections
-  const getNavigationDetails = (currentSection) => {
-    const sections = sectionTabs.map(tab => tab.id);
-    const currentIndex = sections.findIndex(s => s === currentSection);
-    
-    return {
-      prev: currentIndex > 0 ? {
-        id: sections[currentIndex - 1],
-        label: sectionTabs[currentIndex - 1].label,
-        icon: sectionTabs[currentIndex - 1].icon
-      } : null,
-      next: currentIndex < sections.length - 1 ? {
-        id: sections[currentIndex + 1],
-        label: sectionTabs[currentIndex + 1].label,
-        icon: sectionTabs[currentIndex + 1].icon
-      } : null
-    };
-  };
-  
-  // Helper to get the active tab for a day (default to 'hotels')
-  const getActiveDayServiceTab = (dayIndex) => {
-    return dayServiceTabs[dayIndex] || 'hotels';
-  };
-  
-  // Handle tab change for a specific day
-  const handleDayServiceTabChange = (dayIndex, newValue) => {
-    setDayServiceTabs(prev => ({
-      ...prev,
-      [dayIndex]: newValue
-    }));
-  };
-  
-  // Add these event handlers for entry/exit port
-  const handleEntryPortTransfer = (isChecked) => {
-    setEntryPortTransfer(isChecked ? 1 : 0);
-  };
-  
-  const handleExitPortTransfer = (isChecked) => {
-    setExitPortTransfer(isChecked ? 1 : 0);
-  };
-  
-  // No need for handlers since these are not user-selectable
-  
-  // Helper to check if an attraction has transfer available and what type
-  const getAttractionTransferType = (attractionId) => {
-    // Check if attraction transfer is available in package data
-    if (packageDetails?.attractions_with_transfer) {
-      const transferValue = packageDetails.attractions_with_transfer[attractionId];
-      if (transferValue === 2) return 'bidirectional';
-      if (transferValue === 1 || transferValue === true) return 'unidirectional';
-    }
-    
-    // Check if package data has general attraction_with_transfer flag
-    if (packageDetails?.attraction_with_transfer === 2) {
-      return 'bidirectional';
-    }
-    if (packageDetails?.attraction_with_transfer === 1 || 
-        packageDetails?.attraction_with_transfer === true) {
-      return 'unidirectional';
-    }
-    
-    // Default to checking the attraction object itself
-    const attraction = selectedAttractions.find(a => (a.id === attractionId || a._id === attractionId));
-    if (attraction?.with_transfer === 2) return 'bidirectional';
-    if (attraction?.with_transfer === 1 || 
-        attraction?.with_transfer === true ||
-        attraction?.transfer_available === true) return 'unidirectional';
-    
-    return null; // No transfer available
+    if (entity.attraction_id) return entity.attraction_id; // New format for attractions from itinerary
+    if (entity.id) return entity.id; // Generic id field
+    if (entity._id) return entity._id; // MongoDB style id
+    return `${prefix}-${index}`; // Fallback to index-based id
   };
 
-  // Helper to check if an attraction has any transfer available
-  const hasAttractionTransferAvailable = (attractionId) => {
-    return getAttractionTransferType(attractionId) !== null;
+
+
+  // No need for handlers since these are not user-selectable
+
+  // Helper to check if an attraction has transfer available and what type
+  const getAttractionTransferType = (attractionId) => {
+    // Find the attraction in the selected attractions
+    const attraction = selectedAttractions.find(a =>
+      (a.id === attractionId || a._id === attractionId || a.attraction_id === attractionId)
+    );
+
+    if (!attraction) return null;
+
+    // Check for transfer_type in the new structure (from parsed itinerary)
+    if (attraction.transfer_type === 'both_way') return 'bidirectional';
+    if (attraction.transfer_type === 'one_way') return 'unidirectional';
+
+    // Check for transfer_available in the new structure (from parsed itinerary)
+    if (attraction.transfer_available === 1 || attraction.transfer_available === true) {
+      // If transfer_type is not specified but transfer is available, default to unidirectional
+      return attraction.transfer_type ? attraction.transfer_type === 'both_way' ? 'bidirectional' : 'unidirectional' : 'unidirectional';
+    }
+
+    // Fall back to legacy checks
+    if (attraction?.with_transfer === 2) return 'bidirectional';
+    if (attraction?.with_transfer === 1 ||
+      attraction?.with_transfer === true) return 'unidirectional';
+
+    return null;
   };
-  
-  // Helper to check if entry port transfer is available
-  const hasEntryPortTransfer = () => {
-    return packageDetails?.entry_port_transfer === 1 || 
-           packageDetails?.entry_port_transfer === true ||
-           packageDetails?.entry_port === 1 || 
-           packageDetails?.entry_port === true || 
-           packageDetails?.has_entry_port_transfer === true;
-  };
-  
-  // Helper to check if exit port transfer is available
-  const hasExitPortTransfer = () => {
-    return packageDetails?.exit_port_transfer === 1 || 
-           packageDetails?.exit_port_transfer === true ||
-           packageDetails?.exit_port === 1 || 
-           packageDetails?.exit_port === true || 
-           packageDetails?.has_exit_port_transfer === true;
-  };
-  
+
+
   if (loadingDetails) {
     return (
       <Container>
@@ -845,15 +754,15 @@ const PackageDetailsContainer = () => {
       </Container>
     );
   }
-  
+
   if (errorDetails) {
     return (
       <Container>
         <Box sx={{ mt: 4 }}>
           <Alert severity="error">{errorDetails}</Alert>
-          <Button 
-            variant="outlined" 
-            color="primary" 
+          <Button
+            variant="outlined"
+            color="primary"
             sx={{ mt: 2 }}
             onClick={() => navigate(-1)}
           >
@@ -863,15 +772,16 @@ const PackageDetailsContainer = () => {
       </Container>
     );
   }
-  
+
   if (!packageDetails) {
+    // console.log('No package details found');
     return (
       <Container>
         <Box sx={{ mt: 4 }}>
           <Alert severity="info">No package details found.</Alert>
-          <Button 
-            variant="outlined" 
-            color="primary" 
+          <Button
+            variant="outlined"
+            color="primary"
             sx={{ mt: 2 }}
             onClick={() => navigate(-1)}
           >
@@ -881,20 +791,25 @@ const PackageDetailsContainer = () => {
       </Container>
     );
   }
-  
+
+  // console.log('Rendering with package details:', packageDetails);
+  // console.log('Selected hotels:', selectedHotels);
+  // console.log('Selected attractions:', selectedAttractions);
+  // console.log('Booked attractions:', bookedAttractions);
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Button 
-        variant="outlined" 
+      <Button
+        variant="outlined"
         sx={{ mb: 3 }}
         onClick={() => navigate(-1)}
       >
         Back to Packages
       </Button>
-      
+
       {/* Package Header with Image, Title and Basic Info */}
       <PackageHeader packageData={packageDetails} />
-      
+
       {/* Main Tabs */}
       <Box sx={{ mt: 3 }}>
         <AppBar position="static" color="default" elevation={0}>
@@ -915,32 +830,36 @@ const PackageDetailsContainer = () => {
             <Tab label="Summary" />
           </Tabs>
         </AppBar>
-        
+
         {/* Itinerary & Details Tab - Three-column layout */}
         {mainTab === 0 && (
           <Box sx={{ mt: 3, position: 'relative' }}>
             <Grid container spacing={3}>
               {/* Left sidebar with day-by-day navigation - Sticky */}
-              <Grid item xs={12} md={3} lg={2}>
-                <PackageItinerary 
-                  packageDetails={currentPackageDetails || packageDetails}
-                  activeDay={activeDay}
-                  setActiveDay={setActiveDay}
-                  contentRef={contentRef}
-                  dayRefs={dayRefs}
-                />
-              
+              <Grid item xs={12} md={3} lg={2} sx={{ display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{
+                  height: 'calc(100vh - 200px)',
+                  position: 'relative'
+                }}>
+                  <PackageItinerary
+                    packageDetails={currentPackageDetails || packageDetails}
+                    activeDay={activeDay}
+                    setActiveDay={setActiveDay}
+                    contentRef={contentRef}
+                    dayRefs={dayRefs}
+                  />
+                </Box>
               </Grid>
-              
+
               {/* Content Columns - Container for main content and price */}
               <Grid item xs={12} md={9} lg={10}>
                 <Grid container spacing={3}>
                   {/* Middle column - Scrollable main content */}
                   <Grid item xs={12} md={8}>
-                    <Box 
+                    <Box
                       ref={contentRef}
-                      sx={{ 
-                        maxHeight: 'calc(100vh - 200px)', 
+                      sx={{
+                        height: 'calc(100vh - 200px)',
                         overflowY: 'auto',
                         pr: 2,
                         // Add custom scrollbar styling
@@ -961,188 +880,221 @@ const PackageDetailsContainer = () => {
                       }}
                     >
                       {/* Day-by-Day Itinerary with Service Selection */}
-                      {(currentPackageDetails || packageDetails).duration_days && 
-                      Array((currentPackageDetails || packageDetails).duration_days).fill().map((_, dayIndex) => {
-                        // Create references for each day if not already created
-                        if (!dayRefs.current[dayIndex]) {
-                          dayRefs.current[dayIndex] = React.createRef();
-                        }
-                        
-                        // Get the day date using currentPackageDetails that has searchParams for consistency
-                        const detailsWithSearchParams = currentPackageDetails || packageDetails;
-                        const dayDate = getItineraryDayDate(detailsWithSearchParams, dayIndex);
-                        const formattedDate = formatDate(dayDate);
-                        
-                        // Get description for the day
-                        const currentDetails = detailsWithSearchParams;
-                        const dayDescription = currentDetails.itinerary && currentDetails.itinerary[dayIndex]
-                          ? currentDetails.itinerary[dayIndex].title.split(' - ')[1]
-                          : dayIndex === 0 ? 'Arrival' : dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 'Exploration';
-                        
-                        return (
-                          <Box 
-                            key={`day-${dayIndex}`}
-                            ref={dayRefs.current[dayIndex]}
-                            id={`day-${dayIndex}`} 
-                            sx={{ mb: 4 }}
-                          >
-                            {/* Day Header */}
-                            <Card elevation={2} sx={{ borderRadius: '8px 8px 0 0', overflow: 'hidden', mb: 0 }}>
-                              <Box sx={{ 
-                                bgcolor: activeDay === dayIndex ? 'primary.main' : 'grey.100', 
-                                color: activeDay === dayIndex ? 'primary.contrastText' : 'text.primary',
-                                px: 3, 
-                                py: 1.5, 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center'
-                              }}>
-                                <Box>
-                                  <Typography variant="h6" fontWeight="bold">
-                                    Day {dayIndex + 1} - {dayDescription}
-                                  </Typography>
-                                  <Typography variant="body2" color={activeDay === dayIndex ? 'primary.contrastText' : 'text.secondary'}>
-                                    {formattedDate}
-                                  </Typography>
-                                </Box>
-                                <Chip 
-                                  label={`Day ${dayIndex + 1}`} 
-                                  color={activeDay === dayIndex ? "primary" : "default"}
-                                  onClick={() => setActiveDay(dayIndex)} 
-                                  variant={activeDay === dayIndex ? "filled" : "outlined"}
-                                />
-                              </Box>
-                            </Card>
+                      {(currentPackageDetails || packageDetails).duration_days &&
+                        Array((currentPackageDetails || packageDetails).duration_days).fill().map((_, dayIndex) => {
+                          // Create references for each day if not already created
+                          if (!dayRefs.current[dayIndex]) {
+                            dayRefs.current[dayIndex] = React.createRef();
+                          }
 
-                            {/* Day Services */}
-                            <Card elevation={1} sx={{ borderRadius: '0 0 8px 8px', overflow: 'hidden', mb: 2 }}>
-                              <ContentSection>
-                                {/* Service Tabs */}
-                                <Tabs 
-                                  value={getActiveDayServiceTab(dayIndex)}
-                                  onChange={(e, newValue) => handleDayServiceTabChange(dayIndex, newValue)}
-                                  variant="fullWidth"
-                                  sx={{ 
-                                    borderBottom: 1, 
-                                    borderColor: 'divider',
-                                    mb: 3
-                                  }}
-                                >
-                                  <Tab 
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Box sx={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          bgcolor: 'primary.main',
-                                          color: 'white',
-                                          borderRadius: '50%',
-                                          width: 28,
-                                          height: 28,
-                                          mr: 1
-                                        }}>
-                                          <HotelIcon sx={{ fontSize: 16 }} />
-                                        </Box>
-                                        <Typography>Hotels</Typography>
-                                      </Box>
-                                    } 
-                                    value="hotels" 
+                          // Get the day date using currentPackageDetails that has searchParams for consistency
+                          const detailsWithSearchParams = currentPackageDetails || packageDetails;
+                          const dayDate = getItineraryDayDate(detailsWithSearchParams, dayIndex);
+                          const formattedDate = formatDate(dayDate);
+
+                          // Get description for the day
+                          const currentDetails = detailsWithSearchParams;
+                          const dayDescription = dayIndex === 0 ? 'Arrival' : 
+                            dayIndex === (currentDetails.duration_days - 1) ? 'Departure' : 
+                            'Exploration';
+
+                          return (
+                            <Box
+                              key={`day-${dayIndex}`}
+                              ref={dayRefs.current[dayIndex]}
+                              id={`day-${dayIndex}`}
+                              sx={{ mb: 4 }}
+                            >
+                              {/* Day Header */}
+                              <Card elevation={2} sx={{ borderRadius: '8px 8px 0 0', overflow: 'hidden', mb: 0 }}>
+                                <Box sx={{
+                                  bgcolor: activeDay === dayIndex ? 'primary.main' : 'grey.100',
+                                  color: activeDay === dayIndex ? 'primary.contrastText' : 'text.primary',
+                                  px: 3,
+                                  py: 1.5,
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}>
+                                  <Box>
+                                    <Typography variant="h6" fontWeight="bold">
+                                      Day {dayIndex + 1} - {dayDescription}
+                                    </Typography>
+                                    <Typography variant="body2" color={activeDay === dayIndex ? 'primary.contrastText' : 'text.secondary'}>
+                                      {formattedDate}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={`Day ${dayIndex + 1}`}
+                                    color={activeDay === dayIndex ? "primary" : "default"}
+                                    onClick={() => setActiveDay(dayIndex)}
+                                    variant={activeDay === dayIndex ? "filled" : "outlined"}
                                   />
-                                  <Tab 
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Box sx={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          bgcolor: 'success.main',
-                                          color: 'white',
-                                          borderRadius: '50%',
-                                          width: 28,
-                                          height: 28,
-                                          mr: 1
-                                        }}>
-                                          <AttractionsIcon sx={{ fontSize: 16 }} />
-                                        </Box>
-                                        <Typography>Attractions</Typography>
+                                </Box>
+                              </Card>
+
+                              {/* Day Services */}
+                              <Card elevation={1} sx={{ borderRadius: '0 0 8px 8px', overflow: 'hidden', mb: 2 }}>
+                                <ContentSection>
+
+
+                                  {/* Hotels Section */}
+                                  <Box sx={{ mb: 4 }}>
+                                    <Box sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      mb: 2,
+                                      pb: 1,
+                                      borderBottom: '1px solid',
+                                      borderColor: 'divider'
+                                    }}>
+                                      <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'primary.main',
+                                        color: 'white',
+                                        borderRadius: '50%',
+                                        width: 28,
+                                        height: 28,
+                                        mr: 1
+                                      }}>
+                                        <HotelIcon sx={{ fontSize: 16 }} />
                                       </Box>
-                                    } 
-                                    value="attractions" 
-                                  />
-                                  {/* 
-                                  <Tab 
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Box sx={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          bgcolor: 'warning.main',
-                                          color: 'white',
-                                          borderRadius: '50%',
-                                          width: 28,
-                                          height: 28,
-                                          mr: 1
-                                        }}>
-                                          <RestaurantIcon sx={{ fontSize: 16 }} />
-                                        </Box>
-                                        <Typography>Restaurants</Typography>
-                                      </Box>
-                                    } 
-                                    value="restaurants" 
-                                  />
-                                  */}
-                                  <Tab 
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Box sx={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          bgcolor: 'info.main',
-                                          color: 'white',
-                                          borderRadius: '50%',
-                                          width: 28,
-                                          height: 28,
-                                          mr: 1
-                                        }}>
-                                          <PersonIcon sx={{ fontSize: 16 }} />
-                                        </Box>
-                                        <Typography>Guides</Typography>
-                                      </Box>
-                                    } 
-                                    value="guides" 
-                                  />
-                                </Tabs>
-                                
-                                {/* Hotels Tab Panel */}
-                                {getActiveDayServiceTab(dayIndex) === 'hotels' && (
-                                  <Box sx={{ mt: 5, ml: 1 }}>
-                                    <Grid container spacing={2}>
-                                      {/* Entry/Exit port options for first/last day */}
-                                      {dayIndex === 0 && hasEntryPortTransfer() && (
-                                        <Grid item xs={12}>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
-                                            <Typography variant="subtitle2" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center' }}>
-                                              <span role="img" aria-label="info" style={{ marginRight: '8px' }}>✅</span>
-                                              Arrival transfer from entry port (airport/station) is included
-                                            </Typography>
-                                          </Box>
-                                        </Grid>
-                                      )}
-                                      
-                                      {dayIndex === (packageDetails.duration_days - 1) && hasExitPortTransfer() && (
-                                        <Grid item xs={12}>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
-                                            <Typography variant="subtitle2" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center' }}>
-                                              <span role="img" aria-label="info" style={{ marginRight: '8px' }}>✅</span>
-                                              Departure transfer to exit port (airport/station) is included
-                                            </Typography>
-                                          </Box>
-                                        </Grid>
-                                      )}
-                                      
+                                      <Typography variant="subtitle1" fontWeight="bold">Accommodation</Typography>
+                                    </Box>
+
+                                    {/* Entry/Exit port options for first/last day */}
+                                    <Grid container spacing={2} sx={{ mt: 2 }}>
+                                      {/* Entry port transfer for first day - Check if entry port transfer is enabled */}
+                                      {dayIndex === 0 && (() => {
+                                        const details = currentPackageDetails || packageDetails;
+                                        
+                                        // First check parsed itinerary data for this specific day
+                                        if (parsedItineraryData?.itinerary?.[dayIndex]?.arrival_pickup === 1) {
+                                          return true;
+                                        }
+                                        
+                                        // Check for explicit transport flags in package details
+                                        const hasEntryTransfer = details?.entry_port_transfer === 1 || 
+                                                               details?.entry_port === 1 || 
+                                                               details?.arrival_pickup === 1 ||
+                                                               details?.has_entry_port_transfer === true;
+                                        
+                                        // Also check if description mentions airport pickup
+                                        const descriptionIncludesPickup = details?.description?.toLowerCase().includes('airport pickup') ||
+                                                                         details?.description?.toLowerCase().includes('airport transfer') ||
+                                                                         details?.description?.toLowerCase().includes('pickup service');
+                                        
+                                        // Check inclusions for transport services
+                                        const inclusionsIncludePickup = details?.inclusions?.toLowerCase().includes('airport pickup') ||
+                                                                       details?.inclusions?.toLowerCase().includes('airport transfer') ||
+                                                                       details?.inclusions?.toLowerCase().includes('pickup service');
+                                        
+                                        return hasEntryTransfer || descriptionIncludesPickup || inclusionsIncludePickup;
+                                      })() && (
+                                          <Grid item xs={12}>
+                                            <Box sx={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              mb: 2,
+                                              p: 2,
+                                              bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                              borderRadius: 2,
+                                              border: '1px solid',
+                                              borderColor: 'primary.light'
+                                            }}>
+                                              <Box sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                bgcolor: 'primary.main',
+                                                color: 'white',
+                                                borderRadius: '50%',
+                                                width: 36,
+                                                height: 36,
+                                                mr: 2,
+                                                flexShrink: 0
+                                              }}>
+                                                <span role="img" aria-label="airplane" style={{ fontSize: '18px' }}>✈️</span>
+                                              </Box>
+                                              <Box>
+                                                <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.dark' }}>
+                                                  Airport Pickup Service Included
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                  Our representative will meet you at the airport and transfer you to your hotel
+                                                </Typography>
+                                              </Box>
+                                            </Box>
+                                          </Grid>
+                                        )}
+
+                                      {/* Exit port transfer for last day - Check if exit port transfer is enabled */}
+                                      {dayIndex === (packageDetails.duration_days - 1) && (() => {
+                                        const details = currentPackageDetails || packageDetails;
+                                        
+                                        // First check parsed itinerary data for this specific day
+                                        if (parsedItineraryData?.itinerary?.[dayIndex]?.departure_service === 1) {
+                                          return true;
+                                        }
+                                        
+                                        // Check for explicit transport flags in package details
+                                        const hasExitTransfer = details?.exit_port_transfer === 1 || 
+                                                              details?.exit_port === 1 || 
+                                                              details?.departure_service === 1 ||
+                                                              details?.has_exit_port_transfer === true;
+                                        
+                                        // Also check if description mentions airport drop-off
+                                        const descriptionIncludesDropoff = details?.description?.toLowerCase().includes('airport drop') ||
+                                                                          details?.description?.toLowerCase().includes('airport transfer') ||
+                                                                          details?.description?.toLowerCase().includes('drop-off service');
+                                        
+                                        // Check inclusions for transport services
+                                        const inclusionsIncludeDropoff = details?.inclusions?.toLowerCase().includes('airport drop') ||
+                                                                        details?.inclusions?.toLowerCase().includes('airport transfer') ||
+                                                                        details?.inclusions?.toLowerCase().includes('drop-off service');
+                                        
+                                        return hasExitTransfer || descriptionIncludesDropoff || inclusionsIncludeDropoff;
+                                      })() && (
+                                          <Grid item xs={12}>
+                                            <Box sx={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              mb: 2,
+                                              p: 2,
+                                              bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                              borderRadius: 2,
+                                              border: '1px solid',
+                                              borderColor: 'primary.light'
+                                            }}>
+                                              <Box sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                bgcolor: 'primary.main',
+                                                color: 'white',
+                                                borderRadius: '50%',
+                                                width: 36,
+                                                height: 36,
+                                                mr: 2,
+                                                flexShrink: 0
+                                              }}>
+                                                <span role="img" aria-label="taxi" style={{ fontSize: '18px' }}>🚕</span>
+                                              </Box>
+                                              <Box>
+                                                <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.dark' }}>
+                                                  Airport Drop-off Service Included
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                  We'll arrange transportation from your hotel to the airport for your departure
+                                                </Typography>
+                                              </Box>
+                                            </Box>
+                                          </Grid>
+                                        )}
+
+                                      {/* Hotel Selection - Filtered by days array */}
                                       {selectedHotels && selectedHotels.length > 0 ? (
                                         <RadioGroup
                                           name={`hotels-day-${dayIndex}`}
@@ -1151,64 +1103,67 @@ const PackageDetailsContainer = () => {
                                           sx={{ width: '100%' }}
                                         >
                                           <Grid container spacing={2}>
-                                            {selectedHotels.map((hotel, idx) => (
-                                              <Grid item xs={12} sm={6} md={4} key={`hotel-${dayIndex}-${idx}`}>
-                                                <Card 
-                                                  variant="outlined" 
-                                                  sx={{ 
-                                                    height: '100%',
-                                                    transition: 'all 0.2s ease',
-                                                    position: 'relative',
-                                                    border: selectedHotelId === getEntityId(hotel, idx, 'hotel') ? '2px solid' : '1px solid',
-                                                    borderColor: selectedHotelId === getEntityId(hotel, idx, 'hotel') ? 'primary.main' : 'divider',
-                                                    '&:hover': {
-                                                      boxShadow: 2,
-                                                      borderColor: 'primary.light'
-                                                    }
-                                                  }}
-                                                >
-                                                  <Box 
-                                                    component="img" 
-                                                    src={hotel.image || '/img/hotels/1.png'} 
-                                                    alt={hotel.name}
-                                                    sx={{ 
-                                                      width: '100%', 
-                                                      height: 120, 
-                                                      objectFit: 'cover',
-                                                      borderBottom: '1px solid',
-                                                      borderColor: 'divider'
-                                                    }}
-                                                  />
-                                                  <CardContent sx={{ p: 2 }}>
-                                                    <Typography variant="subtitle1" fontWeight="bold" noWrap>{hotel.name}</Typography>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                                      <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
-                                                      <Typography variant="caption" color="text.secondary" noWrap>
-                                                        {hotel.address || hotel.location || 'Location information unavailable'}
-                                                      </Typography>
-                                                    </Box>
-                                                    <FormControlLabel
-                                                      control={
-                                                        <Radio 
-                                                          size="small" 
-                                                          value={getEntityId(hotel, idx, 'hotel')}
-                                                          color="primary"
-                                                          checked={selectedHotelId === getEntityId(hotel, idx, 'hotel')}
-                                                        />
+                                            {selectedHotels
+                                              .filter(hotel =>
+                                                // Show hotel if it has days array and current day (1-indexed) is included
+                                                hotel.days && Array.isArray(hotel.days) &&
+                                                hotel.days.includes(dayIndex + 1)
+                                              )
+                                              .map((hotel, idx) => (
+                                                <Grid item xs={12} sm={6} md={4} key={`hotel-${dayIndex}-${idx}`}>
+                                                  <Card
+                                                    variant="outlined"
+                                                    sx={{
+                                                      height: '100%',
+                                                      transition: 'all 0.2s ease',
+                                                      position: 'relative',
+                                                      border: '1px solid',
+                                                      borderColor: 'divider',
+                                                      '&:hover': {
+                                                        boxShadow: 2,
+                                                        borderColor: 'primary.light'
                                                       }
-                                                      label="Select for all days"
-                                                      sx={{ 
-                                                        mt: 0.5, 
-                                                        '& .MuiFormControlLabel-label': { 
-                                                          fontSize: '0.8rem',
-                                                          fontWeight: selectedHotelId === getEntityId(hotel, idx, 'hotel') ? 'bold' : 'normal',
-                                                        }
+                                                    }}
+                                                  >
+                                                    <Box
+                                                      component="img"
+                                                      src={hotel.main_image || '/img/hotels/1.png'}
+                                                      alt={hotel.name}
+                                                      sx={{
+                                                        width: '100%',
+                                                        height: 120,
+                                                        objectFit: 'cover',
+                                                        borderBottom: '1px solid',
+                                                        borderColor: 'divider'
                                                       }}
                                                     />
-                                                  </CardContent>
-                                                </Card>
-                                              </Grid>
-                                            ))}
+                                                    <CardContent sx={{ p: 2 }}>
+                                                      <Typography variant="subtitle1" fontWeight="bold" noWrap>{hotel.name}</Typography>
+                                                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                        <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+                                                        <Typography variant="caption" color="text.secondary" noWrap>
+                                                          {hotel.address || hotel.location || hotel.city || 'Location information unavailable'}
+                                                        </Typography>
+                                                      </Box>
+                                                      <Box sx={{
+                                                        mt: 1,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        px: 1.5,
+                                                        py: 0.5,
+                                                        bgcolor: 'primary.light',
+                                                        color: 'primary.contrastText',
+                                                        borderRadius: 1,
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 'medium'
+                                                      }}>
+                                                        <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                                                        Assigned by Tour Operator
+                                                      </Box>
+                                                    </CardContent>
+                                                  </Card>
+                                                </Grid>
+                                              ))}
                                           </Grid>
                                         </RadioGroup>
                                       ) : (
@@ -1216,56 +1171,86 @@ const PackageDetailsContainer = () => {
                                           <Alert severity="info" sx={{ mb: 1 }}>No hotels available for this day.</Alert>
                                         </Grid>
                                       )}
+
+                                      {/* Show message when there are hotels but none assigned to this day */}
+                                      {selectedHotels && selectedHotels.length > 0 &&
+                                        !selectedHotels.some(hotel => hotel.days && Array.isArray(hotel.days) && hotel.days.includes(dayIndex + 1)) && (
+                                          <Grid item xs={12}>
+                                            <Alert severity="info" sx={{ mb: 1 }}>No hotels assigned for Day {dayIndex + 1}.</Alert>
+                                          </Grid>
+                                        )}
                                     </Grid>
                                   </Box>
-                                )}
 
-                                {/* Attractions Tab Panel */}
-                                {getActiveDayServiceTab(dayIndex) === 'attractions' && (
-                                  <Box sx={{ mt: 5, ml: 1 }}>
-                                    <Grid container spacing={2}>
+                                  {/* Attractions Section */}
+                                  <Box sx={{ mb: 4 }}>
+                                    <Box sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      mb: 2,
+                                      pb: 1,
+                                      borderBottom: '1px solid',
+                                      borderColor: 'divider'
+                                    }}>
+                                      <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'success.main',
+                                        color: 'white',
+                                        borderRadius: '50%',
+                                        width: 28,
+                                        height: 28,
+                                        mr: 1
+                                      }}>
+                                        <AttractionsIcon sx={{ fontSize: 16 }} />
+                                      </Box>
+                                      <Typography variant="subtitle1" fontWeight="bold">Attractions</Typography>
+                                    </Box>
+
+                                    <Grid container spacing={2} sx={{ mt: 2 }}>
                                       {/* Filter attractions to only show those not booked on other days */}
-                                      {(selectedAttractions && selectedAttractions.length > 0 ? 
+                                      {(selectedAttractions && selectedAttractions.length > 0 ?
                                         selectedAttractions.filter(attraction => {
                                           const attractionId = getEntityId(attraction, null, 'attraction');
                                           // Show if not booked anywhere OR booked for this specific day
-                                          return !isAttractionBooked(attractionId) || 
-                                                isAttractionBookedForDay(attractionId, dayIndex);
+                                          return !isAttractionBooked(attractionId) ||
+                                            isAttractionBookedForDay(attractionId, dayIndex);
                                         }) : []
                                       ).length > 0 ? (
                                         selectedAttractions
                                           .filter(attraction => {
                                             const attractionId = getEntityId(attraction, null, 'attraction');
                                             // Show if not booked anywhere OR booked for this specific day
-                                            return !isAttractionBooked(attractionId) || 
-                                                  isAttractionBookedForDay(attractionId, dayIndex);
+                                            return !isAttractionBooked(attractionId) ||
+                                              isAttractionBookedForDay(attractionId, dayIndex);
                                           })
                                           .map((attraction, idx) => {
                                             const attractionId = getEntityId(attraction, idx, 'attraction');
                                             const isBooked = isAttractionBookedForDay(attractionId, dayIndex);
-                                            
+
                                             return (
                                               <Grid item xs={12} sm={6} md={4} key={`attraction-${dayIndex}-${idx}`}>
-                                                <Card 
-                                                  variant="outlined" 
-                                                  sx={{ 
+                                                <Card
+                                                  variant="outlined"
+                                                  sx={{
                                                     height: '100%',
                                                     transition: 'all 0.2s ease',
-                                                    border: isBooked ? '2px solid' : '1px solid',
-                                                    borderColor: isBooked ? 'success.main' : 'divider',
+                                                    border: '1px solid',
+                                                    borderColor: 'divider',
                                                     '&:hover': {
                                                       boxShadow: 2,
-                                                      borderColor: isBooked ? 'success.main' : 'success.light'
+                                                      borderColor: 'success.light'
                                                     }
                                                   }}
                                                 >
-                                                  <Box 
-                                                    component="img" 
-                                                    src={attraction.image || '/img/attractions/1.png'} 
+                                                  <Box
+                                                    component="img"
+                                                    src={attraction.image || '/img/attractions/1.png'}
                                                     alt={attraction.name || attraction.title}
-                                                    sx={{ 
-                                                      width: '100%', 
-                                                      height: 120, 
+                                                    sx={{
+                                                      width: '100%',
+                                                      height: 120,
                                                       objectFit: 'cover',
                                                       borderBottom: '1px solid',
                                                       borderColor: 'divider'
@@ -1281,35 +1266,14 @@ const PackageDetailsContainer = () => {
                                                         {attraction.address || attraction.location || 'Location information unavailable'}
                                                       </Typography>
                                                     </Box>
-                                                    <FormControlLabel
-                                                      control={
-                                                        <Checkbox 
-                                                          size="small" 
-                                                          color="success"
-                                                          checked={isBooked}
-                                                          onChange={(e) => handleAttractionToggle(
-                                                            attractionId, 
-                                                            dayIndex, 
-                                                            e.target.checked
-                                                          )}
-                                                        />
-                                                      }
-                                                      label={isBooked ? "Booked for this day" : "Book for this day"}
-                                                      sx={{ 
-                                                        mt: 0.5,
-                                                        '& .MuiFormControlLabel-label': { 
-                                                          fontSize: '0.8rem',
-                                                          color: isBooked ? 'success.main' : 'text.secondary',
-                                                          fontWeight: isBooked ? 'bold' : 'normal'
-                                                        }
-                                                      }}
-                                                    />
+
+                                                    {/* Display transfer information */}
                                                     {(() => {
                                                       const transferType = getAttractionTransferType(attractionId);
                                                       if (!transferType) return null;
-                                                      
+
                                                       return (
-                                                        <Box sx={{ mt: 0.5, ml: 2, display: 'flex', alignItems: 'center' }}>
+                                                        <Box sx={{ mt: 0.5, mb: 1, display: 'flex', alignItems: 'center' }}>
                                                           <span role="img" aria-label="transfer" style={{ marginRight: '4px', fontSize: '0.75rem' }}>
                                                             {transferType === 'bidirectional' ? '🔄' : '🚕'}
                                                           </span>
@@ -1319,6 +1283,22 @@ const PackageDetailsContainer = () => {
                                                         </Box>
                                                       );
                                                     })()}
+
+                                                    <Box sx={{
+                                                      mt: 1,
+                                                      display: 'flex',
+                                                      alignItems: 'center',
+                                                      px: 1.5,
+                                                      py: 0.5,
+                                                      bgcolor: 'success.light',
+                                                      color: 'success.contrastText',
+                                                      borderRadius: 1,
+                                                      fontSize: '0.75rem',
+                                                      fontWeight: 'medium'
+                                                    }}>
+                                                      <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                                                      Assigned by Tour Operator
+                                                    </Box>
                                                   </CardContent>
                                                 </Card>
                                               </Grid>
@@ -1327,123 +1307,146 @@ const PackageDetailsContainer = () => {
                                       ) : (
                                         <Grid item xs={12}>
                                           <Alert severity="info" sx={{ mb: 1 }}>
-                                            {selectedAttractions && selectedAttractions.length > 0 
-                                              ? 'All attractions have been booked on other days.' 
+                                            {selectedAttractions && selectedAttractions.length > 0
+                                              ? 'All attractions have been booked on other days.'
                                               : 'No attractions available for this day.'}
                                           </Alert>
                                         </Grid>
                                       )}
                                     </Grid>
                                   </Box>
-                                )}
 
-                                {/* Guides Tab Panel */}
-                                {getActiveDayServiceTab(dayIndex) === 'guides' && (
-                                  <Box sx={{ mt: 5, ml: 1 }}>
-                                    <Grid container spacing={2}>
-                                      {selectedGuides && selectedGuides.length > 0 ? (
-                                        selectedGuides.map((guide, idx) => {
-                                          const guideId = getEntityId(guide, idx, 'guide');
-                                          console.log(`Rendering guide ${idx}, ID:`, guideId, "Selected ID:", selectedGuideId, "Checked:", selectedGuideId === guideId);
+                                  {/* Guides Section */}
+                                  <Box sx={{ mb: 2 }}>
+                                    <Box sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      mb: 2,
+                                      pb: 1,
+                                      borderBottom: '1px solid',
+                                      borderColor: 'divider'
+                                    }}>
+                                      <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'info.main',
+                                        color: 'white',
+                                        borderRadius: '50%',
+                                        width: 28,
+                                        height: 28,
+                                        mr: 1
+                                      }}>
+                                        <PersonIcon sx={{ fontSize: 16 }} />
+                                      </Box>
+                                      <Typography variant="subtitle1" fontWeight="bold">Tour Guides</Typography>
+                                    </Box>
+
+                                    <Grid container spacing={2} sx={{ mt: 2 }}>
+                                      {(() => {
+                                        // Get guide for this specific day
+                                        const dayGuide = guidesByDay[dayIndex];
+                                        
+                                        if (dayGuide) {
+                                          const guideId = getEntityId(dayGuide, dayIndex, 'guide');
                                           
                                           return (
-                                            <Grid item xs={12} sm={6} md={4} key={`guide-${dayIndex}-${idx}`}>
-                                              <Card 
-                                                variant="outlined" 
-                                                sx={{ 
+                                            <Grid item xs={12} sm={6} md={4} key={`guide-${dayIndex}`}>
+                                              <Card
+                                                variant="outlined"
+                                                sx={{
                                                   height: '100%',
                                                   transition: 'all 0.2s ease',
-                                                  border: selectedGuideId === guideId ? '2px solid' : '1px solid',
-                                                  borderColor: selectedGuideId === guideId ? 'info.main' : 'divider',
+                                                  position: 'relative',
+                                                  border: '1px solid',
+                                                  borderColor: 'divider',
                                                   '&:hover': {
                                                     boxShadow: 2,
-                                                    borderColor: 'info.light'
+                                                    borderColor: 'primary.light'
                                                   }
                                                 }}
-                                                onClick={() => {
-                                                  console.log(`Card clicked for guide ${idx}, ID: ${guideId}`);
-                                                  handleGuideSelect(guideId);
-                                                }}
                                               >
-                                                <Box sx={{ 
+                                                <Box sx={{
                                                   display: 'flex',
                                                   justifyContent: 'center',
                                                   padding: 2,
                                                   borderBottom: '1px solid',
                                                   borderColor: 'divider'
                                                 }}>
-                                                  <Avatar 
-                                                    src={guide.image || '/img/team/1.png'} 
-                                                    alt={guide.name}
+                                                  <Avatar
+                                                    src={dayGuide.image || '/img/team/1.png'}
+                                                    alt={dayGuide.name}
                                                     sx={{ width: 80, height: 80 }}
                                                   />
                                                 </Box>
                                                 <CardContent sx={{ p: 2 }}>
                                                   <Typography variant="subtitle1" fontWeight="bold" align="center" noWrap>
-                                                    {guide.name}
+                                                    {dayGuide.name}
                                                   </Typography>
                                                   <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>
-                                                    {guide.language || 'English'} • {guide.experience || '5'} years exp.
+                                                    {Array.isArray(dayGuide.languages) ? dayGuide.languages.join(', ') : (dayGuide.language || 'English')} • {dayGuide.experience || '5'} years exp.
                                                   </Typography>
-                                                  
-                                                  {/* Individual radio button with explicit click handler */}
-                                                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <Radio 
-                                                      size="small" 
-                                                      checked={selectedGuideId === guideId}
-                                                      color="info"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation(); // Prevent double firing with card click
-                                                        console.log(`Radio clicked for guide ${idx}, ID: ${guideId}`);
-                                                        handleGuideSelect(guideId);
-                                                      }}
-                                                    />
-                                                    <Typography 
-                                                      variant="body2" 
-                                                      fontSize="0.8rem"
-                                                      color={selectedGuideId === guideId ? 'info.main' : 'text.secondary'}
-                                                      fontWeight={selectedGuideId === guideId ? 'bold' : 'normal'}
-                                                    >
-                                                      Select for all days
+                                                  {dayGuide.contact_no && (
+                                                    <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block', mt: 0.5 }}>
+                                                      Contact: {dayGuide.contact_no}
                                                     </Typography>
+                                                  )}
+
+                                                  {/* Replace selection with assigned label */}
+                                                  <Box sx={{
+                                                    mt: 1.5,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    px: 1.5,
+                                                    py: 0.5,
+                                                    bgcolor: 'info.light',
+                                                    color: 'info.contrastText',
+                                                    borderRadius: 1,
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 'medium'
+                                                  }}>
+                                                    <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                                                    Assigned for Day {dayIndex + 1}
                                                   </Box>
                                                 </CardContent>
                                               </Card>
                                             </Grid>
                                           );
-                                        })
-                                      ) : (
-                                        <Grid item xs={12}>
-                                          <Alert severity="info" sx={{ mb: 1 }}>No guides available for this day.</Alert>
-                                        </Grid>
-                                      )}
+                                        } else {
+                                          return (
+                                            <Grid item xs={12} key={`no-guide-${dayIndex}`}>
+                                              <Alert severity="info" sx={{ mb: 1 }}>No guide assigned for Day {dayIndex + 1}.</Alert>
+                                            </Grid>
+                                          );
+                                        }
+                                      })()}
                                     </Grid>
                                   </Box>
-                                )}
-                              </ContentSection>
-                            </Card>
-                            
-                            {/* Day navigation controls */}
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
-                              <NavigationArrow
-                                direction="prev"
-                                onClick={() => dayIndex > 0 && scrollToDay(dayIndex - 1)}
-                                disabled={dayIndex === 0}
-                                label="Previous Day"
-                              />
-                              <NavigationArrow
-                                direction="next"
-                                onClick={() => dayIndex < (packageDetails.duration_days - 1) && scrollToDay(dayIndex + 1)}
-                                disabled={dayIndex === (packageDetails.duration_days - 1)}
-                                label="Next Day"
-                              />
+                                </ContentSection>
+                              </Card>
+
+                              {/* Day navigation controls */}
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, mb: 1 }}>
+                                <NavigationArrow
+                                  direction="prev"
+                                  onClick={() => dayIndex > 0 && scrollToDay(dayIndex - 1)}
+                                  disabled={dayIndex === 0}
+                                  label="Previous Day"
+                                />
+                                <NavigationArrow
+                                  direction="next"
+                                  onClick={() => dayIndex < (packageDetails.duration_days - 1) && scrollToDay(dayIndex + 1)}
+                                  disabled={dayIndex === (packageDetails.duration_days - 1)}
+                                  label="Next Day"
+                                />
+                              </Box>
                             </Box>
-                          </Box>
-                        );
-                      })}
+                          );
+                        })}
                     </Box>
                   </Grid>
-                  
+
                   {/* Right column - Price summary - Sticky */}
                   <Grid item xs={12} md={4}>
                     <Box
@@ -1453,19 +1456,16 @@ const PackageDetailsContainer = () => {
                       }}
                     >
                       {/* Price Summary */}
-                      <PackagePricing 
-                        packageData={packageDetails} 
+                      <PackagePricing
+                        packageData={packageDetails}
                         selectedHotels={selectedHotels}
                         selectedAttractions={selectedAttractions}
                         selectedGuides={selectedGuides}
                         bookedAttractions={bookedAttractions}
                         selectedHotelId={selectedHotelId}
                         selectedGuideId={selectedGuideId}
+                        guidesByDay={guidesByDay}
                         itineraryDates={getItineraryDates()}
-                        // bookedAttractions={bookedAttractions}
-                        // selectedHotelId={selectedHotelId}
-                        // selectedGuideId={selectedGuideId}
-                        // itineraryDates={getItineraryDates()}
                       />
                     </Box>
                   </Grid>
@@ -1474,7 +1474,7 @@ const PackageDetailsContainer = () => {
             </Grid>
           </Box>
         )}
-        
+
         {/* Policies Tab */}
         {mainTab === 1 && (
           <Box sx={{ mt: 3 }}>
@@ -1484,7 +1484,7 @@ const PackageDetailsContainer = () => {
             </Box>
           </Box>
         )}
-        
+
         {/* Summary Tab */}
         {mainTab === 2 && (
           <Box sx={{ mt: 3 }}>
@@ -1501,7 +1501,7 @@ const PackageDetailsContainer = () => {
           </Box>
         )}
       </Box>
-      
+
       {/* Selection Modals */}
       <SelectionModal
         open={hotelsModalOpen}
@@ -1513,7 +1513,7 @@ const PackageDetailsContainer = () => {
         renderItem={HotelItemRenderer}
         loading={isLoading}
       />
-      
+
       <SelectionModal
         open={attractionsModalOpen}
         onClose={() => setAttractionsModalOpen(false)}
@@ -1524,7 +1524,7 @@ const PackageDetailsContainer = () => {
         renderItem={AttractionItemRenderer}
         loading={isLoading}
       />
-      
+
       {/* 
       {/* 
       <SelectionModal
@@ -1538,8 +1538,8 @@ const PackageDetailsContainer = () => {
         loading={isLoading}
       />
       */}
-      
-      
+
+
       <SelectionModal
         open={guidesModalOpen}
         onClose={() => setGuidesModalOpen(false)}

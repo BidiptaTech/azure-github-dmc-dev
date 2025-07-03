@@ -14,6 +14,16 @@ const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, 
   const sectionBookingDate = formSection?.bookingDate || formSection?.date;
   const effectiveBookingDate = bookingDate || sectionBookingDate || new Date().toISOString().split('T')[0];
 
+  // Log props received from parent component
+  React.useEffect(() => {
+    console.log('TimeSlotSelect - Received props:', { 
+      bookingDate, 
+      effectiveBookingDate,
+      sectionBookingDate,
+      formSectionBookingDate: formSection?.bookingDate
+    });
+  }, [bookingDate, effectiveBookingDate, sectionBookingDate, formSection?.bookingDate]);
+
   // Generate time slots based on meal type and restaurant details
   const getTimeSlots = useCallback(() => {
     if (!selectedMealType || !restaurantDetails) {
