@@ -269,8 +269,8 @@ const VehicleListDropdownZone = ({
   const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
 
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult ?? 1;
-  const childrenMax = tourDetails?.data?.child ?? 0;
+  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
+  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
 
   const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
   const [children, setChildren] = useState(preloadedBooking?.children || childrenMax);

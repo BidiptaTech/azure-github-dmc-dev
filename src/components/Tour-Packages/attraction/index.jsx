@@ -48,7 +48,7 @@ const initialFormState = {
   bookingDate: new Date().toISOString().split('T')[0]
 };
 
-export default function AttractionComponent({ date, dayIndex, attractionspack }) {
+export default function AttractionComponent({ date, dayIndex, attractionspack, tourDates = [] }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const attractions = useSelector(selectAttractions);
@@ -95,6 +95,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
   const [validationError, setValidationError] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [expandedSections, setExpandedSections] = useState([0]);
+  // Track which sections have already been saved to Redux
+  const [savedSectionIds, setSavedSectionIds] = useState([]);
   
   // Refs to prevent infinite loops
   const hasInitializedRef = useRef(false);
@@ -273,6 +275,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
     console.log('AttractionComponent - Has initialized:', hasInitializedRef.current);
   }, [date, dayIndex, bookingDate, formSections.length]);
 
+
+
   const handleAddMore = () => {
     const newIndex = formSections.length;
     const newSection = { 
@@ -291,6 +295,12 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
     // Remove from local state
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
+    
+    // Remove section signature from saved IDs
+    if (sectionToRemove) {
+      const sectionSignature = `${sectionToRemove.attraction}-${sectionToRemove.timeSlot}-${sectionToRemove.ticketType}-${dayIndex}`;
+      setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
+    }
     
     // Remove from Redux state if the section has an original ID
     if (sectionToRemove?.originalData?.id) {
@@ -474,6 +484,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
   const handleInputChange = (sectionIndex, field, value) => {
     const newFormSections = [...formSections];
     
+    // Generate old signature before changes
+    const oldSectionSignature = formSections[sectionIndex] ? 
+      `${formSections[sectionIndex].attraction}-${formSections[sectionIndex].timeSlot}-${formSections[sectionIndex].ticketType}-${dayIndex}` : '';
+    
     if (field === 'pax') {
       const currentPax = newFormSections[sectionIndex].pax;
       if (
@@ -491,9 +505,29 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
         };
         setFormSections(newFormSections);
         
+        // Check completion and manage saved signatures
+        const updatedSection = newFormSections[sectionIndex];
+        const isComplete = 
+          updatedSection.attraction && 
+          updatedSection.timeSlot && 
+          updatedSection.ticketType && 
+          (updatedSection.pax.Adults + updatedSection.pax.Children + updatedSection.pax.Seniors > 0);
+        
+        const newSectionSignature = 
+          `${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}-${dayIndex}`;
+        
+        // If the data changed, remove the old signature from saved list
+        if (oldSectionSignature !== newSectionSignature) {
+          setSavedSectionIds(prev => 
+            prev.filter(signature => signature !== oldSectionSignature)
+          );
+          console.log(`Attraction booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+        }
+        
         // Dispatch update to Redux if section is complete
-        if (newFormSections[sectionIndex].attraction && newFormSections[sectionIndex].timeSlot && newFormSections[sectionIndex].ticketType) {
-          dispatchBookingUpdateToRedux(sectionIndex, newFormSections[sectionIndex]);
+        if (isComplete) {
+          console.log(`Attraction booking section ${sectionIndex + 1} is now complete`);
+          dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
         }
       }
     } else if (field === 'attraction') {
@@ -504,6 +538,14 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
         bookingDate: bookingDate // Preserve booking date
       };
       setFormSections(newFormSections);
+      
+      // Remove old signature since attraction changed
+      if (oldSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Attraction booking section ${sectionIndex + 1} attraction changed, will be re-evaluated for saving`);
+      }
     } else if (field === 'ticketType') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
@@ -513,9 +555,29 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
       };
       setFormSections(newFormSections);
       
+      // Check completion and manage saved signatures
+      const updatedSection = newFormSections[sectionIndex];
+      const isComplete = 
+        updatedSection.attraction && 
+        updatedSection.timeSlot && 
+        updatedSection.ticketType && 
+        (updatedSection.pax.Adults + updatedSection.pax.Children + updatedSection.pax.Seniors > 0);
+      
+      const newSectionSignature = 
+        `${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}-${dayIndex}`;
+      
+      // If the data changed, remove the old signature from saved list
+      if (oldSectionSignature !== newSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Attraction booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+      }
+      
       // Dispatch update to Redux if section is complete
-      if (newFormSections[sectionIndex].attraction && newFormSections[sectionIndex].timeSlot) {
-        dispatchBookingUpdateToRedux(sectionIndex, newFormSections[sectionIndex]);
+      if (isComplete) {
+        console.log(`Attraction booking section ${sectionIndex + 1} is now complete`);
+        dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
       }
     } else {
       newFormSections[sectionIndex] = {
@@ -525,9 +587,29 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
       };
       setFormSections(newFormSections);
       
+      // Check completion and manage saved signatures
+      const updatedSection = newFormSections[sectionIndex];
+      const isComplete = 
+        updatedSection.attraction && 
+        updatedSection.timeSlot && 
+        updatedSection.ticketType && 
+        (updatedSection.pax.Adults + updatedSection.pax.Children + updatedSection.pax.Seniors > 0);
+      
+      const newSectionSignature = 
+        `${updatedSection.attraction}-${updatedSection.timeSlot}-${updatedSection.ticketType}-${dayIndex}`;
+      
+      // If the data changed, remove the old signature from saved list
+      if (oldSectionSignature !== newSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Attraction booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+      }
+      
       // Dispatch update to Redux if section is complete
-      if (newFormSections[sectionIndex].attraction && newFormSections[sectionIndex].timeSlot && newFormSections[sectionIndex].ticketType) {
-        dispatchBookingUpdateToRedux(sectionIndex, newFormSections[sectionIndex]);
+      if (isComplete) {
+        console.log(`Attraction booking section ${sectionIndex + 1} is now complete`);
+        dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
       }
     }
   };
@@ -685,7 +767,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
     return true;
   };
 
-  const handleBookNow = () => {
+  const handleBookNow = useCallback(() => {
     if (!validateBookings()) {
       return;
     }
@@ -790,7 +872,59 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
     setTimeout(() => {
       setBookingSuccess(false);
     }, 5000);
-  };
+  }, [formSections, existingServices, validateBookings, dispatch, currentMode, getBookingSummary, agentId, tourId, dayIndex]);
+
+  // Effect to automatically dispatch completed attraction bookings to Redux
+  useEffect(() => {
+    // Skip if no form sections or during loading
+    if (formSections.length === 0 || !attractions || attractions.length === 0) return;
+    
+    // Find sections that are complete but not yet saved
+    const newCompleteSections = formSections.filter((section, index) => {
+      // Check if all required fields are filled
+      const isComplete = (
+        section.attraction && 
+        section.timeSlot && 
+        section.ticketType && 
+        (section.pax.Adults + section.pax.Children + section.pax.Seniors > 0)
+      );
+      
+      // Generate a unique ID for this section based on its contents and dayIndex
+      const sectionSignature = `${section.attraction}-${section.timeSlot}-${section.ticketType}-${dayIndex}`;
+      
+      // Check if this section has already been saved
+      const isSaved = savedSectionIds.includes(sectionSignature);
+      
+      // Return true if this section is complete and not yet saved
+      return isComplete && !isSaved;
+    });
+    
+    // If we found new complete sections, update Redux
+    if (newCompleteSections.length > 0) {
+      // Get signatures for the new sections
+      const newSectionSignatures = newCompleteSections.map(section => 
+        `${section.attraction}-${section.timeSlot}-${section.ticketType}-${dayIndex}`
+      );
+      
+      console.log('Attraction - Auto dispatch triggered:', {
+        newCompleteSections: newCompleteSections.length,
+        dayIndex: dayIndex,
+        newSectionSignatures: newSectionSignatures,
+        currentSavedIds: savedSectionIds
+      });
+      
+      // Wait a bit to avoid too many Redux updates
+      const timeoutId = setTimeout(() => {
+        // Call handleBookNow
+        handleBookNow();
+        
+        // Mark these sections as saved
+        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formSections, handleBookNow, attractions, savedSectionIds, dayIndex]);
 
   const getCompletionStatus = (section) => {
     const steps = [
@@ -804,6 +938,65 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
 
   const getSelectedAttraction = (attractionId) => {
     return attractions.find(a => a.id === attractionId);
+  };
+
+  // Helper to check if a booking is out of current tour dates for the specific dayIndex
+  const isBookingOutOfTourDates = (booking) => {
+    // Only validate if this booking belongs to the current dayIndex
+    const bookingDayIndex = booking.originalData?.dayIndex || dayIndex;
+    
+    // If the booking doesn't belong to this dayIndex, don't validate
+    if (bookingDayIndex !== dayIndex) {
+      return false;
+    }
+    
+    const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
+    
+    // Debug logging to check date formats
+    console.log('Date validation debug:', {
+      bookingId: booking.originalData?.id || 'new-booking',
+      bookingDate: bookingDate,
+      tourDates: tourDates,
+      dayIndex: dayIndex,
+      bookingDayIndex: bookingDayIndex
+    });
+    
+    // Handle edge cases
+    if (!bookingDate || !tourDates || tourDates.length === 0) {
+      console.log('Missing bookingDate or tourDates, skipping validation');
+      return false;
+    }
+    
+    // Normalize booking date to YYYY-MM-DD format
+    let normalizedBookingDate;
+    try {
+      if (typeof bookingDate === 'string') {
+        // If it's already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+          normalizedBookingDate = bookingDate;
+        } else {
+          // Convert from other formats to YYYY-MM-DD
+          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+        }
+      } else {
+        // If it's a Date object
+        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.error('Error normalizing booking date:', error);
+      return false;
+    }
+    
+    // Check if the normalized booking date exists in tourDates
+    const isDateValid = tourDates.includes(normalizedBookingDate);
+    
+    console.log('Date validation result:', {
+      normalizedBookingDate: normalizedBookingDate,
+      isDateValid: isDateValid,
+      willShowError: !isDateValid
+    });
+    
+    return !isDateValid;
   };
 
   if (!attractions || attractions.length === 0) {
@@ -894,6 +1087,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
           const selectedAttraction = getSelectedAttraction(section.attraction);
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
+          const outOfTourDates = isBookingOutOfTourDates(section);
           
           return (
             <Grid item xs={12} key={sectionIndex}>
@@ -901,10 +1095,13 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
                 elevation={2}
                 sx={{ 
                   borderRadius: 3,
-                  border: `2px solid ${alpha('#ff6b6b', 0.2)}`,
+                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
+                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
+                    boxShadow: outOfTourDates
+                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
+                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
                     transform: 'translateY(-2px)',
                   }
                 }}
@@ -1200,6 +1397,15 @@ export default function AttractionComponent({ date, dayIndex, attractionspack })
                       </Grid>
                     </Paper>
                   </Collapse>
+
+                  {/* Red alert if out of tour dates */}
+                  {outOfTourDates && (
+                    <Box sx={{ px: 2, pt: 1 }}>
+                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                        The booking is out of currently updated tour dates
+                      </Alert>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

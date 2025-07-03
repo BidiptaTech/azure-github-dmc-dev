@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { 
   Grid, 
   Autocomplete, 
@@ -18,7 +18,8 @@ import {
   Button,
   IconButton,
   Card,
-  CardContent
+  CardContent,
+  Alert
 } from '@mui/material';
 import { useSelector } from "react-redux";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -252,12 +253,16 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
   );
 };
 
-const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) => {
+const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tourDates = [], date }) => {
   const vehicles = useSelector((state) => state.pickupDrop.vehicles || []);
   const portZoneType = useSelector((state) => state.pickupDrop.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  console.log("entryPorts", entryPorts);
+  
+  // Make sure we're only working with entry ports
+  const validEntryPorts = entryPorts && entryPorts.filter(port => port.type === "entry_port");
+  console.log("Entry Vehicle - Filtered entryPorts:", validEntryPorts);
+  
   // Redux state for locations and times
   const entryPickup = useSelector((state) => state.pickupDrop.entrypickup);
   const entryDropoff = useSelector((state) => state.pickupDrop.entrydropoff);
@@ -287,9 +292,9 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
   
   // Initialize bookings from entryPorts data or default empty booking
   const initializeBookings = () => {
-    if (entryPorts && entryPorts.length > 0) {
+    if (validEntryPorts && validEntryPorts.length > 0) {
       // Pre-populate with existing entry port data
-      return entryPorts.map((entryPort, index) => {
+      return validEntryPorts.map((entryPort, index) => {
         const entryData = entryPort.data?.[0];
         if (!entryData) {
           // Fallback to default booking if no data
@@ -365,12 +370,58 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
   // Debug log initial bookings
   useEffect(() => {
     console.log("Entry Vehicle - Initial bookings state:", bookingsRef.current);
-    if (entryPorts && entryPorts.length > 0) {
+    if (validEntryPorts && validEntryPorts.length > 0) {
       console.log("Entry Vehicle - Loading with existing entryPorts data");
     } else {
       console.log("Entry Vehicle - Loading with default empty booking");
     }
-  }, []);
+  }, [validEntryPorts]);
+  
+  // Automatically store entryPorts data into Redux AllServices state when component receives props
+  const hasDispatchedAllEntryPortsRef = useRef(false);
+  const lastDispatchRef = useRef(null);
+  
+  // Function to dispatch ALL entry ports from entryPorts to Redux state
+  const dispatchAllEntryPortsToRedux = useCallback(() => {
+    if (!validEntryPorts || !Array.isArray(validEntryPorts) || validEntryPorts.length === 0) {
+      console.log('No entryPorts data to dispatch to Redux');
+      return;
+    }
+
+    // Create a unique key for this dispatch to prevent duplicates
+    const dispatchKey = JSON.stringify(validEntryPorts.map(service => service.data?.[0]?.id));
+    
+    if (lastDispatchRef.current === dispatchKey) {
+      console.log('Skipping duplicate dispatch for all entry ports');
+      return;
+    }
+
+    console.log('Dispatching ALL entry ports to Redux:', validEntryPorts);
+    
+    // Clone the existing services array
+    const currentServices = [...existingServices];
+    
+    // Filter out existing entry_port services to avoid duplicates
+    const filteredServices = currentServices.filter(service => service.type !== "entry_port");
+    
+    // Add all entry ports to the filtered services array
+    const finalServices = [...filteredServices, ...validEntryPorts];
+    
+    console.log('Entry Vehicle - Dispatching ALL entry ports to Redux:', finalServices);
+    dispatch(setAllServices(finalServices));
+    
+    // Update the last dispatch ref
+    lastDispatchRef.current = dispatchKey;
+    hasDispatchedAllEntryPortsRef.current = true;
+  }, [validEntryPorts, existingServices, dispatch]);
+  
+  // Dispatch ALL entry ports to Redux when validEntryPorts is available (only once)
+  useEffect(() => {
+    if (!hasDispatchedAllEntryPortsRef.current && validEntryPorts && Array.isArray(validEntryPorts) && validEntryPorts.length > 0) {
+      console.log('Dispatching ALL entry ports from entryPorts to Redux on mount');
+      dispatchAllEntryPortsToRedux();
+    }
+  }, [validEntryPorts, dispatchAllEntryPortsToRedux]);
   
   // State to trigger re-renders when bookings change
   const [bookingsVersion, setBookingsVersion] = useState(0);
@@ -606,11 +657,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
 
   // Re-initialize bookings when entryPorts prop changes
   useEffect(() => {
-    if (entryPorts && entryPorts.length > 0 && vehicles.length > 0) {
-      console.log("Entry Vehicle - Detected entryPorts data, re-initializing bookings:", entryPorts);
+    if (validEntryPorts && validEntryPorts.length > 0 && vehicles.length > 0) {
+      console.log("Entry Vehicle - Detected entryPorts data, re-initializing bookings:", validEntryPorts);
       
       // Re-initialize bookings with the latest entryPorts and vehicles data
-      const newBookings = entryPorts.map((entryPort, index) => {
+      const newBookings = validEntryPorts.map((entryPort, index) => {
         const entryData = entryPort.data?.[0];
         if (!entryData) {
           return {
@@ -669,11 +720,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
       // Also store in Redux state in the same format
       dispatchInitializedBookingsToRedux(newBookings);
     }
-  }, [entryPorts, vehicles, adultCount, childCount, existingServices, dispatch, agentId, tourId, entryPickup, entryDropoff, pickupDate, entryTime]);
+  }, [validEntryPorts, vehicles, adultCount, childCount, existingServices, dispatch, agentId, tourId, entryPickup, entryDropoff, pickupDate, entryTime]);
 
   // Update current booking when selected vehicle changes from parent (only if no loaded data)
   useEffect(() => {
-    if (selectedVehicleObj && !bookingsRef.current[0].vehicle && (!entryPorts || entryPorts.length === 0)) {
+    if (selectedVehicleObj && !bookingsRef.current[0].vehicle && (!validEntryPorts || validEntryPorts.length === 0)) {
       const currentBookings = getBookings();
       const updatedBookings = [...currentBookings];
       updatedBookings[0] = {
@@ -683,7 +734,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
       setBookings(updatedBookings);
       handleVehicleSelect(selectedVehicleObj, 0);
     }
-  }, [selectedVehicleObj, entryPorts]);
+  }, [selectedVehicleObj, validEntryPorts]);
   
   // Update completion status when relevant data changes
   useEffect(() => {
@@ -1096,8 +1147,71 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
     };
   };
 
+  // Helper to check if a booking is out of current tour dates for the specific dayIndex
+  const isBookingOutOfTourDates = (booking) => {
+    // Skip validation if tourDates is not provided
+    if (!tourDates || tourDates.length === 0) {
+      return false;
+    }
+    
+    // Get the booking date from original data or current date
+    const bookingDate = booking.originalData?.bookingDate || booking.originalData?.pickupdate || (date ? date.format('YYYY-MM-DD') : null);
+    
+    // Debug logging to check date formats
+    console.log('Entry Port date validation debug:', {
+      bookingId: booking.id || 'new-booking',
+      bookingDate: bookingDate,
+      tourDates: tourDates
+    });
+    
+    // Handle edge cases
+    if (!bookingDate) {
+      console.log('Missing bookingDate, skipping validation');
+      return false;
+    }
+    
+    // Normalize booking date to YYYY-MM-DD format
+    let normalizedBookingDate;
+    try {
+      if (typeof bookingDate === 'string') {
+        // If it's already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+          normalizedBookingDate = bookingDate;
+        } else {
+          // Convert from other formats to YYYY-MM-DD
+          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+        }
+      } else {
+        // If it's a Date object
+        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.error('Error normalizing booking date:', error);
+      return false;
+    }
+    
+    // Check if the normalized booking date exists in tourDates
+    const isDateValid = tourDates.includes(normalizedBookingDate);
+    
+    console.log('Entry Port date validation result:', {
+      normalizedBookingDate: normalizedBookingDate,
+      isDateValid: isDateValid,
+      willShowError: !isDateValid
+    });
+    
+    return !isDateValid;
+  };
+  
   // Get current bookings from ref
   const bookings = getBookings();
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      hasDispatchedAllEntryPortsRef.current = false;
+      lastDispatchRef.current = null;
+    };
+  }, []);
 
   return (
     <Box sx={{ mt: 3 }}>
@@ -1110,6 +1224,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
           const completionStatus = booking.isComplete ? 3 : 
             (booking.vehicle ? 1 : 0) + (booking.adults + booking.children > 0 ? 1 : 0) + 
             (booking.priceMode ? 1 : 0);
+          const outOfTourDates = isBookingOutOfTourDates(booking);
           
           return (
             <Grid item xs={12} key={booking.id}>
@@ -1117,10 +1232,13 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
                 elevation={2}
                 sx={{ 
                   borderRadius: 3,
-                  border: `2px solid rgba(59, 130, 246, 0.2)`,
+                  border: outOfTourDates ? '2px solid #e53935' : `2px solid rgba(59, 130, 246, 0.2)`,
+                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: `0 8px 24px rgba(59, 130, 246, 0.15)`,
+                    boxShadow: outOfTourDates
+                      ? `0 8px 24px rgba(229,57,53,0.15)`
+                      : `0 8px 24px rgba(59, 130, 246, 0.15)`,
                     transform: 'translateY(-2px)',
                   }
                 }}
@@ -1325,6 +1443,15 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts }) =
                       )}
                     </Grid>
                   </Paper>
+                  
+                  {/* Red alert if out of tour dates */}
+                  {outOfTourDates && (
+                    <Box sx={{ px: 2, pt: 1 }}>
+                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                        The booking is out of currently updated tour dates
+                      </Alert>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

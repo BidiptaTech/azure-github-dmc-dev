@@ -54,7 +54,7 @@ const initialFormState = {
   }
 };
 
-export default function RestaurantComponent({ date, dayIndex, restaurantspack }) {
+export default function RestaurantComponent({ date, dayIndex, restaurantspack, tourDates = [] }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
@@ -749,6 +749,65 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack })
     }
   }, [formSections, handleBookNow, status, savedSectionIds]);
 
+  // Helper to check if a booking is out of current tour dates for the specific dayIndex
+  const isBookingOutOfTourDates = (booking) => {
+    // Only validate if this booking belongs to the current dayIndex
+    const bookingDayIndex = booking.originalData?.dayIndex || dayIndex;
+    
+    // If the booking doesn't belong to this dayIndex, don't validate
+    if (bookingDayIndex !== dayIndex) {
+      return false;
+    }
+    
+    const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
+    
+    // Debug logging to check date formats
+    console.log('Restaurant date validation debug:', {
+      bookingId: booking.originalData?.id || 'new-booking',
+      bookingDate: bookingDate,
+      tourDates: tourDates,
+      dayIndex: dayIndex,
+      bookingDayIndex: bookingDayIndex
+    });
+    
+    // Handle edge cases
+    if (!bookingDate || !tourDates || tourDates.length === 0) {
+      console.log('Missing bookingDate or tourDates, skipping validation');
+      return false;
+    }
+    
+    // Normalize booking date to YYYY-MM-DD format
+    let normalizedBookingDate;
+    try {
+      if (typeof bookingDate === 'string') {
+        // If it's already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+          normalizedBookingDate = bookingDate;
+        } else {
+          // Convert from other formats to YYYY-MM-DD
+          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+        }
+      } else {
+        // If it's a Date object
+        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.error('Error normalizing booking date:', error);
+      return false;
+    }
+    
+    // Check if the normalized booking date exists in tourDates
+    const isDateValid = tourDates.includes(normalizedBookingDate);
+    
+    console.log('Restaurant date validation result:', {
+      normalizedBookingDate: normalizedBookingDate,
+      isDateValid: isDateValid,
+      willShowError: !isDateValid
+    });
+    
+    return !isDateValid;
+  };
+
   const getSelectedRestaurant = (restaurantId) => {
     return restaurants.find(r => r.id === restaurantId) || null;
   };
@@ -838,6 +897,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack })
           const selectedRestaurantDetails = getSelectedRestaurant(section.restaurant);
           const completionStatus = getSectionCompletion(section);
           const isExpanded = expandedSections.includes(sectionIndex);
+          const outOfTourDates = isBookingOutOfTourDates(section);
           
           return (
             <Grid item xs={12} key={sectionIndex}>
@@ -845,10 +905,13 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack })
                 elevation={2}
                 sx={{ 
                   borderRadius: 3,
-                  border: `2px solid ${alpha('#4caf50', 0.2)}`,
+                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#4caf50', 0.2)}`,
+                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: `0 8px 24px ${alpha('#4caf50', 0.15)}`,
+                    boxShadow: outOfTourDates
+                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
+                      : `0 8px 24px ${alpha('#4caf50', 0.15)}`,
                     transform: 'translateY(-2px)',
                   }
                 }}
@@ -1151,6 +1214,15 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack })
                       </Grid>
                     </Paper>
                   </Collapse>
+
+                  {/* Red alert if out of tour dates */}
+                  {outOfTourDates && (
+                    <Box sx={{ px: 2, pt: 1 }}>
+                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                        The booking is out of currently updated tour dates
+                      </Alert>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

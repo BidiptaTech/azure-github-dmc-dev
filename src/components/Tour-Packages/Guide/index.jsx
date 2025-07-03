@@ -55,7 +55,7 @@ const initialFormState = {
   }
 };
 
-export default function GuideComponent({ date, dayIndex, guidespack }) {
+export default function GuideComponent({ date, dayIndex, guidespack, tourDates = [] }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const selectedGuide = useSelector((state) => state.tourguide.selectedGuide);
@@ -151,6 +151,13 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
     // Convert guide data to form sections for current day
     const newFormSections = dayGuides.map((guideService, index) => {
       const guideData = guideService.data[0];
+      
+      console.log('Guide originalData image check:', {
+        guideId: guideData.guide_id,
+        guideName: guideData.guide_name,
+        image: guideData.image,
+        hasImage: !!guideData.image
+      });
       
       return {
         guide: guideData.guide_id,
@@ -299,6 +306,65 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
   }, [guidespack, dispatchAllGuidesToRedux]);
 
   // Define helper functions at the beginning
+  // Helper to check if a booking is out of current tour dates for the specific dayIndex
+  const isBookingOutOfTourDates = (booking) => {
+    // Only validate if this booking belongs to the current dayIndex
+    const bookingDayIndex = booking.originalData?.dayIndex || dayIndex;
+    
+    // If the booking doesn't belong to this dayIndex, don't validate
+    if (bookingDayIndex !== dayIndex) {
+      return false;
+    }
+    
+    const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
+    
+    // Debug logging to check date formats
+    console.log('Guide date validation debug:', {
+      bookingId: booking.originalData?.id || 'new-booking',
+      bookingDate: bookingDate,
+      tourDates: tourDates,
+      dayIndex: dayIndex,
+      bookingDayIndex: bookingDayIndex
+    });
+    
+    // Handle edge cases
+    if (!bookingDate || !tourDates || tourDates.length === 0) {
+      console.log('Missing bookingDate or tourDates, skipping validation');
+      return false;
+    }
+    
+    // Normalize booking date to YYYY-MM-DD format
+    let normalizedBookingDate;
+    try {
+      if (typeof bookingDate === 'string') {
+        // If it's already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+          normalizedBookingDate = bookingDate;
+        } else {
+          // Convert from other formats to YYYY-MM-DD
+          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+        }
+      } else {
+        // If it's a Date object
+        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.error('Error normalizing booking date:', error);
+      return false;
+    }
+    
+    // Check if the normalized booking date exists in tourDates
+    const isDateValid = tourDates.includes(normalizedBookingDate);
+    
+    console.log('Guide date validation result:', {
+      normalizedBookingDate: normalizedBookingDate,
+      isDateValid: isDateValid,
+      willShowError: !isDateValid
+    });
+    
+    return !isDateValid;
+  };
+
   const getSelectedGuide = (guideId) => {
     return guides.find(g => g.id === guideId);
   };
@@ -315,25 +381,48 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
 
   // Define memoized functions early
   const getBookingSummary = useCallback((booking) => {
+    // If we have original data, use it directly
+    if (booking.originalData) {
+      console.log('Using original data for guide booking summary:', booking.originalData);
+      return {
+        guide: booking.originalData,
+        guideName: booking.originalData.guide_name,
+        city: booking.originalData.city || searchParams?.location?.city || '',
+        country: booking.originalData.country || searchParams?.location?.country || '',
+        pickUpTime: booking.pickUpTime,
+        pickUpTimeHour: booking.pickUpTimeHour,
+        duration: booking.hourlyPackage,
+        pax: booking.pax,
+        mode: currentMode,
+        priceBreakdown: booking.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0 },
+        image: booking.originalData.image,
+        languages: booking.originalData.languages || [],
+        experience: booking.originalData.experience || 'Not specified',
+        bookingDate: booking.bookingDate
+      };
+    }
+
+    // Fallback to finding data from Redux state (for new bookings)
+    // Use selectedGuide for detailed information (like attractionDetails in attraction component)
     const selectedGuideDetails = guides.find(g => g.id === booking.guide) || {};
     
     return {
       guide: selectedGuideDetails,
-      guideName: selectedGuideDetails.guide_name || 'Guide',
-      city: selectedGuideDetails.city || searchParams?.location?.city || '',
-      country: selectedGuideDetails.country || searchParams?.location?.country || '',
+      guideName: selectedGuide?.guide_name || selectedGuideDetails.guide_name || 'Guide',
+      city: selectedGuide?.city || selectedGuideDetails.city || searchParams?.location?.city || '',
+      country: selectedGuide?.country || selectedGuideDetails.country || searchParams?.location?.country || '',
       pickUpTime: booking.pickUpTime,
       pickUpTimeHour: booking.pickUpTimeHour,
       duration: booking.hourlyPackage,
       pax: booking.pax,
       mode: currentMode,
       priceBreakdown: booking.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0 },
-      image: selectedGuideDetails.image || '/placeholder-guide.jpg',
-      languages: selectedGuideDetails.languages || [],
-      experience: selectedGuideDetails.experience_years || 'Not specified',
+      image: selectedGuide?.guide_image || selectedGuide?.image || selectedGuideDetails.image || '/placeholder-guide.jpg',
+      languages: selectedGuide?.languages || selectedGuideDetails.languages || [],
+      experience: selectedGuide?.experience_years || selectedGuideDetails.experience_years || 'Not specified',
       bookingDate: booking.bookingDate
     };
-  }, [guides, searchParams, currentMode]);
+  }, [guides, selectedGuide, searchParams, currentMode]);
 
   const validateBookings = useCallback(() => {
     if (formSections.length === 0) {
@@ -507,6 +596,7 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
   useEffect(() => {
     console.log('Guide Status:', status);
     console.log('Guides Data:', guides);
+    console.log('Selected Guide (detailed):', selectedGuide);
     console.log('Search Params:', searchParams);
     console.log('GuideComponent - Received props:', { date, dayIndex, bookingDate });
     console.log('GuideComponent - Date type check:', { 
@@ -519,7 +609,7 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
       bookingDate: section.bookingDate,
       dayIndex: dayIndex
     })));
-  }, [status, guides, searchParams, date, dayIndex, bookingDate, formSections]);
+  }, [status, guides, selectedGuide, searchParams, date, dayIndex, bookingDate, formSections]);
 
   // Function to dispatch individual booking updates to Redux
   const dispatchBookingUpdateToRedux = useCallback((sectionIndex, updatedSection) => {
@@ -940,6 +1030,7 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
           const selectedGuideDetails = getSelectedGuide(section.guide);
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
+          const outOfTourDates = isBookingOutOfTourDates(section);
           
           return (
             <Grid item xs={12} key={sectionIndex}>
@@ -947,10 +1038,13 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
                 elevation={2}
                 sx={{ 
                   borderRadius: 3,
-                  border: `2px solid ${alpha('#2196f3', 0.2)}`,
+                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#2196f3', 0.2)}`,
+                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: `0 8px 24px ${alpha('#2196f3', 0.15)}`,
+                    boxShadow: outOfTourDates
+                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
+                      : `0 8px 24px ${alpha('#2196f3', 0.15)}`,
                     transform: 'translateY(-2px)',
                   }
                 }}
@@ -1061,8 +1155,26 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Box 
                           component="img"
-                          src={selectedGuideDetails.image || '/placeholder-guide.jpg'}
-                          alt={selectedGuideDetails.guide_name}
+                          src={(() => {
+                            const imageUrl = section.originalData?.image || 
+                                           selectedGuide?.guide_image || 
+                                           selectedGuide?.image || 
+                                           selectedGuideDetails.image || 
+                                           '/placeholder-guide.jpg';
+                            console.log('Guide collapsed view image debug:', {
+                              sectionIndex,
+                              originalDataImage: section.originalData?.image,
+                              selectedGuideImage: selectedGuide?.guide_image || selectedGuide?.image,
+                              selectedGuideDetailsImage: selectedGuideDetails.image,
+                              finalImageUrl: imageUrl,
+                              hasOriginalData: !!section.originalData,
+                              hasSelectedGuide: !!selectedGuide
+                            });
+                            return imageUrl;
+                          })()}
+                          alt={section.originalData?.guide_name || 
+                               selectedGuide?.guide_name || 
+                               selectedGuideDetails.guide_name}
                           sx={{ 
                             width: 60, 
                             height: 60, 
@@ -1073,7 +1185,9 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
                         />
                         <Box sx={{ flex: 1 }}>
                           <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                            {selectedGuideDetails.guide_name}
+                            {section.originalData?.guide_name || 
+                             selectedGuide?.guide_name || 
+                             selectedGuideDetails.guide_name}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                             {section.pax.Adults + section.pax.Children > 0 && (
@@ -1224,6 +1338,15 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
                       </Grid>
                     </Paper>
                   </Collapse>
+
+                  {/* Red alert if out of tour dates */}
+                  {outOfTourDates && (
+                    <Box sx={{ px: 2, pt: 1 }}>
+                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                        The booking is out of currently updated tour dates
+                      </Alert>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>
@@ -1271,7 +1394,34 @@ export default function GuideComponent({ date, dayIndex, guidespack }) {
         onClose={handleCloseModal}
         bookingData={selectedSectionIndex !== null ? formSections[selectedSectionIndex] : null}
         bookingIndex={selectedSectionIndex}
-        guideDetails={selectedSectionIndex !== null ? getSelectedGuide(formSections[selectedSectionIndex]?.guide) : null}
+        guideDetails={selectedSectionIndex !== null ? (() => {
+          const section = formSections[selectedSectionIndex];
+          const baseGuideDetails = getSelectedGuide(section?.guide);
+          
+          // If we have originalData, merge it with base guide details
+          if (section?.originalData) {
+            return {
+              ...baseGuideDetails,
+              image: section.originalData.image,
+              guide_name: section.originalData.guide_name,
+              city: section.originalData.city || baseGuideDetails?.city,
+              country: section.originalData.country || baseGuideDetails?.country,
+              experience_years: section.originalData.experience || baseGuideDetails?.experience_years,
+              languages: section.originalData.languages || baseGuideDetails?.languages
+            };
+          }
+          
+          // For new bookings, use selectedGuide for detailed information
+          return {
+            ...baseGuideDetails,
+            image: selectedGuide?.guide_image || selectedGuide?.image || baseGuideDetails?.image,
+            guide_name: selectedGuide?.guide_name || baseGuideDetails?.guide_name,
+            city: selectedGuide?.city || baseGuideDetails?.city,
+            country: selectedGuide?.country || baseGuideDetails?.country,
+            experience_years: selectedGuide?.experience_years || baseGuideDetails?.experience_years,
+            languages: selectedGuide?.languages || baseGuideDetails?.languages
+          };
+        })() : null}
       />
     </Container>
   );
