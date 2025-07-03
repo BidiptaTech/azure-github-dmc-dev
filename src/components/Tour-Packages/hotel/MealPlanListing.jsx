@@ -281,68 +281,7 @@ const MealPlanListing = ({ onSelect, initialMealPlans = [], selectedMealPlanId =
         </Card>
       )}
       
-      {/* Other Meal Plan Options */}
-      {/* <Typography variant="subtitle2" sx={{ mb: 1 }}>Other Options</Typography>
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {mealPlans
-          .filter(plan => !selectedMealPlan || plan.id !== selectedMealPlan.id)
-          .slice(0, 3)
-          .map(plan => (
-            <Card key={plan.id} elevation={2} sx={{ borderRadius: 2 }}>
-              <Box sx={{ 
-                bgcolor: '#3554D1', 
-                color: 'white', 
-                py: 1.5, 
-                px: 2,
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                {plan.icon}
-                <Typography variant="subtitle1" sx={{ ml: 1 }}>{plan.title}</Typography>
-              </Box>
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                py: 2,
-                px: 2,
-                bgcolor: 'rgba(53, 84, 209, 0.05)'
-              }}>
-                <Box sx={{ 
-                  py: 1,
-                  px: 3,
-                  bgcolor: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '4px'
-                }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Price available on request
-                  </Typography>
-                </Box>
-                <Button 
-                  variant="contained" 
-                  size="small"
-                  color="primary"
-                  onClick={() => handleMealPlanSelect(plan)}
-                  startIcon={<AddIcon />}
-                >
-                  Select
-                </Button>
-              </Box>
-            </Card>
-          ))
-        }
-        
-        {mealPlans.length > 4 && (
-          <Button 
-            variant="outlined" 
-            color="primary"
-            onClick={() => setIsDropdownOpen(true)}
-            sx={{ mt: 1 }}
-          >
-            View All Options
-          </Button>
-        )}
-      </Box> */}
+     
     </Box>
   );
 };

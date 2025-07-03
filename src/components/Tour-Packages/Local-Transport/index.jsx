@@ -82,6 +82,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
 
+
   
   // Location data from Redux
   const pickupLocation = useSelector(state => state.localtour.entrypickup || '');
@@ -113,6 +114,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
   const [expandedSections, setExpandedSections] = useState([]);
   
+  // Refs for tracking and preventing loops
   // Refs for tracking and preventing loops
   const prevBookingsRef = useRef([]);
   const prevServicesRef = useRef([]);
@@ -422,11 +424,15 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
            (section.adults + section.children > 0) && 
            section.priceMode && 
            section.price > 0 &&
+           section.price > 0 &&
            (section.transportType !== "Hourly" || (section.hours && section.hours >= 1));
   }, []);
 
   // Improved dispatch function with better debouncing and consolidation
   const dispatchValidBookingsToRedux = useCallback(() => {
+
+
+  // Handler functions
     // Clear any pending dispatch
     if (dispatchTimeoutRef.current) {
       clearTimeout(dispatchTimeoutRef.current);
@@ -694,6 +700,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   }, [initializationKey, hasInitializedBookings, lastInitializationKey, initializeBookingsFromProps]);
 
   // Separate effect to dispatch original bookings to Redux - only once
+  // Separate effect to dispatch original bookings to Redux - only once
   useEffect(() => {
     if (hasInitializedBookings && !hasDispatchedToRedux && allBookings.length > 0) {
       // Only dispatch bookings that have originalData (came from props)
@@ -706,6 +713,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
       }
     }
   }, [hasInitializedBookings, hasDispatchedToRedux, allBookings, dispatchInitializedBookingsToRedux, dayIndex]);
+  
 
   // Cache vehicles from Redux when they change
   useEffect(() => {
@@ -1005,6 +1013,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
     setSelectedSectionIndex(index);
     setOpenModal(true);
   }, []);
+  
 
   const handleCloseModal = useCallback(() => {
     setOpenModal(false);
@@ -1271,8 +1280,13 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
                   borderRadius: 3,
                   border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
+                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
+                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
+                    boxShadow: outOfTourDates
+                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
+                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
                     boxShadow: outOfTourDates
                       ? `0 8px 24px ${alpha('#e53935', 0.15)}`
                       : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
