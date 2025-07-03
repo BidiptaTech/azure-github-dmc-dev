@@ -30,6 +30,7 @@ import {
   setId,
   updateSearchState,
   settourdetails,
+  fetchHotels,
 } from "../../../slice/hotel/hotelSlice";
 import {
   setTourId,
@@ -58,7 +59,7 @@ import {
 } from "../../../slice/common/EnquirySlice";
 import { setSearchLocation } from "../../../slice/common/BookingSlice";
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
-import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices } from "../../../slice/tour-packages/tourPackageSlice";
+import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices, setAllServices } from "../../../slice/tour-packages/tourPackageSlice";
 import { store } from "../../../store/store";
 import { setSearchParams as setAttractionSearchParams } from "../../../slice/attractions/attractionSlice";
 import { setSearchParams as setGuideSearchParams } from "../../../slice/tourguide/guideslice";
@@ -160,7 +161,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
   React.useEffect(() => {
     dispatch(fetchAgentList());
   }, [dispatch]);
-
+  console.log("guestCounts",guestCounts);
   // Auto-select agent based on packageData agent_id and agent_name
   React.useEffect(() => {
     if (packageData?.tour?.agent_id && packageData?.tour?.agent_name && !selectedAgent) {
@@ -291,6 +292,11 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     return true;
   };
 
+  const formatedHotelCheckIn = moment(startDate).format("YYYY-MM-DD");
+  console.log("formatedHotelCheckIn",formatedHotelCheckIn); 
+
+  const formatedHotelCheckOut = moment(endDate).format("YYYY-MM-DD");
+
   const handleSearch = async (e) => {
     e.preventDefault();
 
@@ -324,6 +330,16 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
       ...Array(maleCount).fill("Male"),
       ...Array(femaleCount).fill("Female")
     ];
+
+    dispatch(updateSearchState({
+      location: [city], // or just city if location is a single string
+      ucheckIn: formatedHotelCheckIn,
+      ucheckOut: formatedHotelCheckOut,
+      guests: guestCounts
+    }));
+    
+    // Step 2: Fetch hotels using pagination args
+    dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
@@ -416,6 +432,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
       console.error('fetchRestaurants error:', error);
     });
 
+   
+
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
     
@@ -444,6 +462,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
         femaleCount: femaleCount
       })
     );
+
+    
 
     // Use our new fetch tour packages action
     dispatch(fetchTourPackages({
@@ -530,8 +550,12 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     
     // Format Dates
     const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
+    console.log("formattedCheckIn",formattedCheckIn);
     const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
 
+ 
+
+    
     // Get the country and city data
     const country = selectedLocation.country;
     const city = selectedLocation.city;
@@ -554,8 +578,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     dispatch(setSearchCriteria({
       country: country,
       city: city,
-      checkIn: packageData?.tour?.check_in_time,
-      checkOut: packageData?.tour?.check_out_time,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
       guests: {
         adults: guestCounts.Adults.toString(),
         children: guestCounts.Children.toString(),
@@ -641,6 +665,16 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
       console.error('fetchRestaurants error:', error);
     });
 
+   dispatch(updateSearchState({
+  location: [city], // or just city if location is a single string
+  ucheckIn: formatedHotelCheckIn,
+  ucheckOut: formatedHotelCheckOut,
+  guests: guestCounts
+}));
+
+// Step 2: Fetch hotels using pagination args
+dispatch(fetchHotels({ start: 0, limit: 10 }));
+
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
     
@@ -675,6 +709,22 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     dispatch(setId(tourId));
     dispatch(settourdetails(packageData.tour));
 
+    dispatch(setAllServices({
+      country: country,
+      city: city,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
     // Move to the first tab (Itinerary) after update completes
     if (onNext) {
       onNext();
@@ -687,6 +737,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     console.log("Tour package updated successfully with tour_id:", tourId);
   };
 
+ 
   // Determine which handler to use based on packageData presence
   const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id);
   const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;

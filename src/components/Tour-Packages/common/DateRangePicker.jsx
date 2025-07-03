@@ -92,7 +92,15 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut }) => {
         format="MMMM DD"
         minDate={today}     // Keep minimum date as today
         // Remove maxDate prop to allow selection of any future date
-        editable={false}    // Prevent manual typing while still allowing calendar selection
+        editable={false} 
+        style={{
+          zIndex: 9999
+        }} 
+        calendarPosition="bottom-left"
+        zIndex={9999}
+        portal={true}
+        portalTarget={document.body}
+        // Prevent manual typing while still allowing calendar selection
       />
       <Snackbar
         open={openSnackbar}
