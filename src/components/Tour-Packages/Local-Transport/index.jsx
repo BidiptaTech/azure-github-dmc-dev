@@ -82,6 +82,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
 
+
   
   // Location data from Redux
   const pickupLocation = useSelector(state => state.localtour.entrypickup || '');
@@ -114,6 +115,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   const [expandedSections, setExpandedSections] = useState([]);
   
   // Refs for tracking and preventing loops
+  // Refs for tracking and preventing loops
   const prevBookingsRef = useRef([]);
   const prevServicesRef = useRef([]);
   const prevVehicles = useRef([]);
@@ -131,13 +133,14 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
     
     // console.log(`Initializing bookings for dayIndex ${dayIndex} with date:`, date);
     
-    // Helper function to check if booking date matches dayIndex
-    const isDateMatchingDayIndex = (bookingDate) => {
+    // Helper function to check if booking belongs to current dayIndex
+    // Similar to attraction component's dayIndex filtering
+    const shouldShowBookingForThisDay = (bookingDate) => {
       if (!date || !bookingDate) return false;
       
       try {
-        // The 'date' prop from Itinerary is already the specific date for this dayIndex
-        // So we just need to compare the date directly, not calculate based on dayIndex
+        // The 'date' prop from Itinerary is the specific date for this dayIndex
+        // Compare booking date with current day's date
         let currentDayDateStr;
         let bookingDateStr;
         
@@ -169,12 +172,29 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
           return false;
         }
         
-        const matches = currentDayDateStr === bookingDateStr;
-        // Uncomment for debugging: console.log(`Date comparison for dayIndex ${dayIndex}: ${currentDayDateStr} ${matches ? '===' : '!=='} ${bookingDateStr} (${matches ? 'MATCH' : 'NO MATCH'})`);
-        
-        return matches;
+                 // Show booking if it matches current day
+         const matchesCurrentDay = currentDayDateStr === bookingDateStr;
+         
+         // For orphaned bookings (dates not in tour dates), show them only in dayIndex 0 to avoid duplication
+         const isOrphanedBooking = tourDates && tourDates.length > 0 && !tourDates.includes(bookingDateStr);
+         const showOrphanedInFirstDay = isOrphanedBooking && dayIndex === 0;
+         
+         // For debugging
+         if (matchesCurrentDay || showOrphanedInFirstDay) {
+           console.log(`Local Transport - Showing booking for dayIndex ${dayIndex}:`, {
+             bookingDate: bookingDateStr,
+             currentDayDate: currentDayDateStr,
+             matchesCurrentDay,
+             isOrphanedBooking,
+             showOrphanedInFirstDay,
+             dayIndex,
+             reason: matchesCurrentDay ? 'matches current day' : 'orphaned booking (shown in dayIndex 0 only)'
+           });
+         }
+         
+         return matchesCurrentDay || showOrphanedInFirstDay;
       } catch (error) {
-        console.error('Error comparing dates:', error);
+        console.error('Error comparing dates for dayIndex filtering:', error);
         return false;
       }
     };
@@ -190,8 +210,8 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             }
             processedIds.add(bookingData.id);
             
-            // Check if booking date matches the current dayIndex
-            if (!isDateMatchingDayIndex(bookingData.bookingDate)) {
+            // Check if booking belongs to current dayIndex (similar to attraction component)
+            if (!shouldShowBookingForThisDay(bookingData.bookingDate)) {
               return;
             }
             
@@ -238,8 +258,8 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             }
             processedIds.add(bookingData.id);
             
-            // Check if booking date matches the current dayIndex
-            if (!isDateMatchingDayIndex(bookingData.bookingDate)) {
+            // Check if booking belongs to current dayIndex (similar to attraction component)
+            if (!shouldShowBookingForThisDay(bookingData.bookingDate)) {
               return;
             }
             
@@ -286,8 +306,8 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             }
             processedIds.add(bookingData.id);
             
-            // Check if booking date matches the current dayIndex
-            if (!isDateMatchingDayIndex(bookingData.bookingDate)) {
+            // Check if booking belongs to current dayIndex (similar to attraction component)
+            if (!shouldShowBookingForThisDay(bookingData.bookingDate)) {
               return;
             }
             
@@ -328,7 +348,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
     }
     
     return initializedBookings;
-  }, [date, dayIndex, PointToPoint, Hourly, LocalTransports]);
+  }, [date, dayIndex, PointToPoint, Hourly, LocalTransports, tourDates]);
 
   // Function to dispatch initialized bookings to Redux - only handles bookings for this specific dayIndex
   const dispatchInitializedBookingsToRedux = useCallback((bookings) => {
@@ -404,11 +424,15 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
            (section.adults + section.children > 0) && 
            section.priceMode && 
            section.price > 0 &&
+           section.price > 0 &&
            (section.transportType !== "Hourly" || (section.hours && section.hours >= 1));
   }, []);
 
   // Improved dispatch function with better debouncing and consolidation
   const dispatchValidBookingsToRedux = useCallback(() => {
+
+
+  // Handler functions
     // Clear any pending dispatch
     if (dispatchTimeoutRef.current) {
       clearTimeout(dispatchTimeoutRef.current);
@@ -676,6 +700,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   }, [initializationKey, hasInitializedBookings, lastInitializationKey, initializeBookingsFromProps]);
 
   // Separate effect to dispatch original bookings to Redux - only once
+  // Separate effect to dispatch original bookings to Redux - only once
   useEffect(() => {
     if (hasInitializedBookings && !hasDispatchedToRedux && allBookings.length > 0) {
       // Only dispatch bookings that have originalData (came from props)
@@ -688,6 +713,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
       }
     }
   }, [hasInitializedBookings, hasDispatchedToRedux, allBookings, dispatchInitializedBookingsToRedux, dayIndex]);
+  
 
   // Cache vehicles from Redux when they change
   useEffect(() => {
@@ -987,6 +1013,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
     setSelectedSectionIndex(index);
     setOpenModal(true);
   }, []);
+  
 
   const handleCloseModal = useCallback(() => {
     setOpenModal(false);
@@ -1056,12 +1083,22 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
 
   const anySearchPerformed = Object.values(searchPerformed).some(value => value);
 
-  // Helper to check if a booking is out of current tour dates for the specific dayIndex
+  // Helper to check if a booking is out of current tour dates
   const isBookingOutOfTourDates = (booking) => {
     const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
     
+    // Debug logging to check date formats
+    console.log('Local Transport - Date validation debug:', {
+      bookingId: booking.originalData?.id || 'new-booking',
+      bookingDate: bookingDate,
+      tourDates: tourDates,
+      dayIndex: dayIndex,
+      transportType: booking.transportType
+    });
+    
     // Handle edge cases
     if (!bookingDate || !tourDates || tourDates.length === 0) {
+      console.log('Local Transport - Missing bookingDate or tourDates, skipping validation');
       return false;
     }
     
@@ -1081,12 +1118,20 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
         normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
       }
     } catch (error) {
-      console.error('Error normalizing booking date:', error);
+      console.error('Local Transport - Error normalizing booking date:', error);
       return false;
     }
     
     // Check if the normalized booking date exists in tourDates
     const isDateValid = tourDates.includes(normalizedBookingDate);
+    
+    console.log('Local Transport - Date validation result:', {
+      normalizedBookingDate: normalizedBookingDate,
+      isDateValid: isDateValid,
+      willShowError: !isDateValid,
+      tourDatesCount: tourDates.length
+    });
+    
     return !isDateValid;
   };
 
@@ -1235,8 +1280,13 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
                   borderRadius: 3,
                   border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
+                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
+                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
+                    boxShadow: outOfTourDates
+                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
+                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
                     boxShadow: outOfTourDates
                       ? `0 8px 24px ${alpha('#e53935', 0.15)}`
                       : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
