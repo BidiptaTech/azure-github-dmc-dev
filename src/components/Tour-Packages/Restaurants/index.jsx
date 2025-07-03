@@ -54,7 +54,7 @@ const initialFormState = {
   }
 };
 
-export default function RestaurantComponent({ date, dayIndex, restaurantspack, tourDates = [] }) {
+export default function RestaurantComponent() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
@@ -65,38 +65,9 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
-  console.log('Restaurant update', restaurantspack);
   
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
-
-  // Helper function to convert any date format to YYYY-MM-DD string
-  const formatDateToString = (dateInput) => {
-    if (!dateInput) {
-      return new Date().toISOString().split('T')[0];
-    }
-    
-    // If it's a Moment object
-    if (dateInput._isAMomentObject) {
-      return dateInput.format('YYYY-MM-DD');
-    }
-    
-    // If it's already a string in YYYY-MM-DD format
-    if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-      return dateInput;
-    }
-    
-    // If it's a Date object or other format
-    try {
-      return new Date(dateInput).toISOString().split('T')[0];
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return new Date().toISOString().split('T')[0];
-    }
-  };
-
-  // Use the passed date as the booking date for this specific day
-  const bookingDate = formatDateToString(date);
   
   // State for validation and success messages
   const [validationError, setValidationError] = useState(false);
@@ -110,194 +81,19 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   // Track which sections have already been saved to Redux
   const [savedSectionIds, setSavedSectionIds] = useState([]);
   
-  // Add refs for handling restaurantspack data (following attraction pattern)
-  const hasInitializedRef = useRef(false);
-  const lastDispatchRef = useRef(null);
-  const hasDispatchedAllRestaurantsRef = useRef(false);
-  const currentServicesRef = useRef([]);
-  
   // Initialize form sections with stable default values
   const defaultSection = useMemo(() => ({
     ...initialFormState,
-    bookingDate: bookingDate, // Use the date from the specific itinerary day
+    bookingDate: searchParams?.date || new Date().toISOString().split('T')[0],
     pax: {
       Adults: searchParams?.adults || 1,
       Children: searchParams?.children || 0
     }
-  }), [searchParams?.adults, searchParams?.children, bookingDate]);
+  }), [searchParams?.adults, searchParams?.children, searchParams?.date]);
   
   const [formSections, setFormSections] = useState([{ ...defaultSection }]);
   const [openModal, setOpenModal] = useState(false);
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
-
-  // Update the current services ref when existingServices changes
-  useEffect(() => {
-    currentServicesRef.current = existingServices;
-  }, [existingServices]);
-
-  // Function to initialize form sections from restaurantspack data (following attraction pattern)
-  const initializeFormSectionsFromRestaurantPack = useCallback(() => {
-    if (!restaurantspack || !Array.isArray(restaurantspack) || restaurantspack.length === 0) {
-      console.log('No restaurantspack data to initialize from');
-      return;
-    }
-
-    console.log('Initializing form sections from restaurantspack:', restaurantspack);
-
-    // Filter restaurants that match the current dayIndex for form sections
-    const dayRestaurants = restaurantspack.filter(restaurantService => {
-      const restaurantData = restaurantService.data?.[0];
-      // Match by bookingDate since restaurantspack uses bookingDate
-      return restaurantData && restaurantData.bookingDate === bookingDate;
-    });
-
-    if (dayRestaurants.length === 0) {
-      console.log(`No restaurants found for bookingDate ${bookingDate}`);
-      return;
-    }
-
-    // Convert restaurant data to form sections for current day
-    const newFormSections = dayRestaurants.map((restaurantService, index) => {
-      const restaurantData = restaurantService.data[0];
-      
-      // Create proper specificMeal object for modal compatibility
-      const specificMealObject = {
-        specificMealType: restaurantData.mealSpecificType,
-        totalPrice: restaurantData.totalPrice || 0,
-        items: restaurantData.MealDescription || []
-      };
-      
-      return {
-        restaurant: restaurantData.restaurantId,
-        mealType: restaurantData.mealType,
-        specificMeal: specificMealObject, // Use object format for modal compatibility
-        timeSlot: restaurantData.visitTime || '',
-        pax: {
-          Adults: restaurantData.adultCount || 0,
-          Children: restaurantData.childCount || 0
-        },
-        bookingDate: restaurantData.bookingDate || bookingDate,
-        // Store the original data for reference
-        originalData: restaurantData
-      };
-    });
-
-    console.log('Initialized form sections for current day:', newFormSections);
-    setFormSections(newFormSections);
-    setExpandedSections(newFormSections.map((_, index) => index));
-  }, [restaurantspack, dayIndex, bookingDate]);
-
-  // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
-  const dispatchAllRestaurantsToRedux = useCallback(() => {
-    if (!restaurantspack || !Array.isArray(restaurantspack) || restaurantspack.length === 0) {
-      console.log('No restaurantspack data to dispatch to Redux');
-      return;
-    }
-
-    // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(restaurantspack.map(service => service.data?.[0]?.restaurantId));
-    
-    if (lastDispatchRef.current === dispatchKey) {
-      console.log('Skipping duplicate dispatch for all restaurants');
-      return;
-    }
-
-    console.log('Dispatching ALL restaurants from restaurantspack to Redux:', restaurantspack);
-
-    // Process ALL restaurants from restaurantspack, not just current day
-    const allRestaurantsForRedux = restaurantspack.map(restaurantService => {
-      const restaurantData = restaurantService.data[0];
-      
-      if (!restaurantData) {
-        console.log('No restaurant data found in service:', restaurantService);
-        return null;
-      }
-
-      console.log('Processing restaurant for Redux:', restaurantData);
-      
-      return restaurantData; // Use the restaurant data as-is since it already matches the format
-    }).filter(Boolean); // Remove null entries
-
-    if (allRestaurantsForRedux.length === 0) {
-      console.log('No valid restaurants to dispatch to Redux');
-      return;
-    }
-
-    // Remove any existing restaurant services using the ref
-    const filteredServices = currentServicesRef.current.filter(service => service.type !== "restaurant");
-
-    // Create new restaurant service entries for ALL restaurants
-    const newRestaurantServices = allRestaurantsForRedux.map(restaurantData => ({
-      type: "restaurant",
-      agent_id: agentId,
-      tour_id: tourId,
-      bookingType: "enquiry",
-      data: [restaurantData]
-    }));
-
-    // Add new services to filtered services
-    const finalServices = [...filteredServices, ...newRestaurantServices];
-
-    console.log('Dispatching ALL restaurant services to Redux:', finalServices);
-    dispatch(setAllServices(finalServices));
-    
-    // Update the last dispatch ref
-    lastDispatchRef.current = dispatchKey;
-  }, [restaurantspack, agentId, tourId, dispatch]);
-
-  // Reset refs when dayIndex changes (following attraction pattern)
-  useEffect(() => {
-    hasInitializedRef.current = false;
-    lastDispatchRef.current = null;
-    hasDispatchedAllRestaurantsRef.current = false;
-    currentServicesRef.current = [];
-  }, [dayIndex]);
-
-  // Cleanup effect (following attraction pattern)
-  useEffect(() => {
-    return () => {
-      hasInitializedRef.current = false;
-      lastDispatchRef.current = null;
-      hasDispatchedAllRestaurantsRef.current = false;
-      currentServicesRef.current = [];
-        };
-  }, []);
-
-  // Initialize form sections when restaurantspack changes (following attraction pattern)
-  useEffect(() => {
-    if (!hasInitializedRef.current && restaurantspack && Array.isArray(restaurantspack) && restaurantspack.length > 0) {
-      console.log('Initializing form sections from restaurantspack');
-      initializeFormSectionsFromRestaurantPack();
-      hasInitializedRef.current = true;
-    }
-  }, [restaurantspack, initializeFormSectionsFromRestaurantPack]);
-
-  // Dispatch ALL restaurants to Redux when restaurantspack is available (only once) (following attraction pattern)
-  useEffect(() => {
-    if (!hasDispatchedAllRestaurantsRef.current && restaurantspack && Array.isArray(restaurantspack) && restaurantspack.length > 0) {
-      console.log('Dispatching ALL restaurants from restaurantspack to Redux on mount');
-      dispatchAllRestaurantsToRedux();
-      hasDispatchedAllRestaurantsRef.current = true;
-    }
-  }, [restaurantspack, dispatchAllRestaurantsToRedux]);
-  
-  // Log props received from parent component (enhanced logging following attraction pattern)
-  useEffect(() => {
-    console.log('RestaurantComponent - Received props:', { date, dayIndex, bookingDate, restaurantspack });
-    console.log('RestaurantComponent - Date type check:', { 
-      dateType: typeof date, 
-      isMoment: date?._isAMomentObject,
-      formattedBookingDate: bookingDate,
-      bookingDateType: typeof bookingDate
-    });
-    console.log('RestaurantComponent - Form sections count:', formSections.length);
-    console.log('RestaurantComponent - Has initialized:', hasInitializedRef.current);
-    console.log('RestaurantComponent - Form sections with booking dates:', formSections.map(section => ({
-      bookingDate: section.bookingDate,
-      dayIndex: dayIndex,
-      hasOriginalData: !!section.originalData
-    })));
-  }, [date, dayIndex, bookingDate, formSections, restaurantspack]);
   
   // Getter and setter for bookings
   const getRestaurantBookings = () => restaurantBookingsRef.current;
@@ -346,12 +142,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
   const handleAddMore = () => {
     const newIndex = formSections.length;
-    const newSection = { 
-      ...defaultSection,
-      // Ensure new sections don't have originalData to avoid conflicts (following attraction pattern)
-      originalData: null
-    };
-    setFormSections([...formSections, newSection]);
+    setFormSections([...formSections, { ...defaultSection }]);
     setExpandedSections([...expandedSections, newIndex]);
   };
 
@@ -359,29 +150,15 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     // Get the section being removed
     const sectionToRemove = formSections[indexToRemove];
     
-    // Remove from local state
+    // Remove the section from formSections
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
     
     // Update expanded sections
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
     
-    // Remove from Redux state if the section has an original restaurantId (following attraction pattern)
-    if (sectionToRemove?.originalData?.restaurantId) {
-      const currentServices = [...existingServices];
-      const updatedServices = currentServices.filter(service => {
-        if (service.type === "restaurant" && service.data && Array.isArray(service.data)) {
-          return !service.data.some(data => data.restaurantId === sectionToRemove.originalData.restaurantId);
-        }
-        return true;
-      });
-      
-      console.log('Removing restaurant from Redux state:', sectionToRemove.originalData.restaurantId);
-      dispatch(setAllServices(updatedServices));
-    }
-    
     // Remove section signature from saved IDs
     if (sectionToRemove) {
-      const sectionSignature = `${sectionToRemove.restaurant}-${sectionToRemove.mealType}-${sectionToRemove.specificMeal}-${sectionToRemove.timeSlot}-${dayIndex}`;
+      const sectionSignature = `${sectionToRemove.restaurant}-${sectionToRemove.mealType}-${sectionToRemove.specificMeal}-${sectionToRemove.timeSlot}`;
       setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
     }
   };
@@ -411,20 +188,17 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         ...newFormSections[sectionIndex],
         mealType: value,
         specificMeal: '',
-        timeSlot: '',
-        bookingDate: bookingDate // Preserve booking date
+        timeSlot: ''
       };
     } else if (field === 'pax') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
-        pax: value,
-        bookingDate: bookingDate // Preserve booking date
+        pax: value
       };
     } else {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
-        [field]: value,
-        bookingDate: bookingDate // Preserve booking date
+        [field]: value
       };
     }
     
@@ -442,10 +216,10 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     
     // Generate signature for this section
     const oldSectionSignature = formSections[sectionIndex] ? 
-      `${formSections[sectionIndex].restaurant}-${formSections[sectionIndex].mealType}-${formSections[sectionIndex].specificMeal}-${formSections[sectionIndex].timeSlot}-${dayIndex}` : '';
+      `${formSections[sectionIndex].restaurant}-${formSections[sectionIndex].mealType}-${formSections[sectionIndex].specificMeal}-${formSections[sectionIndex].timeSlot}` : '';
     
     const newSectionSignature = 
-      `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}-${dayIndex}`;
+      `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}`;
     
     // If the data changed, remove the old signature from saved list
     if (oldSectionSignature !== newSectionSignature) {
@@ -453,7 +227,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         prev.filter(signature => signature !== oldSectionSignature)
       );
       
-      console.log(`Restaurant enquiry section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+      console.log(`Restaurant booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
     }
   };
 
@@ -504,7 +278,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   // Validate bookings before submission
   const validateBookings = useCallback(() => {
     if (formSections.length === 0) {
-      setValidationError("Please add at least one restaurant enquiry.");
+      setValidationError("Please add at least one restaurant booking.");
       return false;
     }
     
@@ -545,24 +319,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       return; // No complete sections to save
     }
     
-    // Clone the existing services array, but only remove restaurant services for the current dayIndex
-    // Preserve restaurant services for other dates
-    const servicesWithoutRestaurants = existingServices.filter(service => {
-      if (service.type !== "restaurant") {
-        return true; // Keep non-restaurant services
-      }
-      
-      // For restaurant services, check if they belong to the current dayIndex
-      // If the service has data and any booking has the same dayIndex, remove it
-      if (service.data && Array.isArray(service.data)) {
-        const hasCurrentDayBooking = service.data.some(booking => 
-          booking.dayIndex === dayIndex
-        );
-        return !hasCurrentDayBooking; // Keep if it doesn't have current day booking
-      }
-      
-      return true; // Keep if no data or invalid structure
-    });
+    // Clone the existing services array, but remove ALL previous restaurant services
+    const servicesWithoutRestaurants = existingServices.filter(service => service.type !== "restaurant");
     
     // Create new restaurant services for the current complete sections
     const restaurantServices = completeSections.map((section, index) => {
@@ -573,119 +331,54 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       const sectionIndex = formSections.indexOf(section);
       const bookingId = `restaurant-${Date.now()}-${sectionIndex}`;
       
-      // Get pricing data from the meal selection
-      const adultCount = section.pax?.Adults || 0;
-      const childCount = section.pax?.Children || 0;
-      
-      // Extract price information from the specificMeal selection
-      let totalPrice = 0;
-      let mealPrice = 0;
-      let mealDescriptionArray = [];
-      
-      // If specificMeal contains pricing data from SpecificMealSelect
-      if (section.specificMeal && typeof section.specificMeal === 'object' && section.specificMeal.totalPrice) {
-        totalPrice = section.specificMeal.totalPrice;
-        mealPrice = section.specificMeal.totalPrice;
-        
-        // Create MealDescription array from the selected items
-        if (section.specificMeal.items && Array.isArray(section.specificMeal.items)) {
-          mealDescriptionArray = section.specificMeal.items.map(item => ({
-            item_name: item.name || "Meal Item",
-            name: item.name || "Meal Item", 
-            price: item.price || 0,
-            meal_id: item.meal_id || restaurant.id || 0,
-            category: section.mealType || "Meal",
-            item_type: "Standard",
-            quantity: item.quantity || 1
-          }));
-        }
-      } else {
-        // Fallback pricing if no specific meal data
-        const basePrice = 50;
-        totalPrice = (adultCount + childCount) * basePrice;
-        mealPrice = totalPrice;
-        mealDescriptionArray = [{
-          item_name: section.specificMeal || "Meal",
-          name: section.specificMeal || "Meal",
-          price: basePrice,
-          meal_id: restaurant.id || 0,
-          category: section.mealType || "Meal",
-          item_type: "Standard",
-          quantity: adultCount + childCount
-        }];
-      }
-      
-      // Create the restaurant booking data matching the exact JSON format you specified
+      // Create the restaurant booking data matching CustomerInfo bookingDetails structure
       const bookingData = {
-        // Customer information fields (will be populated when available)
-        fullName: "",
-        email: "",
-        phone: "",
-        countryCode: "",
-        address1: "",
-        address2: "",
-        state: "",
-        zip: "",
-        specialRequests: "",
+        // Add formData properties (customer info will be added when available)
+        // Customer information will be spread here when available from CustomerInfo service
         
-        // Core booking details
-        bookingDate: section.bookingDate, // Use the date from the specific itinerary day
+        // Core booking details matching CustomerInfo structure
+        bookingDate: section.bookingDate || searchParams?.date || new Date().toISOString().split('T')[0],
         visitTime: section.timeSlot,
-        adultCount: adultCount,
-        childCount: childCount,
+        adultCount: section.pax?.Adults || 0,
+        childCount: section.pax?.Children || 0,
         restaurantId: section.restaurant,
         restaurantName: restaurant.restaurant_name || 'Restaurant',
         mealType: section.mealType,
-        mealSpecificType: typeof section.specificMeal === 'object' ? section.specificMeal.specificMealType : section.specificMeal,
-        MealDescription: mealDescriptionArray,
-        totalPrice: totalPrice,
-        mealPrice: mealPrice,
-        transport: null,
+        mealSpecificType: section.specificMeal,
+        MealDescription: restaurant.description || '',
+        totalPrice: 0, // Will be calculated based on meal and transport
+        mealPrice: 0, // Will be calculated based on selected meal
+        transport: null, // Transport options if any
         transportPrice: 0,
-        priceTypes: ["dmc"],
+        priceTypes: [], // Price types for different categories
         dmc_id: restaurant.dmc_id || null,
-        bookingType: "enquiry"
+        bookingType: "booking",
+        
+        // Additional fields for tour package context
+        id: bookingId,
+        city: restaurant.city || searchParams?.location?.city || '',
+        country: restaurant.country || searchParams?.location?.country || '',
+        image: restaurant.image || '/placeholder-restaurant.jpg',
+        mode: currentMode,
+        cuisine: restaurant.cuisine_type || 'Not specified'
       };
       
-      console.log(`Restaurant enquiry data for section ${index}:`, bookingData);
-      console.log(`Restaurant enquiry pricing check for section ${index}:`, {
-        adultCount,
-        childCount,
-        totalPrice,
-        mealPrice,
-        mealType: section.mealType,
-        specificMeal: section.specificMeal,
-        specificMealType: typeof section.specificMeal === 'object' ? section.specificMeal.specificMealType : section.specificMeal,
-        mealDescriptionArray
-      });
-      console.log(`Restaurant enquiry date check for section ${index}:`, {
-        sectionBookingDate: section.bookingDate,
-        formattedBookingDate: bookingDate,
-        dayIndex: dayIndex,
-        finalBookingDate: bookingData.bookingDate
-      });
+      console.log(`Restaurant booking data for section ${index}:`, bookingData);
       
-      // Create a new restaurant service entry matching the current working format
+      // Create a new restaurant service entry matching CustomerInfo bookingDetails structure
       return {
         agent_id: agentId,
-        bookingType: "enquiry",
+        data: [bookingData],
         tour_id: tourId,
         type: "restaurant",
-        data: [bookingData]
+        bookingType: "booking"
       };
     });
     
     // Combine non-restaurant services with new restaurant services
     const updatedServices = [...servicesWithoutRestaurants, ...restaurantServices];
     
-    console.log("Restaurant - Dispatching updated enquiry services to Redux:", updatedServices);
-    console.log("Restaurant - Services filtering check:", {
-      totalExistingServices: existingServices.length,
-      restaurantServicesRemoved: existingServices.filter(s => s.type === "restaurant").length - servicesWithoutRestaurants.filter(s => s.type === "restaurant").length,
-      currentDayIndex: dayIndex,
-      newRestaurantServices: restaurantServices.length,
-      finalTotalServices: updatedServices.length
-    });
+    console.log("Restaurant - Dispatching updated services to Redux:", updatedServices);
     
     // Dispatch the updated services
     dispatch(setAllServices(updatedServices));
@@ -712,8 +405,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         (section.pax.Adults + section.pax.Children > 0)
       );
       
-      // Generate a unique ID for this section based on its contents and dayIndex
-      const sectionSignature = `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}-${dayIndex}`;
+      // Generate a unique ID for this section based on its contents
+      const sectionSignature = `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}`;
       
       // Check if this section has already been saved
       const isSaved = savedSectionIds.includes(sectionSignature);
@@ -726,15 +419,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     if (newCompleteSections.length > 0) {
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
-        `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}-${dayIndex}`
+        `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}`
       );
-      
-      console.log('Restaurant - Auto dispatch triggered for enquiries:', {
-        newCompleteSections: newCompleteSections.length,
-        dayIndex: dayIndex,
-        newSectionSignatures: newSectionSignatures,
-        currentSavedIds: savedSectionIds
-      });
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
@@ -748,65 +434,6 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       return () => clearTimeout(timeoutId);
     }
   }, [formSections, handleBookNow, status, savedSectionIds]);
-
-  // Helper to check if a booking is out of current tour dates for the specific dayIndex
-  const isBookingOutOfTourDates = (booking) => {
-    // Only validate if this booking belongs to the current dayIndex
-    const bookingDayIndex = booking.originalData?.dayIndex || dayIndex;
-    
-    // If the booking doesn't belong to this dayIndex, don't validate
-    if (bookingDayIndex !== dayIndex) {
-      return false;
-    }
-    
-    const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
-    
-    // Debug logging to check date formats
-    console.log('Restaurant date validation debug:', {
-      bookingId: booking.originalData?.id || 'new-booking',
-      bookingDate: bookingDate,
-      tourDates: tourDates,
-      dayIndex: dayIndex,
-      bookingDayIndex: bookingDayIndex
-    });
-    
-    // Handle edge cases
-    if (!bookingDate || !tourDates || tourDates.length === 0) {
-      console.log('Missing bookingDate or tourDates, skipping validation');
-      return false;
-    }
-    
-    // Normalize booking date to YYYY-MM-DD format
-    let normalizedBookingDate;
-    try {
-      if (typeof bookingDate === 'string') {
-        // If it's already in YYYY-MM-DD format
-        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
-          normalizedBookingDate = bookingDate;
-        } else {
-          // Convert from other formats to YYYY-MM-DD
-          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
-        }
-      } else {
-        // If it's a Date object
-        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
-      }
-    } catch (error) {
-      console.error('Error normalizing booking date:', error);
-      return false;
-    }
-    
-    // Check if the normalized booking date exists in tourDates
-    const isDateValid = tourDates.includes(normalizedBookingDate);
-    
-    console.log('Restaurant date validation result:', {
-      normalizedBookingDate: normalizedBookingDate,
-      isDateValid: isDateValid,
-      willShowError: !isDateValid
-    });
-    
-    return !isDateValid;
-  };
 
   const getSelectedRestaurant = (restaurantId) => {
     return restaurants.find(r => r.id === restaurantId) || null;
@@ -886,7 +513,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         <Box>
           {bookingSuccess && (
             <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
-              Restaurant enquiry information saved successfully to the tour package data!
+              Restaurant booking information saved successfully to the tour package data!
             </Alert>
           )}
         </Box>
@@ -897,7 +524,6 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
           const selectedRestaurantDetails = getSelectedRestaurant(section.restaurant);
           const completionStatus = getSectionCompletion(section);
           const isExpanded = expandedSections.includes(sectionIndex);
-          const outOfTourDates = isBookingOutOfTourDates(section);
           
           return (
             <Grid item xs={12} key={sectionIndex}>
@@ -905,13 +531,10 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                 elevation={2}
                 sx={{ 
                   borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#4caf50', 0.2)}`,
-                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
+                  border: `2px solid ${alpha('#4caf50', 0.2)}`,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#4caf50', 0.15)}`,
+                    boxShadow: `0 8px 24px ${alpha('#4caf50', 0.15)}`,
                     transform: 'translateY(-2px)',
                   }
                 }}
@@ -1214,15 +837,6 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                       </Grid>
                     </Paper>
                   </Collapse>
-
-                  {/* Red alert if out of tour dates */}
-                  {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
-                        The booking is out of currently updated tour dates
-                      </Alert>
-                    </Box>
-                  )}
                 </CardContent>
               </Card>
             </Grid>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
 import {
   Box,
   Typography,
@@ -66,7 +66,6 @@ const IconContainer = styled(Box)(({ theme }) => ({
 
 const PreDefinePackages = () => {
   const dispatch = useDispatch();
-  const { searchParams } = useSelector(state => state.prePackages);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
@@ -81,29 +80,6 @@ const PreDefinePackages = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
-  const [hasSearched, setHasSearched] = useState(false);
-
-  // Check if search parameters exist when component mounts
-  useEffect(() => {
-    if (searchParams) {
-      setHasSearched(true);
-      // Optionally restore form values from searchParams
-      if (searchParams.country) setSelectedLocation(searchParams.country);
-      if (searchParams.city) setSelectedCity(searchParams.city);
-      if (searchParams.date) setSelectedDate(searchParams.date);
-      
-      // Restore guest counts
-      const updatedGuestCounts = {
-        Adults: searchParams.adults || 1,
-        Children: searchParams.children || 0,
-        Infants: searchParams.infants || 0,
-        maleCount: searchParams.male_count || 0,
-        femaleCount: searchParams.female_count || 0,
-        ages: searchParams.children_ages ? searchParams.children_ages.split(',') : []
-      };
-      setGuestCounts(updatedGuestCounts);
-    }
-  }, [searchParams]);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -227,9 +203,6 @@ const PreDefinePackages = () => {
       infants: guestCounts.Infants
     };
     
-    // Set search status to true
-    setHasSearched(true);
-    
     // Dispatch actions to fetch packages and store search parameters
     dispatch(setSearchParams(searchParams));
     dispatch(fetchPackages(searchParams))
@@ -249,28 +222,28 @@ const PreDefinePackages = () => {
 
   return (
     <StyledContainer maxWidth="lg">
-      <Box p={4} sx={{ position: 'relative', zIndex: 1 }}>
+      <Box p={4}>
         <TitleSection>
           <IconContainer>
-            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} />
+            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1 }} />
             <Typography 
               variant="h3" 
               component="h1" 
               sx={{ 
                 fontWeight: 700, 
-                color: 'white',
-                mt: 3,
+                color: 'primary.main',
+                textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
-              Fixed Itinerary Packages
+              Pre Define Packages
               <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
             </Typography>
           </IconContainer>
           <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
-          <Typography variant="subtitle1" color="#ece9f1" textAlign="center">
+          <Typography variant="subtitle1" color="text.secondary" textAlign="center">
             Discover our exclusive pre-arranged travel experiences
           </Typography>
         </TitleSection>
@@ -279,11 +252,11 @@ const PreDefinePackages = () => {
           <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">
             <div className="button-grid items-center" style={{ display: 'flex', flexWrap: 'nowrap' }}>
               <div style={{ flex: '1', minWidth: '0' }}>
-                <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
+                <LocationSearch onLocationSelect={handleLocationSelect} />
               </div>
               
               <div style={{ flex: '1', minWidth: '0' }}>
-                <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
+                <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} />
               </div>
 
               <div style={{ flex: '1.2', minWidth: '0' }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
@@ -302,18 +275,18 @@ const PreDefinePackages = () => {
               <div className="button-item" style={{ width: 'auto', padding: '0 15px', display: 'flex', alignItems: 'flex-end' }}>
                 <button
                   className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
-                  onClick={handleSubmit}
+          onClick={handleSubmit}
                   style={{ whiteSpace: 'nowrap', marginBottom: '5px' }}
-                >
+        >
                   <i className="icon-search text-20 mr-10" />
-                  Search Packages
+          Search Packages
                 </button>
               </div>
             </div>
           </div>
         </Paper>
         
-        <ListingCards hasSearched={hasSearched} />
+        <ListingCards />
       </Box>
       
       <Snackbar

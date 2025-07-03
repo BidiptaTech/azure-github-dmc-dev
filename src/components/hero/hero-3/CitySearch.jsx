@@ -5,7 +5,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { BASE_URL, endpoints } from "@/services/api";
 
-const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
+const CitySearch = ({ selectedCountry, onCitySelect }) => {
   const dispatch = useDispatch();
   const [searchValue, setSearchValue] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -53,29 +53,6 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
         
         // Store cities in Redux for other components to use
         dispatch(setCity(response.data.cities));
-        
-        // Set initial value if provided after city list is loaded
-        if (initialValue && !selectedItem) {
-          const foundCity = formattedCities.find(
-            city => city.name === initialValue || city.code === initialValue
-          );
-          
-          if (foundCity) {
-            setSelectedItem(foundCity);
-            setSearchValue(foundCity.name);
-            if (onCitySelect) onCitySelect(foundCity);
-          } else if (typeof initialValue === 'string') {
-            // If we can't find the city but have a string, use it as is
-            const newCity = {
-              name: initialValue,
-              address: initialValue,
-              code: `${country.code}-${initialValue.replace(/\s+/g, '').substring(0, 3).toUpperCase()}`
-            };
-            setSelectedItem(newCity);
-            setSearchValue(initialValue);
-            if (onCitySelect) onCitySelect(newCity);
-          }
-        }
       } else {
         console.error("Unexpected cities data format:", response.data);
         setError("Invalid response format from server");
@@ -84,8 +61,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
       console.log('Formatted cities:', formattedCities);
       setCityList(formattedCities);
       setSuggestions(formattedCities.slice(0, 5));
-      // Don't show dropdown by default - only when user types
-      setIsDropdownVisible(false);
+      setIsDropdownVisible(formattedCities.length > 0);
     } catch (error) {
       console.error("Error fetching cities:", error);
       
@@ -114,11 +90,8 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
   // Reset selected city when country changes and fetch cities
   useEffect(() => {
     if (selectedCountry) {
-      // Don't reset if we have an initialValue to preserve
-      if (!initialValue) {
-        setSearchValue("");
-        setSelectedItem(null);
-      }
+      setSearchValue("");
+      setSelectedItem(null);
       setSuggestions([]);
       
       // Fetch cities for the selected country
@@ -140,13 +113,11 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
             city.name.toLowerCase().includes(searchValue.toLowerCase())
           );
           setSuggestions(filtered);
-          // Only show dropdown if user has typed something
-          setIsDropdownVisible(filtered.length > 0 && searchValue.trim().length > 0);
+          setIsDropdownVisible(filtered.length > 0);
         } else {
           const initialSuggestions = cityList.slice(0, 5);
           setSuggestions(initialSuggestions);
-          // Don't show dropdown by default - only when user types
-          setIsDropdownVisible(false);
+          setIsDropdownVisible(initialSuggestions.length > 0);
         }
       } else {
         setSuggestions([]);
@@ -209,8 +180,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
   };
 
   const handleInputFocus = () => {
-    // Don't show dropdown on focus - only when user types
-    if (!selectedItem && selectedCountry && searchValue.trim().length > 0) {
+    if (!selectedItem && selectedCountry) {
       setIsDropdownVisible(true);
     }
   };
@@ -262,7 +232,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
     <>
       <div className="searchMenu-loc px-30 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
         <div
-          onClick={() => !selectedItem && selectedCountry && searchValue.trim().length > 0 && setIsDropdownVisible(!isDropdownVisible)}
+          onClick={() => !selectedItem && selectedCountry && setIsDropdownVisible(!isDropdownVisible)}
         >
           <h4 className="text-15 fw-500 ls-2 lh-16">City</h4>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative">

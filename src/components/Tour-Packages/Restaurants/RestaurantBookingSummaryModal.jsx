@@ -86,38 +86,12 @@ const RestaurantBookingSummaryModal = ({
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
-  const restaurants = useSelector((state) => state.restaurants.restaurants);
-
-  // Get restaurant details - handle both current restaurantDetails and restaurantspack data
-  const getRestaurantDetails = () => {
-    if (restaurantDetails) {
-      return restaurantDetails;
-    } else if (bookingData?.restaurant && restaurants) {
-      // Find restaurant details from the restaurants list
-      const foundRestaurant = restaurants.find(r => r.id === bookingData.restaurant);
-      return foundRestaurant;
-    } else if (bookingData?.originalData) {
-      // Create restaurant details from original data
-      return {
-        name: bookingData.originalData.restaurantName,
-        city: bookingData.originalData.city || 'Not specified',
-        country: bookingData.originalData.country || 'Not specified',
-        cuisine: 'Not specified',
-        master_image: '/placeholder-restaurant.jpg'
-      };
-    }
-    return null;
-  };
-
-  const effectiveRestaurantDetails = getRestaurantDetails();
 
   // Add console log for incoming data
   useEffect(() => {
     console.log('RestaurantBookingSummaryModal Data:', {
       bookingData,
-      restaurantDetails,
-      effectiveRestaurantDetails,
-      hasOriginalData: !!bookingData?.originalData
+      restaurantDetails
     });
   }, [bookingData, restaurantDetails]);
 
@@ -145,15 +119,15 @@ const RestaurantBookingSummaryModal = ({
 
   // Get meal time slots based on meal type
   const getMealTimeSlot = (mealType) => {
-    if (!effectiveRestaurantDetails) return 'Not specified';
+    if (!restaurantDetails) return 'Not specified';
     
     switch (mealType?.toLowerCase()) {
       case 'breakfast':
-        return formatTimeSlot(effectiveRestaurantDetails.opening_time_bf, effectiveRestaurantDetails.closing_time_bf);
+        return formatTimeSlot(restaurantDetails.opening_time_bf, restaurantDetails.closing_time_bf);
       case 'lunch':
-        return formatTimeSlot(effectiveRestaurantDetails.opening_time_lunch, effectiveRestaurantDetails.closing_time_lunch);
+        return formatTimeSlot(restaurantDetails.opening_time_lunch, restaurantDetails.closing_time_lunch);
       case 'dinner':
-        return formatTimeSlot(effectiveRestaurantDetails.opening_time_dinner, effectiveRestaurantDetails.closing_time_dinner);
+        return formatTimeSlot(restaurantDetails.opening_time_dinner, restaurantDetails.closing_time_dinner);
       default:
         return 'Not specified';
     }
@@ -206,26 +180,6 @@ const RestaurantBookingSummaryModal = ({
   // Check if the meal type is buffet
   const isBuffet = bookingData.specificMeal?.specificMealType?.toLowerCase() === 'buffet';
 
-  // Get pax data - handle both form data and restaurantspack data
-  const getPaxData = () => {
-    if (bookingData.pax) {
-      // Form data format
-      return {
-        Adults: bookingData.pax.Adults || 0,
-        Children: bookingData.pax.Children || 0
-      };
-    } else if (bookingData.originalData) {
-      // Restaurantspack data format
-      return {
-        Adults: bookingData.originalData.adultCount || 0,
-        Children: bookingData.originalData.childCount || 0
-      };
-    }
-    return { Adults: 0, Children: 0 };
-  };
-
-  const paxData = getPaxData();
-
   return (
     <StyledModal
       open={open}
@@ -264,18 +218,18 @@ const RestaurantBookingSummaryModal = ({
               <CardMedia
                 component="img"
                 sx={{ width: 200, height: 200, objectFit: 'cover' }}
-                image={effectiveRestaurantDetails?.master_image || effectiveRestaurantDetails?.additional_images?.[0] || '/placeholder-restaurant.jpg'}
-                alt={effectiveRestaurantDetails?.name || effectiveRestaurantDetails?.restaurant_name || 'Restaurant'}
+                image={restaurantDetails?.master_image || restaurantDetails?.additional_images?.[0]}
+                alt={restaurantDetails?.name || 'Restaurant'}
               />
               <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="h6" gutterBottom>
-                      {effectiveRestaurantDetails?.name || effectiveRestaurantDetails?.restaurant_name || 'Restaurant'}
+                      {restaurantDetails?.name}
                     </Typography>
                     <Chip 
                       icon={<LocalDiningIcon />} 
-                      label={effectiveRestaurantDetails?.cuisine || effectiveRestaurantDetails?.cuisine_type || 'Cuisine not specified'} 
+                      label={restaurantDetails?.cuisine || 'Cuisine not specified'} 
                       sx={{ 
                         color: '#4caf50', 
                         borderColor: '#4caf50',
@@ -288,7 +242,7 @@ const RestaurantBookingSummaryModal = ({
                   <DetailRow>
                     <LocationOnIcon sx={{ color: '#4caf50' }} />
                     <Typography>
-                      {effectiveRestaurantDetails?.city || 'Not specified'}, {effectiveRestaurantDetails?.country || 'Not specified'}
+                      {restaurantDetails?.city}, {restaurantDetails?.country}
                     </Typography>
                   </DetailRow>
 
@@ -371,13 +325,13 @@ const RestaurantBookingSummaryModal = ({
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <PersonIcon sx={{ mr: 1, color: '#4caf50' }} />
                     <Typography>
-                      Adults: {paxData.Adults}
+                      Adults: {renderValue(bookingData.pax?.Adults)}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <ChildCareIcon sx={{ mr: 1, color: '#4caf50' }} />
                     <Typography>
-                      Children: {paxData.Children}
+                      Children: {renderValue(bookingData.pax?.Children)}
                     </Typography>
                   </Box>
                 </Box>
@@ -404,13 +358,13 @@ const RestaurantBookingSummaryModal = ({
                       {item.adult_price ? (
                         <Box key={`buffet-${item.meal_id}`}>
                           <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <span>Adult ({paxData.Adults}x):</span>
-                            <span>{currencyCode} {Math.ceil((item.adult_price || 0) * exchangeRate * paxData.Adults)}</span>
+                            <span>Adult ({bookingData.pax.Adults}x):</span>
+                            <span>{currencyCode} {Math.ceil(item.adult_price * exchangeRate * bookingData.pax.Adults)}</span>
                           </Typography>
-                          {paxData.Children > 0 && (
+                          {bookingData.pax.Children > 0 && (
                             <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Child ({paxData.Children}x):</span>
-                              <span>{currencyCode} {Math.ceil((item.child_price || 0) * exchangeRate * paxData.Children)}</span>
+                              <span>Child ({bookingData.pax.Children}x):</span>
+                              <span>{currencyCode} {Math.ceil(item.child_price * exchangeRate * bookingData.pax.Children)}</span>
                             </Typography>
                           )}
                         </Box>

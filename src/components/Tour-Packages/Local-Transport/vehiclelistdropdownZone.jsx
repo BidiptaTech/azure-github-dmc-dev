@@ -198,7 +198,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
         setpricemode("Sharable");
       }
     }
-  }, [vehicles, pricemode, hasPrivatePrice, hasSharablePrice]); // Removed setpricemode to prevent loops
+  }, [vehicles, pricemode, setpricemode, hasPrivatePrice, hasSharablePrice]);
   
   return (
     <Grid item xs={12} sm={6} md={12}>
@@ -253,8 +253,7 @@ const VehicleListDropdownZone = ({
   isNewBooking,
   cachedVehicles,
   cachedVehicleName,
-  isGridLayout = false,
-  preloadedBooking = null
+  isGridLayout = false
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   console.log("vehicles55", vehicles);
@@ -269,11 +268,11 @@ const VehicleListDropdownZone = ({
   const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
 
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
-  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
+  const adultsMax = tourDetails?.data?.adult ?? 1;
+  const childrenMax = tourDetails?.data?.child ?? 0;
 
-  const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
-  const [children, setChildren] = useState(preloadedBooking?.children || childrenMax);
+  const [adults, setAdults] = useState(adultsMax);
+  const [children, setChildren] = useState(childrenMax);
   const [seatingCapacity, setSeatingCapacity] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -287,7 +286,7 @@ const VehicleListDropdownZone = ({
     if (onPaxChange) {
       onPaxChange(adults, children);
     }
-  }, [adults, children]); // Removed onPaxChange to prevent loops
+  }, [adults, children, onPaxChange]);
   
   // Filter vehicles that have at least one pricing mode
   console.log("vehiclesToUse", vehiclesToUse);
@@ -315,14 +314,14 @@ const VehicleListDropdownZone = ({
     setIsLoading(false);
   };
 
-  const [pricemode, setpricemode] = useState(preloadedBooking?.priceMode || ""); // Set from preloaded data or default
+  const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
   
   // Notify parent when price mode changes
   useEffect(() => {
     if (onPriceModeChange && pricemode) {
       onPriceModeChange(pricemode);
     }
-  }, [pricemode]); // Removed onPriceModeChange to prevent loops
+  }, [pricemode, onPriceModeChange]);
   
   // Calculate price based on the data structure
   const Price = data 
@@ -338,7 +337,7 @@ const VehicleListDropdownZone = ({
     if (onPriceChange && Price > 0) {
       onPriceChange(Price);
     }
-  }, [Price, pricemode, totalGuests]); // Removed onPriceChange to prevent loops
+  }, [Price, onPriceChange, pricemode, totalGuests]);
   
   // Handle adult count change for this specific booking
   const handleAdultChange = (value) => {
@@ -349,27 +348,6 @@ const VehicleListDropdownZone = ({
   const handleChildChange = (value) => {
     setChildren(value);
   };
-
-  // Initialize data when preloaded booking is available
-  useEffect(() => {
-    if (preloadedBooking && preloadedBooking.vehicleId && preloadedBooking.price > 0) {
-      console.log("Local Transfer - Initializing with preloaded booking data:", preloadedBooking);
-      
-      // Set up mock data structure for preloaded booking - Zone has simple price structure
-      const mockData = {
-        private_price: preloadedBooking.priceMode === "Private" ? preloadedBooking.price : 0,
-        shared_price: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0
-      };
-      
-      setData(mockData);
-      setSeatingCapacity(0); // Will be updated if needed
-      
-      // Trigger price change to parent
-      if (onPriceChange) {
-        onPriceChange(preloadedBooking.price);
-      }
-    }
-  }, [preloadedBooking?.vehicleId, preloadedBooking?.price, preloadedBooking?.priceMode]); // More specific dependencies
 
   // If it's grid layout, return just the autocomplete for the vehicle selection column
   if (isGridLayout) {

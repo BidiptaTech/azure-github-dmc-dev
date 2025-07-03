@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import {
   Box,
   Typography,
@@ -16,15 +16,6 @@ import { formatDate, getItineraryDayDate } from './shared-date-utils';
 
 // Compact day item component for sidebar
 const DayItem = ({ day, isActive, onClick }) => {
-  // Define gradient colors based on active state
-  const bgColor = isActive 
-    ? 'linear-gradient(90deg, #1976d2 0%, #2196f3 100%)'
-    : 'linear-gradient(90deg, rgba(240,242,245,0.6) 0%, rgba(250,252,255,0.6) 100%)';
-  
-  const hoverBgColor = isActive
-    ? 'linear-gradient(90deg, #1565c0 0%, #1e88e5 100%)'
-    : 'linear-gradient(90deg, rgba(235,238,242,0.9) 0%, rgba(242,245,250,0.9) 100%)';
-    
   return (
     <Box 
       onClick={onClick}
@@ -34,70 +25,69 @@ const DayItem = ({ day, isActive, onClick }) => {
         py: 0.8,
         px: 1,
         mb: 0.5,
-        borderRadius: '8px',
+        borderRadius: '6px',
         cursor: 'pointer',
-        background: bgColor,
-        color: isActive ? 'white' : 'text.primary',
-        boxShadow: isActive ? '0 2px 4px rgba(25, 118, 210, 0.2)' : 'none',
-        border: '1px solid',
-        borderColor: isActive ? 'primary.main' : 'transparent',
+        backgroundColor: isActive ? 'primary.light' : 'transparent',
+        color: isActive ? 'primary.contrastText' : 'text.primary',
         '&:hover': {
-          background: hoverBgColor,
-          boxShadow: '0 2px 5px rgba(0,0,0,0.08)',
+          backgroundColor: isActive ? 'primary.main' : 'action.hover',
         },
-        transition: 'all 0.3s ease'
+        transition: 'background-color 0.2s'
       }}
     >
-      {/* Calendar icon */}
-      <CalendarTodayIcon 
+      <FiberManualRecordIcon 
         sx={{ 
-          fontSize: 14,
-          color: isActive ? 'white' : 'primary.main',
-          mr: 0.75
+          fontSize: 12, 
+          color: isActive ? 'inherit' : 'primary.main',
+          mr: 1
         }} 
       />
       
-      {/* Day chip */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Typography 
+          variant="body2" 
+          fontWeight={isActive ? 'bold' : 'medium'}
+          sx={{ lineHeight: 1.2 }}
+        >
+          {`Day ${day.day}`}
+        </Typography>
+        
+        <Typography 
+          variant="caption" 
+          color={isActive ? 'inherit' : 'text.secondary'}
+          sx={{ lineHeight: 1.1 }}
+        >
+          {day.description}
+        </Typography>
+
+        <Typography 
+          variant="caption" 
+          fontWeight="bold"
+          color={isActive ? 'inherit' : 'text.secondary'}
+          sx={{ lineHeight: 1.2, mt: 0.2 }}
+        >
+          {day.date}
+        </Typography>
+      </Box>
+      
       <Chip
-        label={`D${day.day}`}
         size="small"
+        label={`D${day.day}`}
+        color={isActive ? "primary" : "default"}
+        variant={isActive ? "filled" : "outlined"}
         sx={{ 
           height: 20, 
-          fontSize: '0.7rem',
-          fontWeight: 'bold',
-          mr: 0.75,
-          backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'rgba(25,118,210,0.1)',
-          color: isActive ? 'white' : 'primary.main',
-          border: '1px solid',
-          borderColor: isActive ? 'rgba(255,255,255,0.3)' : 'transparent',
           '& .MuiChip-label': { 
-            px: 0.75,
-            py: 0
+            px: 0.8, 
+            fontSize: '0.65rem' 
           }
         }}
       />
-      
-      {/* Date */}
-      <Typography 
-        variant="caption" 
-        sx={{ 
-          fontSize: '0.7rem',
-          color: isActive ? 'rgba(255,255,255,0.9)' : 'text.secondary',
-          ml: 'auto'
-        }}
-      >
-        {day.date}
-      </Typography>
     </Box>
   );
 };
 
 const PackageItinerary = ({ packageDetails, activeDay, setActiveDay, contentRef, dayRefs }) => {
-  // Ref for sidebar scroll container
-  const sidebarRef = useRef(null);
-  // Refs for each day item in the sidebar
-  const dayItemRefs = useRef([]);
-  
   // Generate day items for sidebar navigation
   const generateDayItems = () => {
     const days = packageDetails.duration_days || 1;
@@ -110,58 +100,14 @@ const PackageItinerary = ({ packageDetails, activeDay, setActiveDay, contentRef,
         day: index + 1,
         label: `Day ${index + 1}`,
         date: formatDate(dayDate),
-        description: packageDetails.itinerary && 
-          packageDetails.itinerary[index] && 
-          packageDetails.itinerary[index].title && 
-          typeof packageDetails.itinerary[index].title === 'string' ?
-            packageDetails.itinerary[index].title.split(' - ')[1] || '' : 
-            index === 0 ? '' : index === days - 1 ? '' : ''
+        description: packageDetails.itinerary && packageDetails.itinerary[index] 
+          ? packageDetails.itinerary[index].title.split(' - ')[1] 
+          : index === 0 ? 'Arrival' : index === days - 1 ? 'Departure' : 'Exploration'
       };
     });
   };
 
   const dayItems = generateDayItems();
-  
-  // Initialize refs for day items
-  useEffect(() => {
-    dayItemRefs.current = Array(dayItems.length)
-      .fill()
-      .map((_, i) => dayItemRefs.current[i] || React.createRef());
-  }, [dayItems.length]);
-  
-  // Scroll active day into view when it changes
-  useEffect(() => {
-    if (sidebarRef.current && dayItemRefs.current[activeDay]?.current) {
-      const sidebarContainer = sidebarRef.current;
-      const activeItem = dayItemRefs.current[activeDay].current;
-      
-      const containerRect = sidebarContainer.getBoundingClientRect();
-      const activeItemRect = activeItem.getBoundingClientRect();
-      
-      // Check if the active item is not fully visible
-      const isAbove = activeItemRect.top < containerRect.top;
-      const isBelow = activeItemRect.bottom > containerRect.bottom;
-      
-      if (isAbove || isBelow) {
-        // Scroll to make the active day visible with a small offset
-        activeItem.scrollIntoView({
-          behavior: 'smooth',
-          block: isAbove ? 'start' : 'end'
-        });
-        
-        // Add a small offset to avoid the day being right at the edge
-        if (isAbove) {
-          setTimeout(() => {
-            sidebarContainer.scrollTop -= 10; // Scroll up a bit to add some margin
-          }, 300);
-        } else if (isBelow) {
-          setTimeout(() => {
-            sidebarContainer.scrollTop += 10; // Scroll down a bit to add some margin
-          }, 300);
-        }
-      }
-    }
-  }, [activeDay]);
 
   // Scroll to specific day in itinerary
   const scrollToDay = (dayIndex) => {
@@ -191,91 +137,41 @@ const PackageItinerary = ({ packageDetails, activeDay, setActiveDay, contentRef,
 
   return (
     <Paper 
-      elevation={2}
+      elevation={1} 
       sx={{ 
-        p: 2, 
+        p: 1.5, 
         position: 'sticky', 
         top: 20,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
         borderRadius: '12px',
-        maxHeight: '100%',
-        overflowY: 'auto',
-        background: 'linear-gradient(180deg, #ffffff 0%, #f8faff 100%)',
-        border: '1px solid',
-        borderColor: 'divider'
+        maxHeight: 'calc(100vh - 40px)',
+        overflowY: 'auto'
       }}
     >
       <Typography 
-        variant="h6" 
+        variant="subtitle1" 
         sx={{ 
-          mb: 1.5, 
+          mb: 1, 
           display: 'flex', 
           alignItems: 'center',
-          fontSize: '1.1rem',
-          fontWeight: 'bold',
-          color: 'primary.main'
+          fontSize: '0.9rem',
+          fontWeight: 'bold' 
         }}
       >
-        <CalendarTodayIcon sx={{ mr: 1, fontSize: 20, color: 'primary.main' }} />
-        Your Itinerary
+        <CalendarTodayIcon sx={{ mr: 0.5, fontSize: 16 }} />
+        Day by Day Journey
       </Typography>
-      <Divider sx={{ mb: 2, borderColor: 'rgba(25, 118, 210, 0.2)' }} />
+      <Divider sx={{ mb: 1.5 }} />
       
       {/* Compact day navigation */}
-      <Box 
-        ref={sidebarRef}
-        sx={{ 
-          flexGrow: 1, 
-          overflowY: 'auto',
-          pr: 0.5,
-          // Custom scrollbar styling
-          '&::-webkit-scrollbar': {
-            width: '6px',
-          },
-          '&::-webkit-scrollbar-track': {
-            backgroundColor: 'rgba(0,0,0,0.03)',
-            borderRadius: '6px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            backgroundColor: 'rgba(25,118,210,0.2)',
-            borderRadius: '6px',
-            '&:hover': {
-              backgroundColor: 'rgba(25,118,210,0.3)',
-            },
-          },
-        }}
-      >
+      <Box>
         {dayItems.map((item, index) => (
-          <Box
-            ref={dayItemRefs.current[index]}
+          <DayItem
             key={index}
-          >
-            <DayItem
             day={item}
             isActive={activeDay === index}
             onClick={() => scrollToDay(index)}
           />
-          </Box>
         ))}
-      </Box>
-      
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-        <Chip
-          icon={<CalendarTodayIcon fontSize="small" />}
-          label={`${dayItems.length} Days Journey`}
-          color="primary"
-          variant="outlined"
-          size="small"
-          sx={{ 
-            fontSize: '0.75rem',
-            fontWeight: 'medium', 
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            borderRadius: '16px',
-            py: 0.5
-          }}
-        />
       </Box>
     </Paper>
   );

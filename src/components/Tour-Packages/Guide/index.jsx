@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography,
   Container,
@@ -55,7 +55,7 @@ const initialFormState = {
   }
 };
 
-export default function GuideComponent({ date, dayIndex, guidespack, tourDates = [] }) {
+export default function GuideComponent() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const selectedGuide = useSelector((state) => state.tourguide.selectedGuide);
@@ -65,48 +65,19 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
-  console.log('Guide update', guidespack);
   
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
 
-  // Helper function to convert any date format to YYYY-MM-DD string
-  const formatDateToString = (dateInput) => {
-    if (!dateInput) {
-      return new Date().toISOString().split('T')[0];
-    }
-    
-    // If it's a Moment object
-    if (dateInput._isAMomentObject) {
-      return dateInput.format('YYYY-MM-DD');
-    }
-    
-    // If it's already a string in YYYY-MM-DD format
-    if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-      return dateInput;
-    }
-    
-    // If it's a Date object or other format
-    try {
-      return new Date(dateInput).toISOString().split('T')[0];
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return new Date().toISOString().split('T')[0];
-    }
-  };
-
-  // Use the passed date as the booking date for this specific day
-  const bookingDate = formatDateToString(date);
-
   // Initialize form state with search params
   const defaultSection = useMemo(() => ({
     ...initialFormState,
-    bookingDate: bookingDate, // Use the date from the specific itinerary day
+    bookingDate: searchParams?.date || new Date().toISOString().split('T')[0],
     pax: {
       Adults: searchParams?.adults || searchParams?.adult || 1,
       Children: searchParams?.children || 0
     }
-  }), [searchParams, bookingDate]);
+  }), [searchParams]);
 
   const [formSections, setFormSections] = useState([{ ...defaultSection }]);
   const [openModal, setOpenModal] = useState(false);
@@ -117,254 +88,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   // Track which sections have already been saved to Redux
   const [savedSectionIds, setSavedSectionIds] = useState([]);
 
-  // Refs to prevent infinite loops (following attraction component pattern)
-  const hasInitializedRef = useRef(false);
-  const lastDispatchRef = useRef(null);
-  const hasDispatchedAllGuidesRef = useRef(false);
-  const currentServicesRef = useRef([]);
-
-  // Update the current services ref when existingServices changes
-  useEffect(() => {
-    currentServicesRef.current = existingServices;
-  }, [existingServices]);
-
-  // Function to initialize form sections from guidespack data
-  const initializeFormSectionsFromGuidePack = useCallback(() => {
-    if (!guidespack || !Array.isArray(guidespack) || guidespack.length === 0) {
-      console.log('No guidespack data to initialize from');
-      return;
-    }
-
-    console.log('Initializing form sections from guidespack:', guidespack);
-
-    // Filter guides that match the current dayIndex for form sections
-    const dayGuides = guidespack.filter(guideService => {
-      const guideData = guideService.data?.[0];
-      return guideData && guideData.dayIndex === dayIndex;
-    });
-
-    if (dayGuides.length === 0) {
-      console.log(`No guides found for dayIndex ${dayIndex}`);
-      return;
-    }
-
-    // Convert guide data to form sections for current day
-    const newFormSections = dayGuides.map((guideService, index) => {
-      const guideData = guideService.data[0];
-      
-      console.log('Guide originalData image check:', {
-        guideId: guideData.guide_id,
-        guideName: guideData.guide_name,
-        image: guideData.image,
-        hasImage: !!guideData.image
-      });
-      
-      return {
-        guide: guideData.guide_id,
-        pickUpTime: guideData.entrypickup || '',
-        pickUpTimeHour: guideData.entrytime || null,
-        hourlyPackage: guideData.hours || '',
-        bookingDate: guideData.bookingDate || bookingDate,
-        priceBreakdown: {
-          basePrice: guideData.basePrice || 0,
-          nightSurcharge: guideData.surcharge || 0,
-          totalPrice: guideData.totalPrice || 0,
-          nightHours: 0, // Calculate if needed
-          dayHours: guideData.hours || 0
-        },
-        pax: {
-          Adults: guideData.adults || 1,
-          Children: guideData.children || 0
-        },
-        // Store the original data for reference
-        originalData: guideData
-      };
-    });
-
-    console.log('Initialized guide form sections for current day:', newFormSections);
-    setFormSections(newFormSections);
-    setExpandedSections(newFormSections.map((_, index) => index));
-  }, [guidespack, dayIndex, bookingDate]);
-
-  // Function to dispatch ALL guides from guidespack to Redux state
-  const dispatchAllGuidesToRedux = useCallback(() => {
-    if (!guidespack || !Array.isArray(guidespack) || guidespack.length === 0) {
-      console.log('No guidespack data to dispatch to Redux');
-      return;
-    }
-
-    // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(guidespack.map(service => service.data?.[0]?.id));
-    
-    if (lastDispatchRef.current === dispatchKey) {
-      console.log('Skipping duplicate dispatch for all guides');
-      return;
-    }
-
-    console.log('Dispatching ALL guides from guidespack to Redux:', guidespack);
-
-    // Process ALL guides from guidespack, not just current day
-    const allGuidesForRedux = guidespack.map(guideService => {
-      const guideData = guideService.data[0];
-      
-      if (!guideData) {
-        console.log('No guide data found in service:', guideService);
-        return null;
-      }
-
-      console.log('Processing guide for Redux:', guideData);
-      
-      return {
-        id: guideData.id,
-        guide_id: guideData.guide_id,
-        guide_name: guideData.guide_name,
-        image: guideData.image,
-        dmc_Id: guideData.dmc_Id,
-        Mode: guideData.Mode,
-        entrypickup: guideData.entrypickup,
-        entrytime: guideData.entrytime,
-        adults: guideData.adults,
-        children: guideData.children,
-        hours: guideData.hours,
-        basePrice: guideData.basePrice,
-        surcharge: guideData.surcharge,
-        totalPrice: guideData.totalPrice,
-        pickupdate: guideData.pickupdate,
-        bookingDate: guideData.bookingDate,
-        dayIndex: guideData.dayIndex,
-        Tax: guideData.Tax,
-        Night_Start_Time: guideData.Night_Start_Time,
-        Night_End_Time: guideData.Night_End_Time,
-        city: guideData.city,
-        country: guideData.country,
-        languages: guideData.languages,
-        experience: guideData.experience,
-        bookingType: guideData.bookingType || "booking"
-      };
-    }).filter(Boolean); // Remove null entries
-
-    if (allGuidesForRedux.length === 0) {
-      console.log('No valid guides to dispatch to Redux');
-      return;
-    }
-
-    // Remove any existing guide services using the ref
-    const filteredServices = currentServicesRef.current.filter(service => service.type !== "guide");
-
-    // Create new guide service entries for ALL guides
-    const newGuideServices = allGuidesForRedux.map(guideData => ({
-      type: "guide",
-      agent_id: agentId,
-      tour_id: tourId,
-      data: [guideData]
-    }));
-
-    // Add new services to filtered services
-    const finalServices = [...filteredServices, ...newGuideServices];
-
-    console.log('Dispatching ALL guide services to Redux:', finalServices);
-    dispatch(setAllServices(finalServices));
-    
-    // Update the last dispatch ref
-    lastDispatchRef.current = dispatchKey;
-  }, [guidespack, agentId, tourId, dispatch]);
-
-  // Reset refs when dayIndex changes
-  useEffect(() => {
-    hasInitializedRef.current = false;
-    lastDispatchRef.current = null;
-    hasDispatchedAllGuidesRef.current = false;
-    currentServicesRef.current = [];
-  }, [dayIndex]);
-
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      hasInitializedRef.current = false;
-      lastDispatchRef.current = null;
-      hasDispatchedAllGuidesRef.current = false;
-      currentServicesRef.current = [];
-    };
-  }, []);
-
-  // Initialize form sections when guidespack changes
-  useEffect(() => {
-    if (!hasInitializedRef.current && guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
-      console.log('Initializing form sections from guidespack');
-      initializeFormSectionsFromGuidePack();
-      hasInitializedRef.current = true;
-    }
-  }, [guidespack, initializeFormSectionsFromGuidePack]);
-
-  // Dispatch ALL guides to Redux when guidespack is available (only once)
-  useEffect(() => {
-    if (!hasDispatchedAllGuidesRef.current && guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
-      console.log('Dispatching ALL guides from guidespack to Redux on mount');
-      dispatchAllGuidesToRedux();
-      hasDispatchedAllGuidesRef.current = true;
-    }
-  }, [guidespack, dispatchAllGuidesToRedux]);
-
   // Define helper functions at the beginning
-  // Helper to check if a booking is out of current tour dates for the specific dayIndex
-  const isBookingOutOfTourDates = (booking) => {
-    // Only validate if this booking belongs to the current dayIndex
-    const bookingDayIndex = booking.originalData?.dayIndex || dayIndex;
-    
-    // If the booking doesn't belong to this dayIndex, don't validate
-    if (bookingDayIndex !== dayIndex) {
-      return false;
-    }
-    
-    const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
-    
-    // Debug logging to check date formats
-    console.log('Guide date validation debug:', {
-      bookingId: booking.originalData?.id || 'new-booking',
-      bookingDate: bookingDate,
-      tourDates: tourDates,
-      dayIndex: dayIndex,
-      bookingDayIndex: bookingDayIndex
-    });
-    
-    // Handle edge cases
-    if (!bookingDate || !tourDates || tourDates.length === 0) {
-      console.log('Missing bookingDate or tourDates, skipping validation');
-      return false;
-    }
-    
-    // Normalize booking date to YYYY-MM-DD format
-    let normalizedBookingDate;
-    try {
-      if (typeof bookingDate === 'string') {
-        // If it's already in YYYY-MM-DD format
-        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
-          normalizedBookingDate = bookingDate;
-        } else {
-          // Convert from other formats to YYYY-MM-DD
-          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
-        }
-      } else {
-        // If it's a Date object
-        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
-      }
-    } catch (error) {
-      console.error('Error normalizing booking date:', error);
-      return false;
-    }
-    
-    // Check if the normalized booking date exists in tourDates
-    const isDateValid = tourDates.includes(normalizedBookingDate);
-    
-    console.log('Guide date validation result:', {
-      normalizedBookingDate: normalizedBookingDate,
-      isDateValid: isDateValid,
-      willShowError: !isDateValid
-    });
-    
-    return !isDateValid;
-  };
-
   const getSelectedGuide = (guideId) => {
     return guides.find(g => g.id === guideId);
   };
@@ -381,48 +105,25 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
   // Define memoized functions early
   const getBookingSummary = useCallback((booking) => {
-    // If we have original data, use it directly
-    if (booking.originalData) {
-      console.log('Using original data for guide booking summary:', booking.originalData);
-      return {
-        guide: booking.originalData,
-        guideName: booking.originalData.guide_name,
-        city: booking.originalData.city || searchParams?.location?.city || '',
-        country: booking.originalData.country || searchParams?.location?.country || '',
-        pickUpTime: booking.pickUpTime,
-        pickUpTimeHour: booking.pickUpTimeHour,
-        duration: booking.hourlyPackage,
-        pax: booking.pax,
-        mode: currentMode,
-        priceBreakdown: booking.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0 },
-        image: booking.originalData.image,
-        languages: booking.originalData.languages || [],
-        experience: booking.originalData.experience || 'Not specified',
-        bookingDate: booking.bookingDate
-      };
-    }
-
-    // Fallback to finding data from Redux state (for new bookings)
-    // Use selectedGuide for detailed information (like attractionDetails in attraction component)
     const selectedGuideDetails = guides.find(g => g.id === booking.guide) || {};
     
     return {
       guide: selectedGuideDetails,
-      guideName: selectedGuide?.guide_name || selectedGuideDetails.guide_name || 'Guide',
-      city: selectedGuide?.city || selectedGuideDetails.city || searchParams?.location?.city || '',
-      country: selectedGuide?.country || selectedGuideDetails.country || searchParams?.location?.country || '',
+      guideName: selectedGuideDetails.guide_name || 'Guide',
+      city: selectedGuideDetails.city || searchParams?.location?.city || '',
+      country: selectedGuideDetails.country || searchParams?.location?.country || '',
       pickUpTime: booking.pickUpTime,
       pickUpTimeHour: booking.pickUpTimeHour,
       duration: booking.hourlyPackage,
       pax: booking.pax,
       mode: currentMode,
       priceBreakdown: booking.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0 },
-      image: selectedGuide?.guide_image || selectedGuide?.image || selectedGuideDetails.image || '/placeholder-guide.jpg',
-      languages: selectedGuide?.languages || selectedGuideDetails.languages || [],
-      experience: selectedGuide?.experience_years || selectedGuideDetails.experience_years || 'Not specified',
+      image: selectedGuideDetails.image || '/placeholder-guide.jpg',
+      languages: selectedGuideDetails.languages || [],
+      experience: selectedGuideDetails.experience_years || 'Not specified',
       bookingDate: booking.bookingDate
     };
-  }, [guides, selectedGuide, searchParams, currentMode]);
+  }, [guides, searchParams, currentMode]);
 
   const validateBookings = useCallback(() => {
     if (formSections.length === 0) {
@@ -464,63 +165,16 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       return; // No complete sections to save
     }
     
-    // Clone the existing services array, but only remove guide services for the current dayIndex
-    // Preserve guide services for other dates
-    const servicesWithoutGuides = existingServices.filter(service => {
-      if (service.type !== "guide") {
-        return true; // Keep non-guide services
-      }
-      
-      // For guide services, check if they belong to the current dayIndex
-      // If the service has data and any booking has the same dayIndex, remove it
-      if (service.data && Array.isArray(service.data)) {
-        const hasCurrentDayBooking = service.data.some(booking => 
-          booking.dayIndex === dayIndex
-        );
-        return !hasCurrentDayBooking; // Keep if it doesn't have current day booking
-      }
-      
-      return true; // Keep if no data or invalid structure
-    });
+    // Clone the existing services array, but remove ALL previous guide services
+    const servicesWithoutGuides = existingServices.filter(service => service.type !== "guide");
     
     // Create new guide services for the current complete sections
     const guideServices = completeSections.map((section, index) => {
-      // If we have original data, use it as base and update with current form values
-      if (section.originalData) {
-        console.log('Using original data for guide booking:', section.originalData);
-        const bookingData = {
-          ...section.originalData,
-          // Update with current form values
-          guide_id: section.guide,
-          entrypickup: section.pickUpTime,
-          entrytime: section.pickUpTimeHour,
-          adults: section.pax.Adults,
-          children: section.pax.Children,
-          hours: section.hourlyPackage,
-          basePrice: section.priceBreakdown.basePrice,
-          surcharge: section.priceBreakdown.nightSurcharge,
-          totalPrice: section.priceBreakdown.totalPrice,
-          bookingDate: section.bookingDate,
-          pickupdate: section.bookingDate,
-          dayIndex: dayIndex,
-          Mode: currentMode,
-          dmc_Id: agentId
-        };
-        
-        return {
-          type: "guide",
-          agent_id: agentId,
-          tour_id: tourId,
-          data: [bookingData]
-        };
-      }
-      
-      // For new bookings, create from scratch
       const summaryData = getBookingSummary(section);
       
       // Create unique booking ID - use formSections index to maintain identity
       const sectionIndex = formSections.indexOf(section);
-      const bookingId = section.originalData?.id || `guide-${Date.now()}-${sectionIndex}`;
+      const bookingId = `guide-${Date.now()}-${sectionIndex}`;
       
       // Create the guide booking data
       // Get the guide details for this specific section
@@ -542,8 +196,6 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         surcharge: section.priceBreakdown.nightSurcharge,
         totalPrice: section.priceBreakdown.totalPrice,
         pickupdate: section.bookingDate,
-        bookingDate: section.bookingDate, // Ensure consistency with other booking types
-        dayIndex: dayIndex, // Track which day this booking belongs to
         Tax: selectedGuideDetails?.tax_percentage,
         Night_Start_Time: selectedGuideDetails?.night_start_time,
         Night_End_Time: selectedGuideDetails?.night_end_time,
@@ -555,12 +207,6 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       };
       
       console.log(`Guide booking data for section ${index}:`, bookingData);
-      console.log(`Guide booking date check for section ${index}:`, {
-        sectionBookingDate: section.bookingDate,
-        formattedBookingDate: bookingDate,
-        dayIndex: dayIndex,
-        finalBookingDate: bookingData.bookingDate
-      });
       
       // Create a new guide service entry for this booking
       return {
@@ -575,13 +221,6 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     const updatedServices = [...servicesWithoutGuides, ...guideServices];
     
     console.log("Guide - Dispatching updated services to Redux:", updatedServices);
-    console.log("Guide - Services filtering check:", {
-      totalExistingServices: existingServices.length,
-      guideServicesRemoved: existingServices.filter(s => s.type === "guide").length - servicesWithoutGuides.filter(s => s.type === "guide").length,
-      currentDayIndex: dayIndex,
-      newGuideServices: guideServices.length,
-      finalTotalServices: updatedServices.length
-    });
     
     // Dispatch the updated services
     dispatch(setAllServices(updatedServices));
@@ -596,156 +235,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   useEffect(() => {
     console.log('Guide Status:', status);
     console.log('Guides Data:', guides);
-    console.log('Selected Guide (detailed):', selectedGuide);
     console.log('Search Params:', searchParams);
-    console.log('GuideComponent - Received props:', { date, dayIndex, bookingDate });
-    console.log('GuideComponent - Date type check:', { 
-      dateType: typeof date, 
-      isMoment: date?._isAMomentObject,
-      formattedBookingDate: bookingDate,
-      bookingDateType: typeof bookingDate
-    });
-    console.log('GuideComponent - Form sections with booking dates:', formSections.map(section => ({
-      bookingDate: section.bookingDate,
-      dayIndex: dayIndex
-    })));
-  }, [status, guides, selectedGuide, searchParams, date, dayIndex, bookingDate, formSections]);
-
-  // Function to dispatch individual booking updates to Redux
-  const dispatchBookingUpdateToRedux = useCallback((sectionIndex, updatedSection) => {
-    if (!updatedSection.guide || !updatedSection.pickUpTime || !updatedSection.hourlyPackage) {
-      console.log('Incomplete guide section, skipping Redux dispatch');
-      return;
-    }
-
-    // If we have original data, use it directly
-    if (updatedSection.originalData) {
-      console.log('Using original data for individual guide booking update:', updatedSection.originalData);
-      
-      const bookingData = {
-        ...updatedSection.originalData,
-        // Update with current form values
-        guide_id: updatedSection.guide,
-        entrypickup: updatedSection.pickUpTime,
-        entrytime: updatedSection.pickUpTimeHour,
-        adults: updatedSection.pax.Adults,
-        children: updatedSection.pax.Children,
-        hours: updatedSection.hourlyPackage,
-        basePrice: updatedSection.priceBreakdown.basePrice,
-        surcharge: updatedSection.priceBreakdown.nightSurcharge,
-        totalPrice: updatedSection.priceBreakdown.totalPrice,
-        bookingDate: updatedSection.bookingDate,
-        pickupdate: updatedSection.bookingDate,
-        dayIndex: dayIndex,
-        Mode: currentMode,
-        dmc_Id: agentId
-      };
-
-      // Clone existing services
-      const currentServices = [...existingServices];
-      
-      // Find and update existing guide service for this dayIndex
-      let found = false;
-      const updatedServices = currentServices.map(service => {
-        if (service.type === "guide" && service.data && Array.isArray(service.data)) {
-          const updatedData = service.data.map(item => {
-            if (item.dayIndex === dayIndex && item.id === bookingData.id) {
-              found = true;
-              return bookingData;
-            }
-            return item;
-          });
-          
-          if (found) {
-            return { ...service, data: updatedData };
-          }
-        }
-        return service;
-      });
-
-      // If not found, add new service entry
-      if (!found) {
-        const newGuideService = {
-          type: "guide",
-          agent_id: agentId,
-          tour_id: tourId,
-          data: [bookingData]
-        };
-        updatedServices.push(newGuideService);
-      }
-
-      console.log("Guide - Dispatching individual booking update to Redux (original data):", bookingData);
-      dispatch(setAllServices(updatedServices));
-      return;
-    }
-
-    // For new bookings, calculate everything
-    const summaryData = getBookingSummary(updatedSection);
-    const selectedGuideDetails = getSelectedGuide(updatedSection.guide);
-
-    const bookingData = {
-      id: updatedSection.originalData?.id || `guide-${Date.now()}-${sectionIndex}`,
-      guide_id: updatedSection.guide,
-      guide_name: summaryData.guideName,
-      image: summaryData.image,
-      dmc_Id: agentId,
-      Mode: currentMode,
-      entrypickup: updatedSection.pickUpTime,
-      entrytime: updatedSection.pickUpTimeHour,
-      adults: updatedSection.pax.Adults,
-      children: updatedSection.pax.Children,
-      hours: updatedSection.hourlyPackage,
-      basePrice: updatedSection.priceBreakdown.basePrice,
-      surcharge: updatedSection.priceBreakdown.nightSurcharge,
-      totalPrice: updatedSection.priceBreakdown.totalPrice,
-      pickupdate: updatedSection.bookingDate,
-      bookingDate: updatedSection.bookingDate,
-      dayIndex: dayIndex,
-      Tax: selectedGuideDetails?.tax_percentage,
-      Night_Start_Time: selectedGuideDetails?.night_start_time,
-      Night_End_Time: selectedGuideDetails?.night_end_time,
-      city: summaryData.city,
-      country: summaryData.country,
-      languages: summaryData.languages,
-      experience: summaryData.experience
-    };
-
-    // Clone existing services
-    const currentServices = [...existingServices];
-    
-    // Find and update existing guide service for this dayIndex
-    let found = false;
-    const updatedServices = currentServices.map(service => {
-      if (service.type === "guide" && service.data && Array.isArray(service.data)) {
-        const updatedData = service.data.map(item => {
-          if (item.dayIndex === dayIndex && item.id === bookingData.id) {
-            found = true;
-            return bookingData;
-          }
-          return item;
-        });
-        
-        if (found) {
-          return { ...service, data: updatedData };
-        }
-      }
-      return service;
-    });
-
-    // If not found, add new service entry
-    if (!found) {
-      const newGuideService = {
-        type: "guide",
-        agent_id: agentId,
-        tour_id: tourId,
-        data: [bookingData]
-      };
-      updatedServices.push(newGuideService);
-    }
-
-    console.log("Guide - Dispatching individual booking update to Redux:", bookingData);
-    dispatch(setAllServices(updatedServices));
-  }, [guides, currentMode, agentId, tourId, dayIndex, existingServices, dispatch, getBookingSummary, getSelectedGuide]);
+  }, [status, guides, searchParams]);
   
   // Effect to automatically dispatch completed guide bookings to Redux
   useEffect(() => {
@@ -762,8 +253,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         (section.pax.Adults + section.pax.Children > 0)
       );
       
-      // Generate a unique ID for this section based on its contents and dayIndex
-      const sectionSignature = `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}-${dayIndex}`;
+      // Generate a unique ID for this section based on its contents
+      const sectionSignature = `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}`;
       
       // Check if this section has already been saved
       const isSaved = savedSectionIds.includes(sectionSignature);
@@ -776,15 +267,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     if (newCompleteSections.length > 0) {
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
-        `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}-${dayIndex}`
+        `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}`
       );
-      
-      console.log('Guide - Auto dispatch triggered:', {
-        newCompleteSections: newCompleteSections.length,
-        dayIndex: dayIndex,
-        newSectionSignatures: newSectionSignatures,
-        currentSavedIds: savedSectionIds
-      });
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
@@ -797,54 +281,28 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       
       return () => clearTimeout(timeoutId);
     }
-  }, [formSections, handleBookNow, status, savedSectionIds, dispatchBookingUpdateToRedux]);
+  }, [formSections, handleBookNow, status, savedSectionIds]);
 
   const handleAddMore = () => {
     const newIndex = formSections.length;
-    const newSection = { 
-      ...defaultSection, 
-      bookingDate: bookingDate,
-      // Ensure new sections don't have originalData to avoid conflicts
-      originalData: null
-    };
-    setFormSections([...formSections, newSection]);
+    setFormSections([...formSections, { ...defaultSection }]);
     setExpandedSections([...expandedSections, newIndex]);
   };
 
   const handleRemoveSection = (indexToRemove) => {
+    // Get the section being removed
     const sectionToRemove = formSections[indexToRemove];
     
-    // Remove from local state
+    // Remove the section from formSections
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
+    
+    // Update expanded sections
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
     
     // Remove section signature from saved IDs
     if (sectionToRemove) {
-      const sectionSignature = `${sectionToRemove.guide}-${sectionToRemove.pickUpTime}-${sectionToRemove.hourlyPackage}-${dayIndex}`;
+      const sectionSignature = `${sectionToRemove.guide}-${sectionToRemove.pickUpTime}-${sectionToRemove.hourlyPackage}`;
       setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
-    }
-    
-    // Remove from Redux state if the section has an original ID
-    if (sectionToRemove?.originalData?.id) {
-      const currentServices = [...existingServices];
-      const updatedServices = currentServices.filter(service => {
-        if (service.type === "guide" && service.data && Array.isArray(service.data)) {
-          // Remove the specific booking from this service
-          const filteredData = service.data.filter(item => item.id !== sectionToRemove.originalData.id);
-          if (filteredData.length === 0) {
-            // If no data left, remove the entire service
-            return false;
-          } else {
-            // Update the service with filtered data
-            service.data = filteredData;
-            return true;
-          }
-        }
-        return true;
-      });
-      
-      console.log("Guide - Removing booking from Redux:", sectionToRemove.originalData.id);
-      dispatch(setAllServices(updatedServices));
     }
   };
 
@@ -864,35 +322,29 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         ...defaultSection,
         guide: value,
         bookingDate: newFormSections[sectionIndex].bookingDate,
-        pax: newFormSections[sectionIndex].pax,
-        // Preserve original data when changing guide to maintain connection
-        originalData: newFormSections[sectionIndex].originalData
+        pax: newFormSections[sectionIndex].pax
       };
     } else if (field === 'pickUpTime') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
         pickUpTime: value.value,
-        pickUpTimeHour: value.hourValue,
-        bookingDate: bookingDate // Preserve booking date
+        pickUpTimeHour: value.hourValue
       };
     } else if (field === 'hourlyPackage') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
         hourlyPackage: value.value,
-        priceBreakdown: value.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0, nightHours: 0, dayHours: 0 },
-        bookingDate: bookingDate // Preserve booking date
+        priceBreakdown: value.priceBreakdown || { basePrice: 0, nightSurcharge: 0, totalPrice: 0, nightHours: 0, dayHours: 0 }
       };
     } else if (field === 'pax') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
-        pax: value,
-        bookingDate: bookingDate // Preserve booking date
+        pax: value
       };
     } else {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
-        [field]: value,
-        bookingDate: bookingDate // Preserve booking date
+        [field]: value
       };
     }
     
@@ -908,10 +360,10 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     
     // Generate signature for this section
     const oldSectionSignature = formSections[sectionIndex] ? 
-      `${formSections[sectionIndex].guide}-${formSections[sectionIndex].pickUpTime}-${formSections[sectionIndex].hourlyPackage}-${dayIndex}` : '';
+      `${formSections[sectionIndex].guide}-${formSections[sectionIndex].pickUpTime}-${formSections[sectionIndex].hourlyPackage}` : '';
     
     const newSectionSignature = 
-      `${updatedSection.guide}-${updatedSection.pickUpTime}-${updatedSection.hourlyPackage}-${dayIndex}`;
+      `${updatedSection.guide}-${updatedSection.pickUpTime}-${updatedSection.hourlyPackage}`;
     
     // If the data changed, remove the old signature from saved list
     if (oldSectionSignature !== newSectionSignature) {
@@ -926,9 +378,6 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     if (isComplete) {
       // The useEffect will handle dispatching to Redux
       console.log(`Guide booking section ${sectionIndex + 1} is now complete`);
-      
-      // Also dispatch individual update to Redux if section is complete
-      dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
     }
   };
 
@@ -1030,7 +479,6 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           const selectedGuideDetails = getSelectedGuide(section.guide);
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
-          const outOfTourDates = isBookingOutOfTourDates(section);
           
           return (
             <Grid item xs={12} key={sectionIndex}>
@@ -1038,13 +486,10 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                 elevation={2}
                 sx={{ 
                   borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#2196f3', 0.2)}`,
-                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
+                  border: `2px solid ${alpha('#2196f3', 0.2)}`,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#2196f3', 0.15)}`,
+                    boxShadow: `0 8px 24px ${alpha('#2196f3', 0.15)}`,
                     transform: 'translateY(-2px)',
                   }
                 }}
@@ -1155,26 +600,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Box 
                           component="img"
-                          src={(() => {
-                            const imageUrl = section.originalData?.image || 
-                                           selectedGuide?.guide_image || 
-                                           selectedGuide?.image || 
-                                           selectedGuideDetails.image || 
-                                           '/placeholder-guide.jpg';
-                            console.log('Guide collapsed view image debug:', {
-                              sectionIndex,
-                              originalDataImage: section.originalData?.image,
-                              selectedGuideImage: selectedGuide?.guide_image || selectedGuide?.image,
-                              selectedGuideDetailsImage: selectedGuideDetails.image,
-                              finalImageUrl: imageUrl,
-                              hasOriginalData: !!section.originalData,
-                              hasSelectedGuide: !!selectedGuide
-                            });
-                            return imageUrl;
-                          })()}
-                          alt={section.originalData?.guide_name || 
-                               selectedGuide?.guide_name || 
-                               selectedGuideDetails.guide_name}
+                          src={selectedGuideDetails.image || '/placeholder-guide.jpg'}
+                          alt={selectedGuideDetails.guide_name}
                           sx={{ 
                             width: 60, 
                             height: 60, 
@@ -1185,9 +612,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                         />
                         <Box sx={{ flex: 1 }}>
                           <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                            {section.originalData?.guide_name || 
-                             selectedGuide?.guide_name || 
-                             selectedGuideDetails.guide_name}
+                            {selectedGuideDetails.guide_name}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                             {section.pax.Adults + section.pax.Children > 0 && (
@@ -1338,15 +763,6 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                       </Grid>
                     </Paper>
                   </Collapse>
-
-                  {/* Red alert if out of tour dates */}
-                  {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
-                        The booking is out of currently updated tour dates
-                      </Alert>
-                    </Box>
-                  )}
                 </CardContent>
               </Card>
             </Grid>
@@ -1394,34 +810,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         onClose={handleCloseModal}
         bookingData={selectedSectionIndex !== null ? formSections[selectedSectionIndex] : null}
         bookingIndex={selectedSectionIndex}
-        guideDetails={selectedSectionIndex !== null ? (() => {
-          const section = formSections[selectedSectionIndex];
-          const baseGuideDetails = getSelectedGuide(section?.guide);
-          
-          // If we have originalData, merge it with base guide details
-          if (section?.originalData) {
-            return {
-              ...baseGuideDetails,
-              image: section.originalData.image,
-              guide_name: section.originalData.guide_name,
-              city: section.originalData.city || baseGuideDetails?.city,
-              country: section.originalData.country || baseGuideDetails?.country,
-              experience_years: section.originalData.experience || baseGuideDetails?.experience_years,
-              languages: section.originalData.languages || baseGuideDetails?.languages
-            };
-          }
-          
-          // For new bookings, use selectedGuide for detailed information
-          return {
-            ...baseGuideDetails,
-            image: selectedGuide?.guide_image || selectedGuide?.image || baseGuideDetails?.image,
-            guide_name: selectedGuide?.guide_name || baseGuideDetails?.guide_name,
-            city: selectedGuide?.city || baseGuideDetails?.city,
-            country: selectedGuide?.country || baseGuideDetails?.country,
-            experience_years: selectedGuide?.experience_years || baseGuideDetails?.experience_years,
-            languages: selectedGuide?.languages || baseGuideDetails?.languages
-          };
-        })() : null}
+        guideDetails={selectedGuide}
       />
     </Container>
   );

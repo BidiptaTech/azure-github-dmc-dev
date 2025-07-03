@@ -21,21 +21,13 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1 }) => {
       state.hotels.tourdetails.data.CheckOutTime
   );
   const formatDateToDDMMYYYY = (dateString) => {
-    if (!dateString) return null;
-    
-    // Check if the date is already in YYYY-MM-DD format
-    if (dateString.includes("-") && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateString; // Already in correct format
+    if (!dateString) {
+      // console.error("Invalid date string provided:", dateString);
+      return null; // Return a fallback value or handle it appropriately
     }
-    
-    // Handle DD/MM/YYYY format (previous format)
-    if (dateString.includes("/")) {
-      const [day, month, year] = dateString.split("/");
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-    
-    // If neither format matches, return as is
-    return dateString;
+
+    const [day, month, year] = dateString.split("/");
+    return `${year}-${month}-${day}`;
   };
 
   // Now you can apply it to your `checkIn` and `checkOut`

@@ -69,15 +69,15 @@ const Pickuptime1 = ({
   disabled = false,
   setTime,
 }) => {
-  const prevTimeRef = useRef(entryytime);
+  const prevTimeRef = useRef(!!entryytime);
 
   useEffect(() => {
     if (setTime) {
-      // Always update the time state when entryytime changes
-      const hasTime = !!entryytime;
-      console.log("Pickuptime1 - Setting time state:", hasTime, "Current time value:", entryytime);
-      setTime(hasTime);
-      prevTimeRef.current = entryytime;
+      const currentTimeState = !!entryytime;
+      if (currentTimeState !== prevTimeRef.current) {
+        setTime(currentTimeState);
+        prevTimeRef.current = currentTimeState;
+      }
     }
   }, [entryytime, setTime]);
 
@@ -103,14 +103,7 @@ const Pickuptime1 = ({
   // Handle time selection
   const handleTimeChange = (e) => {
     if (!isStatic && !disabled) {
-      const selectedTime = e.target.value;
-      setentryytime(selectedTime);
-      
-      // Explicitly set time1 state to true when a time is selected
-      if (setTime && selectedTime) {
-        console.log("Pickuptime1 - Explicitly setting time state to true for:", selectedTime);
-        setTime(true);
-      }
+      setentryytime(e.target.value);
     }
   };
 

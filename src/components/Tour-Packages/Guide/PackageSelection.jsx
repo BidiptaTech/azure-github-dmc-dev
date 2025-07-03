@@ -52,16 +52,6 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
   // Get booking date from section if not provided as prop
   const sectionBookingDate = formSection?.bookingDate || formSection?.date;
   const effectiveBookingDate = bookingDate || sectionBookingDate;
-
-  // Log props received from parent component
-  React.useEffect(() => {
-    console.log('PackageSelection - Received props:', { 
-      bookingDate, 
-      effectiveBookingDate,
-      sectionBookingDate,
-      formSectionBookingDate: formSection?.bookingDate
-    });
-  }, [bookingDate, effectiveBookingDate, sectionBookingDate, formSection?.bookingDate]);
   
   // Parse night time limits from guide data
   const nightStartTime = selectedGuide?.night_start_time || "21:00"; // Default to 9 PM

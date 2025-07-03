@@ -1,163 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Modal } from "react-bootstrap";
 import { useSelector } from "react-redux";
-import { 
-  Dialog, 
-  DialogActions, 
-  DialogContent, 
-  DialogTitle,
-  Button,
-  Box,
-  Typography,
-  Paper,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  Grid,
-  Card,
-  CardContent,
-  Chip,
-  Tooltip,
-  Zoom,
-  Fade,
-  Badge,
-  Divider,
-  Avatar
-} from "@mui/material";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
-import InfoIcon from "@mui/icons-material/Info";
-import NotificationsIcon from "@mui/icons-material/Notifications";
-import SecurityIcon from "@mui/icons-material/SecurityOutlined";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import PersonIcon from '@mui/icons-material/Person';
-import ChildCareIcon from '@mui/icons-material/ChildCare';
-import AccessibilityNewIcon from '@mui/icons-material/AccessibilityNew';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import ArticleIcon from '@mui/icons-material/Article';
-import LanguageIcon from '@mui/icons-material/Language';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import { styled, alpha } from "@mui/material/styles";
-
-const StyledDropdown = styled(Paper)(({ theme, isOpen }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  border: `1px solid ${isOpen ? theme.palette.primary.main : theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.15) : '#e5e7eb'}`,
-  borderRadius: '8px',
-  padding: '10px 12px',
-  cursor: 'pointer',
-  transition: 'all 0.2s',
-  boxShadow: isOpen ? '0 4px 12px rgba(53, 84, 209, 0.15)' : 'none',
-  backgroundColor: isOpen ? alpha(theme.palette.primary.main, 0.02) : theme.palette.background.paper,
-  "&:hover": {
-    boxShadow: '0 2px 8px rgba(53, 84, 209, 0.12)',
-    borderColor: theme.palette.primary.main,
-    backgroundColor: alpha(theme.palette.primary.main, 0.02),
-  }
-}));
-
-const DropdownMenu = styled(Paper)(({ theme }) => ({
-  position: 'absolute',
-  zIndex: 1000,
-  marginTop: '2px',
-  boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-  borderRadius: '8px',
-  backgroundColor: theme.palette.background.paper,
-  width: 'calc(100% + 6px)',
-  left: '-2px',
-  maxHeight: '250px',
-  overflowY: 'auto',
-  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-}));
-
-const TicketItem = styled(Box)(({ theme, isSelected }) => ({
-  padding: '12px',
-  cursor: 'pointer',
-  backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.08) : theme.palette.background.paper,
-  borderBottom: `1px solid ${theme.palette.grey[100]}`,
-  display: 'flex',
-  alignItems: 'center',
-  '&:last-child': {
-    borderBottom: 'none'
-  },
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.05)
-  },
-  transition: 'background-color 0.2s'
-}));
-
-const ContentBox = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(2),
-  padding: theme.spacing(1.5, 2),
-  backgroundColor: alpha(theme.palette.primary.main, 0.05),
-  borderRadius: theme.shape.borderRadius,
-  position: 'relative',
-  overflow: 'hidden',
-  '&:before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '4px',
-    height: '100%',
-    backgroundColor: theme.palette.primary.main,
-  }
-}));
-
-const PriceCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  boxShadow: 'none',
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  transition: 'all 0.3s',
-  position: 'relative',
-  overflow: 'hidden',
-  '&:hover': {
-    transform: 'translateY(-3px)',
-    boxShadow: '0 10px 20px rgba(0,0,0,0.08)',
-    '& .price-icon': {
-      transform: 'scale(1.1)',
-    }
-  },
-  '& .price-icon': {
-    transition: 'transform 0.3s',
-  }
-}));
-
-const PriceCardHeader = styled(Box)(({ theme, type }) => {
-  let color = theme.palette.primary.main;
-  if (type === 'child') color = theme.palette.success.main;
-  if (type === 'senior') color = theme.palette.warning.main;
-  
-  return {
-    backgroundColor: alpha(color, 0.1),
-    padding: theme.spacing(1.5),
-    borderBottom: `1px solid ${alpha(color, 0.2)}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  };
-});
-
-const StyledBadge = styled(Badge)(({ theme }) => ({
-  '& .MuiBadge-badge': {
-    right: -3,
-    top: -2,
-    padding: '0 4px',
-  },
-}));
-
-const AnimatedAvatar = styled(Avatar)(({ theme }) => ({
-  backgroundColor: theme.palette.primary.main,
-  transition: 'all 0.3s',
-  '&:hover': {
-    transform: 'rotate(10deg)',
-  }
-}));
 
 const TicketSelection = ({
   ticketOptions,
@@ -169,10 +13,12 @@ const TicketSelection = ({
   setNriStatus
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // const [showFullDescription, setShowFullDescription] = useState(false);
   const [textModalContent, setTextModalContent] = useState({ title: "", content: "", isOpen: false });
   const dropdownRef = useRef(null);
 
   // Get currency information from Redux store
+  // const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate =
@@ -188,10 +34,18 @@ const TicketSelection = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Reset description state when modal opens with a new ticket
+  // useEffect(() => {
+  //   if (isModalOpen) {
+  //     setShowFullDescription(false);
+  //   }
+  // }, [isModalOpen, selectedTicket]);
+
   const handleOpenModal = (ticket) => {
     setSelectedTicket(ticket);
     setIsModalOpen(true);
     setIsDropdownOpen(false);
+    // setShowFullDescription(false);
   };
 
   const handleConfirmSelection = () => {
@@ -263,16 +117,18 @@ const TicketSelection = ({
     
     const words = description.split(/\s+/);
     const wordCount = words.length;
-    const wordLimit = 10;
+    const wordLimit = 10; // Changed from 200 to 10 per requirement
     
     const getIcon = () => {
       switch (type) {
         case "description":
-          return <InfoIcon fontSize="small" color="primary" sx={{ mr: 1 }} />;
+          return <i className="icon-info-circle text-15 text-blue-1 mr-10"></i>;
         case "remarks":
-          return <NotificationsIcon fontSize="small" color="warning" sx={{ mr: 1 }} />;
+          return (
+            <i className="icon-notification text-15 text-yellow-1 mr-10"></i>
+          );
         case "terms":
-          return <SecurityIcon fontSize="small" color="error" sx={{ mr: 1 }} />;
+          return <i className="icon-shield text-15 text-red-1 mr-10"></i>;
         default:
           return null;
       }
@@ -301,52 +157,51 @@ const TicketSelection = ({
     
     if (wordCount <= wordLimit) {
       return (
-        <ContentBox>
-          <Box display="flex" alignItems="center" mb={0.5}>
+        <div className="mt-15 py-10 px-15 bg-blue-1-05 rounded-4">
+          <div className="d-flex mb-5">
             {getIcon()}
-            <Typography variant="subtitle2">{getTitle()}</Typography>
-          </Box>
-          <Typography variant="body2">{description}</Typography>
-        </ContentBox>
+            <span className="fw-500">{getTitle()}</span>
+          </div>
+          <p className="text-15">{description}</p>
+        </div>
       );
     }
     
     const truncatedText = words.slice(0, wordLimit).join(" ");
     
     return (
-      <ContentBox>
-        <Box display="flex" alignItems="center" mb={0.5}>
+      <div className="mt-15 py-10 px-15 bg-blue-1-05 rounded-4">
+        <div className="d-flex mb-5">
           {getIcon()}
-          <Typography variant="subtitle2">{getTitle()}</Typography>
-        </Box>
-        <Typography variant="body2">
+          <span className="fw-500">{getTitle()}</span>
+        </div>
+        <p className="text-15">
           {truncatedText + "..."}
-        </Typography>
-        <Button 
+        </p>
+        <button 
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             openTextModal();
           }}
-          sx={{ 
-            p: 0, 
-            mt: 0.5, 
-            minWidth: 'auto', 
-            textTransform: 'none',
-            fontSize: '14px' 
+          className="text-14 text-blue-1 underline mt-5"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
           }}
-          endIcon={<ArticleIcon fontSize="small" />}
         >
           Show more
-        </Button>
-      </ContentBox>
+        </button>
+      </div>
     );
   };
 
   // Handle NRI status changes with immediate parent notification
-  const handleNriStatusChange = (event) => {
-    console.log("Changing NRI status to:", event.target.value);
-    setNriStatus(event.target.value);
+  const handleNriStatusChange = (newStatus) => {
+    console.log("Changing NRI status to:", newStatus);
+    setNriStatus(newStatus);
   };
 
   const stripPTags = (text) => {
@@ -374,425 +229,317 @@ const TicketSelection = ({
     return cleanedText;
   };
 
-  // Get icon for price type
-  const getPriceIcon = (type) => {
-    switch(type) {
-      case 'adult':
-        return <PersonIcon />;
-      case 'child':
-        return <ChildCareIcon />;
-      case 'senior':
-        return <AccessibilityNewIcon />;
-      default:
-        return <LocalOfferIcon />;
-    }
-  };
-
-  // Get color for price type
-  const getPriceColor = (type) => {
-    switch(type) {
-      case 'adult':
-        return 'primary';
-      case 'child':
-        return 'success';
-      case 'senior':
-        return 'warning';
-      default:
-        return 'primary';
-    }
-  };
-
   return (
     <>
-      <Box className="text-15 text-light-1 ls-2 lh-16" ref={dropdownRef} sx={{ position: 'relative' }}>
-        <Tooltip 
-          title={selectedTicket ? "Change ticket selection" : "Select a ticket package"} 
-          arrow 
-          placement="top"
+      <div className="text-15 text-light-1 ls-2 lh-16" ref={dropdownRef}>
+        <div
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="d-flex align-items-center"
+          style={{
+            backgroundColor: "white",
+            border: "1px solid #e5e7eb",
+            borderRadius: "8px",
+            padding: "10px 12px",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            boxShadow: isDropdownOpen ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
+          }}
         >
-          <StyledDropdown 
-            isOpen={isDropdownOpen}
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          >
-            <Typography 
-              sx={{ 
-                fontWeight: 500, 
-                color: 'text.primary',
-                flexGrow: 1
-              }}
-            >
-              {selectedTicket
-                ? selectedTicket.ticket_name
-                : "Select Ticket Package"}
-            </Typography>
-            {isDropdownOpen ? 
-              <KeyboardArrowUpIcon color="action" /> : 
-              <KeyboardArrowDownIcon color="action" />
-            }
-          </StyledDropdown>
-        </Tooltip>
+          <ConfirmationNumberIcon
+            style={{ marginRight: 8, fontSize: "small", color: "#3554D1" }}
+          />
+          <span style={{ fontWeight: 500, color: "#1a1a1a" }}>
+            {selectedTicket
+              ? selectedTicket.ticket_name
+              : "Select Ticket Package"}
+          </span>
+          <i
+            className={`icon-chevron-sm-${
+              isDropdownOpen ? "up" : "down"
+            } text-7 ml-10`}
+            style={{ marginLeft: "auto" }}
+          ></i>
+        </div>
 
         {isDropdownOpen && ticketOptions.length > 0 && (
-          <Fade in={isDropdownOpen}>
-            <DropdownMenu elevation={4}>
-              {ticketOptions.map((ticket, index) => (
-                <TicketItem
-                  key={`${ticket.ticket_id}-${nriStatus}`}
-                  isSelected={selectedTicket?.ticket_id === ticket.ticket_id}
-                  onClick={() => handleOpenModal(ticket)}
-                  sx={{
-                    borderBottom: index < ticketOptions.length - 1 ? 1 : 0,
-                    borderColor: 'divider'
-                  }}
-                >
-                  <Box width="100%">
-                    <Box display="flex" alignItems="center">
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: selectedTicket?.ticket_id === ticket.ticket_id ? 600 : 500
-                        }}
-                      >
-                        {ticket.ticket_name}
-                      </Typography>
-                    </Box>
-                    <Box display="flex" alignItems="center" mt={0.5}>
-                      <Box mr={1}>
-                        <Typography
-                          variant="caption"
-                          color="primary"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Adult: {formatPrice(nriStatus === "nri" ? 
-                            (ticket.dmc_adult_price_nri !== null ? ticket.dmc_adult_price_nri : 0) : 
-                            ticket.dmc_adult_price, "main")}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mx: 0.5 }}>|</Typography>
-                      <Box mr={1}>
-                        <Typography
-                          variant="caption"
-                          color="success.main"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Child: {formatPrice(nriStatus === "nri" ? 
-                            (ticket.dmc_child_price_nri !== null ? ticket.dmc_child_price_nri : 0) : 
-                            ticket.dmc_child_price, "main")}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mx: 0.5 }}>|</Typography>
-                      <Box>
-                        <Typography
-                          variant="caption"
-                          color="warning.main"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Senior: {formatPrice(nriStatus === "nri" ? 
-                            (ticket.dmc_senior_price_nri !== null ? ticket.dmc_senior_price_nri : 0) : 
-                            ticket.dmc_senior_price, "main")}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </TicketItem>
-              ))}
-            </DropdownMenu>
-          </Fade>
-        )}
-      </Box>
-
-      {/* Modal for ticket selection */}
-      <Dialog
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        maxWidth="lg"
-        fullWidth
-        TransitionComponent={Zoom}
-      >
-        <DialogTitle>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="center">
-              <ConfirmationNumberIcon color="primary" sx={{ mr: 1.5, fontSize: 28 }} />
-              <Typography variant="h6" component="span">
-                Confirm Ticket Selection
-              </Typography>
-              {nriStatus === "nri" ? (
-                <Chip 
-                icon={<LanguageIcon />}
-                label={nriStatus === "nri" ? "Foreigner Pricing" : "Local Pricing"}
-                color="primary" 
-                size="small" 
-                sx={{ ml: 1.5 }} 
-              />
-              ) : (
-                <Chip 
-                  icon={<LanguageIcon />}
-                  label={nriStatus === "nri" ? "Foreigner Pricing" : "Local Pricing"}
-                  color="primary" 
-                  size="small" 
-                  sx={{ ml: 1.5 }} 
-                />
-              )}
-            </Box>
-            <Tooltip title="Close" arrow>
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => setIsModalOpen(false)}
-                sx={{ minWidth: 'auto' }}
-              >
-                <CancelIcon />
-              </Button>
-            </Tooltip>
-          </Box>
-        </DialogTitle>
-        
-        <DialogContent dividers>
-          {selectedTicket && (
-            <Box px={1} py={2}>
-              <Box 
-                display="flex" 
-                alignItems="center" 
-                mb={2.5}
-                sx={{
-                  backgroundColor: alpha('#3554D1', 0.05),
-                  p: 2,
-                  borderRadius: 1,
-                  border: '1px solid',
-                  borderColor: 'primary.light',
+          <div
+            style={{
+              position: "absolute",
+              zIndex: 1000,
+              marginTop: "2px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+              borderRadius: "8px",
+              backgroundColor: "white",
+              width: "calc(100% - 32px)",
+              maxHeight: "250px",
+              overflowY: "auto",
+            }}
+          >
+            {ticketOptions.map((ticket, index) => (
+              <div
+                key={`${ticket.ticket_id}-${nriStatus}`}
+                onClick={() => handleOpenModal(ticket)}
+                style={{
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedTicket?.ticket_id === ticket.ticket_id
+                      ? "rgba(53, 84, 209, 0.05)"
+                      : "white",
+                  borderBottom:
+                    index < ticketOptions.length - 1
+                      ? "1px solid #f3f4f6"
+                      : "none",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
-                <Box
-                  sx={{
-                    backgroundColor: 'primary.main',
-                    borderRadius: '50%',
-                    width: 48,
-                    height: 48,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mr: 2
+                <ConfirmationNumberIcon
+                  style={{
+                    marginRight: 8,
+                    fontSize: "small",
+                    color: "#3554D1",
                   }}
-                >
-                  <VerifiedIcon sx={{ color: 'white', fontSize: 28 }} />
-                </Box>
-                <Box flexGrow={1}>
-                  <Typography variant="h6" color="primary.main">
-                    {selectedTicket.ticket_name}
-                  </Typography>
-                </Box>
-              </Box>
+                />
+                <div>
+                  <div
+                    style={{
+                      fontWeight:
+                        selectedTicket?.ticket_id === ticket.ticket_id
+                          ? 600
+                          : 500,
+                      fontSize: "14px",
+                    }}
+                  >
+                    {ticket.ticket_name}
+                  </div>
+                  <div
+                    style={{
+                      color: "#3554D1",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Adult: {formatPrice(nriStatus === "nri" ? 
+                      (ticket.dmc_adult_price_nri !== null ? ticket.dmc_adult_price_nri : 0) : 
+                      ticket.dmc_adult_price, "main")} |
+                    Child: {formatPrice(nriStatus === "nri" ? 
+                      (ticket.dmc_child_price_nri !== null ? ticket.dmc_child_price_nri : 0) : 
+                      ticket.dmc_child_price, "main")} |
+                    Senior: {formatPrice(nriStatus === "nri" ? 
+                      (ticket.dmc_senior_price_nri !== null ? ticket.dmc_senior_price_nri : 0) : 
+                      ticket.dmc_senior_price, "main")}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
+      <Modal
+        show={isModalOpen}
+        onHide={() => setIsModalOpen(false)}
+        centered
+        backdrop="static"
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Confirm Ticket Selection 
+            {nriStatus === "nri" && <span className="text-15 ml-10 badge bg-blue-1 text-white">Foreigner Pricing</span>}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedTicket && (
+            <div className="px-10 py-15">
+              <div className="d-flex align-items-center mb-20">
+                <ConfirmationNumberIcon
+                  style={{ fontSize: 36, color: "#3554D1", marginRight: 15 }}
+                />
+                <div className="flex-grow-1">
+                  <h4 className="text-18 fw-500">
+                    {selectedTicket.ticket_name}
+                  </h4>
+                </div>
+              </div>
+
+              <div className="d-flex justify-content-between">
+                <div className="flex-grow-1">
                   {selectedTicket.description && renderDescription(stripPTags(selectedTicket.description), "description")}
-                </Grid>
-                <Grid item xs={12} md={4}>
+                </div>
+                <div className="flex-grow-1">
                   {selectedTicket.remarks && renderDescription(stripPTags(selectedTicket.remarks), "remarks")}
-                </Grid>
-                <Grid item xs={12} md={4}>
+                </div>
+                <div className="flex-grow-1">
                   {selectedTicket.terms_conditions && renderDescription(stripPTags(selectedTicket.terms_conditions), "terms")}
-                </Grid>
-              </Grid>
+                </div>
+              </div>
 
               {/* Price Type Selection Radio Buttons */}
-              <Paper 
-                variant="outlined" 
-                sx={{ 
-                  mt: 3,
-                  mb: 2.5, 
-                  p: 2,
-                  bgcolor: alpha('#3554D1', 0.05),
-                  borderRadius: 1
-                }}
-              >
-                <FormControl component="fieldset">
-                  <Box display="flex" alignItems="center">
-                    <CurrencyExchangeIcon sx={{ mr: 1, color: 'primary.main' }} />
-                    <Typography fontWeight={500} mr={3}>Select Price Type:</Typography>
-                    <RadioGroup
-                      row
+              <div className="d-flex mb-20 bg-blue-1-05 p-15 rounded-4">
+                <div className="fw-500 mr-20">Select Price Type:</div>
+                <div className="form-radio d-flex mr-30">
+                  <div className="radio">
+                    <input
+                      type="radio"
                       name="priceType"
-                      value={nriStatus}
-                      onChange={handleNriStatusChange}
+                      id="residential"
+                      checked={nriStatus === "residential"}
+                      onChange={() => handleNriStatusChange("residential")}
+                    />
+                    <label 
+                      htmlFor="residential" 
+                      className={`radio__label ${nriStatus === "residential" ? "text-blue-1 fw-500" : ""}`}
                     >
-                      <FormControlLabel 
-                        value="residential" 
-                        control={<Radio color="primary" />} 
-                        label={
-                          <Box display="flex" alignItems="center">
-                            <Box component="span" mr={0.5}>Local</Box>
-                            {nriStatus === 'residential' && (
-                              <CheckCircleIcon fontSize="small" color="primary" />
-                            )}
-                          </Box>
-                        } 
-                        sx={{
-                          '& .MuiFormControlLabel-label': {
-                            color: nriStatus === 'residential' ? 'primary.main' : 'text.primary',
-                            fontWeight: nriStatus === 'residential' ? 500 : 400
-                          }
-                        }}
-                      />
-                      <FormControlLabel 
-                        value="nri" 
-                        control={<Radio color="primary" />} 
-                        label={
-                          <Box display="flex" alignItems="center">
-                            <Box component="span" mr={0.5}>Foreigner</Box>
-                            {nriStatus === 'nri' && (
-                              <CheckCircleIcon fontSize="small" color="primary" />
-                            )}
-                          </Box>
-                        }
-                        sx={{
-                          '& .MuiFormControlLabel-label': {
-                            color: nriStatus === 'nri' ? 'primary.main' : 'text.primary',
-                            fontWeight: nriStatus === 'nri' ? 500 : 400
-                          }
-                        }}
-                      />
-                    </RadioGroup>
-                  </Box>
-                </FormControl>
-              </Paper>
+                      Local
+                    </label>
+                  </div>
+                </div>
+                <div className="form-radio d-flex">
+                  <div className="radio">
+                    <input
+                      type="radio"
+                      name="priceType"
+                      id="nri"
+                      checked={nriStatus === "nri"}
+                      onChange={() => handleNriStatusChange("nri")}
+                    />
+                    <label 
+                      htmlFor="nri" 
+                      className={`radio__label ${nriStatus === "nri" ? "text-blue-1 fw-500" : ""}`}
+                    >
+                      Foreigner
+                    </label>
+                  </div>
+                </div>
+              </div>
 
-              <Box 
-                textAlign="center" 
-                mb={2} 
-                py={1} 
-                bgcolor={alpha('#3554D1', 0.05)} 
-                borderRadius={1}
-              >
-                <Typography variant="h6" display="flex" alignItems="center" justifyContent="center">
-                  <AttachMoneyIcon sx={{ mr: 1 }} />
-                  {nriStatus === "residential" ? "Local Prices" : "Foreigner Prices"}
-                </Typography>
-              </Box>
+              <div className="row">
+                <div className="col-md-12 mb-15">
+                  <div className="fw-500 text-18 text-center">
+                    {nriStatus === "residential" ? "Local Prices" : "Foreigner Prices"}
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="py-10 px-15 border rounded-4 mb-10" key={`adult-${nriStatus}`}>
+                    <div className="text-14 text-light-1 mb-10">
+                      Adult Price
+                    </div>
+                    {/* Main currency */}
+                    <div className="text-16 fw-500">
+                      {formatPrice(getPrice("adult"), "main")}
+                    </div>
 
-              <Grid container spacing={2}>
-                {['adult', 'child', 'senior'].map(priceType => (
-                  <Grid item xs={12} md={4} key={`${priceType}-${nriStatus}`}>
-                    <Fade in={true} timeout={500}>
-                      <PriceCard>
-                        <PriceCardHeader type={priceType}>
-                          <Box display="flex" alignItems="center">
-                            {getPriceIcon(priceType)}
-                            <Typography 
-                              variant="subtitle1" 
-                              fontWeight={500}
-                              sx={{ ml: 1 }}
-                            >
-                              {priceType.charAt(0).toUpperCase() + priceType.slice(1)} Price
-                            </Typography>
-                          </Box>
-                          <Avatar 
-                            className="price-icon"
-                            sx={{ 
-                              width: 32, 
-                              height: 32, 
-                              bgcolor: `${getPriceColor(priceType)}.main`,
-                            }}
-                          >
-                            {priceType === 'adult' ? 'A' : priceType === 'child' ? 'C' : 'S'}
-                          </Avatar>
-                        </PriceCardHeader>
-                        
-                        <CardContent>                          
-                          <Typography 
-                            variant="h5" 
-                            component="div" 
-                            fontWeight={600}
-                            color={`${getPriceColor(priceType)}.main`}
-                            textAlign="center"
-                            mb={1.5}
-                          >
-                            {formatPrice(getPrice(priceType), "main")}
-                          </Typography>
-                          
-                          <Divider sx={{ mb: 1.5 }} />
-                          
-                          <Box>
-                            {currencyCode !== "USD" && (
-                              <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-                                {/* <Typography variant="body2" color="text.secondary">USD:</Typography> */}
-                                <Typography variant="body2" fontWeight={500}>
-                                  {formatPrice(getPrice(priceType), "usd")}
-                                </Typography>
-                              </Box>
-                            )}
+                    {/* USD price if not already USD */}
+                    {currencyCode !== "USD" && (
+                      <div className="text-14 mt-5 text-light-1">
+                        {formatPrice(getPrice("adult"), "usd")}
+                      </div>
+                    )}
 
-                            {currencyCode !== "SGD" && (
-                              <Box display="flex" alignItems="center" justifyContent="space-between">
-                                {/* <Typography variant="body2" color="text.secondary">SGD:</Typography> */}
-                                <Typography variant="body2" fontWeight={500}>
-                                  {formatPrice(getPrice(priceType), "sgd")}
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
-                        </CardContent>
-                      </PriceCard>
-                    </Fade>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
+                    {/* SGD price if not already SGD */}
+                    {currencyCode !== "SGD" && (
+                      <div className="text-14 mt-5 text-light-1">
+                        {formatPrice(getPrice("adult"), "sgd")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="py-10 px-15 border rounded-4 mb-10" key={`child-${nriStatus}`}>
+                    <div className="text-14 text-light-1 mb-10">
+                      Child Price
+                    </div>
+                    {/* Main currency */}
+                    <div className="text-16 fw-500">
+                      {formatPrice(getPrice("child"), "main")}
+                    </div>
+
+                    {/* USD price if not already USD */}
+                    {currencyCode !== "USD" && (
+                      <div className="text-14 mt-5 text-light-1">
+                        {formatPrice(getPrice("child"), "usd")}
+                      </div>
+                    )}
+
+                    {/* SGD price if not already SGD */}
+                    {currencyCode !== "SGD" && (
+                      <div className="text-14 mt-5 text-light-1">
+                        {formatPrice(getPrice("child"), "sgd")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="py-10 px-15 border rounded-4 mb-10" key={`senior-${nriStatus}`}>
+                    <div className="text-14 text-light-1 mb-10">
+                      Senior Price
+                    </div>
+                    {/* Main currency */}
+                    <div className="text-16 fw-500">
+                      {formatPrice(getPrice("senior"), "main")}
+                    </div>
+
+                    {/* USD price if not already USD */}
+                    {currencyCode !== "USD" && (
+                      <div className="text-14 mt-5 text-light-1">
+                        {formatPrice(getPrice("senior"), "usd")}
+                      </div>
+                    )}
+
+                    {/* SGD price if not already SGD */}
+                    {currencyCode !== "SGD" && (
+                      <div className="text-14 mt-5 text-light-1">
+                        {formatPrice(getPrice("senior"), "sgd")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
-        </DialogContent>
-        
-        <DialogActions sx={{ p: 2 }}>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            onClick={() => setIsModalOpen(false)}
-            startIcon={<CancelIcon />}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            color="primary" 
+        </Modal.Body>
+        <Modal.Footer>
+          <button
+            className="button -md -blue-1 bg-blue-1 text-white"
             onClick={handleConfirmSelection}
-            startIcon={<CheckCircleIcon />}
           >
             Confirm Selection
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </button>
+          <button
+            className="button -md -outline-blue-1 text-blue-1"
+            onClick={() => setIsModalOpen(false)}
+          >
+            Cancel
+          </button>
+        </Modal.Footer>
+      </Modal>
 
-      {/* New dialog for displaying full text content */}
-      <Dialog
-        open={textModalContent.isOpen}
-        onClose={() => setTextModalContent({...textModalContent, isOpen: false})}
-        maxWidth="md"
-        fullWidth
-        TransitionComponent={Zoom}
+      {/* New modal for displaying full text content */}
+      <Modal
+        show={textModalContent.isOpen}
+        onHide={() => setTextModalContent({...textModalContent, isOpen: false})}
+        centered
+        size="lg"
       >
-        <DialogTitle>
-          <Box display="flex" alignItems="center">
-            <ArticleIcon color="primary" sx={{ mr: 1.5 }} />
-            <Typography variant="h6" component="span">
-              {textModalContent.title}
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent dividers>
-          <Box p={1}>
-            <Typography variant="body1">{textModalContent.content}</Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            variant="contained" 
-            color="primary" 
+        <Modal.Header closeButton>
+          <Modal.Title>{textModalContent.title}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="px-10 py-15">
+            <p className="text-15">{textModalContent.content}</p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <button 
+            className="button -md -blue-1 bg-blue-1 text-white"
             onClick={() => setTextModalContent({...textModalContent, isOpen: false})}
-            startIcon={<CheckCircleIcon />}
           >
             Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 };

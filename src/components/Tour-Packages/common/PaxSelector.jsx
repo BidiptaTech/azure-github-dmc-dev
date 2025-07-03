@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Box,
   Typography,
@@ -10,6 +10,9 @@ import {
   FormControl,
   Paper,
   Avatar,
+  Popper,
+  Grow,
+  ClickAwayListener,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -283,6 +286,9 @@ const Counter = ({
 };
 
 const PaxSelector = ({ onGuestChange, guestCounts = { Adults: 1, Children: 0, Infants: 0, maleCount: 0, femaleCount: 0 } }) => {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef(null);
+
   const handleCounterChange = (name, value) => {
     const updatedGuestCounts = { ...guestCounts, [name]: value };
                  
@@ -375,14 +381,19 @@ const PaxSelector = ({ onGuestChange, guestCounts = { Adults: 1, Children: 0, In
   };
 
   return (
-    <Box className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative" sx={{ zIndex: 1000 }}>
+    <Box sx={{ position: 'relative' }}>
       <Box
-        data-bs-toggle="dropdown"
-        data-bs-auto-close="outside"
-        aria-expanded="false"
-        data-bs-offset="0,22"
+        ref={anchorRef}
+        onClick={() => setOpen((prevOpen) => !prevOpen)}
+        sx={{ 
+          cursor: 'pointer',
+          p: 0.5,
+          borderRadius: 1,
+          '&:hover': {
+            bgcolor: 'rgba(0,0,0,0.04)'
+          }
+        }}
       >
-        {/* <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Guest</Typography> */}
         <Typography variant="body2" color="text.secondary">
           {guestCounts.Adults} adults
           ({guestCounts.maleCount || 0} male, {guestCounts.femaleCount || 0} female) -
@@ -391,66 +402,82 @@ const PaxSelector = ({ onGuestChange, guestCounts = { Adults: 1, Children: 0, In
         </Typography>
       </Box>
 
-      <Box
-        className="shadow-2 dropdown-menu min-width-400"
-        sx={{
-          maxHeight: '80vh',
-          border: 'none',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          zIndex: 1100, 
-          position: 'absolute !important',
-        }}
+      <Popper
+        open={open}
+        anchorEl={anchorRef.current}
+        role={undefined}
+        placement="bottom-start"
+        transition
+        disablePortal={false}
+        style={{ zIndex: 9999 }}
+        modifiers={[
+          {
+            name: 'offset',
+            options: {
+              offset: [0, 8],
+            },
+          },
+        ]}
       >
-        <Box
-          className="bg-white px-30 py-30 rounded-4 counter-box"
-          sx={{
-            maxHeight: '80vh',
-            overflowY: 'auto',
-            background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
-            borderRadius: '16px',
-            position: 'relative',
-            py: 1.5,
-            px: 2,
-            '&::-webkit-scrollbar': {
-              width: '6px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '10px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#888',
-              borderRadius: '10px',
-            },
-          }}
-        >
-          {counters.map((counter) => (
-            <Counter
-              key={counter.name}
-              name={counter.name}
-              defaultValue={guestCounts[counter.name] || counter.defaultValue}
-              onCounterChange={handleCounterChange}
-              onGenderCountChange={handleGenderCountChange}
-              maleCount={guestCounts.maleCount || 0}
-              femaleCount={guestCounts.femaleCount || 0}
-              totalAdults={guestCounts.Adults || 1}
-              ages={counter.name === "Children" ? (guestCounts.ages || []) : 
-                    counter.name === "Infants" ? (guestCounts.infantAges || []) : []}
-              onAgeChange={counter.name === "Children" ? handleAgeChange : handleInfantAgeChange}
-            />
-          ))}
-        </Box>
-      </Box>
-
-      <style jsx>{`
-        :global(.searchMenu-guests .dropdown-menu) {
-          top: 100% !important;
-          bottom: auto !important;
-          transform: none !important;
-          z-index: 9999 !important;
-        }
-      `}</style>
+        {({ TransitionProps, placement }) => (
+          <Grow
+            {...TransitionProps}
+            style={{
+              transformOrigin: placement === 'bottom-start' ? 'left top' : 'left bottom',
+            }}
+          >
+            <Paper
+              elevation={8}
+              sx={{
+                width: 350,
+                borderRadius: 2,
+                overflow: 'hidden',
+                mt: 0.5,
+                boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              }}
+            >
+              <ClickAwayListener onClickAway={() => setOpen(false)}>
+                <Box
+                  sx={{
+                    maxHeight: '350px',
+                    overflowY: 'auto',
+                    background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
+                    borderRadius: '16px',
+                    p: 2,
+                    '&::-webkit-scrollbar': {
+                      width: '6px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: '#f1f1f1',
+                      borderRadius: '10px',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: '#888',
+                      borderRadius: '10px',
+                    },
+                  }}
+                >
+                  {counters.map((counter) => (
+                    <Counter
+                      key={counter.name}
+                      name={counter.name}
+                      defaultValue={guestCounts[counter.name] || counter.defaultValue}
+                      onCounterChange={handleCounterChange}
+                      onGenderCountChange={handleGenderCountChange}
+                      maleCount={guestCounts.maleCount || 0}
+                      femaleCount={guestCounts.femaleCount || 0}
+                      totalAdults={guestCounts.Adults || 1}
+                      ages={counter.name === "Children" ? (guestCounts.ages || []) : 
+                            counter.name === "Infants" ? (guestCounts.infantAges || []) : []}
+                      onAgeChange={counter.name === "Children" ? handleAgeChange : handleInfantAgeChange}
+                    />
+                  ))}
+                </Box>
+              </ClickAwayListener>
+            </Paper>
+          </Grow>
+        )}
+      </Popper>
     </Box>
   );
 };

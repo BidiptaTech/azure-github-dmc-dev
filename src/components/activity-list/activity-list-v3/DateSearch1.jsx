@@ -18,20 +18,8 @@ const DateSearch1 = ({ selectedDate, setSelectedDate }) => {
 
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return null;
-    
-    // Check if the date is already in YYYY-MM-DD format
-    if (dateString.includes("-") && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateString; // Already in correct format
-    }
-    
-    // Handle DD/MM/YYYY format (previous format)
-    if (dateString.includes("/")) {
-      const [day, month, year] = dateString.split("/");
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-    
-    // If neither format matches, return as is
-    return dateString;
+    const [day, month, year] = dateString.split("/");
+    return `${year}-${month}-${day}`;
   };
 
   const formattedCheckIn = formatDateToDDMMYYYY(checkIn);

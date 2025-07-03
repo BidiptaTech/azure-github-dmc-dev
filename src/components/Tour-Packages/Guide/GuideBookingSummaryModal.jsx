@@ -85,6 +85,7 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
+  const selectedGuide = useSelector((state) => state.tourguide.selectedGuide);
   const guideDetailsFromState = useSelector((state) => state.tourguide.guideDetails);
 
   // Pre-calculate formatted prices to avoid recalculations during render
@@ -175,19 +176,19 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
       return `${displayHour}:${min} ${period}`;
     };
 
-    if (!guideDetails) return '';
+    if (!selectedGuide) return '';
     
-    const nightStartTime = guideDetails.night_start_time || "21:00";
-    const nightEndTime = guideDetails.night_end_time || "00:00";
+    const nightStartTime = selectedGuide.night_start_time || "21:00";
+    const nightEndTime = selectedGuide.night_end_time || "00:00";
 
     const startFormatted = formatTimeStr(nightStartTime);
     const endFormatted = formatTimeStr(nightEndTime);
 
     return `${startFormatted} - ${endFormatted}`;
-  }, [guideDetails]);
+  }, [selectedGuide]);
 
   // If we don't have the required data, render nothing or a placeholder
-  if (!bookingData || !guideDetails) {
+  if (!bookingData || !selectedGuide) {
     return null;
   }
 
@@ -261,7 +262,7 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
                   ml: 1
                 }}
               >
-                {guideDetails.mode === 'dmc' ? 'DMC Guide' : 'Travclicks Guide'}
+                {selectedGuide.mode === 'dmc' ? 'DMC Guide' : 'Travclicks Guide'}
               </Typography>
             </Box>
           </Box>
@@ -274,24 +275,24 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
               <CardMedia
                 component="img"
                 sx={{ width: 200, height: 200, objectFit: 'cover' }}
-                image={guideDetails.image || '/placeholder-guide.jpg'}
-                alt={guideDetails.guide_name}
+                image={selectedGuide.image || '/placeholder-guide.jpg'}
+                alt={selectedGuide.guide_name}
               />
               <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    {guideDetails.guide_name}
+                    {selectedGuide.guide_name}
                   </Typography>
                   <DetailRow>
                     <WorkIcon color="primary" />
                     <Typography>
-                      Experience: {guideDetails.experience_years} years
+                      Experience: {selectedGuide.experience_years} years
                     </Typography>
                   </DetailRow>
                   <DetailRow>
                     <TranslateIcon color="primary" />
                     <Typography>
-                      Languages: {guideDetails.languages?.map(lang => `${lang.language} (${lang.proficiency})`).join(', ')}
+                      Languages: {selectedGuide.languages?.map(lang => `${lang.language} (${lang.proficiency})`).join(', ')}
                     </Typography>
                   </DetailRow>
                 </CardContent>
@@ -375,7 +376,7 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
                   <Typography variant="subtitle1" color="primary" gutterBottom>
                     Booking Mode
                   </Typography>
-                  {guideDetails.mode === 'dmc' && (
+                  {selectedGuide.mode === 'dmc' && (
                     <Box sx={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -448,9 +449,9 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
                     Price Breakdown
                   </Typography>
                   {formattedPriceContent}
-                  {guideDetails.tax_percentage && (
+                  {selectedGuide.tax_percentage && (
                     <Typography variant="caption" color="text.secondary">
-                      *Prices are subject to {guideDetails.tax_percentage}% tax
+                      *Prices are subject to {selectedGuide.tax_percentage}% tax
                     </Typography>
                   )}
                 </PriceCard>
