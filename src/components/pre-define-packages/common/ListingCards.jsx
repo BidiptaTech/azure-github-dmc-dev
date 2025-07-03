@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { fetchPackageDetails } from '../../../slice/tour-packages/prePackagesSlice';
@@ -23,7 +23,8 @@ import {
   Avatar,
   CircularProgress,
   LinearProgress,
-  Tooltip
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -40,6 +41,10 @@ import TuneIcon from '@mui/icons-material/Tune';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
+import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import FlightIcon from '@mui/icons-material/Flight';
 
 // Styled components for blur effect
 const BlurOverlay = ({ children, active, hasSearched }) => {
@@ -59,8 +64,8 @@ const BlurOverlay = ({ children, active, hasSearched }) => {
         width: '100vw',
         height: '100%',
         background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(2px)',
+        WebkitBackdropFilter: 'blur(2px)',
         zIndex: -1,
       } : {}
     }}>
@@ -73,156 +78,404 @@ const PackageCard = ({ packageData }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Parse itinerary data if it exists with defensive checks
+  let parsedItinerary = null;
+  try {
+    if (packageData.itinerary) {
+      parsedItinerary = JSON.parse(packageData.itinerary);
+    }
+  } catch (error) {
+    console.error("Failed to parse itinerary data:", error);
+  }
+  
   const handleViewDetails = () => {
     if (packageData.package_id) {
-      // Dispatch action to fetch package details
       dispatch(fetchPackageDetails(packageData.package_id))
         .unwrap()
         .then(() => {
-          // Navigate to the package details page
           navigate(`/package-details/${packageData.package_id}`);
         })
         .catch((error) => {
           console.error('Failed to fetch package details:', error);
-          // You could add error handling here, like showing a notification
         });
     }
   };
 
+  // Extract attractions from the parsed itinerary with proper defensive checks
+  const attractions = 
+    parsedItinerary && 
+    parsedItinerary.itinerary && 
+    Array.isArray(parsedItinerary.itinerary) 
+      ? parsedItinerary.itinerary.flatMap(day => day.attractions || []).slice(0, 3) 
+      : [];
+
+  // Extract hotels from the parsed itinerary with proper defensive checks
+  const accommodations = 
+    parsedItinerary && 
+    parsedItinerary.hotels && 
+    Array.isArray(parsedItinerary.hotels) 
+      ? parsedItinerary.hotels 
+      : [];
+
+  // Extract services data from itinerary with proper defensive checks
+  const hasArrivalPickup = 
+    parsedItinerary && 
+    parsedItinerary.itinerary && 
+    Array.isArray(parsedItinerary.itinerary)
+      ? parsedItinerary.itinerary.some(day => day && day.arrival_pickup === 1)
+      : false;
+    
+  const hasDepartureService = 
+    parsedItinerary && 
+    parsedItinerary.itinerary && 
+    Array.isArray(parsedItinerary.itinerary)
+      ? parsedItinerary.itinerary.some(day => day && day.departure_service === 1)
+      : false;
+    
+  const hasTourGuides = 
+    parsedItinerary && 
+    parsedItinerary.itinerary && 
+    Array.isArray(parsedItinerary.itinerary)
+      ? parsedItinerary.itinerary.some(day => day && day.guide)
+      : false;
+    
+  const hasTransfers = 
+    parsedItinerary && 
+    parsedItinerary.itinerary && 
+    Array.isArray(parsedItinerary.itinerary)
+      ? parsedItinerary.itinerary.some(day => 
+          day && 
+          day.attractions && 
+          Array.isArray(day.attractions) &&
+          day.attractions.some(attr => attr && attr.transfer_available === 1)
+        )
+      : false;
+
+  // Calculate total attractions safely
+  const totalAttractions = 
+    parsedItinerary && 
+    parsedItinerary.itinerary && 
+    Array.isArray(parsedItinerary.itinerary)
+      ? parsedItinerary.itinerary.reduce((total, day) => 
+          total + (day && day.attractions && Array.isArray(day.attractions) ? day.attractions.length : 0), 
+        0)
+      : 0;
+
   return (
     <Card sx={{ 
-      height: '100%',
       display: 'flex', 
       flexDirection: 'column', 
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       borderRadius: '12px',
       overflow: 'hidden',
+      position: 'relative',
       '&:hover': {
         boxShadow: '0 6px 24px rgba(0, 0, 0, 0.15)',
         transform: 'translateY(-4px)',
         transition: 'all 0.3s ease'
       }
     }}>
+      {/* Days Badge */}
+      <Box 
+        sx={{ 
+          position: 'absolute', 
+          top: 10, 
+          left: 10, 
+          bgcolor: '#6a47f2', 
+          color: 'white', 
+          borderRadius: '4px',
+          px: 1.5,
+          py: 0.5,
+          fontSize: '12px',
+          fontWeight: 'bold',
+          zIndex: 2
+        }}
+      >
+        {packageData.duration_days} Days
+      </Box>
+      
+      {/* Active Tag */}
+      {packageData.status === 'active' && (
+        <Box 
+          sx={{ 
+            position: 'absolute', 
+            top: 10, 
+            right: 10, 
+            bgcolor: '#4CAF50', 
+            color: 'white', 
+            borderRadius: '4px',
+            px: 1.5,
+            py: 0.5,
+            fontSize: '12px',
+            fontWeight: 'bold',
+            zIndex: 2
+          }}
+        >
+          Active
+        </Box>
+      )}
+      
       <CardMedia
         component="img"
         sx={{ 
           width: '100%',
-          height: 200,
+          height: 160,
           objectFit: 'cover'
         }}
         image={packageData.main_image}
         alt={packageData.title}
       />
-      <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <CardContent sx={{ flex: '1 0 auto', p: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-            <Typography component="div" variant="h6" fontWeight="bold">
+
+      <CardContent sx={{ flex: '1 0 auto', p: 2, pb: 1 }}>
+        {/* Title and Location Row */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Box>
+            {/* Title */}
+            <Typography component="div" variant="subtitle1" fontWeight="bold" sx={{ mb: 0.5 }}>
               {packageData.title}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              <Typography variant="body1" color="primary" fontWeight="bold" sx={{ mr: 0.5 }}>
-                SGD {packageData.price_adult}
+            
+            {/* Location */}
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <LocationOnIcon sx={{ color: '#666', fontSize: 16, mr: 0.5 }} />
+              <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+                {packageData.country || 'Singapore'} - {packageData.city || 'Singapore'}
               </Typography>
-              <Typography variant="caption" sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>/ adult</Typography>
             </Box>
           </Box>
           
-          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-            <Chip 
-              icon={<LocationOnIcon />} 
-              label={packageData.city || packageData.destination} 
-              size="small" 
-              color="primary" 
-              variant="outlined" 
-            />
-            <Chip 
-              icon={<CalendarMonthIcon />} 
-              label={`${packageData.duration_days} Days`} 
-              size="small" 
-              variant="outlined" 
-            />
-            <Chip 
-              icon={<PeopleIcon />} 
-              label={`Max ${packageData.max_pax} pax`} 
-              size="small" 
-              variant="outlined" 
-            />
-          </Stack>
-          
-          <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-            <Tooltip 
-              title="Begin your adventure on this date" 
-              arrow 
-              placement="top"
-            >
-              <Chip 
-                icon={<CalendarMonthIcon sx={{ fontSize: '0.85rem' }} />} 
-                label={new Date(packageData.start_date).toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: '2-digit' })}
-                size="small" 
-                color="success" 
-                variant="outlined"
-                sx={{ 
-                  height: '22px',
-                  '& .MuiChip-label': { 
-                    px: 0.75, 
-                    fontSize: '0.80rem'
-                  }
-                }} 
-              />
-            </Tooltip>
-            <Tooltip 
-              title="Last day to enjoy this exclusive offer" 
-              arrow 
-              placement="top"
-            >
-              <Chip 
-                icon={<CalendarMonthIcon sx={{ fontSize: '0.85rem' }} />} 
-                label={new Date(packageData.expire_date).toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: '2-digit' })}
-                size="small" 
-                color="error" 
-                variant="outlined" 
-                sx={{ 
-                  height: '22px',
-                  '& .MuiChip-label': { 
-                    px: 0.75, 
-                    fontSize: '0.80rem'
-                  }
-                }}
-              />
-            </Tooltip>
+          {/* Price */}
+          <Box sx={{ textAlign: 'right' }}>
+            <Typography variant="caption" color="text.secondary">From SGD</Typography>
+            <Typography variant="subtitle1" color="primary" fontWeight="bold">
+              ${packageData.price_adult || '343.00'}
+            </Typography>
+          </Box>
+        </Box>
+        
+        <Divider sx={{ my: 1 }} />
+        
+        {/* Compact sections layout */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          {/* Top Attractions */}
+          <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+              <Box sx={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                bgcolor: '#f0f7ff', 
+                borderRadius: '50%', 
+                width: 20, 
+                height: 20, 
+                mr: 0.5 
+              }}>
+                <AttractionsIcon sx={{ fontSize: 12, color: '#1976d2' }} />
+              </Box>
+              <Typography variant="caption" fontWeight="medium">Top Attractions</Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              {attractions.length > 0 ? (
+                <>
+                  {attractions.slice(0, 2).map((attraction, index) => (
+                    <Box 
+                      key={attraction.attraction_id || index}
+                      component="img"
+                      src={attraction.image || '/img/activities/1.png'}
+                      sx={{ 
+                        width: 36, 
+                        height: 36, 
+                        borderRadius: '6px',
+                        objectFit: 'cover'
+                      }}
+                      alt={attraction.name || 'Attraction'}
+                    />
+                  ))}
+                  {attractions.length > 2 && (
+                    <Box 
+                      sx={{ 
+                        width: 36, 
+                        height: 36, 
+                        borderRadius: '6px',
+                        bgcolor: '#f5f5f5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#1976d2',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      +{totalAttractions - 2}
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: 36,
+                    fontSize: '0.65rem',
+                    color: 'text.secondary',
+                    fontStyle: 'italic',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '6px',
+                    px: 1.5,
+                    backgroundColor: '#f5f5f5',
+                  }}
+                >
+                  No attractions available
+                </Box>
+              )}
+            </Box>
           </Box>
           
-          {/* <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Rating value={parseFloat(packageData.rating) || 0} precision={0.5} readOnly size="small" />
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              ({packageData.reviews_count} reviews)
-            </Typography>
-          </Box> */}
-          
-          <Typography variant="body2" color="text.secondary" paragraph sx={{ mb: 2 }}>
-            {packageData.description.length > 100 
-              ? `${packageData.description.substring(0, 100)}...` 
-              : packageData.description}
-          </Typography>
-        </CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', pl: 3, pb: 3, pr: 3, mt: 'auto' }}>
-          <Chip label={packageData.category} size="small" sx={{ mr: 1 }} />
-          <Box sx={{ flexGrow: 1 }} />
-          <Button 
-            variant="contained" 
-            color="primary" 
-            size="small"
-            onClick={handleViewDetails}
-          >
-            View Details
-          </Button>
+          {/* Accommodations */}
+          <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+              <Box sx={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                bgcolor: '#f0f7ff', 
+                borderRadius: '50%', 
+                width: 20, 
+                height: 20, 
+                mr: 0.5 
+              }}>
+                <HotelIcon sx={{ fontSize: 12, color: '#1976d2' }} />
+              </Box>
+              <Typography variant="caption" fontWeight="medium">Accommodations</Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {accommodations.length > 0 ? (
+                <>
+                  <Avatar 
+                    src={accommodations[0].main_image} 
+                    sx={{ 
+                      width: 24, 
+                      height: 24,
+                      mr: 0.5
+                    }}
+                    alt={accommodations[0].name}
+                  />
+                  <Typography variant="caption" sx={{ fontWeight: 500 }} noWrap>
+                    {accommodations[0].name}
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="caption" sx={{ fontWeight: 500 }} noWrap>
+                  No accommodations listed
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </Box>
+        
+        {/* Services */}
+        <Box sx={{ mt: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+            <Box sx={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              bgcolor: '#f0f7ff', 
+              borderRadius: '50%', 
+              width: 20, 
+              height: 20, 
+              mr: 0.5 
+            }}>
+              <LuggageIcon sx={{ fontSize: 12, color: '#1976d2' }} />
+            </Box>
+            <Typography variant="caption" fontWeight="medium">Services</Typography>
+          </Box>
+          
+          <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, overflow: 'hidden' }}>
+            {/* Combine Airport Pickup and Dropoff into a single chip */}
+            {(hasArrivalPickup || hasDepartureService) && (
+              <Chip 
+                icon={<FlightIcon sx={{ fontSize: '0.7rem !important' }} />} 
+                label={
+                  hasArrivalPickup && hasDepartureService
+                    ? "Airport Pickup / Dropoff"
+                    : hasArrivalPickup
+                      ? "Airport Pickup"
+                      : "Airport Dropoff"
+                }
+                size="small" 
+                sx={{ height: 20, fontSize: '0.65rem', whiteSpace: 'nowrap' }} 
+              />
+            )}
+            
+            {/* Tour Guide chip */}
+            {hasTourGuides && (
+              <Chip 
+                icon={<ExploreIcon sx={{ fontSize: '0.7rem !important' }} />} 
+                label="Tour Guide" 
+                size="small" 
+                sx={{ height: 20, fontSize: '0.65rem', whiteSpace: 'nowrap' }} 
+              />
+            )}
+            
+            {/* Transfers chip */}
+            {hasTransfers && (
+              <Chip 
+                icon={<DirectionsBusIcon sx={{ fontSize: '0.7rem !important' }} />} 
+                label="Transfers" 
+                size="small" 
+                sx={{ height: 20, fontSize: '0.65rem', whiteSpace: 'nowrap' }} 
+              />
+            )}
+            
+            {/* No services message */}
+            {!hasArrivalPickup && !hasDepartureService && !hasTourGuides && !hasTransfers && (
+              <Typography 
+                variant="caption" 
+                color="text.secondary" 
+                sx={{ 
+                  fontStyle: 'italic',
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: 20,
+                  fontSize: '0.65rem',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '16px',
+                  px: 1.5,
+                  backgroundColor: '#f5f5f5',
+                }}
+              >
+                No services information available
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </CardContent>
+      
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        p: 1.5, 
+        borderTop: '1px solid #eee'
+      }}>
+        <Button 
+          variant="outlined" 
+          startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}
+          onClick={handleViewDetails}
+          size="small"
+          sx={{ flex: 1, mr: 1, py: 0.5, fontSize: '0.75rem' }}
+        >
+          Details
+        </Button>
+      
       </Box>
     </Card>
   );
 };
 
-const NoResults = () => (
+const NoResults = ({ hasSearched }) => (
   <Paper
     elevation={2}
     sx={{
@@ -337,9 +590,102 @@ const LoadingSkeleton = () => (
   </Grid>
 );
 
+const LoadMoreIndicator = () => (
+  <Box sx={{ 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    py: 4,
+    width: '100%'
+  }}>
+    <CircularProgress size={32} thickness={4} sx={{ mr: 2, color: 'primary.main' }} />
+    <Typography variant="body1" color="text.secondary" fontWeight={500}>
+      Loading more packages...
+    </Typography>
+  </Box>
+);
+
 const ListingCards = ({ hasSearched = false }) => {
   const { packages, loading, error, searchParams } = useSelector(state => state.prePackages);
-  
+  const dispatch = useDispatch();
+  const [visiblePackages, setVisiblePackages] = useState([]);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loaderRef = useRef(null); // Reference for the loader element
+  const itemsPerPage = 15;
+
+  // Reset everything when packages change
+  useEffect(() => {
+    if (packages && packages.length > 0) {
+      setPageNumber(1);
+      setVisiblePackages(packages.slice(0, itemsPerPage));
+      setHasMore(packages.length > itemsPerPage);
+      setLoadingMore(false);
+    } else {
+      setVisiblePackages([]);
+      setHasMore(false);
+    }
+  }, [packages]);
+
+  // Setup intersection observer for infinite scrolling
+  useEffect(() => {
+    const options = {
+      root: null, // viewport
+      rootMargin: '0px 0px 200px 0px', // Start loading before user reaches the end (200px margin)
+      threshold: 0.1 // Trigger when 10% of the element is visible
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      
+      if (entry?.isIntersecting && hasMore && !loadingMore && !loading) {
+        loadMorePackages();
+      }
+    }, options);
+
+    // Observe loader element
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current);
+    }
+
+    // Cleanup
+    return () => {
+      if (loaderRef.current) {
+        observer.unobserve(loaderRef.current);
+      }
+    };
+  }, [hasMore, loadingMore, loading, packages]);
+
+  // Function to load more packages
+  const loadMorePackages = () => {
+    if (!hasMore || loadingMore || !packages || loading) return;
+    
+    setLoadingMore(true);
+    
+    // Small delay to prevent multiple loads
+    setTimeout(() => {
+      try {
+        const nextPage = pageNumber + 1;
+        const startIndex = 0;
+        const endIndex = nextPage * itemsPerPage;
+        
+        if (packages.length > (pageNumber * itemsPerPage)) {
+          const nextBatch = packages.slice(startIndex, endIndex);
+          setVisiblePackages(nextBatch);
+          setPageNumber(nextPage);
+          setHasMore(packages.length > endIndex);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error loading more packages:", error);
+      } finally {
+        setLoadingMore(false);
+      }
+    }, 800);
+  };
+
   // Show empty space if no search has been performed yet
   if (!searchParams) {
     return (
@@ -349,7 +695,7 @@ const ListingCards = ({ hasSearched = false }) => {
     );
   }
   
-  if (loading) {
+  if (loading && !loadingMore) {
     return (
       <BlurOverlay active={true} hasSearched={hasSearched}>
         <Box sx={{ mt: 4 }}>
@@ -485,7 +831,7 @@ const ListingCards = ({ hasSearched = false }) => {
         </Box>
         
       </Paper>
-        <NoResults />
+        <NoResults hasSearched={hasSearched} />
       </Box>
       </BlurOverlay>
     );
@@ -547,21 +893,37 @@ const ListingCards = ({ hasSearched = false }) => {
           </Box>
         </Paper>
         
-        <Grid container spacing={3}>
-          {Array.isArray(packages) ? (
-            packages.map(packageItem => (
-              <Grid item xs={12} sm={6} md={4} key={packageItem.package_id}>
+        <Box sx={{ position: 'relative' }}>
+          <Grid container spacing={3}>
+            {visiblePackages.map((packageItem, index) => (
+              <Grid item xs={12} sm={6} md={4} key={packageItem.package_id || index}>
                 <PackageCard packageData={packageItem} />
               </Grid>
-            ))
-          ) : (
-            <Grid item xs={12}>
-              <Typography variant="body1" color="text.secondary">
-                No packages available
+            ))}
+          </Grid>
+          
+          {/* Loader reference element - this is what triggers loading more */}
+          <Box ref={loaderRef} sx={{ width: '100%', height: '10px', mt: 1 }} />
+          
+          {/* Loading indicator at bottom */}
+          {loadingMore && <LoadMoreIndicator />}
+          
+          {/* No more packages message */}
+          {!hasMore && visiblePackages.length > 0 && packages.length > itemsPerPage && (
+            <Box sx={{ 
+              textAlign: 'center', 
+              mt: 4, 
+              mb: 2, 
+              py: 2,
+              borderTop: '1px dashed #e0e0e0',
+              borderRadius: 1
+            }}>
+              <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                You've reached the end of the list
               </Typography>
-            </Grid>
+            </Box>
           )}
-        </Grid>
+        </Box>
       </Box>
     </BlurOverlay>
   );

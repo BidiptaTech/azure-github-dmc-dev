@@ -35,7 +35,7 @@ export default function PreDefinePackagesPage() {
         </div>
       </div>
       
-      <CallToActions />
+      {/* <CallToActions /> */}
       {/* End Call To Actions Section */}
 
       {userRole && userRole.trim() === "Agent" && <DefaultFooter />}
