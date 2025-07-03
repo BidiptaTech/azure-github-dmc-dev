@@ -84,7 +84,8 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type')->get();
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type', 'itinerary')->get();
+        
         // Format the response
         return response()->json($packages);
     }
