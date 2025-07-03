@@ -258,7 +258,7 @@ const PreDefinePackages = () => {
               component="h1" 
               sx={{ 
                 fontWeight: 700, 
-                color: 'primary.main',
+                color: 'white',
                 mt: 3,
                 letterSpacing: '0.5px',
                 display: 'flex',
@@ -270,7 +270,7 @@ const PreDefinePackages = () => {
             </Typography>
           </IconContainer>
           <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
-          <Typography variant="subtitle1" color="text.secondary" textAlign="center">
+          <Typography variant="subtitle1" color="#ece9f1" textAlign="center">
             Discover our exclusive pre-arranged travel experiences
           </Typography>
         </TitleSection>
