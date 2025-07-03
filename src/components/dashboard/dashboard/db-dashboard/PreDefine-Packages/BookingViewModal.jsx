@@ -22,9 +22,7 @@ import {
   Alert,
   Card,
   CardContent,
-  CardMedia,
-  IconButton,
-  Collapse
+  CardMedia
 } from '@mui/material';
 import {
   Close,
@@ -47,11 +45,10 @@ import {
   Hiking,
   Flight,
   NightsStay,
-  LocalActivity,
-  ExpandMore,
-  ExpandLess
+  LocalActivity
 } from '@mui/icons-material';
 import { StatusChip, PaymentStatusChip } from './StatusChips';
+import PDFGenerator, { PDFPrintButton, usePDFGenerator } from './PDFGenerator';
 
 // Slide transition for modal
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -435,10 +432,8 @@ const ServiceCard = ({ service, fallback = false }) => {
   );
 };
 
-// Collapsible Section component
-const CollapsibleSection = ({ title, icon, color, children }) => {
-  const [expanded, setExpanded] = useState(false);
-  
+// Section component (non-collapsible)
+const Section = ({ title, icon, color, children }) => {
   return (
     <Paper 
       elevation={2} 
@@ -455,31 +450,22 @@ const CollapsibleSection = ({ title, icon, color, children }) => {
           bgcolor: color || 'primary.main', 
           color: 'white',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
+          alignItems: 'center'
         }}
-        onClick={() => setExpanded(!expanded)}
       >
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {icon}
           <Typography variant="subtitle1" sx={{ ml: 1 }}>{title}</Typography>
         </Box>
-        <IconButton size="small" sx={{ color: 'white' }}>
-          {expanded ? <ExpandLess /> : <ExpandMore />}
-        </IconButton>
       </Box>
       
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        {children}
-      </Collapse>
+      {children}
     </Paper>
   );
 };
 
 // Day Card Component
 const DayCard = ({ day, index, totalDays }) => {
-  const [expanded, setExpanded] = useState(index === 0); // Only expand first day by default
-  
   // Check if day.services exists and has items
   const hasServices = day.services && Array.isArray(day.services) && day.services.length > 0;
   
@@ -487,6 +473,10 @@ const DayCard = ({ day, index, totalDays }) => {
   if (process.env.NODE_ENV === 'development') {
     console.log(`Day ${day.day || index + 1} data:`, day);
   }
+  
+  // Extract transport information from day data
+  const hasArrivalPickup = day.arrival_pickup === 1 || day.arrival_pickup === true;
+  const hasDepartureService = day.departure_service === 1 || day.departure_service === true;
   
   // Group services by type with better type detection for the new format
   const hotelServices = hasServices ? day.services.filter(s => 
@@ -534,10 +524,8 @@ const DayCard = ({ day, index, totalDays }) => {
           bgcolor: 'grey.100', 
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer'
+          justifyContent: 'space-between'
         }}
-        onClick={() => setExpanded(!expanded)}
       >
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <CalendarToday fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
@@ -545,103 +533,124 @@ const DayCard = ({ day, index, totalDays }) => {
             Day {day.day}: {day.date}
           </Typography>
         </Box>
-        <IconButton size="small">
-          {expanded ? <ExpandLess /> : <ExpandMore />}
-        </IconButton>
+        
+        {/* Transport Status Indicators */}
+        {(hasArrivalPickup || hasDepartureService) && (
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {hasArrivalPickup && (
+              <Chip 
+                size="small" 
+                color="success" 
+                icon={<DirectionsCar fontSize="small" />}
+                label="Arrival Pickup"
+                variant="outlined" 
+                sx={{ height: 20, fontSize: '0.65rem' }} 
+              />
+            )}
+            {hasDepartureService && (
+              <Chip 
+                size="small" 
+                color="info" 
+                icon={<DirectionsCar fontSize="small" />}
+                label="Departure Service"
+                variant="outlined" 
+                sx={{ height: 20, fontSize: '0.65rem' }} 
+              />
+            )}
+          </Box>
+        )}
       </Box>
       
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <CardContent sx={{ p: 1 }}>
-          {!hasServices ? (
-            <Alert severity="info" sx={{ py: 0.5 }}>No scheduled activities for this day</Alert>
-          ) : (
-            <Box sx={{ mt: 1 }}>
-              {/* Hotels Section */}
-              {hotelServices.length > 0 && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
-                    <Hotel fontSize="small" sx={{ color: 'primary.main', mr: 0.5 }} />
-                    <Typography variant="body2" fontWeight="bold">Accommodation</Typography>
-                  </Box>
-                  {hotelServices.map((service, idx) => (
-                    <ServiceCard key={`hotel-${idx}`} service={service} />
-                  ))}
+      <CardContent sx={{ p: 1 }}>
+        {!hasServices ? (
+          <Alert severity="info" sx={{ py: 0.5 }}>No scheduled activities for this day</Alert>
+        ) : (
+          <Box sx={{ mt: 1 }}>
+            {/* Hotels Section */}
+            {hotelServices.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
+                  <Hotel fontSize="small" sx={{ color: 'primary.main', mr: 0.5 }} />
+                  <Typography variant="body2" fontWeight="bold">Accommodation</Typography>
                 </Box>
-              )}
-              
-              {/* Attractions Section */}
-              {attractionServices.length > 0 && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
-                    <Attractions fontSize="small" sx={{ color: 'success.main', mr: 0.5 }} />
-                    <Typography variant="body2" fontWeight="bold">Attractions</Typography>
-                  </Box>
-                  {attractionServices.map((service, idx) => (
-                    <ServiceCard key={`attr-${idx}`} service={service} />
-                  ))}
+                {hotelServices.map((service, idx) => (
+                  <ServiceCard key={`hotel-${idx}`} service={service} />
+                ))}
+              </Box>
+            )}
+            
+            {/* Attractions Section */}
+            {attractionServices.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
+                  <Attractions fontSize="small" sx={{ color: 'success.main', mr: 0.5 }} />
+                  <Typography variant="body2" fontWeight="bold">Attractions</Typography>
                 </Box>
-              )}
-              
-              {/* Restaurants Section */}
-              {restaurantServices.length > 0 && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
-                    <Restaurant fontSize="small" sx={{ color: 'warning.main', mr: 0.5 }} />
-                    <Typography variant="body2" fontWeight="bold">Dining</Typography>
-                  </Box>
-                  {restaurantServices.map((service, idx) => (
-                    <ServiceCard key={`rest-${idx}`} service={service} />
-                  ))}
+                {attractionServices.map((service, idx) => (
+                  <ServiceCard key={`attr-${idx}`} service={service} />
+                ))}
+              </Box>
+            )}
+            
+            {/* Restaurants Section */}
+            {restaurantServices.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
+                  <Restaurant fontSize="small" sx={{ color: 'warning.main', mr: 0.5 }} />
+                  <Typography variant="body2" fontWeight="bold">Dining</Typography>
                 </Box>
-              )}
-              
-              {/* Transfers Section */}
-              {transferServices.length > 0 && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
-                    <DirectionsCar fontSize="small" sx={{ color: 'info.main', mr: 0.5 }} />
-                    <Typography variant="body2" fontWeight="bold">Transportation</Typography>
-                  </Box>
-                  {transferServices.map((service, idx) => (
-                    <ServiceCard key={`trans-${idx}`} service={service} />
-                  ))}
+                {restaurantServices.map((service, idx) => (
+                  <ServiceCard key={`rest-${idx}`} service={service} />
+                ))}
+              </Box>
+            )}
+            
+            {/* Transfers Section */}
+            {transferServices.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
+                  <DirectionsCar fontSize="small" sx={{ color: 'info.main', mr: 0.5 }} />
+                  <Typography variant="body2" fontWeight="bold">Transportation</Typography>
                 </Box>
-              )}
-              
-              {/* Other Activities Section */}
-              {otherServices.length > 0 && (
+                {transferServices.map((service, idx) => (
+                  <ServiceCard key={`trans-${idx}`} service={service} />
+                ))}
+              </Box>
+            )}
+            
+            {/* Other Activities Section */}
+            {otherServices.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
+                  <LocalActivity fontSize="small" sx={{ color: 'secondary.main', mr: 0.5 }} />
+                  <Typography variant="body2" fontWeight="bold">Other Services</Typography>
+                </Box>
+                {otherServices.map((service, idx) => (
+                  <ServiceCard key={`other-${idx}`} service={service} fallback={false} />
+                ))}
+              </Box>
+            )}
+            
+            {/* Fallback for cases where no services match the categories above but we still have services */}
+            {hotelServices.length === 0 && 
+              attractionServices.length === 0 && 
+              restaurantServices.length === 0 && 
+              transferServices.length === 0 && 
+              otherServices.length === 0 && 
+              hasServices && (
                 <Box sx={{ mb: 1.5 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
                     <LocalActivity fontSize="small" sx={{ color: 'secondary.main', mr: 0.5 }} />
-                    <Typography variant="body2" fontWeight="bold">Other Services</Typography>
+                    <Typography variant="body2" fontWeight="bold">Services</Typography>
                   </Box>
-                  {otherServices.map((service, idx) => (
-                    <ServiceCard key={`other-${idx}`} service={service} fallback={false} />
+                  {day.services.map((service, idx) => (
+                    <ServiceCard key={`fallback-${idx}`} service={service} fallback={false} />
                   ))}
                 </Box>
-              )}
-              
-              {/* Fallback for cases where no services match the categories above but we still have services */}
-              {hotelServices.length === 0 && 
-                attractionServices.length === 0 && 
-                restaurantServices.length === 0 && 
-                transferServices.length === 0 && 
-                otherServices.length === 0 && 
-                hasServices && (
-                  <Box sx={{ mb: 1.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, pl: 1 }}>
-                      <LocalActivity fontSize="small" sx={{ color: 'secondary.main', mr: 0.5 }} />
-                      <Typography variant="body2" fontWeight="bold">Services</Typography>
-                    </Box>
-                    {day.services.map((service, idx) => (
-                      <ServiceCard key={`fallback-${idx}`} service={service} fallback={false} />
-                    ))}
-                  </Box>
-              )}
-            </Box>
-          )}
-        </CardContent>
-      </Collapse>
+            )}
+          </Box>
+        )}
+      </CardContent>
     </Card>
   );
 };
@@ -649,6 +658,7 @@ const DayCard = ({ day, index, totalDays }) => {
 const BookingViewModal = ({ open, onClose, bookingData }) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const { generatePDF } = usePDFGenerator();
   
   if (!bookingData) {
     return null;
@@ -657,6 +667,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
   const handleClose = () => {
     onClose();
   };
+  
   
   // Parse booking_details and travel_dates if present
   const bookingDetails = parseJsonSafely(bookingData.booking_details);
@@ -669,213 +680,211 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
     console.log('Itinerary data:', itinerary);
   }
   
+  // const itinerary = bookingDetails?.itinerary || [];
+  
+  // // Log the itinerary data for debugging
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('Itinerary data:', itinerary);
+  // }
+  
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      fullScreen={fullScreen}
-      maxWidth="md"
-      fullWidth
-      TransitionComponent={Transition}
-      PaperProps={{
-        sx: {
-          borderRadius: '12px',
-        }
-      }}
-    >
-      {/* Dialog header */}
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        p: 1.5
-      }}>
-        <Typography variant="h6" fontWeight={600}>
-          Booking #{bookingData.bookingId || bookingData.booking_id}
-        </Typography>
-        <Box>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            size="small" 
-            onClick={() => window.print()}
-            sx={{ mr: 1 }}
+    <PDFGenerator bookingData={bookingData}>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        fullScreen={fullScreen}
+        maxWidth="md"
+        fullWidth
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            '@media print': {
+              borderRadius: '0px',
+              boxShadow: 'none',
+              margin: '0',
+              maxWidth: '100%',
+              width: '100%'
+            }
+          }
+        }}
+      >
+        {/* Dialog header */}
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          p: 1.5,
+          '@media print': {
+            display: 'none'
+          }
+        }}>
+          <Typography variant="h6" fontWeight={600}>
+            Booking #{bookingData.bookingId || bookingData.booking_id}
+          </Typography>
+        </DialogTitle>
+        
+        {/* Dialog content */}
+        <DialogContent sx={{ p: 2 }}>
+          {/* Redesigned Customer and booking summary */}
+          <Paper 
+            elevation={1} 
+            sx={{ 
+              borderRadius: '8px', 
+              mb: 2,
+              overflow: 'hidden'
+            }}
           >
-            Download PDF
-          </Button>
-          <Button 
-            variant="contained" 
-            color="error" 
-            size="small" 
-            startIcon={<Close />}
-            onClick={handleClose}
-          >
-            Close
-          </Button>
-        </Box>
-      </DialogTitle>
-      
-      {/* Dialog content */}
-      <DialogContent sx={{ p: 2 }}>
-        {/* Redesigned Customer and booking summary */}
-        <Paper 
-          elevation={1} 
-          sx={{ 
-            borderRadius: '8px', 
-            mb: 2,
-            overflow: 'hidden'
-          }}
-        >
-          <Box sx={{ 
-            bgcolor: theme.palette.primary.main, 
-            color: 'white',
-            py: 0.75,
-            px: 2,
-            borderTopLeftRadius: '8px',
-            borderTopRightRadius: '8px',
-          }}>
-            <Typography variant="subtitle1" fontWeight="600">Booking Summary</Typography>
-          </Box>
-          
-          <Grid container sx={{ p: 2 }} spacing={2}>
-            <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid', xs: 'none' }, borderColor: 'divider' }}>
-              {/* Left Column - Customer Details */}
-              <Grid container spacing={1}>
-                {/* Customer */}
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <Person sx={{ color: 'primary.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Customer</Typography>
-                      <Typography variant="body1" fontWeight={500}>{bookingData.customerName}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                {/* Destination */}
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <LocationOn sx={{ color: 'error.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Destination</Typography>
-                      <Typography variant="body1" fontWeight={500}>{bookingData.destination}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                {/* Payment Amount */}
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <AttachMoney sx={{ color: 'success.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Payment Amount</Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        SGD {bookingDetails?.total_price || bookingData.payment}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                {/* Number of Guests */}
-                <Grid item xs={12} sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <PeopleAlt sx={{ color: 'info.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Number of Guests</Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        {/* Use the detailed guest info if available */}
-                        {bookingDetails ? (
-                          <>
-                            {(bookingDetails.adult_count || 0) + (bookingDetails.child_count || 0)} person(s)
-                            {(bookingDetails.adult_count > 0 || bookingDetails.child_count > 0 || 
-                              bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && (
-                              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                                {bookingDetails.adult_count > 0 && `${bookingDetails.adult_count} adults`}
-                                {bookingDetails.child_count > 0 && (bookingDetails.adult_count > 0 ? ', ' : '') + `${bookingDetails.child_count} children`}
-                                {(bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && ' • '}
-                                {bookingDetails.male_count > 0 && `${bookingDetails.male_count} male`}
-                                {bookingDetails.female_count > 0 && (bookingDetails.male_count > 0 ? ', ' : '') + `${bookingDetails.female_count} female`}
-                              </Typography>
-                            )}
-                          </>
-                        ) : (
-                          `${bookingData.pax} person(s)`
-                        )}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Grid>
+            <Box sx={{ 
+              bgcolor: theme.palette.primary.main, 
+              color: 'white',
+              py: 0.75,
+              px: 2,
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}>
+              <Typography variant="subtitle1" fontWeight="600">Booking Summary</Typography>
+            </Box>
             
-            <Grid item xs={12} md={6}>
-              {/* Right Column - Booking Details */}
-              <Grid container spacing={1}>
-                {/* Dates Row */}
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarToday color="primary" fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body2" color="text.secondary">Start Date</Typography>
+            <Grid container sx={{ p: 2 }} spacing={2}>
+              <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid', xs: 'none' }, borderColor: 'divider' }}>
+                {/* Left Column - Customer Details */}
+                <Grid container spacing={1}>
+                  {/* Customer */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <Person sx={{ color: 'primary.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Customer</Typography>
+                        <Typography variant="body1" fontWeight={500}>{bookingData.customerName}</Typography>
+                      </Box>
                     </Box>
-                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.startDate}</Typography>
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarToday color="error" fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body2" color="text.secondary">End Date</Typography>
+                  </Grid>
+                  
+                  {/* Destination */}
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <LocationOn sx={{ color: 'error.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Destination</Typography>
+                        <Typography variant="body1" fontWeight={500}>{bookingData.destination}</Typography>
+                      </Box>
                     </Box>
-                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.endDate}</Typography>
-                  </Box>
+                  </Grid>
+                  
+                  {/* Payment Amount */}
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <AttachMoney sx={{ color: 'success.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Payment Amount</Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                          SGD {bookingDetails?.total_price || bookingData.payment}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                  
+                  {/* Number of Guests */}
+                  <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <PeopleAlt sx={{ color: 'info.main', mt: 0.25, mr: 1.5, fontSize: '1.3rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Number of Guests</Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                          {/* Use the detailed guest info if available */}
+                          {bookingDetails ? (
+                            <>
+                              {(bookingDetails.adult_count || 0) + (bookingDetails.child_count || 0)} person(s)
+                              {(bookingDetails.adult_count > 0 || bookingDetails.child_count > 0 || 
+                                bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && (
+                                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {bookingDetails.adult_count > 0 && `${bookingDetails.adult_count} adults`}
+                                  {bookingDetails.child_count > 0 && (bookingDetails.adult_count > 0 ? ', ' : '') + `${bookingDetails.child_count} children`}
+                                  {(bookingDetails.male_count > 0 || bookingDetails.female_count > 0) && ' • '}
+                                  {bookingDetails.male_count > 0 && `${bookingDetails.male_count} male`}
+                                  {bookingDetails.female_count > 0 && (bookingDetails.male_count > 0 ? ', ' : '') + `${bookingDetails.female_count} female`}
+                                </Typography>
+                              )}
+                            </>
+                          ) : (
+                            `${bookingData.pax} person(s)`
+                          )}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
                 </Grid>
-                
-                {/* Status Row */}
-                <Grid item xs={6} sx={{ mt: 1 }}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%'
-                  }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>Booking Status</Typography>
-                    <StatusChip status={bookingData.status} />
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={6} sx={{ mt: 1 }}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'grey.50', 
-                    borderRadius: '6px',
-                    height: '100%'
-                  }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>Payment Status</Typography>
-                    <PaymentStatusChip status={bookingData.paymentStatus} />
-                  </Box>
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                {/* Right Column - Booking Details */}
+                <Grid container spacing={1}>
+                  {/* Dates Row */}
+                  <Grid item xs={6}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CalendarToday color="primary" fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="body2" color="text.secondary">Start Date</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.startDate}</Typography>
+                    </Box>
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CalendarToday color="error" fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="body2" color="text.secondary">End Date</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{bookingData.endDate}</Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {/* Status Row */}
+                  <Grid item xs={6} sx={{ mt: 1 }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%'
+                    }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>Booking Status</Typography>
+                      <StatusChip status={bookingData.status} />
+                    </Box>
+                  </Grid>
+                  
+                  <Grid item xs={6} sx={{ mt: 1 }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: '6px',
+                      height: '100%'
+                    }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>Payment Status</Typography>
+                      <PaymentStatusChip status={bookingData.paymentStatus} />
+                    </Box>
+                  </Grid>
                 </Grid>
               </Grid>
             </Grid>
-          </Grid>
-        </Paper>
+          </Paper>
 
         {/* Itinerary Section - All days displayed with collapse/expand */}
         {itinerary.length > 0 ? (
@@ -898,9 +907,9 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
           <Alert severity="info" sx={{ my: 2 }}>No itinerary information available for this booking.</Alert>
         )}
         
-        {/* Additional Details Cards - Collapsible */}
+        {/* Additional Details Cards - Always Open */}
         {bookingData.hotels && bookingData.hotels.length > 0 && (
-          <CollapsibleSection 
+          <Section 
             title="Accommodation" 
             icon={<Hotel />} 
             color="primary.main"
@@ -944,11 +953,11 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                 </React.Fragment>
               ))}
             </List>
-          </CollapsibleSection>
+          </Section>
         )}
         
         {bookingData.attractions && bookingData.attractions.length > 0 && (
-          <CollapsibleSection 
+          <Section 
             title="Attractions" 
             icon={<Attractions />} 
             color="success.main"
@@ -978,11 +987,11 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                 </Grid>
               ))}
             </Grid>
-          </CollapsibleSection>
+          </Section>
         )}
         
         {bookingData.guides && bookingData.guides.length > 0 && (
-          <CollapsibleSection 
+          <Section 
             title="Tour Guides" 
             icon={<EmojiPeople />} 
             color="info.main"
@@ -1040,11 +1049,11 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                 </ListItem>
               ))}
             </List>
-          </CollapsibleSection>
+          </Section>
         )}
         
         {bookingData.restaurants && bookingData.restaurants.length > 0 && (
-          <CollapsibleSection 
+          <Section 
             title="Dining" 
             icon={<Restaurant />} 
             color="warning.main"
@@ -1074,7 +1083,7 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                 </Grid>
               ))}
             </Grid>
-          </CollapsibleSection>
+          </Section>
         )}
         
         {/* Page footer */}
@@ -1092,16 +1101,22 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
       </DialogContent>
       
       {/* Dialog actions */}
-      <DialogActions sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Button 
-          onClick={() => window.print()} 
+      <DialogActions sx={{ 
+        p: 1.5, 
+        borderTop: '1px solid', 
+        borderColor: 'divider',
+        '@media print': {
+          display: 'none'
+        }
+      }}>
+        <PDFPrintButton 
           variant="contained"
           color="primary"
           size="small"
           sx={{ mr: 1 }}
         >
           Download PDF
-        </Button>
+        </PDFPrintButton>
         <Button 
           onClick={handleClose} 
           variant="outlined"
@@ -1111,7 +1126,8 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
           Close
         </Button>
       </DialogActions>
-    </Dialog>
+      </Dialog>
+    </PDFGenerator>
   );
 };
 

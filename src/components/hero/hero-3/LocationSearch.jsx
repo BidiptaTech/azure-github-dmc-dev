@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 
-const LocationSearch = ({ onLocationSelect }) => {
+const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
   const [searchValue, setSearchValue] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -57,20 +57,38 @@ const LocationSearch = ({ onLocationSelect }) => {
     }
   }, [user_country]); // Only recalculate when user_country changes
 
+  // Set initial value if provided
+  useEffect(() => {
+    if (initialValue && !selectedItem) {
+      const foundCountry = locationSearchContent.find(
+        country => country.name === initialValue || country.code === initialValue
+      );
+      
+      if (foundCountry) {
+        setSelectedItem(foundCountry);
+        setSearchValue(foundCountry.name);
+      } else if (typeof initialValue === 'string') {
+        // If we can't find the country but have a string, use it as is
+        setSelectedItem({ name: initialValue });
+        setSearchValue(initialValue);
+      }
+    }
+  }, [initialValue, locationSearchContent]);
+
   // Filter suggestions based on search input
   useEffect(() => {
-    if (searchValue && !selectedItem) {
-      const filtered = locationSearchContent.filter(country => 
-        country.name.toLowerCase().includes(searchValue.toLowerCase())
-      );
-      setSuggestions(filtered);
-      setIsDropdownVisible(filtered.length > 0);
-    } else if (!selectedItem) {
-      const initialSuggestions = locationSearchContent.slice(0, 5);
-      setSuggestions(initialSuggestions);
-      setIsDropdownVisible(initialSuggestions.length > 0); // Use initialSuggestions instead of suggestions
-    } else {
-      setIsDropdownVisible(false);
+    if (!selectedItem) {
+      if (searchValue && searchValue.trim().length > 0) {
+        const filtered = locationSearchContent.filter(country => 
+          country.name.toLowerCase().includes(searchValue.toLowerCase())
+        );
+        setSuggestions(filtered);
+        setIsDropdownVisible(filtered.length > 0);
+      } else {
+        // Don't show dropdown when search is empty
+        setSuggestions([]);
+        setIsDropdownVisible(false);
+      }
     }
   }, [searchValue, selectedItem, locationSearchContent]);
 
@@ -128,7 +146,8 @@ const LocationSearch = ({ onLocationSelect }) => {
   };
 
   const handleInputFocus = () => {
-    if (!selectedItem) {
+    // Don't show dropdown on focus - only when user types
+    if (!selectedItem && searchValue && searchValue.trim().length > 0) {
       setIsDropdownVisible(true);
     }
   };
@@ -137,7 +156,7 @@ const LocationSearch = ({ onLocationSelect }) => {
     e.stopPropagation();
     setSelectedItem(null);
     setSearchValue("");
-    setIsDropdownVisible(true);
+    setIsDropdownVisible(false);
     
     // Inform parent component about cleared selection
     if (onLocationSelect) {
@@ -180,7 +199,7 @@ const LocationSearch = ({ onLocationSelect }) => {
     <>
       <div className="searchMenu-loc px-30 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
         <div
-          onClick={() => !selectedItem && setIsDropdownVisible(!isDropdownVisible)}
+          onClick={() => !selectedItem && searchValue && searchValue.trim().length > 0 && setIsDropdownVisible(!isDropdownVisible)}
         >
           <h4 className="text-15 fw-500 ls-2 lh-16">Country</h4>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative">
