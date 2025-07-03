@@ -979,7 +979,7 @@ class TourController extends Controller
                     // $hotel_id = $hotelData->hotelDetails->hotel_id;
                     // $hotel_email = Hotel::where('hotel_id', $hotel_id)->value('email');
 
-                    $hotel_email = "saurabh.coactive@gmail.com";
+                    $hotel_email = "bidipta.mitra@coactivesolutions.co.in";
                     $totalGuests = 0;
                     $data = $validatedData['data'][0];
                     $roomInfo = [];
