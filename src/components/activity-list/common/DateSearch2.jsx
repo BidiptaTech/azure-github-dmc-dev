@@ -14,16 +14,29 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false }) => {
       state.hotels.tourdetails.CheckOutTime ||
       state.hotels.tourdetails.data.CheckOutTime
   );
-  console.log("checkOut", checkOut);
+  console.log("checkOut (original):", checkOut);
 
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return null;
-    const [day, month, year] = dateString.split("/");
-    return `${year}-${month}-${day}`;
+    
+    // Check if the date is already in YYYY-MM-DD format
+    if (dateString.includes("-") && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString; // Already in correct format
+    }
+    
+    // Handle DD/MM/YYYY format (previous format)
+    if (dateString.includes("/")) {
+      const [day, month, year] = dateString.split("/");
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // If neither format matches, return as is
+    return dateString;
   };
 
   // const formattedCheckIn = formatDateToDDMMYYYY(checkIn);
   const formattedCheckOut = formatDateToDDMMYYYY(checkOut);
+  console.log("checkOut (formatted):", formattedCheckOut);
 
   // Automatically update selectedDate1 when checkOut changes
   useEffect(() => {

@@ -8,15 +8,28 @@ const DateSearch1 = ({ selectedDate, setSelectedDate, disabled = false }) => {
       state.hotels.tourdetails.check_in_time ||
       state.hotels.tourdetails.CheckInTime || state.hotels.tourdetails.data.CheckInTime
   );
-  console.log("checkIn", checkIn);  
+  console.log("checkIn (original):", checkIn);  
  
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return null;
-    const [day, month, year] = dateString.split("/");
-    return `${year}-${month}-${day}`;
+    
+    // Check if the date is already in YYYY-MM-DD format
+    if (dateString.includes("-") && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString; // Already in correct format
+    }
+    
+    // Handle DD/MM/YYYY format (previous format)
+    if (dateString.includes("/")) {
+      const [day, month, year] = dateString.split("/");
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // If neither format matches, return as is
+    return dateString;
   };
 
   const formattedCheckIn = formatDateToDDMMYYYY(checkIn);
+  console.log("checkIn (formatted):", formattedCheckIn);
 
   // Automatically update selectedDate when checkIn changes
   useEffect(() => {
