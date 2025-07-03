@@ -48,6 +48,8 @@ import { useSelector } from "react-redux";
 import SearchZone from "@/components/Tour-Packages/Local-Transport/LocationZoneSearch";
 import Pickuptimezone from "@/components/activity-list/activity-list-v3/Pickuptimezone";
 import DateSearchZone from "@/components/activity-list/activity-list-v3/DateSearchZone";
+import DisabledStateLayout from '../common/DisabledStateLayout';
+import PickupDropDisabledLayout from '../common/PickupDropDisabledLayout';
 
 const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const dispatch = useDispatch();
@@ -93,10 +95,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     return formatItineraryDate(date);
   }, [date, formatItineraryDate]);
 
-  // Add refs to track previous values
-  const prevItineraryDateRef = useRef("");
-
-  // State for storing the pickup and dropoff locations
+  // Initialize all local state from Redux values to maintain consistency
   const [pickUpLocation, setPickUpLocation] = useState(reduxPickUpLocation);
   const [pickUpZone, setPickUpZone] = useState(reduxPickUpZone);
   const [dropOffLocation, setDropOffLocation] = useState(reduxDropOffLocation);
@@ -116,30 +115,13 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const [entryytimezone, setentryytimezone] = useState(reduxEntryTimeZone);
   const zone_on = useSelector((state) => state.auth.zone_on);
   
-  // Update date states when the date prop from Itinerary changes
-  useEffect(() => {
-    if (itineraryFormattedDate && itineraryFormattedDate !== prevItineraryDateRef.current) {
-      // Only log once per unique date change
-      console.log(`Day ${dayIndex + 1} - Setting date to:`, itineraryFormattedDate);
-      
-      // Update all date states with the new date from Itinerary
-      setSelectedDate(itineraryFormattedDate);
-      setSelectedDate1(itineraryFormattedDate);
-      setSelectedDateZone(itineraryFormattedDate);
-      
-      // Update the ref to track the current value
-      prevItineraryDateRef.current = itineraryFormattedDate;
-    }
-  }, [itineraryFormattedDate, dayIndex]);
-
   // Add state for validation
   const [validationTriggered, setValidationTriggered] = useState(false);
 
   // Track if locations were selected from autocomplete
   const [pickupFromAutocomplete, setPickupFromAutocomplete] = useState(false);
   const [dropoffFromAutocomplete, setDropoffFromAutocomplete] = useState(false);
-  const [exitPickupFromAutocomplete, setExitPickupFromAutocomplete] =
-    useState(false);
+  const [exitPickupFromAutocomplete, setExitPickupFromAutocomplete] = useState(false);
 
   const currentbooking = useSelector((state) => state.localtour.selectbooking);
   const picktype = useSelector((state) => state.localtour.picktype);
@@ -151,37 +133,51 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const [timezone, setTimezone] = useState(!!reduxEntryTimeZone);
   const viewDetails = useSelector((state) => state.viewDetails.bookings);
 
-  // Add imports for useRef
-  const prevPickUpLocationRef = useRef(reduxPickUpLocation);
-  const prevDropOffLocationRef = useRef(reduxDropOffLocation);
-  const prevPickUpLatLngRef = useRef(reduxPickUpLatLng);
-  const prevDropOffLatLngRef = useRef(reduxDropOffLatLng);
-  const prevExitPickUpLocationRef = useRef(reduxExitPickUpLocation);
-  const prevSelectedDateRef = useRef(reduxPickupDate);
-  const prevSelectedDate1Ref = useRef(reduxPickupDate1);
-  const prevSelectedDateZoneRef = useRef(reduxPickupDate || "");
-  
-  // Sync Redux state with local state when the component mounts or Redux values change
+  // Refs to track state changes and prevent infinite loops
+  const isUpdatingFromRedux = useRef(false);
+  const isUpdatingToRedux = useRef(false);
+  const lastItineraryDate = useRef(itineraryFormattedDate);
+
+  // Consolidated effect to sync FROM Redux TO local state (one-way)
   useEffect(() => {
-    // Use refs to track if we're in the middle of a sync operation
-    const isInitialSync = !pickUpLocation && !dropOffLocation;
+    if (isUpdatingToRedux.current) return; // Prevent circular updates
     
-    if (reduxPickUpLocation && (isInitialSync || reduxPickUpLocation !== pickUpLocation)) {
-      console.log("Syncing from Redux: pickUpLocation", reduxPickUpLocation);
+    isUpdatingFromRedux.current = true;
+    
+    // Only update if values are different to prevent unnecessary renders
+    if (reduxPickUpLocation !== pickUpLocation) {
       setPickUpLocation(reduxPickUpLocation);
     }
-    
-    if (reduxDropOffLocation && (isInitialSync || reduxDropOffLocation !== dropOffLocation)) {
-      console.log("Syncing from Redux: dropOffLocation", reduxDropOffLocation);
+    if (reduxDropOffLocation !== dropOffLocation) {
       setDropOffLocation(reduxDropOffLocation);
     }
-
-    // Also sync lat/lng values from Redux
+    if (reduxExitPickUpLocation !== exitpickUpLocation) {
+      setexitPickUpLocation(reduxExitPickUpLocation);
+    }
+    if (reduxPickUpZone !== pickUpZone) {
+      setPickUpZone(reduxPickUpZone);
+    }
+    if (reduxDropOffZone !== dropOffzone) {
+      setDropOffZone(reduxDropOffZone);
+    }
+    if (reduxEntryTime !== entryytime) {
+      setentryytime(reduxEntryTime);
+    }
+    if (reduxEntryTime1 !== entryytime1) {
+      setentryytime1(reduxEntryTime1);
+    }
+    if (reduxEntryTimeZone !== entryytimezone) {
+      setentryytimezone(reduxEntryTimeZone);
+    }
+    if (reduxDropType !== droptype) {
+      setdroptype(reduxDropType);
+    }
+    
+    // Handle lat/lng objects
     if (reduxPickUpLatLng && Object.keys(reduxPickUpLatLng).length > 0 && 
         (!pickUpLatLng || 
           pickUpLatLng.lat !== reduxPickUpLatLng.lat || 
           pickUpLatLng.lng !== reduxPickUpLatLng.lng)) {
-      console.log("Syncing from Redux: pickUpLatLng", reduxPickUpLatLng);
       setPickupLatLng(reduxPickUpLatLng);
     }
     
@@ -189,166 +185,137 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         (!dropOffLatLng || 
           dropOffLatLng.lat !== reduxDropOffLatLng.lat || 
           dropOffLatLng.lng !== reduxDropOffLatLng.lng)) {
-      console.log("Syncing from Redux: dropOffLatLng", reduxDropOffLatLng);
       setDropoffLatLng(reduxDropOffLatLng);
     }
-  }, [reduxPickUpLocation, reduxDropOffLocation, reduxPickUpLatLng, reduxDropOffLatLng]);
+    
+    setTimeout(() => {
+      isUpdatingFromRedux.current = false;
+    }, 100);
+  }, [
+    reduxPickUpLocation, reduxDropOffLocation, reduxExitPickUpLocation,
+    reduxPickUpZone, reduxDropOffZone, reduxEntryTime, reduxEntryTime1, 
+    reduxEntryTimeZone, reduxDropType, reduxPickUpLatLng, reduxDropOffLatLng
+  ]);
 
+  // Handle Itinerary date changes separately
   useEffect(() => {
-    const isInitialSync = !exitpickUpLocation;
-    if(exitpickUpLocation && (isInitialSync || exitpickUpLocation !== reduxExitPickUpLocation)){
-      console.log("Syncing from Redux: exitpickUpLocation", exitpickUpLocation);
-      setexitPickUpLocation(reduxExitPickUpLocation);
-    }
-  }, [reduxExitPickUpLocation]);
-
-  // Sync date values from Redux
-  useEffect(() => {
-    if (reduxPickupDate && reduxPickupDate !== prevSelectedDateRef.current) {
-      console.log("Syncing from Redux: pickupDate", reduxPickupDate);
-      setSelectedDate(reduxPickupDate);
-      prevSelectedDateRef.current = reduxPickupDate;
-    }
-  }, [reduxPickupDate]);
-
-  useEffect(() => {
-    if (reduxPickupDate1 && reduxPickupDate1 !== prevSelectedDate1Ref.current) {
-      console.log("Syncing from Redux: exitPickupDate", reduxPickupDate1);
-      setSelectedDate1(reduxPickupDate1);
-      prevSelectedDate1Ref.current = reduxPickupDate1;
-    }
-  }, [reduxPickupDate1]);
-
-  // Update Redux state when local state changes
-  useEffect(() => {
-    // Only dispatch if the value has actually changed from what's in Redux
-    if (pickUpLocation && pickUpLocation !== prevPickUpLocationRef.current) {
-      prevPickUpLocationRef.current = pickUpLocation;
-      dispatch(setentrypickup(pickUpLocation));
-    }
-  }, [pickUpLocation, dispatch]);
-  
-  useEffect(() => {
-    if (exitpickUpLocation && exitpickUpLocation !== prevExitPickUpLocationRef.current) {
-      prevExitPickUpLocationRef.current = exitpickUpLocation;
-      dispatch(setexitpickup(exitpickUpLocation));
-    }
-  }, [exitpickUpLocation, dispatch]);
-  
-  useEffect(() => {
-    // Only dispatch if the value has actually changed from what's in Redux
-    if (dropOffLocation && dropOffLocation !== prevDropOffLocationRef.current) {
-      prevDropOffLocationRef.current = dropOffLocation;
-      dispatch(setentrydropoff(dropOffLocation));
-    }
-  }, [dropOffLocation, dispatch]);
-
-  // Update Redux state when date values change
-  useEffect(() => {
-    if (selectedDate && selectedDate !== prevSelectedDateRef.current) {
-      prevSelectedDateRef.current = selectedDate;
-      console.log("Dispatching pickupdate to Redux:", selectedDate);
-      dispatch(setpickdate(selectedDate));
-    }
-  }, [selectedDate, dispatch]);
-
-  useEffect(() => {
-    if (selectedDate1 && selectedDate1 !== prevSelectedDate1Ref.current) {
-      prevSelectedDate1Ref.current = selectedDate1;
-      console.log("Dispatching exitpickupdate to Redux:", selectedDate1);
-      dispatch(setexitpickupdate(selectedDate1));
-    }
-  }, [selectedDate1, dispatch]);
-
-  useEffect(() => {
-    if (selectedDateZone && selectedDateZone !== prevSelectedDateZoneRef.current) {
-      prevSelectedDateZoneRef.current = selectedDateZone;
-      console.log("Dispatching zone date to Redux:", selectedDateZone);
-      dispatch(setpickdate(selectedDateZone));
-    }
-  }, [selectedDateZone, dispatch]);
-  
-  // Update Redux state when lat/lng values change
-  useEffect(() => {
-    if (pickUpLatLng && Object.keys(pickUpLatLng).length > 0 && 
-        (!prevPickUpLatLngRef.current ||
-         prevPickUpLatLngRef.current.lat !== pickUpLatLng.lat ||
-         prevPickUpLatLngRef.current.lng !== pickUpLatLng.lng)) {
+    if (itineraryFormattedDate && itineraryFormattedDate !== lastItineraryDate.current) {
+      console.log(`Day ${dayIndex + 1} - Updating date from Itinerary:`, itineraryFormattedDate);
       
-      prevPickUpLatLngRef.current = pickUpLatLng;
-      const pickUpLatLng1 = {
-        lat: pickUpLatLng.lat,
-        lng: pickUpLatLng.lng
-      }
-      dispatch(setPickupPlaceid(pickUpLatLng1));
+      setSelectedDate(itineraryFormattedDate);
+      setSelectedDate1(itineraryFormattedDate);
+      setSelectedDateZone(itineraryFormattedDate);
+      
+      lastItineraryDate.current = itineraryFormattedDate;
     }
-  }, [pickUpLatLng, dispatch]);
-  
-  useEffect(() => {
-    if (dropOffLatLng && Object.keys(dropOffLatLng).length > 0 && 
-        (!prevDropOffLatLngRef.current ||
-         prevDropOffLatLngRef.current.lat !== dropOffLatLng.lat ||
-         prevDropOffLatLngRef.current.lng !== dropOffLatLng.lng)) {
-      
-      prevDropOffLatLngRef.current = dropOffLatLng;
-      const dropOffLatLng1 = {
-        lat: dropOffLatLng.lat,
-        lng: dropOffLatLng.lng
-      }
-      dispatch(setDropoffPlaceid(dropOffLatLng1));
-    }
-  }, [dropOffLatLng, dispatch]);
-  
-  // Custom handler for pickup location change that updates both name and latlng in Redux
-  const handleLocationChange = () => {
-    // Only update Redux if we have valid data that differs from what's already in Redux
-    if (pickUpLocation && pickUpLatLng && 
-        (pickUpLocation !== prevPickUpLocationRef.current || 
-         !prevPickUpLatLngRef.current || 
-         prevPickUpLatLngRef.current.lat !== pickUpLatLng.lat || 
-         prevPickUpLatLngRef.current.lng !== pickUpLatLng.lng)) {
-      
-      prevPickUpLocationRef.current = pickUpLocation;
-      prevPickUpLatLngRef.current = pickUpLatLng;
-      
-      dispatch(setentrypickup(pickUpLocation));
+  }, [itineraryFormattedDate, dayIndex]);
 
-      const pickUpLatLng1 = {
-        lat: pickUpLatLng.lat,
-        lng: pickUpLatLng.lng
-      } 
-      dispatch(setPickupPlaceid(pickUpLatLng1));
-    }
-    if (exitpickUpLocation && pickUpLatLng && 
-        (exitpickUpLocation !== prevExitPickUpLocationRef.current || 
-         !prevExitPickUpLocationRef.current || 
-         prevExitPickUpLocationRef.current.lat !== pickUpLatLng.lat || 
-         prevExitPickUpLocationRef.current.lng !== pickUpLatLng.lng)) {
-      prevExitPickUpLocationRef.current = exitpickUpLocation;
-      dispatch(setexitpickup(exitpickUpLocation));
+  // Debounced dispatch function to prevent rapid Redux updates
+  const debouncedDispatch = useRef(null);
+  
+  const dispatchToRedux = useCallback((updates) => {
+    if (isUpdatingFromRedux.current) return; // Prevent circular updates
+    
+    // Clear previous timeout
+    if (debouncedDispatch.current) {
+      clearTimeout(debouncedDispatch.current);
     }
     
-    if (dropOffLocation && dropOffLatLng && 
-        (dropOffLocation !== prevDropOffLocationRef.current || 
-         !prevDropOffLatLngRef.current ||
-         prevDropOffLatLngRef.current.lat !== dropOffLatLng.lat || 
-         prevDropOffLatLngRef.current.lng !== dropOffLatLng.lng)) {
+    // Debounce the dispatch
+    debouncedDispatch.current = setTimeout(() => {
+      isUpdatingToRedux.current = true;
       
-      prevDropOffLocationRef.current = dropOffLocation;
-      prevDropOffLatLngRef.current = dropOffLatLng;
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          switch (key) {
+            case 'pickUpLocation':
+              if (value !== reduxPickUpLocation) dispatch(setentrypickup(value));
+              break;
+            case 'dropOffLocation':
+              if (value !== reduxDropOffLocation) dispatch(setentrydropoff(value));
+              break;
+            case 'exitpickUpLocation':
+              if (value !== reduxExitPickUpLocation) dispatch(setexitpickup(value));
+              break;
+            case 'pickUpZone':
+              if (value !== reduxPickUpZone) dispatch(setPickupZoneid(value));
+              break;
+            case 'dropOffZone':
+              if (value !== reduxDropOffZone) dispatch(setDropoffZoneid(value));
+              break;
+            case 'entryytime':
+              if (value !== reduxEntryTime) dispatch(setentrytime(value));
+              break;
+            case 'entryytime1':
+              if (value !== reduxEntryTime1) dispatch(setentrytime(value));
+              break;
+            case 'entryytimezone':
+              if (value !== reduxEntryTimeZone) dispatch(setentrytime(value));
+              break;
+            case 'droptype':
+              if (value !== reduxDropType) dispatch(setDroptype(value));
+              break;
+            case 'selectedDate':
+              if (value !== reduxPickupDate) dispatch(setpickdate(value));
+              break;
+            case 'selectedDate1':
+              if (value !== reduxPickupDate1) dispatch(setexitpickupdate(value));
+              break;
+            case 'selectedDateZone':
+              if (value !== reduxPickupDate) dispatch(setpickdate(value));
+              break;
+            case 'pickUpLatLng':
+              if (value && Object.keys(value).length > 0) {
+                const latLng = { lat: value.lat, lng: value.lng };
+                dispatch(setPickupPlaceid(latLng));
+              }
+              break;
+            case 'dropOffLatLng':
+              if (value && Object.keys(value).length > 0) {
+                const latLng = { lat: value.lat, lng: value.lng };
+                dispatch(setDropoffPlaceid(latLng));
+              }
+              break;
+          }
+        }
+      });
       
-      dispatch(setentrydropoff(dropOffLocation));
-      const dropOffLatLng1 = {
-        lat: dropOffLatLng.lat,
-        lng: dropOffLatLng.lng
-      }
-      dispatch(setDropoffPlaceid(dropOffLatLng1));
+      setTimeout(() => {
+        isUpdatingToRedux.current = false;
+      }, 100);
+    }, 300); // 300ms debounce
+  }, [dispatch, reduxPickUpLocation, reduxDropOffLocation, reduxExitPickUpLocation, reduxPickUpZone, reduxDropOffZone, reduxEntryTime, reduxEntryTime1, reduxEntryTimeZone, reduxDropType, reduxPickupDate, reduxPickupDate1]);
+
+  // Single effect to handle all local state changes and dispatch to Redux
+  useEffect(() => {
+    const updates = {};
+    
+    if (pickUpLocation) updates.pickUpLocation = pickUpLocation;
+    if (dropOffLocation) updates.dropOffLocation = dropOffLocation;
+    if (exitpickUpLocation) updates.exitpickUpLocation = exitpickUpLocation;
+    if (pickUpZone) updates.pickUpZone = pickUpZone;
+    if (dropOffzone) updates.dropOffZone = dropOffzone;
+    if (entryytime) updates.entryytime = entryytime;
+    if (entryytime1) updates.entryytime1 = entryytime1;
+    if (entryytimezone) updates.entryytimezone = entryytimezone;
+    if (droptype) updates.droptype = droptype;
+    if (selectedDate) updates.selectedDate = selectedDate;
+    if (selectedDate1) updates.selectedDate1 = selectedDate1;
+    if (selectedDateZone) updates.selectedDateZone = selectedDateZone;
+    if (pickUpLatLng && Object.keys(pickUpLatLng).length > 0) updates.pickUpLatLng = pickUpLatLng;
+    if (dropOffLatLng && Object.keys(dropOffLatLng).length > 0) updates.dropOffLatLng = dropOffLatLng;
+    
+    if (Object.keys(updates).length > 0) {
+      dispatchToRedux(updates);
     }
-  };
+  }, [
+    pickUpLocation, dropOffLocation, exitpickUpLocation, pickUpZone, dropOffzone,
+    entryytime, entryytime1, entryytimezone, droptype, selectedDate, selectedDate1, 
+    selectedDateZone, pickUpLatLng, dropOffLatLng, dispatchToRedux
+  ]);
   
-  // Ensure location values are persisted when Pickuptime changes
+  // Custom handler for time selection
   const handleTimeSelection = (value) => {
-    // Use conditional statements to update only the relevant time state
     if(selectedPort === "Point To Point"){
       setentryytime(value);
     }
@@ -358,9 +325,6 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     else if(selectedPort === "Local Transfer"){
       setentryytimezone(value);
     }
-    
-    // No need to manually trigger handleLocationChange here
-    // Let the state update naturally when the time is selected
   };
   
   const handleDateSelection = (date) => {
@@ -391,23 +355,26 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       const formattedDate = handleDateSelection(selectedDate);
       console.log("Point To Point search with date:", formattedDate);
       
-      dispatch(setentrypickup(pickUpLocation));
-      dispatch(setentrydropoff(dropOffLocation));
-      dispatch(setentrytime(entryytime));
-      dispatch(setpickdate(formattedDate));
+      // Dispatch all necessary data
+      const updates = {
+        pickUpLocation,
+        dropOffLocation,
+        entryytime,
+        selectedDate: formattedDate
+      };
+      
+      dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
       
       // Check if pickUpLatLng and dropOffLatLng have valid values
       if (!pickUpLatLng || !pickUpLatLng.lat || !pickUpLatLng.lng) {
         console.error("Invalid pickup location coordinates. Please select a location from the dropdown.");
-        // Force pickupFromAutocomplete to false to show validation message
         setPickupFromAutocomplete(false);
         return;
       }
       
       if (!dropOffLatLng || !dropOffLatLng.lat || !dropOffLatLng.lng) {
         console.error("Invalid dropoff location coordinates. Please select a location from the dropdown.");
-        // Force dropoffFromAutocomplete to false to show validation message
         setDropoffFromAutocomplete(false);
         return;
       }
@@ -421,18 +388,6 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         dropOffLatLng
       });
       
-      const pickUpLatLng1 = {
-        lat: pickUpLatLng.lat,
-        lng: pickUpLatLng.lng
-      };
-      
-      const dropOffLatLng1 = {
-        lat: dropOffLatLng.lat,
-        lng: dropOffLatLng.lng
-      };
-      
-      dispatch(setPickupPlaceid(pickUpLatLng1));
-      dispatch(setDropoffPlaceid(dropOffLatLng1));
       dispatch(setZonetype(""));
 
       // Check if time is selected and valid
@@ -473,11 +428,14 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         "Will call fetchVehicles": locationValid && time1
       });
 
-      dispatch(setexitpickup(exitpickUpLocation));
-      dispatch(setpickdate(formattedDate));
-      dispatch(setexitpickupdate(formattedDate));
-      dispatch(setentrytime(entryytime1));
-      dispatch(setentrytime1(entryytime1));
+      // Dispatch all necessary data
+      const updates = {
+        exitpickUpLocation,
+        entryytime1,
+        selectedDate1: formattedDate
+      };
+      
+      dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
       
       // Check if pickUpLatLng has valid values
@@ -490,12 +448,6 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       // If we have valid coordinates, consider the location as valid from autocomplete
       setExitPickupFromAutocomplete(true);
       
-      const pickUpLatLng1 = {
-        lat: pickUpLatLng.lat,
-        lng: pickUpLatLng.lng
-      };
-      
-      dispatch(setPickupPlaceid(pickUpLatLng1));
       dispatch(setDropoffPlaceid(null));
       dispatch(setZonetype(""));
 
@@ -523,19 +475,23 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         });
       }
     } else if (selectedPort === "Local Transfer") {
-      // Only proceed if both locations are selected from autocomplete
       // Ensure the date is properly formatted
       const formattedDate = handleDateSelection(selectedDateZone);
       console.log("Local Transfer search with date:", formattedDate);
       
-      dispatch(setPickupZoneid(pickUpZone));
-      dispatch(setDropoffZoneid(dropOffzone));
+      // Dispatch all necessary data
+      const updates = {
+        pickUpZone,
+        dropOffZone: dropOffzone,
+        entryytimezone,
+        selectedDateZone: formattedDate,
+        droptype
+      };
+      
+      dispatchToRedux(updates);
+      dispatch(setSelectionType(selectedPort));
       dispatch(setentrypickup(pickUpLatLng));
       dispatch(setentrydropoff(dropOffLatLng));
-      dispatch(setSelectionType(selectedPort));
-      dispatch(setDroptype(droptype));
-      dispatch(setentrytime(entryytimezone));
-      dispatch(setpickdate(formattedDate));
       dispatch(setZonetype("zone"));
 
       // Check if we have valid values for the API call
@@ -561,8 +517,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       }
     }
   };
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedDispatch.current) {
+        clearTimeout(debouncedDispatch.current);
+      }
+    };
+  }, []);
 
-    const theme = useTheme();
+  const theme = useTheme();
 
   return (
     <Paper 
@@ -699,186 +663,201 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
           </FormControl>
         </Box>
 
-        {/* Form Fields Row */}
-        <Grid container spacing={2} alignItems="flex-end" sx={{ mb: 3 }}>
-          {/* Location Search */}
-          <Grid item xs={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 6 : 4}>
-            <Box>
-              {selectedPort === "Point To Point" ? (
-                <LocationSearch
-                  pickUpLocation={pickUpLocation}
-                  setPickUpLocation={setPickUpLocation}
-                  dropOffLocation={dropOffLocation}
-                  setDropOffLocation={setDropOffLocation}
-                  pickUpLatLng={pickUpLatLng}
-                  setPickupLatLng={setPickupLatLng}
-                  dropOffLatLng={dropOffLatLng}
-                  setDropoffLatLng={setDropoffLatLng}
-                  Location={Location}
-                  validationTriggered={validationTriggered}
-                  setPickupFromAutocomplete={setPickupFromAutocomplete}
-                  setDropoffFromAutocomplete={setDropoffFromAutocomplete}
-                  pickupFromAutocomplete={pickupFromAutocomplete}
-                  dropoffFromAutocomplete={dropoffFromAutocomplete}
-                  dayIndex={dayIndex}
-                />
-              ) : selectedPort === "Hourly" ? (
-                <SearchBar1
-                  exitpickUpLocation={exitpickUpLocation}
-                  setexitPickUpLocation={setexitPickUpLocation}
-                  pickUpLatLng={pickUpLatLng}
-                  setPickupLatLng={setPickupLatLng}
-                  Location={Location}
-                  validationTriggered={validationTriggered}
-                  setPickupFromAutocomplete={setExitPickupFromAutocomplete}
-                  pickupFromAutocomplete={exitPickupFromAutocomplete}
-                  dayIndex={dayIndex}
-                />
-              ) : selectedPort === "Local Transfer" ? (
-                <SearchZone
-                  currentbooking={currentbooking}
-                  picktype={picktype}
-                  setdroptype={setdroptype}
-                  droptype={droptype}
-                  setPickUpLocation={setPickUpZone}
-                  setPickupLatLng={setPickupLatLng}
-                  setDropoffLatLng={setDropoffLatLng}
-                  dropOffLocation={dropOffLatLng}
-                  validationTriggered={validationTriggered}
-                  setDropOffLocation={setDropOffZone}
-                  dayIndex={dayIndex}
-                />
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  {/* <Typography variant="body2" color="text.secondary">
-                    Please select a journey type first
-                  </Typography> */}
+        {selectedPort ? (
+          <>
+            {/* Form Fields Row */}
+            <Grid container spacing={2} alignItems="flex-end" sx={{ mb: 3 }}>
+              {/* Location Search */}
+              <Grid item xs={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 6 : 4}>
+                <Box>
+                  {selectedPort === "Point To Point" ? (
+                    <LocationSearch
+                      pickUpLocation={pickUpLocation}
+                      setPickUpLocation={setPickUpLocation}
+                      dropOffLocation={dropOffLocation}
+                      setDropOffLocation={setDropOffLocation}
+                      pickUpLatLng={pickUpLatLng}
+                      setPickupLatLng={setPickupLatLng}
+                      dropOffLatLng={dropOffLatLng}
+                      setDropoffLatLng={setDropoffLatLng}
+                      Location={Location}
+                      validationTriggered={validationTriggered}
+                      setPickupFromAutocomplete={setPickupFromAutocomplete}
+                      setDropoffFromAutocomplete={setDropoffFromAutocomplete}
+                      pickupFromAutocomplete={pickupFromAutocomplete}
+                      dropoffFromAutocomplete={dropoffFromAutocomplete}
+                      dayIndex={dayIndex}
+                    />
+                  ) : selectedPort === "Hourly" ? (
+                    <SearchBar1
+                      exitpickUpLocation={exitpickUpLocation}
+                      setexitPickUpLocation={setexitPickUpLocation}
+                      pickUpLatLng={pickUpLatLng}
+                      setPickupLatLng={setPickupLatLng}
+                      Location={Location}
+                      validationTriggered={validationTriggered}
+                      setPickupFromAutocomplete={setExitPickupFromAutocomplete}
+                      pickupFromAutocomplete={exitPickupFromAutocomplete}
+                      dayIndex={dayIndex}
+                    />
+                  ) : selectedPort === "Local Transfer" ? (
+                    <SearchZone
+                      currentbooking={currentbooking}
+                      picktype={picktype}
+                      setdroptype={setdroptype}
+                      droptype={droptype}
+                      setPickUpLocation={setPickUpZone}
+                      setPickupLatLng={setPickupLatLng}
+                      setDropoffLatLng={setDropoffLatLng}
+                      dropOffLocation={dropOffLatLng}
+                      validationTriggered={validationTriggered}
+                      setDropOffLocation={setDropOffZone}
+                      dayIndex={dayIndex}
+                    />
+                  ) : (
+                    <Box>
+                      <LocationSearch
+                        pickUpLocation={pickUpLocation}
+                        setPickUpLocation={setPickUpLocation}
+                        dropOffLocation={dropOffLocation}
+                        setDropOffLocation={setDropOffLocation}
+                        pickUpLatLng={pickUpLatLng}
+                        setPickupLatLng={setPickupLatLng}
+                        dropOffLatLng={dropOffLatLng}
+                        setDropoffLatLng={setDropoffLatLng}
+                        Location={Location}
+                        validationTriggered={validationTriggered}
+                        setPickupFromAutocomplete={setPickupFromAutocomplete}
+                        setDropoffFromAutocomplete={setDropoffFromAutocomplete}
+                        pickupFromAutocomplete={pickupFromAutocomplete}
+                        dropoffFromAutocomplete={dropoffFromAutocomplete}
+                        dayIndex={dayIndex}
+                        disabled={true}
+                      />
+                    </Box>
+                  )}
                 </Box>
-              )}
-            </Box>
-          </Grid>
+              </Grid>
 
-          {/* Time Selection */}
-          <Grid item xs={12} md={3}>
-            <Box>
-              {selectedPort === "Point To Point" ? (
-                <Pickuptime
-                  entryytime={entryytime}
-                  setentryytime={handleTimeSelection}
-                  setTime={setTime}
-                />
-              ) : selectedPort === "Hourly" ? (
-                <Pickuptime1
-                  entryytime={entryytime1}
-                  setentryytime={handleTimeSelection}
-                  setTime={setTime1}
-                />
-              ) : selectedPort === "Local Transfer" ? (
-                <Pickuptimezone
-                  entryytime={entryytimezone}
-                  setentryytime={setentryytimezone}
-                  setTime={setTimezone}
-                />
-              ) : selectedPort && (
-                <Pickuptimezone
-                  entryytime={entryytimezone}
-                  setentryytime={setentryytimezone}
-                  setTime={setTimezone}
-                />
-              )}
-            </Box>
-          </Grid>
+              {/* Time Selection */}
+              <Grid item xs={12} md={3}>
+                <Box>
+                  {selectedPort === "Point To Point" ? (
+                    <Pickuptime
+                      entryytime={entryytime}
+                      setentryytime={handleTimeSelection}
+                      setTime={setTime}
+                    />
+                  ) : selectedPort === "Hourly" ? (
+                    <Pickuptime1
+                      entryytime={entryytime1}
+                      setentryytime={handleTimeSelection}
+                      setTime={setTime1}
+                    />
+                  ) : selectedPort === "Local Transfer" ? (
+                    <Pickuptimezone
+                      entryytime={entryytimezone}
+                      setentryytime={setentryytimezone}
+                      setTime={setTimezone}
+                    />
+                  ) : selectedPort && (
+                    <Pickuptimezone
+                      entryytime={entryytimezone}
+                      setentryytime={setentryytimezone}
+                      setTime={setTimezone}
+                    />
+                  )}
+                </Box>
+              </Grid>
 
-          {/* Date Selection */}
-          <Grid item xs={12} md={3}>
-            <Box>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
-                {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
-              </Typography>
-              {selectedPort === "Point To Point" ? (
-                <DateSearch1
-                  selectedDate={selectedDate}
-                  setSelectedDate={(date) => {
-                    console.log("Selected Pickup Date:", date);
-                    if (date && date._isAMomentObject) {
-                      const formattedDate = date.format('YYYY-MM-DD');
-                      console.log("Formatted date:", formattedDate);
-                      setSelectedDate(formattedDate);
-                      dispatch(setpickdate(formattedDate));
-                    } else {
-                      setSelectedDate(date);
-                      dispatch(setpickdate(date));
-                    }
-                    handleLocationChange();
-                  }}
-                />
-              ) : selectedPort === "Local Transfer" ? (
-                <DateSearchZone
-                  selectedDate1={selectedDateZone}
-                  setSelectedDate1={(date) => {
-                    if (date && date._isAMomentObject) {
-                      const formattedDate = date.format('YYYY-MM-DD');
-                      console.log("Formatted zone date:", formattedDate);
-                      setSelectedDateZone(formattedDate);
-                      dispatch(setpickdate(formattedDate));
-                    } else {
-                      setSelectedDateZone(date);
-                      dispatch(setpickdate(date));
-                    }
-                    handleLocationChange();
-                  }}
-                />
-              ) : (
-                <DateSearch2
-                  selectedDate1={selectedDate1}
-                  setSelectedDate1={(date) => {
-                    if (date && date._isAMomentObject) {
-                      const formattedDate = date.format('YYYY-MM-DD');
-                      console.log("Formatted exit date:", formattedDate);
-                      setSelectedDate1(formattedDate);
-                      dispatch(setexitpickupdate(formattedDate));
-                      dispatch(setpickdate(formattedDate));
-                    } else {
-                      setSelectedDate1(date);
-                      dispatch(setexitpickupdate(date));
-                      dispatch(setpickdate(date));
-                    }
-                    handleLocationChange();
-                  }}
-                />
-              )}
-            </Box>
-          </Grid>
-        </Grid>
+              {/* Date Selection */}
+              <Grid item xs={12} md={3}>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+                    {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
+                  </Typography>
+                  {selectedPort === "Point To Point" ? (
+                    <DateSearch1
+                      selectedDate={selectedDate}
+                      setSelectedDate={(date) => {
+                        console.log("Selected Pickup Date:", date);
+                        if (date && date._isAMomentObject) {
+                          const formattedDate = date.format('YYYY-MM-DD');
+                          console.log("Formatted date:", formattedDate);
+                          setSelectedDate(formattedDate);
+                        } else {
+                          setSelectedDate(date);
+                        }
+                      }}
+                    />
+                  ) : selectedPort === "Local Transfer" ? (
+                    <DateSearchZone
+                      selectedDate1={selectedDateZone}
+                      setSelectedDate1={(date) => {
+                        if (date && date._isAMomentObject) {
+                          const formattedDate = date.format('YYYY-MM-DD');
+                          console.log("Formatted zone date:", formattedDate);
+                          setSelectedDateZone(formattedDate);
+                        } else {
+                          setSelectedDateZone(date);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <DateSearch2
+                      selectedDate1={selectedDate1}
+                      setSelectedDate1={(date) => {
+                        if (date && date._isAMomentObject) {
+                          const formattedDate = date.format('YYYY-MM-DD');
+                          console.log("Formatted exit date:", formattedDate);
+                          setSelectedDate1(formattedDate);
+                        } else {
+                          setSelectedDate1(date);
+                        }
+                      }}
+                    />
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
 
-        {/* Search Button Row */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<SearchIcon />}
-            onClick={buttonsearch}
-            sx={{
-              minWidth: 200,
-              px: 4,
-              py: 1.5,
-              borderRadius: 2,
-              background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-              fontSize: '1rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%)',
-                boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
-                transform: 'translateY(-1px)',
-              },
-              transition: 'all 0.3s ease',
-            }}
-          >
-            Search
-          </Button>
-        </Box>
+            {/* Search Button Row */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<SearchIcon />}
+                onClick={buttonsearch}
+                sx={{
+                  minWidth: 200,
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%)',
+                    boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                Search
+              </Button>
+            </Box>
+          </>
+        ) : (
+          <DisabledStateLayout 
+            message="Please select a service type to continue"
+            showLocationFields={true}
+            showTimeField={true}
+            showDateField={true}
+          />
+        )}
       </Box>
     </Paper>
   );

@@ -320,21 +320,20 @@ export default function Itinerary({ onBookingSuccess }) {
 
             {/* First Day - Place Port Component at the beginning */}
             {index === 0 && (
-  <Box sx={{ mb: 2 }}>
-    <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
-      <PickupDropComponent 
-        portType={portType} 
-        setPortType={() => setPortType("Entry Port")} 
-        date={date}
-        dayIndex={index}
-        entryPorts={categorizedServices.entryPorts}
-        exitPorts={categorizedServices.exitPorts}
-      />
-    </Paper>
-  </Box>
-)}
-
+              <Box sx={{ mb: 2 }}>
+                <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
+                  {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
+                  <PickupDropComponent 
+                    portType={portType} 
+                    setPortType={() => setPortType("Entry Port")} 
+                    date={date}
+                    dayIndex={index}
+                    entryPorts={categorizedServices.entryPorts}
+                    tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                  />
+                </Paper>
+              </Box>
+            )}
 
             {/* Attraction Component */}
             <Box sx={{ mb: 2 }}>
@@ -343,7 +342,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 <AttractionComponent 
                   date={date}
                   dayIndex={index}
-                  attractions={categorizedServices.attractions}
+                  attractionspack={categorizedServices.attractions}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -355,7 +355,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 <GuideComponent 
                   date={date}
                   dayIndex={index}
-                  guides={categorizedServices.guides}
+                  guidespack={categorizedServices.guides}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -367,7 +368,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 <RestaurantComponent 
                   date={date}
                   dayIndex={index}
-                  restaurants={categorizedServices.restaurants}
+                  restaurantspack={categorizedServices.restaurants}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -381,6 +383,7 @@ export default function Itinerary({ onBookingSuccess }) {
                   PointToPoint={categorizedServices.travelPoints}
                   Hourly={categorizedServices.travelHourly}
                   LocalTransports={categorizedServices.localTransports}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -395,8 +398,8 @@ export default function Itinerary({ onBookingSuccess }) {
         setPortType1={() => setPortType1("Exit Port")} 
         date={date}
         dayIndex={index}
-        entryPorts={categorizedServices.entryPorts}
         exitPorts={categorizedServices.exitPorts}
+        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
       />
     </Paper>
   </Box>

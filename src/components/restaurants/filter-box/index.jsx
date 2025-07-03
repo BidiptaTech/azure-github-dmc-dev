@@ -1411,7 +1411,7 @@ const Index = () => {
         </div>
       )}
 
-      {/* Meal Description Modal */}
+      {/* Enhanced Meal Selection Modal */}
       <Modal 
         open={open} 
         onClose={() => setOpen(false)}
@@ -1421,682 +1421,959 @@ const Index = () => {
           justifyContent: 'center',
           padding: '20px',
           height: '100vh',
-          backdropFilter: 'blur(5px)',
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
         }}
       >
-        <Dialog
-          open={open}
-          onClose={() => setOpen(false)}
-          maxWidth={false}
-          fullWidth
-          sx={{
-            width: '80vw',
-            maxWidth: '1000px',
-            height: 'auto',
-            maxHeight: '90vh',
-            margin: 'auto',
-            position: 'relative',
-            transform: 'translateY(-30px)',
-            opacity: 1,
-            animation: 'fadeIn 0.3s ease-out',
-            '@keyframes fadeIn': {
-              '0%': {
-                opacity: 0,
-                transform: 'translateY(30px)'
-              },
-              '100%': {
-                opacity: 1,
-                transform: 'translateY(-30px)'
-              }
-            },
-            '& .MuiDialog-paper': {
-              margin: '0',
-              borderRadius: '16px',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
-              overflow: 'hidden',
-              border: '1px solid rgba(255, 255, 255, 0.18)',
-              background: 'rgba(255, 255, 255, 0.95)',
-            }
-          }}
-        >
-          <DialogTitle 
+        <Fade in={open}>
+          <Paper
+            elevation={24}
             sx={{
-              padding: '24px 32px',
-              borderBottom: '1px solid rgba(230, 235, 245, 0.8)',
-              background: 'linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)',
-              borderTopLeftRadius: '16px',
-              borderTopRightRadius: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
+              width: '95%',
+              maxWidth: '1200px',
+              height: 'auto',
+              maxHeight: '90vh',
+              margin: 'auto',
               position: 'relative',
-              overflow: 'hidden'
+              transform: 'translateY(-20px)',
+              opacity: 1,
+              animation: 'slideInUp 0.4s ease-out',
+              '@keyframes slideInUp': {
+                '0%': {
+                  opacity: 0,
+                  transform: 'translateY(40px) scale(0.95)'
+                },
+                '100%': {
+                  opacity: 1,
+                  transform: 'translateY(-20px) scale(1)'
+                }
+              },
+              '& .MuiDialog-paper': {
+                margin: '0',
+                borderRadius: '20px',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                overflow: 'hidden',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 255, 0.98) 100%)',
+              }
             }}
           >
-            {/* Decorative elements */}
+            {/* Enhanced Modal Header */}
             <Box sx={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: '150px',
-              height: '150px',
-              background: 'radial-gradient(circle, rgba(53, 84, 209, 0.05) 0%, rgba(255, 255, 255, 0) 70%)',
-              borderRadius: '50%',
-              transform: 'translate(30%, -30%)',
-              zIndex: 0
-            }} />
-            <Box sx={{
-              position: 'absolute',
-              bottom: 0,
-              left: '10%',
-              width: '100px',
-              height: '100px',
-              background: 'radial-gradient(circle, rgba(53, 84, 209, 0.03) 0%, rgba(255, 255, 255, 0) 70%)',
-              borderRadius: '50%',
-              transform: 'translate(0, 30%)',
-              zIndex: 0
-            }} />
-            
-            {/* Icon with background glow */}
-            <Box 
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #3554D1 0%, #5E72E4 100%)',
-                boxShadow: '0 4px 15px rgba(53, 84, 209, 0.25)',
-                position: 'relative',
-                zIndex: 1,
-                animation: 'pulse 2s infinite',
-                '@keyframes pulse': {
-                  '0%': { boxShadow: '0 4px 15px rgba(53, 84, 209, 0.25)' },
-                  '50%': { boxShadow: '0 4px 25px rgba(53, 84, 209, 0.4)' },
-                  '100%': { boxShadow: '0 4px 15px rgba(53, 84, 209, 0.25)' }
+              position: 'relative',
+              padding: '28px 32px',
+              borderBottom: '1px solid rgba(230, 235, 245, 0.8)',
+              background: 'linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)',
+              borderTopLeftRadius: '20px',
+              borderTopRightRadius: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              overflow: 'hidden'
+            }}>
+              {/* Animated background elements */}
+              <Box sx={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '200px',
+                height: '200px',
+                background: 'radial-gradient(circle, rgba(53, 84, 209, 0.08) 0%, rgba(255, 255, 255, 0) 70%)',
+                borderRadius: '50%',
+                transform: 'translate(30%, -30%)',
+                zIndex: 0,
+                animation: 'float 6s ease-in-out infinite',
+                '@keyframes float': {
+                  '0%, 100%': { transform: 'translate(30%, -30%)' },
+                  '50%': { transform: 'translate(25%, -25%)' }
                 }
-              }}
-            >
-              {specificMealType === "Buffet" ? (
-                <BuffetIcon sx={{ color: '#ffffff', fontSize: 28 }} />
-              ) : specificMealType === "Set Menu" ? (
-                <SetMenuIcon sx={{ color: '#ffffff', fontSize: 28 }} />
-              ) : specificMealType === "A la carte" ? (
-                <FastfoodIcon sx={{ color: '#ffffff', fontSize: 28 }} />
-              ) : (
-                <RestaurantMenuIcon sx={{ color: '#ffffff', fontSize: 28 }} />
-              )}
+              }} />
+              <Box sx={{
+                position: 'absolute',
+                bottom: 0,
+                left: '15%',
+                width: '120px',
+                height: '120px',
+                background: 'radial-gradient(circle, rgba(53, 84, 209, 0.05) 0%, rgba(255, 255, 255, 0) 70%)',
+                borderRadius: '50%',
+                transform: 'translate(0, 40%)',
+                zIndex: 0,
+                animation: 'float 8s ease-in-out infinite reverse',
+                '@keyframes float': {
+                  '0%, 100%': { transform: 'translate(0, 40%)' },
+                  '50%': { transform: 'translate(-5%, 35%)' }
+                }
+              }} />
+              
+              {/* Enhanced Icon with animated glow */}
+              <Box 
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, #3554D1 0%, #5E72E4 100%)',
+                  boxShadow: '0 8px 25px rgba(53, 84, 209, 0.3)',
+                  position: 'relative',
+                  zIndex: 1,
+                  animation: 'pulse 3s infinite',
+                  '@keyframes pulse': {
+                    '0%': { 
+                      boxShadow: '0 8px 25px rgba(53, 84, 209, 0.3)',
+                      transform: 'scale(1)'
+                    },
+                    '50%': { 
+                      boxShadow: '0 12px 35px rgba(53, 84, 209, 0.5)',
+                      transform: 'scale(1.05)'
+                    },
+                    '100%': { 
+                      boxShadow: '0 8px 25px rgba(53, 84, 209, 0.3)',
+                      transform: 'scale(1)'
+                    }
+                  }
+                }}
+              >
+                {specificMealType === "Buffet" ? (
+                  <BuffetIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                ) : specificMealType === "Set Menu" ? (
+                  <SetMenuIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                ) : specificMealType === "A la carte" ? (
+                  <FastfoodIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                ) : (
+                  <RestaurantMenuIcon sx={{ color: '#ffffff', fontSize: 32 }} />
+                )}
+              </Box>
+              
+              <Box sx={{ zIndex: 1, flex: 1 }}>
+                <Typography variant="h4" component="h2" sx={{ 
+                  margin: 0, 
+                  fontSize: '28px', 
+                  fontWeight: 800, 
+                  color: '#1a1a1a',
+                  marginBottom: '6px',
+                  background: 'linear-gradient(135deg, #1E293B 0%, #3554D1 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  {specificMealType || "Meal Selection"}
+                </Typography>
+                <Typography variant="body1" sx={{ 
+                  color: '#64748B',
+                  fontSize: '16px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 12px',
+                    backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                    borderRadius: '20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#3554D1'
+                  }}>
+                    {mealType === "breakfast" ? (
+                      <BreakfastDiningIcon sx={{ fontSize: 18 }} />
+                    ) : mealType === "lunch" ? (
+                      <LunchDiningIcon sx={{ fontSize: 18 }} />
+                    ) : (
+                      <DinnerDiningIcon sx={{ fontSize: 18 }} />
+                    )}
+                    {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
+                  </Box>
+                  <span>•</span>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 12px',
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                    borderRadius: '20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#2ecc71'
+                  }}>
+                    <Typography sx={{ fontSize: '16px', fontWeight: 700 }}>
+                      {searchParams?.adults || 0}
+                    </Typography>
+                    <span>Adults</span>
+                  </Box>
+                  {searchParams?.children > 0 && (
+                    <>
+                      <span>•</span>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 12px',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        borderRadius: '20px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#ffc107'
+                      }}>
+                        <Typography sx={{ fontSize: '16px', fontWeight: 700 }}>
+                          {searchParams?.children || 0}
+                        </Typography>
+                        <span>Children</span>
+                      </Box>
+                    </>
+                  )}
+                </Typography>
+              </Box>
+              
+              <IconButton 
+                onClick={() => setOpen(false)}
+                sx={{ 
+                  color: '#64748B', 
+                  backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                  borderRadius: '12px',
+                  width: '48px',
+                  height: '48px',
+                  transition: 'all 0.3s ease',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(100, 116, 139, 0.2)', 
+                    color: '#334155',
+                    transform: 'rotate(90deg)'
+                  },
+                  zIndex: 1
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 24 }} />
+              </IconButton>
             </Box>
             
-            <Box sx={{ zIndex: 1 }}>
-              <Typography variant="h5" component="h2" sx={{ 
-                margin: 0, 
-                fontSize: '26px', 
-                fontWeight: 700, 
-                color: '#1a1a1a',
-                marginBottom: '4px'
-              }}>
-                {specificMealType || "Meal Description"}
-              </Typography>
-              <Typography variant="body2" sx={{ 
-                color: '#64748B',
-                fontSize: '14px',
-                fontWeight: 500
-              }}>
-                {mealType.charAt(0).toUpperCase() + mealType.slice(1)} • {searchParams?.adults || 0} Adult{searchParams?.adults !== 1 ? 's' : ''}{searchParams?.children > 0 ? ` • ${searchParams?.children} Child${searchParams?.children !== 1 ? 'ren' : ''}` : ''}
-              </Typography>
-            </Box>
-          </DialogTitle>
-          
-          <DialogContent 
-            sx={{
+            {/* Enhanced Modal Content */}
+            <Box sx={{ 
+              position: 'relative',
               padding: '32px',
               background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 248, 255, 0.95) 100%)',
-              position: 'relative',
               overflow: 'auto',
-              maxHeight: 'calc(90vh - 200px)', // Add max height to enable scrolling
+              maxHeight: 'calc(90vh - 200px)',
               '&::-webkit-scrollbar': {
-                width: '8px',
+                width: '10px',
               },
               '&::-webkit-scrollbar-track': {
                 background: 'rgba(241, 245, 249, 0.8)',
-                borderRadius: '4px',
+                borderRadius: '8px',
               },
               '&::-webkit-scrollbar-thumb': {
-                background: 'rgba(148, 163, 184, 0.6)',
-                borderRadius: '4px',
+                background: 'linear-gradient(180deg, rgba(53, 84, 209, 0.6) 0%, rgba(94, 114, 228, 0.6) 100%)',
+                borderRadius: '8px',
                 '&:hover': {
-                  background: 'rgba(100, 116, 139, 0.7)',
+                  background: 'linear-gradient(180deg, rgba(53, 84, 209, 0.8) 0%, rgba(94, 114, 228, 0.8) 100%)',
                 },
               },
-            }}
-          >
-            {/* Background decorative elements */}
-            <Box sx={{
-              position: 'absolute',
-              top: '40%',
-              right: '5%',
-              width: '200px',
-              height: '200px',
-              background: 'radial-gradient(circle, rgba(53, 84, 209, 0.03) 0%, rgba(255, 255, 255, 0) 70%)',
-              borderRadius: '50%',
-              zIndex: 0
-            }} />
-            <Box sx={{
-              position: 'absolute',
-              bottom: '10%',
-              left: '10%',
-              width: '150px',
-              height: '150px',
-              background: 'radial-gradient(circle, rgba(53, 84, 209, 0.02) 0%, rgba(255, 255, 255, 0) 70%)',
-              borderRadius: '50%',
-              zIndex: 0
-            }} />
-            
-            {/* Table with enhanced styling */}
-            <Box 
-              sx={{ 
-                position: 'relative', 
-                zIndex: 1, 
-                boxShadow: '0 4px 25px rgba(0, 0, 0, 0.05)',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                background: 'rgba(255, 255, 255, 0.9)'
-              }}
-            >
-              <table style={{ 
-                width: '100%', 
-                borderCollapse: 'separate', 
-                borderSpacing: '0',
-                tableLayout: 'fixed' 
-              }}>
-                <thead>
-                  <tr style={{ 
-                    background: 'linear-gradient(135deg, #EBF2FF 0%, #F8FAFF 100%)'
-                  }}>
-                    <th style={{ 
-                      padding: '18px 24px', 
-                      textAlign: 'left', 
-                      fontWeight: 600, 
-                      color: '#334155',
-                      fontSize: '14px',
-                      letterSpacing: '0.5px',
-                      textTransform: 'uppercase',
-                      borderBottom: '1px solid rgba(230, 235, 245, 0.6)'
+            }}>
+              {/* Enhanced background decorative elements */}
+              <Box sx={{
+                position: 'absolute',
+                top: '30%',
+                right: '5%',
+                width: '250px',
+                height: '250px',
+                background: 'radial-gradient(circle, rgba(53, 84, 209, 0.04) 0%, rgba(255, 255, 255, 0) 70%)',
+                borderRadius: '50%',
+                zIndex: 0,
+                animation: 'float 10s ease-in-out infinite',
+              }} />
+              <Box sx={{
+                position: 'absolute',
+                bottom: '15%',
+                left: '8%',
+                width: '180px',
+                height: '180px',
+                background: 'radial-gradient(circle, rgba(53, 84, 209, 0.03) 0%, rgba(255, 255, 255, 0) 70%)',
+                borderRadius: '50%',
+                zIndex: 0,
+                animation: 'float 12s ease-in-out infinite reverse',
+              }} />
+              
+              {/* Enhanced Table with glass morphism effect */}
+              <Box 
+                sx={{ 
+                  position: 'relative', 
+                  zIndex: 1, 
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+                  borderRadius: '20px',
+                  overflow: 'hidden',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                <table style={{ 
+                  width: '100%', 
+                  borderCollapse: 'separate', 
+                  borderSpacing: '0',
+                  tableLayout: 'fixed' 
+                }}>
+                  <thead>
+                    <tr style={{ 
+                      background: 'linear-gradient(135deg, #EBF2FF 0%, #F8FAFF 100%)',
+                      borderBottom: '2px solid rgba(53, 84, 209, 0.1)'
                     }}>
-                      Item Name
-                    </th>
-                    <th style={{ 
-                      padding: '18px 24px', 
-                      textAlign: 'left', 
-                      fontWeight: 600, 
-                      color: '#334155',
-                      fontSize: '14px',
-                      letterSpacing: '0.5px',
-                      textTransform: 'uppercase',
-                      borderBottom: '1px solid rgba(230, 235, 245, 0.6)'
-                    }}>
-                      Menu List
-                    </th>
-                    {showQuantityColumn && (
                       <th style={{ 
-                        padding: '18px 24px', 
-                        textAlign: 'center', 
-                        fontWeight: 600, 
-                        color: '#334155',
-                        fontSize: '14px',
-                        letterSpacing: '0.5px',
+                        padding: '24px 28px', 
+                        textAlign: 'left', 
+                        fontWeight: 700, 
+                        color: '#1E293B',
+                        fontSize: '15px',
+                        letterSpacing: '0.8px',
                         textTransform: 'uppercase',
-                        borderBottom: '1px solid rgba(230, 235, 245, 0.6)',
-                        width: '140px'
+                        borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                        position: 'relative'
                       }}>
-                        Quantity
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <RestaurantMenuIcon sx={{ fontSize: 20, color: '#3554D1' }} />
+                          Item Details
+                        </Box>
                       </th>
-                    )}
-                    {showBuffetColumns && (
-                      <>
+                      <th style={{ 
+                        padding: '24px 28px', 
+                        textAlign: 'left', 
+                        fontWeight: 700, 
+                        color: '#1E293B',
+                        fontSize: '15px',
+                        letterSpacing: '0.8px',
+                        textTransform: 'uppercase',
+                        borderBottom: '2px solid rgba(53, 84, 209, 0.1)'
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <MenuBookIcon sx={{ fontSize: 20, color: '#3554D1' }} />
+                          Description
+                        </Box>
+                      </th>
+                      {showQuantityColumn && (
                         <th style={{ 
-                          padding: '18px 24px', 
+                          padding: '24px 28px', 
                           textAlign: 'center', 
-                          fontWeight: 600, 
-                          color: '#334155',
-                          fontSize: '14px',
-                          letterSpacing: '0.5px',
+                          fontWeight: 700, 
+                          color: '#1E293B',
+                          fontSize: '15px',
+                          letterSpacing: '0.8px',
                           textTransform: 'uppercase',
-                          borderBottom: '1px solid rgba(230, 235, 245, 0.6)',
-                          width: '120px'
+                          borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                          width: '160px'
                         }}>
-                          Adults
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <Typography sx={{ fontSize: 20, color: '#3554D1' }}>#</Typography>
+                            Quantity
+                          </Box>
                         </th>
-                        {searchParams?.children > 0 && (
+                      )}
+                      {showBuffetColumns && (
+                        <>
                           <th style={{ 
-                            padding: '18px 24px', 
+                            padding: '24px 28px', 
                             textAlign: 'center', 
-                            fontWeight: 600, 
-                            color: '#334155',
-                            fontSize: '14px',
-                            letterSpacing: '0.5px',
+                            fontWeight: 700, 
+                            color: '#1E293B',
+                            fontSize: '15px',
+                            letterSpacing: '0.8px',
                             textTransform: 'uppercase',
-                            borderBottom: '1px solid rgba(230, 235, 245, 0.6)',
-                            width: '120px'
+                            borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                            width: '140px'
                           }}>
-                            Children
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                              <Typography sx={{ fontSize: 20, color: '#3554D1' }}>👥</Typography>
+                              Adults
+                            </Box>
                           </th>
-                        )}
-                      </>
-                    )}
-                    <th style={{ 
-                      padding: '18px 24px', 
-                      textAlign: 'right', 
-                      fontWeight: 600, 
-                      color: '#334155',
-                      fontSize: '14px',
-                      letterSpacing: '0.5px',
-                      textTransform: 'uppercase',
-                      borderBottom: '1px solid rgba(230, 235, 245, 0.6)',
-                      width: '140px'
-                    }}>
-                      Price
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedMealParts.length > 0 ? (
-                    selectedMealParts.map((part, index) => (
-                      <tr 
-                        key={index} 
-                        style={{ 
-                          borderBottom: '1px solid rgba(230, 235, 245, 0.6)',
-                          backgroundColor: selectedMealIndex === index || selectedMealIndexes.includes(index) 
-                            ? 'rgba(53, 84, 209, 0.04)' 
-                            : index % 2 === 0 
-                              ? 'rgba(255, 255, 255, 0.7)' 
-                              : 'rgba(248, 250, 252, 0.7)',
-                          transition: 'background-color 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(53, 84, 209, 0.06)';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (selectedMealIndex === index || selectedMealIndexes.includes(index)) {
-                            e.currentTarget.style.backgroundColor = 'rgba(53, 84, 209, 0.04)';
-                          } else {
-                            e.currentTarget.style.backgroundColor = index % 2 === 0 
-                              ? 'rgba(255, 255, 255, 0.7)' 
-                              : 'rgba(248, 250, 252, 0.7)';
-                          }
-                        }}
-                      >
-                        <td style={{ padding: '20px 24px', color: '#334155' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            {specificMealType !== "Buffet" && (
-                              <Box 
-                                sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  gap: '8px',
-                                  minWidth: '64px'
-                                }}
-                              >
-                                {/* Food Type Icon with enhanced styling */}
-                                {part.item_type === 'Veg' ? (
-                                  <Tooltip title="Vegetarian" arrow placement="top">
-                                    <Box sx={{ 
-                                      position: 'relative', 
-                                      display: 'inline-flex',
-                                      backgroundColor: 'rgba(46, 204, 113, 0.12)',
-                                      padding: '6px',
-                                      borderRadius: '8px'
-                                    }}>
-                                      <SquareIcon sx={{ color: '#2ecc71', fontSize: 24 }} />
-                                      <CircleIcon sx={{ color: '#fff', fontSize: 12, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-                                    </Box>
-                                  </Tooltip>
-                                ) : part.item_type === 'Non Veg' ? (
-                                  <Tooltip title="Non-Vegetarian" arrow placement="top">
-                                    <Box sx={{ 
-                                      position: 'relative', 
-                                      display: 'inline-flex',
-                                      backgroundColor: 'rgba(231, 76, 60, 0.12)',
-                                      padding: '6px',
-                                      borderRadius: '8px'
-                                    }}>
-                                      <SquareIcon sx={{ color: '#e74c3c', fontSize: 24 }} />
-                                      <CircleIcon sx={{ color: '#fff', fontSize: 12, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-                                    </Box>
-                                  </Tooltip>
-                                ) : null}
-                                
-                                {/* Drink Type Icon with enhanced styling */}
-                                {part.category === 'Alcoholic' ? (
-                                  <Tooltip title="Alcoholic Beverage" arrow placement="top">
-                                    <Box sx={{ 
-                                      display: 'inline-flex',
-                                      backgroundColor: 'rgba(231, 76, 60, 0.12)',
-                                      padding: '6px',
-                                      borderRadius: '8px'
-                                    }}>
-                                      <DrinkIcon sx={{ color: '#e74c3c', fontSize: 24 }} />
-                                    </Box>
-                                  </Tooltip>
-                                ) : part.category === 'Non Alcoholic' ? (
-                                  <Tooltip title="Non-Alcoholic Beverage" arrow placement="top">
-                                    <Box sx={{ 
-                                      display: 'inline-flex',
-                                      backgroundColor: 'rgba(46, 204, 113, 0.12)',
-                                      padding: '6px',
-                                      borderRadius: '8px'
-                                    }}>
-                                      <NoDrinksIcon sx={{ color: '#2ecc71', fontSize: 24 }} />
-                                    </Box>
-                                  </Tooltip>
-                                ) : null}
-                              </Box>
-                            )}
-                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                              <Typography sx={{ 
-                                fontWeight: 600,
-                                fontSize: '16px',
-                                color: '#1E293B'
-                              }}>
-                                {part.item_name || "Unnamed Item"}
-                              </Typography>
-                              {part.category && (
-                                <Typography sx={{
-                                  fontSize: '13px',
-                                  color: '#64748B',
-                                  marginTop: '2px'
-                                }}>
-                                  {/* {part.category} */}
-                                </Typography>
-                              )}
-                            </Box>
-                          </div>
-                        </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          {specificMealType === "A la carte" ? (
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={selectedMealIndexes.includes(index)}
-                                  onChange={() => handleCheckboxChange(index)}
-                                  sx={{
-                                    color: '#a3b1d1',
-                                    '&.Mui-checked': {
-                                      color: '#3554D1',
-                                    },
-                                    '& .MuiSvgIcon-root': {
-                                      fontSize: 24
-                                    }
-                                  }}
-                                />
-                              }
-                              label={
-                                <MealDescription 
-                                  description={part.name}
-                                  index={index}
-                                  expandedDescriptions={expandedDescriptions}
-                                  toggleDescription={toggleDescription}
-                                  openDescriptionModal={openDescriptionModal}
-                                />
-                              }
-                              sx={{ margin: 0 }}
-                            />
-                          ) : (
-                            <FormControlLabel
-                              control={
-                                <Radio
-                                  checked={selectedMealIndex === index}
-                                  onChange={() => handleRadioChange(index)}
-                                  sx={{
-                                    color: '#a3b1d1',
-                                    '&.Mui-checked': {
-                                      color: '#3554D1',
-                                    },
-                                    '& .MuiSvgIcon-root': {
-                                      fontSize: 24
-                                    }
-                                  }}
-                                />
-                              }
-                              label={
-                                <MealDescription 
-                                  description={part.name}
-                                  index={index}
-                                  expandedDescriptions={expandedDescriptions}
-                                  toggleDescription={toggleDescription}
-                                  openDescriptionModal={openDescriptionModal}
-                                />
-                              }
-                              sx={{ margin: 0 }}
-                            />
-                          )}
-                        </td>
-                        {showQuantityColumn && (
-                          <td style={{ padding: '20px 24px', textAlign: 'center' }}>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              gap: '4px'
-                            }}>
-                              <Button
-                                onClick={() => handleQuantityChange(index, -1)}
-                                variant="outlined"
-                                sx={{
-                                  minWidth: '36px',
-                                  width: '36px',
-                                  height: '36px',
-                                  padding: 0,
-                                  borderRadius: '8px',
-                                  border: '1px solid rgba(53, 84, 209, 0.3)',
-                                  color: '#3554D1',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(53, 84, 209, 0.04)',
-                                  },
-                                }}
-                              >
-                                <Typography sx={{ fontSize: '18px', fontWeight: 600 }}>-</Typography>
-                              </Button>
-                              <Typography 
-                                sx={{ 
-                                  margin: '0 12px', 
-                                  fontSize: '16px', 
-                                  fontWeight: 600,
-                                  color: '#3554D1',
-                                  minWidth: '30px'
-                                }}
-                              >
-                                {part.quantity || 1}
-                              </Typography>
-                              <Button
-                                onClick={() => handleQuantityChange(index, 1)}
-                                variant="outlined"
-                                sx={{
-                                  minWidth: '36px',
-                                  width: '36px',
-                                  height: '36px',
-                                  padding: 0,
-                                  borderRadius: '8px',
-                                  border: '1px solid rgba(53, 84, 209, 0.3)',
-                                  color: '#3554D1',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(53, 84, 209, 0.04)',
-                                  },
-                                }}
-                              >
-                                <Typography sx={{ fontSize: '18px', fontWeight: 600 }}>+</Typography>
-                              </Button>
-                            </Box>
-                          </td>
-                        )}
-                        {showBuffetColumns && (
-                          <>
-                            <td style={{ 
-                              padding: '20px 24px', 
+                          {searchParams?.children > 0 && (
+                            <th style={{ 
+                              padding: '24px 28px', 
                               textAlign: 'center', 
-                              color: '#3554D1', 
-                              fontWeight: 600,
-                              fontSize: '16px'
+                              fontWeight: 700, 
+                              color: '#1E293B',
+                              fontSize: '15px',
+                              letterSpacing: '0.8px',
+                              textTransform: 'uppercase',
+                              borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                              width: '140px'
                             }}>
-                              {searchParams?.adults || 0}
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <Typography sx={{ fontSize: 20, color: '#3554D1' }}>👶</Typography>
+                                Children
+                              </Box>
+                            </th>
+                          )}
+                        </>
+                      )}
+                      <th style={{ 
+                        padding: '24px 28px', 
+                        textAlign: 'right', 
+                        fontWeight: 700, 
+                        color: '#1E293B',
+                        fontSize: '15px',
+                        letterSpacing: '0.8px',
+                        textTransform: 'uppercase',
+                        borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                        width: '160px'
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                          <Typography sx={{ fontSize: 20, color: '#3554D1' }}>💰</Typography>
+                          Price
+                        </Box>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedMealParts.length > 0 ? (
+                      selectedMealParts.map((part, index) => (
+                        <tr 
+                          key={index} 
+                          style={{ 
+                            borderBottom: '1px solid rgba(230, 235, 245, 0.8)',
+                            backgroundColor: selectedMealIndex === index || selectedMealIndexes.includes(index) 
+                              ? 'rgba(53, 84, 209, 0.06)' 
+                              : index % 2 === 0 
+                                ? 'rgba(255, 255, 255, 0.8)' 
+                                : 'rgba(248, 250, 252, 0.8)',
+                            transition: 'all 0.3s ease',
+                            position: 'relative'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(53, 84, 209, 0.08)';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(53, 84, 209, 0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedMealIndex === index || selectedMealIndexes.includes(index)) {
+                              e.currentTarget.style.backgroundColor = 'rgba(53, 84, 209, 0.06)';
+                            } else {
+                              e.currentTarget.style.backgroundColor = index % 2 === 0 
+                                ? 'rgba(255, 255, 255, 0.8)' 
+                                : 'rgba(248, 250, 252, 0.8)';
+                            }
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <td style={{ padding: '24px 28px', color: '#334155' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                              {specificMealType !== "Buffet" && (
+                                <Box 
+                                  sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '12px',
+                                    minWidth: '80px'
+                                  }}
+                                >
+                                  {/* Enhanced Food Type Icons */}
+                                  {part.item_type === 'Veg' ? (
+                                    <Tooltip title="Vegetarian" arrow placement="top">
+                                      <Box sx={{ 
+                                        position: 'relative', 
+                                        display: 'inline-flex',
+                                        backgroundColor: 'rgba(46, 204, 113, 0.15)',
+                                        padding: '8px',
+                                        borderRadius: '12px',
+                                        border: '2px solid rgba(46, 204, 113, 0.3)',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                          backgroundColor: 'rgba(46, 204, 113, 0.25)',
+                                          transform: 'scale(1.1)'
+                                        }
+                                      }}>
+                                        <SquareIcon sx={{ color: '#2ecc71', fontSize: 28 }} />
+                                        <CircleIcon sx={{ color: '#fff', fontSize: 14, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                                      </Box>
+                                    </Tooltip>
+                                  ) : part.item_type === 'Non Veg' ? (
+                                    <Tooltip title="Non-Vegetarian" arrow placement="top">
+                                      <Box sx={{ 
+                                        position: 'relative', 
+                                        display: 'inline-flex',
+                                        backgroundColor: 'rgba(231, 76, 60, 0.15)',
+                                        padding: '8px',
+                                        borderRadius: '12px',
+                                        border: '2px solid rgba(231, 76, 60, 0.3)',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                          backgroundColor: 'rgba(231, 76, 60, 0.25)',
+                                          transform: 'scale(1.1)'
+                                        }
+                                      }}>
+                                        <SquareIcon sx={{ color: '#e74c3c', fontSize: 28 }} />
+                                        <CircleIcon sx={{ color: '#fff', fontSize: 14, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                                      </Box>
+                                    </Tooltip>
+                                  ) : null}
+                                  
+                                  {/* Enhanced Drink Type Icons */}
+                                  {part.category === 'Alcoholic' ? (
+                                    <Tooltip title="Alcoholic Beverage" arrow placement="top">
+                                      <Box sx={{ 
+                                        display: 'inline-flex',
+                                        backgroundColor: 'rgba(231, 76, 60, 0.15)',
+                                        padding: '8px',
+                                        borderRadius: '12px',
+                                        border: '2px solid rgba(231, 76, 60, 0.3)',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                          backgroundColor: 'rgba(231, 76, 60, 0.25)',
+                                          transform: 'scale(1.1)'
+                                        }
+                                      }}>
+                                        <DrinkIcon sx={{ color: '#e74c3c', fontSize: 28 }} />
+                                      </Box>
+                                    </Tooltip>
+                                  ) : part.category === 'Non Alcoholic' ? (
+                                    <Tooltip title="Non-Alcoholic Beverage" arrow placement="top">
+                                      <Box sx={{ 
+                                        display: 'inline-flex',
+                                        backgroundColor: 'rgba(46, 204, 113, 0.15)',
+                                        padding: '8px',
+                                        borderRadius: '12px',
+                                        border: '2px solid rgba(46, 204, 113, 0.3)',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                          backgroundColor: 'rgba(46, 204, 113, 0.25)',
+                                          transform: 'scale(1.1)'
+                                        }
+                                      }}>
+                                        <NoDrinksIcon sx={{ color: '#2ecc71', fontSize: 28 }} />
+                                      </Box>
+                                    </Tooltip>
+                                  ) : null}
+                                </Box>
+                              )}
+                              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                <Typography sx={{ 
+                                  fontWeight: 700,
+                                  fontSize: '18px',
+                                  color: '#1E293B',
+                                  marginBottom: '4px'
+                                }}>
+                                  {part.item_name || "Unnamed Item"}
+                                </Typography>
+                                {/* {part.category && (
+                                  <Box sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '4px 12px',
+                                    backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                    borderRadius: '16px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: '#3554D1',
+                                    width: 'fit-content'
+                                  }}>
+                                    {part.category}
+                                  </Box>
+                                )} */}
+                              </Box>
+                            </div>
+                          </td>
+                          <td style={{ padding: '24px 28px' }}>
+                            {specificMealType === "A la carte" ? (
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={selectedMealIndexes.includes(index)}
+                                    onChange={() => handleCheckboxChange(index)}
+                                    sx={{
+                                      color: '#a3b1d1',
+                                      '&.Mui-checked': {
+                                        color: '#3554D1',
+                                      },
+                                      '& .MuiSvgIcon-root': {
+                                        fontSize: 28
+                                      },
+                                      transition: 'all 0.3s ease',
+                                      '&:hover': {
+                                        transform: 'scale(1.1)'
+                                      }
+                                    }}
+                                  />
+                                }
+                                label={
+                                  <MealDescription 
+                                    description={part.name}
+                                    index={index}
+                                    expandedDescriptions={expandedDescriptions}
+                                    toggleDescription={toggleDescription}
+                                    openDescriptionModal={openDescriptionModal}
+                                  />
+                                }
+                                sx={{ margin: 0 }}
+                              />
+                            ) : (
+                              <FormControlLabel
+                                control={
+                                  <Radio
+                                    checked={selectedMealIndex === index}
+                                    onChange={() => handleRadioChange(index)}
+                                    sx={{
+                                      color: '#a3b1d1',
+                                      '&.Mui-checked': {
+                                        color: '#3554D1',
+                                      },
+                                      '& .MuiSvgIcon-root': {
+                                        fontSize: 28
+                                      },
+                                      transition: 'all 0.3s ease',
+                                      '&:hover': {
+                                        transform: 'scale(1.1)'
+                                      }
+                                    }}
+                                  />
+                                }
+                                label={
+                                  <MealDescription 
+                                    description={part.name}
+                                    index={index}
+                                    expandedDescriptions={expandedDescriptions}
+                                    toggleDescription={toggleDescription}
+                                    openDescriptionModal={openDescriptionModal}
+                                  />
+                                }
+                                sx={{ margin: 0 }}
+                              />
+                            )}
+                          </td>
+                          {showQuantityColumn && (
+                            <td style={{ padding: '24px 28px', textAlign: 'center' }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                gap: '8px'
+                              }}>
+                                <Button
+                                  onClick={() => handleQuantityChange(index, -1)}
+                                  variant="outlined"
+                                  sx={{
+                                    minWidth: '44px',
+                                    width: '44px',
+                                    height: '44px',
+                                    padding: 0,
+                                    borderRadius: '12px',
+                                    border: '2px solid rgba(53, 84, 209, 0.3)',
+                                    color: '#3554D1',
+                                    fontWeight: 700,
+                                    fontSize: '20px',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                      backgroundColor: 'rgba(53, 84, 209, 0.08)',
+                                      borderColor: '#3554D1',
+                                      transform: 'scale(1.1)'
+                                    },
+                                  }}
+                                >
+                                  -
+                                </Button>
+                                <Typography 
+                                  sx={{ 
+                                    margin: '0 16px', 
+                                    fontSize: '18px', 
+                                    fontWeight: 700,
+                                    color: '#3554D1',
+                                    minWidth: '40px',
+                                    padding: '8px 16px',
+                                    backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                    borderRadius: '12px',
+                                    border: '2px solid rgba(53, 84, 209, 0.2)'
+                                  }}
+                                >
+                                  {part.quantity || 1}
+                                </Typography>
+                                <Button
+                                  onClick={() => handleQuantityChange(index, 1)}
+                                  variant="outlined"
+                                  sx={{
+                                    minWidth: '44px',
+                                    width: '44px',
+                                    height: '44px',
+                                    padding: 0,
+                                    borderRadius: '12px',
+                                    border: '2px solid rgba(53, 84, 209, 0.3)',
+                                    color: '#3554D1',
+                                    fontWeight: 700,
+                                    fontSize: '20px',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                      backgroundColor: 'rgba(53, 84, 209, 0.08)',
+                                      borderColor: '#3554D1',
+                                      transform: 'scale(1.1)'
+                                    },
+                                  }}
+                                >
+                                  +
+                                </Button>
+                              </Box>
                             </td>
-                            {searchParams?.children > 0 && (
+                          )}
+                          {showBuffetColumns && (
+                            <>
                               <td style={{ 
-                                padding: '20px 24px', 
+                                padding: '24px 28px', 
                                 textAlign: 'center', 
                                 color: '#3554D1', 
-                                fontWeight: 600,
-                                fontSize: '16px'
+                                fontWeight: 700,
+                                fontSize: '18px'
                               }}>
-                                {searchParams?.children || 0}
+                                <Box sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  padding: '8px 16px',
+                                  backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                  borderRadius: '12px',
+                                  border: '2px solid rgba(53, 84, 209, 0.2)'
+                                }}>
+                                  {searchParams?.adults || 0}
+                                </Box>
                               </td>
-                            )}
-                          </>
-                        )}
-                        <td style={{ 
-                          padding: '20px 24px', 
-                          textAlign: 'right'
-                        }}>
-                          {part.price !== null && part.price !== undefined && PriceHide === "0" ? (
-                            <Box sx={{ 
-                              display: 'flex', 
-                              flexDirection: 'column',
-                              alignItems: 'flex-end'
-                            }}>
-                              <Typography sx={{ 
-                                color: '#3554D1', 
-                                fontWeight: 700,
-                                fontSize: '18px'
-                              }}>
-                                S$ {calculateItemPrice(part).toFixed(2)}
-                              </Typography>
-                              <Typography sx={{ 
-                                color: '#64748B',
-                                fontSize: '12px',
-                                fontWeight: 500
-                              }}>
-                                
-                              </Typography>
-                            </Box>
-                          ) : part.price !== null && part.price !== undefined ? (
-                            <Box sx={{ 
-                              display: 'flex', 
-                              flexDirection: 'column',
-                              alignItems: 'flex-end'
-                            }}>
-                              <Typography sx={{ 
-                                color: '#3554D1', 
-                                fontWeight: 700,
-                                fontSize: '18px'
-                              }}>
-                                Price Available
-                              </Typography>
-                            </Box>
-                          ) : (
-                            <Typography sx={{ color: '#94A3B8', fontStyle: 'italic' }}>
-                              Price not available
-                            </Typography>
+                              {searchParams?.children > 0 && (
+                                <td style={{ 
+                                  padding: '24px 28px', 
+                                  textAlign: 'center', 
+                                  color: '#3554D1', 
+                                  fontWeight: 700,
+                                  fontSize: '18px'
+                                }}>
+                                  <Box sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '8px 16px',
+                                    backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                    borderRadius: '12px',
+                                    border: '2px solid rgba(53, 84, 209, 0.2)'
+                                  }}>
+                                    {searchParams?.children || 0}
+                                  </Box>
+                                </td>
+                              )}
+                            </>
                           )}
+                          <td style={{ 
+                            padding: '24px 28px', 
+                            textAlign: 'right'
+                          }}>
+                            {part.price !== null && part.price !== undefined && PriceHide === "0" ? (
+                              <Box sx={{ 
+                                display: 'flex', 
+                                flexDirection: 'column',
+                                alignItems: 'flex-end'
+                              }}>
+                                <Typography sx={{ 
+                                  color: '#3554D1', 
+                                  fontWeight: 800,
+                                  fontSize: '20px',
+                                  marginBottom: '4px'
+                                }}>
+                                  S$ {calculateItemPrice(part).toFixed(2)}
+                                </Typography>
+                                <Box sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  padding: '4px 12px',
+                                  backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                                  borderRadius: '16px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  color: '#2ecc71',
+                                  border: '1px solid rgba(46, 204, 113, 0.2)'
+                                }}>
+                                  Available
+                                </Box>
+                              </Box>
+                            ) : part.price !== null && part.price !== undefined ? (
+                              <Box sx={{ 
+                                display: 'flex', 
+                                flexDirection: 'column',
+                                alignItems: 'flex-end'
+                              }}>
+                                <Typography sx={{ 
+                                  color: '#3554D1', 
+                                  fontWeight: 700,
+                                  fontSize: '18px'
+                                }}>
+                                  Price Available
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Box sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '6px 12px',
+                                backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                                borderRadius: '16px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: '#9CA3AF',
+                                border: '1px solid rgba(156, 163, 175, 0.2)',
+                                fontStyle: 'italic'
+                              }}>
+                                Price not available
+                              </Box>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td 
+                          colSpan={showBuffetColumns ? (searchParams?.children > 0 ? 6 : 5) : (showQuantityColumn ? 4 : 3)} 
+                          style={{ 
+                            padding: '60px 28px', 
+                            textAlign: 'center', 
+                            color: '#64748B' 
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                            <Box sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '80px',
+                              height: '80px',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                              border: '2px solid rgba(156, 163, 175, 0.2)'
+                            }}>
+                              <RestaurantMenuIcon sx={{ fontSize: 48, color: '#9CA3AF', opacity: 0.6 }} />
+                            </Box>
+                            <Typography sx={{ fontSize: '18px', fontWeight: 600, color: '#64748B' }}>
+                              No meal options available
+                            </Typography>
+                            <Typography sx={{ fontSize: '14px', color: '#94A3B8' }}>
+                              Please try selecting a different meal type
+                            </Typography>
+                          </Box>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td 
-                        colSpan={showBuffetColumns ? (searchParams?.children > 0 ? 6 : 5) : (showQuantityColumn ? 4 : 3)} 
-                        style={{ 
-                          padding: '40px 24px', 
-                          textAlign: 'center', 
-                          color: '#64748B' 
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                          <RestaurantMenuIcon sx={{ fontSize: 48, color: '#94A3B8', opacity: 0.6 }} />
-                          <Typography sx={{ fontSize: '16px', fontWeight: 500 }}>
-                            No meal options available
-                          </Typography>
-                        </Box>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </Box>
-          </DialogContent>
-          
-          <DialogActions 
-            sx={{
-              padding: '20px 32px',
-              borderTop: '1px solid rgba(230, 235, 245, 0.6)',
-              background: 'linear-gradient(135deg, #f8faff 0%, #ffffff 100%)',
-              borderBottomLeftRadius: '16px',
-              borderBottomRightRadius: '16px',
-              display: 'flex',
-              justifyContent: 'space-between'
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              {!isConfirmDisabled && (
-                <Typography sx={{ color: '#64748B', fontSize: '14px', fontWeight: 500 }}>
-                  {specificMealType === "A la carte" 
-                    ? `${selectedMealIndexes.length} item${selectedMealIndexes.length !== 1 ? 's' : ''} selected` 
-                    : 'Ready to confirm'}
-                </Typography>
-              )}
+                    )}
+                  </tbody>
+                </table>
+              </Box>
             </Box>
             
-            <Box sx={{ display: 'flex', gap: '12px' }}>
-              <Button
-                onClick={() => setOpen(false)}
-                sx={{
-                  padding: '10px 24px',
-                  borderRadius: '10px',
-                  textTransform: 'none',
-                  backgroundColor: 'transparent',
-                  color: '#64748B',
-                  border: '1px solid #E2E8F0',
-                  fontWeight: 600,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: '#F8FAFC',
-                    borderColor: '#CBD5E1',
-                  },
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={isConfirmDisabled}
-                sx={{
-                  padding: '10px 28px',
-                  borderRadius: '10px',
-                  textTransform: 'none',
-                  backgroundColor: '#3554D1',
-                  color: 'white',
-                  fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(53, 84, 209, 0.15)',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: '#2A44B0',
-                    boxShadow: '0 6px 16px rgba(53, 84, 209, 0.25)',
-                    transform: 'translateY(-2px)'
-                  },
-                  '&.Mui-disabled': {
-                    backgroundColor: '#E2E8F0',
-                    color: '#94A3B8',
-                    boxShadow: 'none',
-                  },
-                }}
-              >
-                Confirm
-              </Button>
+            {/* Enhanced Modal Footer */}
+            <Box sx={{
+              position: 'relative',
+              padding: '24px 32px',
+              borderTop: '1px solid rgba(230, 235, 245, 0.8)',
+              background: 'linear-gradient(135deg, #f8faff 0%, #ffffff 100%)',
+              borderBottomLeftRadius: '20px',
+              borderBottomRightRadius: '20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              overflow: 'hidden'
+            }}>
+              {/* Background decorative element */}
+              <Box sx={{
+                position: 'absolute',
+                top: 0,
+                right: '10%',
+                width: '100px',
+                height: '100px',
+                background: 'radial-gradient(circle, rgba(53, 84, 209, 0.03) 0%, rgba(255, 255, 255, 0) 70%)',
+                borderRadius: '50%',
+                transform: 'translate(0, -50%)',
+                zIndex: 0
+              }} />
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
+                {!isConfirmDisabled && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px 16px',
+                      backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                      borderRadius: '20px',
+                      border: '1px solid rgba(46, 204, 113, 0.2)'
+                    }}>
+                      <Typography sx={{ color: '#2ecc71', fontSize: '14px', fontWeight: 600 }}>
+                        {specificMealType === "A la carte" 
+                          ? `${selectedMealIndexes.length} item${selectedMealIndexes.length !== 1 ? 's' : ''} selected` 
+                          : 'Ready to confirm'}
+                      </Typography>
+                    </Box>
+                    {PriceHide === "0" && calculateTotalPrice() > 0 && (
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                        borderRadius: '20px',
+                        border: '1px solid rgba(53, 84, 209, 0.2)'
+                      }}>
+                        <Typography sx={{ color: '#3554D1', fontSize: '16px', fontWeight: 700 }}>
+                          Total: {formatPrice(calculateTotalPrice(), "main")}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </Box>
+              
+              <Box sx={{ display: 'flex', gap: '16px', zIndex: 1 }}>
+                <Button
+                  onClick={() => setOpen(false)}
+                  sx={{
+                    padding: '12px 28px',
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#64748B',
+                    border: '2px solid #E2E8F0',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      backgroundColor: '#F8FAFC',
+                      borderColor: '#CBD5E1',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    },
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  disabled={isConfirmDisabled}
+                  sx={{
+                    padding: '12px 32px',
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    backgroundColor: '#3554D1',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '16px',
+                    boxShadow: '0 6px 20px rgba(53, 84, 209, 0.25)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      backgroundColor: '#2A44B0',
+                      boxShadow: '0 8px 25px rgba(53, 84, 209, 0.35)',
+                      transform: 'translateY(-3px)'
+                    },
+                    '&.Mui-disabled': {
+                      backgroundColor: '#E2E8F0',
+                      color: '#94A3B8',
+                      boxShadow: 'none',
+                      transform: 'none'
+                    },
+                  }}
+                >
+                  Confirm Selection
+                </Button>
+              </Box>
             </Box>
-          </DialogActions>
-        </Dialog>
+          </Paper>
+        </Fade>
       </Modal>
 
       {/* New Description Modal */}

@@ -26,8 +26,6 @@ import {
   Autocomplete,
   TextField,
 } from '@mui/material';
-import { useSelector, useDispatch } from 'react-redux';
-import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import CloseIcon from '@mui/icons-material/Close';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -41,10 +39,10 @@ import PersonIcon from '@mui/icons-material/Person';
 import GroupIcon from '@mui/icons-material/Group';
 import ElderlyIcon from '@mui/icons-material/Elderly';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useSelector } from 'react-redux';
 
-const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate }) => {
+const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate, dayIndex }) => {
   const theme = useTheme();
-  const dispatch = useDispatch();
   // States
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -52,14 +50,6 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   const [nriStatus, setNriStatus] = useState("residential");
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [validationError, setValidationError] = useState(null);
-  const agentId = useSelector((state) => state.editing?.agentId);
-  const tourId = useSelector((state) => state.hotels.id);
-
-
-  // Use a ref to store attraction bookings to prevent them from being lost during re-renders
-  const attractionBookingsRef = useRef([]);
-  // State to trigger re-renders when bookings change
-  const [bookingsVersion, setBookingsVersion] = useState(0);
 
   // Get data from Redux store
   const attractions = useSelector((state) => state.attractions.attractions);
@@ -68,8 +58,6 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
-  // Get existing services from Redux state
-  const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   
   // Get booking date from section if not provided as prop
   const sectionBookingDate = formSections && formSections[sectionIndex] ? formSections[sectionIndex].bookingDate : null;
@@ -78,36 +66,15 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   // Get tickets from attraction details
   const tickets = attractionDetails?.ticket_prices || [];
 
-  // Getter and setter for bookings
-  const getAttractionBookings = () => attractionBookingsRef.current;
-  
-  const setAttractionBookings = (newBookings) => {
-    // Check if the bookings array has actually changed before updating
-    const currentBookings = attractionBookingsRef.current;
-    if (JSON.stringify(currentBookings) !== JSON.stringify(newBookings)) {
-      attractionBookingsRef.current = newBookings;
-      setBookingsVersion(prev => prev + 1); // Trigger re-render
-    }
-  };
-
-  // Check if a booking already exists for this section and load it
+  // Log props received from parent component
   useEffect(() => {
-    // Find existing attraction booking for this section
-    if (existingServices && existingServices.length > 0) {
-      const existingAttractionServices = existingServices.filter(service => 
-        service.type === "attraction" && service.data && Array.isArray(service.data)
-      );
-      
-      // Flatten all attraction data into one array
-      const allAttractions = existingAttractionServices.flatMap(service => service.data);
-      
-      // Set to the ref
-      if (allAttractions && allAttractions.length > 0) {
-        attractionBookingsRef.current = allAttractions;
-        setBookingsVersion(prev => prev + 1);
-      }
-    }
-  }, [existingServices]);
+    console.log('TicketTypeSelector - Received props:', { 
+      bookingDate, 
+      dayIndex, 
+      effectiveBookingDate,
+      sectionIndex 
+    });
+  }, [bookingDate, dayIndex, effectiveBookingDate, sectionIndex]);
 
   // Format price in different currencies
   const formatPrice = (price, type) => {
@@ -339,96 +306,6 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
     return true;
   };
   
-  const getBookingSummary = (booking) => {
-    const selectedAttraction = attractions.find(a => a.id === booking.attraction);
-    
-    const ticketDetails = attractionDetails?.ticket_prices?.find(
-      ticket => ticket.ticket_id === booking.ticketType
-    );
-
-    // Get prices based on mode and price type (residential/nri)
-    let adultPrice, childPrice, seniorPrice;
-    const isNRI = booking.priceType === 'nri';
-    
-    if (currentMode === 'dmc') {
-      if (isNRI) {
-        adultPrice = parseFloat(ticketDetails?.dmc_adult_price_nri) || 0;
-        childPrice = parseFloat(ticketDetails?.dmc_child_price_nri) || 0;
-        seniorPrice = parseFloat(ticketDetails?.dmc_senior_price_nri) || 0;
-      } else {
-        adultPrice = parseFloat(ticketDetails?.dmc_adult_price) || 0;
-        childPrice = parseFloat(ticketDetails?.dmc_child_price) || 0;
-        seniorPrice = parseFloat(ticketDetails?.dmc_senior_price) || 0;
-      }
-    } else {
-      adultPrice = parseFloat(selectedAttraction?.travClicks_adult_price) || 0;
-      childPrice = parseFloat(selectedAttraction?.travClicks_child_price) || 0;
-      seniorPrice = parseFloat(selectedAttraction?.travClicks_senior_price) || 0;
-    }
-    
-    // Format opening hours
-    const formatOpeningHours = () => {
-      const times = [];
-      if (selectedAttraction?.morning_opening === 1) times.push("Morning");
-      if (selectedAttraction?.afternoon_opening === 1) times.push("Afternoon");
-      if (selectedAttraction?.evening_opening === 1) times.push("Evening");
-      if (selectedAttraction?.night_opening === 1) times.push("Night");
-      return times.join(", ") || "Not specified";
-    };
-
-    return {
-      attraction: selectedAttraction?.attraction_name || 'Not selected',
-      location: selectedAttraction?.city || 'Not specified',
-      country: selectedAttraction?.country || 'Not specified',
-      city: selectedAttraction?.city || 'Not specified',
-      image: selectedAttraction?.image || '/placeholder-image.jpg',
-      description: selectedAttraction?.description || 'No description available',
-      pax: booking.pax || { Adults: 0, Children: 0, Seniors: 0 },
-      timeSlot: booking.timeSlot || 'Not selected',
-      ticketType: ticketDetails?.ticket_name || 'Not selected',
-      ticketDescription: ticketDetails?.description || 'No description available',
-      adultPrice,
-      childPrice,
-      seniorPrice,
-      openingHours: formatOpeningHours(),
-      terms: selectedAttraction?.terms || ticketDetails?.terms || 'No terms and conditions specified',
-      remarks: selectedAttraction?.remarks || ticketDetails?.remarks || 'No additional remarks',
-      mode: currentMode,
-      address: selectedAttraction?.address || 'Address not specified',
-      category: selectedAttraction?.category || 'Category not specified',
-      duration: selectedAttraction?.duration || 'Duration not specified',
-      cancellation_policy: selectedAttraction?.cancellation_policy || ticketDetails?.cancellation_policy || 'Cancellation policy not specified',
-      inclusions: selectedAttraction?.inclusions || ticketDetails?.inclusions || 'Inclusions not specified',
-      exclusions: selectedAttraction?.exclusions || ticketDetails?.exclusions || 'Exclusions not specified',
-      tax_percentage: selectedAttraction?.tax_percentage || ticketDetails?.tax_percentage,
-      tax_amount: selectedAttraction?.tax_amount || ticketDetails?.tax_amount,
-      currency: selectedAttraction?.currency || 'SGD',
-      priceType: booking.priceType || 'residential',
-    };
-  };
-  
-  // New function to check if a booking is already in the bookings ref
-  const isBookingInRef = (bookingId) => {
-    const bookings = getAttractionBookings();
-    return bookings.some(booking => booking.id === bookingId);
-  };
-  
-  // New function to add or update a booking in the ref
-  const addOrUpdateBookingInRef = (booking) => {
-    const bookings = getAttractionBookings();
-    const existingIndex = bookings.findIndex(b => b.id === booking.id);
-    
-    if (existingIndex >= 0) {
-      // Update existing booking
-      const updatedBookings = [...bookings];
-      updatedBookings[existingIndex] = booking;
-      setAttractionBookings(updatedBookings);
-    } else {
-      // Add new booking
-      setAttractionBookings([...bookings, booking]);
-    }
-  };
-
   const handleBookNow = () => {
     if (!validateBooking()) {
       return;
@@ -441,87 +318,11 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
       return;
     }
     
-    // First update the ticket selection
+    // Update the ticket selection - this will trigger the main component's Redux dispatch
     onTicketTypeChange({
       ticketId: selectedTicket?.ticket_id,
       priceType: nriStatus
     });
-    
-    // Get the current section and update with selected ticket
-    const updatedSection = { ...section, ticketType: selectedTicket?.ticket_id, priceType: nriStatus };
-    const summaryData = getBookingSummary(updatedSection);
-    
-    // Calculate total price
-    const adultTotal = summaryData.adultPrice * updatedSection.pax.Adults;
-    const childTotal = summaryData.childPrice * updatedSection.pax.Children;
-    const seniorTotal = summaryData.seniorPrice * updatedSection.pax.Seniors;
-    const totalPrice = adultTotal + childTotal + seniorTotal;
-    
-    // Create unique booking ID
-    const bookingId = `attraction-${Date.now()}-${sectionIndex}`;
-    
-    // Create the attraction booking data
-    const bookingData = {
-      id: bookingId,
-      AttractionId: updatedSection.attraction,
-      AttractionName: summaryData.attraction,
-      location: summaryData.location,
-      city: summaryData.city,
-      country: summaryData.country,
-      visitTime: updatedSection.timeSlot,
-      ticketId: updatedSection.ticketType,
-      ticketName: summaryData.ticketType,
-      adultCount: updatedSection.pax.Adults,
-      childCount: updatedSection.pax.Children || 0,
-      seniorCount: updatedSection.pax.Seniors || 0,
-      ticket_details: {
-        adult_price: summaryData.adultPrice,
-        child_price: summaryData.childPrice,
-        senior_price: summaryData.seniorPrice,
-        description: ""
-      },
-      nri: updatedSection.priceType || 'residential',
-      totalPrice: totalPrice,
-      image: summaryData.image,
-      mode: currentMode,
-      dmc_id: agentId,
-      bookingDate: effectiveBookingDate || formSections[sectionIndex]?.date || new Date().toISOString().split('T')[0],
-      bookingType: "booking"
-    };
-    
-    // Add the booking to our ref
-    addOrUpdateBookingInRef(bookingData);
-    
-    console.log("Attraction booking data:", bookingData);
-    
-    // Clone the existing services array
-    const allCurrentServices = [...existingServices];
-    
-    // Filter out any service with the same ID as our current booking
-    const filteredServices = allCurrentServices.filter(service => {
-      // Check if this service's data array contains our booking ID
-      if (service.type === "attraction" && service.data && Array.isArray(service.data)) {
-        const matchingItem = service.data.find(item => item.id === bookingData.id);
-        return !matchingItem; // Filter out if found
-      }
-      return true; // Keep all other services
-    });
-    
-    // Create a new attraction service entry for each booking
-    const newAttractionService = {
-      type: "attraction",
-      agent_id: agentId,
-      tour_id: tourId,
-      data: [bookingData]
-    };
-      
-      // Add the new attraction service to the filtered services array
-      filteredServices.push(newAttractionService);
-    
-    console.log("Attraction - Dispatching updated services to Redux:", filteredServices);
-    
-    // Dispatch the updated services
-    dispatch(setAllServices(filteredServices));
     
     setBookingSuccess(true);
     setModalOpen(false);
