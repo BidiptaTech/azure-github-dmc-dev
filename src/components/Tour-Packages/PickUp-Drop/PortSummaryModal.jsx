@@ -180,7 +180,7 @@ const PortSummaryModal = ({
             <Typography variant="h5" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
               {colorTheme.name} Summary
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
               <Box
                 sx={{
                   px: 1.5,
@@ -207,6 +207,25 @@ const PortSummaryModal = ({
                   {dmcName}
                 </Box>
               )}
+              {/* Booking Date in Header */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.5,
+                px: 1.5,
+                py: 0.5,
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                borderRadius: 1,
+                border: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                <CalendarTodayIcon sx={{ fontSize: 14, color: 'white' }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                  Booking Date:
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'white' }}>
+                  {bookingData?.bookingDate || 'Not specified'}
+                </Typography>
+              </Box>
             </Box>
           </Box>
 
@@ -299,9 +318,12 @@ const PortSummaryModal = ({
                       </Typography>
                     </Grid>
                     <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Date</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      <Typography variant="caption" color="text.secondary">Booking Date</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: colorTheme.primary }}>
                         {bookingData.bookingDate || 'Not specified'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        Service date for this transfer
                       </Typography>
                     </Grid>
                     <Grid item xs={6}>
