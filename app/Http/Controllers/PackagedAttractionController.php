@@ -36,22 +36,22 @@ class PackagedAttractionController extends Controller
     public function store(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'package_attraction_name' => 'required|string|max:255',
-                'attractions' => 'required|array',
-                'senior_citizen_price' => 'required|numeric|min:0',
-                'adult_price' => 'required|numeric|min:0',
-                'child_price' => 'required|numeric|min:0',
-                'description' => 'nullable|string',
-                'images' => 'nullable|array',
-                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
+            // $validator = Validator::make($request->all(), [
+            //     'package_attraction_name' => 'required|string|max:255',
+            //     'attractions' => 'required|array',
+            //     'senior_citizen_price' => 'required|numeric|min:0',
+            //     'adult_price' => 'required|numeric|min:0',
+            //     'child_price' => 'required|numeric|min:0',
+            //     'description' => 'nullable|string',
+            //     'images' => 'nullable|array',
+            //     'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            // ]);
 
-            if ($validator->fails()) {
-                return redirect()->back()
-                    ->withErrors($validator)
-                    ->withInput();
-            }
+            // if ($validator->fails()) {
+            //     return redirect()->back()
+            //         ->withErrors($validator)
+            //         ->withInput();
+            // }
             
             // Generate unique package ID
             $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -81,10 +81,9 @@ class PackagedAttractionController extends Controller
                 'adult_price' => $request->adult_price,
                 'child_price' => $request->child_price,
                 'description' => $request->description,
-                'image' => $imagePath,
-                'gallery_images' => !empty($galleryImages) ? json_encode($galleryImages) : null,
+                'image' => !empty($galleryImages) ? json_encode($galleryImages) : null,
                 'status' => $request->status ?? 1,
-                'created_by' => Auth::id(),
+                'created_by' => auth()->user()->userId,
             ]);
 
             return redirect()->route('packaged-attractions.index')
@@ -148,7 +147,7 @@ class PackagedAttractionController extends Controller
                 'child_price' => $request->child_price,
                 'description' => $request->description,
                 'status' => $request->status ?? $packagedAttraction->status,
-                'updated_by' => Auth::id(),
+                'updated_by' => auth()->user()->userId,
             ];
 
             // Process main image if provided
