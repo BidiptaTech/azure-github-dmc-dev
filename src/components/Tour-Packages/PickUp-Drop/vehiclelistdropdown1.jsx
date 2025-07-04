@@ -221,8 +221,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   console.log("Exit Ports:", validExitPorts);
   
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult ?? 1;
-  const childrenMax = tourDetails?.data?.child ?? 0;
+  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
+  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
 
   // Component state
   const [seatingCapacity, setSeatingCapacity] = useState(0);

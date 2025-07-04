@@ -154,6 +154,47 @@ export const UpdateCustomPackage = createAsyncThunk(
     }
   }
 );
+export const UpdateCustomBooking = createAsyncThunk(
+  "tourPackages/UpdateCustomBooking",
+  async ({ tour_id }, { rejectWithValue, getState }) => {
+    const state = getState();
+    try {
+      const authToken = Cookies.get("authToken");
+      const agentID = state.editing?.agentId;
+      const userRole = state.auth?.userRole;
+      let AgentId;
+      if (
+        userRole === "Sales Head(DMC)" ||
+        userRole === "Sales Manager (DMC)" ||
+        userRole === "Assistant Manager (DMC)"
+      ) {
+        AgentId = agentID;
+      } else {
+        AgentId = Cookies.get("AgentId");
+      }
+
+
+      if (!authToken || !AgentId) {
+        throw new Error("Authorization and AgentId are missing.");
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/update-custom-package?tour_id=${tour_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+            "agent-id": AgentId,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) { 
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
 
 // Create the tour packages slice
 const tourPackageSlice = createSlice({
@@ -288,6 +329,20 @@ const tourPackageSlice = createSlice({
         state.packageData = action.payload;
       })
       .addCase(UpdateCustomPackage.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.packageData = null;
+      })
+      
+      .addCase(UpdateCustomBooking.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(UpdateCustomBooking.fulfilled, (state, action) => {
+        state.loading = false;
+        state.packageData = action.payload;
+      })
+      .addCase(UpdateCustomBooking.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
         state.packageData = null;

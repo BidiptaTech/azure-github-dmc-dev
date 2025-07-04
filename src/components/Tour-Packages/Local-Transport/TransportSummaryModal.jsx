@@ -139,7 +139,7 @@ const TransportSummaryModal = ({
             <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
               Transport Booking Summary
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
               <Typography variant="subtitle1" color="text.secondary">
                 Booking #{bookingIndex + 1}
               </Typography>
@@ -153,11 +153,30 @@ const TransportSummaryModal = ({
                   borderRadius: 1,
                   fontSize: '0.875rem',
                   fontWeight: 500,
-                  ml: 1
                 }}
               >
                 {bookingType} Transport
               </Typography>
+              {/* Booking Date in Header */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.5,
+                px: 1.5,
+                py: 0.5,
+                bgcolor: 'background.default',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'divider'
+              }}>
+                <CalendarTodayIcon fontSize="small" color="primary" />
+                <Typography variant="body2" color="text.secondary">
+                  Booking Date:
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {bookingData.bookingDate || 'Not specified'}
+                </Typography>
+              </Box>
             </Box>
           </Box>
 
@@ -292,15 +311,18 @@ const TransportSummaryModal = ({
                   </PriceCard>
                 </Grid>
                 
-                {/* Pickup Date */}
+                {/* Booking Date */}
                 <Grid item xs={12} md={6}>
                   <PriceCard>
                     <Typography variant="subtitle1" color="primary" gutterBottom>
                       <CalendarTodayIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'text-bottom' }} />
-                      Pickup Date
+                      Booking Date
                     </Typography>
-                    <Typography variant="body1">
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
                       {bookingData.bookingDate || 'Not specified'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Service date for this transport
                     </Typography>
                   </PriceCard>
                 </Grid>
