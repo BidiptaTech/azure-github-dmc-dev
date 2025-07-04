@@ -93,9 +93,10 @@ const useHotelData = (mealPlanOptions) => {
     if (packageData?.tour?.booking) {
       console.log("HOTEL COMPONENT - Loading existing hotel data from package data");
       
-      // Find ALL hotel bookings in the package data (not just one)
-      const hotelBookings = packageData.tour.booking.filter(booking => booking.type === "Hotel");
+      // Find ALL hotel bookings in the package data (fixed case sensitivity: "hotel" not "Hotel")
+      const hotelBookings = packageData.tour.booking.filter(booking => booking.type === "hotel");
       console.log("HOTEL COMPONENT - Found hotel bookings:", hotelBookings.length);
+      console.log("HOTEL COMPONENT - Hotel bookings data:", hotelBookings);
       
       if (hotelBookings.length > 0) {
         // Process all hotels and their rooms

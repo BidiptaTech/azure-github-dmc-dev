@@ -46,24 +46,42 @@ export const getOccupancyType = (maxOccupancy) => {
  * Extract meal plans for guests from bed data
  * @param {Object} bed Bed data object
  * @param {Array} mealPlanOptions Available meal plan options
- * @returns {Array} Array of meal plan IDs for each guest
+ * @returns {Array} Array of meal plan data objects for each guest
  */
 export const extractGuestMealPlans = (bed, mealPlanOptions) => {
   const guestMealPlans = [];
   const headCount = bed.head_count || 1;
   
+  console.log("Extracting meal plans for bed:", bed);
+  console.log("Available meal plan options:", mealPlanOptions);
+  
   for (let i = 1; i <= headCount; i++) {
     const mealKey = `meal_${i}`;
     if (bed.selectedMeals && bed.selectedMeals[mealKey]) {
       const mealType = bed.selectedMeals[mealKey].type;
-      // Find the corresponding meal plan ID
+      const mealPrice = bed.selectedMeals[mealKey].price || 0;
+      
+      // Find the corresponding meal plan ID from options
       const mealPlan = mealPlanOptions.find(plan => plan.title === mealType);
-      guestMealPlans.push(mealPlan ? mealPlan.id : 'self');
+      
+      // Create meal plan data object with both ID and name/price
+      const mealPlanData = {
+        id: mealPlan ? mealPlan.id : 'self',
+        name: mealType,
+        price: mealPrice
+      };
+      
+      console.log(`Guest ${i} meal plan:`, mealPlanData);
+      guestMealPlans.push(mealPlanData);
     } else {
-      guestMealPlans.push('self');
+      // Default meal plan data
+      const defaultMealPlan = { id: 'self', name: 'Room Only', price: 0 };
+      console.log(`Guest ${i} default meal plan:`, defaultMealPlan);
+      guestMealPlans.push(defaultMealPlan);
     }
   }
   
+  console.log("Final guest meal plans:", guestMealPlans);
   return guestMealPlans;
 };
 
@@ -80,6 +98,12 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
   const guestMealPlans = extractGuestMealPlans(bed, mealPlanOptions);
   const { nights, selectedNightIndices } = calculateNightsFromDates(bookingDates);
   
+  // Extract check-in and check-out dates
+  const checkInDate = bookingDates && bookingDates.length > 0 ? bookingDates[0] : null;
+  const checkOutDate = bookingDates && bookingDates.length > 1 ? bookingDates[1] : null;
+  
+  console.log("Creating config with booking dates:", { checkInDate, checkOutDate, bookingDates });
+  
   return {
     id: generateUniqueId(),
     hotelId: hotelDetails.hotel_id,
@@ -90,7 +114,7 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     bedTypeName: bed.bed_type,
     max_occupancy: bed.max_occupancy || 1,
     bedPrice: bed.price || 0,
-    mealPlanId: guestMealPlans[0] || 'self',
+    mealPlanId: guestMealPlans[0]?.id || 'self',
     nights: nights,
     selectedNightIndices: selectedNightIndices,
     babyCot: bed.baby_cot === 1,
@@ -98,6 +122,8 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     adultDistribution: { male: 0, female: 0 },
     expanded: true,
     selectedGuests: bed.head_count || 1,
-    guestMealPlans: guestMealPlans
+    guestMealPlans: guestMealPlans,
+    checkInDate: checkInDate,
+    checkOutDate: checkOutDate
   };
 }; 
