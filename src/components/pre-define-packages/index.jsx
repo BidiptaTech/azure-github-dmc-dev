@@ -277,9 +277,11 @@ const PreDefinePackages = () => {
 
   return (
     <StyledContainer maxWidth="lg">
+     
       <Box p={4} sx={{ position: 'relative', zIndex: 1 }}>
         <TitleSection>
           <IconContainer>
+           
             <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} />
             <Typography 
               variant="h3" 
@@ -288,16 +290,20 @@ const PreDefinePackages = () => {
                 fontWeight: 700, 
                 color: 'white',
                 mt: 3,
+                color: 'white',
+                mt: 3,
                 letterSpacing: '0.5px',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
               Fixed Itinerary Packages
+              
               <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
             </Typography>
           </IconContainer>
           <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
+         
           <Typography variant="subtitle1" color="#ece9f1" textAlign="center">
             Discover our exclusive pre-arranged travel experiences
           </Typography>
@@ -307,11 +313,13 @@ const PreDefinePackages = () => {
           <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">
             <div className="button-grid items-center" style={{ display: 'flex', flexWrap: 'nowrap' }}>
               <div style={{ flex: '1', minWidth: '0' }}>
+                
                 <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
               </div>
               
               <div style={{ flex: '1', minWidth: '0' }}>
                 <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
+               
               </div>
 
               {showAgentSelector && (
@@ -337,10 +345,13 @@ const PreDefinePackages = () => {
                 <button
                   className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
                   onClick={handleSubmit}
+                 
                   style={{ whiteSpace: 'nowrap', marginBottom: '5px' }}
                 >
+                
                   <i className="icon-search text-20 mr-10" />
                   Search Packages
+                  
                 </button>
               </div>
             </div>
@@ -348,6 +359,7 @@ const PreDefinePackages = () => {
         </Paper>
         
         <ListingCards hasSearched={hasSearched} />
+        
       </Box>
       
       <Snackbar

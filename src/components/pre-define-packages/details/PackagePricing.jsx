@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import UserInfo from './UserInfo';
 import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 
-const PackagePricing = ({
+  const PackagePricing = ({
   packageData,
   selectedHotels = [],
   selectedAttractions = [],
@@ -17,6 +17,7 @@ const PackagePricing = ({
   guidesByDay = {},
   itineraryDates = [],
 }) => {
+  // console.log('packageData', packageData);
   // console.log('packageData', packageData);
   // State for the UserInfo modal
   const [isUserInfoModalOpen, setIsUserInfoModalOpen] = useState(false);
@@ -35,6 +36,7 @@ const PackagePricing = ({
 
   const dispatch = useDispatch();
 
+
   // Get search params and booking status from Redux store
   const { searchParams, bookingSuccess, bookingData: bookedData } = useSelector(state => state.prePackages);
   
@@ -51,6 +53,7 @@ const PackagePricing = ({
         severity: 'success'
       });
 
+
       // Reset booking status after showing success
       setTimeout(() => {
         dispatch(resetBookingStatus());
@@ -58,9 +61,11 @@ const PackagePricing = ({
     }
   }, [bookingSuccess, bookedData, dispatch]);
 
+
   // Calculate total price based on number of adults and children
   const adultPrice = parseFloat(packageData.price_adult) || 0;
   const childPrice = parseFloat(packageData.price_child) || 0;
+
 
   // Use search params for passenger counts if available, otherwise fallback to packageData
   const adultCount = searchParams?.adults ? parseInt(searchParams.adults) : 1;
@@ -68,12 +73,16 @@ const PackagePricing = ({
   const maleCount = searchParams?.male_count ? parseInt(searchParams.male_count) : 0;
   const femaleCount = searchParams?.female_count ? parseInt(searchParams.female_count) : 0;
 
+
   const totalAdultPrice = adultPrice * adultCount;
   const totalChildPrice = childPrice * childCount;
   const totalPrice = totalAdultPrice + totalChildPrice;
 
+
   // Check if child price is available
   const hasChildPrice = packageData.price_child && parseFloat(packageData.price_child) > 0;
+
+
 
 
 
@@ -89,6 +98,7 @@ const PackagePricing = ({
       packageData?.arrival_pickup === true;
   };
 
+
   const hasExitPortTransfer = () => {
     // Check if exit port transfer is available from package data
     return packageData?.exit_port_transfer === 1 ||
@@ -100,8 +110,13 @@ const PackagePricing = ({
       packageData?.departure_service === true;
   };
 
+
   // Helper to check if an attraction has transfer available and what type
   const getAttractionTransferType = (attractionId) => {
+    // First, check attraction directly in selectedAttractions
+   
+  
+    
     // First, check attraction directly in selectedAttractions
     const attraction = selectedAttractions.find(a => 
       (a.id === attractionId || a._id === attractionId || a.attraction_id === attractionId)
@@ -128,6 +143,7 @@ const PackagePricing = ({
       if (transferValue === 1 || transferValue === true) return 'unidirectional';
     }
 
+
     // Check if package data has general attraction_with_transfer flag
     if (packageData?.attraction_with_transfer === 2) {
       return 'bidirectional';
@@ -136,9 +152,11 @@ const PackagePricing = ({
       return 'unidirectional';
     }
 
+
     return null; // No transfer available
   };
 
+ 
  
 
   // Handle booking button click
@@ -180,11 +198,14 @@ const PackagePricing = ({
       }));
     }
 
+
     // Create enhanced itinerary with services for each day
     const enhancedItinerary = itineraryDates.map(dayInfo => {
       console.log('dayInfo', dayInfo);
+      console.log('dayInfo', dayInfo);
       // Start with basic day info
       const enhancedDay = {
+       
        
         ...dayInfo,
         services: []
@@ -235,11 +256,14 @@ const PackagePricing = ({
         }
       }
 
+
       // Add attraction if booked for this day
       if (selectedAttractions && selectedAttractions.length > 0) {
         selectedAttractions.forEach(attraction => {
           const attractionId = attraction.id || attraction._id || attraction.attraction_id;
+         
           const bookedDayIndex = bookedAttractions[attractionId];
+
 
           // Only add if booked for this specific day
           if (bookedDayIndex !== undefined && bookedDayIndex === dayInfo.day - 1) {
@@ -249,6 +273,7 @@ const PackagePricing = ({
               service_name: attraction.name || attraction.title,
               details: attraction
             };
+
 
             // Add attraction_with_transfer if available for this attraction
             const transferType = getAttractionTransferType(attractionId);
@@ -260,10 +285,14 @@ const PackagePricing = ({
               attractionService.attraction_with_transfer = 0;
             }
 
+
             enhancedDay.services.push(attractionService);
           }
         });
       }
+
+     
+
 
              // Add guides if selected - use day-wise guide mapping
        const dayGuide = guidesByDay[dayInfo.day - 1]; // guidesByDay uses 0-based index
@@ -405,6 +434,7 @@ const PackagePricing = ({
     setIsUserInfoModalOpen(true);
   };
 
+
   // Handle final form submission with user info
   const handleFormSubmit = (finalData) => {
     // Final data with user info is already logged in UserInfo component
@@ -412,10 +442,12 @@ const PackagePricing = ({
     // console.log('Form submitted successfully');
   };
 
+
   // Handle notification close
   const handleCloseNotification = () => {
     setNotification(prev => ({ ...prev, open: false }));
   };
+
 
   return (
     <Paper
@@ -443,9 +475,11 @@ const PackagePricing = ({
         <AttachMoneyIcon fontSize="medium" />
       </Box>
 
+
       {/* Content */}
       <Box sx={{ p: 3 }}>
         {/* Adult Price */}
+      
         <Box sx={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -459,17 +493,20 @@ const PackagePricing = ({
               Adult{adultCount > 1 ? 's' : ''} ({adultCount})
             </Typography>
           </Box>
-          <Typography variant="body1" fontWeight="bold">
-            <Box component="span" fontSize="0.7rem" mr={0.3}>
-              SGD
-            </Box>
-            {adultPrice.toFixed(2)} each
-          </Typography>
+                      <Typography variant="body1" fontWeight="bold">
+              <Box component="span" fontSize="0.7rem" mr={0.3}>
+                SGD
+              </Box>
+              {adultPrice.toFixed(2)} each
+            </Typography>
+
 
         </Box>
 
+
         {/* Child Price (if available) */}
         {hasChildPrice && childCount > 0 && (
+         
           <Box sx={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -492,7 +529,9 @@ const PackagePricing = ({
           </Box>
         )}
 
+
         {/* Duration */}
+      
         <Box sx={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -508,8 +547,10 @@ const PackagePricing = ({
           </Typography>
         </Box>
 
+
         {/* Travel Dates */}
         {searchParams?.check_in && searchParams?.check_out && (
+        
           <Box sx={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -526,7 +567,9 @@ const PackagePricing = ({
           </Box>
         )}
 
+
         {/* Total Price */}
+      
         <Box sx={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -548,6 +591,8 @@ const PackagePricing = ({
           </Typography>
         </Box>
 
+     
+
         <Button
           variant="contained"
           color="primary"
@@ -563,6 +608,7 @@ const PackagePricing = ({
         </Typography>
       </Box>
 
+
       {/* User Info Modal */}
       {isUserInfoModalOpen && (
         <UserInfo
@@ -573,6 +619,7 @@ const PackagePricing = ({
         />
       )}
 
+
       {/* Notifications */}
       <Snackbar
         open={notification.open}
@@ -582,6 +629,7 @@ const PackagePricing = ({
         <Alert
           onClose={handleCloseNotification}
           severity={notification.severity}
+        
           sx={{ width: '100%' }}
         >
           {notification.message}
@@ -590,5 +638,6 @@ const PackagePricing = ({
     </Paper>
   );
 };
+
 
 export default PackagePricing; 

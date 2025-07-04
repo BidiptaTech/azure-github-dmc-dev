@@ -10,11 +10,12 @@ import VehicleListDropdown1 from './vehiclelistdropdown1';
 import { setSelectedVehicle, setSelectedVehicle1 } from '../../../slice/port/pickupDropSlice';
 import CombinedSearchLocationZone from './CombinedSearchLocationZone';
 
-export default function PickupDropComponent({portType, setPortType, portType1, setPortType1, entryPorts,exitPorts}) {
+export default function PickupDropComponent({portType, setPortType, portType1, setPortType1, entryPorts, exitPorts, tourDates = [], date}) {
   // Add useSelector to access AllServices
   const allServices = useSelector((state) => state.tourPackages.AllServices);
-  console.log("entryPorts", entryPorts);
-  console.log("exitPorts", exitPorts);
+  console.log("PickupDropComponent - entryPorts:", entryPorts);
+  console.log("PickupDropComponent - exitPorts:", exitPorts);
+  
   // Add a log to see when the component renders and what services exist
   useEffect(() => {
     console.log("%c PickupDropComponent Rendered", "background: #6a89cc; color: white; padding: 4px;");
@@ -23,7 +24,6 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   
   // Make sure we're selecting from the correct slice in Redux store
   const Location = useSelector((state) => {
-    console.log("Redux State:", state.bookings); // Log entire state to debug
     return state.bookings?.searchLocation || {};
   });
   
@@ -42,6 +42,11 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   // Determine if we're showing entry port, exit port, or both
   const showEntryPort = portType === "Entry Port";
   const showExitPort = portType1 === "Exit Port";
+  
+  console.log("PickupDropComponent - showEntryPort:", showEntryPort);
+  console.log("PickupDropComponent - showExitPort:", showExitPort);
+  console.log("PickupDropComponent - portType:", portType);
+  console.log("PickupDropComponent - portType1:", portType1);
   
   // Create the appropriate header based on which ports are being shown
   let headerText = "Pickup & Drop Services";
@@ -62,6 +67,12 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   const hasVehicles1 = vehicles1 && vehicles1.length > 0;
   const zone_on = useSelector((state) => state.auth.zone_on);
   console.log("zone_onnm", zone_on);
+  
+  // Log vehicle state
+  console.log("PickupDropComponent - vehicles:", vehicles);
+  console.log("PickupDropComponent - vehicles1:", vehicles1);
+  console.log("PickupDropComponent - hasVehicles:", hasVehicles);
+  console.log("PickupDropComponent - hasVehicles1:", hasVehicles1);
   
   // Updated handler for entry vehicle changes that tracks all selections
   const handleVehicleChange = (vehicleId, mode, dmcId, city, country, bookingIndex = 0) => {
@@ -128,7 +139,7 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
       }
     });
     
-    console.log(`Vehicle selected for booking #${bookingIndex}:`, {vehicleId, mode, dmcId, city, country});
+    console.log(`Exit vehicle selected for booking #${bookingIndex}:`, {vehicleId, mode, dmcId, city, country});
   };
   
   return (
@@ -145,43 +156,46 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
           Location={Location}
           portType={portType}
           portType1={portType1}
-          entryPorts={entryPorts}
-          exitPorts={exitPorts}
+          entryPorts={showEntryPort ? entryPorts : null}
+          exitPorts={showExitPort ? exitPorts : null}
         />
       ) : (
         <SearchLocation 
           Location={Location} 
           portType={portType} 
           portType1={portType1} 
-          entryPorts={entryPorts}
-          exitPorts={exitPorts}
+          entryPorts={showEntryPort ? entryPorts : null}
+          exitPorts={showExitPort ? exitPorts : null}
         />
       )}
       
       {/* Show first vehicle dropdown for Entry Port */}
-      {(showEntryPort && hasVehicles) || (entryPorts && entryPorts.length > 0) ? (
+      {showEntryPort && ((hasVehicles) || (entryPorts && entryPorts.length > 0)) ? (
         <Box sx={{ mt: 2 }}>
           <VehicleListDropdown 
             selectedVehicle={selectedVehicleId} 
             onVehicleChange={handleVehicleChange}
             entryVehicles={entryVehicles} 
             entryPorts={entryPorts}
-         
+            tourDates={tourDates}
+            date={date}
           />
         </Box>
       ) : null}
       
       {/* Show second vehicle dropdown for Exit Port */}
-      {showExitPort && hasVehicles1 && (
+      {showExitPort && ((hasVehicles1) || (exitPorts && exitPorts.length > 0)) ? (
         <Box sx={{ mt: 2 }}>
           <VehicleListDropdown1
             selectedVehicle={selectedVehicleId1}
             onVehicleChange={handleVehicleChange1}
             exitVehicles={exitVehicles} 
             exitPorts={exitPorts}
+            tourDates={tourDates}
+            date={date}
           />
         </Box>
-      )}
+      ) : null}
     </Box>
   );
 } 

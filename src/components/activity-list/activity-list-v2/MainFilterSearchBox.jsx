@@ -26,6 +26,7 @@ import DateSearch2 from "../common/DateSearch2";
 import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
 import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
 import { useSelector } from "react-redux";
+import { Typography } from "@mui/material";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
@@ -192,17 +193,27 @@ const MainFilterSearchBox = ({ Location }) => {
           {/* Third Section - Time Selection */}
           <div className="time-selection-wrapper">
             {selectedPort === "Entry Port" ? (
+              <>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: '#000' }}>
+        Pick Up Time
+      </Typography>
               <Pickuptime
                 entryytime={entryytime}
                 setentryytime={setentryytime}
                 setTime={setTime}
               />
+              </>
             ) : (
+              <>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: '#000' }}>
+        Exit Time
+      </Typography>
               <Pickuptime1
                 entryytime={entryytime1}
                 setentryytime={setentryytime1}
                 setTime={setTime1}
               />
+              </>
             )}
           </div>
 

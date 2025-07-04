@@ -47,6 +47,7 @@ import RoomIcon from '@mui/icons-material/Room';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import WarningIcon from '@mui/icons-material/Warning';
 import { BookPackageEnquiry } from '../../../slice/tour-packages/tourPackageSlice';
 
 // Import all service components
@@ -66,11 +67,279 @@ export default function Itinerary({ onBookingSuccess }) {
   const { hotels } = useSelector((state) => state.hotels);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
+  
+  // Get all services from Redux store for validation
+  const allServices = useSelector((state) => state.tourPackages.AllServices);
+  console.log("All Services for validation:", allServices);
+  
   const [portType,setPortType] = useState("Entry Port");
   const [portType1,setPortType1] = useState("Exit Port");
   const dispatch = useDispatch();
   const packageData = useSelector((state) => state.tourPackages.packageData);
   console.log("packageData", packageData);
+
+  // Function to automatically update service dates when tour dates change
+  const updateServiceDatesForNewTourDates = useMemo(() => {
+    return (newStartDate, newEndDate) => {
+      if (!allServices || allServices.length === 0) {
+        console.log("No services to update dates for");
+        return;
+      }
+
+      console.log("Updating service dates for new tour dates:", {
+        newStart: newStartDate.format('YYYY-MM-DD'),
+        newEnd: newEndDate.format('YYYY-MM-DD'),
+        totalServices: allServices.length
+      });
+
+      const updatedServices = allServices.map((service) => {
+        if (!service.data || !Array.isArray(service.data)) {
+          return service;
+        }
+
+        const updatedData = service.data.map((item) => {
+          let updatedItem = { ...item };
+          let hasDateUpdate = false;
+
+          // Handle different booking date formats
+          if (item.bookingDate) {
+            if (Array.isArray(item.bookingDate)) {
+              // Hotel format: [check-in, check-out]
+              const originalCheckIn = moment(item.bookingDate[0]);
+              const originalCheckOut = moment(item.bookingDate[1]);
+              
+              // Update hotel dates to fit within new tour dates
+              const newCheckIn = moment.max(originalCheckIn, newStartDate);
+              const newCheckOut = moment.min(originalCheckOut, newEndDate);
+              
+              // Ensure minimum 1 night stay for hotels
+              if (newCheckOut.isSameOrBefore(newCheckIn)) {
+                newCheckOut.add(1, 'day');
+              }
+              
+              // If still outside tour range, adjust to fit
+              if (newCheckIn.isBefore(newStartDate)) {
+                newCheckIn.set({ 
+                  year: newStartDate.year(),
+                  month: newStartDate.month(),
+                  date: newStartDate.date()
+                });
+              }
+              
+              if (newCheckOut.isAfter(newEndDate)) {
+                newCheckOut.set({
+                  year: newEndDate.year(),
+                  month: newEndDate.month(),
+                  date: newEndDate.date()
+                });
+              }
+
+              updatedItem.bookingDate = [
+                newCheckIn.format('YYYY-MM-DD'),
+                newCheckOut.format('YYYY-MM-DD')
+              ];
+              hasDateUpdate = true;
+
+              console.log(`Updated hotel ${item.id} dates:`, {
+                original: [originalCheckIn.format('YYYY-MM-DD'), originalCheckOut.format('YYYY-MM-DD')],
+                updated: updatedItem.bookingDate
+              });
+
+            } else {
+              // Other services format: single date string
+              const originalDate = moment(item.bookingDate);
+              let newDate = moment(originalDate);
+
+              // If date is outside tour range, move it to the closest valid date
+              if (originalDate.isBefore(newStartDate)) {
+                newDate = moment(newStartDate);
+                hasDateUpdate = true;
+              } else if (originalDate.isAfter(newEndDate)) {
+                newDate = moment(newEndDate);
+                hasDateUpdate = true;
+              }
+
+              updatedItem.bookingDate = newDate.format('YYYY-MM-DD');
+
+              if (hasDateUpdate) {
+                console.log(`Updated ${service.type} service ${item.id} date:`, {
+                  original: originalDate.format('YYYY-MM-DD'),
+                  updated: updatedItem.bookingDate
+                });
+              }
+            }
+          }
+
+          // Update dayIndex for services that have it (attractions, guides, etc.)
+          if (item.dayIndex !== undefined && hasDateUpdate) {
+            const serviceDate = Array.isArray(updatedItem.bookingDate) 
+              ? moment(updatedItem.bookingDate[0])
+              : moment(updatedItem.bookingDate);
+            
+            const newDayIndex = serviceDate.diff(newStartDate, 'days');
+            updatedItem.dayIndex = Math.max(0, newDayIndex);
+            
+            console.log(`Updated ${service.type} service ${item.id} dayIndex:`, {
+              originalDayIndex: item.dayIndex,
+              newDayIndex: updatedItem.dayIndex
+            });
+          }
+
+          return updatedItem;
+        });
+
+        return {
+          ...service,
+          data: updatedData
+        };
+      });
+
+      // Update Redux store with corrected service dates
+      dispatch({ 
+        type: 'tourPackages/setAllServices', 
+        payload: updatedServices 
+      });
+
+      console.log("Service dates updated successfully");
+    };
+  }, [allServices, dispatch]);
+
+  // Effect to automatically update service dates when tour dates change
+  useEffect(() => {
+    if (!searchCriteria?.checkIn || !searchCriteria?.checkOut || !allServices || allServices.length === 0) {
+      return;
+    }
+
+    // Parse tour date range
+    let tourStartDate, tourEndDate;
+    
+    if (searchCriteria.checkIn.includes('-') && searchCriteria.checkIn.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // YYYY-MM-DD format
+      tourStartDate = moment(searchCriteria.checkIn, 'YYYY-MM-DD');
+      tourEndDate = moment(searchCriteria.checkOut, 'YYYY-MM-DD');
+    } else {
+      // DD/MM/YYYY format
+      tourStartDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
+      tourEndDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
+    }
+
+    // Check if any services have dates outside the tour range
+    const hasInvalidDates = allServices.some(service => {
+      if (!service.data || !Array.isArray(service.data)) return false;
+      
+      return service.data.some(item => {
+        if (!item.bookingDate) return false;
+        
+        if (Array.isArray(item.bookingDate)) {
+          // Hotel format
+          const checkIn = moment(item.bookingDate[0]);
+          const checkOut = moment(item.bookingDate[1]);
+          return checkIn.isBefore(tourStartDate) || checkOut.isAfter(tourEndDate);
+        } else {
+          // Other services format
+          const bookingDate = moment(item.bookingDate);
+          return bookingDate.isBefore(tourStartDate) || bookingDate.isAfter(tourEndDate);
+        }
+      });
+    });
+
+    // Only update if there are invalid dates
+    if (hasInvalidDates) {
+      console.log("Found services with dates outside tour range, auto-updating...");
+      updateServiceDatesForNewTourDates(tourStartDate, tourEndDate);
+    }
+  }, [searchCriteria?.checkIn, searchCriteria?.checkOut, updateServiceDatesForNewTourDates]);
+
+  // Validation function for service booking dates
+  const validateServiceDates = useMemo(() => {
+    if (!searchCriteria?.checkIn || !searchCriteria?.checkOut || !allServices?.length) {
+      return { isValid: true, invalidServices: [], message: '' };
+    }
+
+    // Parse tour date range
+    let tourStartDate, tourEndDate;
+    
+    if (searchCriteria.checkIn.includes('-') && searchCriteria.checkIn.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // YYYY-MM-DD format
+      tourStartDate = moment(searchCriteria.checkIn, 'YYYY-MM-DD');
+      tourEndDate = moment(searchCriteria.checkOut, 'YYYY-MM-DD');
+    } else {
+      // DD/MM/YYYY format
+      tourStartDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
+      tourEndDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
+    }
+
+    console.log("Tour date range:", {
+      start: tourStartDate.format('YYYY-MM-DD'),
+      end: tourEndDate.format('YYYY-MM-DD')
+    });
+
+    const invalidServices = [];
+
+    allServices.forEach((service, serviceIndex) => {
+      if (service.data && Array.isArray(service.data)) {
+        service.data.forEach((item, itemIndex) => {
+          if (item.bookingDate) {
+            // Handle different booking date formats
+            if (Array.isArray(item.bookingDate)) {
+              // Hotel format: [check-in, check-out]
+              const checkIn = moment(item.bookingDate[0]);
+              const checkOut = moment(item.bookingDate[1]);
+              
+              console.log(`Hotel service ${item.id}:`, {
+                checkIn: checkIn.format('YYYY-MM-DD'),
+                checkOut: checkOut.format('YYYY-MM-DD'),
+                tourStart: tourStartDate.format('YYYY-MM-DD'),
+                tourEnd: tourEndDate.format('YYYY-MM-DD')
+              });
+
+              if (checkIn.isBefore(tourStartDate) || checkOut.isAfter(tourEndDate)) {
+                invalidServices.push({
+                  type: service.type,
+                  id: item.id,
+                  name: item.hotelDetails?.hotel_name || item.name || `${service.type} service`,
+                  bookingDate: `${checkIn.format('MMM DD, YYYY')} - ${checkOut.format('MMM DD, YYYY')}`,
+                  reason: checkIn.isBefore(tourStartDate) 
+                    ? 'Check-in date is before tour start'
+                    : 'Check-out date is after tour end'
+                });
+              }
+            } else {
+              // Other services format: single date string
+              const bookingDate = moment(item.bookingDate);
+              
+              console.log(`${service.type} service ${item.id}:`, {
+                bookingDate: bookingDate.format('YYYY-MM-DD'),
+                tourStart: tourStartDate.format('YYYY-MM-DD'),
+                tourEnd: tourEndDate.format('YYYY-MM-DD')
+              });
+
+              if (bookingDate.isBefore(tourStartDate) || bookingDate.isAfter(tourEndDate)) {
+                invalidServices.push({
+                  type: service.type,
+                  id: item.id,
+                  name: item.AttractionName || item.RestaurantName || item.GuideName || item.name || `${service.type} service`,
+                  bookingDate: bookingDate.format('MMM DD, YYYY'),
+                  reason: bookingDate.isBefore(tourStartDate)
+                    ? 'Service date is before tour start'
+                    : 'Service date is after tour end'
+                });
+              }
+            }
+          }
+        });
+      }
+    });
+
+    const isValid = invalidServices.length === 0;
+    const message = isValid 
+      ? '' 
+      : `${invalidServices.length} service${invalidServices.length > 1 ? 's have' : ' has'} booking dates outside the tour date range`;
+
+    console.log("Validation result:", { isValid, invalidServices, message });
+
+    return { isValid, invalidServices, message };
+  }, [allServices, searchCriteria]);
 
   // Categorize package data by service type
   const categorizedServices = useMemo(() => {
@@ -165,6 +434,15 @@ export default function Itinerary({ onBookingSuccess }) {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const { loading, error, packageEnquiryId } = useSelector((state) => state.tourPackages);
+  
+  // Debug logging for button state
+  const isButtonDisabled = loading || !validateServiceDates.isValid || !allServices || allServices.length === 0;
+  console.log("Button disabled state:", {
+    loading,
+    hasServices: allServices && allServices.length > 0,
+    isValidationPassing: validateServiceDates.isValid,
+    finalDisabledState: isButtonDisabled
+  });
   
   // Generate dates array from the selected date range
   const dates = useMemo(() => {
@@ -320,21 +598,20 @@ export default function Itinerary({ onBookingSuccess }) {
 
             {/* First Day - Place Port Component at the beginning */}
             {index === 0 && (
-  <Box sx={{ mb: 2 }}>
-    <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
-      <PickupDropComponent 
-        portType={portType} 
-        setPortType={() => setPortType("Entry Port")} 
-        date={date}
-        dayIndex={index}
-        entryPorts={categorizedServices.entryPorts}
-        exitPorts={categorizedServices.exitPorts}
-      />
-    </Paper>
-  </Box>
-)}
-
+              <Box sx={{ mb: 2 }}>
+                <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
+                  {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
+                  <PickupDropComponent 
+                    portType={portType} 
+                    setPortType={() => setPortType("Entry Port")} 
+                    date={date}
+                    dayIndex={index}
+                    entryPorts={categorizedServices.entryPorts}
+                    tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                  />
+                </Paper>
+              </Box>
+            )}
 
             {/* Attraction Component */}
             <Box sx={{ mb: 2 }}>
@@ -343,7 +620,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 <AttractionComponent 
                   date={date}
                   dayIndex={index}
-                  attractions={categorizedServices.attractions}
+                  attractionspack={categorizedServices.attractions}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -355,7 +633,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 <GuideComponent 
                   date={date}
                   dayIndex={index}
-                  guides={categorizedServices.guides}
+                  guidespack={categorizedServices.guides}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -367,7 +646,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 <RestaurantComponent 
                   date={date}
                   dayIndex={index}
-                  restaurants={categorizedServices.restaurants}
+                  restaurantspack={categorizedServices.restaurants}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -381,6 +661,7 @@ export default function Itinerary({ onBookingSuccess }) {
                   PointToPoint={categorizedServices.travelPoints}
                   Hourly={categorizedServices.travelHourly}
                   LocalTransports={categorizedServices.localTransports}
+                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
                 />
               </Paper>
             </Box>
@@ -395,8 +676,8 @@ export default function Itinerary({ onBookingSuccess }) {
         setPortType1={() => setPortType1("Exit Port")} 
         date={date}
         dayIndex={index}
-        entryPorts={categorizedServices.entryPorts}
         exitPorts={categorizedServices.exitPorts}
+        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
       />
     </Paper>
   </Box>
@@ -440,7 +721,7 @@ export default function Itinerary({ onBookingSuccess }) {
         </Grid>
       </Paper>
       
-      {/* Book Package Button Section - Improved */}
+      {/* Book Package Button Section - Improved with Validation */}
       <Paper 
         elevation={3} 
         sx={{ 
@@ -457,11 +738,66 @@ export default function Itinerary({ onBookingSuccess }) {
         <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
           Ready to book this amazing package?
         </Typography>
+
+        {/* Show warning if no services are added */}
+        {(!allServices || allServices.length === 0) && (
+          <Alert 
+            severity="info" 
+            icon={<WarningIcon />}
+            sx={{ 
+              mb: 3, 
+              width: '100%', 
+              maxWidth: 600,
+              borderRadius: 2
+            }}
+          >
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              No services have been added to your package yet
+            </Typography>
+            <Typography variant="body2">
+              Please add hotels, attractions, restaurants, guides, or transportation services to your itinerary before booking.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Show validation warning if there are date issues */}
+        {allServices && allServices.length > 0 && !validateServiceDates.isValid && (
+          <Alert 
+            severity="warning" 
+            icon={<WarningIcon />}
+            sx={{ 
+              mb: 3, 
+              width: '100%', 
+              maxWidth: 600,
+              borderRadius: 2
+            }}
+          >
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              {validateServiceDates.message}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              The following services need to be adjusted to fit within your tour dates 
+              ({moment(searchCriteria.checkIn, searchCriteria.checkIn.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')} - {moment(searchCriteria.checkOut, searchCriteria.checkOut.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')}):
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+              {validateServiceDates.invalidServices.map((service, index) => (
+                <li key={index}>
+                  <Typography variant="caption" display="block">
+                    <strong>{service.name}</strong> ({service.type}) - {service.bookingDate}
+                    <br />
+                    <em>{service.reason}</em>
+                  </Typography>
+                </li>
+              ))}
+            </Box>
+          </Alert>
+        )}
+
         <Button 
           variant="contained" 
           color="primary" 
           size="large" 
-          disabled={loading}
+          disabled={isButtonDisabled}
           startIcon={loading ? null : <ShoppingCartIcon />}
           onClick={handleBookPackage}
           sx={{
@@ -470,22 +806,50 @@ export default function Itinerary({ onBookingSuccess }) {
             fontSize: '1.1rem',
             fontWeight: 600,
             borderRadius: '50px',
-            background: 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
-            boxShadow: '0 10px 20px rgba(53, 84, 209, 0.3)',
+            background: (!validateServiceDates.isValid || !allServices || allServices.length === 0)
+              ? 'linear-gradient(45deg, #9e9e9e 30%, #bdbdbd 90%)'
+              : 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
+            boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0)
+              ? '0 4px 8px rgba(158, 158, 158, 0.3)'
+              : '0 10px 20px rgba(53, 84, 209, 0.3)',
             transition: 'all 0.3s ease',
             textTransform: 'none',
             '&:hover': {
-              transform: 'translateY(-3px)',
-              boxShadow: '0 15px 30px rgba(53, 84, 209, 0.4)',
+              transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0) ? 'none' : 'translateY(-3px)',
+              boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0)
+                ? '0 4px 8px rgba(158, 158, 158, 0.3)'
+                : '0 15px 30px rgba(53, 84, 209, 0.4)',
+            },
+            '&:disabled': {
+              color: 'white',
+              cursor: 'not-allowed'
             },
             minWidth: 200,
           }}
         >
-          {loading ? <CircularProgress size={24} color="inherit" /> : 'Book Package Now'}
+          {loading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : !allServices || allServices.length === 0 ? (
+            'No Services Added'
+          ) : !validateServiceDates.isValid ? (
+            'Please Fix Service Dates'
+          ) : (
+            'Book Package Now'
+          )}
         </Button>
-        {packageEnquiryId && (
+
+        {validateServiceDates.isValid && packageEnquiryId && (
           <Typography variant="body1" sx={{ mt: 2, color: 'success.main', fontWeight: 500 }}>
             Booking ID: {packageEnquiryId}
+          </Typography>
+        )}
+
+        {((!allServices || allServices.length === 0) || !validateServiceDates.isValid) && (
+          <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary', textAlign: 'center', maxWidth: 400 }}>
+            {(!allServices || allServices.length === 0) 
+              ? 'Add some services to your itinerary to enable booking.'
+              : 'Please ensure all service booking dates fall within your tour period before proceeding with the booking.'
+            }
           </Typography>
         )}
       </Paper>

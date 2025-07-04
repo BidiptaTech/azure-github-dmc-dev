@@ -9,12 +9,24 @@ import {
   Button,
   Grid,
   InputAdornment,
+  FormControl,
+  Select,
+  MenuItem,
 } from '@mui/material';
 
 const SimpleCustomerInfo = () => {
   const dispatch = useDispatch();
   const allServices = useSelector(state => state.tourPackages?.AllServices || []);
   console.log("allServicesssd", allServices);
+  
+  // Get user_country and searchLocation from Redux store (same as CustomerInfo.jsx)
+  const user_country = useSelector((state) => state.auth.user_country);
+  const searchLocation = useSelector((state) => state.bookings.searchLocation);
+  
+  // State for selected country and dynamic validation (same as CustomerInfo.jsx)
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [dialMinLength, setDialMinLength] = useState(8);
+  const [dialMaxLength, setDialMaxLength] = useState(15);
   
   // Form state with the same mandatory fields as the original component
   const [form, setForm] = useState({
@@ -38,6 +50,67 @@ const SimpleCustomerInfo = () => {
   const prevFormRef = useRef({});
   const formUpdatedRef = useRef(false);
   
+  // Initialize selected country from user_country array (same as CustomerInfo.jsx)
+  useEffect(() => {
+    if (user_country && user_country.length > 0) {
+      // Set default to first country in the array
+      const defaultCountry = user_country[0];
+      setSelectedCountry(defaultCountry);
+      setDialMinLength(defaultCountry.contact_min_length);
+      setDialMaxLength(defaultCountry.contact_max_length);
+      setForm((prevForm) => ({
+        ...prevForm,
+        countryCode: defaultCountry.country_code,
+      }));
+      formUpdatedRef.current = true;
+    }
+  }, [user_country]);
+
+  // Auto-set country based on search location (same as CustomerInfo.jsx)
+  useEffect(() => {
+    if (searchLocation && searchLocation[0] && user_country) {
+      const country = user_country.find(
+        (c) => c.code.toLowerCase() === searchLocation[0].toLowerCase()
+      );
+      if (country) {
+        setSelectedCountry(country);
+        setDialMinLength(country.contact_min_length);
+        setDialMaxLength(country.contact_max_length);
+        setForm((prevForm) => ({
+          ...prevForm,
+          countryCode: country.country_code,
+        }));
+        formUpdatedRef.current = true;
+      }
+    }
+  }, [searchLocation, user_country]);
+
+  // Handler for country selection (same as CustomerInfo.jsx)
+  const handleCountryChange = (event) => {
+    const selectedCountryCode = event.target.value;
+    const country = user_country.find(c => c.code === selectedCountryCode);
+    
+    if (country) {
+      setSelectedCountry(country);
+      setDialMinLength(country.contact_min_length);
+      setDialMaxLength(country.contact_max_length);
+      setForm((prevForm) => ({
+        ...prevForm,
+        countryCode: country.country_code,
+      }));
+      formUpdatedRef.current = true;
+      
+      // Re-validate phone if it's already touched
+      if (touched.phone && form.phone) {
+        const phoneError = validateField('phone', form.phone);
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          phone: phoneError,
+        }));
+      }
+    }
+  };
+  
   // Function to validate a single field
   const validateField = (field, value) => {
     let error = '';
@@ -51,8 +124,13 @@ const SimpleCustomerInfo = () => {
           error = 'Enter a valid email';
         break;
       case 'phone':
-        if (!/^\d{10,15}$/.test(value))
-          error = 'Enter a valid phone number (10-15 digits)';
+        // Use dynamic dial lengths from selected country (same as CustomerInfo.jsx)
+        const phoneRegex = new RegExp(`^\\d{${dialMinLength},${dialMaxLength}}$`);
+        if (!value) {
+          error = "Phone number is required";
+        } else if (!phoneRegex.test(value)) {
+          error = `Please enter a valid phone number (${dialMinLength}-${dialMaxLength} digits)`;
+        }
         break;
       case 'address1':
         if (!value.trim()) error = 'Address is required';
@@ -229,7 +307,45 @@ const SimpleCustomerInfo = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <span>{form.countryCode}</span>
+                  <FormControl 
+                    variant="standard" 
+                    sx={{ 
+                      minWidth: 80,
+                      marginRight: 1,
+                      '& .MuiInput-underline:before': { display: 'none' },
+                      '& .MuiInput-underline:after': { display: 'none' },
+                      '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                    }}
+                  >
+                    <Select
+                      value={selectedCountry?.code || ''}
+                      onChange={handleCountryChange}
+                      disableUnderline
+                      sx={{
+                        fontSize: '0.875rem',
+                        '& .MuiSelect-select': {
+                          paddingRight: '20px !important',
+                          paddingLeft: 0,
+                          paddingTop: 0,
+                          paddingBottom: 0,
+                          display: 'flex',
+                          alignItems: 'center'
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1rem'
+                        }
+                      }}
+                    >
+                      {user_country && user_country.map((country) => (
+                        <MenuItem key={country.code} value={country.code}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </InputAdornment>
               ),
             }}

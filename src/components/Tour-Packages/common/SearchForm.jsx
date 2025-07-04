@@ -10,7 +10,14 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import { 
@@ -18,7 +25,8 @@ import {
   LocationOn as LocationIcon,
   CalendarToday as CalendarIcon,
   People as PeopleIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import LocationSearch from './LocationSearch';
 import DateRangePicker from './DateRangePicker';
@@ -30,6 +38,7 @@ import {
   setId,
   updateSearchState,
   settourdetails,
+  fetchHotels,
 } from "../../../slice/hotel/hotelSlice";
 import {
   setTourId,
@@ -58,7 +67,7 @@ import {
 } from "../../../slice/common/EnquirySlice";
 import { setSearchLocation } from "../../../slice/common/BookingSlice";
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
-import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices } from "../../../slice/tour-packages/tourPackageSlice";
+import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices, setAllServices } from "../../../slice/tour-packages/tourPackageSlice";
 import { store } from "../../../store/store";
 import { setSearchParams as setAttractionSearchParams } from "../../../slice/attractions/attractionSlice";
 import { setSearchParams as setGuideSearchParams } from "../../../slice/tourguide/guideslice";
@@ -74,6 +83,17 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  
+  // Get all services for validation
+  const allServices = useSelector((state) => state.tourPackages.AllServices);
+  console.log("All Services in SearchForm:", allServices);
+  
+  // State for date validation dialog
+  const [dateValidationDialog, setDateValidationDialog] = useState({
+    open: false,
+    conflictingServices: [],
+    newDateRange: { start: null, end: null }
+  });
   
   // Initialize dates with packageData if available
   const getInitialStartDate = () => {
@@ -160,7 +180,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
   React.useEffect(() => {
     dispatch(fetchAgentList());
   }, [dispatch]);
-
+  console.log("guestCounts",guestCounts);
   // Auto-select agent based on packageData agent_id and agent_name
   React.useEffect(() => {
     if (packageData?.tour?.agent_id && packageData?.tour?.agent_name && !selectedAgent) {
@@ -207,11 +227,123 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     
   };
 
+  // Function to validate services against new date range
+  const validateServicesAgainstNewDates = (newStartDate, newEndDate) => {
+    if (!allServices || allServices.length === 0) {
+      return { isValid: true, conflictingServices: [] };
+    }
+
+    const startMoment = moment(newStartDate);
+    const endMoment = moment(newEndDate);
+    const conflictingServices = [];
+
+    console.log("Validating services against new date range:", {
+      start: startMoment.format('YYYY-MM-DD'),
+      end: endMoment.format('YYYY-MM-DD')
+    });
+
+    allServices.forEach((service) => {
+      if (service.data && Array.isArray(service.data)) {
+        service.data.forEach((item) => {
+          if (item.bookingDate) {
+            let isConflicting = false;
+            let conflictReason = '';
+            let bookingDateDisplay = '';
+
+            if (Array.isArray(item.bookingDate)) {
+              // Hotel format: [check-in, check-out]
+              const checkIn = moment(item.bookingDate[0]);
+              const checkOut = moment(item.bookingDate[1]);
+              bookingDateDisplay = `${checkIn.format('MMM DD, YYYY')} - ${checkOut.format('MMM DD, YYYY')}`;
+              
+              if (checkIn.isBefore(startMoment) || checkOut.isAfter(endMoment)) {
+                isConflicting = true;
+                conflictReason = checkIn.isBefore(startMoment) 
+                  ? 'Check-in date is before new tour start'
+                  : 'Check-out date is after new tour end';
+              }
+            } else {
+              // Other services format: single date string
+              const bookingDate = moment(item.bookingDate);
+              bookingDateDisplay = bookingDate.format('MMM DD, YYYY');
+              
+              if (bookingDate.isBefore(startMoment) || bookingDate.isAfter(endMoment)) {
+                isConflicting = true;
+                conflictReason = bookingDate.isBefore(startMoment)
+                  ? 'Service date is before new tour start'
+                  : 'Service date is after new tour end';
+              }
+            }
+
+            if (isConflicting) {
+              conflictingServices.push({
+                type: service.type,
+                id: item.id,
+                name: item.hotelDetails?.hotel_name || 
+                      item.AttractionName || 
+                      item.RestaurantName || 
+                      item.guide_name || 
+                      item.name || 
+                      `${service.type} service`,
+                bookingDate: bookingDateDisplay,
+                reason: conflictReason
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return {
+      isValid: conflictingServices.length === 0,
+      conflictingServices
+    };
+  };
+
   const handleDateChange = (dateRange) => {
     if (dateRange && Array.isArray(dateRange) && dateRange.length === 2) {
-      setStartDate(dateRange[0].toDate ? dateRange[0].toDate() : dateRange[0]);
-      setEndDate(dateRange[1].toDate ? dateRange[1].toDate() : dateRange[1]);
+      const newStartDate = dateRange[0].toDate ? dateRange[0].toDate() : dateRange[0];
+      const newEndDate = dateRange[1].toDate ? dateRange[1].toDate() : dateRange[1];
+      
+      // If we have existing services, validate them against the new date range
+      if (allServices && allServices.length > 0) {
+        const validation = validateServicesAgainstNewDates(newStartDate, newEndDate);
+        
+        if (!validation.isValid) {
+          // Show confirmation dialog
+          setDateValidationDialog({
+            open: true,
+            conflictingServices: validation.conflictingServices,
+            newDateRange: { start: newStartDate, end: newEndDate }
+          });
+          return; // Don't update dates yet
+        }
+      }
+      
+      // No conflicts or no existing services, update dates normally
+      setStartDate(newStartDate);
+      setEndDate(newEndDate);
     }
+  };
+
+  // Handle date validation dialog actions
+  const handleDateValidationConfirm = () => {
+    // User confirmed they want to proceed despite conflicts
+    setStartDate(dateValidationDialog.newDateRange.start);
+    setEndDate(dateValidationDialog.newDateRange.end);
+    setDateValidationDialog({ open: false, conflictingServices: [], newDateRange: { start: null, end: null } });
+    
+    // Show warning about services that will be affected
+    setSnackbarMessage(
+      `Date range updated. ${dateValidationDialog.conflictingServices.length} service(s) may need to be adjusted to fit the new tour dates.`
+    );
+    setSnackbarSeverity("warning");
+    setOpenSnackbar(true);
+  };
+
+  const handleDateValidationCancel = () => {
+    // User cancelled, don't update dates
+    setDateValidationDialog({ open: false, conflictingServices: [], newDateRange: { start: null, end: null } });
   };
 
   const handleGuestChange = (updatedGuestCounts) => {
@@ -291,6 +423,11 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     return true;
   };
 
+  const formatedHotelCheckIn = moment(startDate).format("YYYY-MM-DD");
+  console.log("formatedHotelCheckIn",formatedHotelCheckIn); 
+
+  const formatedHotelCheckOut = moment(endDate).format("YYYY-MM-DD");
+
   const handleSearch = async (e) => {
     e.preventDefault();
 
@@ -324,6 +461,16 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
       ...Array(maleCount).fill("Male"),
       ...Array(femaleCount).fill("Female")
     ];
+
+    dispatch(updateSearchState({
+      location: [city], // or just city if location is a single string
+      ucheckIn: formatedHotelCheckIn,
+      ucheckOut: formatedHotelCheckOut,
+      guests: guestCounts
+    }));
+    
+    // Step 2: Fetch hotels using pagination args
+    dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
@@ -416,6 +563,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
       console.error('fetchRestaurants error:', error);
     });
 
+   
+
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
     
@@ -444,6 +593,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
         femaleCount: femaleCount
       })
     );
+
+    
 
     // Use our new fetch tour packages action
     dispatch(fetchTourPackages({
@@ -530,8 +681,12 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     
     // Format Dates
     const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
+    console.log("formattedCheckIn",formattedCheckIn);
     const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
 
+ 
+
+    
     // Get the country and city data
     const country = selectedLocation.country;
     const city = selectedLocation.city;
@@ -641,6 +796,16 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
       console.error('fetchRestaurants error:', error);
     });
 
+   dispatch(updateSearchState({
+  location: [city], // or just city if location is a single string
+  ucheckIn: formatedHotelCheckIn,
+  ucheckOut: formatedHotelCheckOut,
+  guests: guestCounts
+}));
+
+// Step 2: Fetch hotels using pagination args
+dispatch(fetchHotels({ start: 0, limit: 10 }));
+
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
     
@@ -675,6 +840,22 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     dispatch(setId(tourId));
     dispatch(settourdetails(packageData.tour));
 
+    dispatch(setAllServices({
+      country: country,
+      city: city,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
     // Move to the first tab (Itinerary) after update completes
     if (onNext) {
       onNext();
@@ -687,6 +868,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     console.log("Tour package updated successfully with tour_id:", tourId);
   };
 
+ 
   // Determine which handler to use based on packageData presence
   const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id);
   const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;
@@ -832,24 +1014,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
 
             {/* Agent Selection - 2 columns */}
             <Grid item xs={12} sm={6} md={2}>
-              <Box
-                // sx={{
-                //   p: 1,
-                //   borderRadius: 1.5,
-                //   bgcolor: 'white',
-                //   border: '1px solid #e2e8f0',
-                //   height: '100%',
-                //   minHeight: '60px',
-                //   position: 'relative',
-                //   zIndex: 8,
-                //   overflow: 'visible',
-                //   '&:hover': {
-                //     borderColor: '#3b82f6',
-                //     boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
-                //   },
-                //   transition: 'all 0.2s ease-in-out'
-                // }}
-              >
+              <Box>
                 <Typography 
                   variant="caption" 
                   sx={{ 
@@ -1040,6 +1205,71 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
           </Box>
         </Grid>
       </Grid>
+      
+      {/* Date Validation Dialog */}
+      <Dialog 
+        open={dateValidationDialog.open} 
+        onClose={handleDateValidationCancel}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon color="warning" />
+          Date Range Conflict Warning
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            The new date range you selected conflicts with {dateValidationDialog.conflictingServices.length} existing service booking{dateValidationDialog.conflictingServices.length > 1 ? 's' : ''}:
+          </Typography>
+          
+          {dateValidationDialog.newDateRange.start && dateValidationDialog.newDateRange.end && (
+            <Typography variant="body2" sx={{ mb: 2, p: 1, bgcolor: '#f0f9ff', borderRadius: 1 }}>
+              <strong>New Tour Dates:</strong> {moment(dateValidationDialog.newDateRange.start).format('MMM DD, YYYY')} - {moment(dateValidationDialog.newDateRange.end).format('MMM DD, YYYY')}
+            </Typography>
+          )}
+          
+          <List dense>
+            {dateValidationDialog.conflictingServices.map((service, index) => (
+              <ListItem key={index} sx={{ bgcolor: '#fef2f2', borderRadius: 1, mb: 1 }}>
+                <ListItemText
+                  primary={
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      {service.name} ({service.type})
+                    </Typography>
+                  }
+                  secondary={
+                    <Box>
+                      <Typography variant="body2">
+                        Booking Date: {service.bookingDate}
+                      </Typography>
+                      <Typography variant="caption" color="error">
+                        {service.reason}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            If you proceed, these services will need to be adjusted or removed to fit within the new tour dates.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDateValidationCancel} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDateValidationConfirm} 
+            variant="contained" 
+            color="warning"
+            startIcon={<WarningIcon />}
+          >
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
       
       <Snackbar
         open={openSnackbar}

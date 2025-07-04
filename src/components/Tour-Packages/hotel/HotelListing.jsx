@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { styled } from "@mui/material/styles";
 import {
   Box,
@@ -284,162 +284,55 @@ const TooltipContent = ({ hotel }) => {
   );
 };
 
-const HotelListing = ({ onSelect, initialHotels = [], searchParams, selectedHotelId }) => {
+const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
   const dispatch = useDispatch();
   const { hotels, status, searchState } = useSelector((state) => state.hotels);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedHotel, setSelectedHotel] = useState(null);
   const tourDetails = useSelector((state) => state.hotels.tourdetails);
 
-  useEffect(() => {
-    // Prevent repeated API calls by checking if we already have hotels or if we're currently loading
-    if (hotels.length > 0 || status === "loading") {
-      return;
-    }
-
-    // Use searchParams if provided, otherwise use searchState
-    const searchStateToUse = searchParams ? {
-      location: searchParams.location || searchParams.city || [],
-      ucheckIn: searchParams.checkIn || searchState.ucheckIn || new Date().toISOString().split('T')[0],
-      ucheckOut: searchParams.checkOut || searchState.ucheckOut || new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      guests: searchParams.guests || searchState.guests || { 
-        adults: searchParams?.adults || 1, 
-        children: searchParams?.children || 0, 
-        infant: searchParams?.infant || 0 
-      }
-    } : {
-      location: searchState.location || [],
-      ucheckIn: searchState.ucheckIn || new Date().toISOString().split('T')[0],
-      ucheckOut: searchState.ucheckOut || new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      guests: searchState.guests || { adults: 1, children: 0, infant: 0 }
-    };
-
-    // Handle date format validation
-    const formatDate = (dateInput) => {
-      // If date is an array, try to parse the first element
-      if (Array.isArray(dateInput)) {
-        if (dateInput[0] instanceof Date && !isNaN(dateInput[0])) {
-          return dateInput[0].toISOString().split('T')[0];
-        } else {
-          // Try to parse string date formats
-          const parsedDate = new Date(dateInput[0]);
-          if (!isNaN(parsedDate.getTime())) {
-            return parsedDate.toISOString().split('T')[0];
-          }
-        }
-      }
-      
-      // If it's a string date, try to parse it
-      if (typeof dateInput === 'string') {
-        // Handle DD/MM/YYYY format
-        if (dateInput.includes('/')) {
-          const [day, month, year] = dateInput.split('/');
-          if (day && month && year) {
-            const parsedDate = new Date(`${year}-${month}-${day}`);
-            if (!isNaN(parsedDate.getTime())) {
-              return parsedDate.toISOString().split('T')[0];
-            }
-          }
-        }
-        
-        // Try direct parsing
-        const parsedDate = new Date(dateInput);
-        if (!isNaN(parsedDate.getTime())) {
-          return parsedDate.toISOString().split('T')[0];
-        }
-      }
-      
-      // Default to today's date if invalid
-      return new Date().toISOString().split('T')[0];
-    };
-
-    // Format the check-in and check-out dates
-    const validCheckIn = formatDate(searchParams?.checkIn || searchStateToUse.ucheckIn);
-    const validCheckOut = formatDate(searchParams?.checkOut || searchStateToUse.ucheckOut);
-
-    // Update search state with validated parameters
-    dispatch(updateSearchState({
-      ...searchStateToUse,
-      ucheckIn: validCheckIn,
-      ucheckOut: validCheckOut
-    }));
-
-    // Format payload based on available parameters
-    const hotelSearchPayload = { 
-      start: 0, 
-      limit: 20
-    };
-
-    // Add location if available - this might be a string or an object with city/country
-    if (searchStateToUse.location) {
-      if (typeof searchStateToUse.location === 'string') {
-        hotelSearchPayload.location = searchStateToUse.location;
-      } else if (Array.isArray(searchStateToUse.location)) {
-        hotelSearchPayload.location = searchStateToUse.location;
-      } else if (typeof searchStateToUse.location === 'object') {
-        // Extract city and country if available
-        hotelSearchPayload.location = searchStateToUse.location.city || 
-                                     searchStateToUse.location.cityName || 
-                                     searchParams?.city || 
-                                     '';
-      }
-    }
-    
-    // Add validated date parameters
-    hotelSearchPayload.checkIn = validCheckIn;
-    hotelSearchPayload.checkOut = validCheckOut;
-    
-    // Add guest parameters if available
-    if (searchStateToUse.guests) {
-      if (searchStateToUse.guests.adults) {
-        hotelSearchPayload.adults = parseInt(searchStateToUse.guests.adults);
-      }
-      
-      if (searchStateToUse.guests.children) {
-        hotelSearchPayload.children = parseInt(searchStateToUse.guests.children);
-      }
-      
-      if (searchStateToUse.guests.infant || searchStateToUse.guests.infants) {
-        hotelSearchPayload.infant = parseInt(searchStateToUse.guests.infant || searchStateToUse.guests.infants);
-      }
-    }
-
-    // Fetch hotels with all parameters
-    dispatch(fetchHotels(hotelSearchPayload));
-  }, [dispatch, status, searchParams]);
+ 
   // Removed hotels.length from the dependency array to prevent repeated calls
 
   // Filter hotels to show only DMC hotels and format them for display
-  const formattedHotels = hotels.length > 0 
-    ? hotels
-        .filter(hotel => hotel.dmc_id === 4)
-        .map(hotel => ({
-          id: hotel.id,
-          name: hotel.hotel_name,
-          location: hotel.location,
-          hotel_star_rating: hotel.category || "3",
-          address: hotel.location,
-          description: hotel.description,
-          main_image: hotel.image || (hotel.site_image && hotel.site_image.length > 0 ? hotel.site_image[0] : null),
-          dmc_price: hotel.dmc_price,
-          dmc_tax_amount: hotel.dmc_tax_amount,
-          site_image: hotel.site_image,
-          price: hotel.price,
-          category: hotel.category,
-          dmc_id: hotel.dmc_id || 4
-        }))
-    : initialHotels;
+  const formattedHotels = useMemo(() => {
+    return hotels.length > 0 
+      ? hotels
+          .filter(hotel => hotel.dmc_id === 4)
+          .map(hotel => ({
+            id: hotel.id,
+            name: hotel.hotel_name,
+            location: hotel.location,
+            hotel_star_rating: hotel.category || "3",
+            address: hotel.location,
+            description: hotel.description,
+            main_image: hotel.image || (hotel.site_image && hotel.site_image.length > 0 ? hotel.site_image[0] : null),
+            dmc_price: hotel.dmc_price,
+            dmc_tax_amount: hotel.dmc_tax_amount,
+            site_image: hotel.site_image,
+            price: hotel.price,
+            category: hotel.category,
+            dmc_id: hotel.dmc_id || 4
+          }))
+      : initialHotels;
+  }, [hotels, initialHotels]);
 
   // Update selected hotel when prop changes
   useEffect(() => {
     if (selectedHotelId) {
       // Find the hotel object from formattedHotels
       const hotelObject = formattedHotels.find(h => h.id === selectedHotelId || h.name === selectedHotelId);
-      setSelectedHotel(hotelObject || null);
+      // Only update if the hotel object is different to prevent unnecessary re-renders
+      setSelectedHotel(prevSelected => {
+        if (prevSelected?.id !== hotelObject?.id) {
+          return hotelObject || null;
+        }
+        return prevSelected;
+      });
     } else {
-      setSelectedHotel(null);
+      setSelectedHotel(prevSelected => prevSelected ? null : prevSelected);
     }
-  }, [selectedHotelId, formattedHotels]);
+  }, [selectedHotelId]); // Removed formattedHotels dependency
 
   // Handle hotel selection
   const handleHotelSelect = (hotel) => {
