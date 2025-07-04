@@ -478,7 +478,7 @@ class PackageController extends Controller
         if(!$tour_id){
             return response()->json(['message' => 'Please add tour_id'], 400);
         }
-        $tour = Tour::with('booking')->where('tour_id', $tour_id)->first();
+        $tour = Tour::where('tour_id', $tour_id)->first();
         if(!$tour){
             return response()->json(['message' => 'Tour not found'], 404);
         }
@@ -641,6 +641,38 @@ class PackageController extends Controller
         }
     }
     
+    /**
+     * Convert date from various formats to YYYY-MM-DD for PostgreSQL
+     *
+     * @param string $date Date string in various formats
+     * @return string Date in YYYY-MM-DD format
+     */
+    private function formatDateForDatabase($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
+        
+        // If it's already in YYYY-MM-DD format, return it
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+        
+        // Try to parse DD/MM/YYYY format
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
+            return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
+        }
+        
+        // Try to parse using DateTime
+        try {
+            $dateObj = new \DateTime($date);
+            return $dateObj->format('Y-m-d');
+        } catch (\Exception $e) {
+            // If all else fails, return the original string
+            return $date;
+        }
+    }
+    
     public function updateCustomPackage(Request $request){
         $payload = $request->all(); // this is the outer array
         $tourId = null;
@@ -665,8 +697,13 @@ class PackageController extends Controller
                 'message' => 'Tour not found'
             ], 404);
         }
-        $tour->check_in_time = $payload[0]['check_in_time'];
-        $tour->check_out_time = $payload[0]['check_out_time'];
+        
+        // Convert date format from DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
+        $checkInDate = $this->formatDateForDatabase($payload[0]['check_in_time']);
+        $checkOutDate = $this->formatDateForDatabase($payload[0]['check_out_time']);
+        
+        $tour->check_in_time = $checkInDate;
+        $tour->check_out_time = $checkOutDate;
         $tour->save();
         
         // Get all existing orders for this tour_id
