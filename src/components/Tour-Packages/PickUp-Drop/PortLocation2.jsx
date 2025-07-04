@@ -1,18 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
 import {
+  Autocomplete,
   TextField,
   Box,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
   Typography,
-  Divider,
   InputAdornment,
-  Fade,
+  alpha,
+  Chip,
 } from "@mui/material";
-import { LocationOn } from "@mui/icons-material";
+import { 
+  LocationOn,
+  Business,
+  Attractions,
+  Restaurant,
+} from "@mui/icons-material";
 
 const PortLocation2 = ({
   exitpickUpLocation,
@@ -28,20 +30,15 @@ const PortLocation2 = ({
   disabled = false,
   portType,
 }) => {
-  const autocompletePickUpRef = useRef(null);
-  const autocompleteDropOffRef = useRef(null);
-  const [isPickupValid, setIsPickupValid] = useState(true);
-  const [isDropoffValid, setIsDropoffValid] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
   const SelectedPort = useSelector((state) => state.pickupDrop.selectedPort);
   const shotels = useSelector((state) => state.pickupDrop.portCityData?.data);
-  console.log("hotelsss", shotels);
   const zones = useSelector((state) => state.pickupDrop.zone?.data);
-  console.log("zones", zones);
 
   // Add caching mechanism similar to PortLocation
   const [initialHotelsLoaded, setInitialHotelsLoaded] = useState(false);
   const [cachedHotels, setCachedHotels] = useState([]);
-  console.log("portType", portType);
+
   // Cache hotels when first loaded
   useEffect(() => {
     // For Exit Port
@@ -80,41 +77,84 @@ const PortLocation2 = ({
       ? zones
       : cachedHotels;
 
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [searchText, setSearchText] = useState("");
+  // Create grouped options array with headers (following GuideListing pattern)
+  const options = useMemo(() => {
+    if (!zonesData) return [];
+    
+    const result = [];
 
-  // Filter function to search across all options
-  const filterItems = (items, term) => {
-    if (!term) return items;
-    if (!items) return [];
-    return items.filter(
-      (item) =>
-        item &&
-        item.name &&
-        item.name.toLowerCase().includes((term || "").toLowerCase())
-    );
-  };
-
-  const handleSelect = (item, type) => {
-    if (disabled) return; // Don't process if disabled
-
-    setexitPickUpLocation(item.name);
-    setSearchText(item.name);
-    setShowDropdown(false);
-    setPickupFromAutocomplete(true);
-    setType(type);
-    setPickdropType(type);
-
-    // Set ID based on the selected item type and port type
-    let itemId;
-    if (type === "hotel") {
-      itemId = item.hotel_unique_id || item.id;
-    } else if (type === "attraction") {
-      itemId = item.attraction_id || item.id;
-    } else if (type === "restaurant") {
-      itemId = item.restaurant_id || item.id;
+    // Add Hotels section
+    if (zonesData.hotels && Array.isArray(zonesData.hotels) && zonesData.hotels.length > 0) {
+      result.push({ 
+        id: `hotel-header`, 
+        name: 'Hotels', 
+        type: 'header', 
+        isHeader: true 
+      });
+      zonesData.hotels.forEach(hotel => {
+        result.push({
+          ...hotel,
+          type: 'hotel',
+          isHeader: false,
+          unique_id: hotel.hotel_unique_id || hotel.id
+        });
+      });
     }
 
+    // Add Attractions section
+    if (zonesData.attractions && Array.isArray(zonesData.attractions) && zonesData.attractions.length > 0) {
+      result.push({ 
+        id: `attraction-header`, 
+        name: 'Attractions', 
+        type: 'header', 
+        isHeader: true 
+      });
+      zonesData.attractions.forEach(attraction => {
+        result.push({
+          ...attraction,
+          type: 'attraction',
+          isHeader: false,
+          unique_id: attraction.attraction_id || attraction.id
+        });
+      });
+    }
+
+    // Add Restaurants section
+    if (zonesData.restaurants && Array.isArray(zonesData.restaurants) && zonesData.restaurants.length > 0) {
+      result.push({ 
+        id: `restaurant-header`, 
+        name: 'Restaurants', 
+        type: 'header', 
+        isHeader: true 
+      });
+      zonesData.restaurants.forEach(restaurant => {
+        result.push({
+          ...restaurant,
+          type: 'restaurant',
+          isHeader: false,
+          unique_id: restaurant.restaurant_id || restaurant.id
+        });
+      });
+    }
+
+    return result;
+  }, [zonesData]);
+
+  // Handle selection (following GuideListing pattern)
+  const handleSelect = useCallback((event, newValue) => {
+    if (!newValue || newValue.isHeader || disabled) {
+      setSelectedItem(null);
+      return;
+    }
+
+    setSelectedItem(newValue);
+    setexitPickUpLocation(newValue.name);
+    setPickupFromAutocomplete(true);
+    setType(newValue.type);
+    setPickdropType(newValue.type);
+
+    // Set ID based on the selected item type
+    let itemId = newValue.unique_id;
     setId(itemId);
 
     if (portType === "Exit Port") {
@@ -122,566 +162,187 @@ const PortLocation2 = ({
     } else {
       setdropId(itemId);
     }
+  }, [disabled, portType, setexitPickUpLocation, setPickupFromAutocomplete, setType, setPickdropType, setId, setpickId, setdropId]);
+
+  // Get icon for each type
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'hotel':
+        return <Business sx={{ fontSize: '1rem', color: '#1976d2' }} />;
+      case 'attraction':
+        return <Attractions sx={{ fontSize: '1rem', color: '#ed6c02' }} />;
+      case 'restaurant':
+        return <Restaurant sx={{ fontSize: '1rem', color: '#2e7d32' }} />;
+      default:
+        return <LocationOn sx={{ fontSize: '1rem', color: '#1976d2' }} />;
+    }
   };
+
+  // Get color for each type
+  const getTypeColor = (type) => {
+    switch (type) {
+      case 'hotel':
+        return '#1976d2';
+      case 'attraction':
+        return '#ed6c02';
+      case 'restaurant':
+        return '#2e7d32';
+      default:
+        return '#1976d2';
+    }
+  };
+
+  // Render option component (following GuideListing pattern)
+  const renderOption = useCallback((props, option) => {
+    // Render header
+    if (option.isHeader) {
+      return (
+        <Box 
+          component="li" 
+          {...props}
+          sx={{
+            p: 2,
+            bgcolor: alpha(getTypeColor(option.type === 'Hotels' ? 'hotel' : option.type === 'Attractions' ? 'attraction' : 'restaurant'), 0.1),
+            color: getTypeColor(option.type === 'Hotels' ? 'hotel' : option.type === 'Attractions' ? 'attraction' : 'restaurant'),
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            cursor: 'default !important',
+            '&:hover': {
+              bgcolor: alpha(getTypeColor(option.type === 'Hotels' ? 'hotel' : option.type === 'Attractions' ? 'attraction' : 'restaurant'), 0.1) + ' !important',
+            }
+          }}
+        >
+          {getTypeIcon(option.type === 'Hotels' ? 'hotel' : option.type === 'Attractions' ? 'attraction' : 'restaurant')}
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: getTypeColor(option.type === 'Hotels' ? 'hotel' : option.type === 'Attractions' ? 'attraction' : 'restaurant') }}>
+            {option.name}
+          </Typography>
+        </Box>
+      );
+    }
+
+    // Render regular option
+    return (
+      <Box 
+        component="li" 
+        {...props}
+        sx={{
+          '&:hover': {
+            bgcolor: alpha('#000', 0.05),
+          },
+          borderBottom: `1px solid ${alpha('#000', 0.05)}`,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1, pl: 2, justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+            {getTypeIcon(option.type)}
+            <Typography noWrap sx={{ flex: 1 }}>{option.name}</Typography>
+          </Box>
+          <Chip 
+            size="small" 
+            label={option.type}
+            sx={{ 
+              height: 20,
+              fontSize: '0.7rem',
+              bgcolor: alpha(getTypeColor(option.type), 0.08),
+              color: getTypeColor(option.type),
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }, []);
+
+  // Get option label (following GuideListing pattern)
+  const getOptionLabel = useCallback((option) => {
+    if (option?.isHeader) return '';
+    return option?.name || '';
+  }, []);
+
+  // Check if option equals value (following GuideListing pattern)
+  const isOptionEqualToValue = useCallback((option, value) => {
+    if (!option || !value || option.isHeader || value.isHeader) return false;
+    return option.unique_id === value.unique_id;
+  }, []);
+
+  // Get unique key for options (following GuideListing pattern)
+  const getOptionKey = useCallback((option) => `${option.type}-${option.unique_id || option.id}`, []);
+
+  // Filter out headers from selectable options (following GuideListing pattern)
+  const getOptionDisabled = useCallback((option) => option.isHeader, []);
 
   // Reset initialHotelsLoaded when port type changes
   useEffect(() => {
     setInitialHotelsLoaded(false);
   }, [portType]);
 
-  // Add useEffect to handle editing after selection
-  useEffect(() => {
-    // Only trigger when user is modifying a selection
-    if (exitpickUpLocation && searchText !== exitpickUpLocation) {
-      // Reset selection state when user starts editing
-      setPickupFromAutocomplete(false);
-      // Keep dropdown open to show options
-      setShowDropdown(true);
-    }
-  }, [searchText, exitpickUpLocation]);
-
-  // Add this function to close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        event.target.id !== "pick-up-input" &&
-        !event.target.closest(".location-dropdown")
-      ) {
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   return (
-    <Box sx={{ position: 'relative', width: '100%' }}>
-      <TextField
-        id="pick-up-input"
-        fullWidth
-        variant="outlined"
-        size="small"
-        placeholder={
-          portType === "Entry Port"
-            ? "Where is your drop off?"
-            : "Where is your pick up?"
-        }
-        value={searchText}
-        disabled={
-          disabled ||
-          !portType ||
-          (portType !== "Entry Port" && portType !== "Exit Port")
-        }
-        error={validationTriggered && !exitpickUpLocation && !disabled}
-        helperText={
-          validationTriggered && !exitpickUpLocation && !disabled
-            ? "*Select location from dropdown"
-            : ""
-        }
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <LocationOn 
-                sx={{ 
-                  color: disabled ? 'action.disabled' : 'action.active',
-                  fontSize: 20 
-                }} 
-              />
-            </InputAdornment>
-          ),
-          sx: {
-            backgroundColor: disabled ? 'action.hover' : 'background.paper',
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: disabled ? 'action.disabled' : 'divider',
-              },
-            },
+    <Box sx={{ width: '100%', position: 'relative' }}>
+      <Autocomplete
+        value={selectedItem}
+        onChange={handleSelect}
+        options={options}
+        getOptionLabel={getOptionLabel}
+        getOptionKey={getOptionKey}
+        isOptionEqualToValue={isOptionEqualToValue}
+        getOptionDisabled={getOptionDisabled}
+        noOptionsText="No locations available"
+        disabled={disabled || options.length === 0}
+        renderOption={renderOption}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            fullWidth
+            placeholder={
+              portType === "Entry Port"
+                ? "Where is your drop off?"
+                : "Where is your pick up?"
+            }
+            disabled={disabled}
+            error={validationTriggered && !exitpickUpLocation && !disabled}
+            helperText={
+              validationTriggered && !exitpickUpLocation && !disabled
+                ? "*Select location from dropdown"
+                : ""
+            }
+            InputProps={{
+              ...params.InputProps,
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LocationOn 
+                    sx={{ 
+                      color: disabled ? 'action.disabled' : '#1976d2',
+                      fontSize: 20 
+                    }} 
+                  />
+                </InputAdornment>
+              ),
+              sx: {
+                backgroundColor: disabled ? 'action.hover' : 'background.paper',
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: disabled ? 'action.disabled' : 'divider',
+                  },
+                },
+              }
+            }}
+          />
+        )}
+        ListboxProps={{
+          style: {
+            maxHeight: '300px'
           }
         }}
-        onChange={(e) => {
-          if (disabled) return;
-
-          const newValue = e.target.value;
-          setSearchText(newValue);
-          setShowDropdown(true);
-
-          // If we had a selection but now we're editing it
-          if (exitpickUpLocation && newValue !== exitpickUpLocation) {
-            setPickupFromAutocomplete(false);
-            // Don't clear the exitpickUpLocation yet - only when selection is confirmed
+        slotProps={{
+          popper: {
+            sx: {
+              zIndex: 999999
+            }
           }
         }}
-        onFocus={() => {
-          if (disabled) return;
-
-          setShowDropdown(true);
-          // If empty on focus, show all options
-          if (!searchText && zonesData) {
-            console.log("Showing all options on focus");
-          }
-        }}
+        forcePopupIcon={false}
       />
-
-      {/* Material UI Dropdown */}
-      <Fade in={showDropdown && !disabled}>
-        <Paper
-          elevation={8}
-          sx={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            maxHeight: '280px',
-            overflowY: 'auto',
-            zIndex: 15000, // Very high z-index
-            mt: 0.5,
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            /* Custom scrollbar styles */
-            '&::-webkit-scrollbar': {
-              width: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#bbb',
-              borderRadius: '4px',
-              transition: 'background 0.3s ease',
-              '&:hover': {
-                background: '#888',
-              },
-            },
-            /* Firefox scrollbar */
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#bbb #f1f1f1',
-          }}
-          className="location-dropdown"
-        >
-          {portType === "Exit Port" ? (
-            // For Exit Port, show categorized dropdown just like Entry Port
-            <>
-              {zonesData &&
-                zonesData.hotels &&
-                zonesData.hotels.length > 0 && (
-                  <Box>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        backgroundColor: 'grey.50',
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      Hotel
-                    </Typography>
-                    <List dense sx={{ py: 0 }}>
-                      {filterItems(zonesData.hotels, searchText).map(
-                        (hotel) => (
-                          <ListItem
-                            key={`hotel-${hotel.hotel_unique_id || hotel.id}`}
-                            button
-                            onClick={() => handleSelect(hotel, "hotel")}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'primary.light',
-                                color: 'primary.contrastText',
-                              },
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            <ListItemText 
-                              primary={hotel.name}
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                      {filterItems(zonesData.hotels, searchText).length === 0 &&
-                        searchText && (
-                          <ListItem>
-                            <ListItemText 
-                              primary="No matching hotels"
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                color: 'text.secondary',
-                                fontStyle: 'italic',
-                              }}
-                            />
-                          </ListItem>
-                        )}
-                    </List>
-                  </Box>
-                )}
-
-              {zonesData &&
-                zonesData.attractions &&
-                zonesData.attractions.length > 0 && (
-                  <Box>
-                    <Divider />
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        backgroundColor: 'grey.50',
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      Attraction
-                    </Typography>
-                    <List dense sx={{ py: 0 }}>
-                      {filterItems(zonesData.attractions, searchText).map(
-                        (attraction) => (
-                          <ListItem
-                            key={`attraction-${attraction.attraction_id || attraction.id}`}
-                            button
-                            onClick={() => handleSelect(attraction, "attraction")}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'primary.light',
-                                color: 'primary.contrastText',
-                              },
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            <ListItemText 
-                              primary={attraction.name}
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                      {filterItems(zonesData.attractions, searchText).length === 0 &&
-                        searchText && (
-                          <ListItem>
-                            <ListItemText 
-                              primary="No matching attractions"
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                color: 'text.secondary',
-                                fontStyle: 'italic',
-                              }}
-                            />
-                          </ListItem>
-                        )}
-                    </List>
-                  </Box>
-                )}
-
-              {zonesData &&
-                zonesData.restaurants &&
-                zonesData.restaurants.length > 0 && (
-                  <Box>
-                    <Divider />
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        backgroundColor: 'grey.50',
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      Restaurant
-                    </Typography>
-                    <List dense sx={{ py: 0 }}>
-                      {filterItems(zonesData.restaurants, searchText).map(
-                        (restaurant) => (
-                          <ListItem
-                            key={`restaurant-${restaurant.restaurant_id || restaurant.id}`}
-                            button
-                            onClick={() => handleSelect(restaurant, "restaurant")}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'primary.light',
-                                color: 'primary.contrastText',
-                              },
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            <ListItemText 
-                              primary={restaurant.name}
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                      {filterItems(zonesData.restaurants, searchText).length === 0 &&
-                        searchText && (
-                          <ListItem>
-                            <ListItemText 
-                              primary="No matching restaurants"
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                color: 'text.secondary',
-                                fontStyle: 'italic',
-                              }}
-                            />
-                          </ListItem>
-                        )}
-                    </List>
-                  </Box>
-                )}
-
-              {(!zonesData ||
-                ((!zonesData.hotels || zonesData.hotels.length === 0) &&
-                  (!zonesData.attractions ||
-                    zonesData.attractions.length === 0) &&
-                  (!zonesData.restaurants ||
-                    zonesData.restaurants.length === 0))) && (
-                <ListItem>
-                  <ListItemText 
-                    primary={
-                      initialHotelsLoaded && cachedHotels.length > 0
-                        ? "Type to search..."
-                        : "No options found"
-                    }
-                    primaryTypographyProps={{
-                      variant: 'body2',
-                      color: 'text.secondary',
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                    }}
-                  />
-                </ListItem>
-              )}
-            </>
-          ) : (
-            // For Entry Port, keep the existing categorized dropdown
-            <>
-              {zonesData &&
-                zonesData.hotels &&
-                zonesData.hotels.length > 0 && (
-                  <Box>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        backgroundColor: 'grey.50',
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      Hotel
-                    </Typography>
-                    <List dense sx={{ py: 0 }}>
-                      {filterItems(zonesData.hotels, searchText).map(
-                        (hotel) => (
-                          <ListItem
-                            key={`hotel-${hotel.hotel_unique_id || hotel.id}`}
-                            button
-                            onClick={() => handleSelect(hotel, "hotel")}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'primary.light',
-                                color: 'primary.contrastText',
-                              },
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            <ListItemText 
-                              primary={hotel.name}
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                      {filterItems(zonesData.hotels, searchText).length === 0 &&
-                        searchText && (
-                          <ListItem>
-                            <ListItemText 
-                              primary="No matching hotels"
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                color: 'text.secondary',
-                                fontStyle: 'italic',
-                              }}
-                            />
-                          </ListItem>
-                        )}
-                    </List>
-                  </Box>
-                )}
-
-              {zonesData &&
-                zonesData.attractions &&
-                zonesData.attractions.length > 0 && (
-                  <Box>
-                    <Divider />
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        backgroundColor: 'grey.50',
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      Attraction
-                    </Typography>
-                    <List dense sx={{ py: 0 }}>
-                      {filterItems(zonesData.attractions, searchText).map(
-                        (attraction) => (
-                          <ListItem
-                            key={`attraction-${attraction.attraction_id || attraction.id}`}
-                            button
-                            onClick={() => handleSelect(attraction, "attraction")}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'primary.light',
-                                color: 'primary.contrastText',
-                              },
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            <ListItemText 
-                              primary={attraction.name}
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                      {filterItems(zonesData.attractions, searchText).length === 0 &&
-                        searchText && (
-                          <ListItem>
-                            <ListItemText 
-                              primary="No matching attractions"
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                color: 'text.secondary',
-                                fontStyle: 'italic',
-                              }}
-                            />
-                          </ListItem>
-                        )}
-                    </List>
-                  </Box>
-                )}
-
-              {zonesData &&
-                zonesData.restaurants &&
-                zonesData.restaurants.length > 0 && (
-                  <Box>
-                    <Divider />
-                    <Typography
-                      variant="subtitle2"
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        backgroundColor: 'grey.50',
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      Restaurant
-                    </Typography>
-                    <List dense sx={{ py: 0 }}>
-                      {filterItems(zonesData.restaurants, searchText).map(
-                        (restaurant) => (
-                          <ListItem
-                            key={`restaurant-${restaurant.restaurant_id || restaurant.id}`}
-                            button
-                            onClick={() => handleSelect(restaurant, "restaurant")}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'primary.light',
-                                color: 'primary.contrastText',
-                              },
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            <ListItemText 
-                              primary={restaurant.name}
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                fontWeight: 500,
-                              }}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                      {filterItems(zonesData.restaurants, searchText).length === 0 &&
-                        searchText && (
-                          <ListItem>
-                            <ListItemText 
-                              primary="No matching restaurants"
-                              primaryTypographyProps={{
-                                variant: 'body2',
-                                color: 'text.secondary',
-                                fontStyle: 'italic',
-                              }}
-                            />
-                          </ListItem>
-                        )}
-                    </List>
-                  </Box>
-                )}
-
-              {(!zonesData ||
-                ((!zonesData.hotels || zonesData.hotels.length === 0) &&
-                  (!zonesData.attractions ||
-                    zonesData.attractions.length === 0) &&
-                  (!zonesData.restaurants ||
-                    zonesData.restaurants.length === 0))) && (
-                <ListItem>
-                  <ListItemText 
-                    primary={
-                      initialHotelsLoaded && cachedHotels.length > 0
-                        ? "Type to search..."
-                        : "No options found"
-                    }
-                    primaryTypographyProps={{
-                      variant: 'body2',
-                      color: 'text.secondary',
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                    }}
-                  />
-                </ListItem>
-              )}
-            </>
-          )}
-        </Paper>
-      </Fade>
     </Box>
   );
 };
