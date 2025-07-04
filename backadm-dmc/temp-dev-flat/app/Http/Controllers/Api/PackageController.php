@@ -494,11 +494,15 @@ class PackageController extends Controller
     public function getBookingLists(Request $request){
         $user = Auth::user();
         $booking = [];
-        $agent_id = request()->header('agent_id');
+        $agent_id = request()->header('agent-id');
+        // Convert string "null" to actual null value
+        if ($agent_id === 'null') {
+            $agent_id = null;
+        }
         
         try {
             
-            if(!$agent_id){
+            if(!$agent_id || $agent_id === 'null'){
                 if($user->userId){
                     $dmc_id = null;
                     $agent_creator_id = null;     
@@ -534,6 +538,7 @@ class PackageController extends Controller
                     } else {
                         $agents = Agent::where('sales_manager_dmc', $agent_creator_id)->get();
                         $agent_ids = $agents->pluck('agent_id')->toArray();
+
                         // Fallback to user's own bookings if no DMC ID found
                         $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
                             ->whereIn('booked_by', $agent_ids)
@@ -547,9 +552,14 @@ class PackageController extends Controller
                 }
             }
             else{
-                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
-                    ->where('agent_id', $agent_id)
-                    ->get();
+                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info');
+                
+                // Only add the where clause if agent_id is not null
+                if ($agent_id !== null) {
+                    $booking = $booking->where('agent_id', $agent_id);
+                }
+                
+                $booking = $booking->get();
             }
             
             $data = [];
