@@ -21,6 +21,14 @@ class PackagedAttraction extends Model
     }
     
     /**
+     * Get the gallery images as an array
+     */
+    public function getGalleryImagesArrayAttribute()
+    {
+        return json_decode($this->gallery_images, true) ?? [];
+    }
+    
+    /**
      * Get the additional images as an array
      */
     public function getAdditionalImagesArrayAttribute()

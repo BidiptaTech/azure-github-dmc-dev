@@ -20,7 +20,7 @@ return new class extends Migration
             $table->decimal('adult_price', 10, 2)->nullable();
             $table->decimal('child_price', 10, 2)->nullable();
             $table->text('description')->nullable();
-            $table->string('image')->nullable();
+            $table->json('image')->nullable();
             $table->boolean('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
