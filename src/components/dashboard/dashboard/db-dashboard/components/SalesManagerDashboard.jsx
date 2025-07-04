@@ -16,12 +16,15 @@ import {
 import { Grid, Tab, Tabs } from "@mui/material";
 import {
     EventNote,
-  EmailOutlined
+  EmailOutlined,
+  CardGiftcardOutlined
 } from "@mui/icons-material";
 import BasicTabs from "./TabStatus";
 
 import EnquiryList from "./EnquiryList";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
+import PreDefinePackages from "../PreDefine-Packages";
+import { setAgentId } from "@/slice/common/EditSlice";
 
 const SalesManagerDashboard = () => {
   const dispatch = useDispatch();
@@ -45,6 +48,7 @@ const SalesManagerDashboard = () => {
       const agentId =event.target.value
       setSelectedAgent(agentId);
       dispatch(fetchEnquiries(agentId))
+      dispatch(setAgentId(agentId))
       dispatch(fetchLists(agentId))
       console.log('Selected agent:', event.target.value);
     };
@@ -171,6 +175,12 @@ function a11yProps(index) {
               iconPosition="start" 
               {...a11yProps(1)} 
             />
+            <Tab 
+              icon={<CardGiftcardOutlined />} 
+              label="Fixed Itinerary Packages" 
+              iconPosition="start" 
+              {...a11yProps(2)} 
+            />
             {/* <Tab 
               icon={<AssessmentOutlined />} 
               label="Booking Overview" 
@@ -195,6 +205,13 @@ function a11yProps(index) {
           {/* Insert your booking enquiries content here */}
           <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
             <EnquiryList />
+          </Box>
+        </TabPanel>
+        
+        <TabPanel value={mainTabValue} index={2} sx={{ p: 0 }}>
+          {/* Insert your predefine packages content here */}
+          <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
+            <PreDefinePackages />
           </Box>
         </TabPanel>
     </Container>
