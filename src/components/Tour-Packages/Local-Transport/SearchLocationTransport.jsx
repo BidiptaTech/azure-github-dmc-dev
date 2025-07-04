@@ -86,7 +86,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const reduxDropOffLatLng = useSelector((state) => state.localtour.DropoffPlaceid || "");
   const reduxEntryTime = useSelector((state) => state.localtour.entrytime || "");
   const reduxEntryTime1 = useSelector((state) => state.localtour.entrytime1 || "");
-  const reduxEntryTimeZone = useSelector((state) => state.localtour.entrytimezone || "");
+  const reduxEntryTimeZone = useSelector((state) => state.localtour.entrytime || "");
   const reduxPickUpZone = useSelector((state) => state.localtour.PickupZoneid || "");
   const reduxDropOffZone = useSelector((state) => state.localtour.DropoffZoneid || "");
 
@@ -98,6 +98,8 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   // Initialize all local state from Redux values to maintain consistency
   const [pickUpLocation, setPickUpLocation] = useState(reduxPickUpLocation);
   const [pickUpZone, setPickUpZone] = useState(reduxPickUpZone);
+  
+
   const [dropOffLocation, setDropOffLocation] = useState(reduxDropOffLocation);
   const [dropOffzone, setDropOffZone] = useState(reduxDropOffZone);
   const [exitpickUpLocation, setexitPickUpLocation] = useState(reduxExitPickUpLocation);
@@ -238,19 +240,25 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               if (value !== reduxExitPickUpLocation) dispatch(setexitpickup(value));
               break;
             case 'pickUpZone':
-              if (value !== reduxPickUpZone) dispatch(setPickupZoneid(value));
+              if (value !== reduxPickUpZone) {
+                dispatch(setPickupZoneid(value));
+              }
               break;
             case 'dropOffZone':
-              if (value !== reduxDropOffZone) dispatch(setDropoffZoneid(value));
+              if (value !== reduxDropOffZone) {
+                dispatch(setDropoffZoneid(value));
+              }
               break;
             case 'entryytime':
               if (value !== reduxEntryTime) dispatch(setentrytime(value));
               break;
             case 'entryytime1':
-              if (value !== reduxEntryTime1) dispatch(setentrytime(value));
+              if (value !== reduxEntryTime1) dispatch(setentrytime1(value));
               break;
             case 'entryytimezone':
-              if (value !== reduxEntryTimeZone) dispatch(setentrytime(value));
+              if (value !== reduxEntryTimeZone) {
+                dispatch(setentrytime(value));
+              }
               break;
             case 'droptype':
               if (value !== reduxDropType) dispatch(setDroptype(value));
@@ -265,13 +273,13 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               if (value !== reduxPickupDate) dispatch(setpickdate(value));
               break;
             case 'pickUpLatLng':
-              if (value && Object.keys(value).length > 0) {
+              if (value && Object.keys(value).length > 0 && value.lat !== undefined && value.lng !== undefined) {
                 const latLng = { lat: value.lat, lng: value.lng };
                 dispatch(setPickupPlaceid(latLng));
               }
               break;
             case 'dropOffLatLng':
-              if (value && Object.keys(value).length > 0) {
+              if (value && Object.keys(value).length > 0 && value.lat !== undefined && value.lng !== undefined) {
                 const latLng = { lat: value.lat, lng: value.lng };
                 dispatch(setDropoffPlaceid(latLng));
               }
@@ -293,7 +301,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     if (pickUpLocation) updates.pickUpLocation = pickUpLocation;
     if (dropOffLocation) updates.dropOffLocation = dropOffLocation;
     if (exitpickUpLocation) updates.exitpickUpLocation = exitpickUpLocation;
-    if (pickUpZone) updates.pickUpZone = pickUpZone;
+    if (pickUpZone) {
+      updates.pickUpZone = pickUpZone;
+    }
     if (dropOffzone) updates.dropOffZone = dropOffzone;
     if (entryytime) updates.entryytime = entryytime;
     if (entryytime1) updates.entryytime1 = entryytime1;
@@ -302,8 +312,12 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     if (selectedDate) updates.selectedDate = selectedDate;
     if (selectedDate1) updates.selectedDate1 = selectedDate1;
     if (selectedDateZone) updates.selectedDateZone = selectedDateZone;
-    if (pickUpLatLng && Object.keys(pickUpLatLng).length > 0) updates.pickUpLatLng = pickUpLatLng;
-    if (dropOffLatLng && Object.keys(dropOffLatLng).length > 0) updates.dropOffLatLng = dropOffLatLng;
+    if (pickUpLatLng && Object.keys(pickUpLatLng).length > 0 && pickUpLatLng.lat !== undefined && pickUpLatLng.lng !== undefined) {
+      updates.pickUpLatLng = pickUpLatLng;
+    }
+    if (dropOffLatLng && Object.keys(dropOffLatLng).length > 0 && dropOffLatLng.lat !== undefined && dropOffLatLng.lng !== undefined) {
+      updates.dropOffLatLng = dropOffLatLng;
+    }
     
     if (Object.keys(updates).length > 0) {
       dispatchToRedux(updates);
@@ -488,12 +502,21 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         droptype
       };
       
+      console.log("Dispatching Local Transfer updates:", updates);
       dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
       dispatch(setentrypickup(pickUpLatLng));
       dispatch(setentrydropoff(dropOffLatLng));
       dispatch(setZonetype("zone"));
 
+      // Debug log all values before checking
+      console.log("Local Transfer API call check:");
+      console.log("pickUpZone:", pickUpZone);
+      console.log("dropOffzone:", dropOffzone);
+      console.log("entryytimezone:", entryytimezone);
+      console.log("selectedDateZone:", selectedDateZone);
+      console.log("droptype:", droptype);
+      
       // Check if we have valid values for the API call
       if (
         pickUpZone &&
@@ -502,17 +525,17 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         selectedDateZone &&
         droptype
       ) {
-        console.log("Local Transfer search with droptype:", droptype);
+        console.log("✅ All conditions met! Calling fetchZoneVehicles with droptype:", droptype);
         setTimeout(() => {
           dispatch(fetchZoneVehicles());
         }, 500);
       } else {
-        console.log("Missing required fields for Local Transfer search:", {
-          pickUpLocation,
-          dropOffLocation,
-          entryytimezone,
-          selectedDateZone,
-          droptype,
+        console.log("❌ Missing required fields for Local Transfer search:", {
+          pickUpZone: pickUpZone || "MISSING",
+          dropOffzone: dropOffzone || "MISSING",
+          entryytimezone: entryytimezone || "MISSING",
+          selectedDateZone: selectedDateZone || "MISSING",
+          droptype: droptype || "MISSING",
         });
       }
     }
@@ -536,9 +559,12 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         bgcolor: 'white',
         p: { xs: 2, md: 3 },
         mt: 2,
+        overflow: 'visible',
+        position: 'relative',
+        zIndex: 1,
       }}
     >
-      <Box sx={{ width: '100%', maxWidth: 1730 }}>
+      <Box sx={{ width: '100%', maxWidth: 1730, overflow: 'visible', position: 'relative', zIndex: 1 }}>
         {/* Radio Button Selection */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <FormControl component="fieldset">
@@ -741,7 +767,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
 
               {/* Time Selection */}
               <Grid item xs={12} md={3}>
-                <Box>
+                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -12 : 0 }}>
                   {selectedPort === "Point To Point" ? (
                     <Pickuptime
                       entryytime={entryytime}
@@ -757,7 +783,10 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                   ) : selectedPort === "Local Transfer" ? (
                     <Pickuptimezone
                       entryytime={entryytimezone}
-                      setentryytime={setentryytimezone}
+                      setentryytime={(value) => {
+                        setentryytimezone(value);
+                        setTimezone(!!value);
+                      }}
                       setTime={setTimezone}
                     />
                   ) : selectedPort && (
@@ -772,9 +801,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
 
               {/* Date Selection */}
               <Grid item xs={12} md={3}>
-                <Box>
+                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -12 : 0 }}>
                   <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
-                    {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
+                    Pick Up Date
                   </Typography>
                   {selectedPort === "Point To Point" ? (
                     <DateSearch1

@@ -24,7 +24,6 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   
   // Make sure we're selecting from the correct slice in Redux store
   const Location = useSelector((state) => {
-    console.log("Redux State:", state.bookings); // Log entire state to debug
     return state.bookings?.searchLocation || {};
   });
   

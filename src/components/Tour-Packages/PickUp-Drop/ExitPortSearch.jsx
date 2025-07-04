@@ -15,6 +15,7 @@ import {
 } from "@/slice/port/pickupDropSlice";
 import DateSearch2 from "@/components/activity-list/common/DateSearch2";
 import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
+import { Typography } from "@mui/material";
 
 const ExitPortSearch = ({ Location }) => {
   const dispatch = useDispatch();
@@ -222,6 +223,9 @@ const ExitPortSearch = ({ Location }) => {
           setDropoffFromAutocomplete={setExitDropoffFromAutocomplete}
         />
         <div className="time-selection-wrapper">
+        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+                Exit Time
+              </Typography>
           <Pickuptime1
             entryytime={entryytime1}
             setentryytime={setentryytime1}
