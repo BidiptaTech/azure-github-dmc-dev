@@ -33,11 +33,13 @@ const PackagePricing = ({
     (typeof packageData.itinerary === 'string' ? JSON.parse(packageData.itinerary) : packageData.itinerary) : 
     {};
 
-
   const dispatch = useDispatch();
 
   // Get search params and booking status from Redux store
   const { searchParams, bookingSuccess, bookingData: bookedData } = useSelector(state => state.prePackages);
+  
+  // Get userRole and agentId from auth slice
+  const { userRole, agentId } = useSelector(state => state.auth);
 
   // Handle successful booking
   useEffect(() => {
@@ -283,6 +285,10 @@ const PackagePricing = ({
       return enhancedDay;
     });
 
+    // Determine the correct agent_id to use
+    // If user is an Agent, use their own agentId; otherwise use the one from searchParams
+    const effectiveAgentId = userRole === 'Agent' ? agentId : searchParams?.agent_id || null;
+
     const bookingData = {
       package: {
         // Exclude the package's selected_hotels/attractions/etc as we want to use only what the user selected
@@ -382,7 +388,9 @@ const PackagePricing = ({
         entry_port_transfer: hasEntryPortTransfer() ? 1 : 0,
         exit_port_transfer: hasExitPortTransfer() ? 1 : 0,
         has_arrival_pickup: hasEntryPortTransfer() ? 1 : 0,
-        has_departure_service: hasExitPortTransfer() ? 1 : 0
+        has_departure_service: hasExitPortTransfer() ? 1 : 0,
+        // Use the determined agent_id
+        agent_id: effectiveAgentId
       }
     };
 
@@ -390,6 +398,7 @@ const PackagePricing = ({
     console.log('Booking Data - Guides by Day:', guidesByDay);
     console.log('Booking Data - Selected Guides:', bookingData.selected.guides);
     console.log('Booking Data - Enhanced Itinerary:', bookingData.booking_details.itinerary);
+    console.log('Booking Data - Using Agent ID:', effectiveAgentId);
 
     // Save booking data to state and open the user info modal
     setBookingData(bookingData);

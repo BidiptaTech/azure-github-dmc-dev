@@ -122,7 +122,7 @@ const DashboardLayout = () => {
             />
             <Tab 
               icon={<CardGiftcardOutlined />} 
-              label="PreDefine Packages" 
+              label="Fixed Itinerary Packages" 
               iconPosition="start" 
               {...a11yProps(2)} 
             />

@@ -1,12 +1,115 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { endpoints } from '../../services/api';
+import axios from 'axios';
+import Cookies from 'js-cookie';
+
+// Import only the BASE_URL from api.js
+import { BASE_URL } from '../../services/api';
+// Import store as named export
+import { store } from '../../store/store';
+
+// Create an axios instance with default configuration
+const api = axios.create({
+  baseURL: BASE_URL,
+});
+
+// Add request interceptor to automatically include auth headers
+api.interceptors.request.use(
+  (config) => {
+    const authToken = Cookies.get("authToken");
+    const reduxState = store.getState();
+    const agentID = reduxState.editing?.agentId;
+    const userRole = reduxState.auth?.userRole;
+    const cookieAgentId = Cookies.get("AgentId");
+    
+    console.log("Interceptor - Auth token:", authToken);
+    console.log("Interceptor - Redux agentID:", agentID);
+    console.log("Interceptor - User role:", userRole);
+    console.log("Interceptor - Cookie AgentId:", cookieAgentId);
+
+    // Determine which agent ID to use
+    let AgentId;
+    if (
+      userRole === "Sales Head(DMC)" ||
+      userRole === "Sales Manager (DMC)" ||
+      userRole === "Assistant Manager (DMC)"
+    ) {
+      // For managers, use the selected agent ID if available
+      AgentId = agentID || cookieAgentId;
+    } else {
+      // For regular agents, use their own ID
+      AgentId = cookieAgentId;
+    }
+
+    console.log("Interceptor - Final AgentId to use:", AgentId);
+
+    // Add Authorization header if token exists
+    if (authToken) {
+      config.headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    // Add agent-id header if AgentId exists
+    if (AgentId) {
+      // Set both formats to be safe
+      config.headers["agent-id"] = AgentId;
+      
+      console.log("Interceptor - Headers set:", config.headers);
+    } else {
+      console.warn("Interceptor - No AgentId available for header");
+    }
+
+    return config;
+  },
+  (error) => {
+    console.error("Interceptor request error:", error);
+    return Promise.reject(error);
+  }
+);
+
+// Utility function to transform parameter names from underscore to hyphen format
+const transformParams = (params) => {
+  if (!params) return params;
+
+  const transformed = {};
+  const hyphenParams = [
+    { from: "dmc_id", to: "dmc-id" },
+    { from: "price_mode", to: "price-mode" },
+    { from: "agent_id", to: "agent-id" },
+    { from: "tour_id", to: "tour-id" },
+  ];
+
+  Object.keys(params).forEach((key) => {
+    const paramToTransform = hyphenParams.find((param) => param.from === key);
+    if (paramToTransform) {
+      transformed[paramToTransform.to] = params[key];
+    } else {
+      transformed[key] = params[key];
+    }
+  });
+
+  console.log("Transformed params:", transformed);
+  return transformed;
+};
+
+// Package API endpoints
+const packageAPI = {
+  fetchPackages: (params) =>
+    api.get("/packages", { params: transformParams(params) }),
+  fetchPackageDetails: (params) =>
+    api.get("/package-details", { params: transformParams(params) }),
+  packageBooking: (data) => 
+    api.post("/package-booking", data),
+  cancelPackageBooking: (booking_id) =>
+    api.post("cancel-package-booking", { booking_id }),
+  fetchPackageBookingLists: (params) =>
+    api.get("package-booking-lists", { params: transformParams(params) }),
+};
 
 // Async thunk for fetching packages
 export const fetchPackages = createAsyncThunk(
   'prePackages/fetchPackages',
   async (searchParams, { rejectWithValue }) => {
     try {
-      const response = await endpoints.fetchPackages(searchParams);
+      const response = await packageAPI.fetchPackages(searchParams);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -19,7 +122,6 @@ export const fetchPackages = createAsyncThunk(
 // Async thunk for fetching package details
 export const fetchPackageDetails = createAsyncThunk(
   'prePackages/fetchPackageDetails',
-  // async (packageId, { rejectWithValue, getState }) => {
   async (packageId, { rejectWithValue, getState }) => {
     try {
       // Get the searchParams from state
@@ -27,7 +129,7 @@ export const fetchPackageDetails = createAsyncThunk(
       const searchParams = state.prePackages.searchParams;
       
       // Fetch the package details
-      const response = await endpoints.fetchPackageDetails({ 
+      const response = await packageAPI.fetchPackageDetails({ 
         package_id: packageId,
         // Include arrival_date if available from searchParams
         ...(searchParams?.arrival_date && { arrival_date: searchParams.arrival_date })
@@ -43,27 +145,6 @@ export const fetchPackageDetails = createAsyncThunk(
       }
       
       return packageDetails;
-      // Get the searchParams from state
-      // const state = getState();
-      // const searchParams = state.prePackages.searchParams;
-      
-      // Fetch the package details
-        // const response = await endpoints.fetchPackageDetails({ 
-        //   package_id: packageId,
-        //   // Include arrival_date if available from searchParams
-        //   ...(searchParams?.arrival_date && { arrival_date: searchParams.arrival_date })
-        // });
-      
-      // Merge the arrival_date from searchParams into the response data if available
-      // const packageDetails = response.data;
-      // if (searchParams?.arrival_date) {
-      //   return {
-      //     ...packageDetails,
-      //     arrival_date: searchParams.arrival_date
-      //   };
-      // }
-      
-      return packageDetails;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || 'Failed to fetch package details'
@@ -77,7 +158,7 @@ export const bookPackage = createAsyncThunk(
   'prePackages/bookPackage',
   async (bookingData, { rejectWithValue }) => {
     try {
-      const response = await endpoints.packageBooking(bookingData);
+      const response = await packageAPI.packageBooking(bookingData);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -88,13 +169,12 @@ export const bookPackage = createAsyncThunk(
 );
 
 // Async thunk for canceling a package booking
-// Uses the cancel-package-booking endpoint with booking_id parameter
 export const cancelPackageBooking = createAsyncThunk(
   'prePackages/cancelPackageBooking',
   async (booking_id, { rejectWithValue }) => {
     try {
       console.log("Canceling package booking with ID:", booking_id);
-      const response = await endpoints.request('post', 'cancel-package-booking', { booking_id });
+      const response = await packageAPI.cancelPackageBooking(booking_id);
       console.log("API Response for cancel-package-booking:", response);
       return { booking_id, ...response.data };
     } catch (error) {
@@ -112,7 +192,7 @@ export const fetchPackageBookingLists = createAsyncThunk(
   async (params, { rejectWithValue }) => {
     try {
       console.log("Fetching package booking lists with params:", params);
-      const response = await endpoints.request('get', 'package-booking-lists', null, { params });
+      const response = await packageAPI.fetchPackageBookingLists(params);
       console.log("API Response for package-booking-lists:", response);
       return response.data;
     } catch (error) {
