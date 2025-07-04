@@ -37,7 +37,7 @@ class PackagedAttractionController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'package_attraction_id' => 'required|string|max:255',
+                'package_attraction_name' => 'required|string|max:255',
                 'attractions' => 'required|array',
                 'senior_citizen_price' => 'required|numeric|min:0',
                 'adult_price' => 'required|numeric|min:0',
@@ -52,26 +52,25 @@ class PackagedAttractionController extends Controller
                     ->withErrors($validator)
                     ->withInput();
             }
-
+            
+            // Generate unique package ID
             $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
             $package_max_id = $lastPackage->package_attraction_id ?? 0;
             $packageId = CommonHelper::createId($package_max_id);
             while (PackagedAttraction::where('package_attraction_id', $packageId)->exists()) {
                 $packageId = CommonHelper::createId($packageId);
             }
-
-            // Process main image
-            $imagePath = null;
-            if ($request->hasFile('images') && count($request->file('images')) > 0) {
-                $image = $request->file('images')[0]; // Get the first image for main display
-                $imageData = \App\Helpers\CommonHelper::image_path('file_storage', $image);
-                if (!empty($imageData['master_value'])) {
-                    $imagePath = $imageData['master_value'];
+            
+            // Process gallery images (all images including the first one)
+            $galleryImages = [];
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $imageData = CommonHelper::image_path('file_storage', $image);
+                    if (!empty($imageData['master_value'])) {
+                        $galleryImages[] = $imageData['master_value'];
+                    }
                 }
             }
-
-            // Process additional images
-            
 
             // Create packaged attraction
             $packagedAttraction = PackagedAttraction::create([
@@ -83,6 +82,7 @@ class PackagedAttractionController extends Controller
                 'child_price' => $request->child_price,
                 'description' => $request->description,
                 'image' => $imagePath,
+                'gallery_images' => !empty($galleryImages) ? json_encode($galleryImages) : null,
                 'status' => $request->status ?? 1,
                 'created_by' => Auth::id(),
             ]);
@@ -123,7 +123,7 @@ class PackagedAttractionController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'package_attraction_id' => 'required|string|max:255',
+                'package_attraction_name' => 'required|string|max:255',
                 'attractions' => 'required|array',
                 'senior_citizen_price' => 'required|numeric|min:0',
                 'adult_price' => 'required|numeric|min:0',
@@ -141,7 +141,7 @@ class PackagedAttractionController extends Controller
 
             $packagedAttraction = PackagedAttraction::findOrFail($id);
             $updateData = [
-                'package_attraction_id' => $request->package_attraction_id,
+                'name' => $request->package_attraction_name,
                 'attractions' => json_encode($request->attractions),
                 'senior_citizen_price' => $request->senior_citizen_price,
                 'adult_price' => $request->adult_price,
@@ -154,27 +154,24 @@ class PackagedAttractionController extends Controller
             // Process main image if provided
             if ($request->hasFile('images') && count($request->file('images')) > 0) {
                 $image = $request->file('images')[0];
-                $imageData = \App\Helpers\CommonHelper::image_path('file_storage', $image);
+                $imageData = CommonHelper::image_path('file_storage', $image);
                 if (!empty($imageData['master_value'])) {
                     $updateData['image'] = $imageData['master_value'];
                 }
             }
 
-            // Process additional images if any
-            if ($request->hasFile('images') && count($request->file('images')) > 1) {
-                $additionalImages = $packagedAttraction->additional_images ? json_decode($packagedAttraction->additional_images, true) : [];
-                
-                foreach ($request->file('images') as $key => $image) {
-                    if ($key === 0) continue; // Skip the first image as it's already saved as main image
-                    
-                    $imageData = \App\Helpers\CommonHelper::image_path('file_storage', $image);
+            // Process gallery images if any
+            $galleryImages = [];
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $imageData = CommonHelper::image_path('file_storage', $image);
                     if (!empty($imageData['master_value'])) {
-                        $additionalImages[] = $imageData['master_value'];
+                        $galleryImages[] = $imageData['master_value'];
                     }
                 }
                 
-                if (!empty($additionalImages)) {
-                    $updateData['additional_images'] = json_encode($additionalImages);
+                if (!empty($galleryImages)) {
+                    $updateData['gallery_images'] = json_encode($galleryImages);
                 }
             }
 
