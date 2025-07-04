@@ -455,13 +455,13 @@ class PackageController extends Controller
         $booking->user_info = $data['user_info'];
         $booking->travel_dates = ["check_in" => $check_in, "check_out" => $check_out];
 
-        
         $booking->selected_hotels = $hotelIds;
         $booking->selected_attractions = $attractionIds;
         $booking->selected_guides = $guideIds;
 
         $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
+        $booking->agent_id = $request->input('agent_id');
         // Add other required fields and save the booking
         $booking->save();
         
@@ -493,11 +493,64 @@ class PackageController extends Controller
 
     public function getBookingLists(Request $request){
         $user = Auth::user();
+        $booking = [];
+        $agent_id = request()->header('agent_id');
         
         try {
-            $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
-                ->where('booked_by', $user->agent_id ?? $user->userId)
-                ->get();
+            
+            if(!$agent_id){
+                if($user->userId){
+                    $dmc_id = null;
+                    $agent_creator_id = null;     
+                    $agent_creator_id = $user->userId;
+                    $agent_ids = [];
+                    // Check user role and determine DMC ID based on role hierarchy
+                    if($user->role_id == 11){
+                        $dmc_id = $user->userId;
+                    }
+                    elseif ($user->role_id == 33) { // Sales Head
+                        $sales_head = User::where('userId', $user->userId)->first();
+                        $dmc_id = $sales_head->created_by;
+                    } elseif ($user->role_id == 37) { // Sales Manager
+                        $product_head = User::where('userId', $user->userId)->first();
+                        $sales_head_id = $product_head->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmc_id = $sales_head->created_by;
+                    } elseif ($user->role_id == 38) { // Assistant Sales Manager
+                        $assistant_sales_manager = User::where('userId', $user->userId)->first();
+                        $sales_manager_id = $assistant_sales_manager->created_by;
+                        $sales_manager = User::where('userId', $sales_manager_id)->first();
+                        $sales_head_id = $sales_manager->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmc_id = $sales_head->created_by;
+                    }
+                    
+                    // If DMC ID is found, filter bookings by DMC
+                    if ($dmc_id) {
+                        
+                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                            ->where('dmc_id', $dmc_id)
+                            ->get();
+                    } else {
+                        $agents = Agent::where('sales_manager_dmc', $agent_creator_id)->get();
+                        $agent_ids = $agents->pluck('agent_id')->toArray();
+                        // Fallback to user's own bookings if no DMC ID found
+                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                            ->whereIn('booked_by', $agent_ids)
+                            ->get();
+                    }
+                }
+                else{
+                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                        ->where('booked_by', $user->agent_id)
+                        ->get();
+                }
+            }
+            else{
+                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                    ->where('agent_id', $agent_id)
+                    ->get();
+            }
             
             $data = [];
             foreach ($booking as $b) {

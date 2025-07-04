@@ -47,6 +47,7 @@ use App\Http\Controllers\FinanceReportController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\PackagedAttractionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -212,6 +213,12 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('attraction/calendar/{attraction_id}', [AttractionController::class, 'attractionCalendar'])->name('attraction.calendar');
         Route::resource('attraction', AttractionController::class);
         Route::get('guide/calendar/{guide_id}', [GuideController::class, 'guideCalendar'])->name('guide.calendar');
+
+        // Packaged Attractions Routes
+        Route::resource('packaged-attractions', PackagedAttractionController::class);
+        Route::get('get-attractions', [PackagedAttractionController::class, 'getAttractions'])->name('get.attractions');
+        Route::post('packaged-attractions/upload-images', [PackagedAttractionController::class, 'uploadImages'])->name('packaged-attractions.upload-images');
+        Route::delete('packaged-attractions/remove-image/{id}', [PackagedAttractionController::class, 'removeImage'])->name('packaged-attractions.remove-image');
 
         Route::get('guide/guide-approval', [GuideController::class, 'guideApproval'])->name('guide.approval');
         Route::get('/edit-guide-approval/{guide}', [GuideController::class, 'editGuideApproval'])->name('guide.edit.approval');
