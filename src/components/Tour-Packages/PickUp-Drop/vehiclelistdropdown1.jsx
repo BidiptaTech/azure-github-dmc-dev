@@ -289,8 +289,11 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           bookingDate: exitData.bookingDate,
           exitpickupdate: exitData.exitpickupdate,
           entrytime: exitData.entrytime,
-          // Store original loaded data for reference
-          originalData: exitData
+          // Store original loaded data for reference, including booking_id
+          originalData: {
+            ...exitData,
+            booking_id: exitPort.booking_id // Preserve booking_id from service level
+          }
         };
       });
     }
@@ -357,8 +360,21 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     // Filter out existing exit_port services to avoid duplicates
     const filteredServices = currentServices.filter(service => service.type !== "exit_port");
     
+    // Create new exit port service entries preserving booking_id
+    const exitPortServicesWithBookingId = validExitPorts.map(exitPortService => {
+      // Create service object with booking_id preserved
+      const serviceObject = { ...exitPortService };
+
+      // Add booking_id if it exists in the original service
+      if (exitPortService.booking_id) {
+        serviceObject.booking_id = exitPortService.booking_id;
+      }
+
+      return serviceObject;
+    });
+    
     // Add all exit ports to the filtered services array
-    const finalServices = [...filteredServices, ...validExitPorts];
+    const finalServices = [...filteredServices, ...exitPortServicesWithBookingId];
     
     console.log('Exit Vehicle - Dispatching ALL exit ports to Redux:', finalServices);
     dispatch(setAllServices(finalServices));
@@ -601,7 +617,10 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           children: exitData.children || 0,
           mode: exitData.Mode || 'dmc',
           dmcId: exitData.dmc_id,
-          originalData: exitData
+          originalData: {
+            ...exitData,
+            booking_id: exitPort.booking_id // Preserve booking_id from service level
+          }
         };
       });
       

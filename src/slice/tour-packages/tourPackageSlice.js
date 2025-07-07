@@ -4,12 +4,12 @@ import Cookies from "js-cookie";
 import { BASE_URL } from "@/services/api";
 
 // Initial state for the tour packages slice
-const initialState = {
-  packages: [],
+const initialState = {  
+  initialPackages: [],
   loading: false,
   error: null,
   searchCriteria: {
-    country: null,
+    country: null,  
     city: null,
     checkIn: null,
     checkOut: null,
@@ -156,30 +156,23 @@ export const UpdateCustomPackage = createAsyncThunk(
 );
 export const UpdateCustomBooking = createAsyncThunk(
   "tourPackages/UpdateCustomBooking",
-  async ({ tour_id }, { rejectWithValue, getState }) => {
+  async (_, { rejectWithValue, getState }) => {
     const state = getState();
     try {
       const authToken = Cookies.get("authToken");
-      const agentID = state.editing?.agentId;
-      const userRole = state.auth?.userRole;
-      let AgentId;
-      if (
-        userRole === "Sales Head(DMC)" ||
-        userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
-      ) {
-        AgentId = agentID;
-      } else {
-        AgentId = Cookies.get("AgentId");
-      }
+      const AgentId = state.editing?.agentId;
+      console.log("AgentIdpackage", AgentId);
+      const bookingData = state.tourPackages.AllServices;
+
 
 
       if (!authToken || !AgentId) {
         throw new Error("Authorization and AgentId are missing.");
       }
 
-      const response = await axios.get(
-        `${BASE_URL}/update-custom-package?tour_id=${tour_id}`,
+      const response = await axios.post(
+        `${BASE_URL}/update-custom-package`,
+        bookingData,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -297,7 +290,7 @@ const tourPackageSlice = createSlice({
       })
       .addCase(fetchTourPackages.fulfilled, (state, action) => {
         state.loading = false;
-        state.packages = action.payload.data || [];
+        state.initialPackages = action.payload.data || [];
       })
       .addCase(fetchTourPackages.rejected, (state, action) => {
         state.loading = false;

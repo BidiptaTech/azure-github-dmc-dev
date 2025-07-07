@@ -48,7 +48,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import WarningIcon from '@mui/icons-material/Warning';
-import { BookPackageEnquiry } from '../../../slice/tour-packages/tourPackageSlice';
+import { BookPackageEnquiry, UpdateCustomBooking } from '../../../slice/tour-packages/tourPackageSlice';
 
 // Import all service components
 import HotelComponent from '../../Tour-Packages/hotel';
@@ -513,6 +513,25 @@ export default function Itinerary({ onBookingSuccess }) {
         setOpenSnackbar(true);
       });
   };
+  const handleUpdatePackage = () => {
+    dispatch(UpdateCustomBooking())
+      .unwrap()
+      .then((result) => {
+        setSnackbarMessage('Package Upadated successfully!');
+        setSnackbarSeverity('success');
+        setOpenSnackbar(true);
+        
+        // Call the callback to reset current step in parent component
+        if (onBookingSuccess) {
+          onBookingSuccess();
+        }
+      })
+      .catch((error) => {
+        setSnackbarMessage(error?.message || 'Failed to book package. Please try again.');
+        setSnackbarSeverity('error');
+        setOpenSnackbar(true);
+      });
+  };
   
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
@@ -799,7 +818,7 @@ export default function Itinerary({ onBookingSuccess }) {
           size="large" 
           disabled={isButtonDisabled}
           startIcon={loading ? null : <ShoppingCartIcon />}
-          onClick={handleBookPackage}
+          onClick={packageData?.tour?.booking?.length > 0 ? handleUpdatePackage : handleBookPackage}
           sx={{
             py: 1.5,
             px: 4,
@@ -834,7 +853,7 @@ export default function Itinerary({ onBookingSuccess }) {
           ) : !validateServiceDates.isValid ? (
             'Please Fix Service Dates'
           ) : (
-            'Book Package Now'
+            packageData?.tour?.tour_id > 0 ? 'Update Package Now' : 'Book Package Now'
           )}
         </Button>
 
