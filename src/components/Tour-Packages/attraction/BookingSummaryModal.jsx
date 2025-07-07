@@ -25,6 +25,7 @@ import CategoryIcon from '@mui/icons-material/Category';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import GroupIcon from '@mui/icons-material/Group';
 import InfoIcon from '@mui/icons-material/Info';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useSelector } from 'react-redux';
 
 // Styled components
@@ -69,14 +70,14 @@ const BookingSummaryModal = ({
   open, 
   onClose, 
   bookingData,
-  bookingIndex 
+  bookingIndex,
 }) => {
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
-
+  console.log("bookingData", bookingData);
   if (!bookingData) return null;
 
   // Calculate total price
@@ -160,6 +161,29 @@ const BookingSummaryModal = ({
           </Box>
 
           <Divider />
+
+          {/* Booking Date */}
+          {bookingData && (
+            <SummarySection>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  borderRadius: 2,
+                  gap: 1
+                }}
+              >
+                <CalendarTodayIcon sx={{ color: 'white' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
+                  Booking Date: {bookingData.bookingDate}
+                </Typography>
+              </Box>
+            </SummarySection>
+          )}
 
           {/* Attraction Details */}
           <SummarySection>

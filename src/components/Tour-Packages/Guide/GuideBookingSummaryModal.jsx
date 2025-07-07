@@ -27,6 +27,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import NightsStayIcon from '@mui/icons-material/NightsStay';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useSelector } from 'react-redux';
 
 // Styled components
@@ -79,7 +80,7 @@ const PriceRow = styled(Box)(({ theme }) => ({
   }
 }));
 
-const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, guideDetails }) => {
+const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, guideDetails, bookingDate }) => {
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
@@ -267,6 +268,29 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
           </Box>
 
           <Divider />
+
+          {/* Booking Date */}
+          {bookingDate && (
+            <SummarySection>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  borderRadius: 2,
+                  gap: 1
+                }}
+              >
+                <CalendarTodayIcon sx={{ color: 'white' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
+                  Booking Date: {bookingDate}
+                </Typography>
+              </Box>
+            </SummarySection>
+          )}
 
           {/* Guide Details */}
           <SummarySection>

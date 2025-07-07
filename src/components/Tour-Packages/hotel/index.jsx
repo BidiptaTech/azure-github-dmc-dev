@@ -17,14 +17,35 @@ export default function HotelComponent({ searchParams }) {
   // This contains: ucheckIn, ucheckOut, guests, location data
   const searchState = useSelector((state) => state.hotels.searchState);
   
+  // Get tour package search criteria for date updates
+  const tourSearchCriteria = useSelector((state) => state.tourPackages.searchCriteria);
+  
   // Get search criteria from Redux searchState (populated by SearchForm) - MOVED TO TOP
   const searchCriteria = useMemo(() => {
     const criteria = {};
     
-    // Get dates from Redux searchState
-    if (searchState?.ucheckIn && searchState?.ucheckOut) {
+    // PRIORITY 1: Use tour package search criteria dates if available (these are the updated tour dates)
+    if (tourSearchCriteria?.checkIn && tourSearchCriteria?.checkOut) {
+      // Tour package dates might be in different format, handle both YYYY-MM-DD and DD/MM/YYYY
+      if (tourSearchCriteria.checkIn.includes('-') && tourSearchCriteria.checkIn.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // YYYY-MM-DD format
+        criteria.checkIn = moment(tourSearchCriteria.checkIn, 'YYYY-MM-DD').format('DD/MM/YYYY');
+        criteria.checkOut = moment(tourSearchCriteria.checkOut, 'YYYY-MM-DD').format('DD/MM/YYYY');
+      } else {
+        // DD/MM/YYYY format
+        criteria.checkIn = tourSearchCriteria.checkIn;
+        criteria.checkOut = tourSearchCriteria.checkOut;
+      }
+      console.log("Hotel component - Using dates from tour package search criteria:", {
+        original: { checkIn: tourSearchCriteria.checkIn, checkOut: tourSearchCriteria.checkOut },
+        formatted: { checkIn: criteria.checkIn, checkOut: criteria.checkOut }
+      });
+    }
+    // PRIORITY 2: Fall back to hotel search state dates
+    else if (searchState?.ucheckIn && searchState?.ucheckOut) {
       criteria.checkIn = moment(searchState.ucheckIn, 'YYYY-MM-DD').format('DD/MM/YYYY');
       criteria.checkOut = moment(searchState.ucheckOut, 'YYYY-MM-DD').format('DD/MM/YYYY');
+      console.log("Hotel component - Using dates from hotel search state:", criteria);
     }
     
     // Get guest information from Redux searchState
@@ -37,10 +58,9 @@ export default function HotelComponent({ searchParams }) {
       criteria.location = searchState.location;
     }
     
-      console.log("Hotel component - Search criteria from Redux:", criteria);
-  console.log("Hotel component - Raw searchState:", searchState);
-  return criteria;
-  }, [searchState]);
+    console.log("Hotel component - Final search criteria:", criteria);
+    return criteria;
+  }, [searchState, tourSearchCriteria]);
   
   // Main hotel data/state management
   const {
@@ -461,35 +481,51 @@ export default function HotelComponent({ searchParams }) {
   const dates = useMemo(() => {
     let checkInDate, checkOutDate;
     
-    // First priority: Use dates from Redux searchState
-    if (searchState?.ucheckIn && searchState?.ucheckOut) {
+    // PRIORITY 1: Use tour package search criteria dates (these are the updated tour dates)
+    if (tourSearchCriteria?.checkIn && tourSearchCriteria?.checkOut) {
+      if (tourSearchCriteria.checkIn.includes('-') && tourSearchCriteria.checkIn.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // YYYY-MM-DD format
+        checkInDate = moment(tourSearchCriteria.checkIn, 'YYYY-MM-DD');
+        checkOutDate = moment(tourSearchCriteria.checkOut, 'YYYY-MM-DD');
+      } else {
+        // DD/MM/YYYY format
+        checkInDate = moment(tourSearchCriteria.checkIn, 'DD/MM/YYYY');
+        checkOutDate = moment(tourSearchCriteria.checkOut, 'DD/MM/YYYY');
+      }
+      console.log("Hotel component dates - Using tour package search criteria:", {
+        checkIn: checkInDate.format('YYYY-MM-DD'),
+        checkOut: checkOutDate.format('YYYY-MM-DD')
+      });
+    }
+    // PRIORITY 2: Use dates from Redux hotel searchState
+    else if (searchState?.ucheckIn && searchState?.ucheckOut) {
       checkInDate = moment(searchState.ucheckIn, 'YYYY-MM-DD');
       checkOutDate = moment(searchState.ucheckOut, 'YYYY-MM-DD');
-      console.log("Hotel component - Using dates from Redux searchState:", {
+      console.log("Hotel component dates - Using Redis hotel searchState:", {
         checkIn: checkInDate.format('YYYY-MM-DD'),
         checkOut: checkOutDate.format('YYYY-MM-DD')
       });
     } 
-    // Second priority: Try searchCriteria (formatted dates)
+    // PRIORITY 3: Try searchCriteria (formatted dates)
     else if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
       checkInDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
       checkOutDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
-      console.log("Hotel component - Using dates from searchCriteria:", {
+      console.log("Hotel component dates - Using searchCriteria:", {
         checkIn: checkInDate.format('YYYY-MM-DD'),
         checkOut: checkOutDate.format('YYYY-MM-DD')
       });
     } 
-    // Third priority: Fallback to current hotel configuration
+    // PRIORITY 4: Fallback to current hotel configuration
     else if (hotelConfigurations.length > 0 && hotelConfigurations[activeHotelIndex]?.nights) {
       checkInDate = moment();
       checkOutDate = moment().add(hotelConfigurations[activeHotelIndex].nights, 'days');
-      console.log("Hotel component - Using dates from hotel configuration");
+      console.log("Hotel component dates - Using hotel configuration");
     }
     // Default fallback
     else {
       checkInDate = moment();
       checkOutDate = moment().add(3, 'days'); // Default 3 nights
-      console.log("Hotel component - Using default dates (3 nights from today)");
+      console.log("Hotel component dates - Using default dates (3 nights from today)");
     }
     
     const datesArray = [];
@@ -503,7 +539,7 @@ export default function HotelComponent({ searchParams }) {
     
     console.log("Hotel component - Generated dates for night selection:", datesArray.map(d => d.format('YYYY-MM-DD')));
     return datesArray;
-  }, [searchState, searchCriteria, hotelConfigurations, activeHotelIndex]);
+  }, [tourSearchCriteria, searchState, searchCriteria, hotelConfigurations, activeHotelIndex]);
 
   // Sync hotel configurations to setAllServices in Redux
   useEffect(() => {
@@ -567,16 +603,36 @@ export default function HotelComponent({ searchParams }) {
         }
       }
       
-      // Check for valid dates
-      const startDate = searchState?.ucheckIn || 
-        (dates.length > 0 ? dates[0].format('YYYY-MM-DD') : null);
+      // Check for valid dates - prioritize tour package dates
+      let startDate, endDate;
       
-      // Use the max nights for end date calculation
-      const maxNights = Math.max(...configs.map(c => c.nights || 0));
-      
-      // Calculate end date based on nights or use checkout date
-      const endDate = searchState?.ucheckOut || 
-        (dates.length > maxNights ? dates[maxNights].format('YYYY-MM-DD') : null);
+      // PRIORITY 1: Use tour package search criteria dates
+      if (tourSearchCriteria?.checkIn && tourSearchCriteria?.checkOut) {
+        if (tourSearchCriteria.checkIn.includes('-') && tourSearchCriteria.checkIn.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // YYYY-MM-DD format
+          startDate = tourSearchCriteria.checkIn;
+          endDate = tourSearchCriteria.checkOut;
+        } else {
+          // DD/MM/YYYY format - convert to YYYY-MM-DD
+          startDate = moment(tourSearchCriteria.checkIn, 'DD/MM/YYYY').format('YYYY-MM-DD');
+          endDate = moment(tourSearchCriteria.checkOut, 'DD/MM/YYYY').format('YYYY-MM-DD');
+        }
+        console.log("Hotel booking sync - Using tour package dates:", { startDate, endDate });
+      }
+      // PRIORITY 2: Fall back to hotel search state
+      else if (searchState?.ucheckIn && searchState?.ucheckOut) {
+        startDate = searchState.ucheckIn;
+        endDate = searchState.ucheckOut;
+        console.log("Hotel booking sync - Using hotel search state dates:", { startDate, endDate });
+      }
+      // PRIORITY 3: Fall back to generated dates array
+      else {
+        startDate = dates.length > 0 ? dates[0].format('YYYY-MM-DD') : null;
+        // Use the max nights for end date calculation
+        const maxNights = Math.max(...configs.map(c => c.nights || 0));
+        endDate = dates.length > maxNights ? dates[maxNights].format('YYYY-MM-DD') : null;
+        console.log("Hotel booking sync - Using generated dates:", { startDate, endDate, maxNights });
+      }
       
       // Skip if we can't determine dates
       if (!startDate || !endDate) {
@@ -704,12 +760,12 @@ export default function HotelComponent({ searchParams }) {
   }, [hotelConfigurations, tourId, searchState, dates]);
 
   return (
-    <Box>
+    <Box sx={{ '& > *': { mb: 1.5 } }}>
       {/* Debug/alert panel */}
       <Collapse in={alert.show}>
         <Alert 
           severity={alert.severity}
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
           onClose={() => setAlert({...alert, show: false})}
         >
           {alert.message}
@@ -722,6 +778,8 @@ export default function HotelComponent({ searchParams }) {
         activeHotelIndex={activeHotelIndex}
         selectHotelConfiguration={selectHotelConfiguration}
         removeHotelConfiguration={removeHotelConfiguration}
+        onAddMoreRooms={handleAddMoreRooms}
+        onAddNewHotel={handleAddNewHotel}
         tourDateRange={{
           startDate: searchState?.ucheckIn || 
             (searchCriteria?.checkIn ? moment(searchCriteria.checkIn, 'DD/MM/YYYY').format('YYYY-MM-DD') : null) ||
@@ -745,10 +803,6 @@ export default function HotelComponent({ searchParams }) {
         roomDataStatus={roomDataStatus}
         hotelConfigurations={hotelConfigurations}
         activeHotelIndex={activeHotelIndex}
-        handleAddMoreRooms={handleAddMoreRooms}
-        handleAddNewHotel={handleAddNewHotel}
-        handleRemoveHotel={handleRemoveHotel}
-        // Add handlers for add/remove room/hotel as needed
         renderMealPlanSection={() => (
           <MealPlanSelection
             selectedGuests={selectedGuests}
@@ -760,18 +814,18 @@ export default function HotelComponent({ searchParams }) {
             mealPlans={mealPlans}
           />
         )}
+        renderNightSelection={() => (
+          <NightSelection
+            dates={dates}
+            selectedNightIndices={selectedNightIndices}
+            setSelectedNightIndices={setSelectedNightIndicesHandler}
+            setSelectedNights={setSelectedNightsHandler}
+            hotelConfigurations={hotelConfigurations}
+            activeHotelIndex={activeHotelIndex}
+            setHotelConfigurations={setHotelConfigurations}
+          />
+        )}
         searchCriteria={searchCriteria}
-      />
-
-      {/* Night selection */}
-      <NightSelection
-        dates={dates}
-        selectedNightIndices={selectedNightIndices}
-        setSelectedNightIndices={setSelectedNightIndicesHandler}
-        setSelectedNights={setSelectedNightsHandler}
-        hotelConfigurations={hotelConfigurations}
-        activeHotelIndex={activeHotelIndex}
-        setHotelConfigurations={setHotelConfigurations}
       />
     </Box>
   );

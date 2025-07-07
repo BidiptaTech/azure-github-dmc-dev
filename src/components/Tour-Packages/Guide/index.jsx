@@ -176,8 +176,11 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           Adults: guideData.adults || 1,
           Children: guideData.children || 0
         },
-        // Store the original data for reference
-        originalData: guideData
+        // Store the original data for reference, including booking_id
+        originalData: {
+          ...guideData,
+          booking_id: guideService.booking_id // Preserve booking_id from service level
+        }
       };
     });
 
@@ -203,8 +206,11 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
     console.log('Dispatching ALL guides from guidespack to Redux:', guidespack);
 
-    // Process ALL guides from guidespack, not just current day
-    const allGuidesForRedux = guidespack.map(guideService => {
+    // Remove any existing guide services using the ref
+    const filteredServices = currentServicesRef.current.filter(service => service.type !== "guide");
+
+    // Create new guide service entries for ALL guides, preserving booking_id
+    const newGuideServices = guidespack.map(guideService => {
       const guideData = guideService.data[0];
       
       if (!guideData) {
@@ -214,7 +220,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
       console.log('Processing guide for Redux:', guideData);
       
-      return {
+      const processedGuideData = {
         id: guideData.id,
         guide_id: guideData.guide_id,
         guide_name: guideData.guide_name,
@@ -241,23 +247,27 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         experience: guideData.experience,
         bookingType: guideData.bookingType || "booking"
       };
+
+      // Create service object with booking_id preserved
+      const serviceObject = {
+        type: "guide",
+        agent_id: agentId,
+        tour_id: tourId,
+        data: [processedGuideData]
+      };
+
+      // Add booking_id if it exists in the original service
+      if (guideService.booking_id) {
+        serviceObject.booking_id = guideService.booking_id;
+      }
+
+      return serviceObject;
     }).filter(Boolean); // Remove null entries
 
-    if (allGuidesForRedux.length === 0) {
+    if (newGuideServices.length === 0) {
       console.log('No valid guides to dispatch to Redux');
       return;
     }
-
-    // Remove any existing guide services using the ref
-    const filteredServices = currentServicesRef.current.filter(service => service.type !== "guide");
-
-    // Create new guide service entries for ALL guides
-    const newGuideServices = allGuidesForRedux.map(guideData => ({
-      type: "guide",
-      agent_id: agentId,
-      tour_id: tourId,
-      data: [guideData]
-    }));
 
     // Add new services to filtered services
     const finalServices = [...filteredServices, ...newGuideServices];
@@ -398,7 +408,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         image: booking.originalData.image,
         languages: booking.originalData.languages || [],
         experience: booking.originalData.experience || 'Not specified',
-        bookingDate: booking.bookingDate
+        bookingDate: booking.bookingDate,
+        booking_id: booking.originalData.booking_id // Preserve booking_id
       };
     }
 
@@ -504,15 +515,23 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           pickupdate: section.bookingDate,
           dayIndex: dayIndex,
           Mode: currentMode,
-          dmc_Id: agentId
+          dmc_Id: agentId,
+          booking_id: section.originalData.booking_id // Preserve booking_id
         };
         
-        return {
+        const serviceObject = {
           type: "guide",
           agent_id: agentId,
           tour_id: tourId,
           data: [bookingData]
         };
+        
+        // Add booking_id if available from original data
+        if (section.originalData?.booking_id) {
+          serviceObject.booking_id = section.originalData.booking_id;
+        }
+        
+        return serviceObject;
       }
       
       // For new bookings, create from scratch
@@ -554,6 +573,11 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         experience: summaryData.experience
       };
       
+      // Add booking_id if available from original data
+      if (section.originalData?.booking_id) {
+        bookingData.booking_id = section.originalData.booking_id;
+      }
+      
       console.log(`Guide booking data for section ${index}:`, bookingData);
       console.log(`Guide booking date check for section ${index}:`, {
         sectionBookingDate: section.bookingDate,
@@ -563,12 +587,19 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       });
       
       // Create a new guide service entry for this booking
-      return {
+      const serviceObject = {
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
         data: [bookingData]
       };
+      
+      // Add booking_id if available from original data
+      if (section.originalData?.booking_id) {
+        serviceObject.booking_id = section.originalData.booking_id;
+      }
+      
+      return serviceObject;
     });
     
     // Combine non-guide services with new guide services
@@ -638,7 +669,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         pickupdate: updatedSection.bookingDate,
         dayIndex: dayIndex,
         Mode: currentMode,
-        dmc_Id: agentId
+        dmc_Id: agentId,
+        booking_id: updatedSection.originalData.booking_id // Preserve booking_id
       };
 
       // Clone existing services
@@ -671,6 +703,12 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           tour_id: tourId,
           data: [bookingData]
         };
+        
+        // Add booking_id if available from original data
+        if (updatedSection.originalData?.booking_id) {
+          newGuideService.booking_id = updatedSection.originalData.booking_id;
+        }
+        
         updatedServices.push(newGuideService);
       }
 
@@ -709,6 +747,11 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       languages: summaryData.languages,
       experience: summaryData.experience
     };
+    
+    // Add booking_id if available from original data
+    if (updatedSection.originalData?.booking_id) {
+      bookingData.booking_id = updatedSection.originalData.booking_id;
+    }
 
     // Clone existing services
     const currentServices = [...existingServices];
@@ -740,6 +783,12 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         tour_id: tourId,
         data: [bookingData]
       };
+      
+      // Add booking_id if available from original data
+      if (updatedSection.originalData?.booking_id) {
+        newGuideService.booking_id = updatedSection.originalData.booking_id;
+      }
+      
       updatedServices.push(newGuideService);
     }
 

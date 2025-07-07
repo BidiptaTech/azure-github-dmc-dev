@@ -144,8 +144,11 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         ticketType: attractionData.ticketId || '',
         priceType: attractionData.nri || 'residential',
         bookingDate: attractionData.bookingDate || bookingDate,
-        // Store the original data for reference
-        originalData: attractionData
+        // Store the original data for reference, including booking_id
+        originalData: {
+          ...attractionData,
+          booking_id: attractionService.booking_id // Preserve booking_id from service level
+        }
       };
     });
 
@@ -171,8 +174,11 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     console.log('Dispatching ALL attractions from attractionspack to Redux:', attractionspack);
 
-    // Process ALL attractions from attractionspack, not just current day
-    const allAttractionsForRedux = attractionspack.map(attractionService => {
+    // Remove any existing attraction services using the ref
+    const filteredServices = currentServicesRef.current.filter(service => service.type !== "attraction");
+
+    // Create new attraction service entries for ALL attractions, preserving booking_id
+    const newAttractionServices = attractionspack.map(attractionService => {
       const attractionData = attractionService.data[0];
       
       if (!attractionData) {
@@ -182,7 +188,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
       console.log('Processing attraction for Redux:', attractionData);
       
-      return {
+      const processedAttractionData = {
         id: attractionData.id,
         AttractionId: attractionData.AttractionId,
         AttractionName: attractionData.AttractionName,
@@ -205,23 +211,27 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dayIndex: attractionData.dayIndex,
         bookingType: attractionData.bookingType || "booking"
       };
+
+      // Create service object with booking_id preserved
+      const serviceObject = {
+        type: "attraction",
+        agent_id: agentId,
+        tour_id: tourId,
+        data: [processedAttractionData]
+      };
+
+      // Add booking_id if it exists in the original service
+      if (attractionService.booking_id) {
+        serviceObject.booking_id = attractionService.booking_id;
+      }
+
+      return serviceObject;
     }).filter(Boolean); // Remove null entries
 
-    if (allAttractionsForRedux.length === 0) {
+    if (newAttractionServices.length === 0) {
       console.log('No valid attractions to dispatch to Redux');
       return;
     }
-
-    // Remove any existing attraction services using the ref
-    const filteredServices = currentServicesRef.current.filter(service => service.type !== "attraction");
-
-    // Create new attraction service entries for ALL attractions
-    const newAttractionServices = allAttractionsForRedux.map(attractionData => ({
-      type: "attraction",
-      agent_id: agentId,
-      tour_id: tourId,
-      data: [attractionData]
-    }));
 
     // Add new services to filtered services
     const finalServices = [...filteredServices, ...newAttractionServices];
@@ -366,7 +376,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: updatedSection.originalData.dmc_id,
         bookingDate: updatedSection.originalData.bookingDate,
         dayIndex: updatedSection.originalData.dayIndex,
-        bookingType: updatedSection.originalData.bookingType || "booking"
+        bookingType: updatedSection.originalData.bookingType || "booking",
+        booking_id: updatedSection.originalData.booking_id // Preserve booking_id
       };
 
       // Clone existing services
@@ -399,6 +410,12 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           tour_id: tourId,
           data: [bookingData]
         };
+        
+        // Add booking_id if available from original data
+        if (updatedSection.originalData?.booking_id) {
+          newAttractionService.booking_id = updatedSection.originalData.booking_id;
+        }
+        
         updatedServices.push(newAttractionService);
       }
 
@@ -474,6 +491,12 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         tour_id: tourId,
         data: [bookingData]
       };
+      
+      // Add booking_id if available from original data
+      if (updatedSection.originalData?.booking_id) {
+        newAttractionService.booking_id = updatedSection.originalData.booking_id;
+      }
+      
       updatedServices.push(newAttractionService);
     }
 
@@ -660,6 +683,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         tax_amount: booking.originalData.ticket_details?.tax_amount,
         currency: 'SGD',
         priceType: booking.originalData.nri || 'residential',
+        booking_id: booking.originalData.booking_id, // Preserve booking_id
       };
     }
 
@@ -800,7 +824,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           dmc_id: section.originalData.dmc_id,
           bookingDate: section.originalData.bookingDate,
           dayIndex: section.originalData.dayIndex,
-          bookingType: section.originalData.bookingType || "booking"
+          bookingType: section.originalData.bookingType || "booking",
+          booking_id: section.originalData.booking_id // Preserve booking_id
         };
       }
 
@@ -852,12 +877,22 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     });
 
     // Create new attraction service entries
-    const newAttractionServices = attractionsForRedux.map(attractionData => ({
-      type: "attraction",
-      agent_id: agentId,
-      tour_id: tourId,
-      data: [attractionData]
-    }));
+    const newAttractionServices = attractionsForRedux.map((attractionData, index) => {
+      const serviceObject = {
+        type: "attraction",
+        agent_id: agentId,
+        tour_id: tourId,
+        data: [attractionData]
+      };
+      
+      // Add booking_id if available from original data
+      const originalSection = formSections[index];
+      if (originalSection?.originalData?.booking_id) {
+        serviceObject.booking_id = originalSection.originalData.booking_id;
+      }
+      
+      return serviceObject;
+    });
 
     // Add new services to filtered services
     const finalServices = [...filteredServices, ...newAttractionServices];
