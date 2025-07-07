@@ -25,7 +25,7 @@ class PackagedAttraction extends Model
      */
     public function getGalleryImagesArrayAttribute()
     {
-        return json_decode($this->gallery_images, true) ?? [];
+        return json_decode($this->image, true) ?? [];
     }
     
     /**
@@ -43,5 +43,21 @@ class PackagedAttraction extends Model
     {
         $attractionIds = $this->getAttractionsArrayAttribute();
         return Attraction::whereIn('id', $attractionIds)->get();
+    }
+    
+    /**
+     * Find packaged attractions containing a specific attraction ID
+     * 
+     * @param int|string $attractionId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public static function findByAttractionId($attractionId)
+    {
+        // Convert to string for consistent comparison
+        $attractionId = (string) $attractionId;
+        
+        // Use whereJsonContains for proper JSON searching
+        // Return the query builder instead of calling get()
+        return self::whereJsonContains('attractions', $attractionId);
     }
 }
