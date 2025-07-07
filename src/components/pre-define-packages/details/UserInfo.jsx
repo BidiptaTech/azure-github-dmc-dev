@@ -48,8 +48,8 @@ const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   // Get search params to access the selected date
   const searchParams = useSelector(state => state.prePackages.searchParams);
   
-  // Get user_role from auth slice
-  const userRole = useSelector(state => state.auth?.userRole);
+  // Get user_role and agentId from auth slice
+  const { userRole, agentId } = useSelector(state => state.auth);
   
   // Format the arrival date to dd-mm-yyyy
   const formatDateToDDMMYYYY = (dateString) => {
@@ -242,6 +242,10 @@ const selectedDate = searchParams?.date ?
 
   const handleSubmit = () => {
     if (validateForm()) {
+      // Determine the correct agent_id to use
+      // If the user is an Agent, use their own agentId; otherwise use the one from searchParams
+      const effectiveAgentId = userRole === 'Agent' ? agentId : searchParams?.agent_id || null;
+      
       // Create the final booking data with user info
       const finalBookingData = {
         ...bookingData,
@@ -251,14 +255,16 @@ const selectedDate = searchParams?.date ?
         // Add the selected date in dd/mm/yyyy format
         date: selectedDate,
         // Add user_role from auth state
-        user_role: userRole
+        user_role: userRole,
+        // Use the determined agent_id
+        agent_id: effectiveAgentId
       };
       
       // Dispatch the booking action
       dispatch(bookPackage(finalBookingData));
       
       // Log the complete booking data to console for debugging
-      console.log('Complete booking data:', finalBookingData);
+      console.log('Complete booking data with agent_id:', finalBookingData);
     }
   };
   
