@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use App\Models\Ticket;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Auth;
+use App\Models\PackagedAttraction;
 
 class HomeController extends Controller
 {
@@ -257,6 +258,13 @@ class HomeController extends Controller
         if(!$get_dmc_id){
             return response()->json(['message' => 'Dmc Id is missing'], 400);
         }
+        
+        // Then check if any package contains this attraction ID
+        $packaged_attractions = PackagedAttraction::whereJsonContains('attractions', $attractionId)->get();
+        $packages = [];
+        if(!$packaged_attractions->isEmpty()){
+            $packages =  $this->formatPackagedAttractionResponse($packaged_attractions);
+        }
 
         $attraction = Attraction::where('attraction_id', $attractionId)->first();
         $country = $attraction->country;
@@ -343,7 +351,56 @@ class HomeController extends Controller
             'additional_images' => json_decode($attraction->additional_image, true),
             'tax_percentage' => $country_tax,
             'ticket_prices' => $ticketPrices,
+            'packages' => $packages,
             // 'vehicles' => $vehicles,
         ]);
+    }
+    
+    /**
+     * Format packaged attractions for response
+     * 
+     * @param \Illuminate\Database\Eloquent\Collection $packaged_attractions
+     * @return array
+     */
+    private function formatPackagedAttractionResponse($packaged_attractions)
+    {
+        $formattedPackages = [];
+        
+        foreach($packaged_attractions as $package) {
+            $attractionsList = [];
+            $attractionIds = json_decode($package->attractions, true) ?? [];
+            
+            foreach($attractionIds as $attrId) {
+                $attr = Attraction::where('attraction_id', $attrId)
+                    ->select('attraction_id', 'name', 'country', 'location', 'master_image', 'description')
+                    ->first();
+                
+                if($attr) {
+                    $attractionsList[] = [
+                        'attraction_id' => $attr->attraction_id,
+                        'name' => $attr->name,
+                        'country' => $attr->country,
+                        'location' => $attr->location,
+                        'master_image' => $attr->master_image,
+                        'description' => $attr->description
+                    ];
+                }
+            }
+            
+            $formattedPackages[] = [
+                'id' => $package->id,
+                'package_attraction_id' => $package->package_attraction_id,
+                'name' => $package->name,
+                'senior_citizen_price' => $package->senior_citizen_price,
+                'child_price' => $package->child_price,
+                'adult_price' => $package->adult_price,
+                'image' => $package->image,
+                'description' => $package->description,
+                'dmc_id' => $package->dmc_id,
+                'attractions' => $attractionsList
+            ];
+        }
+        
+        return $formattedPackages;
     }
 }
