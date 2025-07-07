@@ -46,7 +46,7 @@ const NightSelection = ({
 
       setPreviousDateRange(currentRange);
     }
-  }, [dates, previousDateRange, selectedNightIndices]);
+  }, [dates, selectedNightIndices]);
 
   // Clear selected nights that are outside the new date range
   const handleClearInvalidNights = () => {

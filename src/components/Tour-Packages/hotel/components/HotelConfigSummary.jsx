@@ -162,9 +162,7 @@ const HotelConfigSummary = ({
           <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
             Let's Book Your Hotels! 🏨
           </Typography>
-          <Typography variant="body2" sx={{ mb: 2.5, opacity: 0.9, maxWidth: 500, mx: 'auto' }}>
-            Start building your perfect accommodation experience. Add hotels that match your travel dates.
-          </Typography>
+        
           
           {/* Tour date display */}
           {tourDateRange && tourDateRange.startDate && tourDateRange.endDate && (
@@ -185,7 +183,7 @@ const HotelConfigSummary = ({
             </Paper>
           )}
           
-          {onAddNewHotel && (
+          {/* {onAddNewHotel && (
             <Button 
               variant="contained" 
               size="medium"
@@ -209,7 +207,7 @@ const HotelConfigSummary = ({
             >
               Add Your First Hotel
             </Button>
-          )}
+          )} */}
         </Box>
       </Paper>
     );
