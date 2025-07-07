@@ -1240,6 +1240,31 @@ class TourController extends Controller
                     return response()->json(['message' => 'Attraction Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice, 'vehicle'=>$vehicle, 'ticket'=>$ticket], 409);
                 }
             }
+
+            else if($type == 'attraction_package'){
+                $packageId = $order->package_attraction_id;
+                $adultCount = $order->adultCount;
+                $childCount = $order->childCount;
+                $seniorCount = $order->seniorCount;
+                $package = PackagedAttraction::where('package_attraction_id', $packageId)->first();
+                if(!$package){
+                    return response()->json(['message' => 'Package not found!'], 404);
+                }
+                $adultPrice = $package->adult_price;
+                $childPrice = $package->child_price;
+                $seniorPrice = $package->senior_citizen_price;
+                $totalPrice = $order->totalPrice;
+                $price = ($adultPrice*$adultCount)+($childPrice*$childCount)+($seniorPrice*$seniorCount);
+                $priceWithoutCommission = $price;
+                
+                if($totalPrice == $price){
+                    $flag = 1;
+                }
+                else{
+                    return response()->json(['message' => 'Attraction Package Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice, 'package'=>$package], 409);
+                }
+                
+            }
             
             //guide
             else if($type == 'guide'){
