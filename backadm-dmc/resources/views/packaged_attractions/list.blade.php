@@ -1,5 +1,9 @@
 @extends('layouts.layout')
+@section('title', 'Attraction Package')
+{{-- @extends('layouts.datatablecss') --}}
+
 @section('content')
+@extends('layouts.datatablecss')
 <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.5.95/css/materialdesignicons.min.css" rel="stylesheet">
 

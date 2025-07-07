@@ -1056,6 +1056,40 @@
                 @endif
                 <!-- End Attraction -->
 
+                <!-- Packaged Attraction -->
+                
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Attraction Package">Attraction Package</span>
+                </li>
+
+                <li class="menu-item @if(Request::is('packaged-attractions*') && !Request::is('packaged-attractions/packaged-attraction-approval*')) open active @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-landscape-line"></i>
+                        <div data-i18n="Attraction Package">Attraction Package</div>
+                    </a>
+                    <ul class="menu-sub">
+
+                        <!-- Show Attraction -->
+                        
+                        <li class="menu-item @if(Request::is('packaged-attractions')) active @endif">
+                            <a href="{{ route('packaged-attractions.index') }}" class="menu-link">
+                                <div data-i18n="List Attraction Package">List Attraction Package</div>
+                            </a>
+                        </li>
+                        
+                        <!-- Create Packaged Attraction -->
+                        
+                        <li class="menu-item @if(Request::is('packaged-attractions/create')) active @endif">
+                            <a href="{{ route('packaged-attractions.create') }}" class="menu-link">
+                                <div data-i18n="Create Attraction Package">Create Attraction Package</div>
+                            </a>
+                        </li>
+                        
+                    </ul>
+                </li>
+                
+                <!-- End Packaged Attraction -->
+
                 <!-- Restaurant -->
                 @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
                 <li class="menu-header mt-5">

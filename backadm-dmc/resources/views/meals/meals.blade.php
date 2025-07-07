@@ -39,94 +39,94 @@
                 </div>
                 <x-alert />
 
-                    <table class="datatables-basic table table-bordered">
-                        <thead>
+                <table class="datatables-basic table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Restaurant Name</th>
+                            <th>Item Name</th>
+                            <th>Type</th>
+                            <th>Item Description</th>
+                            <th>Status</th>
+                            @if(hasPermission('edit meal') || hasPermission('delete meal'))
+                                <th>Action</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($meals as $key => $meal)
                             <tr>
-                                <th>No</th>
-                                <th>Restaurant Name</th>
-                                <th>Item Name</th>
-                                <th>Type</th>
-                                <th>Item Description</th>
-                                <th>Status</th>
+                                <td>{{ ++$key }}</td>
+                                <td>
+                                    @if($meal->restaurant)
+                                        {{$meal->restaurant->name}}
+                                    @else
+                                        Unknown
+                                    @endif
+                                </td>
+                                <td class="category-name">
+                                    @if($meal->name)
+                                        {{ $meal->name }}
+                                    @else
+                                        {{ 'N/A' }}
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($meal->type == 1)
+                                        Buffet
+                                    @elseif($meal->type == 2)
+                                        Set Buffet
+                                    @elseif($meal->type == 3)
+                                        A-La-carte
+                                    @else
+                                        Unknown
+                                    @endif
+                                </td>
+                                <td>
+                                    {{$meal->item_description}}
+                                </td>
+                                <td>
+                                    @if($meal->is_active == 1)
+                                        <span class="badge bg-success">Active</span>
+                                    @else
+                                        <span class="badge bg-danger">Inactive</span>
+                                    @endif
+                                </td>
                                 @if(hasPermission('edit meal') || hasPermission('delete meal'))
-                                    <th>Action</th>
+                                <td style="display: inline-block; white-space: nowrap;">
+                                    <!-- Edit Button -->
+                                    @if(hasPermission('edit meal'))
+                                    <a href="{{ route('meals.edit', $meal->meal_id) }}" 
+                                    class="btn btn-primary btn-sm rounded-circle" 
+                                    style="width: 28px; height: 28px; padding: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
+                                            <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
+                                        </svg>
+                                    </a>
+                                    @endif
+
+                                    <!-- Delete Button -->
+                                    @if(hasPermission('delete meal'))
+                                    <button type="button" 
+                                            class="btn btn-danger btn-sm rounded-circle" 
+                                            style="width: 28px; height: 28px; padding: 0;" 
+                                            data-toggle="modal" 
+                                            data-target="#deleteModal" 
+                                            onclick="setDeleteForm('{{ route('meals.destroy', $meal->meal_id) }}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
+                                            <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
+                                        </svg>
+                                    </button>
+                                    @endif
+                                </td>
                                 @endif
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($meals as $key => $meal)
-                                <tr>
-                                    <td>{{ ++$key }}</td>
-                                    <td>
-                                        @if($meal->restaurant)
-                                            {{$meal->restaurant->name}}
-                                        @else
-                                            Unknown
-                                        @endif
-                                    </td>
-                                    <td class="category-name">
-                                        @if($meal->name)
-                                            {{ $meal->name }}
-                                        @else
-                                            {{ 'N/A' }}
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($meal->type == 1)
-                                            Buffet
-                                        @elseif($meal->type == 2)
-                                            Set Buffet
-                                        @elseif($meal->type == 3)
-                                            A-La-carte
-                                        @else
-                                            Unknown
-                                        @endif
-                                    </td>
-                                    <td>
-                                        {{$meal->item_description}}
-                                    </td>
-                                    <td>
-                                        @if($meal->is_active == 1)
-                                            <span class="badge bg-success">Active</span>
-                                        @else
-                                            <span class="badge bg-danger">Inactive</span>
-                                        @endif
-                                    </td>
-                                    @if(hasPermission('edit meal') || hasPermission('delete meal'))
-                                    <td style="display: inline-block; white-space: nowrap;">
-                                        <!-- Edit Button -->
-                                        @if(hasPermission('edit meal'))
-                                        <a href="{{ route('meals.edit', $meal->meal_id) }}" 
-                                        class="btn btn-primary btn-sm rounded-circle" 
-                                        style="width: 28px; height: 28px; padding: 0;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                                <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
-                                            </svg>
-                                        </a>
-                                        @endif
-    
-                                        <!-- Delete Button -->
-                                        @if(hasPermission('delete meal'))
-                                        <button type="button" 
-                                                class="btn btn-danger btn-sm rounded-circle" 
-                                                style="width: 28px; height: 28px; padding: 0;" 
-                                                data-toggle="modal" 
-                                                data-target="#deleteModal" 
-                                                onclick="setDeleteForm('{{ route('meals.destroy', $meal->meal_id) }}')">
-                                            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                                                <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-                                            </svg>
-                                        </button>
-                                        @endif
-                                    </td>
-                                    @endif
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
+    </div>
 
 <!-- Restaurant Delete Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" Category="dialog" 
