@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\CommonHelper;
+use App\Models\User;
 
 class PackagedAttractionController extends Controller
 {
@@ -52,7 +53,30 @@ class PackagedAttractionController extends Controller
             //         ->withErrors($validator)
             //         ->withInput();
             // }
-            
+
+            $user = auth()->user();
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }
+            elseif($user->role_id == 35){
+                $product_head_id = $user->userId;
+                $product_head = User::where('userId', $product_head_id)->first();
+                $dmc_id = $product_head->created_by;
+            }
+            elseif($user->role_id == 74){
+                $product_manager_id = $user->userId;
+                $product_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $product_head->created_by;
+            }
+            elseif($user->role_id == 93){
+                $assistant_manager_id = $user->userId;
+                $product_manager = User::where('userId', $user->created_by)->first();
+                $product_head = User::where('userId', $product_manager->created_by)->first();
+                $dmc_id = $product_head->created_by;
+            }
+            else{
+                $dmc_id = null;
+            }
             // Generate unique package ID
             $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
             $package_max_id = $lastPackage->package_attraction_id ?? 0;
@@ -60,6 +84,7 @@ class PackagedAttractionController extends Controller
             while (PackagedAttraction::where('package_attraction_id', $packageId)->exists()) {
                 $packageId = CommonHelper::createId($packageId);
             }
+            
             
             // Process gallery images (all images including the first one)
             $galleryImages = [];
@@ -72,6 +97,8 @@ class PackagedAttractionController extends Controller
                 }
             }
 
+
+
             // Create packaged attraction
             $packagedAttraction = PackagedAttraction::create([
                 'name' => $request->package_attraction_name,
@@ -82,6 +109,7 @@ class PackagedAttractionController extends Controller
                 'child_price' => $request->child_price,
                 'description' => $request->description,
                 'image' => !empty($galleryImages) ? json_encode($galleryImages) : null,
+                'dmc_id' => $dmc_id,
                 'status' => $request->status ?? 1,
                 'created_by' => auth()->user()->userId,
             ]);

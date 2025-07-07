@@ -24,6 +24,7 @@ return new class extends Migration
             $table->boolean('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
+            $table->unsignedBigInteger('dmc_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
