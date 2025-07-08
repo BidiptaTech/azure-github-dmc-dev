@@ -26,6 +26,18 @@ const useHotelData = (mealPlanOptions) => {
   // Get package data from Redux store
   const packageData = useSelector(state => state.tourPackages.packageData);
   
+  // Function to get booking ID for a specific hotel configuration (simplified)
+  const getBookingIdForConfig = useCallback((config) => {
+    return config?.originalData?.booking_id || null;
+  }, []);
+  
+  // Function to get all booking IDs for tour update (simplified)
+  const getAllBookingIds = useCallback(() => {
+    return hotelConfigurations
+      .map(config => config.originalData?.booking_id)
+      .filter(Boolean); // Remove null/undefined values
+  }, [hotelConfigurations]);
+  
   // Fetch existing tour data when component mounts
   useEffect(() => {
     if (tourId) {
@@ -105,6 +117,10 @@ const useHotelData = (mealPlanOptions) => {
         // For each hotel booking
         hotelBookings.forEach(hotelBooking => {
           if (hotelBooking.data && hotelBooking.data.length > 0) {
+            // Extract booking ID from the booking object
+            const bookingId = hotelBooking.booking_id;
+            console.log("HOTEL COMPONENT - Processing booking with ID:", bookingId);
+            
             // Process each hotel in the data array
             hotelBooking.data.forEach(hotelData => {
               console.log("HOTEL COMPONENT - Processing hotel data:", hotelData.hotelDetails?.hotel_name);
@@ -117,8 +133,15 @@ const useHotelData = (mealPlanOptions) => {
                 hotelData.rooms.forEach(room => {
                   if (room.beds && room.beds.length > 0) {
                     room.beds.forEach(bed => {
-                      // Create configuration from room and bed data
-                      const config = createConfigFromRoomAndBed(hotelDetails, room, bed, bookingDates, mealPlanOptions);
+                      // Create configuration from room and bed data, including booking ID
+                      const config = createConfigFromRoomAndBed(
+                        hotelDetails, 
+                        room, 
+                        bed, 
+                        bookingDates, 
+                        mealPlanOptions, 
+                        bookingId
+                      );
                       allConfigurations.push(config);
                     });
                   }
@@ -130,6 +153,7 @@ const useHotelData = (mealPlanOptions) => {
         
         if (allConfigurations.length > 0) {
           console.log("HOTEL COMPONENT - Created configurations from all hotel data:", allConfigurations);
+          
           setHotelConfigurations(allConfigurations);
           
           // Show success message
@@ -178,6 +202,8 @@ const useHotelData = (mealPlanOptions) => {
     setActiveHotelIndex,
     alert,
     setAlert,
+    getBookingIdForConfig,
+    getAllBookingIds,
     loadExistingHotelData,
     createInitialHotelConfiguration
   };
