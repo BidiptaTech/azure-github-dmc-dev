@@ -25,7 +25,7 @@
                             <div class="col-md-4">
                                 <h6 class="border-bottom pb-2">Hotel Owner & Management Company</h6>
                                 <div class="mb-3">
-                                    <label class="form-label"><strong>Hotel Owner Name</strong></label>
+                                    <label class="form-label"><strong>Hotel Owner Name</strong><span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" name="hotel_owner_company_name"
                                         value="{{ old('hotel_owner_company_name', $hotel->hotel_owner_company_name ?? '') }}"
                                         placeholder="Hotel Owner Name">
@@ -37,7 +37,7 @@
                                     <label class="form-label"><strong>Hotel Management Company Name</strong></label>
                                     <input type="text" class="form-control" name="management_comp_name"
                                         value="{{ old('management_comp_name', $hotel->management_comp_name ?? '') }}"
-                                        placeholder="Hotel Owner Name">
+                                        placeholder="Management Company Name">
                                         @error('management_comp_name')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror

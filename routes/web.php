@@ -398,6 +398,33 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('/hotel/rooms', [HotelController::class, 'hotelrooms'])->name('hotels.room');
         Route::get('/hotel/create/rooms/{id}', [HotelController::class, 'createHotelRooms'])->name('hotels.createroom');
 
+        // Bulk Upload Routes
+        Route::prefix('bulk-upload')->name('bulk-upload.')->group(function () {
+            Route::get('/hotels', [App\Http\Controllers\BulkUploadController::class, 'hotels'])->name('hotels');
+            Route::post('/hotels', [App\Http\Controllers\BulkUploadController::class, 'uploadHotels'])->name('hotels.upload');
+            Route::get('/hotels/template', [App\Http\Controllers\BulkUploadController::class, 'downloadHotelTemplate'])->name('hotels.template');
+            
+            Route::get('/drivers', [App\Http\Controllers\BulkUploadController::class, 'drivers'])->name('drivers');
+            Route::post('/drivers', [App\Http\Controllers\BulkUploadController::class, 'uploadDrivers'])->name('drivers.upload');
+            Route::get('/drivers/template', [App\Http\Controllers\BulkUploadController::class, 'downloadDriverTemplate'])->name('drivers.template');
+            
+            Route::get('/guides', [App\Http\Controllers\BulkUploadController::class, 'guides'])->name('guides');
+            Route::post('/guides', [App\Http\Controllers\BulkUploadController::class, 'uploadGuides'])->name('guides.upload');
+            Route::get('/guides/template', [App\Http\Controllers\BulkUploadController::class, 'downloadGuideTemplate'])->name('guides.template');
+            
+            Route::get('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'restaurants'])->name('restaurants');
+            Route::post('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurants'])->name('restaurants.upload');
+            Route::get('/restaurants/template', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantTemplate'])->name('restaurants.template');
+            
+            Route::get('/vehicles', [App\Http\Controllers\BulkUploadController::class, 'vehicles'])->name('vehicles');
+            Route::post('/vehicles', [App\Http\Controllers\BulkUploadController::class, 'uploadVehicles'])->name('vehicles.upload');
+            Route::get('/vehicles/template', [App\Http\Controllers\BulkUploadController::class, 'downloadVehicleTemplate'])->name('vehicles.template');
+            
+            Route::get('/attractions', [App\Http\Controllers\BulkUploadController::class, 'attractions'])->name('attractions');
+            Route::post('/attractions', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractions'])->name('attractions.upload');
+            Route::get('/attractions/template', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTemplate'])->name('attractions.template');
+        });
+
 
         Route::get('/hotels/{hotel}/contact', [HotelController::class, 'hotelcontacts'])->name('hotels.contact');
         Route::post('/updatecontacts', [HotelController::class, 'updatecontacts'])->name('hotels.createcontacts');

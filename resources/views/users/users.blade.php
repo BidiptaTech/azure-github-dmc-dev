@@ -229,7 +229,7 @@
                             class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                             style="width: 28px; height: 28px; padding: 0;" 
                             data-toggle="modal" 
-                            data-target="#deleteModal"   
+                            data-target="#deleteModal"      
                            
                             onclick="setDeleteForm('{{ route('users.destroy', $user->id) }}')">
                       <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">

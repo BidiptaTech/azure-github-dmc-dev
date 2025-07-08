@@ -350,7 +350,7 @@ class HotelController extends Controller
             else{
                 $dmc_id = $request->dmc;
                 $status = 1;
-            }
+            }  
             
             // 🔍 Check for existing hotel at same lat/lng for this DMC
             $existingHotel = Hotel::where([
