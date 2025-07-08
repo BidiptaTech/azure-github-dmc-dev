@@ -8,7 +8,7 @@ import { useSelector } from 'react-redux';
 export default function PreDefinePackagesPage() {
   const userRole = useSelector((state) => state.auth.userRole);
   const [isVisible, setIsVisible] = useState(false);
-  console.log("PreDefinePackagesPage userRole:", userRole);
+  // console.log("PreDefinePackagesPage userRole:", userRole);
 
   useEffect(() => {
     // Trigger animation after component mounts
