@@ -225,9 +225,10 @@ export default function Index2() {
       // console.log('Starting booking submission from INDEX2.JSX - this should be distinctive in logs');
 
       // Set navigation state to true before API call but AFTER we've validated data
-      // so we don't trigger component changes in the parent
       //dispatch(setIsNavigating(true));
 
+      const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
+      
       const bookingDetails = {
         agent_id: Cookies.get("AgentId") || "0",
         data: [
@@ -275,10 +276,12 @@ export default function Index2() {
             },
             dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "booking",
+            package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
+            package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
           },
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
-        type: "attraction",
+        type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking",
         // Add a source flag to track which component sent the request
         requestSource: "index2",
@@ -408,6 +411,8 @@ export default function Index2() {
       // Set navigation state to true before API call but AFTER we've validated data
       //dispatch(setIsNavigating(true));
 
+      const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
+      
       const enquiryDetails = {
         agent_id: Cookies.get("AgentId") || "0",
         data: [
@@ -455,10 +460,12 @@ export default function Index2() {
             },
             dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "enquiry",
+            package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
+            package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
           },
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
-        type: "attraction",
+        type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };
 

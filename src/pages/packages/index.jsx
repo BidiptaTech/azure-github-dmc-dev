@@ -40,6 +40,11 @@ const splashEffect = keyframes`
   }
 `;
 
+
+
+// Create splash effect
+
+
 // Create a custom theme for the button
 const theme = createTheme({
   palette: {
@@ -64,7 +69,7 @@ const theme = createTheme({
           boxShadow: '0px 10px 30px rgba(53, 84, 209, 0.25)',
           transition: 'all 0.3s ease',
           '&:hover': {
-            animation: `${dolphinJump} 1s ease-in-out infinite`,
+            transform: 'translateY(-3px)',
             boxShadow: '0px 15px 30px rgba(0, 255, 255, 0.5)',
           },
         },
@@ -89,6 +94,7 @@ const Packages = () => {
     
     return (
       <div className="pre-define-packages-background">
+      <div className="pre-define-packages-background">
         <div className="packages-container" style={{ padding: '100px 20px', textAlign: 'center' }}>
             <div className="d-flex flex-column align-items-center y-gap-20">
                 <div className="col-md-6">
@@ -103,7 +109,7 @@ const Packages = () => {
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '10px',
-                              background: 'linear-gradient(90deg, #00FFFF, #00CED1, #20B2AA)',
+                              background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
                               color: 'white',
                               ml: 1.5,
                               fontWeight: 1000,
@@ -115,19 +121,8 @@ const Packages = () => {
                               position: 'relative',
                               overflow: 'visible',
                               '&:hover': {
-                                animation: `${dolphinJump} 1.5s ease-in-out infinite`,
-                              },
-                              '&:hover::before': {
-                                content: '""',
-                                position: 'absolute',
-                                bottom: '-10px',
-                                left: '20%',
-                                right: '20%',
-                                height: '8px',
-                                borderRadius: '50%',
-                                background: 'rgba(0, 255, 255, 0.4)',
-                                animation: `${splashEffect} 1.5s ease-in-out infinite`,
-                                zIndex: '-1',
+                                transform: 'translateY(-3px)',
+                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
                               }
                             }}
                         >
@@ -137,6 +132,7 @@ const Packages = () => {
                 </div>
             </div>
             <PreDefinePackagesPage />
+        </div>
         </div>
         </div>
     )

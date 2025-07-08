@@ -93,6 +93,7 @@ const index = () => {
   // Get ticket prices and vehicles from attraction details
   const ticketOptions = attractionDetails.ticket_prices || [];
   const vehicles = attractionDetails.vehicles || [];
+  const packages = attractionDetails.packages || [];
   
   // Check if transport options are available
   const hasTransportOptions = vehicles && vehicles.length > 0;
@@ -344,6 +345,8 @@ const index = () => {
           travclicks_id: selectedTicket.travclicks_id || attractionDetails.prices?.travclicks_id || null,
           child_max_age: attractionDetails.child_max_age || 17,
           senior_min_age: attractionDetails.senior_min_age || 60,
+          package_type: selectedTicket.package_type || 0,
+          package_attraction_id: selectedTicket.package_attraction_id || null,
         },
       ],
       tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
@@ -436,6 +439,7 @@ const index = () => {
               setIsModalOpen={setIsModalOpen}
               nriStatus={nriStatus}
               setNriStatus={setNriStatus}
+              packages={packages}
             />
           </div>
         </div>

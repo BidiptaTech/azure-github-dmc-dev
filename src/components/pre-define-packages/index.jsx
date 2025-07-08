@@ -15,10 +15,11 @@ import LocationSearch from '../hero/hero-3/LocationSearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
 import CitySearch from '../hero/hero-3/CitySearch';
 import SelectAgent from '../hero/hero-3/SelectAgent';
+
 import DateSelect from './common/DateSelect';
 import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
-import LuggageIcon from '@mui/icons-material/Luggage';
+// import LuggageIcon from '@mui/icons-material/Luggage';
 import ExploreIcon from '@mui/icons-material/Explore';
 
 // Create a reusable alert component
@@ -71,8 +72,11 @@ const PreDefinePackages = () => {
   const { isAuthenticated, userRole } = useSelector(state => state.auth);
   const showAgentSelector = isAuthenticated && userRole !== 'Agent';
 
+ 
+
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState(null);
+ 
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
   const [guestCounts, setGuestCounts] = useState({
@@ -96,6 +100,7 @@ const PreDefinePackages = () => {
       if (searchParams.country) setSelectedLocation(searchParams.country);
       if (searchParams.city) setSelectedCity(searchParams.city);
       if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
+      if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
       if (searchParams.date) setSelectedDate(searchParams.date);
       
       // Restore guest counts
@@ -110,6 +115,7 @@ const PreDefinePackages = () => {
       setGuestCounts(updatedGuestCounts);
     }
   }, [searchParams, showAgentSelector]);
+  
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -128,6 +134,8 @@ const PreDefinePackages = () => {
   const handleCitySelect = (city) => {
     setSelectedCity(city);
   };
+
+
 
   const handleAgentSelect = (agent) => {
     setSelectedAgent(agent);
@@ -149,6 +157,14 @@ const PreDefinePackages = () => {
     // Validate city selection
     if (!selectedCity) {
       setSnackbarMessage("Please select a city");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return false;
+    }
+
+    // Validate agent selection only if the agent selector is shown
+    if (showAgentSelector && !selectedAgent) {
+      setSnackbarMessage("Please select an agent");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
@@ -235,7 +251,7 @@ const PreDefinePackages = () => {
       formData.agent = selectedAgent;
     }
     
-    console.log('Form data submitted:', formData);
+    // console.log('Form data submitted:', formData);
     
     // Format the data for API request
     const searchParams = {
@@ -249,6 +265,11 @@ const PreDefinePackages = () => {
       children_ages: guestCounts.ages?.join(','),
       infants: guestCounts.Infants
     };
+
+    // Add agent_id parameter only if the agent selector is shown
+    if (showAgentSelector && selectedAgent) {
+      searchParams.agent_id = selectedAgent?.id;
+    }
 
     // Add agent_id parameter only if the agent selector is shown
     if (showAgentSelector && selectedAgent) {
@@ -278,16 +299,19 @@ const PreDefinePackages = () => {
   return (
     <StyledContainer maxWidth="lg">
      
+     
       <Box p={4} sx={{ position: 'relative', zIndex: 1 }}>
         <TitleSection>
           <IconContainer>
            
-            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} />
+            {/* <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} /> */}
             <Typography 
               variant="h3" 
               component="h1" 
               sx={{ 
                 fontWeight: 700, 
+                color: 'white',
+                mt: 3,
                 color: 'white',
                 mt: 3,
                 color: 'white',
@@ -299,10 +323,12 @@ const PreDefinePackages = () => {
             >
               Fixed Itinerary Packages
               
+              
               <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
             </Typography>
           </IconContainer>
           <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
+         
          
           <Typography variant="subtitle1" color="#ece9f1" textAlign="center">
             Discover our exclusive pre-arranged travel experiences
@@ -314,13 +340,21 @@ const PreDefinePackages = () => {
             <div className="button-grid items-center" style={{ display: 'flex', flexWrap: 'nowrap' }}>
               <div style={{ flex: '1', minWidth: '0' }}>
                 
+                
                 <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
               </div>
               
               <div style={{ flex: '1', minWidth: '0' }}>
                 <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
                
+               
               </div>
+
+              {showAgentSelector && (
+                <div style={{ flex: '1', minWidth: '0' }}>
+                  <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
+                </div>
+              )}
 
               {showAgentSelector && (
                 <div style={{ flex: '1', minWidth: '0' }}>
@@ -346,11 +380,14 @@ const PreDefinePackages = () => {
                   className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
                   onClick={handleSubmit}
                  
+                 
                   style={{ whiteSpace: 'nowrap', marginBottom: '5px' }}
                 >
                 
+                
                   <i className="icon-search text-20 mr-10" />
                   Search Packages
+                  
                   
                 </button>
               </div>
@@ -359,6 +396,7 @@ const PreDefinePackages = () => {
         </Paper>
         
         <ListingCards hasSearched={hasSearched} />
+        
         
       </Box>
       
