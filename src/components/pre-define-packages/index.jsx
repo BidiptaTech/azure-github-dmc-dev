@@ -18,7 +18,7 @@ import SelectAgent from '../hero/hero-3/SelectAgent';
 import DateSelect from './common/DateSelect';
 import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
-import LuggageIcon from '@mui/icons-material/Luggage';
+// import LuggageIcon from '@mui/icons-material/Luggage';
 import ExploreIcon from '@mui/icons-material/Explore';
 
 // Create a reusable alert component
@@ -235,7 +235,7 @@ const PreDefinePackages = () => {
       formData.agent = selectedAgent;
     }
     
-    console.log('Form data submitted:', formData);
+    // console.log('Form data submitted:', formData);
     
     // Format the data for API request
     const searchParams = {
@@ -282,7 +282,7 @@ const PreDefinePackages = () => {
         <TitleSection>
           <IconContainer>
            
-            <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} />
+            {/* <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} /> */}
             <Typography 
               variant="h3" 
               component="h1" 

@@ -16,6 +16,7 @@ import {
   IconButton,
   Tooltip,
   Badge,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -46,7 +47,7 @@ import BookingViewModal from './BookingViewModal';
 // import BookingViewModal from './BookingViewModal';
 
 // Package Table Component
-const PackagesTable = ({ data = [], emptyMessage = "No packages available" }) => {
+const PackagesTable = ({ data = [], emptyMessage = "No packages available", userRole = null }) => {
   const dispatch = useDispatch();
   const { cancelBookingLoading, cancelBookingSuccess, cancelBookingError } = useSelector((state) => state.prePackages);
   
@@ -237,6 +238,17 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available" }) =>
                   Customer
                 </TableSortLabel>
               </TableCell>
+              {userRole !== 'Agent' && (
+                <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+                  <TableSortLabel
+                    active={orderBy === 'agentId'}
+                    direction={orderBy === 'agentId' ? order : 'asc'}
+                    onClick={(e) => handleRequestSort(e, 'agentId')}
+                  >
+                    Agent ID
+                  </TableSortLabel>
+                </TableCell>
+              )}
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>Payment</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>Status</TableCell>
             </TableRow>
@@ -319,6 +331,33 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available" }) =>
                     <Typography variant="body2">{row.customerName}</Typography>
                   </Box>
                 </TableCell>
+                {userRole !== 'Agent' && (
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Chip
+                        label={`ID: ${row.agentId || '0001'}`}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        sx={{
+                          fontSize: '0.75rem',
+                          height: '24px',
+                          backgroundColor: '#e3f2fd',
+                          borderColor: '#1976d2',
+                          color: '#1976d2',
+                          '& .MuiChip-label': {
+                            px: 1,
+                            fontWeight: 500
+                          },
+                          '&:hover': {
+                            backgroundColor: '#bbdefb',
+                            borderColor: '#1565c0'
+                          }
+                        }}
+                      />
+                    </Box>
+                  </TableCell>
+                )}
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', mr: 0.5 }}>

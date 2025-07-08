@@ -10,7 +10,8 @@ import {
   Person,
   CheckCircleOutline,
   AttachMoney,
-  CreditCard
+  CreditCard,
+  AccountCircle
 } from "@mui/icons-material";
 
 // Sortable Column Header
@@ -46,7 +47,7 @@ export const SortableColumnHeader = ({ label, icon, field, orderBy, order, onReq
 };
 
 // Table Header component for reusability
-export const TableHeader = ({ order, orderBy, onRequestSort }) => {
+export const TableHeader = ({ order, orderBy, onRequestSort, userRole = null }) => {
   return (
     <TableHead sx={{ backgroundColor: '#f0f4f8' }}>
       <TableRow>
@@ -105,6 +106,16 @@ export const TableHeader = ({ order, orderBy, onRequestSort }) => {
           order={order} 
           onRequestSort={onRequestSort} 
         />
+        {userRole !== 'Agent' && (
+          <SortableColumnHeader 
+            label="Agent ID" 
+            icon={<AccountCircle fontSize="small" sx={{ mr: 0.5 }} />} 
+            field="agentId" 
+            orderBy={orderBy} 
+            order={order} 
+            onRequestSort={onRequestSort} 
+          />
+        )}
         <TableCell sx={{ fontWeight: 'bold' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <CheckCircleOutline fontSize="small" sx={{ mr: 0.5 }} /> Status

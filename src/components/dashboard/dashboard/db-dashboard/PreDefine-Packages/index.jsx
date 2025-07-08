@@ -82,6 +82,7 @@ const PreDefinePackages = () => {
         bookingListsLoading,
         bookingListsError
     } = useSelector((state) => state.prePackages);
+    const { userRole } = useSelector((state) => state.auth);
 
     const [tabValue, setTabValue] = useState(0);
 
@@ -302,7 +303,8 @@ const PreDefinePackages = () => {
     // Format booking data to match the expected structure
     const formatBookingData = (booking) => {
         // console.log("========== FORMATTING BOOKING DATA ==========");
-         console.log("Original booking:", booking);
+        console.log("Original booking:", booking);
+        console.log("Agent ID from booking:", booking.agent_id);
         // Parse the JSON strings in the API response
         let bookingDetails = {};
         let travelDates = {};
@@ -316,13 +318,15 @@ const PreDefinePackages = () => {
                 if (typeof booking.booking_details === 'string') {
                     try {
                         bookingDetails = JSON.parse(booking.booking_details);
-                        // console.log("Parsed booking_details:", bookingDetails);
+                        console.log("Parsed booking_details:", bookingDetails);
+                        console.log("Agent ID from booking_details:", bookingDetails.agent_id);
                     } catch (e) {
                         console.error("Failed to parse booking_details:", e);
                     }
                 } else if (typeof booking.booking_details === 'object') {
                     bookingDetails = booking.booking_details;
-                    // console.log("Using booking_details object directly:", bookingDetails);
+                    console.log("Using booking_details object directly:", bookingDetails);
+                    console.log("Agent ID from booking_details object:", bookingDetails.agent_id);
                 }
             }
 
@@ -518,6 +522,27 @@ const PreDefinePackages = () => {
             pax: totalPax || 0,
             destination: destination,
             customerName: customerName,
+            agentId: booking.agent_id || 
+                    booking.agentId ||
+                    booking.agent ||
+                    booking.assigned_agent_id ||
+                    booking.assignedAgentId ||
+                    booking.created_by ||
+                    booking.createdBy ||
+                    booking.user_id ||
+                    booking.userId ||
+                    (bookingDetails && bookingDetails.agent_id) || 
+                    (bookingDetails && bookingDetails.agentId) || 
+                    (bookingDetails && bookingDetails.agent) || 
+                    (bookingDetails && bookingDetails.assigned_agent_id) ||
+                    (bookingDetails && bookingDetails.created_by) ||
+                    (bookingDetails && bookingDetails.createdBy) ||
+                    (bookingDetails && bookingDetails.user_id) ||
+                    (bookingDetails && bookingDetails.userId) ||
+                    (userInfo && userInfo.agent_id) ||
+                    (userInfo && userInfo.user_id) || 
+                    (packageInfo && packageInfo.agent_id) || 
+                    '0001',
             status: (() => {
                 // Handle numeric status codes
                 if (booking.status) {
@@ -549,7 +574,33 @@ const PreDefinePackages = () => {
             restaurants: booking.restaurants || []
         };
 
-        //  console.log("Final formatted booking:", result);
+        console.log("Final formatted booking:", result);
+        
+        // Log all possible agent ID fields for debugging
+        console.log("Agent ID fields found:", {
+            "booking.agent_id": booking.agent_id,
+            "booking.agentId": booking.agentId,
+            "booking.agent": booking.agent,
+            "booking.assigned_agent_id": booking.assigned_agent_id,
+            "booking.assignedAgentId": booking.assignedAgentId,
+            "booking.created_by": booking.created_by,
+            "booking.createdBy": booking.createdBy,
+            "booking.user_id": booking.user_id,
+            "booking.userId": booking.userId,
+            "bookingDetails.agent_id": bookingDetails && bookingDetails.agent_id,
+            "bookingDetails.agentId": bookingDetails && bookingDetails.agentId,
+            "bookingDetails.agent": bookingDetails && bookingDetails.agent,
+            "bookingDetails.assigned_agent_id": bookingDetails && bookingDetails.assigned_agent_id,
+            "bookingDetails.created_by": bookingDetails && bookingDetails.created_by,
+            "bookingDetails.createdBy": bookingDetails && bookingDetails.createdBy,
+            "bookingDetails.user_id": bookingDetails && bookingDetails.user_id,
+            "bookingDetails.userId": bookingDetails && bookingDetails.userId,
+            "userInfo.agent_id": userInfo && userInfo.agent_id,
+            "userInfo.user_id": userInfo && userInfo.user_id,
+            "packageInfo.agent_id": packageInfo && packageInfo.agent_id,
+            "Final agentId used": result.agentId
+        });
+        
         return result;
     };
 
@@ -817,7 +868,7 @@ const PreDefinePackages = () => {
             );
         }
 
-        return <PackagesTable data={filteredData} emptyMessage={emptyMessage} />;
+        return <PackagesTable data={filteredData} emptyMessage={emptyMessage} userRole={userRole} />;
     };
 
     return (
