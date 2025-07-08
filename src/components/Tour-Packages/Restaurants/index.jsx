@@ -364,8 +364,14 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   };
 
   const handleRemoveSection = (indexToRemove) => {
-    // Get the section being removed
     const sectionToRemove = formSections[indexToRemove];
+    
+    if (!sectionToRemove) {
+      console.log("Restaurant - No section found at index:", indexToRemove);
+      return;
+    }
+
+    console.log("Restaurant - Removing section:", sectionToRemove);
     
     // Remove from local state
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
@@ -373,38 +379,67 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     // Update expanded sections
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
     
-    // Remove from Redux state if the section has an original restaurantId (following attraction pattern)
-    if (sectionToRemove?.originalData?.restaurantId) {
+    // Remove from Redux state if the section has restaurant data (either has an original ID or restaurant selection)
+    const hasOriginalId = sectionToRemove?.originalData?.restaurantId;
+    const hasRestaurantId = sectionToRemove?.restaurant;
+    
+    if (hasOriginalId || hasRestaurantId) {
+      // Clone the existing services array
       const currentServices = [...existingServices];
-      const updatedServices = currentServices.filter(service => {
-        if (service.type === "restaurant" && service.data && Array.isArray(service.data)) {
-          // Remove the specific booking with matching restaurantId and booking_id (if available)
-          const filteredData = service.data.filter(data => {
-            if (sectionToRemove.originalData.booking_id) {
-              return !(data.restaurantId === sectionToRemove.originalData.restaurantId && 
-                      data.booking_id === sectionToRemove.originalData.booking_id);
+      
+      // Filter out restaurant services that contain this booking
+      const filteredServices = currentServices.map(service => {
+        // Check if this is a restaurant service
+        if (service.type === "restaurant") {
+          // Check if this service contains data that matches our booking
+          if (service.data && Array.isArray(service.data)) {
+            // Remove the specific booking with matching ID and booking_id (if available)
+            const filteredData = service.data.filter(dataItem => {
+              // Match by booking_id first (most reliable)
+              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
+                return !(dataItem.restaurantId === sectionToRemove.originalData.restaurantId && 
+                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+              }
+              
+              // Match by restaurant ID as fallback
+              if (sectionToRemove.originalData?.restaurantId && dataItem.restaurantId === sectionToRemove.originalData.restaurantId) {
+                return false;
+              }
+              
+              // Match by restaurant ID and booking date as final fallback for new bookings
+              if (sectionToRemove.restaurant && 
+                  dataItem.restaurantId === sectionToRemove.restaurant &&
+                  dataItem.bookingDate === sectionToRemove.bookingDate) {
+                return false;
+              }
+              
+              return true;
+            });
+            
+            if (filteredData.length === 0) {
+              // If no data left, mark for removal
+              return null;
             } else {
-              return data.restaurantId !== sectionToRemove.originalData.restaurantId;
+              // Create a new service with filtered data (immutable update)
+              return {
+                ...service,
+                data: filteredData
+              };
             }
-          });
-          
-          if (filteredData.length === 0) {
-            // If no data left, remove the entire service
-            return false;
-          } else {
-            // Update the service with filtered data
-            service.data = filteredData;
-            return true;
           }
         }
-        return true;
-      });
+        
+        // Keep all other services as-is
+        return service;
+      }).filter(service => service !== null); // Remove services marked as null
       
-      console.log('Removing restaurant from Redux state:', {
-        restaurantId: sectionToRemove.originalData.restaurantId,
-        booking_id: sectionToRemove.originalData.booking_id
-      });
-      dispatch(setAllServices(updatedServices));
+      // Only dispatch if there's an actual change
+      if (filteredServices.length !== currentServices.length || 
+          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
+        console.log("Restaurant - Removing booking from Redux:", sectionToRemove);
+        console.log("Restaurant - Updated services:", filteredServices);
+        dispatch(setAllServices(filteredServices));
+      }
     }
     
     // Remove section signature from saved IDs
@@ -1059,21 +1094,19 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                         </Button>
                       )}
                                   
-                      {sectionIndex > 0 && (
-                        <Tooltip title="Remove Booking">
-                          <IconButton 
-                            size="small"
-                            color="error" 
-                            onClick={() => handleRemoveSection(sectionIndex)}
-                            sx={{ 
-                              bgcolor: alpha(theme.palette.error.main, 0.1),
-                              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
-                            }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      <Tooltip title="Remove Booking">
+                        <IconButton 
+                          size="small"
+                          color="error" 
+                          onClick={() => handleRemoveSection(sectionIndex)}
+                          sx={{ 
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </Box>
 

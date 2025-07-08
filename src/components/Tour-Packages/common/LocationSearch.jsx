@@ -139,7 +139,7 @@ const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) =
     } finally {
       setIsLoadingCities(false);
     }
-  }, [dispatch, defaultCity, selectedCity, onLocationSelect]);
+  }, [dispatch, defaultCity, selectedCity]);
 
   // Auto-select country based on defaultDestination prop
   useEffect(() => {
@@ -207,7 +207,7 @@ const LocationSearch = ({ onLocationSelect, defaultDestination, defaultCity }) =
       setCitySuggestions([]);
       setIsCityDropdownOpen(false);
     }
-  }, [searchValueCity, selectedCountry, cityList, isLoadingCities, fetchCities]);
+  }, [searchValueCity, selectedCountry, cityList, isLoadingCities]);
 
   // Ensure highlighted item is visible in scroll
   useEffect(() => {

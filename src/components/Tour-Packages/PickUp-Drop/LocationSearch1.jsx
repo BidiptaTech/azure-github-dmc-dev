@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 const SearchBar = ({
   exitpickUpLocation,
@@ -16,7 +16,8 @@ const SearchBar = ({
   const autocompleteDropOffPackageRef1 = useRef(null);
   const [isPickupValid, setIsPickupValid] = useState(true);
   const [isDropoffValid, setIsDropoffValid] = useState(true);
-  
+  const [isInitialized, setIsInitialized] = useState(false);
+  const isMountedRef = useRef(true);
 
   // Define unique IDs for this component
   const pickupInputId = "exit-pick-up-input";
@@ -30,7 +31,87 @@ const SearchBar = ({
     validationTriggered,
   });
 
+  // Cleanup function to clear autocomplete listeners
+  const cleanupAutocomplete = useCallback(() => {
+    if (autocompletePickUpPackageRef1.current) {
+      window.google.maps.event.clearInstanceListeners(
+        autocompletePickUpPackageRef1.current
+      );
+      autocompletePickUpPackageRef1.current = null;
+    }
+    if (autocompleteDropOffPackageRef1.current) {
+      window.google.maps.event.clearInstanceListeners(
+        autocompleteDropOffPackageRef1.current
+      );
+      autocompleteDropOffPackageRef1.current = null;
+    }
+  }, []);
+
+  // Initialize autocomplete function with proper error handling
+  const initializeAutocomplete1 = useCallback((
+    inputId,
+    ref,
+    setLocation,
+    setLatLng,
+    setIsValid,
+    setParentValid
+  ) => {
+    if (!isMountedRef.current) return;
+
+    const inputElement = document.getElementById(inputId);
+    if (!inputElement) {
+      console.error(`Input element with ID ${inputId} not found`);
+      return;
+    }
+
+    try {
+      console.log(`Initializing autocomplete for ${inputId}`, {
+        restrictCountry: Array.isArray(Location) ? Location : [Location],
+      });
+      
+      ref.current = new window.google.maps.places.Autocomplete(inputElement, {
+        types: [], // Allow all locations
+        componentRestrictions: {
+          country: Array.isArray(Location) ? Location : [Location],
+        },
+      });
+
+      ref.current.addListener("place_changed", () => {
+        if (!isMountedRef.current) return;
+
+        console.log(`Place changed for ${inputId}`);
+        const place = ref.current.getPlace();
+        console.log("Place details:", place);
+        
+        if (place && place.geometry && place.geometry.location) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+
+          // Extract only the main name (highlighted) or first part of the address
+          let formattedLocation =
+            place.name ||
+            place.address_components?.[0]?.long_name ||
+            "Unknown Location";
+
+          console.log(`Setting location for ${inputId}:`, formattedLocation);
+          setLocation(formattedLocation);
+          setLatLng({ lat, lng });
+          setIsValid(true); // Mark as selected from autocomplete
+          setParentValid(true); // Update parent state
+        } else {
+          console.error(`No geometry found for place from ${inputId}`);
+        }
+      });
+    } catch (error) {
+      console.error(`Error initializing autocomplete for ${inputId}:`, error);
+    }
+  }, [Location]);
+
+  // Setup autocomplete with proper lifecycle management
   useEffect(() => {
+    // Don't re-initialize if already done
+    if (isInitialized) return;
+
     // Check if Google Maps API is loaded
     if (!window.google || !window.google.maps || !window.google.maps.places) {
       console.error("Google Maps API not loaded or places library missing.");
@@ -39,75 +120,24 @@ const SearchBar = ({
 
     console.log("Google Maps API is available, setting up autocomplete");
     
-    // Check if input elements exist
-    const pickupInput = document.getElementById(pickupInputId);
-    const dropoffInput = document.getElementById(dropoffInputId);
-    
-    if (!pickupInput) {
-      console.error(`Pickup input element not found with ID: ${pickupInputId}`);
-    }
-    
-    if (!dropoffInput) {
-      console.error(`Dropoff input element not found with ID: ${dropoffInputId}`);
-    }
+    // Check if input elements exist before initializing
+    const checkAndInitialize = () => {
+      if (!isMountedRef.current) return;
 
-    const initializeAutocomplete1 = (
-      inputId,
-      ref,
-      setLocation,
-      setLatLng,
-      setIsValid,
-      setParentValid
-    ) => {
-      const inputElement = document.getElementById(inputId);
-      if (!inputElement) {
-        console.error(`Input element with ID ${inputId} not found`);
+      const pickupInput = document.getElementById(pickupInputId);
+      const dropoffInput = document.getElementById(dropoffInputId);
+      
+      if (!pickupInput) {
+        console.error(`Pickup input element not found with ID: ${pickupInputId}`);
+        return;
+      }
+      
+      if (!dropoffInput) {
+        console.error(`Dropoff input element not found with ID: ${dropoffInputId}`);
         return;
       }
 
-      try {
-        console.log(`Initializing autocomplete for ${inputId}`, {
-          restrictCountry: Array.isArray(Location) ? Location : [Location],
-        });
-        
-        ref.current = new window.google.maps.places.Autocomplete(inputElement, {
-          types: [], // Allow all locations
-          componentRestrictions: {
-            country: Array.isArray(Location) ? Location : [Location],
-          },
-        });
-
-        ref.current.addListener("place_changed", () => {
-          console.log(`Place changed for ${inputId}`);
-          const place = ref.current.getPlace();
-          console.log("Place details:", place);
-          
-          if (place && place.geometry && place.geometry.location) {
-            const lat = place.geometry.location.lat();
-            const lng = place.geometry.location.lng();
-
-            // Extract only the main name (highlighted) or first part of the address
-            let formattedLocation =
-              place.name ||
-              place.address_components?.[0]?.long_name ||
-              "Unknown Location";
-
-            console.log(`Setting location for ${inputId}:`, formattedLocation);
-            setLocation(formattedLocation);
-            setLatLng({ lat, lng });
-            setIsValid(true); // Mark as selected from autocomplete
-            setParentValid(true); // Update parent state
-          } else {
-            console.error(`No geometry found for place from ${inputId}`);
-          }
-        });
-      } catch (error) {
-        console.error(`Error initializing autocomplete for ${inputId}:`, error);
-      }
-    };
-
-    // Give a small delay to ensure DOM elements are fully rendered
-    setTimeout(() => {
+      // Initialize autocomplete for both inputs
       initializeAutocomplete1(
         pickupInputId,
         autocompletePickUpPackageRef1,
@@ -125,41 +155,43 @@ const SearchBar = ({
         setIsDropoffValid,
         setDropoffFromAutocomplete
       );
+
+      setIsInitialized(true);
+    };
+
+    // Use multiple attempts with increasing delays to ensure DOM is ready
+    const timeoutId = setTimeout(checkAndInitialize, 100);
+    const timeoutId2 = setTimeout(() => {
+      if (!isInitialized && isMountedRef.current) {
+        checkAndInitialize();
+      }
     }, 500);
 
     return () => {
-      if (autocompletePickUpPackageRef1.current)
-        window.google.maps.event.clearInstanceListeners(
-          autocompletePickUpPackageRef1.current
-        );
-      if (autocompleteDropOffPackageRef1.current)
-        window.google.maps.event.clearInstanceListeners(
-          autocompleteDropOffPackageRef1.current
-        );
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
     };
-  }, [
-    Location,
-    setexitPickUpLocation,
-    setexitDropOffLocation,
-    setPickupLatLng,
-    setDropoffLatLng,
-    setPickupFromAutocomplete,
-    setDropoffFromAutocomplete,
-    pickupInputId,
-    dropoffInputId,
-  ]);
+  }, [initializeAutocomplete1, isInitialized, setexitPickUpLocation, setexitDropOffLocation, setPickupLatLng, setDropoffLatLng, setPickupFromAutocomplete, setDropoffFromAutocomplete]);
 
-  const handlePickupChange = (e) => {
+  // Component unmount cleanup
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      cleanupAutocomplete();
+    };
+  }, [cleanupAutocomplete]);
+
+  const handlePickupChange = useCallback((e) => {
     setexitPickUpLocation(e.target.value);
     setIsPickupValid(false);
     setPickupFromAutocomplete(false);
-  };
+  }, [setexitPickUpLocation, setPickupFromAutocomplete]);
 
-  const handleDropoffChange = (e) => {
+  const handleDropoffChange = useCallback((e) => {
     setexitDropOffLocation(e.target.value);
     setIsDropoffValid(false);
     setDropoffFromAutocomplete(false);
-  };
+  }, [setexitDropOffLocation, setDropoffFromAutocomplete]);
 
   // Only show validation errors if validationTriggered is true and there's a value in the input
   const showPickupError =
