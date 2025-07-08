@@ -26,6 +26,7 @@ use App\Models\Transaction;
 use App\Models\Vehicle;
 use App\Models\Ticket;
 use App\Models\OperationalCountry;
+use App\Models\PackagedAttraction;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Validator;
 use DB;
@@ -1263,7 +1264,6 @@ class TourController extends Controller
                 else{
                     return response()->json(['message' => 'Attraction Package Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice, 'package'=>$package], 409);
                 }
-                
             }
             
             //guide
