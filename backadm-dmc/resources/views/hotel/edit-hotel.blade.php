@@ -169,18 +169,6 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
-
-                                <div class="mb-3 col-md-4">
-                                    <label for="phone" class="form-label"><strong>General Phone No</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" id="phone" name="phone" 
-                                           value="{{ old('phone', $hotel->phone) }}" >
-                                    <small class="validation-message text-danger" id="phone-validation-message"></small>
-                                    @error('phone')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
                                 
                                 <!-- Segment -->
                                 <div class="col-md-4 mb-3">
