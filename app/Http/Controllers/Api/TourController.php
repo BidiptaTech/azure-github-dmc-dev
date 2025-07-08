@@ -1965,17 +1965,17 @@ class TourController extends Controller
                         ]);
                     } 
                 if($bookingType == 'enquiry'){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "New Enquiry",
-                        ]);
-                    }
+                    $tour = Tour::where('tour_id', $tour_id)->update([
+                        'tour_status' => "New Enquiry",
+                    ]);
+                }
                 return response()->json([
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
                     'order' => $order,
                     'service' => $service,
                 ], 201);
-            }   
-            } 
+            }
+            }
             else{
                 return response()->json([
                     'message' => 'Something went wrong! contact to admin if error persists.'
