@@ -66,6 +66,15 @@
     .delete-image-btn:hover {
         background-color: rgba(255, 0, 0, 1);
     }
+
+    .select2-container .select2-selection--single {
+        height: 100% !important;
+        line-height: 100% !important;
+        padding: 8px 12px;
+    }
+    .select2-container .select2-results__option {
+        padding: 12px 10px;
+    }
 </style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -128,8 +137,8 @@
                                 <strong>Agent Country</strong>
                                 <span style="color: red; font-weight: bold;">*</span>
                             </label>
-                            <select class="form-select" id="user_country" name="user_country" required>
-                                <option selected disabled value>Choose a country...</option>
+                            <select class="form-control select2" id="user_country" name="user_country" required>
+                                <option value="">Choose a country...</option>
                                 @foreach($cityCountry as $c)
                                     <option value="{{ $c->name }}" {{ $agent->user_country == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                 @endforeach
@@ -146,8 +155,8 @@
                                 <strong>Agent City</strong>
                                 <span style="color: red; font-weight: bold;">*</span>
                             </label>
-                            <select class="form-select" id="city" name="city" required>
-                                <option selected disabled value>Select country first...</option>
+                            <select class="form-control select2" id="city" name="city" required>
+                                <option value="">Select country first...</option>
                                 {{-- Cities will be populated by AJAX based on selected country --}}
                             </select>
                             @error('city')
@@ -159,8 +168,8 @@
                     <div class="col-md-2 mb-3">
                         <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
                                 style="color: red; font-weight: bold;">*</span></label>
-                        <select class="form-select" id="inputCountryCode" name="code" required>
-                            <option selected disabled value>Choose...</option>
+                        <select class="form-control select2" id="inputCountryCode" name="code" required>
+                            <option value="">Choose...</option>
                             @foreach($countryCodes as $key => $value)
                                 <option value="{{ $key }}" {{ $agent->code == $key ? 'selected' : '' }}>{{ $value }}</option>
                             @endforeach
@@ -195,7 +204,7 @@
                     @endphp
                     
                     <div class="col-md-3 mb-3">
-                        <label class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
+                        <label class="form-label"><strong>Service Country</strong><span class="text-danger">*</span></label>
                         <select class="form-control select2" id="country" name="country[]" multiple="multiple" required>
                             @foreach($authUserCountries as $countryName)
                                 <option value="{{ trim($countryName) }}" 
@@ -211,7 +220,8 @@
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>
-                        <select class="form-control" id="id_card" name="id_card">
+                        <select class="form-control select2" id="id_card" name="id_card">
+                            <option value="">Select ID Card Type...</option>
                             @foreach($card as $cardType)
                                 <option value="{{ $cardType->card_type }}" {{ $agent->id_cards == $cardType->card_type ? 'selected' : '' }}>{{ $cardType->card_type }}</option>
                             @endforeach
@@ -313,9 +323,38 @@
 
 <script>
     $(document).ready(function() {
+        // Initialize Service Country field
         $('#country').select2({
             placeholder: "Select countries",
             allowClear: true
+        });
+        
+        // Initialize Agent Country field with search functionality
+        $('#user_country').select2({
+            placeholder: "Search and select a country...",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Agent City field with search functionality
+        $('#city').select2({
+            placeholder: "Search and select a city...",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Country Code field with search functionality
+        $('#inputCountryCode').select2({
+            placeholder: "Search country code...",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize ID Card field with search functionality
+        $('#id_card').select2({
+            placeholder: "Search ID card type...",
+            allowClear: true,
+            width: '100%'
         });
     });
 </script>
@@ -519,7 +558,7 @@
                 data: { country: "{{ $agent->user_country }}" },
                 dataType: 'json',
                 success: function(response) {
-                    $('#city').html('<option selected disabled value>Select city...</option>');
+                    $('#city').html('<option value="">Select city...</option>');
                     
                     if (response.cities && response.cities.length > 0) {
                         $.each(response.cities, function(key, city) {
@@ -529,6 +568,9 @@
                     } else {
                         $('#city').append('<option disabled>No cities found</option>');
                     }
+                    
+                    // Refresh Select2 dropdown
+                    $('#city').trigger('change');
                 },
                 error: function() {
                     $('#city').html('<option disabled value>Error loading cities</option>');
@@ -551,7 +593,7 @@
                     dataType: 'json',
                     success: function(response) {
                         // Reset and populate cities dropdown
-                        $('#city').html('<option selected disabled value>Select city...</option>');
+                        $('#city').html('<option value="">Select city...</option>');
                         
                         if (response.cities && response.cities.length > 0) {
                             $.each(response.cities, function(key, city) {
@@ -560,6 +602,9 @@
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
+                        
+                        // Refresh Select2 dropdown
+                        $('#city').trigger('change');
                     },
                     error: function() {
                         $('#city').html('<option disabled value>Error loading cities</option>');
@@ -581,7 +626,8 @@
                 });
             } else {
                 // Reset cities dropdown if no country selected
-                $('#city').html('<option selected disabled value>Select country first...</option>');
+                $('#city').html('<option value="">Select country first...</option>');
+                $('#city').trigger('change');
             }
         });
     });

@@ -266,7 +266,6 @@
                                 <option value="7">Airport Hotels</option>
                                 <option value="8">Extended Stay Hotels</option>
                                 <option value="9">Family Hotels</option>
-                                `
                                 <option value="10">Romantic / Getaway Hotels</option>
                                 <option value="11">Adventure Hotels</option>
                                 <option value="12">Wellness / Spa Hotels</option>

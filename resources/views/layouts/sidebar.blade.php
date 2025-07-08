@@ -420,6 +420,12 @@
         color: #f59e0b !important; /* Amber */
         background: rgba(245, 158, 11, 0.1);
     }
+    
+    .ri-service-line {
+        color: #06b6d4 !important; /* Cyan */
+        background: rgba(6, 182, 212, 0.1);
+    }
+    
     .roadmap-icon:hover {
   color: #2ecc71;
   transform: scale(1.1);
@@ -613,7 +619,7 @@
                     <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
                 </li>
                 
-                <li class="menu-item @if(Request::is('bookinglist*')) open active @endif">
+                <li class="menu-item @if(Request::is('bookinglist*') || Request::is('enquiries')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
                         <div data-i18n="Booking List">Booking List</div>
@@ -683,6 +689,53 @@
                 </ul>
             </li>
             <!-- End Reports -->
+            
+            <!-- Bulk Upload -->
+            @if(in_array(auth()->user()->role_id, [1, 2, 11, 33, 34, 35, 36, 37, 38]))
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Bulk Upload">Bulk Upload</span>
+                </li>
+                
+                <li class="menu-item @if(Request::is('bulk-upload*')) open active @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-upload-cloud-2-line" style="color: #10b981 !important; background: rgba(16, 185, 129, 0.1);"></i>
+                        <div data-i18n="Bulk Upload">Bulk Upload</div>
+                    </a>
+                    <ul class="menu-sub">
+                        <li class="menu-item @if(Request::is('bulk-upload/hotels')) active @endif">
+                            <a href="{{ route('bulk-upload.hotels') }}" class="menu-link">
+                                <div data-i18n="Hotels">Hotels</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('bulk-upload/drivers')) active @endif">
+                            <a href="{{ route('bulk-upload.drivers') }}" class="menu-link">
+                                <div data-i18n="Drivers">Drivers</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
+                            <a href="{{ route('bulk-upload.guides') }}" class="menu-link">
+                                <div data-i18n="Guides">Guides</div>
+                            </a>
+                        </li>
+                        <li class="menu-item    @if(Request::is('bulk-upload/restaurants')) active @endif">
+                            <a href="{{ route('bulk-upload.restaurants') }}" class="menu-link">
+                                <div data-i18n="Restaurants">Restaurants</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('bulk-upload/vehicles')) active @endif">
+                            <a href="{{ route('bulk-upload.vehicles') }}" class="menu-link">
+                                <div data-i18n="Vehicles">Vehicles</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('bulk-upload/attractions')) active @endif">
+                            <a href="{{ route('bulk-upload.attractions') }}" class="menu-link">
+                                <div data-i18n="Attractions">Attractions</div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            @endif
+            <!-- End Bulk Upload -->
 
                 <!-- Jobsheets -->
                 @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,34, 66, 108]))
