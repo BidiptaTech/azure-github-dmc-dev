@@ -608,7 +608,7 @@ class CommonHelper
 
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
-                        if ($booking->type == 'attraction') $attraction_count++;
+                        if ($booking->type == 'attraction' || $booking->type == 'attraction_package') $attraction_count++;
                         if ($booking->type == 'entry_port') $entry_port_count++;
                         if ($booking->type == 'exit_port') $exit_port_count++;
                         if ($booking->type == 'travel_point') $travel_point_count++;
@@ -692,7 +692,7 @@ class CommonHelper
 
                     // Count booking types
                     if ($booking->type == 'hotel') $hotel_count++;
-                    if ($booking->type == 'attraction') $attraction_count++;
+                    if ($booking->type == 'attraction' || $booking->type == 'packaged_attraction') $attraction_count++;
                     if ($booking->type == 'entry_port') $entry_port_count++;
                     if ($booking->type == 'exit_port') $exit_port_count++;
                     if ($booking->type == 'travel_point') $travel_point_count++;
