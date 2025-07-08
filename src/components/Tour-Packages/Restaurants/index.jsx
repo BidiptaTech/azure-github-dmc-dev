@@ -177,8 +177,11 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
           Children: restaurantData.childCount || 0
         },
         bookingDate: restaurantData.bookingDate || bookingDate,
-        // Store the original data for reference
-        originalData: restaurantData
+        // Store the original data for reference, including booking_id
+        originalData: {
+          ...restaurantData,
+          booking_id: restaurantService.booking_id // Preserve booking_id from service level
+        }
       };
     });
 
@@ -204,8 +207,11 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
     console.log('Dispatching ALL restaurants from restaurantspack to Redux:', restaurantspack);
 
-    // Process ALL restaurants from restaurantspack, not just current day
-    const allRestaurantsForRedux = restaurantspack.map(restaurantService => {
+    // Remove any existing restaurant services using the ref
+    const filteredServices = currentServicesRef.current.filter(service => service.type !== "restaurant");
+
+    // Create new restaurant service entries for ALL restaurants, preserving booking_id
+    const newRestaurantServices = restaurantspack.map(restaurantService => {
       const restaurantData = restaurantService.data[0];
       
       if (!restaurantData) {
@@ -215,25 +221,27 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
       console.log('Processing restaurant for Redux:', restaurantData);
       
-      return restaurantData; // Use the restaurant data as-is since it already matches the format
+      // Create service object with booking_id preserved
+      const serviceObject = {
+        type: "restaurant",
+        agent_id: agentId,
+        tour_id: tourId,
+        bookingType: "enquiry",
+        data: [restaurantData]
+      };
+
+      // Add booking_id if it exists in the original service
+      if (restaurantService.booking_id) {
+        serviceObject.booking_id = restaurantService.booking_id;
+      }
+
+      return serviceObject;
     }).filter(Boolean); // Remove null entries
 
-    if (allRestaurantsForRedux.length === 0) {
+    if (newRestaurantServices.length === 0) {
       console.log('No valid restaurants to dispatch to Redux');
       return;
     }
-
-    // Remove any existing restaurant services using the ref
-    const filteredServices = currentServicesRef.current.filter(service => service.type !== "restaurant");
-
-    // Create new restaurant service entries for ALL restaurants
-    const newRestaurantServices = allRestaurantsForRedux.map(restaurantData => ({
-      type: "restaurant",
-      agent_id: agentId,
-      tour_id: tourId,
-      bookingType: "enquiry",
-      data: [restaurantData]
-    }));
 
     // Add new services to filtered services
     const finalServices = [...filteredServices, ...newRestaurantServices];
@@ -370,12 +378,32 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       const currentServices = [...existingServices];
       const updatedServices = currentServices.filter(service => {
         if (service.type === "restaurant" && service.data && Array.isArray(service.data)) {
-          return !service.data.some(data => data.restaurantId === sectionToRemove.originalData.restaurantId);
+          // Remove the specific booking with matching restaurantId and booking_id (if available)
+          const filteredData = service.data.filter(data => {
+            if (sectionToRemove.originalData.booking_id) {
+              return !(data.restaurantId === sectionToRemove.originalData.restaurantId && 
+                      data.booking_id === sectionToRemove.originalData.booking_id);
+            } else {
+              return data.restaurantId !== sectionToRemove.originalData.restaurantId;
+            }
+          });
+          
+          if (filteredData.length === 0) {
+            // If no data left, remove the entire service
+            return false;
+          } else {
+            // Update the service with filtered data
+            service.data = filteredData;
+            return true;
+          }
         }
         return true;
       });
       
-      console.log('Removing restaurant from Redux state:', sectionToRemove.originalData.restaurantId);
+      console.log('Removing restaurant from Redux state:', {
+        restaurantId: sectionToRemove.originalData.restaurantId,
+        booking_id: sectionToRemove.originalData.booking_id
+      });
       dispatch(setAllServices(updatedServices));
     }
     
@@ -483,6 +511,27 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
   // Get booking summary for a specific section
   const getBookingSummary = useCallback((booking) => {
+    // If we have original data, use it directly
+    if (booking.originalData) {
+      console.log('Using original data for restaurant booking summary:', booking.originalData);
+      return {
+        restaurant: booking.originalData,
+        restaurantName: booking.originalData.restaurantName,
+        city: booking.originalData.city || searchParams?.location?.city || '',
+        country: booking.originalData.country || searchParams?.location?.country || '',
+        mealType: booking.mealType,
+        specificMeal: booking.specificMeal,
+        timeSlot: booking.timeSlot,
+        pax: booking.pax,
+        mode: currentMode,
+        image: booking.originalData.image || '/placeholder-restaurant.jpg',
+        cuisine: booking.originalData.cuisine_type || 'Not specified',
+        bookingDate: booking.bookingDate,
+        booking_id: booking.originalData.booking_id // Preserve booking_id
+      };
+    }
+
+    // Fallback to finding data from Redux state (for new bookings)
     const selectedRestaurantDetails = restaurants.find(r => r.id === booking.restaurant) || {};
     
     return {
@@ -647,6 +696,11 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         bookingType: "enquiry"
       };
       
+      // Add booking_id if available from original data
+      if (section.originalData?.booking_id) {
+        bookingData.booking_id = section.originalData.booking_id;
+      }
+      
       console.log(`Restaurant enquiry data for section ${index}:`, bookingData);
       console.log(`Restaurant enquiry pricing check for section ${index}:`, {
         adultCount,
@@ -666,13 +720,20 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       });
       
       // Create a new restaurant service entry matching the current working format
-      return {
+      const serviceObject = {
         agent_id: agentId,
         bookingType: "enquiry",
         tour_id: tourId,
         type: "restaurant",
         data: [bookingData]
       };
+      
+      // Add booking_id if available from original data
+      if (section.originalData?.booking_id) {
+        serviceObject.booking_id = section.originalData.booking_id;
+      }
+      
+      return serviceObject;
     });
     
     // Combine non-restaurant services with new restaurant services
