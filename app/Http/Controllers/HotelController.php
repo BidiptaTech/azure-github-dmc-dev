@@ -443,7 +443,7 @@ class HotelController extends Controller
             Log::error('Hotel Creation Failed: ' . $e->getMessage());
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'An unexpected error occurred. Please try again.');
+                ->with('error', 'An unexpected error occurred. Please try again later.');
         }
     }
     

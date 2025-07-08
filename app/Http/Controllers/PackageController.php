@@ -81,6 +81,22 @@ class PackageController extends Controller
         }
 
         $packages = $query->paginate(12);
+        
+        // Pre-process itinerary data for each package
+        foreach ($packages as $package) {
+            // We'll let the view handle JSON decoding to avoid double-decoding issues
+            // Just ensure the itinerary field exists
+            if (is_null($package->itinerary)) {
+                $package->itinerary = '{}';
+            } elseif (is_string($package->itinerary) && !empty($package->itinerary)) {
+                // Validate JSON string to avoid errors in the view
+                $decoded = json_decode($package->itinerary, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // Invalid JSON, set to empty object
+                    $package->itinerary = '{}';
+                }
+            }
+        }
 
         return view('package.package', compact('packages'));
     }
@@ -483,7 +499,7 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city']);
+        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image']);
         return response()->json($hotels);
     }
 
@@ -492,7 +508,7 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location']);
+        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location','master_image']);
         return response()->json($attractions);
     }
 

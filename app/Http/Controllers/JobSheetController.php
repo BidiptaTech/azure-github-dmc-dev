@@ -97,19 +97,19 @@ class JobSheetController extends Controller
             $drivers = [];
             $vehicles = [];
             $tomorrow = Carbon::tomorrow()->toDateString(); // e.g., '2025-06-12'
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
+            if (in_array($user->role_id, [11, 34, 66, 108])) {
                 
                 if($user->role_id == 11){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 34){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 78){
+                elseif($user->role_id == 66){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
-                elseif($user->role_id == 120){
+                elseif($user->role_id == 108){
                     $operation_manager = User::where('userId', $user->created_by)->first();
                     $operation_head = $operation_manager ? User::where('userId', $operation_manager->created_by)->first() : null;
                     $dmcId = $operation_head ? $operation_head->created_by : null;
@@ -117,7 +117,6 @@ class JobSheetController extends Controller
 
                 $drivers = Driver::where('dmc_id', $dmcId)->get();
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
-    
                 if(!is_null($dmcId)){
                     $tomorrow = Carbon::tomorrow()->toDateString();
                     $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
@@ -1031,6 +1030,7 @@ class JobSheetController extends Controller
     {
         try {
             $jobsheet = null;
+            $vehicle = null;
             // Check if a record with the same date, order_type, type, and entry_time exists
             $existingJobsheet = Jobsheet::where('date', $request->date)
                 ->where('type', $request->order_type)
@@ -1048,6 +1048,8 @@ class JobSheetController extends Controller
                 // Update existing record
                 if ($request->has('driver_id')) {
                     $existingJobsheet->driver_id = $request->driver_id;
+                    $drivers = Driver::where('driver_id', $request->driver_id)->first();
+                    $vehicle = Vehicle::where('driver_id', $request->driver_id)->where('dmc_id', $request->dmc_id)->orderBy('created_at', 'desc')->first();
                 }
                 if ($request->has('vehicle_id')) {
                     $existingJobsheet->vehicle_id = $request->vehicle_id;
@@ -1085,11 +1087,13 @@ class JobSheetController extends Controller
                 $jobsheet->save();
             }
             
+
             // Return success
             return response()->json([
                 'success' => true,
                 'message' => 'Driver jobsheet updated successfully',
-                'jobsheet' => $jobsheet
+                'jobsheet' => $jobsheet,
+                'vehicle' => $vehicle
             ]);
         } catch (\Exception $e) {
             \Log::error('Error updating driver/vehicle/guide assignment: ' . $e->getMessage());

@@ -26,6 +26,7 @@ use App\Models\Transaction;
 use App\Models\Vehicle;
 use App\Models\Ticket;
 use App\Models\OperationalCountry;
+use App\Models\PackagedAttraction;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Validator;
 use DB;
@@ -979,7 +980,7 @@ class TourController extends Controller
                     // $hotel_id = $hotelData->hotelDetails->hotel_id;
                     // $hotel_email = Hotel::where('hotel_id', $hotel_id)->value('email');
 
-                    $hotel_email = "saurabh.coactive@gmail.com";
+                    $hotel_email = "bidipta.mitra@coactivesolutions.co.in";
                     $totalGuests = 0;
                     $data = $validatedData['data'][0];
                     $roomInfo = [];
@@ -1238,6 +1239,30 @@ class TourController extends Controller
                 }
                 else{
                     return response()->json(['message' => 'Attraction Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice, 'vehicle'=>$vehicle, 'ticket'=>$ticket], 409);
+                }
+            }
+
+            else if($type == 'attraction_package'){
+                $packageId = $order->package_attraction_id;
+                $adultCount = $order->adultCount;
+                $childCount = $order->childCount;
+                $seniorCount = $order->seniorCount;
+                $package = PackagedAttraction::where('package_attraction_id', $packageId)->first();
+                if(!$package){
+                    return response()->json(['message' => 'Package not found!'], 404);
+                }
+                $adultPrice = $package->adult_price;
+                $childPrice = $package->child_price;
+                $seniorPrice = $package->senior_citizen_price;
+                $totalPrice = $order->totalPrice;
+                $price = ($adultPrice*$adultCount)+($childPrice*$childCount)+($seniorPrice*$seniorCount);
+                $priceWithoutCommission = $price;
+                
+                if($totalPrice == $price){
+                    $flag = 1;
+                }
+                else{
+                    return response()->json(['message' => 'Attraction Package Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice, 'package'=>$package], 409);
                 }
             }
             
@@ -1940,17 +1965,17 @@ class TourController extends Controller
                         ]);
                     } 
                 if($bookingType == 'enquiry'){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "New Enquiry",
-                        ]);
-                    }
+                    $tour = Tour::where('tour_id', $tour_id)->update([
+                        'tour_status' => "New Enquiry",
+                    ]);
+                }
                 return response()->json([
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
                     'order' => $order,
                     'service' => $service,
                 ], 201);
-            }   
-            } 
+            }
+            }
             else{
                 return response()->json([
                     'message' => 'Something went wrong! contact to admin if error persists.'

@@ -86,7 +86,8 @@ class UserController extends Controller
             } while ($creatorIds->isNotEmpty()); // Continue if there are more creators
             // Final sorted result
             $users = $allUsers->sortBy('userId')->values();
-        }elseif($this->auth_user->role_id == 10){
+        }
+        elseif($this->auth_user->role_id == 10 || $this->auth_user->role_id == 19){
             // Recursive approach to get all users directly and indirectly created by role_id 10
             $allUsers = collect(); // Final result
             $creatorIds = collect([$this->auth_user->userId]); // Start with current user
@@ -103,7 +104,7 @@ class UserController extends Controller
             // Final sorted result
             $users = $allUsers->sortBy('userId')->values();
         }
-        elseif ($this->auth_user->role_id == 11) {
+        elseif ($this->auth_user->role_id == 11 || $this->auth_user->role_id == 20) {
             $allUsers = collect(); // Final result
             $creatorIds = collect([$this->auth_user->userId]); // Start with current DMC
             do {
@@ -852,7 +853,7 @@ class UserController extends Controller
         $countriesArray = [];
         if($this->auth_user->role_id == 1){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [2,21,22,23,10])
+            ->whereIn('role_id', [2,19,21,22,23,10])
             ->orderBy('role_id', 'asc')
             ->get();
         }elseif($this->auth_user->role_id == 2){
@@ -1236,6 +1237,12 @@ class UserController extends Controller
         elseif($this->auth_user->role_id == 124){
             $roles = Role::where('is_active', 1)
             ->whereIn('role_id', [125])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 19){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [20])
             ->orderBy('role_id', 'asc')
             ->get();
         }

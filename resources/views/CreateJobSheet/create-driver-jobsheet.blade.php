@@ -198,7 +198,7 @@
                                         <th>Dropoff Location</th>
                                         <th>Tour Type</th>
                                         <th>Assign Driver</th>
-                                        <th>Assign Car</th>
+                                        <th>Assign Vehicle</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tourOrdersTableBody">
@@ -756,6 +756,23 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.success) {
+                    let vehicle = response.vehicle;
+                    console.log("vehicle = ", vehicle.vehicle_name);
+                    // Find the vehicle select in the same row as the driver select
+                    const $vehicleSelect = $select.closest('tr').find('.vehicle-select');
+                    // If we have a vehicle from the response, select it
+                    if (vehicle) {
+                         // First try with vehicle_id
+                        $vehicleSelect.find('option').each(function() {
+                            if ($(this).val() === vehicle.vehicle_id.toString() || 
+                                $(this).text() === vehicle.vehicle_name) {
+                                $vehicleSelect.val($(this).val());
+                                return false; // break the loop
+                            }
+                        });
+                        $vehicleSelect.trigger('change');
+                    }
+                    
                     showAlert('success', 'Driver assigned successfully');
                 } else {
                     showAlert('error', response.message || 'Failed to assign driver');

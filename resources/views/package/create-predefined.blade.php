@@ -1,5 +1,8 @@
 @extends('layouts.layout')
 @section('content')
+<!-- Font Awesome for icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <!-- Header Section -->
@@ -318,22 +321,43 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
+                        <!-- Main Image -->
                         <div class="col-md-6">
                             <label class="form-label">Main Image <span class="text-danger">*</span></label>
-                            <input type="file" class="form-control @error('main_image') is-invalid @enderror" 
-                                   name="main_image" accept="image/jpeg,image/png,image/jpg,image/gif" required>
-                            <small class="text-muted">Max file size: 5MB. Allowed formats: JPEG, PNG, JPG, GIF</small>
+                            <div id="main-image-drop-area" class="form-control"
+                                style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
+                                Drag & Drop your main image here or click to upload.
+                                <input type="file" id="main_image" name="main_image" accept="image/jpeg,image/png,image/jpg,image/gif" 
+                                       style="display: none;" required>
+                            </div>
+                            <small class="text-muted mt-1">
+                                <i class="fas fa-info-circle"></i> 
+                                Images will be automatically compressed for faster upload.
+                            </small>
+                            <div id="main-image-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
+                                style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
                             @error('main_image')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
+
+                        <!-- Gallery Images -->
                         <div class="col-md-6">
                             <label class="form-label">Gallery Images</label>
-                            <input type="file" class="form-control @error('gallery_images') is-invalid @enderror" 
-                                   name="gallery_images[]" accept="image/jpeg,image/png,image/jpg,image/gif" multiple>
-                            <small class="text-muted">Max file size per image: 5MB. Allowed formats: JPEG, PNG, JPG, GIF</small>
+                            <div id="gallery-drop-area" class="form-control"
+                                style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; cursor: pointer;">
+                                Drag & Drop your gallery images here or click to upload.
+                                <input type="file" id="gallery_images" name="gallery_images[]" accept="image/jpeg,image/png,image/jpg,image/gif" 
+                                       multiple style="display: none;">
+                            </div>
+                            <small class="text-muted mt-1">
+                                <i class="fas fa-info-circle"></i> 
+                                Images will be automatically compressed for faster upload and better performance.
+                            </small>
+                            <div id="gallery-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
+                                style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
                             @error('gallery_images')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
@@ -780,11 +804,13 @@ $(document).ready(function() {
                 
                 // Add to selected hotels with days
                 if (checkedDays.length > 0) {
+                    const hotelData = $('#hotel-select').find(`option[value="${hotelId}"]`).data('hotel-data');
                     selectedHotelsWithDays.push({
                         id: hotelId,
                         name: hotelName,
                         city: hotelCity,
-                        days: checkedDays
+                        days: checkedDays,
+                        main_image: hotelData ? hotelData.main_image : ''  // Changed from 'image' to 'main_image' for consistency
                     });
                     
                     // Add to hotel JSON data with hotel_unique_id as key
@@ -862,22 +888,25 @@ $(document).ready(function() {
             selectedOptions.each(function() {
                 const attractionData = $(this).data('attraction-data');
                 if (attractionData) {
+                    console.log('Raw attraction data:', attractionData);
                     // Initialize attraction with proper structure
                     selectedAttractions.push({
                         attraction_id: attractionData.attraction_id,
                         name: attractionData.name,
                         location: attractionData.location,
                         transfer_available: 0,
-                        transfer_type: 'none'
+                        transfer_type: 'none',
+                        image: attractionData.image || ''
                     });
+                    console.log('Pushed attraction with image:', selectedAttractions[selectedAttractions.length - 1]);
                 }
             });
+            console.log("selectedAttractions = ", selectedAttractions);
             
             // Update day-wise itinerary data
             if (dayWiseItinerary.length >= day) {
                 // Preserve any existing transfer settings if the attraction is still selected
                 const existingAttractions = dayWiseItinerary[day - 1].attractions || [];
-                
                 // Map new attractions, preserving transfer settings for existing ones
                 const updatedAttractions = selectedAttractions.map(newAttraction => {
                     // Check if this attraction already exists with transfer settings
@@ -886,18 +915,22 @@ $(document).ready(function() {
                     );
                     
                     if (existingAttraction) {
-                        // Preserve existing transfer settings
+                        // Preserve existing transfer settings and add image
                         return {
                             ...newAttraction,
                             transfer_available: existingAttraction.transfer_available || 0,
-                            transfer_type: existingAttraction.transfer_type || 'none'
+                            transfer_type: existingAttraction.transfer_type || 'none',
+                            image: newAttraction.image
                         };
                     }
                     
                     // Use default settings for new attractions
-                    return newAttraction;
+                    return {
+                        ...newAttraction,
+                        image: newAttraction.image
+                    };
                 });
-                
+                console.log("updatedAttractions = ", updatedAttractions);
                 // Update the attractions array
                 dayWiseItinerary[day - 1].attractions = updatedAttractions;
                 
@@ -1199,8 +1232,7 @@ $(document).ready(function() {
                             id: hotel.hotel_unique_id,
                             name: hotel.name,
                             city: hotel.city,
-                            main_image: hotel.main_image || '',
-                            images: hotel.images || []
+                            main_image: hotel.main_image || ''
                         });
                         hotelSelect.append(option);
                     });
@@ -1237,7 +1269,8 @@ $(document).ready(function() {
                     $(option).data('attraction-data', {
                         attraction_id: attraction.attraction_id,
                         name: attraction.name,
-                        location: attraction.location
+                        location: attraction.location,
+                        image: attraction.master_image || ''
                     });
                     attractionSelect.append(option);
                 });
@@ -1260,7 +1293,7 @@ $(document).ready(function() {
                         id: guide.guide_id,
                         name: guide.name,
                         languages: guide.languages,
-                        contact_no: guide.contact_no
+                        contact_no: guide.contact_no,
                     });
                     guideSelect.append(option);
                 });
@@ -1295,21 +1328,42 @@ $(document).ready(function() {
         // Create hierarchical itinerary JSON structure
         const itineraryJson = {};
         
-        // Get duration
-        const duration = parseInt($('input[name="duration_days"]').val()) || 0;
-        
-        // Debug log the dayWiseItinerary array before processing
-        console.log('dayWiseItinerary before processing:', JSON.parse(JSON.stringify(dayWiseItinerary)));
-        
-        // Process each day's data
-        for (let day = 1; day <= duration; day++) {
-            // Initialize day data object
-            itineraryJson[day] = {
-                attractions: [],
-                guide: null,
-                arrival_pickup: day === 1 ? 0 : null,
-                departure_service: day === duration ? 0 : null
-            };
+                    // Get duration
+            const duration = parseInt($('input[name="duration_days"]').val()) || 0;
+            
+            // Get selected hotels data
+            const selectedHotels = {};
+            $('#hotel-select option:selected').each(function() {
+                const hotelData = $(this).data('hotel-data');
+                if (hotelData) {
+                    selectedHotels[hotelData.id] = hotelData;
+                }
+            });
+            
+            // Debug log the dayWiseItinerary array before processing
+            console.log('dayWiseItinerary before processing:', JSON.parse(JSON.stringify(dayWiseItinerary)));
+            console.log('Selected hotels data:', selectedHotels);
+            
+            // Process each day's data
+            for (let day = 1; day <= duration; day++) {
+                // Get hotels assigned to this day
+                const dayHotels = selectedHotelsWithDays
+                    .filter(hotel => hotel.days.includes(day))
+                    .map(hotel => ({
+                        id: hotel.id,
+                        name: hotel.name,
+                        city: hotel.city,
+                        main_image: selectedHotels[hotel.id] ? selectedHotels[hotel.id].main_image : ''
+                    }));
+                
+                // Initialize day data object
+                itineraryJson[day] = {
+                    attractions: [],
+                    hotels: dayHotels,
+                    guide: null,
+                    arrival_pickup: day === 1 ? 0 : null,
+                    departure_service: day === duration ? 0 : null
+                };
             
             // Get attractions data
             if (dayWiseItinerary.length >= day && dayWiseItinerary[day - 1].attractions) {
@@ -1318,12 +1372,15 @@ $(document).ready(function() {
                 // Map attractions with the correct property names
                 itineraryJson[day].attractions = dayWiseItinerary[day - 1].attractions.map(attraction => {
                     // Ensure we have the correct property names for the itinerary JSON
-                    const mappedAttraction = {
-                        id: attraction.attraction_id,
-                        name: attraction.name,
-                        city: attraction.location,
-                        transfer_available: attraction.transfer_available || 0,
-                        transfer_type: attraction.transfer_type || 'none'
+                                    console.log('Original attraction before mapping:', attraction);
+                const mappedAttraction = {
+                    ...attraction,  // Preserve all existing properties
+                    id: attraction.attraction_id || attraction.id,
+                    name: attraction.name,
+                    city: attraction.location,
+                    location: attraction.location,
+                    transfer_available: attraction.transfer_available || 0,
+                    transfer_type: attraction.transfer_type || 'none'
                     };
                     console.log(`Day ${day}, mapped attraction:`, mappedAttraction);
                     return mappedAttraction;
@@ -1367,10 +1424,15 @@ $(document).ready(function() {
         // Process hotel JSON data
         const hotelJsonData = {};
         selectedHotelsWithDays.forEach(hotel => {
+            // Get the original hotel data from the select option
+            const hotelData = $('#hotel-select').find(`option[value="${hotel.id}"]`).data('hotel-data');
+            console.log('Original hotel data:', hotelData);
+            
             hotelJsonData[hotel.id] = {
                 name: hotel.name,
                 city: hotel.city,
-                selected_days: hotel.days
+                selected_days: hotel.days,
+                main_image: hotelData ? hotelData.main_image : '',  // Using 'main_image' consistently
             };
         });
         
@@ -1397,6 +1459,7 @@ $(document).ready(function() {
             hotels: selectedHotelsWithDays,
             itinerary: dayWiseItinerary
         };
+        console.log("compiledData = ", compiledData);
         
         // Update the hidden input with the compiled data
         $('#day-wise-itinerary-input').val(JSON.stringify(compiledData));
@@ -1430,13 +1493,13 @@ $(document).ready(function() {
                     hotelSelect.prop('disabled', false);
                     
                     response.forEach(function(hotel) {
+                        console.log('Raw hotel data:', hotel);
                         const option = new Option(hotel.name, hotel.hotel_unique_id);
                         $(option).data('hotel-data', {
                             id: hotel.hotel_unique_id,
                             name: hotel.name,
                             city: hotel.city,
-                            main_image: hotel.main_image || '',
-                            images: hotel.images || []
+                            main_image: hotel.main_image
                         });
                         hotelSelect.append(option);
                     });
@@ -1455,6 +1518,439 @@ $(document).ready(function() {
     }
 });
 </script>
+
+<!-- Image Compression Scripts -->
+<script>
+    // Main Image Compression Logic
+    const mainImageDropArea = document.getElementById('main-image-drop-area');
+    const mainImageInput = document.getElementById('main_image');
+    const mainImagePreviewContainer = document.getElementById('main-image-preview-container');
+    let mainImageFile = null;
+
+    // Open file picker on click
+    mainImageDropArea.addEventListener('click', () => mainImageInput.click());
+
+    // Handle drag events for main image
+    mainImageDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        mainImageDropArea.style.backgroundColor = '#e3f2fd';
+    });
+
+    mainImageDropArea.addEventListener('dragleave', () => {
+        mainImageDropArea.style.backgroundColor = 'white';
+    });
+
+    mainImageDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        mainImageDropArea.style.backgroundColor = 'white';
+        mainHandleFiles(e.dataTransfer.files);
+    });
+
+    // Handle file input change for main image
+    mainImageInput.addEventListener('change', () => {
+        mainHandleFiles(mainImageInput.files);
+    });
+
+    // Process and display main image files
+    async function mainHandleFiles(files) {
+        // Show compression progress
+        showCompressionProgress('main');
+        
+        for (const file of Array.from(files)) {
+            if (file.type.startsWith('image/')) {
+                try {
+                    // Compress the image
+                    const compressedFile = await compressImage(file);
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        // If an image already exists, remove it before adding the new one
+                        if (mainImageFile) {
+                            mainImagePreviewContainer.innerHTML = ''; // Clear the existing preview
+                            mainImageFile = null; // Reset the file
+                        }
+                        mainImageFile = compressedFile;
+                        mainImagePreview(e.target.result);
+                        
+                        // Update the file input with compressed file
+                        const dt = new DataTransfer();
+                        dt.items.add(compressedFile);
+                        mainImageInput.files = dt.files;
+                    };
+                    reader.readAsDataURL(compressedFile);
+                } catch (error) {
+                    console.error('Error compressing image:', error);
+                    alert(`Error processing ${file.name}. Please try again.`);
+                }
+            } else {
+                alert(`${file.name} is not a valid image file.`);
+            }
+        }
+        
+        // Hide compression progress
+        hideCompressionProgress('main');
+    }
+
+    // Gallery Images Compression Logic
+    const galleryDropArea = document.getElementById('gallery-drop-area');
+    const galleryInput = document.getElementById('gallery_images');
+    const galleryPreviewContainer = document.getElementById('gallery-preview-container');
+    let galleryFiles = []; // Store all gallery files
+    const MAX_VISIBLE_GALLERY_IMAGES = 3; // Maximum number of visible images
+    let showAllGalleryImages = false; // Toggle for showing all images
+
+    // Trigger file input on click
+    galleryDropArea.addEventListener('click', () => galleryInput.click());
+
+    // Handle file input change
+    galleryInput.addEventListener('change', () => handleGalleryFiles(galleryInput.files));
+
+    // Handle drag-and-drop events for gallery
+    galleryDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        galleryDropArea.style.borderColor = '#000';
+    });
+
+    galleryDropArea.addEventListener('dragleave', () => {
+        galleryDropArea.style.borderColor = '#ccc';
+    });
+
+    galleryDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        galleryDropArea.style.borderColor = '#ccc';
+        handleGalleryFiles(e.dataTransfer.files);
+    });
+
+    async function handleGalleryFiles(newFiles) {
+        // Show loading message
+        const loadingDiv = document.createElement('div');
+        loadingDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Compressing images for faster upload...</div>';
+        galleryPreviewContainer.appendChild(loadingDiv);
+
+        // Process files sequentially to avoid overwhelming the browser
+        for (const file of Array.from(newFiles)) {
+            if (file.type.startsWith('image/')) {
+                try {
+                    // Check file size before compression
+                    const fileSizeMB = file.size / 1024 / 1024;
+                    
+                    // Only compress if file is larger than 1MB or if we already have many files
+                    let finalFile = file;
+                    if (fileSizeMB > 1 || galleryFiles.length >= 3) {
+                        finalFile = await compressImage(file, 0.7, 1600, 1200); // More aggressive compression for multiple files
+                    }
+                    
+                    // Check total size limit (keep under 80MB total)
+                    const currentTotalSize = galleryFiles.reduce((total, f) => total + f.size, 0);
+                    const totalSizeMB = (currentTotalSize + finalFile.size) / 1024 / 1024;
+                    
+                    if (totalSizeMB > 80) {
+                        alert(`Total upload size would exceed 80MB limit. Please remove some images or upload in smaller batches.`);
+                        break;
+                    }
+                    
+                    galleryFiles.push(finalFile);
+                } catch (error) {
+                    console.error('Error processing image:', error);
+                    alert(`Error processing ${file.name}. Please try again.`);
+                }
+            } else {
+                alert(`${file.name} is not a valid image file.`);
+            }
+        }
+        
+        // Remove loading message and update display
+        loadingDiv.remove();
+        updateGalleryFileList();
+    }
+
+    // Image compression function
+    function compressImage(file, quality = 0.8, maxWidth = 1920, maxHeight = 1080) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Calculate new dimensions while maintaining aspect ratio
+                let { width, height } = img;
+                
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = (width * maxHeight) / height;
+                        height = maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create a new File object with the same name but compressed data
+                        const compressedFile = new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        });
+                        
+                        console.log(`Compressed ${file.name} from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+                        resolve(compressedFile);
+                    } else {
+                        reject(new Error('Compression failed'));
+                    }
+                }, file.type, quality);
+            };
+            
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    // Show compression progress
+    function showCompressionProgress(container) {
+        const progressId = container + '-progress';
+        const existingProgress = document.getElementById(progressId);
+        
+        if (!existingProgress) {
+            const progressDiv = document.createElement('div');
+            progressDiv.id = progressId;
+            progressDiv.className = 'compression-progress';
+            progressDiv.innerHTML = `
+                <div class="alert alert-info d-flex align-items-center mb-3" role="alert" style="border-radius: 8px; border: 1px solid #bee5eb;">
+                    <div class="spinner-border spinner-border-sm me-2" role="status" style="color: #0c5460;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div style="color: #0c5460; font-weight: 500;">
+                        <i class="fas fa-compress-alt me-1"></i>
+                        Compressing images for faster upload...
+                    </div>
+                </div>
+            `;
+            
+            if (container === 'main') {
+                mainImagePreviewContainer.appendChild(progressDiv);
+            } else if (container === 'gallery') {
+                galleryPreviewContainer.appendChild(progressDiv);
+            }
+        }
+    }
+
+    // Hide compression progress
+    function hideCompressionProgress(container) {
+        const progressId = container + '-progress';
+        const progressDiv = document.getElementById(progressId);
+        if (progressDiv) {
+            progressDiv.remove();
+        }
+    }
+
+    // Add main image preview
+    function mainImagePreview(imageSrc) {
+        const imageWrapper = document.createElement('div');
+        imageWrapper.style.position = 'relative';
+        imageWrapper.style.width = '100px';
+        imageWrapper.style.height = '100px';
+        imageWrapper.style.margin = '5px';
+        imageWrapper.style.overflow = 'hidden';
+        imageWrapper.style.borderRadius = '5px';
+
+        const img = document.createElement('img');
+        img.src = imageSrc;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = '×';
+        deleteButton.style.position = 'absolute';
+        deleteButton.style.top = '2px';
+        deleteButton.style.right = '2px';
+        deleteButton.style.background = 'rgba(255, 0, 0, 0.8)';
+        deleteButton.style.color = 'white';
+        deleteButton.style.border = 'none';
+        deleteButton.style.borderRadius = '50%';
+        deleteButton.style.cursor = 'pointer';
+        deleteButton.style.width = '20px';
+        deleteButton.style.height = '20px';
+        deleteButton.style.fontSize = '12px';
+        deleteButton.style.lineHeight = '16px';
+        deleteButton.addEventListener('click', () => {
+            mainImagePreviewContainer.removeChild(imageWrapper);
+            mainImageFile = null;
+            mainImageInput.value = '';
+        });
+
+        imageWrapper.appendChild(img);
+        imageWrapper.appendChild(deleteButton);
+        mainImagePreviewContainer.appendChild(imageWrapper);
+    }
+
+    function updateGalleryFileList() {
+        // Clear file list display
+        galleryPreviewContainer.innerHTML = '';
+        const dataTransfer = new DataTransfer();
+
+        // Decide how many files to display based on `showAllGalleryImages`
+        const visibleFiles = showAllGalleryImages ? galleryFiles : galleryFiles.slice(0, MAX_VISIBLE_GALLERY_IMAGES);
+
+        visibleFiles.forEach((file, index) => {
+            // Create a wrapper for the image and delete button
+            const imageWrapper = document.createElement('div');
+            imageWrapper.style.position = 'relative';
+            imageWrapper.style.display = 'inline-block';
+            imageWrapper.style.margin = '10px';
+            imageWrapper.style.width = '100px';
+            imageWrapper.style.height = '100px';
+
+            // Create an image element for preview
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file); // Create an object URL for the file
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+
+            // Create a delete button
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '×';
+            deleteButton.style.position = 'absolute';
+            deleteButton.style.top = '2px';
+            deleteButton.style.right = '2px';
+            deleteButton.style.background = 'rgba(255, 0, 0, 0.8)';
+            deleteButton.style.color = 'white';
+            deleteButton.style.border = 'none';
+            deleteButton.style.borderRadius = '50%';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.style.width = '20px';
+            deleteButton.style.height = '20px';
+            deleteButton.style.fontSize = '12px';
+            deleteButton.style.lineHeight = '16px';
+
+            // Remove file and update list on delete
+            deleteButton.addEventListener('click', () => {
+                const fileIndex = galleryFiles.indexOf(file);
+                if (fileIndex > -1) {
+                    galleryFiles.splice(fileIndex, 1);
+                }
+                updateGalleryFileList();
+            });
+
+            // Append image and delete button to the wrapper
+            imageWrapper.appendChild(img);
+            imageWrapper.appendChild(deleteButton);
+            galleryPreviewContainer.appendChild(imageWrapper);
+
+            // Add the file to the DataTransfer object
+            dataTransfer.items.add(file);
+        });
+
+        // Add all files to the gallery input
+        galleryInput.files = dataTransfer.files;
+
+        // Add a "More Images" badge if there are more files and not showing all images
+        if (!showAllGalleryImages && galleryFiles.length > MAX_VISIBLE_GALLERY_IMAGES) {
+            const moreBadge = document.createElement('div');
+            moreBadge.textContent = `+${galleryFiles.length - MAX_VISIBLE_GALLERY_IMAGES} more`;
+            moreBadge.style.margin = '10px';
+            moreBadge.style.padding = '20px';
+            moreBadge.style.backgroundColor = '#007bff';
+            moreBadge.style.color = 'white';
+            moreBadge.style.borderRadius = '5px';
+            moreBadge.style.textAlign = 'center';
+            moreBadge.style.fontSize = '14px';
+            moreBadge.style.cursor = 'pointer';
+
+            // Add click event to show all images
+            moreBadge.addEventListener('click', () => {
+                showAllGalleryImages = true;
+                updateGalleryFileList(); // Re-render with all images
+            });
+
+            galleryPreviewContainer.appendChild(moreBadge);
+        }
+
+        // Show total size information
+        if (galleryFiles.length > 0) {
+            const totalSize = galleryFiles.reduce((total, f) => total + f.size, 0);
+            const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
+            const sizeInfo = document.createElement('div');
+            sizeInfo.innerHTML = `<small class="text-muted">Total: ${galleryFiles.length} images (${totalSizeMB}MB)</small>`;
+            galleryPreviewContainer.appendChild(sizeInfo);
+        }
+    }
+
+    // Form submission handler with upload progress and error handling
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Check if we have main image
+                if (!mainImageFile) {
+                    e.preventDefault();
+                    alert('Please upload a main image for the package.');
+                    return false;
+                }
+
+                // Check gallery files count
+                const totalGalleryFiles = galleryFiles.length;
+                if (totalGalleryFiles > 10) {
+                    e.preventDefault();
+                    alert('Please upload maximum 10 gallery images at a time to avoid server limits.');
+                    return false;
+                }
+
+                // Check total upload size
+                const mainImageSize = mainImageFile ? mainImageFile.size : 0;
+                const galleryTotalSize = galleryFiles.reduce((total, f) => total + f.size, 0);
+                const totalSizeMB = (mainImageSize + galleryTotalSize) / 1024 / 1024;
+                
+                if (totalSizeMB > 90) {
+                    e.preventDefault();
+                    alert('Total upload size is too large. Please reduce image sizes or upload fewer images.');
+                    return false;
+                }
+
+                // Show upload progress
+                const totalFiles = 1 + totalGalleryFiles; // main image + gallery images
+                if (totalFiles > 0) {
+                    const progressDiv = document.createElement('div');
+                    progressDiv.innerHTML = `
+                        <div class="alert alert-info" id="upload-progress">
+                            <i class="fas fa-cloud-upload-alt"></i> Uploading ${totalFiles} images (${totalSizeMB.toFixed(1)}MB)...
+                            <div class="progress mt-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Insert progress indicator before the form
+                    form.parentNode.insertBefore(progressDiv, form);
+                    
+                    // Simulate progress (since we can't get real upload progress easily)
+                    const progressBar = progressDiv.querySelector('.progress-bar');
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += Math.random() * 15;
+                        if (progress > 90) progress = 90;
+                        progressBar.style.width = progress + '%';
+                    }, 500);
+                    
+                    // Clear interval after form submission
+                    setTimeout(() => clearInterval(interval), 30000);
+                }
+            });
+        }
+    });
+</script>
+
 @endsection
 
 @section('styles')

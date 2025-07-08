@@ -608,7 +608,10 @@ class CommonHelper
 
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
-                        if ($booking->type == 'attraction') $attraction_count++;
+                        if ($booking->type == 'attraction') 
+                        $attraction_count++;
+                        if ($booking->type == 'attraction_package') 
+                        $attraction_count++;
                         if ($booking->type == 'entry_port') $entry_port_count++;
                         if ($booking->type == 'exit_port') $exit_port_count++;
                         if ($booking->type == 'travel_point') $travel_point_count++;
@@ -650,7 +653,6 @@ class CommonHelper
 
                         foreach ($expandedDates as $bookingDate) {
                             if (empty($bookingDate)) continue;
-                            
                             // For hotel bookings, skip the last date in date_service
                             if ($booking->type === 'hotel') {
                                 // Check if this is the last date in the range
@@ -693,6 +695,7 @@ class CommonHelper
                     // Count booking types
                     if ($booking->type == 'hotel') $hotel_count++;
                     if ($booking->type == 'attraction') $attraction_count++;
+                    if ($booking->type == 'attraction_package') $attraction_count++;
                     if ($booking->type == 'entry_port') $entry_port_count++;
                     if ($booking->type == 'exit_port') $exit_port_count++;
                     if ($booking->type == 'travel_point') $travel_point_count++;
