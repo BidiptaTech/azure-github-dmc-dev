@@ -24,7 +24,7 @@ export default function TourPackages() {
 
    // Fetch cities when a country is selected
    
-  console.log("packageData", packageData);
+  console.log("packageDataddd", packageData);
   // useEffect(() => {
   //   if(packageData){
   //     dispatch(settourdetails(packageData.tour));

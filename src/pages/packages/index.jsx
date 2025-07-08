@@ -40,6 +40,11 @@ const splashEffect = keyframes`
   }
 `;
 
+
+
+// Create splash effect
+
+
 // Create a custom theme for the button
 const theme = createTheme({
   palette: {
@@ -89,6 +94,7 @@ const Packages = () => {
     
     return (
       <div className="pre-define-packages-background">
+      <div className="pre-define-packages-background">
         <div className="packages-container" style={{ padding: '100px 20px', textAlign: 'center' }}>
             <div className="d-flex flex-column align-items-center y-gap-20">
                 <div className="col-md-6">
@@ -126,6 +132,7 @@ const Packages = () => {
                 </div>
             </div>
             <PreDefinePackagesPage />
+        </div>
         </div>
         </div>
     )

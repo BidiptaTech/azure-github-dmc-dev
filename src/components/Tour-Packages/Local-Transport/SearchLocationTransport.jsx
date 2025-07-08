@@ -253,7 +253,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               if (value !== reduxEntryTime) dispatch(setentrytime(value));
               break;
             case 'entryytime1':
-              if (value !== reduxEntryTime1) dispatch(setentrytime1(value));
+              if (value !== reduxEntryTime1) dispatch(setentrytime(value));
               break;
             case 'entryytimezone':
               if (value !== reduxEntryTimeZone) {

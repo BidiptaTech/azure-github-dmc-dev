@@ -346,8 +346,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           bookingDate:entryData.bookingDate,
           pickupdate:entryData.pickupdate,
           entrytime:entryData.entrytime,
-          // Store original loaded data for reference
-          originalData: entryData
+          // Store original loaded data for reference, including booking_id
+          originalData: {
+            ...entryData,
+            booking_id: entryPort.booking_id // Preserve booking_id from service level
+          }
         };
       });
     }
@@ -381,7 +384,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const hasDispatchedAllEntryPortsRef = useRef(false);
   const lastDispatchRef = useRef(null);
   
-  // Function to dispatch ALL entry ports from entryPorts to Redux state
+  // Function to dispatch ALL entry ports from entryPorts to Redux state (similar to exit ports)
   const dispatchAllEntryPortsToRedux = useCallback(() => {
     if (!validEntryPorts || !Array.isArray(validEntryPorts) || validEntryPorts.length === 0) {
       console.log('No entryPorts data to dispatch to Redux');
@@ -396,7 +399,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       return;
     }
 
-    console.log('Dispatching ALL entry ports to Redux:', validEntryPorts);
+    console.log('Dispatching ALL entry ports to Redux (immediate):', validEntryPorts);
     
     // Clone the existing services array
     const currentServices = [...existingServices];
@@ -404,10 +407,23 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     // Filter out existing entry_port services to avoid duplicates
     const filteredServices = currentServices.filter(service => service.type !== "entry_port");
     
-    // Add all entry ports to the filtered services array
-    const finalServices = [...filteredServices, ...validEntryPorts];
+    // Create new entry port service entries preserving booking_id
+    const entryPortServicesWithBookingId = validEntryPorts.map(entryPortService => {
+      // Create service object with booking_id preserved
+      const serviceObject = { ...entryPortService };
+
+      // Add booking_id if it exists in the original service
+      if (entryPortService.booking_id) {
+        serviceObject.booking_id = entryPortService.booking_id;
+      }
+
+      return serviceObject;
+    });
     
-    console.log('Entry Vehicle - Dispatching ALL entry ports to Redux:', finalServices);
+    // Add all entry ports to the filtered services array
+    const finalServices = [...filteredServices, ...entryPortServicesWithBookingId];
+    
+    console.log('Entry Vehicle - Automatically dispatching ALL entry ports to Redux:', finalServices);
     dispatch(setAllServices(finalServices));
     
     // Update the last dispatch ref
@@ -506,24 +522,36 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           if (service.type === "entry_port") {
             // Check if this service contains data that matches our booking
             if (service.data && Array.isArray(service.data)) {
-              // Remove this service if any of its data matches our booking
-              const hasMatchingData = service.data.some(dataItem => {
-                // Match by ID first (most reliable)
-                if (bookingToRemove.id && dataItem.id === bookingToRemove.id) {
-                  return true;
+              // Remove the specific booking with matching ID and booking_id (if available)
+              const filteredData = service.data.filter(dataItem => {
+                // Match by booking_id first (most reliable)
+                if (bookingToRemove.originalData?.booking_id && dataItem.booking_id) {
+                  return !(dataItem.id === bookingToRemove.id && 
+                          dataItem.booking_id === bookingToRemove.originalData.booking_id);
                 }
                 
-                // Match by vehicle ID as fallback
+                // Match by ID as fallback
+                if (bookingToRemove.id && dataItem.id === bookingToRemove.id) {
+                  return false;
+                }
+                
+                // Match by vehicle ID as final fallback
                 if (bookingToRemove.vehicle && 
                     dataItem.vehicles_id === bookingToRemove.vehicle.id) {
-                  return true;
+                  return false;
                 }
                 
-                return false;
+                return true;
               });
               
-              // If this service has matching data, filter it out
-              return !hasMatchingData;
+              if (filteredData.length === 0) {
+                // If no data left, remove the entire service
+                return false;
+              } else {
+                // Update the service with filtered data
+                service.data = filteredData;
+                return true;
+              }
             }
           }
           
@@ -638,12 +666,24 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           seating_capacity: vehicle.seating_capacity
         };
         
-        return {
+        // Add booking_id if available from original data
+        if (booking.originalData?.booking_id) {
+          bookingData.booking_id = booking.originalData.booking_id;
+        }
+        
+        const serviceObject = {
           type: "entry_port",
           agent_id: agentId,
           tour_id: tourId,
           data: [bookingData]
         };
+        
+        // Add booking_id if available from original data
+        if (booking.originalData?.booking_id) {
+          serviceObject.booking_id = booking.originalData.booking_id;
+        }
+        
+        return serviceObject;
       });
       
       // Remove any existing Entry Port services and add the new ones
@@ -707,7 +747,10 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           children: entryData.children || 0,
           mode: entryData.Mode || 'dmc',
           dmcId: entryData.dmc_id,
-          originalData: entryData
+          originalData: {
+            ...entryData,
+            booking_id: entryPort.booking_id // Preserve booking_id from service level
+          }
         };
       });
       
@@ -1025,6 +1068,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       seating_capacity: vehicle.seating_capacity
     };
     
+    // Add booking_id if available from original data
+    if (booking.originalData?.booking_id) {
+      bookingData.booking_id = booking.originalData.booking_id;
+    }
+    
     console.log("Entry Vehicle - Formatted booking data for Redux:", bookingData);
     
     // Clone the existing services array
@@ -1050,6 +1098,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       tour_id: tourId,
       data: [bookingData]
     };
+    
+    // Add booking_id if available from original data
+    if (booking.originalData?.booking_id) {
+      newEntryPortService.booking_id = booking.originalData.booking_id;
+    }
     
     // Add the new Entry Port service to the filtered services array
     filteredServices.push(newEntryPortService);
@@ -1128,7 +1181,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           ? vehicleData.prices.privatePrice 
           : (vehicleData.private_price ? parseFloat(vehicleData.private_price) : 0));
     
-    return {
+    const summary = {
       vehicleName: vehicle.vehicle_name,
       vehicleType: vehicle.vehicle_type,
       vehicleModel: vehicle.vehicle_model,
@@ -1145,6 +1198,13 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       priceMode: booking.priceMode,
       mode: booking.mode
     };
+    
+    // Include booking_id if available from original data
+    if (booking.originalData?.booking_id) {
+      summary.booking_id = booking.originalData.booking_id;
+    }
+    
+    return summary;
   };
 
   // Helper to check if a booking is out of current tour dates for the specific dayIndex

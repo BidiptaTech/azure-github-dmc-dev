@@ -679,6 +679,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
     dispatch(resetVehicles1()); 
     dispatch(resetguide());
     
+    
     // Format Dates
     const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
     console.log("formattedCheckIn",formattedCheckIn);
@@ -704,6 +705,22 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
 
     // Get tour_id from packageData
     const tourId = packageData?.tour?.tour_id;
+    dispatch(setAllServices({
+      country: country,
+      city: city,
+      check_in_time: formattedCheckIn,
+      check_out_time: formattedCheckOut,
+      tour_id: tourId,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
@@ -840,21 +857,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     dispatch(setId(tourId));
     dispatch(settourdetails(packageData.tour));
 
-    dispatch(setAllServices({
-      country: country,
-      city: city,
-      checkIn: formattedCheckIn,
-      checkOut: formattedCheckOut,
-      guests: {
-        adults: guestCounts.Adults.toString(),
-        children: guestCounts.Children.toString(),
-        infants: guestCounts.Infants.toString(),
-        maleCount: maleCount,
-        femaleCount: femaleCount,
-        childrenAges: guestCounts.ages || [],
-        adultGenders: genders
-      }
-    }));
+    
 
     // Move to the first tab (Itinerary) after update completes
     if (onNext) {
@@ -870,7 +873,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 
  
   // Determine which handler to use based on packageData presence
-  const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id);
+  const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id > 0);
   const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;
 
   return (
@@ -1110,9 +1113,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                             <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                               {agent.name}
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
+                            {/* <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
                               ID: {agent.agent_id}
-                            </Typography>
+                            </Typography> */}
                           </Box>
                         </MenuItem>
                       ))}

@@ -26,6 +26,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import LocalDiningIcon from '@mui/icons-material/LocalDining';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useSelector } from 'react-redux';
 
 // Styled components
@@ -81,7 +82,8 @@ const RestaurantBookingSummaryModal = ({
   onClose, 
   bookingData,
   bookingIndex,
-  restaurantDetails 
+  restaurantDetails,
+  bookingDate
 }) => {
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
@@ -257,6 +259,29 @@ const RestaurantBookingSummaryModal = ({
           </Box>
 
           <Divider />
+
+          {/* Booking Date */}
+          {bookingDate && (
+            <SummarySection>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 2,
+                  backgroundColor: '#4caf50',
+                  color: 'white',
+                  borderRadius: 2,
+                  gap: 1
+                }}
+              >
+                <CalendarTodayIcon sx={{ color: 'white' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
+                  Booking Date: {bookingDate}
+                </Typography>
+              </Box>
+            </SummarySection>
+          )}
 
           {/* Restaurant Details */}
           <SummarySection>
