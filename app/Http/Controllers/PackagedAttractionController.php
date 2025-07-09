@@ -86,18 +86,23 @@ class PackagedAttractionController extends Controller
             }
             
             
-            // Process gallery images (all images including the first one)
-            $galleryImages = [];
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
+            // Process images - keep existing images and add new ones
+            $allImages = [];
+
+            // Add existing images if they exist in the request
+            if ($request->has('existing_images')) {
+                $allImages = array_merge($allImages, $request->existing_images);
+            }
+
+            // Add new uploaded images if any
+            if ($request->hasFile('image')) {
+                foreach ($request->file('image') as $image) {
                     $imageData = CommonHelper::image_path('file_storage', $image);
                     if (!empty($imageData['master_value'])) {
-                        $galleryImages[] = $imageData['master_value'];
+                        $allImages[] = $imageData['master_value'];
                     }
                 }
             }
-
-
 
             // Create packaged attraction
             $packagedAttraction = PackagedAttraction::create([
@@ -108,7 +113,7 @@ class PackagedAttractionController extends Controller
                 'adult_price' => $request->adult_price,
                 'child_price' => $request->child_price,
                 'description' => $request->description,
-                'image' => !empty($galleryImages) ? json_encode($galleryImages) : null,
+                'image' => !empty($allImages) ? json_encode($allImages) : null,
                 'dmc_id' => $dmc_id,
                 'status' => $request->status ?? 1,
                 'created_by' => auth()->user()->userId,
@@ -156,8 +161,8 @@ class PackagedAttractionController extends Controller
                 'adult_price' => 'required|numeric|min:0',
                 'child_price' => 'required|numeric|min:0',
                 'description' => 'nullable|string',
-                'images' => 'nullable|array',
-                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+                'image' => 'nullable|array',
+                
             ]);
 
             if ($validator->fails()) {
@@ -166,7 +171,7 @@ class PackagedAttractionController extends Controller
                     ->withInput();
             }
 
-            $packagedAttraction = PackagedAttraction::findOrFail($id);
+            $packagedAttraction = PackagedAttraction::where('package_attraction_id', $id)->first();
             $updateData = [
                 'name' => $request->package_attraction_name,
                 'attractions' => json_encode($request->attractions),
@@ -178,28 +183,27 @@ class PackagedAttractionController extends Controller
                 'updated_by' => auth()->user()->userId,
             ];
 
-            // Process main image if provided
-            if ($request->hasFile('images') && count($request->file('images')) > 0) {
-                $image = $request->file('images')[0];
-                $imageData = CommonHelper::image_path('file_storage', $image);
-                if (!empty($imageData['master_value'])) {
-                    $updateData['image'] = $imageData['master_value'];
+            // Process images - keep existing images and add new ones
+            $allImages = [];
+
+            // Add existing images if they exist in the request
+            if ($request->has('existing_images')) {
+                $allImages = array_merge($allImages, $request->existing_images);
+            }
+
+            // Add new uploaded images if any
+            if ($request->hasFile('image')) {
+                foreach ($request->file('image') as $image) {
+                    $imageData = CommonHelper::image_path('file_storage', $image);
+                    if (!empty($imageData['master_value'])) {
+                        $allImages[] = $imageData['master_value'];
+                    }
                 }
             }
 
-            // Process gallery images if any
-            $galleryImages = [];
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $imageData = CommonHelper::image_path('file_storage', $image);
-                    if (!empty($imageData['master_value'])) {
-                        $galleryImages[] = $imageData['master_value'];
-                    }
-                }
-                
-                if (!empty($galleryImages)) {
-                    $updateData['gallery_images'] = json_encode($galleryImages);
-                }
+            // Update image field if we have images
+            if (!empty($allImages)) {
+                $updateData['image'] = json_encode($allImages);
             }
 
             // Update packaged attraction
