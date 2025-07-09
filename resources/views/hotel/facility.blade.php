@@ -153,6 +153,38 @@
         margin-left: 5px;
         color: #198754;
     }
+    
+    /* Readonly mode styling for unauthorized users */
+    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+    .facility-card {
+        opacity: 0.7;
+        cursor: not-allowed !important;
+    }
+    
+    .facility-card:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    
+    .category-pill {
+        cursor: not-allowed !important;
+        opacity: 0.6;
+    }
+    
+    .category-pill:hover {
+        filter: none !important;
+    }
+    
+    .search-container input[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    
+    button[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    @endif
 </style>
 
 <div class="content-wrapper">
@@ -160,7 +192,14 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Manage Hotel Facilities</h5>
-                <span class="badge bg-primary p-2" id="selected-counter">0 Selected</span>
+                <div class="d-flex gap-2 align-items-center">
+                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                        <span class="badge bg-warning text-dark p-2">
+                            <i class="fas fa-eye me-1"></i>View Only Mode
+                        </span>
+                    @endif
+                    <span class="badge bg-primary p-2" id="selected-counter">0 Selected</span>
+                </div>
             </div>
             
             <div class="card-body">
@@ -174,14 +213,17 @@
                         <div class="col-lg-6">
                             <div class="search-container">
                                 <i class="fas fa-search"></i>
-                                <input type="text" class="form-control" id="facility-search" placeholder="Search facilities...">
+                                <input type="text" class="form-control" id="facility-search" placeholder="Search facilities..."
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                             </div>
                         </div>
                         <div class="col-lg-6 d-flex justify-content-end gap-2">
-                            <button type="button" id="toggle-all" class="btn btn-outline-primary action-button">
+                            <button type="button" id="toggle-all" class="btn btn-outline-primary action-button"
+                                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <i class="fas fa-check-double me-2"></i>Select All
                             </button>
-                            <button type="submit" class="btn btn-primary action-button">
+                            <button type="submit" class="btn btn-primary action-button"
+                                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <i class="fas fa-save me-2"></i>Save Facilities
                             </button>
                         </div>
@@ -281,7 +323,8 @@
                                     id="facility-${facilityId}" 
                                     name="facilities[]"
                                     value="${facilityId}" 
-                                    ${isChecked ? 'checked' : ''}>
+                                    ${isChecked ? 'checked' : ''}
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <p class="facility-name">
                                     ${facility.name}
                                 </p>
@@ -303,6 +346,10 @@
             
             // Setup click handlers for all facility cards
             $('.facility-card').on('click', function() {
+                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                    return; // Prevent unauthorized users from changing selections
+                @endif
+                
                 const facilityId = parseInt($(this).data('facility-id'));
                 const checkbox = $(this).find('.facility-checkbox');
                 
@@ -364,6 +411,10 @@
         
         // Handle category pill clicks
         $('.category-pill').on('click', function() {
+            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                return; // Prevent unauthorized users from changing category filters
+            @endif
+            
             // Remove active class from all pills
             $('.category-pill').removeClass('active');
             
@@ -384,6 +435,11 @@
         
         // Initialize search functionality
         $('#facility-search').on('keyup', function() {
+            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                $(this).val(''); // Clear search for unauthorized users
+                return;
+            @endif
+            
             const searchTerm = $(this).val().toLowerCase();
             
             if (searchTerm.length > 0) {
@@ -427,6 +483,10 @@
         
         // Handle toggle all button
         $('#toggle-all').on('click', function() {
+            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                return; // Prevent unauthorized users from toggling selections
+            @endif
+            
             const btnText = $(this).text().trim();
             // Only toggle checkboxes that are currently visible
             const visibleCards = $('.category-section:visible .facility-card');
@@ -477,6 +537,12 @@
         
         // Form submission validation
         $('#facility-form').on('submit', function(e) {
+            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                e.preventDefault();
+                alert('You do not have permission to save facility changes.');
+                return false;
+            @endif
+            
             // Check if any facilities are selected
             if (selectedFacilities.length === 0) {
                 e.preventDefault();
@@ -529,7 +595,8 @@
                             id="facility-${facility.facilityId}" 
                             name="facilities[]"
                             value="${facility.facilityId}" 
-                            ${isChecked ? 'checked' : ''}>
+                            ${isChecked ? 'checked' : ''}
+                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                         <label class="form-check-label" for="facility-${facility.facilityId}">
                             ${facility.name}
                         </label>

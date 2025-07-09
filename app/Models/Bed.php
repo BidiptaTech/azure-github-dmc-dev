@@ -17,4 +17,9 @@ class Bed extends Model
     {
         return $this->belongsTo(Room::class, 'room_id', 'room_id');
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'dmc_id', 'userId');
+    }
 }

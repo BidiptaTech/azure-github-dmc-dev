@@ -420,6 +420,12 @@
         color: #f59e0b !important; /* Amber */
         background: rgba(245, 158, 11, 0.1);
     }
+    
+    .ri-service-line {
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
     .roadmap-icon:hover {
   color: #2ecc71;
   transform: scale(1.1);
@@ -555,7 +561,7 @@
                     <span class="menu-header-text" data-i18n="Packages">Packages</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('package*')) open active @endif">
+                <li class="menu-item @if(Request::is('package*') || Request::is('predefined-package-booking-list')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-gift-line"></i>
                         <div data-i18n="Packages">Predefined Packages</div>
@@ -571,6 +577,14 @@
                                 <div data-i18n="Create Package">Create Package</div>
                             </a>
                         </li>
+                        @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+                        <!-- Show Booking -->
+                        <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                            <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
+                                <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </li>
                 <!-- End Packages -->
@@ -628,7 +642,7 @@
             <!-- End Booking List -->
 
             <!-- Predefined Packages Booking List -->
-            @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+            {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
                 </li>
@@ -648,7 +662,7 @@
                         </li>
                     </ul>
                 </li>
-            @endif
+            @endif --}}
             <!-- End Predefined Packages Booking List -->
 
             <!-- Reports -->
@@ -677,7 +691,7 @@
             <!-- End Reports -->
 
                 <!-- Jobsheets -->
-                @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,35, 78, 120]))
+                @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,34, 66, 108]))
                     <li class="menu-header small text-uppercase">
                         <span class="menu-header-text">View Jobsheets</span>
                     </li>
@@ -800,6 +814,43 @@
             </li>
             @endif
             <!-- End Zone -->
+
+            <!-- Services Management for DMC -->
+            @if(Auth::user()->role_id == 11)
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Services Management">Services Management</span>
+                </li>
+
+                <li class="menu-item @if(Request::is('services/*')) open active @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-service-line"></i>
+                        <div data-i18n="Services">Services</div>
+                    </a>
+                    <ul class="menu-sub">
+                        <!-- DMC Hotels Selection -->
+                        <li class="menu-item @if(Request::is('services/hotels')) active @endif">
+                            <a href="{{ route('services.hotels') }}" class="menu-link">
+                                <div data-i18n="Select Hotels">Select Hotels</div>
+                            </a>
+                        </li>
+                        
+                        <!-- DMC Attractions Selection -->
+                        <li class="menu-item @if(Request::is('services/attractions')) active @endif">
+                            <a href="{{ route('services.attractions') }}" class="menu-link">
+                                <div data-i18n="Select Attractions">Select Attractions</div>
+                            </a>
+                        </li>
+                        
+                        <!-- DMC Restaurants Selection -->
+                        <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
+                            <a href="{{ route('services.restaurants') }}" class="menu-link">
+                                <div data-i18n="Select Restaurants">Select Restaurants</div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            @endif
+            <!-- End Services Management -->
 
             <!-- Booking -->
             {{-- @if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 
@@ -1036,12 +1087,14 @@
                         </li>
                         @endif
                         <!-- Create Attraction -->
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create attraction'))
                         <li class="menu-item @if(Request::is('attraction/create')) active @endif">
                             <a href="{{ route('attraction.create') }}" class="menu-link">
                                 <div data-i18n="Create Attractions & Experiences">Create Attractions & Experiences</div>
                             </a>
                         </li>
+                        @endif
                         @endif
                     </ul>
                 </li>
@@ -1079,12 +1132,14 @@
                         @endif
 
                         <!-- Create Restaurant -->
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create restaurant'))
                         <li class="menu-item @if(Request::is('restaurant/create')) active @endif">
                             <a href="{{ route('restaurant.create') }}" class="menu-link">
                                 <div data-i18n="Create Restaurant">Create Restaurant</div>
                             </a>
                         </li>
+                        @endif
                         @endif
                     </ul>
                 </li>

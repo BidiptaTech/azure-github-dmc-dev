@@ -28,7 +28,8 @@
                                     <label class="form-label"><strong>Hotel Owner Name</strong></label>
                                     <input type="text" class="form-control" name="hotel_owner_company_name"
                                         value="{{ old('hotel_owner_company_name', $hotel->hotel_owner_company_name ?? '') }}"
-                                        placeholder="Hotel Owner Name">
+                                        placeholder="Hotel Owner Name"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                         @error('hotel_owner_company_name')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -37,7 +38,8 @@
                                     <label class="form-label"><strong>Hotel Management Company Name</strong></label>
                                     <input type="text" class="form-control" name="management_comp_name"
                                         value="{{ old('management_comp_name', $hotel->management_comp_name ?? '') }}"
-                                        placeholder="Hotel Owner Name">
+                                        placeholder="Hotel Owner Name"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                         @error('management_comp_name')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -52,7 +54,8 @@
                                     <input type="text" class="form-control" id="hotel_reservation_cont_no" name="hotel_reservation_cont_no"
                                         value="{{ old('hotel_reservation_cont_no', $hotel->hotel_reservation_cont_no ?? '') }}"
                                         placeholder="Hotel Reservation Contact No"
-                                        oninput="validatePhone(this)">
+                                        oninput="validatePhone(this)"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message" id="hotel_reservation_cont_no-validation-message"></small>
                                     @error('hotel_reservation_cont_no')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -79,7 +82,8 @@
                                     <input type="text" class="form-control" id="revenue_director_cont_no" name="revenue_director_cont_no"
                                         value="{{ old('revenue_director_cont_no', $hotel->revenue_director_cont_no ?? '') }}"
                                         placeholder="Revenue Director Contact No"
-                                        oninput="validatePhone(this)">
+                                        oninput="validatePhone(this)"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message" id="revenue_director_cont_no-validation-message"></small>
                                     @error('revenue_director_cont_no')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -90,7 +94,8 @@
                                     <input type="email" class="form-control" id="revenue_director_email" name="revenue_director_email"
                                         value="{{ old('revenue_director_email', $hotel->revenue_director_email ?? '') }}"
                                         placeholder="Revenue Director Email"
-                                        oninput="validateEmail(this)">
+                                        oninput="validateEmail(this)"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message" id="revenue_director_email-validation-message"></small>
                                     @error('revenue_director_email')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -110,7 +115,8 @@
                                 <input type="text" class="form-control" id="sales_director_cont_no" name="sales_director_cont_no"
                                     value="{{ old('sales_director_cont_no', $hotel->sales_director_cont_no ?? '') }}"
                                     placeholder="Sales & Marketing Contact No"
-                                    oninput="validatePhone(this)">
+                                    oninput="validatePhone(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="sales_director_cont_no-validation-message"></small>
                                 @error('sales_director_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -121,7 +127,8 @@
                                 <input type="email" class="form-control" id="sales_director_email" name="sales_director_email"
                                     value="{{ old('sales_director_email', $hotel->sales_director_email ?? '') }}"
                                     placeholder="Sales & Marketing Email"
-                                    oninput="validateEmail(this)">
+                                    oninput="validateEmail(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="sales_director_email-validation-message"></small>
                                 @error('sales_director_email')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -137,7 +144,8 @@
                                 <input type="text" class="form-control" id="finance_director_cont_no" name="finance_director_cont_no"
                                     value="{{ old('finance_director_cont_no', $hotel->finance_director_cont_no ?? '') }}"
                                     placeholder="Finance Director Contact No"
-                                    oninput="validatePhone(this)">
+                                    oninput="validatePhone(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="finance_director_cont_no-validation-message"></small>
                                 @error('finance_director_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -148,7 +156,8 @@
                                 <input type="email" class="form-control" id="finance_director_email" name="finance_director_email"
                                     value="{{ old('finance_director_email', $hotel->finance_director_email ?? '') }}"
                                     placeholder="Finance Director Email"
-                                    oninput="validateEmail(this)">
+                                    oninput="validateEmail(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="finance_director_email-validation-message"></small>
                                 @error('finance_director_email')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -164,7 +173,8 @@
                                 <input type="text" class="form-control" id="beverage_director_cont_no" name="beverage_director_cont_no"
                                     value="{{ old('food_beverage_director_cont_no', $hotel->food_beverage_director_cont_no ?? '') }}"
                                     placeholder="Food & Beverage Contact No"
-                                    oninput="validatePhone(this)">
+                                    oninput="validatePhone(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="beverage_director_cont_no-validation-message"></small>
                                 @error('beverage_director_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -175,7 +185,8 @@
                                 <input type="email" class="form-control" id="beverage_director_email" name="beverage_director_email"
                                     value="{{ old('food_beverage_director_email', $hotel->food_beverage_director_email ?? '') }}"
                                     placeholder="Food & Beverage Email"
-                                    oninput="validateEmail(this)">
+                                    oninput="validateEmail(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="beverage_director_email-validation-message"></small>
                                 @error('beverage_director_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -195,7 +206,8 @@
                                 <input type="text" class="form-control" id="marketing_manager_cont_no" name="marketing_manager_cont_no"
                                     value="{{ old('marketing_manager_cont_no', $hotel->marketing_manager_cont_no ?? '') }}"
                                     placeholder="Marketing Manager Contact No"
-                                    oninput="validatePhone(this)">
+                                    oninput="validatePhone(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="marketing_manager_cont_no-validation-message"></small>
                                 @error('marketing_manager_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -206,7 +218,8 @@
                                 <input type="email" class="form-control" id="marketing_manager_email" name="marketing_manager_email"
                                     value="{{ old('marketing_manager_email', $hotel->marketing_manager_email ?? '') }}"
                                     placeholder="Marketing Manager Email"
-                                    oninput="validateEmail(this)">
+                                    oninput="validateEmail(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="marketing_manager_email-validation-message"></small>
                                 @error('marketing_manager_email')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -222,7 +235,8 @@
                                 <input type="text" class="form-control" id="account_manager_cont_no" name="account_manager_cont_no"
                                     value="{{ old('account_manager_cont_no', $hotel->account_manager_cont_no ?? '') }}"
                                     placeholder="Account Manager Contact No"
-                                    oninput="validatePhone(this)">
+                                    oninput="validatePhone(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="account_manager_cont_no-validation-message"></small>
                                 @error('account_manager_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -233,7 +247,8 @@
                                 <input type="email" class="form-control" id="account_manager_email" name="account_manager_email"
                                     value="{{ old('account_manager_email', $hotel->account_manager_email ?? '') }}"
                                     placeholder="Account Manager Email"
-                                    oninput="validateEmail(this)">
+                                    oninput="validateEmail(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="account_manager_email-validation-message"></small>
                                 @error('account_manager_email')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -249,7 +264,8 @@
                                 <input type="text" class="form-control" id="general_manager_cont_no" name="general_manager_cont_no"
                                     value="{{ old('general_manager_cont_no', $hotel->general_manager_cont_no ?? '') }}"
                                     placeholder="General Manager Contact No"
-                                    oninput="validatePhone(this)">
+                                    oninput="validatePhone(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="general_manager_cont_no-validation-message"></small>
                                 @error('general_manager_cont_no')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -260,7 +276,8 @@
                                 <input type="email" class="form-control" id="general_manager_email" name="general_manager_email"
                                     value="{{ old('general_manager_email', $hotel->general_manager_email ?? '') }}"
                                     placeholder="General Manager Email"
-                                    oninput="validateEmail(this)">
+                                    oninput="validateEmail(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="general_manager_email-validation-message"></small>
                                 @error('general_manager_email')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -277,7 +294,8 @@
                             <input type="text" class="form-control" id="whatsapp" name="whatsapp"
                                 value="{{ old('whatsapp', $hotel->whatsapp ?? '') }}"
                                 placeholder="Whatsapp Number"
-                                oninput="validatePhone(this)">
+                                oninput="validatePhone(this)"
+                                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                             <small class="validation-message" id="whatsapp-validation-message"></small>
                             @error('whatsapp')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -288,7 +306,8 @@
 
                 <!-- Action Buttons -->
                 <div class="d-flex justify-content-between mt-4">
-                    <button type="submit" class="btn btn-primary px-4">Save</button>
+                    <button type="submit" class="btn btn-primary px-4"
+                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Save</button>
                 </div>
             </form>
         </div>

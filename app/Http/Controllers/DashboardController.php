@@ -919,14 +919,47 @@ class DashboardController extends Controller
         if ($this->isProductManager($user)) {
             $dmcId = $this->getDmcIdForProductManager($user);
             if ($dmcId) {
-                $query->where($dmcField, $dmcId);
+                $this->applyDmcFieldFilter($query, $dmcField, $dmcId);
             } else {
                 // If no DMC found, return empty results to avoid showing all data
-                $query->where($dmcField, -1);
+                $this->applyDmcFieldFilter($query, $dmcField, -1);
             }
         } else {
             // Use existing filtering for other roles
             $query = $this->applyRoleBasedFiltering($query, $user, $dmcField);
+        }
+        
+        return $query;
+    }
+    
+    /**
+     * Apply DMC field filter - handles both JSON and regular integer fields
+     */
+    private function applyDmcFieldFilter($query, $dmcField, $dmcValue, $isArray = false)
+    {
+        // Get the table name from the query
+        $table = $query->getQuery()->from;
+        
+        // Check if this is a table with JSON dmc_id field (hotels, attractions, restaurants)
+        if (in_array($table, ['hotels', 'attractions', 'restaurants']) && $dmcField === 'dmc_id') {
+            if ($isArray) {
+                // Handle multiple DMC IDs for JSON field - use Laravel's whereJsonContains
+                $query->where(function($q) use ($dmcField, $dmcValue) {
+                    foreach ($dmcValue as $id) {
+                        $q->orWhereJsonContains($dmcField, $id);
+                    }
+                });
+            } else {
+                // Handle single DMC ID for JSON field - use Laravel's whereJsonContains
+                $query->whereJsonContains($dmcField, $dmcValue);
+            }
+        } else {
+            // Handle regular integer fields
+            if ($isArray) {
+                $query->whereIn($dmcField, $dmcValue);
+            } else {
+                $query->where($dmcField, $dmcValue);
+            }
         }
         
         return $query;
@@ -981,18 +1014,18 @@ class DashboardController extends Controller
                              ->where('role_id', 11)
                              ->pluck('userId');
                 if ($dmcIds->isNotEmpty()) {
-                    $query->whereIn($dmcField, $dmcIds);
+                    $this->applyDmcFieldFilter($query, $dmcField, $dmcIds->toArray(), true);
                 }
                 break;
                 
             case 11: // DMC
-                $query->where($dmcField, $user->userId);
+                $this->applyDmcFieldFilter($query, $dmcField, $user->userId);
                 break;
                 
             case 33: // Sales Head
                 $dmcUser = User::where('userId', $user->created_by)->first();
                 if ($dmcUser && $dmcUser->role_id == 11) {
-                    $query->where($dmcField, $dmcUser->userId);
+                    $this->applyDmcFieldFilter($query, $dmcField, $dmcUser->userId);
                 }
                 break;
                 
@@ -1002,7 +1035,7 @@ class DashboardController extends Controller
                 if ($salesHead) {
                     $dmcUser = User::where('userId', $salesHead->created_by)->first();
                     if ($dmcUser && $dmcUser->role_id == 11) {
-                        $query->where($dmcField, $dmcUser->userId);
+                        $this->applyDmcFieldFilter($query, $dmcField, $dmcUser->userId);
                     }
                 }
                 break;
@@ -1014,7 +1047,7 @@ class DashboardController extends Controller
                     if ($salesHead) {
                         $dmcUser = User::where('userId', $salesHead->created_by)->first();
                         if ($dmcUser && $dmcUser->role_id == 11) {
-                            $query->where($dmcField, $dmcUser->userId);
+                            $this->applyDmcFieldFilter($query, $dmcField, $dmcUser->userId);
                         }
                     }
                 }

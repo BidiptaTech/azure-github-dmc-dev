@@ -192,7 +192,7 @@
                                         <span class="badge bg-warning">{{ $childCount }} Children</span>
                                     @endif
                                 </td>
-                                <td>{{ $currency }} {{ number_format($totalPrice, 2) }}</td>
+                                <td> SGD {{ number_format($totalPrice, 2) }}</td>
                                 <td>
                                     @php
                                         $statusClass = '';
@@ -246,9 +246,17 @@
                                     </td>
                                 @elseif(auth()->user()->role_id == 36)
                                     <td>
-                                        <button type="button" class="btn btn-sm btn-info confirm-payment-btn" data-booking-id="{{ $booking->id }}">
-                                            <i class="fas fa-check"></i> Confirm Payment
-                                        </button>
+                                        @if($booking->status == '3')
+                                            <button type="button" class="btn btn-sm btn-info confirm-payment-btn" data-booking-id="{{ $booking->id }}">
+                                                <i class="fas fa-check"></i> Confirm Payment
+                                            </button>
+                                        @elseif($booking->status == '2')
+                                            <span class="badge bg-success">Confirmed</span>
+                                        @elseif($booking->status == '4')
+                                            <span class="badge bg-danger">Cancelled</span>
+                                        @else
+                                            <span class="badge bg-warning">Pending</span>
+                                        @endif
                                     </td>
                                 @endif
                             </tr>
@@ -330,20 +338,30 @@
                                                 @php
                                                     $statusClass = '';
                                                     switch($booking->status) {
-                                                        case 'pending':
+                                                        case '1':
                                                             $statusClass = 'bg-warning text-dark';
                                                             break;
-                                                        case 'confirmed':
+                                                        case '2':
                                                             $statusClass = 'bg-success';
                                                             break;
-                                                        case 'cancelled':
+                                                        case '4':
                                                             $statusClass = 'bg-danger';
                                                             break;
                                                         default:
                                                             $statusClass = 'bg-warning text-dark';
                                                     }
                                                 @endphp
-                                                <span class="badge {{ $statusClass }}">{{ ucfirst($booking->status) }}</span>
+                                                <span class="badge {{ $statusClass }}">
+                                                    @if($booking->status == '1')
+                                                        Pending
+                                                    @elseif($booking->status == '2')
+                                                        Confirmed
+                                                    @elseif($booking->status == '3')
+                                                        On Hold
+                                                    @elseif($booking->status == '4')
+                                                        Cancelled
+                                                    @endif
+                                                </span>
                                             </td>
                                         </tr>
                                     </table>

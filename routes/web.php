@@ -77,6 +77,21 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
 
     // Add admin middleware to the hotels endpoint
     
+    // Services Management Routes for DMC - MUST come BEFORE resource routes
+    Route::get('/services/hotels', [HotelController::class, 'dmcHotelsSelection'])->name('services.hotels');
+    Route::post('/services/hotels/update', [HotelController::class, 'updateDmcHotels'])->name('services.hotels.update');
+    Route::post('/services/hotels/select', [HotelController::class, 'selectHotel'])->name('services.hotels.select');
+    Route::post('/services/hotels/remove', [HotelController::class, 'removeHotel'])->name('services.hotels.remove');
+    
+    Route::get('/services/attractions', [AttractionController::class, 'dmcAttractionsSelection'])->name('services.attractions');
+Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');
+Route::post('/services/attractions/select', [AttractionController::class, 'selectAttraction'])->name('services.attractions.select');
+Route::post('/services/attractions/remove', [AttractionController::class, 'removeAttraction'])->name('services.attractions.remove');
+    
+    Route::get('/services/restaurants', [RestaurantController::class, 'dmcRestaurantsSelection'])->name('services.restaurants');
+Route::post('/services/restaurants/update', [RestaurantController::class, 'updateDmcRestaurants'])->name('services.restaurants.update');
+Route::post('/services/restaurants/select', [RestaurantController::class, 'selectRestaurant'])->name('services.restaurants.select');
+Route::post('/services/restaurants/remove', [RestaurantController::class, 'removeRestaurant'])->name('services.restaurants.remove');
     
     Route::resource('hotels', HotelController::class);
     
@@ -206,6 +221,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::get('hotel-meal-edit/{id}', [HotelRestaurantController::class, 'mealEdit'])->name('hotel-meal-edit');
         Route::post('hotel-meals/store', [HotelRestaurantController::class, 'mealStore'])->name('hotel-meals-store');
         Route::post('hotel-meal-update/{id}', [HotelRestaurantController::class, 'mealUpdate'])->name('hotel-meal-update');
+        Route::get('fetch-dmc-meals/{hotel_id}', [HotelRestaurantController::class, 'fetchDmcMeals'])->name('fetch.dmc.meals');
         Route::get('hotel-meal-destroy/{id}', [HotelRestaurantController::class, 'mealDestroy'])->name('hotel-meal-destroy');
 
         
@@ -420,6 +436,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::post('updateroom', [HotelController::class, 'updateroom'])->name('room.update');
         Route::delete('deleteroom/{id}', [HotelController::class, 'deleteroom'])->name('rooms.destroy');
         Route::post('update-base-room', [RoomtypeController::class, 'updateBaseRoom'])->name('rooms.update-base-room');
+        Route::post('update-rooms-only', [RoomtypeController::class, 'updateRoomsOnly'])->name('rooms.update-rooms-only');
 
         Route::get('/hotels/{hotel}/beds', [HotelController::class, 'hotelbeds'])->name('hotels.beds');
         Route::post('storebeds', [HotelController::class, 'storebeds'])->name('storebed');
@@ -459,6 +476,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         
         Route::post('/zones/{zone}/settings', [ZoneController::class, 'saveSettings'])->name('zones.settings');
         // Route::post('/cities/store', [PortController::class, 'store'])->name('cities.store');
+
 
         
     });
