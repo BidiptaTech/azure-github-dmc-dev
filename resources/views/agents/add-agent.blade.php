@@ -31,6 +31,13 @@
         padding: 12px 10px;
     }
 
+    /* Ensure proper height for single select elements */
+    .select2-container .select2-selection--single {
+        height: 100% !important;
+        line-height: 100% !important;
+        padding: 8px 12px;
+    }
+
 </style>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <div class="content-wrapper">
@@ -100,8 +107,8 @@
                                 <strong>Agent Country</strong>
                                 <span style="color: red; font-weight: bold;">*</span>
                             </label>
-                            <select class="form-select" id="user_country" name="user_country">
-                                <option selected disabled value>Choose a country...</option>
+                            <select class="form-control select2" id="user_country" name="user_country">
+                                <option value="">Choose a country...</option>
                                 @foreach($cityCountry as $c)
                                     <option value="{{ $c->name }}">{{ $c->name }}</option>
                                 @endforeach
@@ -115,14 +122,14 @@
                                 <strong>Agent City</strong>
                                 <span style="color: red; font-weight: bold;">*</span>
                             </label>
-                            <select class="form-select" id="city" name="city">
-                                <option selected disabled value>Select country first...</option>
+                            <select class="form-control select2" id="city" name="city">
+                                <option value="">Select country first...</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="col-md-3 mb-4">
-                        <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
+                        <label for="country" class="form-label"><strong>Service Country</strong><span class="text-danger">*</span></label>
                         <select class="form-control select2" id="country" name="country[]" multiple required>
                             @foreach($authUserCountries as $countryName)
                                 <option value="{{ $countryName }}" {{ collect(old('country'))->contains($countryName) ? 'selected' : '' }}>
@@ -138,8 +145,8 @@
                     <div class="col-md-2 mb-3">
                         <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
                                 style="color: red; font-weight: bold;">*</span></label>
-                        <select class="form-select" id="inputCountryCode" name="code" required>
-                            <option selected disabled value>Choose...</option>
+                        <select class="form-control select2" id="inputCountryCode" name="code" required>
+                            <option value="">Choose...</option>
                             {{-- {{ dd($countryCodes) }} --}}
                             @foreach($countryCodes as $key => $value)
                             <option value="{{ $key }}" @if($key == '65') selected @endif >{{ $value }}</option>
@@ -161,7 +168,8 @@
 
                     <div class="col-md-3 mb-3">
                         <label for="id_card" class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>
-                        <select class="form-control" id="id_card" name="id_card">
+                        <select class="form-control select2" id="id_card" name="id_card">
+                            <option value="">Select ID Card Type...</option>
                             @foreach($card as $cardType)
                                 <option value="{{ $cardType->card_type }}" {{ old('id_card') == $cardType->card_type ? 'selected' : '' }}>{{ $cardType->card_type }}</option>
                             @endforeach
@@ -231,10 +239,41 @@
 
 <script>
     $(document).ready(function() {
+        // Initialize Service Country field
         $('#country').select2({
-            placeholder: "Select country",
+            placeholder: "Select countries...",
+            allowClear: true,
             width: '100%'
         });
+        
+        // Initialize Agent Country field with search functionality
+        $('#user_country').select2({
+            placeholder: "Search and select a country...",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Agent City field with search functionality
+        $('#city').select2({
+            placeholder: "Search and select a city...",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Country Code field with search functionality
+        $('#inputCountryCode').select2({
+            placeholder: "Search country code...",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize ID Card field with search functionality
+        $('#id_card').select2({
+            placeholder: "Search ID card type...",
+            allowClear: true,
+            width: '100%'
+        });
+    
     });
 </script>
 
@@ -425,7 +464,7 @@
                     dataType: 'json',
                     success: function(response) {
                         // Reset and populate cities dropdown
-                        $('#city').html('<option selected disabled value>Select city...</option>');
+                        $('#city').html('<option value="">Select city...</option>');
                         
                         if (response.cities && response.cities.length > 0) {
                             $.each(response.cities, function(key, city) {
@@ -434,6 +473,9 @@
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
+                        
+                        // Refresh Select2 dropdown
+                        $('#city').trigger('change');
                     },
                     error: function() {
                         $('#city').html('<option disabled value>Error loading cities</option>');
@@ -455,7 +497,8 @@
                 });
             } else {
                 // Reset cities dropdown if no country selected
-                $('#city').html('<option selected disabled value>Select country first...</option>');
+                $('#city').html('<option value="">Select country first...</option>');
+                $('#city').trigger('change');
             }
         });
     });
