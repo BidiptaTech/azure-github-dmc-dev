@@ -1960,10 +1960,10 @@ class TourController extends Controller
             }else{
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 if($tourStatus == "Tentative"){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
-                        ]);
-                    } 
+                    $tour = Tour::where('tour_id', $tour_id)->update([
+                        'tour_status' => "On Hold",
+                    ]);
+                } 
                 if($bookingType == 'enquiry'){
                     $tour = Tour::where('tour_id', $tour_id)->update([
                         'tour_status' => "New Enquiry",

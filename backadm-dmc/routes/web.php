@@ -494,6 +494,8 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         Route::post('/zones/{zone}/settings', [ZoneController::class, 'saveSettings'])->name('zones.settings');
         // Route::post('/cities/store', [PortController::class, 'store'])->name('cities.store');
 
+        // Restaurant Coupon
+        Route::post('/generate-restaurant-coupon', [RestaurantController::class, 'generateCoupon'])->name('generate.restaurant.coupon');
         
     });
 

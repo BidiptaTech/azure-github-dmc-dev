@@ -598,7 +598,14 @@ class CommonHelper
                         }
 
                         // Add to type-specific data if matching requested type
-                        if ($booking->type == $type) {
+                        if($type == 'attraction_package' || $type == 'attraction'){
+                            $data[] = array_merge(
+                                ['id' => $booking->booking_id],
+                                ['type' => $booking->type],
+                                $item
+                            );
+                        }
+                        else if($booking->type == $type) {
                             $data[] = array_merge(
                                 ['id' => $booking->booking_id],
                                 ['type' => $booking->type],
