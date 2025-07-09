@@ -205,6 +205,7 @@ class TourController extends Controller
                 $booking_type = $order->where('bookingType', 'booking')->count() > 0 ? 'booking' : 'enquiry';
             }
 
+            // Get the customer info from the order
             $customerInfo = [];
             if($order->first() && $order->first()->data){
                 $data = $order->first()->data;

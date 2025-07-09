@@ -342,6 +342,9 @@ class CommonHelper
                             case 'attraction':
                                 $attraction[] = $bookingArray;
                                 break;
+                            case 'attraction_package':
+                                $attraction[] = $bookingArray;
+                                break;
                             case 'entry_port':
                                 $entry_port[] = $bookingArray;
                                 break;
@@ -448,6 +451,9 @@ class CommonHelper
                             $hotel[] = $bookingArray;
                             break;
                         case 'attraction':
+                            $attraction[] = $bookingArray;
+                            break;
+                        case 'attraction_package':
                             $attraction[] = $bookingArray;
                             break;
                         case 'entry_port':
