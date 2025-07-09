@@ -85,7 +85,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const reduxPickUpLatLng = useSelector((state) => state.localtour.PickupPlaceid || "");
   const reduxDropOffLatLng = useSelector((state) => state.localtour.DropoffPlaceid || "");
   const reduxEntryTime = useSelector((state) => state.localtour.entrytime || "");
-  const reduxEntryTime1 = useSelector((state) => state.localtour.entrytime1 || "");
+  const reduxEntryTime1 = useSelector((state) => state.localtour.entrytime || "");
   const reduxEntryTimeZone = useSelector((state) => state.localtour.entrytime || "");
   const reduxPickUpZone = useSelector((state) => state.localtour.PickupZoneid || "");
   const reduxDropOffZone = useSelector((state) => state.localtour.DropoffZoneid || "");
@@ -139,6 +139,10 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const isUpdatingFromRedux = useRef(false);
   const isUpdatingToRedux = useRef(false);
   const lastItineraryDate = useRef(itineraryFormattedDate);
+
+  useEffect(() => {
+    dispatch(setSelectedPort("Point To Point"));
+  }, [dispatch]);
 
   // Consolidated effect to sync FROM Redux TO local state (one-way)
   useEffect(() => {

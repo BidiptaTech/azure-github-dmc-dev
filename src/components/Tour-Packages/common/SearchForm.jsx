@@ -79,7 +79,7 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-export default function SearchForm({ onNext, setActiveTab, packageData }) {
+export default function SearchForm({ onNext, setActiveTab, packageData: propPackageData }) {
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -87,6 +87,19 @@ export default function SearchForm({ onNext, setActiveTab, packageData }) {
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
   console.log("All Services in SearchForm:", allServices);
+  
+  // Get packageData from Redux state and prioritize it over prop
+  const reduxPackageData = useSelector((state) => state.tourPackages.packageData);
+  
+  // Use Redux state if available, otherwise fall back to prop
+  const packageData = reduxPackageData || propPackageData;
+  
+  console.log("SearchForm packageData sources:", {
+    reduxPackageData: reduxPackageData,
+    propPackageData: propPackageData,
+    finalPackageData: packageData,
+    hasValidTourId: packageData?.tour?.tour_id > 0
+  });
   
   // State for date validation dialog
   const [dateValidationDialog, setDateValidationDialog] = useState({
@@ -536,29 +549,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     console.log("Tour package updated successfully with tour_id:", tourId);
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    // Check for date conflicts with existing services when updating
-    if (allServices && allServices.length > 0) {
-      const validation = validateServicesAgainstNewDates(startDate, endDate);
-      
-      if (!validation.isValid) {
-        // Show confirmation dialog
-        setDateValidationDialog({
-          open: true,
-          conflictingServices: validation.conflictingServices,
-          newDateRange: { start: startDate, end: endDate }
-        });
-        return; // Don't proceed with update yet
-      }
-    }
-
-    // No conflicts, proceed with update
-    await proceedWithUpdate();
-  };
+  
 
   const handleGuestChange = (updatedGuestCounts) => {
     setGuestCounts(updatedGuestCounts);
@@ -646,6 +637,15 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     e.preventDefault();
 
     if (!validateForm()) return;
+
+    console.log("=== SEARCH START ===");
+    console.log("Before clearing packageData - Redux:", reduxPackageData);
+    console.log("Before clearing packageData - Prop:", propPackageData);
+    
+    // IMPORTANT: Clear packageData FIRST before any other operations
+    dispatch(setPackageData(null));
+    
+    console.log("Dispatched setPackageData(null)");
 
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
@@ -830,7 +830,11 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         console.log("Tour packages response:", data);
         dispatch(updateSearchState({ location: data.destination }));
         dispatch(setId(data.data.tour_id));
+        
+        // Ensure packageData stays null for new searches to maintain create mode
+        console.log("Ensuring packageData remains null for new search");
         dispatch(setPackageData(null));
+        
         dispatch(settourdetails(data));
         // Move to the first tab (Itinerary) after search completes
         if (onNext) {
@@ -841,6 +845,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
             setActiveTab(0); // Select the first tab (Itinerary)
           }
         }
+        
+        console.log("=== SEARCH COMPLETE ===");
+        console.log("Search completed successfully, packageData should be null");
       })
       .catch((error) => {
         console.error("Error fetching tour packages:", error);
@@ -876,6 +883,213 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     //   .catch((error) => {
     //     console.error("Error creating enquiry:", error);
     //   });
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    // Clear previous customer info when starting update
+    dispatch(clearUserInfo());
+    dispatch(clearAllServices());
+    // Clear previous data
+    dispatch(clearAttractions());
+    dispatch(clearRestaurants());
+    dispatch(resetVehicles());
+    dispatch(resetVehicles1()); 
+    dispatch(resetguide());
+    
+    
+    // Format Dates
+    const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
+    console.log("formattedCheckIn",formattedCheckIn);
+    const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
+
+ 
+
+    
+    // Get the country and city data
+    const country = selectedLocation.country;
+    const city = selectedLocation.city;
+    const countryCode = selectedLocation.countryCode;
+    console.log("countryCode",countryCode);
+    const cityCode = selectedLocation.cityCode;
+    
+    // Create genders array based on male and female counts
+    const maleCount = guestCounts.maleCount || 0;
+    const femaleCount = guestCounts.femaleCount || 0;
+    const genders = [
+      ...Array(maleCount).fill("Male"),
+      ...Array(femaleCount).fill("Female")
+    ];
+
+    // Get tour_id from packageData
+    const tourId = packageData?.tour?.tour_id;
+    dispatch(setAllServices({
+      country: country,
+      city: city,
+      check_in_time: formattedCheckIn,
+      check_out_time: formattedCheckOut,
+      tour_id: tourId,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
+    // Update tour packages search criteria in Redux
+    dispatch(setSearchCriteria({
+      country: country,
+      city: city,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
+    // Set attraction search parameters
+    const formattedAttractionDate = moment(startDate).format("YYYY-MM-DD"); // Format date for attraction API
+    
+    dispatch(setAttractionSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+
+    // Update the guide search params and fetch guides
+    dispatch(setGuideSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+
+    // Fetch guides with the required parameters
+    dispatch(fetchGuides({
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate
+    }));
+
+    // Fetch attractions based on search criteria
+    dispatch(fetchAttractions({
+      city: `${city}, (${country})`, // Format city with country
+      date: formattedAttractionDate, // Use YYYY-MM-DD format
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId, // Use tour_id from packageData
+      selectedDate: moment(startDate),
+      fromMainSearch: false
+    }));
+
+    // Fetch restaurants based on search criteria
+    console.log('Dispatching fetchRestaurants with params:', {
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate,
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId,
+      fromMainSearch: false
+    });
+
+    dispatch(fetchRestaurants({
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate,
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId, // Use tour_id from packageData
+      fromMainSearch: false
+    }))
+    .then((response) => {
+      console.log('fetchRestaurants response:', response);
+    })
+    .catch((error) => {
+      console.error('fetchRestaurants error:', error);
+    });
+
+   dispatch(updateSearchState({
+  location: [city], // or just city if location is a single string
+  ucheckIn: formatedHotelCheckIn,
+  ucheckOut: formatedHotelCheckOut,
+  guests: guestCounts
+}));
+
+// Step 2: Fetch hotels using pagination args
+dispatch(fetchHotels({ start: 0, limit: 10 }));
+
+    // Also update the enquiry slice data for compatibility with other parts of the app
+    // Set location data in the right format for EnquirySlice
+    
+    dispatch(setSearchLocation(countryCode));
+    dispatch(setCheckIn(formattedCheckIn));
+    dispatch(setCheckOut(formattedCheckOut));
+    
+    // Set the selected city in common slice
+    dispatch(setSelectedCity({
+      countryCode: countryCode,
+      countryName: country,
+      cityCode: cityCode,
+      cityName: city,
+      combinedCode: cityCode
+    }));
+    
+    // Dispatch guest details to EnquirySlice
+    dispatch(
+      setGuest({
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infant: guestCounts.Infants.toString(),
+        adultGenders: genders,
+        childrenAges: guestCounts.ages || [],
+        maleCount: maleCount,
+        femaleCount: femaleCount
+      })
+    );
+
+    // Set existing tour data in Redux state
+    dispatch(updateSearchState({ location: packageData?.tour?.destination }));
+    dispatch(setId(tourId));
+    dispatch(settourdetails(packageData.tour));
+
+    
+
+    // Move to the first tab (Itinerary) after update completes
+    if (onNext) {
+      onNext();
+      // If the parent component has a setActiveTab function, call it to show the Itinerary tab
+      if (typeof setActiveTab === 'function') {
+        setActiveTab(0); // Select the first tab (Itinerary)
+      }
+    }
+
+    console.log("Tour package updated successfully with tour_id:", tourId);
   };
 
  

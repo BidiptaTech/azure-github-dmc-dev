@@ -66,9 +66,9 @@ export default function TourPackages() {
       </Typography>
       
       {/* Search Form */}
-      <Box sx={{ mb: 4 }}>
+      {/* <Box sx={{ mb: 4 }}>
         <SearchForm onSearch={handleSearch} />
-      </Box>
+      </Box> */}
       
       <Paper elevation={3} sx={{ mb: 4 }}>
         <Tabs 

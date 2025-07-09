@@ -598,6 +598,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             const newService = {
               booking_id: Math.floor(Math.random() * 10000), // Generate a unique booking_id
               agent_id: agentId,
+              bookingType: "enquiry",
               type: serviceType,
               tour_id: tourId,
               data: [bookingData] // Each service contains only one booking
@@ -1350,7 +1351,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
                         </IconButton>
                       </Tooltip>
                       
-                      {allBookings.length > 1 && (
+                      
                         <Tooltip title="Remove this transport service">
                           <IconButton 
                             size="small" 
@@ -1363,7 +1364,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
                             <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
                           </IconButton>
                         </Tooltip>
-                      )}
+                      
                       
                       <Button
                         variant="outlined"
