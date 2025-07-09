@@ -209,7 +209,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: attractionData.dmc_id,
         bookingDate: attractionData.bookingDate,
         dayIndex: attractionData.dayIndex,
-        bookingType: attractionData.bookingType || "booking"
+        bookingType: attractionData.bookingType || "enquiry"
       };
 
       // Create service object with booking_id preserved
@@ -423,7 +423,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: updatedSection.originalData.dmc_id,
         bookingDate: updatedSection.originalData.bookingDate,
         dayIndex: updatedSection.originalData.dayIndex,
-        bookingType: updatedSection.originalData.bookingType || "booking",
+        bookingType: updatedSection.originalData.bookingType || "enquiry",
         booking_id: updatedSection.originalData.booking_id // Preserve booking_id
       };
 
@@ -505,7 +505,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       dmc_id: agentId,
       bookingDate: updatedSection.bookingDate,
       dayIndex: dayIndex,
-      bookingType: "booking"
+      bookingType: "enquiry"
     };
 
     // Clone existing services
@@ -871,7 +871,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           dmc_id: section.originalData.dmc_id,
           bookingDate: section.originalData.bookingDate,
           dayIndex: section.originalData.dayIndex,
-          bookingType: section.originalData.bookingType || "booking",
+          bookingType: section.originalData.bookingType || "enquiry",
           booking_id: section.originalData.booking_id // Preserve booking_id
         };
       }
@@ -910,7 +910,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: agentId,
         bookingDate: section.bookingDate,
         dayIndex: dayIndex,
-        bookingType: "booking"
+        bookingType: "enquiry"
       };
     });
 

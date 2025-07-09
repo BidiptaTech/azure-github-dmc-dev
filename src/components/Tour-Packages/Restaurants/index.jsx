@@ -182,6 +182,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
           ...restaurantData,
           booking_id: restaurantService.booking_id // Preserve booking_id from service level
         }
+        
       };
     });
 

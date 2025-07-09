@@ -245,7 +245,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         country: guideData.country,
         languages: guideData.languages,
         experience: guideData.experience,
-        bookingType: guideData.bookingType || "booking"
+        bookingType: guideData.bookingType || "enquiry"
       };
 
       // Create service object with booking_id preserved
@@ -253,7 +253,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
-        data: [processedGuideData]
+        data: [processedGuideData],
+        bookingType: "enquiry"  
       };
 
       // Add booking_id if it exists in the original service
@@ -523,7 +524,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           type: "guide",
           agent_id: agentId,
           tour_id: tourId,
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         // Add booking_id if available from original data
@@ -570,7 +572,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         city: summaryData.city,
         country: summaryData.country,
         languages: summaryData.languages,
-        experience: summaryData.experience
+        experience: summaryData.experience,
       };
       
       // Add booking_id if available from original data
@@ -591,7 +593,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
-        data: [bookingData]
+        data: [bookingData],
+        bookingType: "enquiry"
       };
       
       // Add booking_id if available from original data
@@ -701,7 +704,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           type: "guide",
           agent_id: agentId,
           tour_id: tourId,
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         // Add booking_id if available from original data
@@ -781,7 +785,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
-        data: [bookingData]
+        data: [bookingData],
+        bookingType: "enquiry"  
       };
       
       // Add booking_id if available from original data

@@ -162,9 +162,6 @@ const HotelConfigSummary = ({
           <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
             Let's Book Your Hotels! 🏨
           </Typography>
-          <Typography variant="body2" sx={{ mb: 2.5, opacity: 0.9, maxWidth: 500, mx: 'auto' }}>
-            Start building your perfect accommodation experience. Add hotels that match your travel dates.
-          </Typography>
           
           {/* Tour date display */}
           {tourDateRange && tourDateRange.startDate && tourDateRange.endDate && (
@@ -182,33 +179,10 @@ const HotelConfigSummary = ({
                 <CalendarTodayIcon sx={{ mr: 1, fontSize: 16 }} />
                 Tour Dates: {new Date(tourDateRange.startDate).toLocaleDateString()} - {new Date(tourDateRange.endDate).toLocaleDateString()}
               </Typography>
+              <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+                Hotels will use these dates by default until you select specific nights
+              </Typography>
             </Paper>
-          )}
-          
-          {onAddNewHotel && (
-            <Button 
-              variant="contained" 
-              size="medium"
-              startIcon={<AddBusinessIcon />}
-              onClick={onAddNewHotel}
-              sx={{
-                py: 1.5,
-                px: 3,
-                fontSize: '1rem',
-                fontWeight: 600,
-                borderRadius: '25px',
-                background: 'white',
-                color: '#667eea',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
-                }
-              }}
-            >
-              Add Your First Hotel
-            </Button>
           )}
         </Box>
       </Paper>
@@ -433,12 +407,19 @@ const HotelConfigSummary = ({
     
     let overallCheckIn = null;
     let overallCheckOut = null;
+    let isUsingTourDates = false;
     
     if (dateRanges.length > 0) {
+      // Use specific hotel dates if available
       overallCheckIn = new Date(Math.min(...dateRanges.map(range => range.checkInDate.getTime())));
       overallCheckOut = new Date(Math.max(...dateRanges.map(range => range.checkOutDate.getTime())));
       overallCheckIn = formatDate(overallCheckIn);
       overallCheckOut = formatDate(overallCheckOut);
+    } else if (tourDateRange && tourDateRange.startDate && tourDateRange.endDate) {
+      // Fallback to tour dates if no specific hotel dates are selected
+      overallCheckIn = formatDate(tourDateRange.startDate);
+      overallCheckOut = formatDate(tourDateRange.endDate);
+      isUsingTourDates = true;
     }
     
     return { 
@@ -448,7 +429,8 @@ const HotelConfigSummary = ({
       totalMealPlanCost, 
       dateRanges,
       overallCheckIn,
-      overallCheckOut
+      overallCheckOut,
+      isUsingTourDates
     };
   };
   
@@ -528,7 +510,7 @@ const HotelConfigSummary = ({
       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
         <HotelIcon sx={{ mr: 1, color: 'primary.main' }} />
         Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
-        </Typography>
+      </Typography>
       
       {Object.entries(groupedConfigurations).map(([hotelId, hotelGroup]) => {
         const hotel = hotelGroup.hotelDetails;
@@ -629,7 +611,7 @@ const HotelConfigSummary = ({
               {/* Hotel Header - Compact Summary */}
               <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 2 }}>
                 <Avatar 
-                sx={{
+                  sx={{
                     bgcolor: hasDateConflicts ? '#f44336' : hasDateIssues ? '#ff9800' : '#3554D1', 
                     width: 40,
                     height: 40,
@@ -642,23 +624,23 @@ const HotelConfigSummary = ({
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                        {hotel.hotel_name || hotel.name || 'Hotel'}
-                      </Typography>
+                      {hotel.hotel_name || hotel.name || 'Hotel'}
+                    </Typography>
                     
-                      {isActiveHotel && (
+                    {isActiveHotel && (
                       <Chip label="Editing" size="small" color="primary" />
-                      )}
+                    )}
                     
-                      {hasDateConflicts && (
-                        <Chip 
-                          label="Date Issue" 
-                          size="small" 
-                          color="error" 
-                          icon={<ErrorOutlineIcon />}
-                        />
-                      )}
+                    {hasDateConflicts && (
+                      <Chip 
+                        label="Date Issue" 
+                        size="small" 
+                        color="error" 
+                        icon={<ErrorOutlineIcon />}
+                      />
+                    )}
                     
-                      {hasDateIssues && !hasDateConflicts && (
+                    {hasDateIssues && !hasDateConflicts && (
                       <Chip label="Issue" size="small" color="warning" />
                     )}
                     
@@ -676,19 +658,27 @@ const HotelConfigSummary = ({
                       variant="outlined"
                       color="primary"
                     />
-                    {hotelSummary.hotelNights > 0 && (
+                    {hotelSummary.hotelNights > 0 ? (
                       <Chip 
                         size="small" 
                         label={`${hotelSummary.hotelNights} Night${hotelSummary.hotelNights !== 1 ? 's' : ''}`}
                         variant="outlined"
                         color="secondary"
                       />
-                    )}
-                        <Chip 
-                          size="small" 
+                    ) : hotelSummary.isUsingTourDates ? (
+                      <Chip 
+                        size="small" 
+                        label="Tour Dates"
+                        variant="outlined"
+                        color="warning"
+                        sx={{ fontStyle: 'italic' }}
+                      />
+                    ) : null}
+                    <Chip 
+                      size="small" 
                       label={`${hotelSummary.totalGuests} Guest${hotelSummary.totalGuests !== 1 ? 's' : ''}`}
-                          variant="outlined"
-                          color="info"
+                      variant="outlined"
+                      color="info"
                     />
                   </Box>
                 </Box>
@@ -703,27 +693,36 @@ const HotelConfigSummary = ({
                     sx={{ fontWeight: 600 }}
                   />
                 )}
-                </Box>
-              </AccordionSummary>
+              </Box>
+            </AccordionSummary>
 
             <AccordionDetails sx={{ p: 1 }}>
               {/* Full Hotel Details */}
               <Box sx={{ p: 2 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   📍 {hotel.address || hotel.location || 'Hotel Location'}
-                      </Typography>
+                </Typography>
                 
                 {hotelSummary.overallCheckIn && hotelSummary.overallCheckOut && (
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     📅 {hotelSummary.overallCheckIn} - {hotelSummary.overallCheckOut}
-                        </Typography>
-                      )}
-                    </Box>
+                    {hotelSummary.isUsingTourDates && (
+                      <Typography component="span" variant="caption" sx={{ 
+                        ml: 1, 
+                        color: 'warning.main', 
+                        fontStyle: 'italic' 
+                      }}>
+                        (Tour dates - select nights to customize)
+                      </Typography>
+                    )}
+                  </Typography>
+                )}
+              </Box>
 
               {/* Room Cards */}
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
                 Room Configurations
-                </Typography>
+              </Typography>
 
               <Grid container spacing={1.5}>
                 {configurations.map((config, configIndex) => {
@@ -750,9 +749,9 @@ const HotelConfigSummary = ({
                         onClick={() => selectHotelConfiguration(config.originalIndex)}
                       >
                         <CardContent sx={{ p: 1.5 }}>
-                      {/* Room Header */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {/* Room Header */}
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
                               <Avatar sx={{ 
                                 bgcolor: isComplete ? '#4caf50' : '#ff9800', 
                                 width: 32, 
@@ -762,21 +761,21 @@ const HotelConfigSummary = ({
                                 {isComplete ? <CheckCircleIcon fontSize="small" /> : <PendingIcon fontSize="small" />}
                               </Avatar>
                               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            Room {configIndex + 1}
-                          </Typography>
-                        </Box>
-                        
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                                Room {configIndex + 1}
+                              </Typography>
+                            </Box>
+                            
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 removeHotelConfiguration(config.originalIndex);
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                      </Box>
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
 
                           {/* Room Details */}
                           <Box sx={{ mb: 1.5 }}>
@@ -785,10 +784,10 @@ const HotelConfigSummary = ({
                             </Typography>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                               <strong>Bed:</strong> {config.bedTypeName || 'Not selected'}
-                                </Typography>
+                            </Typography>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                               <strong>Guests:</strong> {config.selectedGuests || 0} • <strong>Nights:</strong> {config.nights || 0}
-                                </Typography>
+                            </Typography>
                             
                             {/* Selected Meal Plans */}
                             <Box sx={{ mt: 1 }}>
@@ -843,10 +842,10 @@ const HotelConfigSummary = ({
                                           color: 'success.main'
                                         }}>
                                           Room Total:
-                                          </Typography>
-                                              <Chip 
+                                        </Typography>
+                                        <Chip 
                                           label={`$${roomMealTotal.toFixed(2)}`}
-                                                size="small" 
+                                          size="small" 
                                           color="success"
                                           variant="filled"
                                           sx={{ 
@@ -876,16 +875,16 @@ const HotelConfigSummary = ({
                           {/* Action Indicator */}
                           <Box sx={{ textAlign: 'center' }}>
                             {isActive ? (
-                                    <Chip 
+                              <Chip 
                                 label="Currently Editing" 
-                                      size="small" 
+                                size="small" 
                                 color="primary" 
                                 variant="filled"
-                                    />
+                              />
                             ) : (
-                                    <Chip 
+                              <Chip 
                                 label="Click to Edit" 
-                                      size="small" 
+                                size="small" 
                                 variant="outlined"
                                 sx={{ '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
                               />
@@ -893,10 +892,10 @@ const HotelConfigSummary = ({
                           </Box>
                         </CardContent>
                       </Card>
-                                    </Grid>
-                                  );
-                                })}
-                              </Grid>
+                    </Grid>
+                  );
+                })}
+              </Grid>
 
               {/* Hotel-specific Actions */}
               <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed rgba(0, 0, 0, 0.12)' }}>
@@ -911,7 +910,7 @@ const HotelConfigSummary = ({
                     >
                       Add More Rooms to This Hotel
                     </Button>
-                          </Grid>
+                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <Button
                       fullWidth
@@ -928,58 +927,13 @@ const HotelConfigSummary = ({
                     >
                       Remove This Hotel
                     </Button>
-                          </Grid>
-                      </Grid>
-                    </Box>
-              </AccordionDetails>
-            </Accordion>
+                  </Grid>
+                </Grid>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         );
       })}
-
-      {/* Help Section */}
-      {/* <Paper elevation={0} sx={{ p: 3, bgcolor: '#f8f9fa', borderRadius: 2, mt: 3 }}>
-        <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
-          💡 How to Manage Your Hotels
-        </Typography>
-        
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Avatar sx={{ bgcolor: '#e3f2fd', color: '#1976d2', width: 48, height: 48, mx: 'auto', mb: 1 }}>
-                1
-              </Avatar>
-              <Typography variant="subtitle2" gutterBottom>Click Any Room Card</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Click on a room card to make it active and edit its details below
-              </Typography>
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Avatar sx={{ bgcolor: '#fff3e0', color: '#f57c00', width: 48, height: 48, mx: 'auto', mb: 1 }}>
-                2
-              </Avatar>
-              <Typography variant="subtitle2" gutterBottom>Update Settings</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Change guest count, meal plans, room types using the form below
-              </Typography>
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Avatar sx={{ bgcolor: '#e8f5e8', color: '#388e3c', width: 48, height: 48, mx: 'auto', mb: 1 }}>
-                3
-              </Avatar>
-              <Typography variant="subtitle2" gutterBottom>Add More Hotels</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Use the action buttons to add more rooms or different hotels
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper> */}
     </Box>
   );
 };

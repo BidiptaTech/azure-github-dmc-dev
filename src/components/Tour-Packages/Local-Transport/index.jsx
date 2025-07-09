@@ -598,6 +598,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             const newService = {
               booking_id: Math.floor(Math.random() * 10000), // Generate a unique booking_id
               agent_id: agentId,
+              bookingType: "enquiry",
               type: serviceType,
               tour_id: tourId,
               data: [bookingData] // Each service contains only one booking

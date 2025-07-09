@@ -133,8 +133,8 @@ const MainMenu = ({ style = "" }) => {
               }`}
             >
               Packages
-              <span className="text-12 text-light-1 fw-400 ml-8 block"> &nbsp;
-                Customize and Bundle Travel Services
+              <span className="text-12 text-light-1 fw-400 ml-8 block">
+              Custom Travel Bundles
               </span>
             </span>
           </Link>

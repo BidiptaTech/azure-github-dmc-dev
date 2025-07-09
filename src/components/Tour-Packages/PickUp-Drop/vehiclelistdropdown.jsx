@@ -351,6 +351,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             ...entryData,
             booking_id: entryPort.booking_id // Preserve booking_id from service level
           }
+          
+          
         };
       });
     }
@@ -699,7 +701,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           agent_id: agentId,
           tour_id: tourId,
           booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         console.log(`Entry Vehicle - Service data with booking_id: ${booking.originalData?.booking_id}`, serviceObject);
@@ -1030,7 +1033,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       agent_id: agentId,
       tour_id: tourId,
       booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
-      data: [bookingData]
+      data: [bookingData],
+      bookingType: "enquiry"
     };
     
     console.log(`Entry Vehicle - Direct dispatch with booking_id: ${booking.originalData?.booking_id}`, newEntryPortService);

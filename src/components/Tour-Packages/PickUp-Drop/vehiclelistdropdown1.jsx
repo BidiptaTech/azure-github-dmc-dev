@@ -523,7 +523,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
          agent_id: agentId,
          tour_id: tourId,
          booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
-         data: [bookingData]
+         data: [bookingData],
+         bookingType: "enquiry"
        };
        
        console.log(`Exit Vehicle - Service data with booking_id: ${booking.originalData?.booking_id}`, serviceData);
@@ -853,7 +854,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       agent_id: agentId,
       tour_id: tourId,
       booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
-      data: [bookingData]
+      data: [bookingData],
+      bookingType: "enquiry"
     };
     
     console.log(`Exit Vehicle - Direct dispatch with booking_id: ${booking.originalData?.booking_id}`, newExitPortService);
