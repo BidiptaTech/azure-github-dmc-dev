@@ -38,12 +38,8 @@
                                     <label class="form-label"><strong>Hotel Management Company Name</strong></label>
                                     <input type="text" class="form-control" name="management_comp_name"
                                         value="{{ old('management_comp_name', $hotel->management_comp_name ?? '') }}"
-<<<<<<< HEAD
                                         placeholder="Hotel Owner Name"
                                         @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-=======
-                                        placeholder="Management Company Name">
->>>>>>> bc1a0d564124bfb592d53f09c2840a3454ec2631
                                         @error('management_comp_name')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror

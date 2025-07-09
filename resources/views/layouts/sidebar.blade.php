@@ -422,13 +422,8 @@
     }
     
     .ri-service-line {
-<<<<<<< HEAD
         color: #8b5cf6 !important; /* Purple */
         background: rgba(139, 92, 246, 0.1);
-=======
-        color: #06b6d4 !important; /* Cyan */
-        background: rgba(6, 182, 212, 0.1);
->>>>>>> bc1a0d564124bfb592d53f09c2840a3454ec2631
     }
     
     .roadmap-icon:hover {
