@@ -209,7 +209,8 @@
                     <div class="meals-info">
                         <div class="info-title">🍽️ Meals</div>
                         <div class="info-content">
-                            {{ $bookingDetails['meals'] ?? 'N/A' }}
+                            Meal Type: {{ $bookingDetails['mealSpecificType']['specificMealType'] ?? 'N/A' }}<br>
+                            Meal Details: {{ $bookingDetails['MealDescription'] ?? 'N/A' }}
                         </div>
                     </div>
                 </div>
