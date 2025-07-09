@@ -251,6 +251,7 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
+<<<<<<< HEAD
 
                                 <div class="mb-3 col-md-4">
                                     <label for="phone" class="form-label"><strong>General Phone No</strong>
@@ -264,6 +265,8 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
+=======
+>>>>>>> bc1a0d564124bfb592d53f09c2840a3454ec2631
                                 
                                 <!-- Segment -->
                                 <div class="col-md-4 mb-3">

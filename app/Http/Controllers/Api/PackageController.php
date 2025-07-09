@@ -84,7 +84,8 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type')->get();
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type', 'itinerary')->get();
+        
         // Format the response
         return response()->json($packages);
     }
@@ -454,13 +455,13 @@ class PackageController extends Controller
         $booking->user_info = $data['user_info'];
         $booking->travel_dates = ["check_in" => $check_in, "check_out" => $check_out];
 
-        
         $booking->selected_hotels = $hotelIds;
         $booking->selected_attractions = $attractionIds;
         $booking->selected_guides = $guideIds;
 
         $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
+        $booking->agent_id = $request->input('agent_id');
         // Add other required fields and save the booking
         $booking->save();
         
@@ -492,11 +493,74 @@ class PackageController extends Controller
 
     public function getBookingLists(Request $request){
         $user = Auth::user();
+        $booking = [];
+        $agent_id = request()->header('agent-id');
+        // Convert string "null" to actual null value
+        if ($agent_id === 'null') {
+            $agent_id = null;
+        }
         
         try {
-            $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
-                ->where('booked_by', $user->agent_id ?? $user->userId)
-                ->get();
+            
+            if(!$agent_id || $agent_id === 'null'){
+                if($user->userId){
+                    $dmc_id = null;
+                    $agent_creator_id = null;     
+                    $agent_creator_id = $user->userId;
+                    $agent_ids = [];
+                    // Check user role and determine DMC ID based on role hierarchy
+                    if($user->role_id == 11){
+                        $dmc_id = $user->userId;
+                    }
+                    elseif ($user->role_id == 33) { // Sales Head
+                        $sales_head = User::where('userId', $user->userId)->first();
+                        $dmc_id = $sales_head->created_by;
+                    } elseif ($user->role_id == 37) { // Sales Manager
+                        $product_head = User::where('userId', $user->userId)->first();
+                        $sales_head_id = $product_head->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmc_id = $sales_head->created_by;
+                    } elseif ($user->role_id == 38) { // Assistant Sales Manager
+                        $assistant_sales_manager = User::where('userId', $user->userId)->first();
+                        $sales_manager_id = $assistant_sales_manager->created_by;
+                        $sales_manager = User::where('userId', $sales_manager_id)->first();
+                        $sales_head_id = $sales_manager->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmc_id = $sales_head->created_by;
+                    }
+                    
+                    // If DMC ID is found, filter bookings by DMC
+                    if ($dmc_id) {
+                        
+                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                            ->where('dmc_id', $dmc_id)
+                            ->get();
+                    } else {
+                        $agents = Agent::where('sales_manager_dmc', $agent_creator_id)->get();
+                        $agent_ids = $agents->pluck('agent_id')->toArray();
+
+                        // Fallback to user's own bookings if no DMC ID found
+                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                            ->whereIn('booked_by', $agent_ids)
+                            ->get();
+                    }
+                }
+                else{
+                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                        ->where('booked_by', $user->agent_id)
+                        ->get();
+                }
+            }
+            else{
+                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info');
+                
+                // Only add the where clause if agent_id is not null
+                if ($agent_id !== null) {
+                    $booking = $booking->where('agent_id', $agent_id);
+                }
+                
+                $booking = $booking->get();
+            }
             
             $data = [];
             foreach ($booking as $b) {
@@ -577,82 +641,142 @@ class PackageController extends Controller
         }
     }
     
+    /**
+     * Convert date from various formats to YYYY-MM-DD for PostgreSQL
+     *
+     * @param string $date Date string in various formats
+     * @return string Date in YYYY-MM-DD format
+     */
+    private function formatDateForDatabase($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
+        
+        // If it's already in YYYY-MM-DD format, return it
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+        
+        // Try to parse DD/MM/YYYY format
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
+            return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
+        }
+        
+        // Try to parse using DateTime
+        try {
+            $dateObj = new \DateTime($date);
+            return $dateObj->format('Y-m-d');
+        } catch (\Exception $e) {
+            // If all else fails, return the original string
+            return $date;
+        }
+    }
+    
     public function updateCustomPackage(Request $request){
         $payload = $request->all(); // this is the outer array
-
-        foreach ($payload as $entry) {
-            // Validate each entry
-            validator($entry, [
-                'type' => 'required|string',
-                'tour_id' => 'required|integer',
-                'agent_id' => 'required|integer',
-                'data' => 'required|array',
-            ])->validate();
-
-            $type = $entry['type'];
-            $tourId = $entry['tour_id'];
-            $agentId = $entry['agent_id'];
-            $newData = $entry['data'];
-
-            // Get existing orders for this tour
-            $existingOrders = Order::where('tour_id', $tourId)
-                ->where('agent_id', $agentId)
-                ->where('type', $type)
-                ->get();
-
-            // Create arrays to track what needs to be updated/added/deleted
-            $existingBookingIds = $existingOrders->pluck('booking_id')->toArray();
-            $newBookingIds = [];
-
-            // Process new data items
-            foreach ($newData as $item) {
-                $bookingId = $item['booking_id'] ?? null;
-                if ($bookingId && in_array($bookingId, $existingBookingIds)) {
-                    // Update existing order
-                    $existingOrder = $existingOrders->where('booking_id', $bookingId)->first();
-                    if ($existingOrder) {
-                        $existingOrder->update([
-                            'data' => [$item],
-                            'type' => $type,
-                            'status' => 1,
-                        ]);
-                        $newBookingIds[] = $bookingId;
-                    }
-                } else {
-                    // Create new order
-                    $max_book_id = Order::max('booking_id') ?? 0;
-                    $newBookingId = CommonHelper::createId($max_book_id);
-
-                    // Ensure unique booking_id
-                    while (Order::where('booking_id', $newBookingId)->exists()) {
-                        $newBookingId = CommonHelper::createId($newBookingId);
-                    }
-
-                    Order::create([
-                        'agent_id' => $agentId,
-                        'tour_id' => $tourId,
-                        'data' => [$item],
-                        'type' => $type,
-                        'bookingType' => 'enquiry',
-                        'booking_id' => $newBookingId,
-                        'status' => 1,
-                    ]);
-                    $newBookingIds[] = $newBookingId;
-                }
-            }
-
-            // Delete orders that are no longer present in the new data
-            $ordersToDelete = array_diff($existingBookingIds, $newBookingIds);
-            if (!empty($ordersToDelete)) {
-                Order::where('tour_id', $tourId)
-                    ->where('agent_id', $agentId)
-                    ->where('type', $type)
-                    ->whereIn('booking_id', $ordersToDelete)
-                    ->delete();
-            }
+        $tourId = null;
+        $processedBookingIds = [];
+        
+        // First, extract the tour_id from the first object
+        if (!empty($payload) && isset($payload[0]) && isset($payload[0]['tour_id'])) {
+            $tourId = $payload[0]['tour_id'];
+        }
+        
+        if (!$tourId) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tour ID is required in the first object'
+            ], 400);
         }
 
-        return response()->json(['message' => 'Custom package updated successfully.']);
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if(!$tour){
+            return response()->json([
+                'status' => false,
+                'message' => 'Tour not found'
+            ], 404);
+        }
+        
+        // Convert date format from DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
+        $checkInDate = $this->formatDateForDatabase($payload[0]['check_in_time']);
+        $checkOutDate = $this->formatDateForDatabase($payload[0]['check_out_time']);
+        
+        $tour->check_in_time = $checkInDate;
+        $tour->check_out_time = $checkOutDate;
+        $tour->save();
+        
+        // Get all existing orders for this tour_id
+        $existingOrders = Order::where('tour_id', $tourId)->get();
+        $existingBookingIds = $existingOrders->pluck('booking_id')->toArray();
+        
+        // Process all booking objects (second object onwards)
+        foreach ($payload as $index => $entry) {
+            // Skip the first object (tour details)
+            if ($index === 0) {
+                continue;
+            }
+            
+            // Validate booking data objects
+             if (!isset($entry['agent_id']) || !isset($entry['type']) || !isset($entry['data'])) {
+                 continue;
+             }
+             
+             // Set booking_id to 1 if not present
+             $max_book_id = Order::max('booking_id') ?? 0;
+             $bookId = CommonHelper::createId($max_book_id);
+             while (Order::where('booking_id', $bookId)->exists()) {
+                $bookId = CommonHelper::createId($bookId);
+            }
+
+             $bookingId = isset($entry['booking_id']) ? $entry['booking_id'] : $bookId;
+             $agentId = $entry['agent_id'];
+             $type = $entry['type'];
+             $data = $entry['data'];
+            
+            // Track processed booking IDs
+            $processedBookingIds[] = $bookingId;
+            
+            // Check if this booking_id exists in the orders table
+            $existingOrder = $existingOrders->where('booking_id', $bookingId)
+                                           ->where('type', $type)
+                                           ->first();
+            
+            if ($existingOrder) {
+                // Update existing order
+                $existingOrder->update([
+                    'data' => $data,
+                    
+                ]);
+            } else {
+                // Create new order
+                Order::create([
+                    'booking_id' => $bookingId,
+                    'agent_id' => $agentId,
+                    'tour_id' => $tourId,
+                    'data' => $data,
+                    'type' => $type,
+                    'bookingType' => $data[0]['bookingType'] ?? 'booking',
+                    'status' => 1,
+                ]);
+            }
+        }
+        
+        // Delete orders that are no longer in the incoming data
+        $bookingIdsToDelete = array_diff($existingBookingIds, $processedBookingIds);
+        if (!empty($bookingIdsToDelete)) {
+            Order::where('tour_id', $tourId)
+                ->whereIn('booking_id', $bookingIdsToDelete)
+                ->delete();
+        }
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Custom package updated successfully',
+            'tour_id' => $tourId,
+            'processed_booking_ids' => $processedBookingIds,
+            'deleted_booking_ids' => $bookingIdsToDelete
+        ]);
     }
 
     public function cancelPackageBooking(Request $request)

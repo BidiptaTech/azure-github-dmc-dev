@@ -342,6 +342,9 @@ class CommonHelper
                             case 'attraction':
                                 $attraction[] = $bookingArray;
                                 break;
+                            case 'attraction_package':
+                                $attraction[] = $bookingArray;
+                                break;
                             case 'entry_port':
                                 $entry_port[] = $bookingArray;
                                 break;
@@ -448,6 +451,9 @@ class CommonHelper
                             $hotel[] = $bookingArray;
                             break;
                         case 'attraction':
+                            $attraction[] = $bookingArray;
+                            break;
+                        case 'attraction_package':
                             $attraction[] = $bookingArray;
                             break;
                         case 'entry_port':
@@ -598,7 +604,15 @@ class CommonHelper
                         }
 
                         // Add to type-specific data if matching requested type
-                        if ($booking->type == $type) {
+                        if($booking->type == 'attraction_package' || $booking->type == 'attraction'){
+                            $data[] = array_merge(
+                                ['id' => $booking->booking_id],
+                                // ['type' => $booking->type],
+                                ['type' => 'attraction'],
+                                $item
+                            );
+                        }
+                        else if($booking->type == $type) {
                             $data[] = array_merge(
                                 ['id' => $booking->booking_id],
                                 ['type' => $booking->type],
@@ -608,7 +622,10 @@ class CommonHelper
 
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
-                        if ($booking->type == 'attraction') $attraction_count++;
+                        if ($booking->type == 'attraction') 
+                        $attraction_count++;
+                        if ($booking->type == 'attraction_package') 
+                        $attraction_count++;
                         if ($booking->type == 'entry_port') $entry_port_count++;
                         if ($booking->type == 'exit_port') $exit_port_count++;
                         if ($booking->type == 'travel_point') $travel_point_count++;
@@ -650,7 +667,6 @@ class CommonHelper
 
                         foreach ($expandedDates as $bookingDate) {
                             if (empty($bookingDate)) continue;
-                            
                             // For hotel bookings, skip the last date in date_service
                             if ($booking->type === 'hotel') {
                                 // Check if this is the last date in the range
@@ -682,7 +698,15 @@ class CommonHelper
                     }
 
                     // Add to type-specific data if matching requested type
-                    if ($booking->type == $type) {
+                    if($booking->type == 'attraction_package' || $booking->type == 'attraction'){
+                        $data[] = array_merge(
+                            ['id' => $booking->booking_id],
+                            // ['type' => $booking->type],
+                            ['type' => 'attraction'],
+                            $item
+                        );
+                    }
+                    else if ($booking->type == $type) {
                         $data[] = array_merge(
                             ['id' => $booking->booking_id],
                             ['type' => $booking->type],
@@ -693,6 +717,7 @@ class CommonHelper
                     // Count booking types
                     if ($booking->type == 'hotel') $hotel_count++;
                     if ($booking->type == 'attraction') $attraction_count++;
+                    if ($booking->type == 'attraction_package') $attraction_count++;
                     if ($booking->type == 'entry_port') $entry_port_count++;
                     if ($booking->type == 'exit_port') $exit_port_count++;
                     if ($booking->type == 'travel_point') $travel_point_count++;

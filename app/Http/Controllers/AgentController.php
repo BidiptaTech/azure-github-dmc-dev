@@ -171,7 +171,7 @@ class AgentController extends Controller
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $sales_mg = User::where('role_id', 38)->get();
-        $cityCountry = Country::where('is_active', 1)->get();
+        $cityCountry = Country::get();
         $country = Country::get();
         $countryCodes = Agent::countryCodes();
 
@@ -374,7 +374,7 @@ class AgentController extends Controller
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $country = Country::all();
-        $cityCountry = Country::where('is_active', 1)->get();
+        $cityCountry = Country::get();
         $countryCodes = Agent::countryCodes();
 
         return view('agents.edit-agent', compact('agent', 'sales_mg', 'authUserCountries', 'card', 'country', 'cityCountry', 'countryCodes'));
