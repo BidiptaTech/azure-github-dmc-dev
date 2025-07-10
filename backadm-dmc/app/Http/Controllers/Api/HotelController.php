@@ -218,9 +218,10 @@ class HotelController extends Controller
                     return response()->json(['message' => 'DMC Not Found!'], 400);
                 }
 
-
                 // Fetch DMC hotel price
-                $dmcHotels = $hotelCollection->where('dmc_id', $dmc_id);
+                $dmcHotels = $hotelCollection->filter(function ($hotel) use ($dmc_id) {
+                    return $this->isDmcIdMatch($hotel->dmc_id, $dmc_id);
+                });
                 $dmcHotel = $dmcHotels->first();
                 $dmc_price = 0;
 
@@ -231,7 +232,6 @@ class HotelController extends Controller
                     $dmc_price = $dmcResult[0] ?? 0;
                     $dmc_id = $dmcResult[1] ?? null;
                 }
-
                 // Fetch TravClicks price
                 if($agent){
                     $travResult = CommonHelper::calculateMinPricehotel(
@@ -259,7 +259,6 @@ class HotelController extends Controller
                 // Replace with categorized implementation
                 $facility_ids = json_decode($firstHotel->facilities, true) ?? [];
                 $facilities = Facility::with('categories')->whereIn('facilityId', $facility_ids)->get();
-
                 $categorized_facilities = [];
                 foreach ($facilities as $facility) {
                     $category_name = $facility->categories ? $facility->categories->name : 'Uncategorized';
@@ -677,5 +676,37 @@ class HotelController extends Controller
             // 'breakfast' => $breakfast_data,
         ];
         return response()->json($hotel_list);
+    }
+    
+    /**
+     * Check if a DMC ID matches the stored dmc_id field (handles both integer and JSON array formats)
+     * 
+     * @param mixed $storedDmcId The dmc_id field from database (can be integer or JSON array)
+     * @param int $targetDmcId The DMC ID to check for
+     * @return bool
+     */
+    private function isDmcIdMatch($storedDmcId, $targetDmcId)
+    {
+        // Handle both old integer format and new JSON array format for dmc_id
+        $dmcIds = [];
+        
+        if (is_string($storedDmcId)) {
+            // Try to decode as JSON first
+            $decoded = json_decode($storedDmcId, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $dmcIds = $decoded;
+            } else {
+                // If not valid JSON, treat as single integer string
+                $dmcIds = [(int)$storedDmcId];
+            }
+        } elseif (is_array($storedDmcId)) {
+            // If it's already an array (Laravel auto-cast)
+            $dmcIds = $storedDmcId;
+        } else {
+            // If it's already an integer
+            $dmcIds = [(int)$storedDmcId];
+        }
+        
+        return in_array((int)$targetDmcId, $dmcIds);
     }
 }

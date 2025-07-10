@@ -1044,12 +1044,14 @@
                             </a>
                         </li>
                         @endif
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create hotel'))
                         <li class="menu-item @if(Request::is('hotels/create')) active @endif">
                             <a href=" {{ route('hotels.create') }}" class="menu-link">
                             <div data-i18n="Create Hotels">Create Hotels</div>
                             </a>
                         </li>
+                        @endif
                         @endif
                         <!--  Comment out for now create room form here  -->
                         {{-- 

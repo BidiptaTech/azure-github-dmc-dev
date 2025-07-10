@@ -15,7 +15,7 @@
 
                     <div class="d-flex justify-content-between gap-3">
                         <!-- Add New Hotel Button -->
-                        @if(auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id == 77 || auth()->user()->role_id == 82 || auth()->user()->role_id == 83 || auth()->user()->role_id == 84 || hasPermission('create hotel'))
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         <a href="{{ route('hotels.create') }}"
                             class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                             <i class="fas fa-plus"></i> Add New Hotel

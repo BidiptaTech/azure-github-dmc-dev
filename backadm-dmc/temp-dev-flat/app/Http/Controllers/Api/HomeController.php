@@ -176,7 +176,8 @@ class HomeController extends Controller
                 $lowestChildPrice = $tickets->min('child_price');
                 $lowestAdultPrice = $tickets->min('adult_price');
                 $lowestSeniorAdultPrice = $tickets->min('senior_adult_price');
-                if($attraction->dmc_id == $dmc_id){
+                
+                if($this->isDmcIdMatch($attraction->dmc_id, $dmc_id)){
                     list($dmc_adult_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestAdultPrice, $dmc_id, $name, 'attraction', $city);
                     list($dmc_child_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestChildPrice, $dmc_id, $name, 'attraction', $city);
                     list($dmc_senior_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestSeniorAdultPrice, $dmc_id, $name, 'attraction', $city);
@@ -402,5 +403,34 @@ class HomeController extends Controller
         }
         
         return $formattedPackages;
+    }
+    
+    /**
+     * Check if a DMC ID matches the stored dmc_id field (handles both integer and JSON array formats)
+     * 
+     * @param mixed $storedDmcId The dmc_id field from database (can be integer or JSON array)
+     * @param int $targetDmcId The DMC ID to check for
+     * @return bool
+     */
+    private function isDmcIdMatch($storedDmcId, $targetDmcId)
+    {
+        // Handle both old integer format and new JSON array format for dmc_id
+        $dmcIds = [];
+        
+        if (is_string($storedDmcId)) {
+            // Try to decode as JSON first
+            $decoded = json_decode($storedDmcId, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $dmcIds = $decoded;
+            } else {
+                // If not valid JSON, treat as single integer string
+                $dmcIds = [(int)$storedDmcId];
+            }
+        } else {
+            // If it's already an integer
+            $dmcIds = [(int)$storedDmcId];
+        }
+        
+        return in_array((int)$targetDmcId, $dmcIds);
     }
 }

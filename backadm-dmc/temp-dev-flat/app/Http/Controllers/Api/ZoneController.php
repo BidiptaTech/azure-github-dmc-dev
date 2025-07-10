@@ -93,9 +93,9 @@ class ZoneController extends Controller
             case 'hotel':
                 $city = Hotel::where('hotel_unique_id', $id)->value('city');
         
-                $hotels = Hotel::where('dmc_id', $dmc_id)->where('city', $city)->get();
-                $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city)->get();
-                $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city)->get();
+                $hotels = Hotel::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
+                $attractions = Attraction::whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
+                $restaurants = Restaurant::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
                 $port_city = City::where('name', $city)->value('city_id');
                 $ports = Port::where('city_id', $port_city)->get();
                 $items = [
@@ -109,9 +109,9 @@ class ZoneController extends Controller
             case 'attraction':
                 $city = Attraction::where('attraction_id', $id)->value('location');
         
-                $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city)->get();
-                $hotels = Hotel::where('dmc_id', $dmc_id)->where('city', $city)->get();
-                $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city)->get();
+                $attractions = Attraction::whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
+                $hotels = Hotel::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
+                $restaurants = Restaurant::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
         
                 $items = [
                     'attractions' => $attractions,
@@ -123,9 +123,9 @@ class ZoneController extends Controller
             case 'restaurant':
                 $city = Restaurant::where('restaurant_id', $id)->value('city');
         
-                $hotels = Hotel::where('dmc_id', $dmc_id)->where('city', $city)->get();
-                $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city)->get();
-                $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city)->get();
+                $hotels = Hotel::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
+                $attractions = Attraction::whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
+                $restaurants = Restaurant::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
                 $port_city = City::where('name', $city)->value('city_id');
                 $ports = Port::where('city_id', $port_city)->get();
         
@@ -143,9 +143,9 @@ class ZoneController extends Controller
                 
                 $port_city = Port::where('port_id', $id)->value('city_id');
                 $city = City::where('city_id', $port_city)->first();
-                $hotels = Hotel::where('dmc_id', $dmc_id)->where('city', $city->name)->get();
-                $attractions = Attraction::where('dmc_id', $dmc_id)->where('location', $city->name)->get();
-                $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('city', $city->name)->get();
+                $hotels = Hotel::whereJsonContains('dmc_id', $dmc_id)->where('city', $city->name)->get();
+                $attractions = Attraction::whereJsonContains('dmc_id', $dmc_id)->where('location', $city->name)->get();
+                $restaurants = Restaurant::whereJsonContains('dmc_id', $dmc_id)->where('city', $city->name)->get();
                 $items = [
                     'hotels' => $hotels,
                     'ports' => $ports,
