@@ -356,11 +356,7 @@ const PreDefinePackages = () => {
                 </div>
               )}
 
-              {showAgentSelector && (
-                <div style={{ flex: '1', minWidth: '0' }}>
-                  <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
-                </div>
-              )}
+             
 
               <div style={{ flex: '1.2', minWidth: '0' }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
                 <div>

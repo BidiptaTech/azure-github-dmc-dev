@@ -347,6 +347,7 @@ const index = () => {
           senior_min_age: attractionDetails.senior_min_age || 60,
           package_type: selectedTicket.package_type || 0,
           package_attraction_id: selectedTicket.package_attraction_id || null,
+          packageDetails: selectedTicket.packageDetails || null,
         },
       ],
       tour_id: parseInt(tourdetails?.tour_id, 10) || 0,

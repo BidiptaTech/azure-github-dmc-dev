@@ -17,6 +17,7 @@ import {
   Avatar,
   AvatarGroup,
   Button,
+  alpha,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import AttractionIcon from "@mui/icons-material/Attractions";
@@ -38,6 +39,14 @@ const utils = {
     if (!string) return "N/A";
     const str = String(string);
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  },
+
+  formatPackageName: (packageName) => {
+    if (!packageName) return "N/A";
+    return packageName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   },
 
   formatDate: (date) => {
@@ -240,137 +249,288 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
       </DialogTitle>
       <DialogContent sx={{ mt: 2, position: "relative", p: 3 }}>
         <Grid container spacing={3}>
-          {/* Attraction Image and Basic Info Card */}
+          {/* Attraction/Package Information */}
           <Grid item xs={12}>
-            <Card
-              elevation={2}
-              sx={{
-                borderRadius: "16px",
-                overflow: "hidden",
-                transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                },
-              }}
-            >
-              <Grid container>
-                <Grid item xs={12} md={4}>
-                  <Box
-                    sx={{
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "rgba(53, 84, 209, 0.05)",
-                      minHeight: "220px",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {masterImage ? (
-                      <CardMedia
-                        component="img"
-                        image={masterImage}
-                        alt={booking.AttractionName || "Attraction"}
-                        sx={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                        }}
-                      />
-                    ) : (
+            {booking.bookingType === 'package' && booking.package_details ? (
+              // Package Display
+              <Card
+                elevation={2}
+                sx={{
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  },
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+                    <AttractionIcon
+                      sx={{ color: "#FF9800", mr: 1, fontSize: 28 }}
+                    />
+                                         <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+                       {utils.formatPackageName(booking.package_details.package_name || booking.ticketName) || "Package Booking"}
+                     </Typography>
+                    <Chip
+                      label="Package"
+                      sx={{
+                        ml: 2,
+                        bgcolor: alpha('#FF9800', 0.1),
+                        color: '#E65100',
+                        fontWeight: 'bold',
+                        fontSize: '0.75rem'
+                      }}
+                    />
+                  </Box>
+
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6}>
                       <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          p: 2,
-                        }}
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
                       >
-                        <AttractionIcon
-                          sx={{
-                            fontSize: 80,
-                            color: "#3554D1",
-                            opacity: 0.7,
-                            mb: 2,
-                          }}
-                        />
-                        <Typography
-                          variant="body2"
-                          color="textSecondary"
-                          align="center"
-                        >
-                          No attraction image available
+                        <CalendarTodayIcon sx={{ color: "#FF9800", mr: 1 }} />
+                        <Typography variant="body2" color="textSecondary">
+                          Booking Date
                         </Typography>
                       </Box>
-                    )}
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                      <AttractionIcon
-                        sx={{ color: "#3554D1", mr: 1, fontSize: 28 }}
-                      />
-                      <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                        {booking.AttractionName || "N/A"}
+                      <Typography
+                        variant="body1"
+                        sx={{ fontWeight: "medium", ml: 4 }}
+                      >
+                        {booking.bookingDate
+                          ? utils.formatDate(booking.bookingDate)
+                          : "N/A"}
                       </Typography>
-                    </Box>
-
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                      <LocationOnIcon sx={{ color: "#3554D1", mr: 1 }} />
-                      <Typography variant="body1">
-                        {`${location}, ${country}`}
-                      </Typography>
-                    </Box>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                        >
-                          <CalendarTodayIcon sx={{ color: "#3554D1", mr: 1 }} />
-                          <Typography variant="body2" color="textSecondary">
-                            Booking Date
-                          </Typography>
-                        </Box>
-                        <Typography
-                          variant="body1"
-                          sx={{ fontWeight: "medium", ml: 4 }}
-                        >
-                          {booking.bookingDate
-                            ? utils.formatDate(booking.bookingDate)
-                            : "N/A"}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                        >
-                          <ConfirmationNumberIcon
-                            sx={{ color: "#3554D1", mr: 1 }}
-                          />
-                          <Typography variant="body2" color="textSecondary">
-                            Ticket Name
-                          </Typography>
-                        </Box>
-                        <Typography
-                          variant="body1"
-                          sx={{ fontWeight: "medium", ml: 4 }}
-                        >
-                          {booking?.ticketName}
-                        </Typography>
-                      </Grid>
                     </Grid>
-                  </CardContent>
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                      >
+                        <AttractionIcon sx={{ color: "#FF9800", mr: 1 }} />
+                        <Typography variant="body2" color="textSecondary">
+                          Total Attractions
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontWeight: "medium", ml: 4 }}
+                      >
+                        {booking.package_details.package_total_attractions || booking.package_details.package_attractions?.length || 0}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+
+                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+                    Attractions in Package:
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    {booking.package_details.package_attractions?.map((attraction, index) => (
+                      <Grid item xs={12} md={6} key={index}>
+                        <Card
+                          elevation={1}
+                          sx={{
+                            borderRadius: "12px",
+                            overflow: "hidden",
+                            height: "100%",
+                            transition: "transform 0.2s ease",
+                            "&:hover": {
+                              transform: "translateY(-2px)",
+                            },
+                          }}
+                        >
+                          <Grid container>
+                            <Grid item xs={4}>
+                              <Box
+                                sx={{
+                                  height: "100px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  backgroundColor: "rgba(255, 152, 0, 0.05)",
+                                  position: "relative",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {attraction.master_image ? (
+                                  <CardMedia
+                                    component="img"
+                                    image={attraction.master_image}
+                                    alt={attraction.name || "Attraction"}
+                                    sx={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "cover",
+                                      position: "absolute",
+                                      top: 0,
+                                      left: 0,
+                                    }}
+                                  />
+                                ) : (
+                                  <AttractionIcon
+                                    sx={{
+                                      fontSize: 40,
+                                      color: "#FF9800",
+                                      opacity: 0.7,
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            </Grid>
+                            <Grid item xs={8}>
+                              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                                  {attraction.name}
+                                </Typography>
+                                <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                                  <LocationOnIcon sx={{ color: "#FF9800", mr: 0.5, fontSize: 16 }} />
+                                  <Typography variant="body2" color="textSecondary">
+                                    {attraction.location}, {attraction.country}
+                                  </Typography>
+                                </Box>
+                              </CardContent>
+                            </Grid>
+                          </Grid>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </CardContent>
+              </Card>
+            ) : (
+              // Single Attraction Display
+              <Card
+                elevation={2}
+                sx={{
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  },
+                }}
+              >
+                <Grid container>
+                  <Grid item xs={12} md={4}>
+                    <Box
+                      sx={{
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(53, 84, 209, 0.05)",
+                        minHeight: "220px",
+                        position: "relative",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {masterImage ? (
+                        <CardMedia
+                          component="img"
+                          image={masterImage}
+                          alt={booking.AttractionName || "Attraction"}
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                          }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            p: 2,
+                          }}
+                        >
+                          <AttractionIcon
+                            sx={{
+                              fontSize: 80,
+                              color: "#3554D1",
+                              opacity: 0.7,
+                              mb: 2,
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            color="textSecondary"
+                            align="center"
+                          >
+                            No attraction image available
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={8}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                        <AttractionIcon
+                          sx={{ color: "#3554D1", mr: 1, fontSize: 28 }}
+                        />
+                        <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+                          {booking.AttractionName || "N/A"}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                        <LocationOnIcon sx={{ color: "#3554D1", mr: 1 }} />
+                        <Typography variant="body1">
+                          {`${location}, ${country}`}
+                        </Typography>
+                      </Box>
+
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Box
+                            sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                          >
+                            <CalendarTodayIcon sx={{ color: "#3554D1", mr: 1 }} />
+                            <Typography variant="body2" color="textSecondary">
+                              Booking Date
+                            </Typography>
+                          </Box>
+                          <Typography
+                            variant="body1"
+                            sx={{ fontWeight: "medium", ml: 4 }}
+                          >
+                            {booking.bookingDate
+                              ? utils.formatDate(booking.bookingDate)
+                              : "N/A"}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Box
+                            sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                          >
+                            <ConfirmationNumberIcon
+                              sx={{ color: "#3554D1", mr: 1 }}
+                            />
+                            <Typography variant="body2" color="textSecondary">
+                              Ticket Name
+                            </Typography>
+                          </Box>
+                          <Typography
+                            variant="body1"
+                            sx={{ fontWeight: "medium", ml: 4 }}
+                          >
+                            {booking?.ticketName}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </Card>
+              </Card>
+            )}
           </Grid>
 
           {/* Guest Information Card */}

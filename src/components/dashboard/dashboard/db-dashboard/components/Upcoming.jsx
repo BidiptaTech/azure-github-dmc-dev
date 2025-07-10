@@ -44,7 +44,8 @@ import { fetchLists } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
-import { Button, InputAdornment, TextField, Typography } from "@mui/material";
+import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton } from "@mui/material";
+import { Visibility, Edit, AttachMoney } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -142,6 +143,21 @@ const countryMap = {
 };
 
 const formatDate = (dateString) => {
+  // Parse the date in 'DD/MM/YYYY' format
+  const [day, month, year] = dateString.split("/");
+
+  // Create a new Date object from the parsed values (month is zero-indexed in JS Date)
+  const date = new Date(`${year}-${month}-${day}`);
+
+  // Get the day, month (abbreviated), and year for compact display
+  const dayFormatted = String(date.getDate()).padStart(2, "0");
+  const monthFormatted = date.toLocaleString("en-us", { month: "short" }); // Abbreviated month name
+  const yearFormatted = String(date.getFullYear()).slice(-2); // Last 2 digits of year
+
+  return `${dayFormatted} ${monthFormatted} ${yearFormatted}`;
+};
+
+const formatDateTooltip = (dateString) => {
   // Parse the date in 'DD/MM/YYYY' format
   const [day, month, year] = dateString.split("/");
 
@@ -1805,18 +1821,19 @@ export default function Pending() {
                 border: "1px solid #e0e6ed",
               }}
             >
-              <div className="overflow-scroll scroll-bar-2">
-                <table className="table-3 -border-bottom col-12">
+              <div className="overflow-hidden">
+                <table className="table-3 -border-bottom col-12" style={{ width: "100%", tableLayout: "fixed" }}>
                   <thead className="bg-light-2">
                     <tr>
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
+                          width: "8%",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
@@ -1833,14 +1850,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
-                            className="icon-settings"
+                            className="icon-menu"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Actions
@@ -1849,12 +1869,13 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           whiteSpace: "nowrap",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
+                          width: "12%",
                         }}
                         onClick={() => handleColumnSort("id")}
                         onMouseEnter={(e) =>
@@ -1875,14 +1896,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
                             className="icon-ticket"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Booking ID
@@ -1904,11 +1928,12 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
+                          width: "10%",
                         }}
                         onClick={() => handleColumnSort("startDate")}
                         onMouseEnter={(e) => {
@@ -1933,14 +1958,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
                             className="icon-calendar"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Start Date
@@ -1961,12 +1989,13 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           whiteSpace: "nowrap",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
+                          width: "10%",
                         }}
                         onClick={() => handleColumnSort("endDate")}
                         onMouseEnter={(e) => {
@@ -1991,9 +2020,19 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
+                          <i
+                            className="icon-calendar-2"
+                            style={{
+                              fontSize: "14px",
+                              color: "#3554D1",
+                            }}
+                          ></i>
                           End Date
                           {sortColumn === "endDate" && (
                             <i
@@ -2012,14 +2051,12 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 10px",
+                          padding: "8px 8px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "80px", // Set a fixed narrow width for Pax column
-                          minWidth: "80px",
-                          maxWidth: "80px",
+                          width: "6%",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -2047,14 +2084,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
-                            className="icon-passenger"
+                            className="icon-group"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Pax
@@ -2071,11 +2111,12 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
+                          width: "12%",
                         }}
                         onClick={() => handleColumnSort("destination")}
                         onMouseEnter={(e) => {
@@ -2093,14 +2134,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
                             className="icon-destination"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Destination
@@ -2109,12 +2153,13 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           whiteSpace: "nowrap",
                           transition: "background-color 0.3s ease",
+                          width: "12%",
                         }}
                         // onClick={() => handleColumnSort("customer_name")}
                         onMouseEnter={(e) => {
@@ -2132,14 +2177,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
                             className="icon-customer"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Customer Name
@@ -2148,11 +2196,12 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
+                          width: "10%",
                         }}
                         onClick={() => handleColumnSort("status")}
                         onMouseEnter={(e) => {
@@ -2170,14 +2219,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
-                            className="icon-status"
+                            className="icon-check"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Status
@@ -2186,12 +2238,13 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
                           whiteSpace: "nowrap",
+                          width: "10%",
                         }}
                         // onClick={() => handleColumnSort("status")}
                         onMouseEnter={(e) => {
@@ -2209,14 +2262,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
                             className="icon-usd"
                             style={{
-                              fontSize: "18px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Payment
@@ -2225,12 +2281,13 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "14px 20px",
+                          padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
                           whiteSpace: "nowrap",
+                          width: "12%",
                         }}
                         // onClick={() => handleColumnSort("status")}
                         onMouseEnter={(e) => {
@@ -2248,14 +2305,17 @@ export default function Pending() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
                           }}
                         >
                           <i
-                            className="icon-payment-status"
+                            className="icon-usd"
                             style={{
-                              fontSize: "16px",
-                              transition: "transform 0.3s ease",
+                              fontSize: "14px",
+                              color: "#3554D1",
                             }}
                           ></i>
                           Payment Status
@@ -2317,148 +2377,91 @@ export default function Pending() {
                         >
                           <td
                             style={{
-                              padding: "12px 20px",
-                              minWidth: "160px",
+                              padding: "16px 20px",
                               whiteSpace: "nowrap",
                             }}
                           >
                             <div
                               style={{
                                 display: "flex",
-                                gap: "10px",
+                                gap: "4px",
                                 flexWrap: "nowrap",
+                                alignItems: "center",
                               }}
                             >
-                              <button
-                                className="button h-40 px-20 text-13 fw-500 rounded-8"
-                                style={{
-                                  backgroundColor: "#3554D1",
-                                  color: "white",
-                                  border: "none",
-                                  transition: "all 0.3s ease",
-                                  boxShadow: "0 2px 6px rgba(53, 84, 209, 0.2)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.target.style.backgroundColor = "#2C46BA";
-                                  e.target.style.boxShadow =
-                                    "0 4px 8px rgba(53, 84, 209, 0.3)";
-                                  e.target.querySelector("i").style.transform =
-                                    "scale(1.2)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.backgroundColor = "#3554D1";
-                                  e.target.style.boxShadow =
-                                    "0 2px 6px rgba(53, 84, 209, 0.2)";
-                                  e.target.querySelector("i").style.transform =
-                                    "scale(1)";
-                                }}
-                                onClick={() => handleViewDetails(list)}
-                              >
-                                <i
-                                  className="icon-eye"
-                                  style={{
-                                    fontSize: "16px",
-                                    transition: "transform 0.3s ease",
+                              <Tooltip title="View Details" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewDetails(list)}
+                                  sx={{
+                                    color: "#4361ee",
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "6px",
+                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      backgroundColor: "rgba(67, 97, 238, 0.12)",
+                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                      transform: "translateY(-1px)",
+                                    },
                                   }}
-                                ></i>
-                                View
-                              </button>
-
-                              {/* Make an Enquiry button */}
+                                >
+                                  <Visibility sx={{ fontSize: "16px" }} />
+                                </IconButton>
+                              </Tooltip>
 
                               {/* Only render Edit button if editOff is not 1 */}
                               {list.editOff !== 1 && (
-                                <button
-                                  className="button h-40 px-20 text-13 fw-500 rounded-8"
-                                  style={{
-                                    backgroundColor: "#0c9800",
-                                    color: "white",
-                                    border: "none",
-                                    transition: "all 0.3s ease",
-                                    boxShadow: "0 2px 6px rgba(53, 84, 209, 0.2)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.target.style.backgroundColor = "#0d6305";
-                                    e.target.style.boxShadow =
-                                      "0 4px 8px rgba(53, 84, 209, 0.3)";
-                                    e.target.querySelector("i").style.transform =
-                                      "scale(1.2)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.target.style.backgroundColor = "#0c9800";
-                                    e.target.style.boxShadow =
-                                      "0 2px 6px rgba(53, 84, 209, 0.2)";
-                                    e.target.querySelector("i").style.transform =
-                                      "scale(1)";
-                                  }}
-                                  onClick={() => handleEdit(list)}
-                                >
-                                  <i
-                                    className="icon-edit"
-                                    style={{
-                                      fontSize: "16px",
-                                      transition: "transform 0.3s ease",
+                                <Tooltip title="Add More Services" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleEdit(list)}
+                                    sx={{
+                                      color: "#2e7d32",
+                                      width: "28px",
+                                      height: "28px",
+                                      borderRadius: "6px",
+                                      backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                      transition: "all 0.2s ease",
+                                      "&:hover": {
+                                        backgroundColor: "rgba(46, 125, 50, 0.12)",
+                                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                        transform: "translateY(-1px)",
+                                      },
                                     }}
-                                  ></i>
-                                  Add More Services
-                                </button>
+                                  >
+                                    <Edit sx={{ fontSize: "16px" }} />
+                                  </IconButton>
+                                </Tooltip>
                               )}
 
                               {list.booking_type === "enquiry" &&
                                 userRole === "Agent" && (
-                                  <button
-                                    className="button h-40 px-20 text-13 fw-500 rounded-8"
-                                    style={{
-                                      backgroundColor: "#9b1572",
-                                      color: "#fff",
-                                      border: "none",
-                                      transition: "all 0.3s ease",
-                                      boxShadow:
-                                        "0 2px 6px rgba(155, 21, 114, 0.3)",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                      transform: "translateY(0)",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.target.style.backgroundColor =
-                                        "#7d125c";
-                                      e.target.style.boxShadow =
-                                        "0 4px 10px rgba(155, 21, 114, 0.4)";
-                                      e.target.style.transform =
-                                        "translateY(-2px)";
-                                      e.target.querySelector(
-                                        "i"
-                                      ).style.transform = "scale(1.2)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.target.style.backgroundColor =
-                                        "#9b1572";
-                                      e.target.style.boxShadow =
-                                        "0 2px 6px rgba(155, 21, 114, 0.3)";
-                                      e.target.style.transform =
-                                        "translateY(0)";
-                                      e.target.querySelector(
-                                        "i"
-                                      ).style.transform = "scale(1)";
-                                    }}
-                                    onClick={() => handleDirectEnquiry(list)}
-                                  >
-                                    <i
-                                      className="icon-usd"
-                                      style={{
-                                        fontSize: "18px",
-                                        transition: "transform 0.3s ease",
+                                  <Tooltip title="Negotiate" arrow>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDirectEnquiry(list)}
+                                      sx={{
+                                        color: "#7b1fa2",
+                                        width: "28px",
+                                        height: "28px",
+                                        borderRadius: "6px",
+                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                        transition: "all 0.2s ease",
+                                        "&:hover": {
+                                          backgroundColor: "rgba(123, 31, 162, 0.12)",
+                                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                          transform: "translateY(-1px)",
+                                        },
                                       }}
-                                    ></i>
-                                    Negotiate
-                                  </button>
+                                    >
+                                      <AttachMoney sx={{ fontSize: "16px" }} />
+                                    </IconButton>
+                                  </Tooltip>
                                 )}
                             </div>
                           </td>
@@ -2466,9 +2469,9 @@ export default function Pending() {
                             <div
                               style={{
                                 backgroundColor: "rgba(53, 84, 209, 0.1)",
-                                padding: "8px 12px",
-                                borderRadius: "16px",
-                                fontSize: "14px",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "12px",
                                 color: "#3554D1",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -2498,85 +2501,96 @@ export default function Pending() {
                             </div>
                           </td>
                           <td style={{ padding: "16px 20px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                              }}
+                            <Tooltip 
+                              title={formatDateTooltip(list.check_in_time)}
+                              arrow
+                              placement="top"
                             >
-                              <i
-                                className="icon-calendar"
-                                style={{ fontSize: "18px", color: "#4CAF50" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_in_time)}
-                              </span>
-                            </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <i
+                                  className="icon-calendar"
+                                  style={{ fontSize: "18px", color: "#4CAF50" }}
+                                ></i>
+                                <span style={{ whiteSpace: "nowrap" }}>
+                                  {formatDate(list.check_in_time)}
+                                </span>
+                              </div>
+                            </Tooltip>
                           </td>
                           <td style={{ padding: "16px 20px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                              }}
+                            <Tooltip 
+                              title={formatDateTooltip(list.check_out_time)}
+                              arrow
+                              placement="top"
                             >
-                              <i
-                                className="icon-calendar-2"
-                                style={{ fontSize: "18px", color: "#F44336" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_out_time)}
-                              </span>
-                            </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <i
+                                  className="icon-calendar-2"
+                                  style={{ fontSize: "18px", color: "#F44336" }}
+                                ></i>
+                                <span style={{ whiteSpace: "nowrap" }}>
+                                  {formatDate(list.check_out_time)}
+                                </span>
+                              </div>
+                            </Tooltip>
                           </td>
                           <td
                             style={{
                               padding: "16px 10px",
                               whiteSpace: "nowrap",
-                              width: "80px",
-                              minWidth: "80px",
-                              maxWidth: "80px",
                               textAlign: "center",
                             }}
                           >
-                            <div
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "4px",
-                                backgroundColor: "rgba(255, 152, 0, 0.1)",
-                                padding: "5px 8px",
-                                borderRadius: "20px",
-                                whiteSpace: "nowrap",
-                                width: "fit-content",
-                                margin: "0 auto",
-                              }}
-                            >
-                              <i
-                                className="icon-passenger"
-                                style={{ fontSize: "18px", color: "#FF9800" }}
-                              ></i>
-                              <span
+                                                          <div
                                 style={{
-                                  fontWeight: "600",
-                                  fontSize: "15px",
-                                  color: "#FF9800",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "3px",
+                                  backgroundColor: "rgba(255, 152, 0, 0.1)",
+                                  padding: "4px 6px",
+                                  borderRadius: "16px",
                                   whiteSpace: "nowrap",
+                                  width: "fit-content",
+                                  margin: "0 auto",
                                 }}
                               >
-                                {list.total_pax}
-                              </span>
-                            </div>
+                                <i
+                                  className="icon-passenger"
+                                  style={{ fontSize: "18px", color: "#FF9800" }}
+                                ></i>
+                                <span
+                                  style={{
+                                    fontWeight: "600",
+                                    fontSize: "15px",
+                                    color: "#FF9800",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {list.total_pax}
+                                </span>
+                              </div>
                           </td>
                           <td style={{ padding: "16px 20px" }}>
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                gap: "6px",
                               }}
                             >
                               <i
@@ -2610,7 +2624,7 @@ export default function Pending() {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                gap: "6px",
                               }}
                             >
                               <i
@@ -2625,12 +2639,12 @@ export default function Pending() {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                gap: "6px",
                                 backgroundColor: getBackgroundColor(
                                   list.tour_status
                                 ),
-                                padding: "6px 12px",
-                                borderRadius: "20px",
+                                padding: "4px 8px",
+                                borderRadius: "16px",
                               }}
                             >
                               <i
@@ -2653,7 +2667,7 @@ export default function Pending() {
                                   return "icon-info-circle";
                                 })()}
                                 style={{
-                                  fontSize: "18px",
+                                  fontSize: "14px",
                                   color: getTextColor(list.tour_status),
                                 }}
                               ></i>
@@ -2661,6 +2675,7 @@ export default function Pending() {
                                 style={{
                                   fontWeight: "600",
                                   color: getTextColor(list.tour_status),
+                                  fontSize: "12px",
                                 }}
                               >
                                 {" "}
@@ -2670,129 +2685,188 @@ export default function Pending() {
                           </td>
                           <td
                             style={{
-                              padding: "16px 10px",
+                              padding: "8px 12px",
                             }}
                           >
-                            <div
-                              style={{
-                                borderRadius: "8px",
-                                padding: "12px 16px",
-                                backgroundColor: "rgba(225, 245, 255, 0.8)",
-                                boxShadow: "0 2px 6px rgba(33, 150, 243, 0.12)",
-                                transition: "all 0.2s ease",
-                              }}
+                            <Tooltip 
+                              title={`Original: SGD ${Math.ceil(list.finalAmount + list.discountAmount)} | Discount: SGD ${Math.ceil(list.discountAmount)} | Final: SGD ${Math.ceil(list.finalAmount)}`}
+                              arrow
+                              placement="top"
                             >
                               <div
                                 style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  flexDirection: "row",
-                                  gap: "8px",
-                                  whiteSpace: "nowrap",
+                                  borderRadius: "8px",
+                                  padding: "10px 12px",
+                                  backgroundColor: "rgba(225, 245, 255, 0.9)",
+                                  border: "1px solid rgba(33, 150, 243, 0.2)",
+                                  boxShadow: "0 2px 8px rgba(33, 150, 243, 0.15)",
+                                  transition: "all 0.3s ease",
+                                  cursor: "pointer",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = "translateY(-2px)";
+                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(33, 150, 243, 0.25)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = "translateY(0)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                                 }}
                               >
-                                <span
+                                <div
                                   style={{
-                                    fontWeight: "600",
-                                    color: "#e53935",
-                                    fontSize: "13px",
-                                    letterSpacing: "0.2px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    marginBottom: "6px",
                                   }}
                                 >
-                                  Discount: SGD {Math.ceil(list.discountAmount)}
-                                </span>
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  flexDirection: "row",
-                                  marginTop: "8px",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <span
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <i className="icon-usd" style={{ fontSize: "12px", color: "#e53935" }}></i>
+                                    <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
+                                      -{Math.ceil(list.discountAmount)}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <i className="icon-tag" style={{ fontSize: "12px", color: "#1976d2" }}></i>
+                                    <span style={{ fontSize: "10px", color: "#1976d2", fontWeight: "600" }}>
+                                      {Math.ceil(list.finalAmount)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div
                                   style={{
-                                    fontWeight: "600",
-                                    color: "#424242",
-                                    fontSize: "14px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "6px",
+                                    padding: "4px 8px",
+                                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(33, 150, 243, 0.1)",
                                   }}
                                 >
-                                  Final Amount: SGD{" "}
-                                  {Math.ceil(list.finalAmount)}
-                                </span>
+                                  <i className="icon-wallet" style={{ fontSize: "14px", color: "#1976d2" }}></i>
+                                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#1976d2" }}>
+                                    SGD {Math.ceil(list.finalAmount)}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
+                            </Tooltip>
                           </td>
 
                           <td style={{ padding: "16px 20px" }}>
-                            <div
-                              style={{
-                                borderRadius: "8px",
-                                padding: "12px 16px",
-                                backgroundColor:
-                                  list.payment_status === "Not Paid"
-                                    ? "rgba(253, 236, 234, 0.9)"
-                                    : list.payment_status === "Partially Paid"
-                                    ? "rgba(227, 242, 253, 0.9)"
-                                    : list.payment_status === "Completely Paid"
-                                    ? "rgba(232, 245, 233, 0.9)"
-                                    : "rgba(224, 224, 224, 0.9)",
-                                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
-                                transition: "all 0.2s ease",
-                              }}
+                            <Tooltip 
+                              title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
+                              arrow
+                              placement="top"
                             >
                               <div
                                 style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  flexDirection: "row",
-                                  gap: "8px",
-                                  whiteSpace: "nowrap",
+                                  borderRadius: "8px",
+                                  padding: "10px 12px",
+                                  backgroundColor:
+                                    list.payment_status === "Not Paid"
+                                      ? "rgba(253, 236, 234, 0.95)"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "rgba(227, 242, 253, 0.95)"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "rgba(232, 245, 233, 0.95)"
+                                      : "rgba(224, 224, 224, 0.95)",
+                                  border: `1px solid ${
+                                    list.payment_status === "Not Paid"
+                                      ? "rgba(211, 47, 47, 0.3)"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "rgba(25, 118, 210, 0.3)"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "rgba(56, 142, 60, 0.3)"
+                                      : "rgba(97, 97, 97, 0.3)"
+                                  }`,
+                                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+                                  transition: "all 0.3s ease",
+                                  cursor: "pointer",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = "translateY(-2px)";
+                                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = "translateY(0)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.12)";
                                 }}
                               >
                                 {list.dueAmount > 0 && (
-                                  <span
+                                  <div
                                     style={{
-                                      fontWeight: "600",
-                                      color: "#e53935",
-                                      fontSize: "13px",
-                                      letterSpacing: "0.2px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      gap: "4px",
+                                      marginBottom: "6px",
+                                      padding: "3px 8px",
+                                      backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                      borderRadius: "12px",
+                                      border: "1px solid rgba(229, 57, 53, 0.2)",
                                     }}
                                   >
-                                    Due Amount: SGD {Math.ceil(list.dueAmount)}
-                                  </span>
+                                    <i className="icon-alert-circle" style={{ fontSize: "10px", color: "#e53935" }}></i>
+                                    <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
+                                      Due: SGD {Math.ceil(list.dueAmount)}
+                                    </span>
+                                  </div>
                                 )}
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  flexDirection: "row",
-                                  marginTop: "8px",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <span
+                                <div
                                   style={{
-                                    fontWeight: "600",
-                                    color:
-                                      list.payment_status === "Not Paid"
-                                        ? "#d32f2f"
-                                        : list.payment_status ===
-                                          "Partially Paid"
-                                        ? "#1976d2"
-                                        : list.payment_status ===
-                                          "Completely Paid"
-                                        ? "#388e3c"
-                                        : "#616161",
-                                    fontSize: "14px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "6px",
+                                    padding: "4px 8px",
+                                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(0, 0, 0, 0.1)",
                                   }}
                                 >
-                                  {list.payment_status}
-                                </span>
+                                  <i 
+                                    className={
+                                      list.payment_status === "Not Paid"
+                                        ? "icon-x-circle"
+                                        : list.payment_status === "Partially Paid"
+                                        ? "icon-clock"
+                                        : list.payment_status === "Completely Paid"
+                                        ? "icon-check-circle"
+                                        : "icon-help-circle"
+                                    }
+                                    style={{ 
+                                      fontSize: "14px", 
+                                      color:
+                                        list.payment_status === "Not Paid"
+                                          ? "#d32f2f"
+                                          : list.payment_status === "Partially Paid"
+                                          ? "#1976d2"
+                                          : list.payment_status === "Completely Paid"
+                                          ? "#388e3c"
+                                          : "#616161"
+                                    }}
+                                  ></i>
+                                  <span
+                                    style={{
+                                      fontWeight: "700",
+                                      fontSize: "12px",
+                                      color:
+                                        list.payment_status === "Not Paid"
+                                          ? "#d32f2f"
+                                          : list.payment_status === "Partially Paid"
+                                          ? "#1976d2"
+                                          : list.payment_status === "Completely Paid"
+                                          ? "#388e3c"
+                                          : "#616161",
+                                    }}
+                                  >
+                                    {list.payment_status}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
+                            </Tooltip>
                           </td>
                         </tr>
                       ))

@@ -319,6 +319,18 @@ const CustomerInfo = forwardRef((props, ref) => {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
+      // Get package details if it's a package booking
+      const packageDetails = isPackageBooking ? {
+        package_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id,
+        package_name: attractionBookings?.[0]?.data?.[0]?.ticketName,
+        package_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions || [],
+        package_description: attractionBookings?.[0]?.data?.[0]?.packageDetails?.description || "",
+        package_adult_price: attractionBookings?.[0]?.data?.[0]?.ticket_details?.adult_price || 0,
+        package_child_price: attractionBookings?.[0]?.data?.[0]?.ticket_details?.child_price || 0,
+        package_senior_price: attractionBookings?.[0]?.data?.[0]?.ticket_details?.senior_price || 0,
+        package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
+      } : null;
+      
       const bookingDetails = {
         agent_id: Cookies.get("AgentId") || "0",
         data: [{
@@ -351,7 +363,8 @@ const CustomerInfo = forwardRef((props, ref) => {
           dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
           bookingType: "booking",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null
+          package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
+          ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
@@ -461,6 +474,18 @@ const CustomerInfo = forwardRef((props, ref) => {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
+      // Get package details if it's a package booking
+      const packageDetails = isPackageBooking ? {
+        package_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id,
+        package_name: attractionBookings?.[0]?.data?.[0]?.ticketName,
+        package_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions || [],
+        package_description: attractionBookings?.[0]?.data?.[0]?.packageDetails?.description || "",
+        package_adult_price: attractionBookings?.[0]?.data?.[0]?.ticket_details?.adult_price || 0,
+        package_child_price: attractionBookings?.[0]?.data?.[0]?.ticket_details?.child_price || 0,
+        package_senior_price: attractionBookings?.[0]?.data?.[0]?.ticket_details?.senior_price || 0,
+        package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
+      } : null;
+      
       const enquiryDetails = {
         agent_id: Cookies.get("AgentId") || "0",
         data: [{
@@ -497,7 +522,8 @@ const CustomerInfo = forwardRef((props, ref) => {
           dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
           bookingType: "enquiry",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null
+          package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
+          ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",

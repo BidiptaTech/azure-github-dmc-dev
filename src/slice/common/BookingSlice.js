@@ -97,9 +97,14 @@ export const fetchBookingid = createAsyncThunk(
         //dispatch(setDateService(data.service));
       }
       // Dispatch the date_service data from nested service object to Redux
-      if (data?.service?.attraction) {
-        // console.log("Service Data:", data?.service?.attraction);
-        dispatch(setAttractionService(data.service.attraction));
+      if (data?.service?.attraction || data?.service?.attraction_package) {
+        // Combine both attraction and attraction_package data
+        const attractionData = data.service.attraction || [];
+        const attractionPackageData = data.service.attraction_package || [];
+        const combinedAttractionData = [...attractionData, ...attractionPackageData];
+        
+        // console.log("Combined Attraction Data:", combinedAttractionData);
+        dispatch(setAttractionService(combinedAttractionData));
       }
 
       if (data?.service?.restaurant) {

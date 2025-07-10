@@ -38,7 +38,17 @@ import {
   AttachMoney,
   FileDownloadOutlined,
   Close,
-  Cancel
+  Cancel,
+  Settings,
+  ConfirmationNumber,
+  Event,
+  EventAvailable,
+  Group,
+  Place,
+  AccountCircle,
+  Badge as BadgeIcon,
+  Payment,
+  Info
   
 } from "@mui/icons-material";
 import { getSorting } from "./utils.jsx";
@@ -182,7 +192,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
           <TableHead sx={{ backgroundColor: '#f0f4f8' }}>
             <TableRow>
               <TableCell align="center" sx={{ fontWeight: 'bold', color: '#37474f' }}>
-                Actions
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                  <Settings fontSize="small" />
+                  Actions
+                </Box>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
                 <TableSortLabel
@@ -190,7 +203,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   direction={orderBy === 'bookingId' ? order : 'asc'}
                   onClick={(e) => handleRequestSort(e, 'bookingId')}
                 >
-                  Booking ID
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ConfirmationNumber fontSize="small" />
+                    Booking ID
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
@@ -199,7 +215,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   direction={orderBy === 'startDate' ? order : 'asc'}
                   onClick={(e) => handleRequestSort(e, 'startDate')}
                 >
-                  Start Date
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Event fontSize="small" />
+                    Start Date
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
@@ -208,7 +227,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   direction={orderBy === 'endDate' ? order : 'asc'}
                   onClick={(e) => handleRequestSort(e, 'endDate')}
                 >
-                  End Date
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EventAvailable fontSize="small" />
+                    End Date
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
@@ -217,7 +239,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   direction={orderBy === 'pax' ? order : 'asc'}
                   onClick={(e) => handleRequestSort(e, 'pax')}
                 >
-                  Pax
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Group fontSize="small" />
+                    Pax
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
@@ -226,7 +251,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   direction={orderBy === 'destination' ? order : 'asc'}
                   onClick={(e) => handleRequestSort(e, 'destination')}
                 >
-                  Destination
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Place fontSize="small" />
+                    Destination
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
@@ -235,7 +263,10 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   direction={orderBy === 'customerName' ? order : 'asc'}
                   onClick={(e) => handleRequestSort(e, 'customerName')}
                 >
-                  Customer
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountCircle fontSize="small" />
+                    Customer
+                  </Box>
                 </TableSortLabel>
               </TableCell>
               {userRole !== 'Agent' && (
@@ -245,12 +276,25 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                     direction={orderBy === 'agentId' ? order : 'asc'}
                     onClick={(e) => handleRequestSort(e, 'agentId')}
                   >
-                    Agent ID
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BadgeIcon fontSize="small" />
+                      Agent ID
+                    </Box>
                   </TableSortLabel>
                 </TableCell>
               )}
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>Payment</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Payment fontSize="small" />
+                  Payment
+                </Box>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Info fontSize="small" />
+                  Status
+                </Box>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
