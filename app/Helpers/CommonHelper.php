@@ -758,22 +758,20 @@ class CommonHelper
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
-        // Determine the model based on type
+        // Determine the model based on type and get all DMC IDs from JSON arrays
+        $hotel_dmc_ids = [];
         if ($type === 'hotel') {
-            $hotel_dmc_ids = Hotel::where('name', $name)
+            $records = Hotel::where('name', $name)
                 ->where('city', $city)
-                ->pluck('dmc_id')
-                ->toArray();
+                ->get(['dmc_id']);
         } elseif ($type === 'attraction') {
-            $hotel_dmc_ids = Attraction::where('name', $name)
+            $records = Attraction::where('name', $name)
                 ->where('location', $city)
-                ->pluck('dmc_id')
-                ->toArray();
+                ->get(['dmc_id']);
         } elseif ($type === 'restaurant') {
-            $hotel_dmc_ids = Restaurant::where('name', $name)
+            $records = Restaurant::where('name', $name)
                 ->where('city', $city)
-                ->pluck('dmc_id')
-                ->toArray();
+                ->get(['dmc_id']);
         } elseif ($type === 'vehicle') {
             // $hotel_dmc_ids = OperationalCountry::where('name', $name)
             //     ->where('city', $city)
@@ -796,6 +794,30 @@ class CommonHelper
         } else {
             return [0, null]; // Invalid type, return 0
         }
+
+        // Extract all DMC IDs from JSON arrays
+        foreach ($records as $record) {
+            $dmc_id_data = $record->dmc_id;
+            if (is_string($dmc_id_data)) {
+                // If it's a JSON string, decode it
+                $decoded = json_decode($dmc_id_data, true);
+                if (is_array($decoded)) {
+                    $hotel_dmc_ids = array_merge($hotel_dmc_ids, $decoded);
+                } else {
+                    // Single ID as string
+                    $hotel_dmc_ids[] = (int)$dmc_id_data;
+                }
+            } elseif (is_array($dmc_id_data)) {
+                // Already an array
+                $hotel_dmc_ids = array_merge($hotel_dmc_ids, $dmc_id_data);
+            } elseif (is_numeric($dmc_id_data)) {
+                // Single numeric ID
+                $hotel_dmc_ids[] = (int)$dmc_id_data;
+            }
+        }
+
+        // Remove duplicates and ensure all values are integers
+        $hotel_dmc_ids = array_unique(array_map('intval', array_filter($hotel_dmc_ids)));
 
         if (empty($hotel_dmc_ids)) {
             return [0, null]; // No linked DMC found, set price to 0
@@ -846,17 +868,17 @@ class CommonHelper
         if ($type === 'hotel') {
             $hotel = Hotel::where('name', $name)
             ->where('city', $city)
-            ->where('dmc_id', $dmc->userId) // Use the resolved DMC
+            ->whereJsonContains('dmc_id', $dmc->userId) // Check if DMC ID exists in JSON array
             ->first();
         } elseif ($type === 'attraction') {
             $hotel = Attraction::where('name', $name)
             ->where('location', $city)
-            ->where('dmc_id', $dmc_id) // Use the resolved DMC
+            ->whereJsonContains('dmc_id', $dmc->userId) // Check if DMC ID exists in JSON array
             ->first();
         } elseif ($type === 'restaurant') {
             $hotel = Restaurant::where('name', $name)
             ->where('city', $city)
-            ->where('dmc_id', $dmc->userId) // Use the resolved DMC
+            ->whereJsonContains('dmc_id', $dmc->userId) // Check if DMC ID exists in JSON array
             ->first();
         } elseif ($type === 'vehicle') {
             $hotel = Vehicle::where('vehicle_name', $name)

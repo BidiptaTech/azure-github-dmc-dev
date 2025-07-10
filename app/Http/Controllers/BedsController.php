@@ -99,9 +99,9 @@ class BedsController extends Controller
         if($auth_user->user_type == 1){
             $hotel = Hotel::get();
         }elseif($auth_user->user_type == 2){
-            $hotel = Hotel::where('dmc_id', $auth_user->userId)->get();
+            $hotel = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
         }else {
-            $hotel = Hotel::where('dmc_id', $auth_user->userId)->get();
+            $hotel = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
         }
         $bed = BedMaster::where('bedId',$id)->first();
         $room = Room::where('room_id', $bed->room_id)->first();
