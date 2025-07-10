@@ -72,6 +72,8 @@ export default function HotelComponent({ searchParams }) {
     setActiveHotelIndex,
     alert,
     setAlert,
+    getBookingIdForConfig,
+    getAllBookingIds,
     loadExistingHotelData,
     createInitialHotelConfiguration
   } = useHotelData(MEAL_PLAN_OPTIONS);
@@ -423,6 +425,7 @@ export default function HotelComponent({ searchParams }) {
   // Handler for removing hotel
   const handleRemoveHotel = () => {
     console.log("Remove hotel clicked");
+    
     setHotelConfigurations(prevConfigurations => {
       if (prevConfigurations.length <= 1) {
         console.log("Cannot remove hotel: Only one configuration remaining");
@@ -445,6 +448,7 @@ export default function HotelComponent({ searchParams }) {
   // Handler for removing hotel configuration by specific index (for HotelConfigSummary)
   const removeHotelConfiguration = (index) => {
     console.log("Remove hotel configuration at index:", index);
+    
     setHotelConfigurations(prevConfigurations => {
       if (prevConfigurations.length <= 1) {
         console.log("Cannot remove hotel: Only one configuration remaining");
@@ -640,8 +644,23 @@ export default function HotelComponent({ searchParams }) {
         return; // Skip this hotel
       }
 
-      // Create a unique booking ID for the hotel booking
-      const bookingId = `hotel-${baseConfig.hotelId}-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+      // Get booking ID only from existing configuration - don't create new ones
+      let bookingId = null;
+      
+      // Check if any configuration has an existing booking ID from previous response
+      for (const config of configs) {
+        const existingBookingId = getBookingIdForConfig(config);
+        if (existingBookingId) {
+          bookingId = existingBookingId;
+          console.log("Hotel sync - Using existing booking ID from response:", bookingId);
+          break;
+        }
+      }
+      
+      // For new hotels, we don't create a booking ID - it will be provided by the backend response
+      if (!bookingId) {
+        console.log("Hotel sync - No existing booking ID found for hotel, will be created by backend");
+      }
       
       // Create rooms array from all configurations for this hotel
       const rooms = configs.map(config => {
@@ -685,38 +704,11 @@ export default function HotelComponent({ searchParams }) {
         }
         return sum + roomPrice;
       }, 0);
-      
-      // Debug hotel details before creating the data object
-      // console.log(`Hotel details for ${baseConfig.hotelDetails?.hotel_name || 'unknown hotel'}:`, {
-      //   hotelId: baseConfig.hotelId,
-      //   hotelDetails: baseConfig.hotelDetails,
-      //   hotelName: baseConfig.hotelDetails?.hotel_name,
-      //   image: baseConfig.hotelDetails?.image
-      // });
-      
-      // Get hotel name trying multiple sources
-      // const hotelName = baseConfig.hotelDetails?.hotel_name || 
-      //                  baseConfig.hotelDetails?.name || 
-      //                  baseConfig.hotel_name ||
-      //                  baseConfig.name ||
-      //                  "Unknown Hotel";
-                       
-      // Get hotel image trying multiple sources
-      const hotelImage = baseConfig.hotelDetails?.image || 
-                        baseConfig.hotelDetails?.main_image ||
-                        baseConfig.hotelDetails?.logo || 
-                        baseConfig.hotelDetails?.site_image?.[0] ||
-                        baseConfig.hotelDetails?.photos?.[0] ||
-                        baseConfig.image ||
-                        baseConfig.main_image ||
-                        "";
-      
-
-      
+          
       // Create the hotel booking data
       const hotelData = {
         id: bookingId,
-        bookingType: "booking",
+        bookingType: "enquiry",
         bookingDate: [startDate, endDate],
         hotelDetails: {
           hotel_id: baseConfig.hotelId || "",
@@ -730,9 +722,7 @@ export default function HotelComponent({ searchParams }) {
           checkOutTime: baseConfig.hotelDetails?.checkOutTime || "12:00:00",
           cancellation_charge: baseConfig.hotelDetails?.cancellation_charge || ""
         },
-        // Add direct properties for debugging
-        // _debug_hotel_name: hotelName,
-        // _debug_hotel_image: hotelImage,
+        
         priceMode: "dmc", // Default
         priceModeId: 4, // Default
         rooms: rooms,
@@ -748,6 +738,12 @@ export default function HotelComponent({ searchParams }) {
         data: [hotelData] // Each hotel service has its own data array with one entry
       };
       
+      // Only add booking_id if it exists from a previous response (not for new hotels)
+      if (bookingId) {
+        hotelService.booking_id = bookingId;
+        console.log("Hotel sync - Added existing booking_id to hotel service:", bookingId);
+      }
+      
       // Add this hotel service to our array of hotel services
       hotelServices.push(hotelService);
     });
@@ -757,7 +753,7 @@ export default function HotelComponent({ searchParams }) {
     // Merge and dispatch - add ALL hotel services to the services without hotels
     const updatedServices = [...servicesWithoutHotels, ...hotelServices];
     dispatch(setAllServices(updatedServices));
-  }, [hotelConfigurations, tourId, searchState, dates]);
+  }, [hotelConfigurations, tourId, searchState, dates, getBookingIdForConfig, dispatch]);
 
   return (
     <Box sx={{ '& > *': { mb: 1.5 } }}>

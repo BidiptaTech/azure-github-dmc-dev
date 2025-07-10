@@ -92,38 +92,65 @@ export const extractGuestMealPlans = (bed, mealPlanOptions) => {
  * @param {Object} bed Bed data object
  * @param {Array} bookingDates Array of booking dates
  * @param {Array} mealPlanOptions Available meal plan options
+ * @param {string|number} bookingId Booking ID for this configuration
  * @returns {Object} Hotel configuration object
  */
-export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates, mealPlanOptions) => {
+export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates, mealPlanOptions, bookingId = null) => {
   const guestMealPlans = extractGuestMealPlans(bed, mealPlanOptions);
   const { nights, selectedNightIndices } = calculateNightsFromDates(bookingDates);
   
-  // Extract check-in and check-out dates
-  const checkInDate = bookingDates && bookingDates.length > 0 ? bookingDates[0] : null;
-  const checkOutDate = bookingDates && bookingDates.length > 1 ? bookingDates[1] : null;
+  // Extract specific bed details
+  const bedData = {
+    bedTypeId: String(bed.bed_id || ''),
+    bedTypeName: bed.bed_type || '',
+    maxOccupancy: parseInt(bed.max_occupancy || 1),
+    bedPrice: parseFloat(bed.price || 0),
+    headCount: parseInt(bed.head_count || 1),
+    babyCot: bed.baby_cot === 1
+  };
   
-  console.log("Creating config with booking dates:", { checkInDate, checkOutDate, bookingDates });
+  // Extract room details
+  const roomData = {
+    roomTypeId: String(room.room_id || ''),
+    roomTypeName: room.room_type || ''
+  };
   
-  return {
-    id: generateUniqueId(),
-    hotelId: hotelDetails.hotel_id,
-    hotelDetails: hotelDetails,
-    roomTypeId: room.room_id.toString(),
-    roomTypeName: room.room_type,
-    bedTypeId: bed.bed_id.toString(),
-    bedTypeName: bed.bed_type,
-    max_occupancy: bed.max_occupancy || 1,
-    bedPrice: bed.price || 0,
-    mealPlanId: guestMealPlans[0]?.id || 'self',
+  // Create the hotel configuration object
+  const config = {
+    id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+    hotelId: String(hotelDetails.hotel_id || ''),
+    hotelDetails: {
+      ...hotelDetails,
+      // Ensure required fields are present
+      hotel_name: hotelDetails.hotel_name || hotelDetails.name || 'Unknown Hotel',
+      image: hotelDetails.image || hotelDetails.main_image || hotelDetails.logo || ''
+    },
+    roomTypeId: roomData.roomTypeId,
+    roomTypeName: roomData.roomTypeName,
+    bedTypeId: bedData.bedTypeId,
+    bedTypeName: bedData.bedTypeName,
+    max_occupancy: bedData.maxOccupancy,
+    bedPrice: bedData.bedPrice,
+    mealPlanId: 'self', // Default meal plan
     nights: nights,
     selectedNightIndices: selectedNightIndices,
-    babyCot: bed.baby_cot === 1,
-    occupancyType: getOccupancyType(bed.max_occupancy),
+    babyCot: bedData.babyCot,
+    occupancyType: bedData.headCount > 1 ? 'multiple' : 'single',
     adultDistribution: { male: 0, female: 0 },
     expanded: true,
-    selectedGuests: bed.head_count || 1,
+    selectedGuests: bedData.headCount,
     guestMealPlans: guestMealPlans,
-    checkInDate: checkInDate,
-    checkOutDate: checkOutDate
+    // Store original booking data for reference
+    originalData: {
+      hotelDetails: { ...hotelDetails },
+      room: { ...room },
+      bed: { ...bed },
+      bookingDates: [...bookingDates],
+      booking_id: bookingId // Preserve booking_id from service level
+    }
   };
+  
+  console.log("Created hotel configuration with booking ID:", { configId: config.id, bookingId });
+  
+  return config;
 }; 

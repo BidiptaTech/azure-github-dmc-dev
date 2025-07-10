@@ -38,6 +38,8 @@ import {
   setDropoffZoneid,
   setPickupZoneid,
   setZonetype,
+  setSearchDayIndex,
+  clearSearchDayIndex,
 } from "@/slice/localtour/Localslice";
 import SearchBar1 from "./LocationSearch1";
 import DateSearch1 from "@/components/activity-list/activity-list-v3/DateSearch1";
@@ -53,6 +55,8 @@ import PickupDropDisabledLayout from '../common/PickupDropDisabledLayout';
 
 const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const dispatch = useDispatch();
+  
+  console.log(`SearchLocationTransport Day ${dayIndex}: Component mounting/rendering`);
   
   // Helper function to format date from Itinerary
   const formatItineraryDate = useCallback((itineraryDate) => {
@@ -85,7 +89,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const reduxPickUpLatLng = useSelector((state) => state.localtour.PickupPlaceid || "");
   const reduxDropOffLatLng = useSelector((state) => state.localtour.DropoffPlaceid || "");
   const reduxEntryTime = useSelector((state) => state.localtour.entrytime || "");
-  const reduxEntryTime1 = useSelector((state) => state.localtour.entrytime1 || "");
+  const reduxEntryTime1 = useSelector((state) => state.localtour.entrytime || "");
   const reduxEntryTimeZone = useSelector((state) => state.localtour.entrytime || "");
   const reduxPickUpZone = useSelector((state) => state.localtour.PickupZoneid || "");
   const reduxDropOffZone = useSelector((state) => state.localtour.DropoffZoneid || "");
@@ -134,11 +138,42 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const [time1, setTime1] = useState(!!reduxEntryTime1);
   const [timezone, setTimezone] = useState(!!reduxEntryTimeZone);
   const viewDetails = useSelector((state) => state.viewDetails.bookings);
+  
+  // Get vehicles state to check if search has been performed
+  const vehicles = useSelector((state) => state.localtour.vehicles || []);
+  const hasVehicles = vehicles && vehicles.length > 0;
 
   // Refs to track state changes and prevent infinite loops
   const isUpdatingFromRedux = useRef(false);
   const isUpdatingToRedux = useRef(false);
   const lastItineraryDate = useRef(itineraryFormattedDate);
+  const hasSetInitialPort = useRef(false);
+
+  useEffect(() => {
+    // Only set default selectedPort once on initial load if none is selected
+    // Check for all valid transport types to avoid overriding user selections
+    const validPorts = ["Point To Point", "Hourly", "Local Transfer"];
+    const currentSelectedPort = selectedPort; // Capture current value at mount time
+    const currentHasVehicles = hasVehicles; // Capture current vehicles state at mount time
+    const hasValidSelection = currentSelectedPort && validPorts.includes(currentSelectedPort);
+    
+    // Additional check: if vehicles are already loaded, user has likely made a selection
+    const shouldNotOverride = hasValidSelection || currentHasVehicles;
+    
+    if (!hasSetInitialPort.current && !shouldNotOverride) {
+      console.log(`SearchLocationTransport Day ${dayIndex}: Setting initial selectedPort to "Point To Point" (current: "${currentSelectedPort}", hasVehicles: ${currentHasVehicles})`);
+      dispatch(setSelectedPort("Point To Point"));
+      hasSetInitialPort.current = true;
+    } else if (shouldNotOverride) {
+      console.log(`SearchLocationTransport Day ${dayIndex}: Preserving existing state - selectedPort: "${currentSelectedPort}", hasVehicles: ${currentHasVehicles}`);
+      hasSetInitialPort.current = true; // Mark as initialized to prevent future overrides
+    }
+  }, [dispatch, dayIndex]); // Keep dependencies minimal
+
+  // Debug effect to track selectedPort changes
+  useEffect(() => {
+    console.log(`SearchLocationTransport Day ${dayIndex}: selectedPort changed to: "${selectedPort}"`);
+  }, [selectedPort, dayIndex]);
 
   // Consolidated effect to sync FROM Redux TO local state (one-way)
   useEffect(() => {
@@ -353,6 +388,8 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     // Set validation triggered to true when search button is clicked
     setValidationTriggered(true);
 
+    console.log(`SearchLocationTransport Day ${dayIndex}: Search button clicked for selectedPort: "${selectedPort}"`);
+
     if (selectedPort === "Point To Point") {
       // Only proceed if both locations are selected from autocomplete
       const locationsValid = pickupFromAutocomplete && dropoffFromAutocomplete;
@@ -379,6 +416,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       
       dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
+      dispatch(setSearchDayIndex(dayIndex));
       
       // Check if pickUpLatLng and dropOffLatLng have valid values
       if (!pickUpLatLng || !pickUpLatLng.lat || !pickUpLatLng.lng) {
@@ -451,6 +489,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       
       dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
+      dispatch(setSearchDayIndex(dayIndex));
       
       // Check if pickUpLatLng has valid values
       if (!pickUpLatLng || !pickUpLatLng.lat || !pickUpLatLng.lng) {
@@ -505,6 +544,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       console.log("Dispatching Local Transfer updates:", updates);
       dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
+      dispatch(setSearchDayIndex(dayIndex));
       dispatch(setentrypickup(pickUpLatLng));
       dispatch(setentrydropoff(dropOffLatLng));
       dispatch(setZonetype("zone"));
@@ -574,6 +614,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               onChange={(e) => {
                 dispatch(setSelectedPort(e.target.value));
                 dispatch(resetVehicles1());
+                dispatch(clearSearchDayIndex()); // Clear day index on service type change
                 setValidationTriggered(false);
               }}
               sx={{ gap: 2 }}

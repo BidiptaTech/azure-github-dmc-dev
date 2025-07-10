@@ -58,6 +58,7 @@ import BookingViewModal from './BookingViewModal';
 
 // Package Table Component
 const PackagesTable = ({ data = [], emptyMessage = "No packages available", userRole = null }) => {
+
   const dispatch = useDispatch();
   const { cancelBookingLoading, cancelBookingSuccess, cancelBookingError } = useSelector((state) => state.prePackages);
   
@@ -402,6 +403,33 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                     </Box>
                   </TableCell>
                 )}
+                {userRole !== 'Agent' && (
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Chip
+                        label={`ID: ${row.agentId || '0001'}`}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        sx={{
+                          fontSize: '0.75rem',
+                          height: '24px',
+                          backgroundColor: '#e3f2fd',
+                          borderColor: '#1976d2',
+                          color: '#1976d2',
+                          '& .MuiChip-label': {
+                            px: 1,
+                            fontWeight: 500
+                          },
+                          '&:hover': {
+                            backgroundColor: '#bbdefb',
+                            borderColor: '#1565c0'
+                          }
+                        }}
+                      />
+                    </Box>
+                  </TableCell>
+                )}
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', mr: 0.5 }}>
@@ -488,5 +516,6 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
     </>
   );
 };
+
 
 export default PackagesTable; 

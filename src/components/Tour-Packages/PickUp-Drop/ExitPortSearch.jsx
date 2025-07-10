@@ -263,11 +263,13 @@ const ExitPortSearch = ({ Location }) => {
           flex-direction: column;
           gap: 15px;
           width: 100%;
+          max-width: 1730px;
         }
         
         .search-row1 {
           width: 100%;
           margin-left: -10px;
+          max-width: 1730px;
         }
         
         .location-row {
@@ -275,7 +277,7 @@ const ExitPortSearch = ({ Location }) => {
           flex-direction: row;
           align-items: flex-end;
           flex-wrap: nowrap;
-          gap: 10px;
+          gap: 15px;
         }
         
         .controls-row {
@@ -293,7 +295,7 @@ const ExitPortSearch = ({ Location }) => {
         }
         
         .time-selection-wrapper {
-          width: 15%;
+          width: 20%;
           flex-shrink: 0;
         }
         

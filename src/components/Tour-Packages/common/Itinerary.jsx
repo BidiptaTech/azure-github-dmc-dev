@@ -49,6 +49,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import WarningIcon from '@mui/icons-material/Warning';
 import { BookPackageEnquiry, UpdateCustomBooking } from '../../../slice/tour-packages/tourPackageSlice';
+import { useNavigate } from 'react-router-dom';
 
 // Import all service components
 import HotelComponent from '../../Tour-Packages/hotel';
@@ -61,6 +62,7 @@ import SimpleCustomerInfo from './SimpleCustomerInfo';
 import ServicesSummaryModal from './ServicesSummaryModal';
 
 export default function Itinerary({ onBookingSuccess }) {
+  const navigate = useNavigate();
   // Get data from Redux store
   const { searchCriteria } = useSelector((state) => state.tourPackages);
   console.log("searchCriteria", searchCriteria);
@@ -433,14 +435,15 @@ export default function Itinerary({ onBookingSuccess }) {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-  const { loading, error, packageEnquiryId } = useSelector((state) => state.tourPackages);
+  const { loading, error, packageEnquiryId, customerInfoValid } = useSelector((state) => state.tourPackages);
   
   // Debug logging for button state
-  const isButtonDisabled = loading || !validateServiceDates.isValid || !allServices || allServices.length === 0;
+  const isButtonDisabled = loading || !validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid;
   console.log("Button disabled state:", {
     loading,
     hasServices: allServices && allServices.length > 0,
     isValidationPassing: validateServiceDates.isValid,
+    customerInfoValid,
     finalDisabledState: isButtonDisabled
   });
   
@@ -520,7 +523,7 @@ export default function Itinerary({ onBookingSuccess }) {
         setSnackbarMessage('Package Upadated successfully!');
         setSnackbarSeverity('success');
         setOpenSnackbar(true);
-        
+        navigate('/dashboard/db-dashboard');
         // Call the callback to reset current step in parent component
         if (onBookingSuccess) {
           onBookingSuccess();
@@ -733,9 +736,9 @@ export default function Itinerary({ onBookingSuccess }) {
             >
               View Summary
             </Button>
-            <Button variant="contained" color="primary" size="large">
+            {/* <Button variant="contained" color="primary" size="large">
               Save Itinerary
-            </Button>
+            </Button> */}
           </Grid>
         </Grid>
       </Paper>
@@ -812,6 +815,27 @@ export default function Itinerary({ onBookingSuccess }) {
           </Alert>
         )}
 
+        {/* Show customer info warning if not valid */}
+        {allServices && allServices.length > 0 && validateServiceDates.isValid && !customerInfoValid && (
+          <Alert 
+            severity="warning" 
+            icon={<WarningIcon />}
+            sx={{ 
+              mb: 3, 
+              width: '100%', 
+              maxWidth: 600,
+              borderRadius: 2
+            }}
+          >
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Customer information required
+            </Typography>
+            <Typography variant="body2">
+              Please complete all mandatory fields in the Customer Information section above to enable booking.
+            </Typography>
+          </Alert>
+        )}
+
         <Button 
           variant="contained" 
           color="primary" 
@@ -825,17 +849,17 @@ export default function Itinerary({ onBookingSuccess }) {
             fontSize: '1.1rem',
             fontWeight: 600,
             borderRadius: '50px',
-            background: (!validateServiceDates.isValid || !allServices || allServices.length === 0)
+            background: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
               ? 'linear-gradient(45deg, #9e9e9e 30%, #bdbdbd 90%)'
               : 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
-            boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0)
+            boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
               ? '0 4px 8px rgba(158, 158, 158, 0.3)'
               : '0 10px 20px rgba(53, 84, 209, 0.3)',
             transition: 'all 0.3s ease',
             textTransform: 'none',
             '&:hover': {
-              transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0) ? 'none' : 'translateY(-3px)',
-              boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0)
+              transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid) ? 'none' : 'translateY(-3px)',
+              boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
                 ? '0 4px 8px rgba(158, 158, 158, 0.3)'
                 : '0 15px 30px rgba(53, 84, 209, 0.4)',
             },
@@ -852,6 +876,8 @@ export default function Itinerary({ onBookingSuccess }) {
             'No Services Added'
           ) : !validateServiceDates.isValid ? (
             'Please Fix Service Dates'
+          ) : !customerInfoValid ? (
+            'Complete Customer Info'
           ) : (
             packageData?.tour?.tour_id > 0 ? 'Update Package Now' : 'Book Package Now'
           )}
@@ -863,11 +889,15 @@ export default function Itinerary({ onBookingSuccess }) {
           </Typography>
         )}
 
-        {((!allServices || allServices.length === 0) || !validateServiceDates.isValid) && (
+        {((!allServices || allServices.length === 0) || !validateServiceDates.isValid || !customerInfoValid) && (
           <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary', textAlign: 'center', maxWidth: 400 }}>
             {(!allServices || allServices.length === 0) 
               ? 'Add some services to your itinerary to enable booking.'
-              : 'Please ensure all service booking dates fall within your tour period before proceeding with the booking.'
+              : !validateServiceDates.isValid
+              ? 'Please ensure all service booking dates fall within your tour period before proceeding with the booking.'
+              : !customerInfoValid
+              ? 'Complete all mandatory customer information fields to enable booking.'
+              : ''
             }
           </Typography>
         )}

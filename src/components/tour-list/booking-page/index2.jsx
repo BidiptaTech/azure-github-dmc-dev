@@ -295,6 +295,7 @@ export default function Index2() {
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
+        type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking",
         // Add a source flag to track which component sent the request
         requestSource: "index2",
@@ -491,6 +492,7 @@ export default function Index2() {
           },
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };

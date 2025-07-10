@@ -32,6 +32,7 @@ const theme = createTheme({
           transition: 'all 0.3s ease',
           '&:hover': {
             transform: 'translateY(-3px)',
+            transform: 'translateY(-3px)',
             boxShadow: '0px 15px 30px rgba(0, 255, 255, 0.5)',
           },
         },
@@ -57,6 +58,7 @@ const Packages = () => {
     return (
       <div className="pre-define-packages-background">
       <div className="pre-define-packages-background">
+      <div className="pre-define-packages-background">
         <div className="packages-container" style={{ padding: '100px 20px', textAlign: 'center' }}>
             <div className="d-flex flex-column align-items-center y-gap-20">
                 <div className="col-md-6">
@@ -72,6 +74,7 @@ const Packages = () => {
                               justifyContent: 'center',
                               gap: '10px',
                               background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
+                              background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
                               color: 'white',
                               ml: 1.5,
                               fontWeight: 1000,
@@ -85,6 +88,8 @@ const Packages = () => {
                               '&:hover': {
                                 transform: 'translateY(-3px)',
                                 boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
+                                transform: 'translateY(-3px)',
+                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
                               }
                             }}
                         >
@@ -94,6 +99,7 @@ const Packages = () => {
                 </div>
             </div>
             <PreDefinePackagesPage />
+        </div>
         </div>
         </div>
         </div>

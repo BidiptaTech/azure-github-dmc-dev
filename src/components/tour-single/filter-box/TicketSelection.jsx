@@ -18,12 +18,13 @@ import {
   Fade,
   Badge,
   Divider,
-  Avatar,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Avatar,
+ 
 } from "@mui/material";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import InfoIcon from "@mui/icons-material/Info";
@@ -44,6 +45,7 @@ import LanguageIcon from '@mui/icons-material/Language';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CloseIcon from '@mui/icons-material/Close';
 import ListIcon from '@mui/icons-material/List';
+
 import { styled, alpha } from "@mui/material/styles";
 
 const StyledDropdown = styled(Paper)(({ theme, isOpen }) => ({
@@ -181,6 +183,10 @@ const SidebarHeader = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(2),
 }));
 
+
+
+
+
 const TicketSelection = ({
   ticketOptions,
   selectedTicket,
@@ -218,6 +224,10 @@ const TicketSelection = ({
       package_type: ticket.type === 'package' ? 1 : 0,
       package_attraction_id: ticket.type === 'package' ? ticket.package_attraction_id : null
     };
+    
+    setSelectedTicket(ticketWithType);
+    // Add package_type to the ticket object
+ 
     
     setSelectedTicket(ticketWithType);
     setIsModalOpen(true);
@@ -429,6 +439,7 @@ const TicketSelection = ({
     }
   };
 
+
   // Get all available options (tickets + packages)
   const allOptions = [
     ...ticketOptions.map(ticket => ({ 
@@ -499,6 +510,14 @@ const TicketSelection = ({
                 >
                   <Box width="100%">
                     <Box display="flex" alignItems="center">
+                      {item.type === 'package' && (
+                        <Chip 
+                          size="small" 
+                          label="Package" 
+                          color="secondary" 
+                          sx={{ mr: 1, height: '18px', fontSize: '10px' }} 
+                        />
+                      )}
                       {item.type === 'package' && (
                         <Chip 
                           size="small" 
@@ -599,7 +618,7 @@ const TicketSelection = ({
           </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 0, display: 'flex', height: '600px' }}>
+        <DialogContent sx={{ p: 0, display: 'flex', height: '600px' }}>   
           {selectedTicket && (
             <>
               {/* Main Content Area */}

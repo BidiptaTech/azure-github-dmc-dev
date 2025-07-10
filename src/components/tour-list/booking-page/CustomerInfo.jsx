@@ -368,6 +368,7 @@ const CustomerInfo = forwardRef((props, ref) => {
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
+        type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking"
       };
 
@@ -526,6 +527,7 @@ const CustomerInfo = forwardRef((props, ref) => {
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };
