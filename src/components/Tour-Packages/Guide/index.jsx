@@ -245,7 +245,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         country: guideData.country,
         languages: guideData.languages,
         experience: guideData.experience,
-        bookingType: guideData.bookingType || "booking"
+        bookingType: guideData.bookingType || "enquiry"
       };
 
       // Create service object with booking_id preserved
@@ -253,7 +253,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
-        data: [processedGuideData]
+        data: [processedGuideData],
+        bookingType: "enquiry"  
       };
 
       // Add booking_id if it exists in the original service
@@ -523,7 +524,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           type: "guide",
           agent_id: agentId,
           tour_id: tourId,
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         // Add booking_id if available from original data
@@ -570,7 +572,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         city: summaryData.city,
         country: summaryData.country,
         languages: summaryData.languages,
-        experience: summaryData.experience
+        experience: summaryData.experience,
       };
       
       // Add booking_id if available from original data
@@ -591,7 +593,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
-        data: [bookingData]
+        data: [bookingData],
+        bookingType: "enquiry"
       };
       
       // Add booking_id if available from original data
@@ -701,7 +704,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           type: "guide",
           agent_id: agentId,
           tour_id: tourId,
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         // Add booking_id if available from original data
@@ -781,7 +785,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         type: "guide",
         agent_id: agentId,
         tour_id: tourId,
-        data: [bookingData]
+        data: [bookingData],
+        bookingType: "enquiry"  
       };
       
       // Add booking_id if available from original data
@@ -863,6 +868,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const handleRemoveSection = (indexToRemove) => {
     const sectionToRemove = formSections[indexToRemove];
     
+    if (!sectionToRemove) {
+      console.log("Guide - No section found at index:", indexToRemove);
+      return;
+    }
+
+    console.log("Guide - Removing section:", sectionToRemove);
+    
     // Remove from local state
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
@@ -873,27 +885,67 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
     }
     
-    // Remove from Redux state if the section has an original ID
-    if (sectionToRemove?.originalData?.id) {
+    // Remove from Redux state if the section has guide data (either has an original ID or guide selection)
+    const hasOriginalId = sectionToRemove?.originalData?.id;
+    const hasGuideId = sectionToRemove?.guide;
+    
+    if (hasOriginalId || hasGuideId) {
+      // Clone the existing services array
       const currentServices = [...existingServices];
-      const updatedServices = currentServices.filter(service => {
-        if (service.type === "guide" && service.data && Array.isArray(service.data)) {
-          // Remove the specific booking from this service
-          const filteredData = service.data.filter(item => item.id !== sectionToRemove.originalData.id);
-          if (filteredData.length === 0) {
-            // If no data left, remove the entire service
-            return false;
-          } else {
-            // Update the service with filtered data
-            service.data = filteredData;
-            return true;
+      
+      // Filter out guide services that contain this booking
+      const filteredServices = currentServices.map(service => {
+        // Check if this is a guide service
+        if (service.type === "guide") {
+          // Check if this service contains data that matches our booking
+          if (service.data && Array.isArray(service.data)) {
+            // Remove the specific booking with matching ID and booking_id (if available)
+            const filteredData = service.data.filter(dataItem => {
+              // Match by booking_id first (most reliable)
+              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
+                return !(dataItem.id === sectionToRemove.originalData.id && 
+                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+              }
+              
+              // Match by ID as fallback
+              if (sectionToRemove.originalData?.id && dataItem.id === sectionToRemove.originalData.id) {
+                return false;
+              }
+              
+              // Match by guide ID and dayIndex as final fallback for new bookings
+              if (sectionToRemove.guide && 
+                  dataItem.guide_id === sectionToRemove.guide &&
+                  dataItem.dayIndex === dayIndex) {
+                return false;
+              }
+              
+              return true;
+            });
+            
+            if (filteredData.length === 0) {
+              // If no data left, mark for removal
+              return null;
+            } else {
+              // Create a new service with filtered data (immutable update)
+              return {
+                ...service,
+                data: filteredData
+              };
+            }
           }
         }
-        return true;
-      });
+        
+        // Keep all other services as-is
+        return service;
+      }).filter(service => service !== null); // Remove services marked as null
       
-      console.log("Guide - Removing booking from Redux:", sectionToRemove.originalData.id);
-      dispatch(setAllServices(updatedServices));
+      // Only dispatch if there's an actual change
+      if (filteredServices.length !== currentServices.length || 
+          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
+        console.log("Guide - Removing booking from Redux:", sectionToRemove);
+        console.log("Guide - Updated services:", filteredServices);
+        dispatch(setAllServices(filteredServices));
+      }
     }
   };
 
@@ -1180,21 +1232,19 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                         </Button>
                       )}
                                   
-                      {sectionIndex > 0 && (
-                        <Tooltip title="Remove Booking">
-                          <IconButton 
-                            size="small"
-                            color="error" 
-                            onClick={() => handleRemoveSection(sectionIndex)}
-                            sx={{ 
-                              bgcolor: alpha(theme.palette.error.main, 0.1),
-                              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
-                            }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      <Tooltip title="Remove Booking">
+                        <IconButton 
+                          size="small"
+                          color="error" 
+                          onClick={() => handleRemoveSection(sectionIndex)}
+                          sx={{ 
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </Box>
 

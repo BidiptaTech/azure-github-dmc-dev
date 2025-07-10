@@ -26,7 +26,7 @@ const DateSelect = ({ onChange, value }) => {
         onChange={(newDate) => {
           setDate(newDate);
         }}
-        numberOfMonths={1}
+        numberOfMonths={2}
         offsetY={10}
         format="DD/MM/YYYY" // Display format
         minDate={new DateObject()} // Minimum date is today

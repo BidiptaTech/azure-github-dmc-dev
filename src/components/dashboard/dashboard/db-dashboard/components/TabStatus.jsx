@@ -1,10 +1,16 @@
 import * as React from "react";
 import { useState } from "react";
+import { useSelector } from "react-redux";
 import {
-  PendingActions,
-  EventNote,
-  CheckCircle,
-  ArrowDropDown,
+  Box,
+  Card,
+  Tabs,
+  Tab,
+  Badge,
+} from "@mui/material";
+import {
+  DonutLarge,
+  Upcoming as UpcomingIcon,
   History,
 } from "@mui/icons-material";
 import Pending from "./Pending";
@@ -12,201 +18,170 @@ import Upcoming from "./Upcoming";
 import Completed from "./Completed";
 import Deleted from "./Deleted";
 
-export default function TabStatus() {
-  const [activeTab, setActiveTab] = useState(0);
+// TabPanel component for accessibility
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
 
-  const handleTabClick = (index) => {
-    setActiveTab(index);
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 0 }}>{children}</Box>}
+    </div>
+  );
+}
+
+function a11yProps(index) {
+  return {
+    id: `simple-tab-${index}`,
+    'aria-controls': `simple-tabpanel-${index}`,
+  };
+}
+
+export default function TabStatus() {
+  const [tabValue, setTabValue] = useState(0);
+
+  // Get actual data from Redux store
+  const { upcomingTours = [] } = useSelector((state) => state.lists);
+  const { pendingTours = [] } = useSelector((state) => state.lists);
+  const { lists = [] } = useSelector((state) => state.lists);
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
   };
 
-  // Tab items with icons
-  const tabItems = [
-    { label: "Ongoing", icon: <EventNote sx={{ fontSize: 20 }} /> },
-    { label: "Upcoming", icon: <PendingActions sx={{ fontSize: 20 }} /> },
-    // { label: "Completed", icon: <CheckCircle sx={{ fontSize: 20 }} /> },
-    { label: "Past", icon: <History sx={{ fontSize: 20 }} /> },
-  ];
-
-  // Define color styles for normal and active states
-  const tabStyles = {
-    Upcoming: {
-      normal: {
-        backgroundColor: "rgba(255, 152, 0, 0.1)",
-        color: "#FF9800",
-        border: "1px solid rgba(255, 152, 0, 0.3)",
-        boxShadow: "none",
-      },
-      active: {
-        backgroundColor: "white",
-        color: "#FF9800",
-        border: "1px solid #FF9800",
-        boxShadow: "0 4px 10px rgba(255, 152, 0, 0.15)",
-      },
-    },
-    Ongoing: {
-      normal: {
-        backgroundColor: "rgba(33, 150, 243, 0.1)",
-        color: "#2196F3",
-        border: "1px solid rgba(33, 150, 243, 0.3)",
-        boxShadow: "none",
-      },
-      active: {
-        backgroundColor: "white",
-        color: "#2196F3",
-        border: "1px solid #2196F3",
-        boxShadow: "0 4px 10px rgba(33, 150, 243, 0.15)",
-      },
-    },
-    // Completed: {
-    //   normal: {
-    //     backgroundColor: "rgba(76, 175, 80, 0.1)",
-    //     color: "#4CAF50",
-    //     border: "1px solid rgba(76, 175, 80, 0.3)",
-    //     boxShadow: "none",
-    //   },
-    //   active: {
-    //     backgroundColor: "white",
-    //     color: "#4CAF50",
-    //     border: "1px solid #4CAF50",
-    //     boxShadow: "0 4px 10px rgba(76, 175, 80, 0.15)",
-    //   },
-    // },
-    Past: {
-      normal: {
-        backgroundColor: "rgba(244, 67, 54, 0.1)",
-        color: "#F44336",
-        border: "1px solid rgba(244, 67, 54, 0.3)",
-        boxShadow: "none",
-      },
-      active: {
-        backgroundColor: "white",
-        color: "#F44336",
-        border: "1px solid #F44336",
-        boxShadow: "0 4px 10px rgba(244, 67, 54, 0.15)",
-      },
-    },
+  // Calculate actual counts from the data
+  const tabCounts = {
+    ongoing: upcomingTours.length,
+    upcoming: pendingTours.length,
+    past: lists.length
   };
 
   return (
-    <>
-      <div className="tabs-container">
-        <div
-          className="tabs-controls"
-          style={{
-            display: "flex",
-            gap: "12px",
-            marginBottom: "5px",
-            padding: "0 8px",
+    <Box sx={{ width: "100%" }}>
+      <Card sx={{ mb: 3, overflow: 'hidden' }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label="status tabs"
+          indicatorColor="primary"
+          textColor="primary"
+          variant="fullWidth"
+          sx={{
+            background: 'linear-gradient(to right, #f5f7fa, #f9fcff)',
+            '& .MuiTab-root': {
+              fontWeight: 600,
+              py: 2.5,
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              minHeight: '64px',
+              transition: 'all 0.2s',
+              '&:hover': {
+                backgroundColor: 'rgba(67, 97, 238, 0.04)',
+              },
+              '&.Mui-selected': {
+                color: '#4361ee',
+                fontWeight: 700,
+              }
+            }
           }}
         >
-          {tabItems.map((item, index) => {
-            const isActive = activeTab === index;
-            return (
-              <button
-                key={index}
-                className={`tab-button ${isActive ? "active" : ""}`}
-                onClick={() => handleTabClick(index)}
-                style={{
-                  ...(isActive
-                    ? tabStyles[item.label].active
-                    : tabStyles[item.label].normal),
-                  padding: "10px 20px",
-                  borderRadius: "8px",
-                  transition: "all 0.3s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  fontWeight: isActive ? "600" : "500",
-                  fontSize: "14px",
-                  transform: isActive ? "translateY(-2px)" : "none",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                {item.icon}
-                {item.label}
-                {isActive && <ArrowDropDown />}
+          <Tab
+            icon={<DonutLarge />}
+            label={
+              <Box sx={{ position: 'relative', pr: 3 }}>
+                Ongoing
+                <Badge
+                  badgeContent={tabCounts.ongoing}
+                  color="primary"
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 14,
+                    '& .MuiBadge-badge': {
+                      fontSize: '10px',
+                      height: '20px',
+                      minWidth: '20px'
+                    }
+                  }}
+                />
+              </Box>
+            }
+            iconPosition="start"
+            {...a11yProps(0)}
+          />
+          <Tab
+            icon={<UpcomingIcon />}
+            label={
+              <Box sx={{ position: 'relative', pr: 3 }}>
+                Upcoming
+                <Badge
+                  badgeContent={tabCounts.upcoming}
+                  color="primary"
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 14,
+                    '& .MuiBadge-badge': {
+                      fontSize: '10px',
+                      height: '20px',
+                      minWidth: '20px'
+                    }
+                  }}
+                />
+              </Box>
+            }
+            iconPosition="start"
+            {...a11yProps(1)}
+          />
+          <Tab
+            icon={<History />}
+            label={
+              <Box sx={{ position: 'relative', pr: 3 }}>
+                Past
+                <Badge
+                  badgeContent={tabCounts.past}
+                  color="primary"
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 14,
+                    '& .MuiBadge-badge': {
+                      fontSize: '10px',
+                      height: '20px',
+                      minWidth: '20px'
+                    }
+                  }}
+                />
+              </Box>
+            }
+            iconPosition="start"
+            {...a11yProps(2)}
+          />
+        </Tabs>
+      </Card>
 
-                {/* Ripple effect for the active tab */}
-                {isActive && (
-                  <div
-                    className="ripple-effect"
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      width: "200%",
-                      height: "200%",
-                      transform: "translate(-50%, -50%)",
-                      backgroundColor:
-                        tabStyles[item.label].normal.backgroundColor,
-                      borderRadius: "50%",
-                      animation: "ripple 1.5s infinite",
-                      opacity: 0.3,
-                      zIndex: -1,
-                    }}
-                  ></div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <TabPanel value={tabValue} index={0}>
+        <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <Upcoming />
+        </Card>
+      </TabPanel>
 
-      {/* Content Wrapper */}
-      <div
-        className="tab-content"
-        style={{
-          background: `linear-gradient(135deg, ${
-            tabStyles[tabItems[activeTab].label].normal.color
-          }20 0%, white 100%)`,
-          padding: "24px",
-          borderRadius: "16px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
-          animation: "fadeIn 0.5s ease-in-out",
-          minHeight: "400px",
-        }}
-      >
-        {activeTab === 0 && <Upcoming />}
-        {activeTab === 1 && <Pending />}
-        {/* {activeTab === 2 && <Completed />} */}
-        {activeTab === 2 && <Deleted />}
-      </div>
+      <TabPanel value={tabValue} index={1}>
+        <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <Pending />
+        </Card>
+      </TabPanel>
 
-      {/* Animations */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes ripple {
-          0% {
-            transform: translate(-50%, -50%) scale(0);
-            opacity: 0.4;
-          }
-          100% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 0;
-          }
-        }
-
-        @keyframes bounce {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-5px);
-          }
-        }
-      `}</style>
-    </>
+      <TabPanel value={tabValue} index={2}>
+        <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <Deleted />
+        </Card>
+      </TabPanel>
+    </Box>
   );
 }

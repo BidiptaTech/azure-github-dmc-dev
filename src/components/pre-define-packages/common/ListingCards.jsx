@@ -188,7 +188,7 @@ const PackageCard = ({ packageData }) => {
           py: 0.5,
           fontSize: '12px',
           fontWeight: 'bold',
-          zIndex: 2
+          // zIndex: 2
         }}
       >
         {packageData.duration_days} Days

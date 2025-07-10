@@ -209,7 +209,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: attractionData.dmc_id,
         bookingDate: attractionData.bookingDate,
         dayIndex: attractionData.dayIndex,
-        bookingType: attractionData.bookingType || "booking"
+        bookingType: attractionData.bookingType || "enquiry"
       };
 
       // Create service object with booking_id preserved
@@ -302,6 +302,13 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const handleRemoveSection = (indexToRemove) => {
     const sectionToRemove = formSections[indexToRemove];
     
+    if (!sectionToRemove) {
+      console.log("Attraction - No section found at index:", indexToRemove);
+      return;
+    }
+
+    console.log("Attraction - Removing section:", sectionToRemove);
+    
     // Remove from local state
     setFormSections(formSections.filter((_, index) => index !== indexToRemove));
     setExpandedSections(expandedSections.filter(index => index !== indexToRemove).map(index => index > indexToRemove ? index - 1 : index));
@@ -312,27 +319,67 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       setSavedSectionIds(prev => prev.filter(signature => signature !== sectionSignature));
     }
     
-    // Remove from Redux state if the section has an original ID
-    if (sectionToRemove?.originalData?.id) {
+    // Remove from Redux state if the section has attraction data (either has an original ID or attraction selection)
+    const hasOriginalId = sectionToRemove?.originalData?.id;
+    const hasAttractionId = sectionToRemove?.attraction;
+    
+    if (hasOriginalId || hasAttractionId) {
+      // Clone the existing services array
       const currentServices = [...existingServices];
-      const updatedServices = currentServices.filter(service => {
-        if (service.type === "attraction" && service.data && Array.isArray(service.data)) {
-          // Remove the specific booking from this service
-          const filteredData = service.data.filter(item => item.id !== sectionToRemove.originalData.id);
-          if (filteredData.length === 0) {
-            // If no data left, remove the entire service
-            return false;
-          } else {
-            // Update the service with filtered data
-            service.data = filteredData;
-            return true;
+      
+      // Filter out attraction services that contain this booking
+      const filteredServices = currentServices.map(service => {
+        // Check if this is an attraction service
+        if (service.type === "attraction") {
+          // Check if this service contains data that matches our booking
+          if (service.data && Array.isArray(service.data)) {
+            // Remove the specific booking with matching ID and booking_id (if available)
+            const filteredData = service.data.filter(dataItem => {
+              // Match by booking_id first (most reliable)
+              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
+                return !(dataItem.id === sectionToRemove.originalData.id && 
+                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+              }
+              
+              // Match by ID as fallback
+              if (sectionToRemove.originalData?.id && dataItem.id === sectionToRemove.originalData.id) {
+                return false;
+              }
+              
+              // Match by attraction ID and dayIndex as final fallback for new bookings
+              if (sectionToRemove.attraction && 
+                  dataItem.AttractionId === sectionToRemove.attraction &&
+                  dataItem.dayIndex === dayIndex) {
+                return false;
+              }
+              
+              return true;
+            });
+            
+            if (filteredData.length === 0) {
+              // If no data left, mark for removal
+              return null;
+            } else {
+              // Create a new service with filtered data (immutable update)
+              return {
+                ...service,
+                data: filteredData
+              };
+            }
           }
         }
-        return true;
-      });
+        
+        // Keep all other services as-is
+        return service;
+      }).filter(service => service !== null); // Remove services marked as null
       
-      console.log("Attraction - Removing booking from Redux:", sectionToRemove.originalData.id);
-      dispatch(setAllServices(updatedServices));
+      // Only dispatch if there's an actual change
+      if (filteredServices.length !== currentServices.length || 
+          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
+        console.log("Attraction - Removing booking from Redux:", sectionToRemove);
+        console.log("Attraction - Updated services:", filteredServices);
+        dispatch(setAllServices(filteredServices));
+      }
     }
   };
 
@@ -376,7 +423,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: updatedSection.originalData.dmc_id,
         bookingDate: updatedSection.originalData.bookingDate,
         dayIndex: updatedSection.originalData.dayIndex,
-        bookingType: updatedSection.originalData.bookingType || "booking",
+        bookingType: updatedSection.originalData.bookingType || "enquiry",
         booking_id: updatedSection.originalData.booking_id // Preserve booking_id
       };
 
@@ -458,7 +505,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       dmc_id: agentId,
       bookingDate: updatedSection.bookingDate,
       dayIndex: dayIndex,
-      bookingType: "booking"
+      bookingType: "enquiry"
     };
 
     // Clone existing services
@@ -824,7 +871,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           dmc_id: section.originalData.dmc_id,
           bookingDate: section.originalData.bookingDate,
           dayIndex: section.originalData.dayIndex,
-          bookingType: section.originalData.bookingType || "booking",
+          bookingType: section.originalData.bookingType || "enquiry",
           booking_id: section.originalData.booking_id // Preserve booking_id
         };
       }
@@ -863,7 +910,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: agentId,
         bookingDate: section.bookingDate,
         dayIndex: dayIndex,
-        bookingType: "booking"
+        bookingType: "enquiry"
       };
     });
 
@@ -1223,21 +1270,19 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                             </Button>
                       )}
                                   
-                      {sectionIndex > 0 && (
-                        <Tooltip title="Remove Booking">
-                          <IconButton 
-                            size="small"
-                            color="error" 
-                            onClick={() => handleRemoveSection(sectionIndex)}
-                            sx={{ 
-                              bgcolor: alpha(theme.palette.error.main, 0.1),
-                              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
-                            }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      <Tooltip title="Remove Booking">
+                        <IconButton 
+                          size="small"
+                          color="error" 
+                          onClick={() => handleRemoveSection(sectionIndex)}
+                          sx={{ 
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </Box>
 

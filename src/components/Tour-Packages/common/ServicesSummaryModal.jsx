@@ -304,11 +304,11 @@ const ServicesSummaryModal = ({ open, onClose }) => {
             )}
           </Box>
           <Box>
-            {allServices.length > 0 && (
+            {/* {allServices.length > 0 && (
               <IconButton onClick={handlePrint} sx={{ mr: 1 }}>
                 <PrintIcon />
               </IconButton>
-            )}
+            )} */}
             <IconButton onClick={onClose}>
               <CloseIcon />
             </IconButton>
@@ -880,11 +880,11 @@ const ServicesSummaryModal = ({ open, onClose }) => {
         <Button onClick={onClose} variant="outlined" color="primary">
           Close
         </Button>
-        {allServices.length > 0 && (
+        {/* {allServices.length > 0 && (
           <Button onClick={handlePrint} variant="contained" color="primary" startIcon={<PrintIcon />}>
             Print Summary
           </Button>
-        )}
+        )} */}
       </DialogActions>
     </Dialog>
   );

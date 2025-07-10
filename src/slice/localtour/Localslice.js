@@ -652,6 +652,7 @@ const LocalSlice = createSlice({
     pickupLocation: "",
     dropLocation: "",
     roundTrip: false,
+    searchDayIndex: null, // Track which dayIndex initiated the search
   },
   reducers: {
     setentrypickup: (state, action) => {
@@ -830,6 +831,14 @@ const LocalSlice = createSlice({
     setZonetype: (state, action) => {
       state.zonetype = action.payload;
     },
+    setSearchDayIndex: (state, action) => {
+      state.searchDayIndex = action.payload;
+      console.log("searchDayIndex set to:", state.searchDayIndex);
+    },
+    clearSearchDayIndex: (state) => {
+      state.searchDayIndex = null;
+      console.log("searchDayIndex cleared");
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -936,6 +945,8 @@ export const {
   setAdultCount,
   setChildCount,
   setHourCount,
+  setSearchDayIndex,
+  clearSearchDayIndex,
 } = LocalSlice.actions;
 
 export default LocalSlice.reducer;

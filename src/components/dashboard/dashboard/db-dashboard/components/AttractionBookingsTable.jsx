@@ -32,6 +32,25 @@ const capitalizeFirstLetter = (string) => {
   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 };
 
+// Function to get initials from package name
+const getPackageInitials = (packageName) => {
+  if (!packageName) return "P";
+  return packageName
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase())
+    .join('')
+    .substring(0, 2); // Limit to 2 characters for better display
+};
+
+// Function to format package name with proper capitalization
+const formatPackageName = (packageName) => {
+  if (!packageName) return "N/A";
+  return packageName
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 // Map numeric status to text
 const getStatusText = (status) => {
   switch (status) {
@@ -125,13 +144,28 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
-  // Memoize the attractions bookings count
-  const attractionBookingsCount = useMemo(() => bookings?.attraction?.length || 0, [bookings?.attraction?.length]);
+  // Combine attraction and attraction_package bookings
+  const combinedBookings = useMemo(() => {
+    const attractionBookings = (bookings?.attraction || []).map(booking => ({
+      ...booking,
+      bookingType: 'attraction'
+    }));
+    
+    const packageBookings = (bookings?.attraction_package || []).map(booking => ({
+      ...booking,
+      bookingType: 'package'
+    }));
+    
+    return [...attractionBookings, ...packageBookings];
+  }, [bookings?.attraction, bookings?.attraction_package]);
+  
+  // Memoize the combined bookings count
+  const totalBookingsCount = useMemo(() => combinedBookings.length, [combinedBookings.length]);
 
   // Only update count when it actually changes
   useEffect(() => {
-    onCountChange(attractionBookingsCount);
-  }, [attractionBookingsCount, onCountChange]);
+    onCountChange(totalBookingsCount);
+  }, [totalBookingsCount, onCountChange]);
 
   if (status === "loading") return (
     <Box sx={{ 
@@ -213,7 +247,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
               </Typography>
             </Stack>
             
-            {bookings?.attraction?.length > 0 && (
+            {totalBookingsCount > 0 && (
               <Stack direction="row" spacing={1} alignItems="center" sx={{ 
                 bgcolor: alpha('#fff', 0.15), 
                 borderRadius: 1.5, 
@@ -222,7 +256,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
               }}>
                 <ConfirmationNumberIcon fontSize="small" />
                 <Typography fontWeight={500} fontSize="1rem" color="white">
-                  {attractionBookingsCount} {attractionBookingsCount === 1 ? 'Booking' : 'Bookings'}
+                  {totalBookingsCount} {totalBookingsCount === 1 ? 'Booking' : 'Bookings'}
                 </Typography>
               </Stack>
             )}
@@ -305,12 +339,6 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                   <Typography variant="body2" fontWeight="bold" color="white">Price</Typography>
                 </Box>
               </TableCell>
-              {/* <TableCell sx={{ color: "#fff", width: '13%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <DirectionsCarIcon fontSize="small" />
-                  <Typography variant="body2" fontWeight="bold" color="white">Selection</Typography>
-                </Box>
-              </TableCell> */}
               <TableCell sx={{ color: "#fff", width: '8%' }}>
                 <Typography variant="body2" fontWeight="bold" color="white">Mode</Typography>
               </TableCell>
@@ -324,8 +352,8 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
           </TableHead>
 
           <TableBody>
-            {bookings?.attraction?.length > 0 ? (
-              bookings.attraction.map((booking, index) => {
+            {combinedBookings.length > 0 ? (
+              combinedBookings.map((booking, index) => {
                 const statusText = getStatusText(booking.status);
                 const statusStyle = getStatusStyle(statusText);
                 const selectionStyle = getSelectionStyle(booking.Selection);
@@ -363,17 +391,39 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                           sx={{ 
                             width: 24, 
                             height: 24, 
-                            bgcolor: alpha('#00796B', 0.1),
-                            color: '#00796B',
-                            fontSize: '12px',
+                            bgcolor: booking.bookingType === 'package' ? alpha('#FF9800', 0.1) : alpha('#00796B', 0.1),
+                            color: booking.bookingType === 'package' ? '#E65100' : '#00796B',
+                            fontSize: '10px',
                             fontWeight: 'bold'
                           }}
                         >
-                          {booking.AttractionName?.charAt(0) || "A"}
+                          {booking.bookingType === 'package' 
+                            ? getPackageInitials(booking.ticketName)
+                            : (booking.AttractionName?.charAt(0).toUpperCase() || "A")
+                          }
                         </Avatar>
-                        <Typography variant="body2" fontWeight="500" noWrap sx={{ maxWidth: 120 }}>
-                          {booking.AttractionName || "N/A"}
-                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight="500" noWrap sx={{ maxWidth: 120 }}>
+                            {booking.bookingType === 'package' 
+                              ? formatPackageName(booking.ticketName)
+                              : (booking.AttractionName || "N/A")
+                            }
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                            {booking.bookingType === 'package' ? (
+                              <CardTravelIcon style={{ fontSize: '10px', color: '#E65100' }} />
+                            ) : (
+                              <AttractionsIcon style={{ fontSize: '10px', color: '#00796B' }} />
+                            )}
+                            <Typography variant="caption" sx={{ 
+                              fontSize: '0.65rem', 
+                              color: booking.bookingType === 'package' ? '#E65100' : '#00796B',
+                              fontWeight: 'medium'
+                            }}>
+                              {booking.bookingType === 'package' ? 'Package' : 'Attraction'}
+                            </Typography>
+                          </Box>
+                        </Box>
                       </Box>
                     </TableCell>
                     <TableCell sx={{ py: 0.75 }}>
@@ -424,8 +474,20 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                             return "Price Hidden";
                           }
                           
-                          // Calculate price with tax using sgdTax from auth slice
-                          const basePrice = booking.totalPrice || 0;
+                          let basePrice = 0;
+                          
+                          // Calculate price based on booking type
+                          if (booking.bookingType === 'package' && booking.ticket_details) {
+                            // For package bookings, calculate total from ticket details
+                            const adultPrice = (booking.ticket_details.adult_price || 0) * (booking.adultCount || 0);
+                            const childPrice = (booking.ticket_details.child_price || 0) * (booking.childCount || 0);
+                            const seniorPrice = (booking.ticket_details.senior_price || 0) * (booking.seniorCount || 0);
+                            basePrice = adultPrice + childPrice + seniorPrice;
+                          } else {
+                            // For attraction bookings, use totalPrice
+                            basePrice = booking.totalPrice || 0;
+                          }
+                          
                           const sgdPrice = Math.ceil(basePrice);
                           const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
                           const sgdGrandTotal = sgdPrice + sgdTaxAmount;
@@ -456,14 +518,6 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                         }}
                       />
                     </TableCell>
-                    {/* <TableCell sx={{ py: 0.75 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {selectionStyle.icon}
-                        <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                          {selectionStyle.label}
-                        </Typography>
-                      </Box>
-                    </TableCell> */}
                     <TableCell sx={{ py: 0.75 }}>
                       {booking.mode === "travClicks" || booking.mode === "travclicks" ? (
                         <Chip 
@@ -579,7 +633,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={11} align="center">
+                <TableCell colSpan={10} align="center">
                   <Box sx={{ 
                     py: 3,
                     display: 'flex',
@@ -599,7 +653,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                       <AttractionsIcon />
                     </Avatar>
                     <Typography variant="body1" color="textSecondary">
-                      No attraction bookings available.
+                      No attraction or package bookings available.
                     </Typography>
                   </Box>
                 </TableCell>

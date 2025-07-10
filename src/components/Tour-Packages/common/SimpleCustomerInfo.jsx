@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setAllServices } from '@/slice/tour-packages/tourPackageSlice';
+import { setAllServices, setCustomerInfoValid } from '@/slice/tour-packages/tourPackageSlice';
 import {
   TextField,
   Paper,
@@ -215,6 +215,9 @@ const SimpleCustomerInfo = () => {
     
     const isValid = validateForm();
     
+    // Dispatch customer info validity to Redux
+    dispatch(setCustomerInfoValid(isValid && Object.values(touched).some(t => t)));
+    
     // Only proceed if form is valid, has been touched, and has changed since last update
     if (isValid && Object.values(touched).some(t => t) && hasFormChanged()) {
       // Get customer info 
@@ -252,7 +255,14 @@ const SimpleCustomerInfo = () => {
     } else {
       setFormValid(false);
     }
-  }, [form, touched]);
+  }, [form, touched, dispatch]);
+
+  // Cleanup effect to clear customer info validation when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(setCustomerInfoValid(false));
+    };
+  }, [dispatch]);
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
