@@ -657,6 +657,271 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     dispatch(resetVehicles1()); 
     dispatch(resetguide());
     
+    
+    // Format Dates
+    const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
+    console.log("formattedCheckIn",formattedCheckIn);
+    const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
+    const formatedHotelCheckIn = moment(startDate).format("YYYY-MM-DD");
+    const formatedHotelCheckOut = moment(endDate).format("YYYY-MM-DD");
+
+    
+    // Get the country and city data
+    const country = selectedLocation.country;
+    const city = selectedLocation.city;
+    const countryCode = selectedLocation.countryCode;
+    console.log("countryCode",countryCode);
+    const cityCode = selectedLocation.cityCode;
+    
+    // Create genders array based on male and female counts
+    const maleCount = guestCounts.maleCount || 0;
+    const femaleCount = guestCounts.femaleCount || 0;
+    const genders = [
+      ...Array(maleCount).fill("Male"),
+      ...Array(femaleCount).fill("Female")
+    ];
+
+    // Get tour_id from packageData
+    const tourId = packageData?.tour?.tour_id;
+    dispatch(setAllServices({
+      country: country,
+      city: city,
+      check_in_time: formattedCheckIn,
+      check_out_time: formattedCheckOut,
+      tour_id: tourId,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
+    // Update tour packages search criteria in Redux
+    dispatch(setSearchCriteria({
+      country: country,
+      city: city,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
+    }));
+
+    // Set attraction search parameters
+    const formattedAttractionDate = moment(startDate).format("YYYY-MM-DD"); // Format date for attraction API
+    
+    dispatch(setAttractionSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+
+    // Update the guide search params and fetch guides
+    dispatch(setGuideSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+
+    // Fetch guides with the required parameters
+    dispatch(fetchGuides({
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate
+    }));
+
+    // Fetch attractions based on search criteria
+    dispatch(fetchAttractions({
+      city: `${city}, (${country})`, // Format city with country
+      date: formattedAttractionDate, // Use YYYY-MM-DD format
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId, // Use tour_id from packageData
+      selectedDate: moment(startDate),
+      fromMainSearch: false
+    }));
+
+    // Fetch restaurants based on search criteria
+    console.log('Dispatching fetchRestaurants with params:', {
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate,
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId,
+      fromMainSearch: false
+    });
+
+    dispatch(fetchRestaurants({
+      city: `${city}, (${country})`,
+      date: formattedAttractionDate,
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId, // Use tour_id from packageData
+      fromMainSearch: false
+    }))
+    .then((response) => {
+      console.log('fetchRestaurants response:', response);
+    })
+    .catch((error) => {
+      console.error('fetchRestaurants error:', error);
+    });
+
+   dispatch(updateSearchState({
+  location: [city], // or just city if location is a single string
+  ucheckIn: formatedHotelCheckIn,
+  ucheckOut: formatedHotelCheckOut,
+  guests: guestCounts
+}));
+
+// Step 2: Fetch hotels using pagination args
+dispatch(fetchHotels({ start: 0, limit: 10 }));
+
+    // Also update the enquiry slice data for compatibility with other parts of the app
+    // Set location data in the right format for EnquirySlice
+    
+    dispatch(setSearchLocation(countryCode));
+    dispatch(setCheckIn(formattedCheckIn));
+    dispatch(setCheckOut(formattedCheckOut));
+    
+    // Set the selected city in common slice
+    dispatch(setSelectedCity({
+      countryCode: countryCode,
+      countryName: country,
+      cityCode: cityCode,
+      cityName: city,
+      combinedCode: cityCode
+    }));
+    
+    // Dispatch guest details to EnquirySlice
+    dispatch(
+      setGuest({
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infant: guestCounts.Infants.toString(),
+        adultGenders: genders,
+        childrenAges: guestCounts.ages || [],
+        maleCount: maleCount,
+        femaleCount: femaleCount
+      })
+    );
+
+    
+
+    // Use our new fetch tour packages action
+    dispatch(fetchTourPackages({
+      country: country,
+      city: city,
+      checkIn: formattedCheckIn,
+      checkOut: formattedCheckOut,
+      guests: {
+        adults: guestCounts.Adults,
+        children: guestCounts.Children,
+        infants: guestCounts.Infants,
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+      }
+    }))
+      .unwrap()
+      .then((data) => {
+        console.log("Tour packages response:", data);
+        dispatch(updateSearchState({ location: data.destination }));
+        dispatch(setId(data.data.tour_id));
+        
+        // Ensure packageData stays null for new searches to maintain create mode
+        console.log("Ensuring packageData remains null for new search");
+        dispatch(setPackageData(null));
+        
+        dispatch(settourdetails(data));
+        // Move to the first tab (Itinerary) after search completes
+        if (onNext) {
+          onNext();
+          // If the parent component has a setActiveTab function, call it to show the Itinerary tab
+          // This assumes the parent component passes this function as a prop if needed
+          if (typeof setActiveTab === 'function') {
+            setActiveTab(0); // Select the first tab (Itinerary)
+          }
+        }
+        
+        console.log("=== SEARCH COMPLETE ===");
+        console.log("Search completed successfully, packageData should be null");
+      })
+      .catch((error) => {
+        console.error("Error fetching tour packages:", error);
+        setSnackbarMessage(
+          "Failed to fetch tour packages. Please try again."
+        );
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
+      });
+
+    // For backward compatibility, also create a booking ID
+    // dispatch(fetchBookingid())
+    //   .unwrap()
+    //   .then((data) => {
+    //     console.log("Enquiry response:", data);
+    //     const id = data?.enquiry_id || data?.data?.enquiry_id || data?.tour_id || data?.data?.tour_id;
+
+    //     if (id) {
+    //       // Update state with API response
+    //       dispatch(updateSearchState({ 
+    //         location: country,
+    //         cityName: city,
+    //         countryName: country
+    //       }));
+          
+    //       dispatch(settourdetails(data)); // Set full enquiry details
+    //       dispatch(setId(id)); // Set the ID
+    //       dispatch(setTourId(id));
+    //       dispatch(setBookingType("enquiry")); // Set booking type to enquiry
+    //       dispatch(setType("enquiry"));
+    //     }
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error creating enquiry:", error);
+    //   });
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    // Clear previous customer info when starting new search
+    dispatch(clearUserInfo());
+    dispatch(clearAllServices());
+    // Clear previous data
+    dispatch(clearAttractions());
+    dispatch(clearRestaurants());
+    dispatch(resetVehicles());
+    dispatch(resetVehicles1()); 
+    dispatch(resetguide());
+    
     // Format Dates
     const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
     const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
@@ -830,11 +1095,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         console.log("Tour packages response:", data);
         dispatch(updateSearchState({ location: data.destination }));
         dispatch(setId(data.data.tour_id));
-        
-        // Ensure packageData stays null for new searches to maintain create mode
-        console.log("Ensuring packageData remains null for new search");
         dispatch(setPackageData(null));
-        
         dispatch(settourdetails(data));
         // Move to the first tab (Itinerary) after search completes
         if (onNext) {
@@ -845,9 +1106,6 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
             setActiveTab(0); // Select the first tab (Itinerary)
           }
         }
-        
-        console.log("=== SEARCH COMPLETE ===");
-        console.log("Search completed successfully, packageData should be null");
       })
       .catch((error) => {
         console.error("Error fetching tour packages:", error);
@@ -883,213 +1141,6 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     //   .catch((error) => {
     //     console.error("Error creating enquiry:", error);
     //   });
-  };
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    // Clear previous customer info when starting update
-    dispatch(clearUserInfo());
-    dispatch(clearAllServices());
-    // Clear previous data
-    dispatch(clearAttractions());
-    dispatch(clearRestaurants());
-    dispatch(resetVehicles());
-    dispatch(resetVehicles1()); 
-    dispatch(resetguide());
-    
-    
-    // Format Dates
-    const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
-    console.log("formattedCheckIn",formattedCheckIn);
-    const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
-
- 
-
-    
-    // Get the country and city data
-    const country = selectedLocation.country;
-    const city = selectedLocation.city;
-    const countryCode = selectedLocation.countryCode;
-    console.log("countryCode",countryCode);
-    const cityCode = selectedLocation.cityCode;
-    
-    // Create genders array based on male and female counts
-    const maleCount = guestCounts.maleCount || 0;
-    const femaleCount = guestCounts.femaleCount || 0;
-    const genders = [
-      ...Array(maleCount).fill("Male"),
-      ...Array(femaleCount).fill("Female")
-    ];
-
-    // Get tour_id from packageData
-    const tourId = packageData?.tour?.tour_id;
-    dispatch(setAllServices({
-      country: country,
-      city: city,
-      check_in_time: formattedCheckIn,
-      check_out_time: formattedCheckOut,
-      tour_id: tourId,
-      guests: {
-        adults: guestCounts.Adults.toString(),
-        children: guestCounts.Children.toString(),
-        infants: guestCounts.Infants.toString(),
-        maleCount: maleCount,
-        femaleCount: femaleCount,
-        childrenAges: guestCounts.ages || [],
-        adultGenders: genders
-      }
-    }));
-
-    // Update tour packages search criteria in Redux
-    dispatch(setSearchCriteria({
-      country: country,
-      city: city,
-      checkIn: formattedCheckIn,
-      checkOut: formattedCheckOut,
-      guests: {
-        adults: guestCounts.Adults.toString(),
-        children: guestCounts.Children.toString(),
-        infants: guestCounts.Infants.toString(),
-        maleCount: maleCount,
-        femaleCount: femaleCount,
-        childrenAges: guestCounts.ages || [],
-        adultGenders: genders
-      }
-    }));
-
-    // Set attraction search parameters
-    const formattedAttractionDate = moment(startDate).format("YYYY-MM-DD"); // Format date for attraction API
-    
-    dispatch(setAttractionSearchParams({
-      location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
-        cityCode: cityCode
-      },
-      date: moment(startDate),
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId // Use tour_id from packageData
-    }));
-
-    // Update the guide search params and fetch guides
-    dispatch(setGuideSearchParams({
-      location: {
-        country: country,
-        city: `${city}, (${country})`,
-        address: `${city}, (${country})`,
-        countryCode: countryCode,
-        cityCode: cityCode
-      },
-      date: moment(startDate),
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId // Use tour_id from packageData
-    }));
-
-    // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
-
-    // Fetch attractions based on search criteria
-    dispatch(fetchAttractions({
-      city: `${city}, (${country})`, // Format city with country
-      date: formattedAttractionDate, // Use YYYY-MM-DD format
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      selectedDate: moment(startDate),
-      fromMainSearch: false
-    }));
-
-    // Fetch restaurants based on search criteria
-    console.log('Dispatching fetchRestaurants with params:', {
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate,
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId,
-      fromMainSearch: false
-    });
-
-    dispatch(fetchRestaurants({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate,
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      fromMainSearch: false
-    }))
-    .then((response) => {
-      console.log('fetchRestaurants response:', response);
-    })
-    .catch((error) => {
-      console.error('fetchRestaurants error:', error);
-    });
-
-   dispatch(updateSearchState({
-  location: [city], // or just city if location is a single string
-  ucheckIn: formatedHotelCheckIn,
-  ucheckOut: formatedHotelCheckOut,
-  guests: guestCounts
-}));
-
-// Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
-
-    // Also update the enquiry slice data for compatibility with other parts of the app
-    // Set location data in the right format for EnquirySlice
-    
-    dispatch(setSearchLocation(countryCode));
-    dispatch(setCheckIn(formattedCheckIn));
-    dispatch(setCheckOut(formattedCheckOut));
-    
-    // Set the selected city in common slice
-    dispatch(setSelectedCity({
-      countryCode: countryCode,
-      countryName: country,
-      cityCode: cityCode,
-      cityName: city,
-      combinedCode: cityCode
-    }));
-    
-    // Dispatch guest details to EnquirySlice
-    dispatch(
-      setGuest({
-        adults: guestCounts.Adults.toString(),
-        children: guestCounts.Children.toString(),
-        infant: guestCounts.Infants.toString(),
-        adultGenders: genders,
-        childrenAges: guestCounts.ages || [],
-        maleCount: maleCount,
-        femaleCount: femaleCount
-      })
-    );
-
-    // Set existing tour data in Redux state
-    dispatch(updateSearchState({ location: packageData?.tour?.destination }));
-    dispatch(setId(tourId));
-    dispatch(settourdetails(packageData.tour));
-
-    
-
-    // Move to the first tab (Itinerary) after update completes
-    if (onNext) {
-      onNext();
-      // If the parent component has a setActiveTab function, call it to show the Itinerary tab
-      if (typeof setActiveTab === 'function') {
-        setActiveTab(0); // Select the first tab (Itinerary)
-      }
-    }
-
-    console.log("Tour package updated successfully with tour_id:", tourId);
   };
 
  
