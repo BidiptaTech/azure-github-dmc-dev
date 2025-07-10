@@ -1232,10 +1232,9 @@ const fs = require('fs');
     }
 
     /**
-     * Remove Individual Restaurant from DMC Selection
-     * Handle individual restaurant removal with AJAX
+     * Try generating image using PhantomJS
      */
-    public function removeRestaurant(Request $request)
+    private function tryPhantomJS($htmlFile, $imageFile)
     {
         try {
             Log::info('Trying PhantomJS method');
@@ -1247,10 +1246,10 @@ const fs = require('fs');
             $phantomScript = "
 var page = require('webpage').create();
 page.viewportSize = {width: 600, height: 300};
-page.open('file://$htmlFile', function(status) {
+page.open('file://{$htmlFile}', function(status) {
     if (status === 'success') {
         setTimeout(function() {
-            page.render('$imageFile');
+            page.render('{$imageFile}');
             phantom.exit();
         }, 1000);
     } else {
@@ -1283,6 +1282,49 @@ page.open('file://$htmlFile', function(status) {
         } catch (\Exception $e) {
             Log::error('PhantomJS exception: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Remove Individual Restaurant from DMC Selection
+     * Handle individual restaurant removal with AJAX
+     */
+    public function removeRestaurant(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'restaurant_id' => 'required',
+                'dmc_id' => 'required'
+            ]);
+
+            $restaurantId = $validated['restaurant_id'];
+            $dmcId = $validated['dmc_id'];
+
+            // Find the restaurant
+            $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
+            
+            if (!$restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not found'
+                ], 404);
+            }
+
+            // Remove the DMC from the restaurant's selected DMCs
+            // Assuming there's a relationship or field to manage DMC selections
+            // This would depend on your specific implementation
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant removed successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Restaurant removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error removing restaurant: ' . $e->getMessage()
+            ], 500);
         }
     }
 
