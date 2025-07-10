@@ -33,7 +33,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import AirlineSeatReclineNormalIcon from '@mui/icons-material/AirlineSeatReclineNormal';
 import SearchLocationTransport from './SearchLocationTransport';
 import { useSelector, useDispatch } from 'react-redux';
-import { setSelectedVehicle, resetVehicles1 } from '@/slice/localtour/Localslice';
+import { setSelectedVehicle, resetVehicles1, clearSearchDayIndex } from '@/slice/localtour/Localslice';
 import { setAllServices } from '@/slice/tour-packages/tourPackageSlice';
 import VehicleListDropdown from './vehiclelistdropdown';
 import VehicleListDropdown1 from './vehiclelistdropdown1';
@@ -81,6 +81,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   const allServices = useSelector((state) => state.tourPackages.AllServices || []);
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
+  const searchDayIndex = useSelector((state) => state.localtour.searchDayIndex);
 
 
   
@@ -460,6 +461,9 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
         "Local Transfer": []
       };
       
+      // Track booking indices that will have new services
+      const bookingIndicesWithNewServices = new Set();
+      
       // Collect all valid bookings that haven't been saved yet
       allBookings.forEach((booking, index) => {
         if (isBookingValid(booking) && booking.transportType && !booking.originalData) {
@@ -469,6 +473,7 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
           // Only include if not already saved
           if (!savedBookingIds.includes(bookingSignature)) {
             validBookings[booking.transportType].push({...booking, index, signature: bookingSignature});
+            bookingIndicesWithNewServices.add(index);
           }
         }
       });
@@ -486,8 +491,33 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
       
       try {
         // Start with a copy of current services
-        const updatedServices = [...allServices];
+        let updatedServices = [...allServices];
         const newSavedSignatures = [];
+        
+        // Remove old services for booking indices that will have new services
+        // This prevents duplicates when editing existing bookings
+        if (bookingIndicesWithNewServices.size > 0) {
+          console.log(`Local Transport - Removing old services for booking indices: ${Array.from(bookingIndicesWithNewServices).join(', ')}`);
+          updatedServices = updatedServices.filter(service => {
+            // Check if this service was created by this component for the booking indices we're updating
+            if (service.type && ["travel_point", "travel_hourly", "local_transport"].includes(service.type)) {
+              // Check if service has data with our component's dayIndex marker
+              const hasMatchingDayIndex = service.data && service.data.some(item => 
+                item.componentDayIndex === dayIndex
+              );
+              
+              if (hasMatchingDayIndex) {
+                // Check if this service corresponds to a booking index we're updating
+                const serviceBookingIndex = service.localBookingIndex;
+                if (serviceBookingIndex !== undefined && bookingIndicesWithNewServices.has(serviceBookingIndex)) {
+                  console.log(`Local Transport - Removing old service for booking index ${serviceBookingIndex}`);
+                  return false; // Remove this service
+                }
+              }
+            }
+            return true; // Keep this service
+          });
+        }
         
         // Process each transport type separately but consolidate the dispatch
         Object.entries(validBookings).forEach(([transportType, bookings]) => {
@@ -533,7 +563,8 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
               children: booking.children,
               specialRequests: customerInfoService?.specialRequests || '',
               image: booking.vehicleImage || '',
-              totalPrice: Math.ceil(booking.price || 0)
+              totalPrice: Math.ceil(booking.price || 0),
+              componentDayIndex: dayIndex // Add marker to identify which component created this
             };
             
             // Add transport type specific parameters
@@ -589,22 +620,34 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             // Track this booking as processed
             newSavedSignatures.push(booking.signature);
             
-            return bookingData;
+            return { bookingData, bookingIndex: booking.index };
           });
           
-          // Always create a new service for each new booking - don't merge with existing services
-          // Each booking gets its own separate service object
-          bookingsData.forEach(bookingData => {
+          // Create new services for each booking
+          bookingsData.forEach(({ bookingData, bookingIndex }) => {
+            // Get the original booking to check if it has a booking_id
+            const originalBooking = allBookings[bookingIndex];
+            
+            // Create base service structure
             const newService = {
-              booking_id: Math.floor(Math.random() * 10000), // Generate a unique booking_id
               agent_id: agentId,
               bookingType: "enquiry",
               type: serviceType,
               tour_id: tourId,
+              localBookingIndex: bookingIndex, // Track which local booking this corresponds to
               data: [bookingData] // Each service contains only one booking
             };
+            
+            // Only include booking_id if this is from existing data (originalData) and has a booking_id
+            if (originalBooking.originalData && originalBooking.originalData.booking_id) {
+              newService.booking_id = originalBooking.originalData.booking_id;
+              console.log(`Local Transport - Adding booking_id ${originalBooking.originalData.booking_id} for existing booking`);
+            } else {
+              console.log(`Local Transport - No booking_id added for new booking at index ${bookingIndex}`);
+            }
+            
             updatedServices.push(newService);
-            console.log(`Local Transport - Created new ${transportType} service with booking ID: ${bookingData.id}`);
+            console.log(`Local Transport - Created new ${transportType} service for booking index ${bookingIndex} with booking ID: ${bookingData.id}`);
           });
           
           console.log(`Local Transport - Processed ${bookings.length} ${transportType} bookings for Redux`);
@@ -634,12 +677,13 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
         }, 500);
       }
     }, 300);
-  }, [allBookings, allServices, dispatch, agentId, tourId, isBookingValid, savedBookingIds]);
+  }, [allBookings, allServices, dispatch, agentId, tourId, isBookingValid, savedBookingIds, dayIndex]);
 
   // Reset vehicles and saved booking IDs when component unmounts or dayIndex changes
   useEffect(() => {
     return () => {
       dispatch(resetVehicles1());
+      dispatch(clearSearchDayIndex()); // Clear search day index on unmount
       if (dispatchTimeoutRef.current) {
         clearTimeout(dispatchTimeoutRef.current);
       }
@@ -651,8 +695,10 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   // Clear saved booking IDs when dayIndex changes
   useEffect(() => {
     setSavedBookingIds([]);
+    // Clear search day index when dayIndex changes to prevent cross-day interference
+    dispatch(clearSearchDayIndex());
     console.log(`Local Transport - Cleared saved booking IDs for new dayIndex: ${dayIndex}`);
-  }, [dayIndex]);
+  }, [dayIndex, dispatch]);
 
   // Flag to track if initialization has been done for this specific component instance
   const [hasInitializedBookings, setHasInitializedBookings] = useState(false);
@@ -730,7 +776,9 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
 
   // Monitor for vehicle search results - now creates new booking entries
   useEffect(() => {
-    if (hasVehicles && selectedPort) {
+    if (hasVehicles && selectedPort && searchDayIndex === dayIndex) {
+      console.log(`Local Transport - Day ${dayIndex}: Creating booking for search initiated by this component`);
+      
       setSearchPerformed(prev => ({
         ...prev,
         [selectedPort]: true
@@ -763,12 +811,34 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             const newBookings = [...prev, newBookingData];
             const newIndex = newBookings.length - 1;
             setExpandedSections(prevExpanded => [...prevExpanded, newIndex]);
+            
+            // Clear the search day index after creating the booking
+            dispatch(clearSearchDayIndex());
+            
             return newBookings;
           });
         }, 50);
       }
+    } else if (hasVehicles && selectedPort) {
+      // Log when we have vehicles but this component shouldn't create the booking
+      console.log(`Local Transport - Day ${dayIndex}: Skipping booking creation (searchDayIndex: ${searchDayIndex}, this dayIndex: ${dayIndex})`);
     }
-  }, [hasVehicles, selectedPort]); // Reduced dependencies to prevent loops
+  }, [
+    hasVehicles, 
+    selectedPort, 
+    searchDayIndex, 
+    dayIndex, 
+    pickupLocation, 
+    dropoffLocation, 
+    pickupTime, 
+    pickupDate, 
+    exitPickupLocation, 
+    pickupTime1, 
+    exitPickupDate, 
+    pickupTimeZone,
+    dispatch,
+    allBookings
+  ]);
 
   // Improved booking validation and auto-dispatch trigger
   useEffect(() => {
@@ -986,29 +1056,41 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
             .map(index => index > indexToRemove ? index - 1 : index)
       );
       
-      if (bookingToRemove.vehicleId) {
+      // Remove service from Redux using the new tracking system
+      if (bookingToRemove.vehicleId || bookingToRemove.originalData) {
         const currentServices = [...allServices];
         
         const filteredServices = currentServices.filter(service => {
-          // Remove service if it contains the booking we want to remove
-          if (service.data && Array.isArray(service.data)) {
-            // Check if this service contains the booking to remove
-            const containsBooking = service.data.some(item => item.id === bookingToRemove.id);
-            return !containsBooking;
+          // For services created by this component, use the localBookingIndex
+          if (service.localBookingIndex !== undefined && service.data && service.data.some(item => item.componentDayIndex === dayIndex)) {
+            // Remove service if it corresponds to the booking we want to remove
+            if (service.localBookingIndex === indexToRemove) {
+              console.log(`Local Transport - Removing service for booking index ${indexToRemove} from Redux`);
+              return false;
+            }
           }
           
-          // Keep other services that don't match our booking
+          // For legacy services (originalData), check by booking ID
+          if (service.data && Array.isArray(service.data) && bookingToRemove.originalData) {
+            const containsBooking = service.data.some(item => item.id === bookingToRemove.originalData.id);
+            if (containsBooking) {
+              console.log(`Local Transport - Removing legacy service with booking ID ${bookingToRemove.originalData.id} from Redux`);
+              return false;
+            }
+          }
+          
+          // Keep other services
           return true;
         });
         
         if (filteredServices.length !== currentServices.length) {
-          console.log(`Local Transport - Removing ${bookingToRemove.transportType} booking from Redux`);
+          console.log(`Local Transport - Removed ${bookingToRemove.transportType} booking from Redux`);
           dispatch(setAllServices(filteredServices));
           prevServicesRef.current = filteredServices;
         }
       }
     }
-  }, [allBookings, allServices, dispatch]);
+  }, [allBookings, allServices, dispatch, dayIndex]);
 
   const handleOpenModal = useCallback((index) => {
     setSelectedSectionIndex(index);

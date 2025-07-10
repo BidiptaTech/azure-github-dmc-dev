@@ -26,6 +26,7 @@ const initialState = {
   selectedPackages: [],
   AllServices: [],
   packageData: null,
+  customerInfoValid: false, // Track if customer info form is valid
 };
 
 console.log("%c REDUX: Initial AllServices state created", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;", initialState.AllServices);
@@ -280,6 +281,11 @@ const tourPackageSlice = createSlice({
     resetPackageEnquiryId: (state) => {
       state.packageEnquiryId = null;
     },
+
+    // Set customer info validity
+    setCustomerInfoValid: (state, action) => {
+      state.customerInfoValid = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -353,6 +359,7 @@ export const {
   setAllServices,
   clearAllServices,
   setPackageData,
+  setCustomerInfoValid,
 } = tourPackageSlice.actions;
 
 // Export selectors

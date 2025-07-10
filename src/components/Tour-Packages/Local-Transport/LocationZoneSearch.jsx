@@ -316,6 +316,24 @@ const SearchZone = ({
     <Box sx={{ width: '100%' }}>
       {/* Location Input Fields in Horizontal Layout */}
       <Grid container spacing={3}>
+      {picktype === "" && (
+              <Box mt={1}>
+                <Alert 
+                  severity="info" 
+                  variant="outlined"
+                  sx={{ 
+                    borderRadius: 2,
+                    bgcolor: alpha('#2196f3', 0.05),
+                    '& .MuiAlert-message': {
+                      color: '#1976d2',
+                      fontWeight: 500,
+                    }
+                  }}
+                >
+                  Please select a pickup location first to enable drop-off selection
+                </Alert>
+              </Box>
+            )}
         {/* Pick-up Location */}
         <Grid item xs={12} md={6}>
           <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
@@ -372,24 +390,7 @@ const SearchZone = ({
             />
 
             {/* Disabled State Message */}
-            {picktype === "" && (
-              <Box mt={1}>
-                <Alert 
-                  severity="info" 
-                  variant="outlined"
-                  sx={{ 
-                    borderRadius: 2,
-                    bgcolor: alpha('#2196f3', 0.05),
-                    '& .MuiAlert-message': {
-                      color: '#1976d2',
-                      fontWeight: 500,
-                    }
-                  }}
-                >
-                  Please select a pickup location first to enable drop-off selection
-                </Alert>
-              </Box>
-            )}
+           
         </Grid>
       </Grid>
     </Box>
