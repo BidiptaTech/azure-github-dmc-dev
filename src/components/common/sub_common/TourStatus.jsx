@@ -32,7 +32,7 @@ export default function TourStatus() {
 
   const { checkIn, checkOut } = useSelector((state) => state.bookings);
   const bookings = useSelector((state) => state.attractions.services || []);
-  // console.log('bookings',bookings);
+   console.log("bookings", bookings);
 
   const restaurantBooking = useSelector(
     (state) => state.restaurants.services || []
@@ -42,14 +42,14 @@ export default function TourStatus() {
   const travelPoint = useSelector(
     (state) => state.localtour.pointtopoint || []
   );
-  console.log("point 2 point", travelPoint);
+  // console.log("point 2 point", travelPoint);
   const travelHourly = useSelector((state) => state.localtour.hourly || []);
-  console.log("hourlyveh", travelHourly);
+  // console.log("hourlyveh", travelHourly);
 
   const travelZone = useSelector((state) => state.localtour.Zonebook || []);
-  console.log("travelzzzzzz", travelZone);
+  // console.log("travelzzzzzz", travelZone);
   const travel = [...travelHourly, ...travelPoint, ...travelZone];
-  console.log("travellll", travel);
+  // console.log("travellll", travel);
   const formData = useSelector((state) => state.pickupDrop.entryport || []);
   const formData1 = useSelector((state) => state.pickupDrop.exitport || []);
   const entryexit = [...formData, ...formData1];
@@ -217,8 +217,10 @@ export default function TourStatus() {
             {range.map((date, index) => {
               const formattedDate = formatDate(date);
               const services = dateService[formattedDate]?.services || {};
+              // console.log("services", services);
 
-              const attractionCount = services.attraction?.count || 0;
+              const attractionCount = (services.attraction?.count || 0) + (services.attraction_package?.count || 0);
+              // console.log("attractionCount", attractionCount);
               const restaurantCount = services.restaurant?.count || 0;
               const localtravelPointCount = services.travel_point?.count || 0;
               const localtravelHourCount = services.travel_hourly?.count || 0;

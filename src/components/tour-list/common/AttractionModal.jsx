@@ -90,6 +90,12 @@ export default function AttractionModal({
     setEnrichedBooking(null);
   };
 
+  // Helper function to capitalize first letter of each word
+  const capitalizeWords = (str) => {
+    if (!str) return "";
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   // Format date for display
   const formatDate = (inputDate) => {
     if (!inputDate) return "N/A";
@@ -156,7 +162,7 @@ export default function AttractionModal({
   const filteredBookings = Array.isArray(bookings)
     ? bookings.filter((booking) => booking.bookingDate === date)
     : [];
-    // console.log('filteredBookings',filteredBookings);
+     console.log('filteredBookings',filteredBookings);
     
 
   return (
@@ -343,19 +349,47 @@ export default function AttractionModal({
                                 sx={{ 
                                   width: 28, 
                                   height: 28, 
-                                  bgcolor: alpha('#1976d2', 0.1),
-                                  color: '#1976d2',
+                                  bgcolor: booking.package_type === 1 ? alpha('#9c27b0', 0.1) : alpha('#1976d2', 0.1),
+                                  color: booking.package_type === 1 ? '#9c27b0' : '#1976d2',
                                   fontSize: '14px',
                                   fontWeight: 'bold'
                                 }}
                               >
-                                {booking.AttractionName?.charAt(0) || "A"}
+                                {booking.package_type === 1 
+                                  ? (capitalizeWords(booking.package_details?.package_name)?.charAt(0) || "P")
+                                  : (booking.AttractionName?.charAt(0) || "A")
+                                }
                               </Avatar>
-                              <Tooltip title={booking.AttractionName || "N/A"}>
-                                <Typography variant="body2" fontWeight="500" noWrap sx={{ maxWidth: 160 }}>
-                                  {booking.AttractionName || "N/A"}
-                                </Typography>
-                              </Tooltip>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Tooltip title={booking.package_type === 1 
+                                  ? capitalizeWords(booking.package_details?.package_name) || "N/A"
+                                  : (booking.AttractionName || "N/A")
+                                }>
+                                  <Typography variant="body2" fontWeight="500" noWrap sx={{ maxWidth: 160 }}>
+                                    {booking.package_type === 1 
+                                      ? capitalizeWords(booking.package_details?.package_name) || "N/A"
+                                      : (booking.AttractionName || "N/A")
+                                    }
+                                  </Typography>
+                                </Tooltip>
+                                {booking.package_type === 1 && (
+                                  <Chip
+                                    label="Package"
+                                    size="small"
+                                    sx={{
+                                      bgcolor: alpha('#9c27b0', 0.1),
+                                      color: '#9c27b0',
+                                      fontWeight: 'bold',
+                                      height: '18px',
+                                      fontSize: '0.65rem',
+                                      width: 'fit-content',
+                                      '& .MuiChip-label': {
+                                        px: 0.8
+                                      }
+                                    }}
+                                  />
+                                )}
+                              </Box>
                             </Box>
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
