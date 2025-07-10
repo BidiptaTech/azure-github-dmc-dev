@@ -511,6 +511,9 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::post('/zones/{zone}/settings', [ZoneController::class, 'saveSettings'])->name('zones.settings');
         // Route::post('/cities/store', [PortController::class, 'store'])->name('cities.store');
 
+        // Restaurant Coupon
+        Route::post('/generate-restaurant-coupon', [RestaurantController::class, 'generateCoupon'])->name('generate.restaurant.coupon');
+
         
     });
 

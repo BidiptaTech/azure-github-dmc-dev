@@ -210,7 +210,8 @@
                         <div class="info-title">🍽️ Meals</div>
                         <div class="info-content">
                             Meal Type: {{ $bookingDetails['mealSpecificType']['specificMealType'] ?? 'N/A' }}<br>
-                            Meal Details: {{ $bookingDetails['MealDescription'] ?? 'N/A' }}
+                            Meal Session: {{ $bookingDetails['mealType'] ?? 'N/A' }}<br>
+                            
                         </div>
                     </div>
                 </div>
@@ -222,7 +223,7 @@
                     </div>
                     <div class="detail-card">
                         <div class="detail-label">Date</div>
-                        <div class="detail-value">{{ $bookingDetails['bookingDate'] ?? '2025-07-02' }}</div>
+                        <div class="detail-value">{{ $bookingDetails['check_in_date'] ?? 'N/A' }}</div>
                     </div>
                     <div class="detail-card">
                         <div class="detail-label">Time</div>
@@ -230,7 +231,7 @@
                     </div>
                     <div class="detail-card">
                         <div class="detail-label">Guests</div>
-                        <div class="detail-value">{{ ($bookingDetails['adultCount'] ?? 0) }}A + {{ ($bookingDetails['childCount'] ?? 0) }}C</div>
+                        <div class="detail-value">{{ ($bookingDetails['adultCount'] ?? 0) }} Adults + {{ ($bookingDetails['childCount'] ?? 0) }} Children</div>
                     </div>
                 </div>
             </div>
@@ -238,11 +239,160 @@
             <div class="voucher-footer">
                 <div class="coupon-code">COUPON CODE: {{ $coupon_code }}</div>
                 <div class="validity">
-                    Valid for: {{ $bookingDetails['bookingDate'] ?? '2025-07-02' }} | {{ $dmc_company ?? 'Your Vacation Singapore Pte Ltd' }}<br>
+                    Valid for: {{ $bookingDetails['check_in_date'] ?? 'N/A' }} | {{ $dmc_company ?? 'Your Vacation Singapore Pte Ltd' }}<br>
                     Please present this coupon at the restaurant | Generated on {{ date('Y-m-d H:i:s') }}
                 </div>
             </div>
         </div>
     </div>
 </body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+    // Auto-capture and store the voucher image when page loads
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            captureAndStoreVoucher();
+        }, 1500); // Wait for fonts and styling to load
+    });
+
+    // Function to capture voucher and store in database
+    function captureAndStoreVoucher() {
+        const voucherElement = document.querySelector('.voucher');
+        
+        if (!voucherElement) {
+            console.error('Voucher element not found');
+            return;
+        }
+        
+        const options = {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: null,
+            width: 600,
+            height: 300,
+            logging: false
+        };
+        
+        html2canvas(voucherElement, options).then(canvas => {
+            canvas.toBlob(function(blob) {
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const base64data = reader.result;
+                    
+                    // Store in database via AJAX
+                    fetch('/generate-restaurant-coupon', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            booking_id: '{{ $booking_id ?? "" }}',
+                            tour_id: '{{ $tour_id ?? "" }}',
+                            action: 'store_image',
+                            image_data: base64data
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('✅ Voucher image stored successfully in database');
+                            showMessage('Voucher image saved to database successfully!', 'success');
+                        } else {
+                            console.error('❌ Failed to store voucher image:', data.message);
+                            showMessage('Failed to save image to database', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Error storing voucher image:', error);
+                        showMessage('Error saving image to database', 'error');
+                    });
+                };
+                reader.readAsDataURL(blob);
+            }, 'image/png');
+        }).catch(error => {
+            console.error('Error capturing voucher:', error);
+            showMessage('Error capturing voucher image', 'error');
+        });
+    }
+
+    // Function to download the voucher image
+    function downloadVoucherImage() {
+        const voucherElement = document.querySelector('.voucher');
+        
+        if (!voucherElement) {
+            console.error('Voucher element not found');
+            return;
+        }
+        
+        showMessage('Generating download...', 'info');
+        
+        const options = {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: null,
+            width: 600,
+            height: 300,
+            logging: false
+        };
+        
+        html2canvas(voucherElement, options).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'restaurant_voucher_{{ $display_id ?? "voucher" }}.png';
+            link.href = canvas.toDataURL();
+            link.click();
+            showMessage('Download started!', 'success');
+        }).catch(error => {
+            console.error('Error downloading voucher:', error);
+            showMessage('Error downloading voucher', 'error');
+        });
+    }
+
+    // Function to show messages
+    function showMessage(message, type) {
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        `;
+        messageDiv.textContent = message;
+        document.body.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+    }
+
+    // Add download button to the page
+    document.addEventListener('DOMContentLoaded', function() {
+        const downloadBtn = document.createElement('button');
+        downloadBtn.textContent = 'Download as Image';
+        downloadBtn.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+        `;
+        downloadBtn.onclick = downloadVoucherImage;
+        document.body.appendChild(downloadBtn);
+    });
+</script>
 </html> 

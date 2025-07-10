@@ -482,12 +482,27 @@ class PackageController extends Controller
         if(!$tour){
             return response()->json(['message' => 'Tour not found'], 404);
         }
+        $order = Order::where('tour_id', $tour_id)->first();
+        $customer_info = [];
+        
+        if($order){
+            $customer_info['fullName'] = $order->data[0]['fullName'];
+            $customer_info['email'] = $order->data[0]['email'];
+            $customer_info['phone'] = $order->data[0]['phone'];
+            $customer_info['countryCode'] = $order->data[0]['countryCode'];
+            $customer_info['address1'] = $order->data[0]['address1'];
+            $customer_info['address2'] = $order->data[0]['address2'];
+            $customer_info['state'] = $order->data[0]['state'];
+            $customer_info['zip'] = $order->data[0]['zip'];
+        }
+        
         $agent_id = $tour->agent_id;
         $agent = Agent::where('agent_id', $agent_id)->first();
         $agent_name = $agent->name;
         $tour->agent_name = $agent_name;
         return response()->json([
             'tour' => $tour,
+            'customer_info' => $customer_info
         ]);
     }
 
