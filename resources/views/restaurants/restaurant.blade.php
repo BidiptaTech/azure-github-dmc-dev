@@ -14,11 +14,13 @@
 
                     <div class="d-flex justify-content-between gap-3">
                         <!-- Add New Restaurant Button -->
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create restaurant'))
                             <a href="{{ route('restaurant.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                                 <i class="fas fa-plus"></i> Add New Restaurant
                             </a>
                         @endif
+                        @endif  
 
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">

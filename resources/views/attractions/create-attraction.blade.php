@@ -52,7 +52,7 @@
                     <div class="attraction-form">
                         <div class="row">
                             <!-- Select DMC Name -->
-                            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 44 || auth()->user()->role_id == 60 || auth()->user()->role_id == 91 || auth()->user()->role_id == 92)
+                            <!-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 44 || auth()->user()->role_id == 60 || auth()->user()->role_id == 91 || auth()->user()->role_id == 92)
                             <div class="mb-3 col-md-3" id="dmc-container">
                                 <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
                                 <select id="dmc" name="dmc" class="form-control" required>
@@ -62,7 +62,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            @endif
+                            @endif -->
 
                             <!-- Attraction Name -->
                             <div class="col-md-3 mb-3">
@@ -78,11 +78,14 @@
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <input type="text" class="form-control" id="country" 
-                                value="{{in_array(auth()->user()->role_id, [11, 35, 74, 93]) ? $userCountry : ''}}"
-                                    placeholder="{{  in_array(auth()->user()->role_id, [11, 35, 74, 93]) ? 'Your country' : 'Select DMC First' }}" 
-                                    name="country" required 
-                                    {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
+                                <select class="form-select" id="country" name="country" required>
+                                    <option value="">Select Country</option>
+                                    @foreach($country as $c)
+                                        <option value="{{ $c->name }}" {{ (old('country') == $c->name || (isset($userCountry) && $userCountry == $c->name)) ? 'selected' : '' }}>
+                                            {{ $c->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -449,6 +452,13 @@
             placeholder: "Search and Select a City",
             allowClear: true,
             tags: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for country dropdown
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
             width: '100%'
         });
     });
@@ -945,8 +955,8 @@ document.addEventListener("DOMContentLoaded", function() {
         var userRoleId = {{ auth()->user()->role_id }};
         
         // Get the current user's country if they are a DMC
-        var userCountry = "{{ auth()->user()->role_id == 11 ? auth()->user()->country : '' }}";
-        var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
+        var userCountry = "{{ in_array(auth()->user()->role_id, [11, 35, 74, 93]) ? auth()->user()->country : '' }}";
+        var dmcId = "{{ in_array(auth()->user()->role_id, [11, 35, 74, 93]) ? auth()->user()->userId : '' }}";
         
         // // Initialize Select2 for city
         $('#citySelect').select2({
@@ -956,14 +966,14 @@ document.addEventListener("DOMContentLoaded", function() {
             width: '100%'
         });
         
-        // Check if the user role is DMC (role_id = 11)
-        if (userRoleId == 11) {
+        // Check if the user role corresponds to a DMC or similar roles
+        if ([11, 35, 74, 93].includes(userRoleId)) {
             // Hide the DMC select box
             $('#dmc-container').hide();
             $('#dmc').prop('required', false);
             
             // Auto-fill the country field with the DMC's country
-            $('#country').val(userCountry);
+            $('#country').val(userCountry).trigger('change');
             
             // Load cities for this DMC
             loadCitiesForDmc(dmcId);
@@ -1022,9 +1032,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         }
                         
                         // Set the country value
-                        if (response.country) {
-                            $('#country').val(response.country);
-                        }
+                        $('#country').val(response.country).trigger('change');
 
                         // Trigger change to refresh Select2
                         $('#citySelect').trigger('change');
@@ -1327,5 +1335,46 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         </style>
     `);
+</script>
+
+<script>
+    // -----------------------------------------------------------
+    // Helper: Load cities when a country is chosen (non-DMC flow)
+    function loadCitiesByCountry(countryName) {
+        if (!countryName) return;
+        // Show loading state
+        $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+        $.ajax({
+            url: "{{ env('APP_URL') }}{{ route('fetch-cities-by-country', [], false) }}",
+            type: "GET",
+            data: { country: countryName },
+            dataType: 'json',
+            success: function(response) {
+                $('#citySelect').empty().append('<option value="">Select or type a city</option>');
+                if (response.cities && response.cities.length > 0) {
+                    $.each(response.cities, function(idx, city) {
+                        $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                    });
+                }
+                $('#citySelect').trigger('change');
+            },
+            error: function() {
+                $('#citySelect').empty().append('<option value="">Error loading cities</option>').trigger('change');
+            }
+        });
+    }
+
+    // Trigger city loading whenever country changes
+    $('#country').on('change', function() {
+        const selectedCountryName = $(this).val();
+        loadCitiesByCountry(selectedCountryName);
+    });
+
+    // Initial load if a country value is already set (e.g., for DMC users or after validation errors)
+    if ($('#country').val()) {
+        loadCitiesByCountry($('#country').val());
+    }
+    // -----------------------------------------------------------
 </script>
 @endsection

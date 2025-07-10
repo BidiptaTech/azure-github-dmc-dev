@@ -144,7 +144,6 @@
 </div>
 @endsection
 
-
 @section('scripts')  
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>

@@ -25,6 +25,25 @@
     #subpolicy-tabs {
         margin-bottom: 20px;
     }
+    
+    /* Readonly styling for unauthorized users */
+    .readonly-mode input[readonly],
+    .readonly-mode textarea[readonly],
+    .readonly-mode select[disabled] {
+        background-color: #f8f9fa !important;
+        opacity: 0.7;
+        cursor: not-allowed;
+        color: #6c757d;
+    }
+    
+    .readonly-mode .btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .readonly-mode .summernote .note-editing-area {
+        background-color: #f8f9fa;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -90,7 +109,8 @@
                                 <!-- Name -->
                                 <div class="col-md-4 mb-3">
                                     <label for="name" class="form-label"><strong>Name</strong><span style="color: red;">*</span></label>
-                                    <input type="text" id="name" name="name" class="form-control" value="{{ old('name', $hotelPolicy->name ?? '') }}" placeholder="Enter Name" required>
+                                    <input type="text" id="name" name="name" class="form-control" value="{{ old('name', $hotelPolicy->name ?? '') }}" placeholder="Enter Name" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('name')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -99,19 +119,27 @@
                                 <!-- Extras -->
                                 <div class="mb-3 col-md-4">
                                     <label for="extras" class="form-label"><strong>Extras</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                    <textarea class="form-control" id="extras" name="extras" rows="4" placeholder="Enter Extras">{{ old('extras', $hotelPolicy->extras ?? '') }}</textarea>
+                                    <textarea class="form-control" id="extras" name="extras" rows="4" placeholder="Enter Extras"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('extras', $hotelPolicy->extras ?? '') }}</textarea>
                                 </div>
 
                                 <!-- Property -->
                                 <div class="mb-3 col-md-4">
                                     <label for="property" class="form-label"><strong>Detailed T&C</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                    <textarea class="form-control" id="property" name="property" rows="4" placeholder="Enter Property">{{ old('property', $hotelPolicy->property ?? '') }}</textarea>
+                                    <textarea class="form-control" id="property" name="property" rows="4" placeholder="Enter Property"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('property', $hotelPolicy->property ?? '') }}</textarea>
                                 </div>
 
                                 <!-- Policy -->
                                 <div class="col-md-12 mb-3">
                                     <label for="policy" class="form-label"><strong>Hotel Policy</strong><span style="color: red;">*</span></label>
-                                    <textarea id="property-summernote" name="policy" class="summernote form-control" rows="10">{{ old('policy', $hotelPolicy->policy ?? '') }}</textarea>
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-eye"></i> <strong>View Only Mode:</strong> Policy editing is restricted for your role.
+                                        </div>
+                                    @endif
+                                    <textarea id="property-summernote" name="policy" class="summernote form-control" rows="10"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('policy', $hotelPolicy->policy ?? '') }}</textarea>
                                     @error('policy')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -120,7 +148,13 @@
                                 <!-- File Upload -->
                                 <div class="col-md-4 mb-3">
                                     <label for="file" class="form-label"><strong>File</strong></label>
-                                    <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="form-control" style="padding: 20px; border: 2px dashed #ccc; text-align: center; background-color: #f8f9fa; color: #6c757d; cursor: not-allowed;">
+                                            <i class="fas fa-lock"></i> File upload restricted for your role
+                                        </div>
+                                    @else
+                                        <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @endif
                                     @error('file')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -135,7 +169,16 @@
 
                             <!-- Submit Button -->
                             <div class="d-flex gap-3">
-                                <button type="submit" class="btn btn-primary px-4">Save Property Policy</button>
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="submit" class="btn btn-primary px-4">Save Property Policy</button>
+                                @else
+                                    <button type="button" class="btn btn-secondary px-4" disabled>
+                                        <i class="fas fa-lock"></i> Save Restricted
+                                    </button>
+                                    <small class="text-muted mt-2">
+                                        <i class="fas fa-info-circle"></i> You don't have permission to save policy data.
+                                    </small>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -155,7 +198,8 @@
                                         <strong>Cancellation Type</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <select name="cancellation_type" id="cancellation_type" class="form-control" required>
+                                    <select name="cancellation_type" id="cancellation_type" class="form-control" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select an option</option>
                                         <option value="0" {{ old('cancellation_type', $hotel->cancellation_type) == 0 ? 'selected' : '' }}>Free</option>
                                         <option value="1" {{ old('cancellation_type', $hotel->cancellation_type) == 1 ? 'selected' : '' }}>Chargeable</option>
@@ -173,12 +217,14 @@
                                                         class="form-control" 
                                                         name="cancellation_duration[]" 
                                                         placeholder="Enter Duration" 
-                                                        value="{{ old('cancellation_duration.' . $index, $rule['duration'] ?? '') }}">
+                                                        value="{{ old('cancellation_duration.' . $index, $rule['duration'] ?? '') }}"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                                 </div>
 
                                                 <div class="col-md-4">
                                                     <label class="form-label"><strong>Type</strong></label>
-                                                    <select class="form-select" name="type[]">
+                                                    <select class="form-select" name="type[]"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                                         <option value="">Select Type</option>
                                                         <option value="flat" {{ (old('type.' . $index, $rule['type'] ?? '') == 'flat') ? 'selected' : '' }}>Flat</option>
                                                         <option value="percentage" {{ (old('type.' . $index, $rule['type'] ?? '') == 'percentage') ? 'selected' : '' }}>Percentage</option>
@@ -192,23 +238,37 @@
                                                         class="form-control" 
                                                         name="cancellation_price[]" 
                                                         placeholder="Enter Price" 
-                                                        value="{{ old('cancellation_price.' . $index, $rule['price'] ?? '') }}">
+                                                        value="{{ old('cancellation_price.' . $index, $rule['price'] ?? '') }}"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                                 </div>
                                                 <div class="col-md-2" style="margin-top: 1.5rem">
-                                                    <button type="button" class="btn btn-danger" onclick="removeCancellationField({{ $index }})">Delete</button>
+                                                    <button type="button" class="btn btn-danger" onclick="removeCancellationField({{ $index }})"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
                                                 </div>
                                             </div>
                                         @endforeach
                                     </div>
                                     <div class="mb-3">
-                                        <button type="button" id="add-cancellation-field" class="btn btn-primary">Add More</button>
+                                        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                            <button type="button" id="add-cancellation-field" class="btn btn-primary">Add More</button>
+                                        @else
+                                            <button type="button" class="btn btn-secondary" disabled>
+                                                <i class="fas fa-lock"></i> Add More Restricted
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                                 
                                 <!-- File Upload -->
                                 <div class="mb-3 col-md-4">
                                     <label for="file" class="form-label"><strong>File</strong></label>
-                                    <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="form-control" style="padding: 20px; border: 2px dashed #ccc; text-align: center; background-color: #f8f9fa; color: #6c757d; cursor: not-allowed;">
+                                            <i class="fas fa-lock"></i> File upload restricted for your role
+                                        </div>
+                                    @else
+                                        <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @endif
                                     @error('file')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -222,7 +282,13 @@
 
                                 <div class="col-md-12 mb-3">
                                     <label for="policy" class="form-label"><strong>Cancellation Policy</strong><span style="color: red;">*</span></label>
-                                    <textarea id="cancellation-summernote" name="policy" class="summernote form-control">{{ old('policy', $hotel->policy) }}</textarea>
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-eye"></i> <strong>View Only Mode:</strong> Cancellation policy editing is restricted for your role.
+                                        </div>
+                                    @endif
+                                    <textarea id="cancellation-summernote" name="policy" class="summernote form-control"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('policy', $hotel->policy) }}</textarea>
                                     @error('policy')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -230,7 +296,16 @@
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
-                                <button type="submit" class="btn btn-primary px-4">Save Cancellation Policy</button>
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="submit" class="btn btn-primary px-4">Save Cancellation Policy</button>
+                                @else
+                                    <button type="button" class="btn btn-secondary px-4" disabled>
+                                        <i class="fas fa-lock"></i> Save Restricted
+                                    </button>
+                                    <small class="text-muted mt-2">
+                                        <i class="fas fa-info-circle"></i> You don't have permission to save policy data.
+                                    </small>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -247,7 +322,13 @@
                             <div class="row">
                                 <div class="col-md-12 mb-3">
                                     <label for="refundpolicy" class="form-label"><strong>Refund Policy</strong><span style="color: red;">*</span></label>
-                                    <textarea id="refund-summernote" name="refundpolicy" class="summernote form-control">{{ old('refundpolicy', $hotel->refundpolicy) }}</textarea>
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-eye"></i> <strong>View Only Mode:</strong> Refund policy editing is restricted for your role.
+                                        </div>
+                                    @endif
+                                    <textarea id="refund-summernote" name="refundpolicy" class="summernote form-control"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('refundpolicy', $hotel->refundpolicy) }}</textarea>
                                     @error('refundpolicy')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -256,7 +337,13 @@
                                 <!-- File Upload -->
                                 <div class="col-md-4 mb-3">
                                     <label for="file" class="form-label"><strong>File</strong></label>
-                                    <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="form-control" style="padding: 20px; border: 2px dashed #ccc; text-align: center; background-color: #f8f9fa; color: #6c757d; cursor: not-allowed;">
+                                            <i class="fas fa-lock"></i> File upload restricted for your role
+                                        </div>
+                                    @else
+                                        <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @endif
                                     @error('file')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -270,7 +357,16 @@
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
-                                <button type="submit" class="btn btn-primary px-4">Save Refund Policy</button>
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="submit" class="btn btn-primary px-4">Save Refund Policy</button>
+                                @else
+                                    <button type="button" class="btn btn-secondary px-4" disabled>
+                                        <i class="fas fa-lock"></i> Save Restricted
+                                    </button>
+                                    <small class="text-muted mt-2">
+                                        <i class="fas fa-info-circle"></i> You don't have permission to save policy data.
+                                    </small>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -287,7 +383,13 @@
                             <div class="row">
                                 <div class="col-md-12 mb-3">
                                     <label for="childpolicy" class="form-label"><strong>Child Policy</strong><span style="color: red;">*</span></label>
-                                    <textarea id="child-summernote" name="childpolicy" class="summernote form-control">{{ old('childpolicy', $hotel->childpolicy ?? '') }}</textarea>
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-eye"></i> <strong>View Only Mode:</strong> Child policy editing is restricted for your role.
+                                        </div>
+                                    @endif
+                                    <textarea id="child-summernote" name="childpolicy" class="summernote form-control"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('childpolicy', $hotel->childpolicy ?? '') }}</textarea>
                                     @error('childpolicy')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -296,7 +398,13 @@
                                 <!-- File Upload -->
                                 <div class="col-md-4 mb-3">
                                     <label for="file" class="form-label"><strong>File</strong></label>
-                                    <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="form-control" style="padding: 20px; border: 2px dashed #ccc; text-align: center; background-color: #f8f9fa; color: #6c757d; cursor: not-allowed;">
+                                            <i class="fas fa-lock"></i> File upload restricted for your role
+                                        </div>
+                                    @else
+                                        <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @endif
                                     @error('file')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -310,7 +418,16 @@
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
-                                <button type="submit" class="btn btn-primary px-4">Save Child Policy</button>
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="submit" class="btn btn-primary px-4">Save Child Policy</button>
+                                @else
+                                    <button type="button" class="btn btn-secondary px-4" disabled>
+                                        <i class="fas fa-lock"></i> Save Restricted
+                                    </button>
+                                    <small class="text-muted mt-2">
+                                        <i class="fas fa-info-circle"></i> You don't have permission to save policy data.
+                                    </small>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -330,7 +447,8 @@
                                         <strong>Pets Allowed</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <select name="pet_allowed" id="pet_allowed" class="form-control" required>
+                                    <select name="pet_allowed" id="pet_allowed" class="form-control" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select an option</option>
                                         <option value="1" {{ old('pet_allowed', $hotel->pet_allowed) == 1 ? 'selected' : '' }}>Yes</option>
                                         <option value="0" {{ old('pet_allowed', $hotel->pet_allowed) == 0 ? 'selected' : '' }}>No</option>
@@ -340,7 +458,13 @@
                                 <div id="pet-options" style="{{ old('pet_allowed', $hotel->pet_allowed) == 1 ? '' : 'display: none;' }}">
                                     <div class="col-md-12 mb-3">
                                         <label for="petpolicy" class="form-label"><strong>Pet Policy Details</strong><span style="color: red;">*</span></label>
-                                        <textarea id="pet-summernote" name="petpolicy" class="summernote form-control">{{ old('petpolicy', $hotel->petpolicy ?? '') }}</textarea>
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-eye"></i> <strong>View Only Mode:</strong> Pet policy editing is restricted for your role.
+                                            </div>
+                                        @endif
+                                        <textarea id="pet-summernote" name="petpolicy" class="summernote form-control"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('petpolicy', $hotel->petpolicy ?? '') }}</textarea>
                                         @error('petpolicy')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -350,7 +474,13 @@
                                 <!-- File Upload -->
                                 <div class="col-md-4 mb-3">
                                     <label for="file" class="form-label"><strong>File</strong></label>
-                                    <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="form-control" style="padding: 20px; border: 2px dashed #ccc; text-align: center; background-color: #f8f9fa; color: #6c757d; cursor: not-allowed;">
+                                            <i class="fas fa-lock"></i> File upload restricted for your role
+                                        </div>
+                                    @else
+                                        <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @endif
                                     @error('file')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -364,7 +494,16 @@
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
-                                <button type="submit" class="btn btn-primary px-4">Save Pet Policy</button>
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="submit" class="btn btn-primary px-4">Save Pet Policy</button>
+                                @else
+                                    <button type="button" class="btn btn-secondary px-4" disabled>
+                                        <i class="fas fa-lock"></i> Save Restricted
+                                    </button>
+                                    <small class="text-muted mt-2">
+                                        <i class="fas fa-info-circle"></i> You don't have permission to save policy data.
+                                    </small>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -381,7 +520,13 @@
                             <div class="row">
                                 <div class="col-md-12 mb-3">
                                     <label for="termspolicy" class="form-label"><strong>General Terms & Conditions</strong><span style="color: red;">*</span></label>
-                                    <textarea id="terms-summernote" name="termspolicy" class="summernote form-control">{{ old('termspolicy', $hotel->termspolicy ?? '') }}</textarea>
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-eye"></i> <strong>View Only Mode:</strong> Terms & conditions editing is restricted for your role.
+                                        </div>
+                                    @endif
+                                    <textarea id="terms-summernote" name="termspolicy" class="summernote form-control"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('termspolicy', $hotel->termspolicy ?? '') }}</textarea>
                                     @error('termspolicy')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -390,7 +535,13 @@
                                 <!-- File Upload -->
                                 <div class="col-md-4 mb-3">
                                     <label for="file" class="form-label"><strong>File</strong></label>
-                                    <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                        <div class="form-control" style="padding: 20px; border: 2px dashed #ccc; text-align: center; background-color: #f8f9fa; color: #6c757d; cursor: not-allowed;">
+                                            <i class="fas fa-lock"></i> File upload restricted for your role
+                                        </div>
+                                    @else
+                                        <input type="file" name="file" class="form-control" accept="application/pdf">
+                                    @endif
                                     @error('file')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -404,7 +555,16 @@
                             </div>
                             
                             <div class="d-flex justify-content-between mt-4">
-                                <button type="submit" class="btn btn-primary px-4">Save Terms & Conditions</button>
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                    <button type="submit" class="btn btn-primary px-4">Save Terms & Conditions</button>
+                                @else
+                                    <button type="button" class="btn btn-secondary px-4" disabled>
+                                        <i class="fas fa-lock"></i> Save Restricted
+                                    </button>
+                                    <small class="text-muted mt-2">
+                                        <i class="fas fa-info-circle"></i> You don't have permission to save policy data.
+                                    </small>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -422,12 +582,27 @@
 
 <script>
     $(document).ready(function() {
+        // Check user role for protection
+        var isUnauthorized = {{ Auth::user()->role_id != 1 && Auth::user()->role_id != 20 ? 'true' : 'false' }};
+        
         // Initialize summernote editors
         $('.summernote').each(function() {
-            $(this).summernote({
+            var config = {
                 height: 200,
                 placeholder: "Enter policy details...",
-            });
+            };
+            
+            // Disable summernote for unauthorized users
+            if (isUnauthorized) {
+                config.toolbar = false;
+                config.callbacks = {
+                    onInit: function() {
+                        $(this).summernote('disable');
+                    }
+                };
+            }
+            
+            $(this).summernote(config);
         });
         
         // Initialize flatpickr for time inputs
@@ -459,6 +634,45 @@
             url.searchParams.set('tab', id);
             window.history.replaceState({}, '', url);
         });
+
+        // Add protection for unauthorized users
+        if (isUnauthorized) {
+            // Add readonly-mode class for styling
+            $('body').addClass('readonly-mode');
+            
+            // Prevent form submissions
+            $('form').on('submit', function(e) {
+                e.preventDefault();
+                alert('You do not have permission to save policy data. Contact your administrator.');
+                return false;
+            });
+            
+            // Add visual styling for readonly mode
+            $('input[readonly], textarea[readonly], select[disabled]').css({
+                'background-color': '#f8f9fa',
+                'opacity': '0.7',
+                'cursor': 'not-allowed'
+            });
+            
+            // Disable dynamic cancellation functions
+            window.removeCancellationField = function() {
+                alert('You do not have permission to modify cancellation rules. Contact your administrator.');
+                return false;
+            };
+            
+            // Prevent time picker interactions
+            $('.time-picker[readonly]').on('focus click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+            
+            // Disable select dropdowns change events
+            $('select[disabled]').on('change', function(e) {
+                e.preventDefault();
+                return false;
+            });
+        }
     });
     
     // Cancellation policy functions
@@ -477,15 +691,25 @@
         const addButton = document.getElementById('add-cancellation-field');
         if (addButton) {
             addButton.addEventListener('click', function () {
+                // Check user authorization
+                var isUnauthorized = {{ Auth::user()->role_id != 1 && Auth::user()->role_id != 20 ? 'true' : 'false' }};
+                if (isUnauthorized) {
+                    alert('You do not have permission to add cancellation rules. Contact your administrator.');
+                    return false;
+                }
+                
+                const readonlyAttr = isUnauthorized ? 'readonly' : '';
+                const disabledAttr = isUnauthorized ? 'disabled' : '';
+                
                 const fieldHTML = `
                     <div class="row mb-3 cancellation-rule" id="cancellation-rule-${index}">
                         <div class="col-md-4">
                             <label class="form-label"><strong>Duration</strong></label>
-                            <input type="text" class="form-control" name="cancellation_duration[]" placeholder="Enter Duration">
+                            <input type="text" class="form-control" name="cancellation_duration[]" placeholder="Enter Duration" ${readonlyAttr}>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label"><strong>Type</strong></label>
-                            <select class="form-select" name="type[]">
+                            <select class="form-select" name="type[]" ${disabledAttr}>
                                 <option value="">Select Type</option>
                                 <option value="flat">Flat</option>
                                 <option value="percentage">Percentage</option>
@@ -493,10 +717,10 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label"><strong>Price</strong></label>
-                            <input type="number" class="form-control" name="cancellation_price[]" placeholder="Enter Price">
+                            <input type="number" class="form-control" name="cancellation_price[]" placeholder="Enter Price" ${readonlyAttr}>
                         </div>
                         <div class="col-md-2" style="margin-top: 1.5rem">
-                            <button type="button" class="btn btn-danger" onclick="removeCancellationField(${index})">Delete</button>
+                            <button type="button" class="btn btn-danger" onclick="removeCancellationField(${index})" ${disabledAttr}>Delete</button>
                         </div>
                     </div>`;
                 fieldsContainer.insertAdjacentHTML('beforeend', fieldHTML);

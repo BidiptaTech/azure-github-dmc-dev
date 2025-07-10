@@ -68,8 +68,8 @@
                         <label for="inputFileStorage" class="form-label">File Storage</label>
                         <select id="inputFileStorage" name="file_storage" class="form-select">
                             <option value="" disabled {{ old('file_storage', $file ?? '') == '' ? 'selected' : '' }}>Select an option</option>
-                            <option value="local" {{ old('file_storage', $file ?? '') == 'local' ? 'selected' : '' }}>Local Storage</option>
-                            <option value="s3" {{ old('file_storage', $file ?? '') == 's3' ? 'selected' : '' }}>Amazon S3</option>
+                            <!-- <option value="local" {{ old('file_storage', $file ?? '') == 'local' ? 'selected' : '' }}>Local Storage</option> -->
+                            <!-- <option value="s3" {{ old('file_storage', $file ?? '') == 's3' ? 'selected' : '' }}>Amazon S3</option> -->
                             <option value="azure" {{ old('file_storage', $file ?? '') == 'azure' ? 'selected' : '' }}>Azure Blob Storage</option>
                         </select>
                         @error('file_storage')

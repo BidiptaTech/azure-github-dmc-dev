@@ -208,9 +208,43 @@ fieldset legend {
     margin-right: 0.25rem;
     color: #6c757d;
 }
+
+/* DMC Filter Styles */
+#dmcFilter {
+    border: 1px solid #d9dee3;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    background-color: #fff;
+    color: #566a7f;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#dmcFilter:focus {
+    border-color: #696cff;
+    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    outline: 0;
+}
+
+/* DMC Badge Styles */
+.badge.bg-info {
+    background-color: #54a3ff !important;
+}
+
+.badge.bg-primary {
+    background-color: #696cff !important;
+}
+
+/* Filter Info Text */
+.filter-info {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-style: italic;
+}
 </style>
 
-<!-- Start of the form -->
+<!-- Start of the form - Only for Admin and Virtual DMC -->
+@if(in_array($auth_user->role_id, [1, 20]))
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
@@ -224,18 +258,7 @@ fieldset legend {
                 class="card-body">
                 @csrf
                 <input type="hidden" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
-                {{--  @if(Auth::user()->user_type != 3)
-                <div class="mb-3 col-md-12">
-                    <label for="hotel_id" class="form-label"><strong>Hotel</strong><span
-                            style="color: red; font-weight: bold;">*</span></label>
-                    <select name="hotel_id" id="hotel_id" class="form-control" required>
-                        <option value="">Select a Hotel</option>
-                        @foreach($hotel as $h)
-                        <option value="{{$h->hotel_unique_id}}">{{ $h->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                @endif --}}
+                
                 <div class="mb-3 row">
                     <!-- Base Room Category -->
                     <div class="col-md-3 mb-3" id="base_room_type">
@@ -554,7 +577,6 @@ fieldset legend {
                         @enderror
                     </div>
                 </div>
-                </div>
 
                 <!-- Status -->
                 <div class="form-check form-switch">
@@ -572,8 +594,11 @@ fieldset legend {
                 </div>
             </form>
         </div>
+    </div>
 </div>
+@endif
 <!-- End of the form -->
+
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -584,7 +609,20 @@ fieldset legend {
                     </div>
 
                     <div class="d-flex justify-content-between gap-3">
-                        <!-- Add New Room Button -->
+                        @if($auth_user->role_id == 1)
+                        <!-- DMC Filter Dropdown for Admin -->
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="dmcFilter" class="form-label mb-0 text-nowrap"><strong>Filter by DMC:</strong></label>
+                            <select class="form-select" id="dmcFilter" style="min-width: 220px;">
+                                <option value="">All DMCs</option>
+                                <option value="admin">Admin Base Rooms</option>
+                                @foreach($dmcUsers as $dmc)
+                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+                        
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
                             <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -608,9 +646,13 @@ fieldset legend {
                             <th>No</th>
                             <th>Hotel</th>
                             <th>Brand</th>
+                            @if($auth_user->role_id == 1)
+                            <th>DMC</th>
+                            @endif
                             <th>Room Category</th>
                             <th>No of Rooms</th>
                             <th>Base Room Type</th>
+                            <th>Rooms Only</th>
 
                             <th>Single Weekdays Price</th>
                             <th>Single Weekend Price</th>
@@ -625,7 +667,7 @@ fieldset legend {
                     </thead>
                     <tbody>
                             @foreach ($rooms as $key => $room)
-                            <tr>
+                            <tr data-dmc-id="{{ $room->dmc_id ?? 'admin' }}">
                                 <td>{{ ++$key }}</td>
                                 <td>
                                     <a href="{{ route('hotel_details', ['hotel' => $room->hotel->hotel_unique_id]) }}"
@@ -639,6 +681,16 @@ fieldset legend {
                                         {{ $room->hotel->hotel_owner_company_name ?? 'Unknown Owner' }}
                                     </a>
                                 </td>
+                                @if($auth_user->role_id == 1)
+                                <td>
+                                    <span class="badge {{ $room->dmc_id == 'admin' ? 'bg-info' : 'bg-primary' }}">
+                                        {{ $room->dmc_company ?? 'Admin Base Room' }}
+                                    </span>
+                                    @if($room->dmc_id != 'admin')
+                                        <br><small class="text-muted">{{ $room->dmc_name ?? '' }}</small>
+                                    @endif
+                                </td>
+                                @endif
                                 <td>{{ $room->room_type }}</td>
                                 <td>{{ $room->no_of_room }}</td>
                                 <td>
@@ -651,6 +703,19 @@ fieldset legend {
                                                {{ $room->base_room ? 'checked' : '' }}>
                                         <label class="form-check-label ms-2" for="baseRoomToggle{{ $room->room_id }}">
                                             {{ $room->base_room ? 'Yes' : 'No' }}
+                                        </label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-check form-switch d-flex align-items-center">
+                                        <input class="form-check-input toggle-rooms-only" 
+                                               type="checkbox" 
+                                               id="roomsOnlyToggle{{ $room->room_id }}" 
+                                               data-room-id="{{ $room->room_id }}" 
+                                               style="width: 2.00em !important;"
+                                               {{ $room->rooms_only ?? false ? 'checked' : '' }}>
+                                        <label class="form-check-label ms-2" for="roomsOnlyToggle{{ $room->room_id }}">
+                                            {{ $room->rooms_only ?? false ? 'Yes' : 'No' }}
                                         </label>
                                     </div>
                                 </td>
@@ -746,7 +811,7 @@ fieldset legend {
 <script>
     $(document).ready(function() {
         // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
+        var dataTable = $('.datatables-basic').DataTable({
             responsive: true,
             buttons: [
                 'copy',
@@ -761,6 +826,45 @@ fieldset legend {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
         });
+
+        // DMC Filter functionality (only for admin users)
+        @if($auth_user->role_id == 1)
+        
+        // Custom search function for DMC filtering
+        $.fn.dataTable.ext.search.push(
+            function(settings, data, dataIndex) {
+                var selectedDmc = $('#dmcFilter').val();
+                var row = $(settings.nTable).DataTable().row(dataIndex).node();
+                var dmcId = $(row).attr('data-dmc-id');
+                
+                // If no filter selected, show all
+                if (selectedDmc === '') {
+                    return true;
+                }
+                
+                // Check if the row matches the selected DMC
+                return dmcId === selectedDmc;
+            }
+        );
+        
+        $('#dmcFilter').on('change', function() {
+            var selectedDmc = $(this).val();
+            
+            // Redraw the table with the new filter
+            dataTable.draw();
+            
+            // Update the table title
+            var totalRows = dataTable.data().length;
+            var filteredRows = dataTable.rows({search: 'applied'}).count();
+            
+            if (selectedDmc !== '') {
+                var dmcText = selectedDmc === 'admin' ? 'Admin Base Rooms' : $('#dmcFilter option:selected').text();
+                $('.card-title').html('Hotel Rooms - ' + dmcText + ' (' + filteredRows + ' of ' + totalRows + ')');
+            } else {
+                $('.card-title').html('Hotel Rooms (' + totalRows + ' total)');
+            }
+        });
+        @endif
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
@@ -1594,6 +1698,65 @@ function setDeleteForm(action) {
             }
         });
         });
+    
+    // Rooms Only Toggle Handler
+    $('.toggle-rooms-only').on('change', function() {
+        const roomId = $(this).data('room-id');
+        const isRoomsOnly = $(this).prop('checked');
+        const label = $(this).siblings('label');
+        
+        // Update label text
+        label.text(isRoomsOnly ? 'Yes' : 'No');
+        
+        // Show loading indicator
+        const originalHtml = label.html();
+        label.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+        
+        // Send AJAX request
+        $.ajax({
+            url: '{{ route("rooms.update-rooms-only") }}',
+            type: 'POST',
+            data: {
+                room_id: roomId,
+                rooms_only: isRoomsOnly ? 1 : 0,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success indicator
+                    label.html('<i class="fas fa-check-circle text-success"></i> ' + (isRoomsOnly ? 'Yes' : 'No'));
+                    
+                    // Revert to normal label after 2 seconds
+                    setTimeout(function() {
+                        label.text(isRoomsOnly ? 'Yes' : 'No');
+                    }, 2000);
+                } else {
+                    // Show error and revert the toggle
+                    label.html('<i class="fas fa-times-circle text-danger"></i> Error');
+                    $(this).prop('checked', !isRoomsOnly);
+                    
+                    // Revert to normal label after 2 seconds
+                    setTimeout(function() {
+                        label.text(!isRoomsOnly ? 'Yes' : 'No');
+                    }, 2000);
+                    
+                    console.error('Failed to update rooms only status:', response.message);
+                }
+            },
+            error: function(xhr) {
+                // Show error and revert the toggle
+                label.html('<i class="fas fa-times-circle text-danger"></i> Error');
+                $(this).prop('checked', !isRoomsOnly);
+                
+                // Revert to normal label after 2 seconds
+                setTimeout(function() {
+                    label.text(!isRoomsOnly ? 'Yes' : 'No');
+                }, 2000);
+                
+                console.error('Failed to update rooms only status:', xhr.responseText);
+            }
+        });
+    });
     });
 </script>
 
