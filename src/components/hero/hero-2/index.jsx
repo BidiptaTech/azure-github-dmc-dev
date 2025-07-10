@@ -168,6 +168,12 @@ const Index = () => {
 
   return (
     <section className="masthead -type-2 z-2">
+      {/* Background image only for search page */}
+      {currentPage === "search" && (
+        <div className="masthead__bg">
+          <img alt="image" src="/img/masthead/4/bg.png" className="js-lazy" style={{width: "100%", height: "120%"}} />
+        </div>
+      )}
       <div className="container">
         <Box sx={{ py: 2 }}>
           <div className="masthead__content">
