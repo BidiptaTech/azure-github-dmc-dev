@@ -14,10 +14,12 @@
 
                     <div class="d-flex justify-content-between gap-3">
                         <!-- Add New Category Button -->
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create attraction'))
                         <a href="{{ route('attraction.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                             <i class="fas fa-plus"></i> Add New Attraction
                         </a>
+                        @endif
                         @endif
 
                         <!-- Export Dropdown Button -->

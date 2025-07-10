@@ -29,22 +29,78 @@
             </li>
             
             <li class="nav-item" role="presentation">
-                
+                @if($userDMC)
                 <a class="nav-link {{ request()->routeIs('hotel-meals-create') ? 'active' : '' }}" 
                    href="{{ route('hotel-meals-create', ['dmc_id' => $userDMC->userId,  'hotel_id' => $hotel->hotel_unique_id]) }}" 
                    role="tab">
                     Meals
                 </a>
-                
+                @else
+                <span class="nav-link active">
+                    Meals
+                </span>
+                @endif
             </li>
         </ul>
+
+        <!-- DMC Selection for Admin Users -->
+        @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="dmc_select" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                        <select id="dmc_select" class="form-control">
+                            <option value="">Choose a DMC to view meals...</option>
+                            @foreach($dmcs as $dmc)
+                                <option value="{{ $dmc->userId }}" {{ $userDMC && $userDMC->userId == $dmc->userId ? 'selected' : '' }}>
+                                    {{ $dmc->company_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-8 d-flex align-items-end">
+                        <div class="alert alert-info mb-0 w-100">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Admin Access:</strong> Select a DMC to view and manage their meals. Only the selected DMC's meals will be displayed.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
         <x-alert />
+        
+        @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && !$userDMC)
+        <!-- Instructions for admin users who haven't selected a DMC -->
+        <div class="card mb-6">
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-utensils fa-3x text-primary"></i>
+                </div>
+                <h4 class="text-primary mb-3">Select a DMC to Manage Meals</h4>
+                <p class="text-muted mb-4">
+                    Please select a DMC from the dropdown above to view and manage their meals.<br>
+                    Once you select a DMC, you'll be able to see their restaurants and add new meals.
+                </p>
+                <div class="alert alert-warning d-inline-block">
+                    <i class="fas fa-lightbulb"></i>
+                    <strong>Instructions:</strong>
+                    <ul class="list-unstyled mt-2 mb-0">
+                        <li>1. Choose a DMC from the "Select DMC" dropdown above</li>
+                        <li>2. The meal form and listing will appear automatically</li>
+                        <li>3. Add meals for the selected DMC's restaurants</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        @else
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Add New Meal
-                <a href="{{ route('meals.index') }}" class="btn btn-sm btn-outline-danger">
-                    <i class="mdi mdi-arrow-left"></i> Back
-                </a>
+                @if($userDMC)
+                <span class="badge bg-info">DMC: {{ $userDMC->company_name }}</span>
+                @endif
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('hotel-meals-store') }}" enctype="multipart/form-data" class="card-body">
                 @csrf
@@ -53,22 +109,38 @@
                     <div id="restaurantDetailsContainer">
                         <div class="restaurant-form">
                             <div class="row">
-                                <input type="hidden" name="dmc_id" value="{{$userDMC->userId}}">
+                                <input type="hidden" name="dmc_id" value="{{$userDMC->userId}}" id="form_dmc_id">
                                 <input type="hidden" name="hotel_id" value="{{$hotel->hotel_unique_id}}">
-                                <!-- Restaurant -->
-                                <div class="col-md-3 mb-3">
-                                    <label for="restaurant_id" class="form-label"><strong>Reastaurant</strong><span class="text-danger">*</span></label>
-                                    <select name="restaurant_id" id="restaurantSelect" class="form-control">
-                                        <option value="">Select a Restaurant</option>
-                                        <!-- <option value="0">Third Party</option> -->
-                                        @foreach($restaurants as $restaurant)
-                                            <option value="{{ $restaurant->restaurant_id }}">{{ $restaurant->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('restaurant_id')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                                
+                                @if($selectedRestaurant)
+                                    <!-- Selected Restaurant Display (Read-only) -->
+                                    <input type="hidden" name="restaurant_id" value="{{ $selectedRestaurant->restaurant_id }}">
+                                                                         <div class="col-md-3 mb-3">
+                                         <label class="form-label"><strong>Restaurant</strong></label>
+                                         <div class="form-control bg-light d-flex align-items-center" style="background-color: #f8f9fa !important; border: 2px solid #28a745; border-radius: 8px;">
+                                             <i class="fas fa-utensils text-primary me-2"></i>
+                                             <span class="fw-bold text-dark">{{ $selectedRestaurant->name }}</span>
+                                             <span class="badge bg-success ms-auto">
+                                                 <i class="fas fa-check me-1"></i>Selected
+                                             </span>
+                                         </div>
+                                         <small class="text-success"><i class="fas fa-info-circle me-1"></i>Meals will be added to this restaurant</small>
+                                     </div>
+                                @else
+                                    <!-- Restaurant Dropdown (when no specific restaurant is selected) -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="restaurant_id" class="form-label"><strong>Restaurant</strong><span class="text-danger">*</span></label>
+                                        <select name="restaurant_id" id="restaurantSelect" class="form-control">
+                                            <option value="">Select a Restaurant</option>
+                                            @foreach($restaurants as $restaurant)
+                                                <option value="{{ $restaurant->restaurant_id }}">{{ $restaurant->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('restaurant_id')
+                                            <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                @endif
                                 <div class="col-md-3 mb-3">
                                     <label for="meal_period" class="form-label"><strong>Meal Type</strong><span class="text-danger">*</span></label>
                                     <select class="form-select" name="meal_period" required>
@@ -205,6 +277,7 @@
                 </div>
             </form>
         </div>
+        @endif
     </div>
 </div>
 
@@ -212,13 +285,26 @@
 <!-- End Modal -->
 <!-- End of the form -->
 
+@if(!($auth_user->role_id == 1 || $auth_user->role_id == 20) || $userDMC)
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
             <div class="card-datatable table-responsive pt-0">
                 <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                     <div class="d-flex align-items-center">
-                        <h5 class="card-title mb-0">Meals</h5>
+                        <h5 class="card-title mb-0">
+                            @if($selectedRestaurant)
+                                Meals - {{ $selectedRestaurant->name }}
+                                @if($userDMC)
+                                    <small class="text-muted">({{ $userDMC->company_name }})</small>
+                                @endif
+                            @else
+                                Meals 
+                                @if($userDMC)
+                                    <small class="text-muted">({{ $userDMC->company_name }})</small>
+                                @endif
+                            @endif
+                        </h5>
                     </div>
 
                     <div class="d-flex justify-content-between gap-3">
@@ -294,7 +380,19 @@
                                             <span class="badge bg-danger">Inactive</span>
                                         @endif
                                     </td>
-                                    @if(hasPermission('edit meal') || hasPermission('delete meal'))
+                                    @php
+                                        $canEditDelete = false;
+                                        if($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+                                            // Admin users can edit/delete all meals
+                                            $canEditDelete = true;
+                                        } else if($meal->restaurant) {
+                                            // Regular users can only edit/delete their own DMC's meals
+                                            $dmcIds = $meal->restaurant->getSelectedDmcIds();
+                                            $canEditDelete = in_array($auth_user->userId, $dmcIds);
+                                        }
+                                    @endphp
+                                    
+                                    @if($canEditDelete && (hasPermission('edit meal') || hasPermission('delete meal')))
                                     <td style="display: inline-block; white-space: nowrap;">
                                         <!-- Edit Button -->
                                         @if(hasPermission('edit meal'))
@@ -321,6 +419,10 @@
                                         </button>
                                         @endif
                                     </td>
+                                    @else
+                                    <td style="text-align: center;">
+                                        <span class="text-muted"><i class="fas fa-lock"></i> Restricted</span>
+                                    </td>
                                     @endif
                                 </tr>
                             @endforeach
@@ -329,6 +431,7 @@
                 </div>
     </div>
 </div>
+@endif
 
 
 <!-- Meal Delete Modal -->
@@ -372,6 +475,48 @@
     });
 </script> --}}
 
+<!-- DMC Selection JavaScript for Admin Users -->
+<script>
+$(document).ready(function() {
+    var userRoleId = {{ $auth_user->role_id }};
+    var hotelId = '{{ $hotel->hotel_unique_id }}';
+    
+    // Handle DMC selection for admin users
+    if ([1, 20].includes(userRoleId)) {
+        $('#dmc_select').change(function() {
+            var selectedDmcId = $(this).val();
+            
+            if (selectedDmcId) {
+                // Redirect to the meals page with selected DMC
+                window.location.href = "{{ route('hotel-meals-create', ['dmc_id' => '__DMC_ID__', 'hotel_id' => $hotel->hotel_unique_id]) }}".replace('__DMC_ID__', selectedDmcId);
+            } else {
+                // Redirect to the meals page without DMC (shows instruction page)
+                window.location.href = "{{ route('hotel-meals-create', ['dmc_id' => '0', 'hotel_id' => $hotel->hotel_unique_id]) }}";
+            }
+        });
+        
+        // Form validation for admin users
+        $('#restaurantForm').on('submit', function(e) {
+            var dmcId = $('#form_dmc_id').val();
+            
+            // Check if DMC is selected and valid
+            if (!dmcId || dmcId === '0' || dmcId === '') {
+                e.preventDefault();
+                alert('Please select a DMC before submitting the form.');
+                
+                // Scroll to DMC selection dropdown and focus
+                $('html, body').animate({
+                    scrollTop: $('#dmc_select').offset().top - 100
+                }, 500);
+                $('#dmc_select').focus();
+                
+                return false;
+            }
+        });
+    }
+});
+</script>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const toggleVisibility = (checkboxId, fieldId) => {
@@ -393,11 +538,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
-        $('#restaurantSelect').select2({
-            placeholder: "Search and Select a Restaurant",
-            allowClear: true,
-            width: '100%'
-        });
+        // Only initialize Select2 if the restaurant dropdown exists
+        if ($('#restaurantSelect').length) {
+            $('#restaurantSelect').select2({
+                placeholder: "Search and Select a Restaurant",
+                allowClear: true,
+                width: '100%'
+            });
+        }
     });
 </script>
 <script>

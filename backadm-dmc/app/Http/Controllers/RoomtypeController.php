@@ -192,4 +192,35 @@ public function updateBaseRoom(Request $request)
         ], 500);
     }
 }
+
+// Add this method to handle rooms only toggle
+public function updateRoomsOnly(Request $request)
+{
+    try {
+        $validated = $request->validate([
+            'room_id' => 'required|exists:rooms,room_id',
+            'rooms_only' => 'required|boolean',
+        ]);
+        
+        $room = Room::where('room_id', $request->room_id)->first();
+        
+        if (!$room) {
+            return response()->json(['success' => false, 'message' => 'Room not found'], 404);
+        }
+        
+        // Update the rooms_only status
+        $room->rooms_only = $request->rooms_only;
+        $room->save();
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'Rooms only status updated successfully'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false, 
+            'message' => 'Failed to update rooms only status: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

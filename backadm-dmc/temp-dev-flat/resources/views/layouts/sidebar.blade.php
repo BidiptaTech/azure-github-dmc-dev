@@ -422,8 +422,8 @@
     }
     
     .ri-service-line {
-        color: #06b6d4 !important; /* Cyan */
-        background: rgba(6, 182, 212, 0.1);
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
     }
     
     .roadmap-icon:hover {
@@ -862,6 +862,43 @@
             @endif
             <!-- End Zone -->
 
+            <!-- Services Management for DMC -->
+            @if(Auth::user()->role_id == 11)
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Services Management">Services Management</span>
+                </li>
+
+                <li class="menu-item @if(Request::is('services/*')) open active @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-service-line"></i>
+                        <div data-i18n="Services">Services</div>
+                    </a>
+                    <ul class="menu-sub">
+                        <!-- DMC Hotels Selection -->
+                        <li class="menu-item @if(Request::is('services/hotels')) active @endif">
+                            <a href="{{ route('services.hotels') }}" class="menu-link">
+                                <div data-i18n="Select Hotels">Select Hotels</div>
+                            </a>
+                        </li>
+                        
+                        <!-- DMC Attractions Selection -->
+                        <li class="menu-item @if(Request::is('services/attractions')) active @endif">
+                            <a href="{{ route('services.attractions') }}" class="menu-link">
+                                <div data-i18n="Select Attractions">Select Attractions</div>
+                            </a>
+                        </li>
+                        
+                        <!-- DMC Restaurants Selection -->
+                        <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
+                            <a href="{{ route('services.restaurants') }}" class="menu-link">
+                                <div data-i18n="Select Restaurants">Select Restaurants</div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            @endif
+            <!-- End Services Management -->
+
             <!-- Booking -->
             {{-- @if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 
             || auth()->user()->role_id == 125 || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 ||
@@ -1097,12 +1134,14 @@
                         </li>
                         @endif
                         <!-- Create Attraction -->
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create attraction'))
                         <li class="menu-item @if(Request::is('attraction/create')) active @endif">
                             <a href="{{ route('attraction.create') }}" class="menu-link">
                                 <div data-i18n="Create Attractions & Experiences">Create Attractions & Experiences</div>
                             </a>
                         </li>
+                        @endif
                         @endif
                     </ul>
                 </li>
@@ -1174,12 +1213,14 @@
                         @endif
 
                         <!-- Create Restaurant -->
+                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                         @if(hasPermission('create restaurant'))
                         <li class="menu-item @if(Request::is('restaurant/create')) active @endif">
                             <a href="{{ route('restaurant.create') }}" class="menu-link">
                                 <div data-i18n="Create Restaurant">Create Restaurant</div>
                             </a>
                         </li>
+                        @endif
                         @endif
                     </ul>
                 </li>

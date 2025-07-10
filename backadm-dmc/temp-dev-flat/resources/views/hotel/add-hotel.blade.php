@@ -162,7 +162,7 @@
                     class="card-body">
                     @csrf
                     <div class="row">
-                    @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id == 82|| auth()->user()->role_id == 83)
+                    <!-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id == 82|| auth()->user()->role_id == 83)
                         <div class="mb-3 col-md-4" id="dmc-container" style="display: none;">
                             
                             <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
@@ -173,7 +173,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        @endif
+                        @endif -->
                         <div class="mb-3 col-md-4">
                             <label for="input35" class="form-label"><strong>Hotel Name</strong>
                                 <span style="color: red; font-weight: bold;">*</span>
@@ -330,10 +330,15 @@
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <input type="text" class="form-control" id="country" 
-                                    placeholder="{{ in_array(auth()->user()->role_id, [11, 35, 77, 84]) ? 'Your country' : 'Select DMC First' }}" 
-                                    name="country" required 
-                                    {{ in_array(auth()->user()->role_id, [11, 35, 77, 84]) ? 'readonly' : 'readonly' }}>
+                                <select class="form-select" id="country" name="country" required>
+                                    <option value="">Select Country</option>
+                                    @foreach($country as $c)
+                                        <option value="{{ $c->country_id }}">
+                                            {{ $c->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -1036,17 +1041,53 @@
             }
         }
         
-        // Update country code when country input changes
+        // NEW: Fetch and populate city list based on selected country -----------------------------
+        function loadCitiesByCountry(countryName) {
+            if (!countryName) return;
+
+            // Display loading option while fetching cities
+            $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+            $.ajax({
+                url: "{{ env('APP_URL') }}{{ route('fetch-cities-by-country', [], false) }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function(response) {
+                    // Clear current options and add a default placeholder
+                    $('#citySelect').empty().append('<option value="">Select or type a city</option>');
+
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function(index, city) {
+                            $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                    }
+                    // Refresh Select2 display
+                    $('#citySelect').trigger('change');
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error fetching cities by country:", error);
+                    $('#citySelect').empty().append('<option value="">Error loading cities</option>').trigger('change');
+                }
+            });
+        }
+        // ---------------------------------------------------------------------------
+
+        // Update country code AND city list whenever the country selection changes
         $('#country').on('change input', function() {
-            updateCountryCode($(this).val());
+            const selectedCountryName = $('#country option:selected').text().trim();
+            updateCountryCode(selectedCountryName);
+            loadCitiesByCountry(selectedCountryName);
         });
-        
+
         // For DMC and similar role users, update country code when page loads
         if ([11, 35, 77, 84].includes({{ auth()->user()->role_id }})) {
-            updateCountryCode($('#country').val());
+            const initDmcCountryName = $('#country option:selected').text().trim();
+            updateCountryCode(initDmcCountryName);
+            loadCitiesByCountry(initDmcCountryName);
         }
-        
-        // Update country code when DMC is selected (for admin users)
+
+        // Update country code (and city list) when a DMC is selected (for admin users)
         $('#dmc').on('change', function() {
             const dmcId = $(this).val();
             if (dmcId) {
@@ -1058,17 +1099,19 @@
                     success: function(response) {
                         if (response.country) {
                             $('#country').val(response.country);
-                            // Update country code based on new country
                             updateCountryCode(response.country);
+                            loadCitiesByCountry(response.country);
                         }
                     }
                 });
             }
         });
-        
-        // Initialize on page load - update country code if country already has a value
+
+        // Initialize on page load - update country code & cities if a country is pre-selected
         if ($('#country').val()) {
-            updateCountryCode($('#country').val());
+            const initialCountryName = $('#country option:selected').text().trim();
+            updateCountryCode(initialCountryName);
+            loadCitiesByCountry(initialCountryName);
         }
     });
 </script>

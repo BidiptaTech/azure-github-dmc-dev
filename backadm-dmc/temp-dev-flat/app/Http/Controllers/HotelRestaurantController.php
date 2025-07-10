@@ -262,12 +262,37 @@ class HotelRestaurantController extends Controller
         if($auth_user->user_type == 1){
             $hotels = Hotel::get();
         }elseif($auth_user->user_type == 2){
-            $hotels = Hotel::where('dmc_id', $auth_user->userId)->get();
+            // Use JSON query for PostgreSQL to check if dmc_id array contains the user ID
+            $hotels = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
         }else {
-            $hotels = Hotel::where('dmc_id', $auth_user->userId)->get();
+            // Use JSON query for PostgreSQL to check if dmc_id array contains the user ID
+            $hotels = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
         }
-        $userDMC = User::where('userId', $hotel->dmc_id)->first();
-        $restaurants = Restaurant::where('owned_by', $hotel->hotel_unique_id)->where('dmc_id', $userDMC->userId)->get();
+        // Handle dmc_id as array since it's cast as array in Hotel model
+        $dmcIds = $hotel->getSelectedDmcIds();
+        $currentUserDmcId = null;
+        
+        // For DMC users, get their own DMC ID
+        if ($auth_user->role_id == 11) {
+            $currentUserDmcId = $auth_user->userId;
+        } else {
+            // For admin users, use the first available DMC ID or find appropriate one
+            $currentUserDmcId = !empty($dmcIds) ? $dmcIds[0] : null;
+        }
+        
+        if (!$currentUserDmcId) {
+            abort(404, 'No DMC found for this hotel.');
+        }
+        
+        $userDMC = User::where('userId', $currentUserDmcId)->first();
+        if (!$userDMC) {
+            abort(404, 'DMC user not found.');
+        }
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20){
+            $restaurants = Restaurant::where('owned_by', $hotel->hotel_unique_id)->get();
+        }else{
+            $restaurants = Restaurant::where('owned_by', $hotel->hotel_unique_id)->get();
+        }
         $authuser = auth()->user();
         $userCountry = $userDMC->country;
         $cities = City::where('country', $userCountry)->get();
@@ -387,13 +412,12 @@ class HotelRestaurantController extends Controller
                 $dmc_id = $request->dmc;
                 $status = 1;
             }
-            // 🔍 Check for existing hotel at same lat/lng for this DMC
-            $existingRestaurant = Restaurant::where([
-                ['latitude', $request->latitude],
-                ['longitude', $request->longitude],
-                ['dmc_id', $dmc_id],
-                ['owned_by', $request->hotel_id]
-            ])->first();
+            // 🔍 Check for existing restaurant at same lat/lng for this DMC
+            $existingRestaurant = Restaurant::where('latitude', $request->latitude)
+                ->where('longitude', $request->longitude)
+                ->whereJsonContains('dmc_id', $dmc_id)
+                ->where('owned_by', $request->hotel_id)
+                ->first();
 
             if ($existingRestaurant) {
                 return redirect()->back()
@@ -623,28 +647,183 @@ class HotelRestaurantController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
 
-        $restaurants = Restaurant::where('dmc_id', $dmc_id)->where('owned_by', $hotel_id)->where('is_active', 1)->get();
-        $restaurantIds = $restaurants->pluck('restaurant_id');
-
-        $meals = Meal::whereIn('restaurant_id', $restaurantIds)->get();
         $hotel = Hotel::where('hotel_unique_id', $hotel_id)->first();
-        $userDMC = User::where('userId', $hotel->dmc_id)->first();
-        return view('hotel.add-meals', compact('restaurants', 'meals', 'hotel', 'userDMC'));
+        $auth_user = Auth::user();
+        
+        // Get restaurant_id from URL parameter if provided
+        $restaurant_id = request()->get('restaurant_id');
+        $selectedRestaurant = null;
+        
+        // Handle different user roles
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            // Admin users - get all DMCs and selected DMC data
+            $dmcs = User::where('role_id', 11)->get();
+            
+            // Handle case when no DMC is selected (dmc_id = 0 or invalid)
+            if($dmc_id == '0' || !$dmc_id) {
+                $userDMC = null;
+                $restaurants = collect();
+            } else {
+                $userDMC = User::where('userId', $dmc_id)->first();
+            }
+        } else {
+            // Regular DMC users - only their own data
+            $dmcs = collect(); // Empty for non-admin users
+            $userDMC = User::where('userId', $dmc_id)->first();
+            if (!$userDMC) {
+                abort(404, 'DMC user not found.');
+            }
+        }
+        
+        // Determine the correct DMC ID for filtering meals
+        $filterDmcId = $dmc_id;
+        if($auth_user->role_id != 1 && $auth_user->role_id != 20) {
+            // For non-admin users, use their own DMC ID
+            $filterDmcId = $auth_user->userId;
+        }
+        
+        // If restaurant_id is provided, filter for that specific restaurant
+        if($restaurant_id) {
+            $selectedRestaurant = Restaurant::where('restaurant_id', $restaurant_id)
+                ->where('owned_by', $hotel_id)
+                ->where('is_active', 1)
+                ->first();
+                
+            if($selectedRestaurant) {
+                // Verify the user has access to this restaurant
+                $restaurantDmcIds = $selectedRestaurant->getSelectedDmcIds();
+                if($auth_user->role_id == 1 || $auth_user->role_id == 20 || in_array($auth_user->userId, $restaurantDmcIds)) {
+                    $restaurants = collect([$selectedRestaurant]);
+                    $restaurantIds = [$restaurant_id];
+                    // Filter meals for the specific restaurant and correct DMC
+                    $meals = Meal::where('restaurant_id', $restaurant_id)
+                        ->where('dmc_id', $filterDmcId)
+                        ->get();
+                } else {
+                    // User doesn't have access to this restaurant
+                    $restaurants = collect();
+                    $meals = collect();
+                }
+            } else {
+                $restaurants = collect();
+                $meals = collect();
+            }
+        } else {
+            // Default behavior - show restaurants the user has access to
+            if($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+                // Admin users can see all restaurants for the hotel
+                $restaurants = Restaurant::where('owned_by', $hotel_id)
+                    ->where('is_active', 1)
+                    ->get();
+            } else {
+                // Regular DMC users only see their restaurants
+                $restaurants = Restaurant::where('owned_by', $hotel_id)
+                    ->where('is_active', 1)
+                    ->whereJsonContains('dmc_id', $auth_user->userId)
+                    ->get();
+            }
+            
+            $restaurantIds = $restaurants->pluck('restaurant_id');
+            $meals = Meal::whereIn('restaurant_id', $restaurantIds)
+                ->where('dmc_id', $filterDmcId)
+                ->get();
+        }
+        
+        return view('hotel.add-meals', compact('restaurants', 'meals', 'hotel', 'userDMC', 'dmcs', 'auth_user', 'selectedRestaurant'));
+    }
+
+    /**
+     * Fetch meals for a specific DMC (AJAX endpoint for admin users)
+     */
+    public function fetchDmcMeals(Request $request, $hotel_id)
+    {
+        $dmc_id = $request->input('dmc_id');
+        
+        if (!$dmc_id) {
+            return response()->json(['error' => 'DMC ID is required'], 400);
+        }
+
+        try {
+            // Get restaurants for the selected DMC and hotel
+            $restaurants = Restaurant::where('owned_by', $hotel_id)
+                ->where('is_active', 1)
+                ->whereJsonContains('dmc_id', $dmc_id)
+                ->get();
+                
+            $restaurantIds = $restaurants->pluck('restaurant_id');
+            $meals = Meal::whereIn('restaurant_id', $restaurantIds)->get();
+
+            $mealsData = $meals->map(function ($meal) {
+                $mealPeriod = '';
+                switch($meal->meal_period) {
+                    case 1: $mealPeriod = 'Breakfast'; break;
+                    case 2: $mealPeriod = 'Lunch'; break;
+                    case 3: $mealPeriod = 'Dinner'; break;
+                    default: $mealPeriod = 'Unknown'; break;
+                }
+
+                $mealType = '';
+                switch($meal->type) {
+                    case 1: $mealType = 'Buffet'; break;
+                    case 2: $mealType = 'Set Menu'; break;
+                    case 3: $mealType = 'A-La-Carte'; break;
+                    default: $mealType = 'Unknown'; break;
+                }
+
+                return [
+                    'meal_id' => $meal->meal_id,
+                    'name' => $meal->name ?? 'N/A',
+                    'restaurant_name' => $meal->restaurant ? $meal->restaurant->name : 'Unknown',
+                    'type' => $mealType,
+                    'meal_period' => $mealPeriod,
+                    'item_description' => $meal->item_description,
+                    'is_active' => $meal->is_active
+                ];
+            });
+
+            $restaurantsData = $restaurants->map(function ($restaurant) {
+                return [
+                    'restaurant_id' => $restaurant->restaurant_id,
+                    'name' => $restaurant->name
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'meals' => $mealsData,
+                'restaurants' => $restaurantsData
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch meals: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 
     public function mealStore(Request $request)
     {
+        $auth_user = Auth::user();
+        
+        // Base validation rules
+        $rules = [
+            'meal_category' => 'required',
+            'item_type' => 'nullable|integer',
+            'meal_type' => 'required|string',
+            'restaurant_id' => 'required|integer',
+            'item_description' => 'required|string',
+            'meal_status' => 'nullable|integer',
+        ];
+        
+        // For admin and role_id 20, DMC selection is required
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            $rules['dmc_id'] = 'required|exists:users,userId';
+        }
+        
         // Validate the incoming request data
         try {
-            $request->validate([
-                'meal_category' => 'required',
-                'item_type' => 'nullable|integer',
-                'meal_type' => 'required|string',
-                'restaurant_id' => 'required|integer',
-                'item_description' => 'required|string',
-                'meal_status' => 'nullable|integer',
-            ]);
+            $request->validate($rules);
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Catch Validation Errors
             dd($e->errors());
@@ -671,7 +850,16 @@ class HotelRestaurantController extends Controller
                 $image = $pathData['master_value'];
             }
         }
-        $auth_user = Auth::user();
+        // Set DMC ID based on user role
+        $dmcId = null;
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            // Admin/Manager users: use the selected DMC ID
+            $dmcId = $request->input('dmc_id');
+        } else {
+            // Regular DMC users: use their own user ID
+            $dmcId = $auth_user->userId;
+        }
+        
         //Create a new restaurant record
         $meal = new Meal();
         $meal->meal_id = $mealId;
@@ -688,6 +876,7 @@ class HotelRestaurantController extends Controller
         $meal->item_type = $request->input('item_type');
         $meal->is_active = $request->input('meal_status') == 1 ? 1 : 0;
         $meal->created_by = $auth_user->userId;
+        $meal->dmc_id = $dmcId; // Set DMC ID based on user role
 
         $meal->save();
 
@@ -703,10 +892,29 @@ class HotelRestaurantController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         
+        $meal = Meal::where('meal_id',$id)->first();
+        if (!$meal) {
+            abort(404, 'Meal not found.');
+        }
 
-        $meals = Meal::where('meal_id',$id)->first();
-        $restaurants = Restaurant::where('restaurant_id', $meals->restaurant_id)->where('is_active', 1)->get();
-        return view('hotel.edit-meals', compact('meals', 'restaurants'));
+        $restaurant = Restaurant::where('restaurant_id', $meal->restaurant_id)->first();
+        if (!$restaurant) {
+            abort(404, 'Restaurant not found.');
+        }
+
+        $auth_user = Auth::user();
+        
+        // Check if user has permission to edit this meal
+        if($auth_user->role_id != 1 && $auth_user->role_id != 20) {
+            // For non-admin users, check if they own this meal's restaurant
+            $dmcIds = $restaurant->getSelectedDmcIds();
+            if(!in_array($auth_user->userId, $dmcIds)) {
+                abort(403, 'You do not have permission to edit this meal.');
+            }
+        }
+
+        $restaurants = Restaurant::where('restaurant_id', $meal->restaurant_id)->where('is_active', 1)->get();
+        return view('hotel.edit-meals', compact('meal', 'restaurants'));
     }
 
     //update
@@ -741,7 +949,10 @@ class HotelRestaurantController extends Controller
 
         $meal = Meal::where('meal_id',$id)->first();
         $restaurant = Restaurant::where('restaurant_id', $meal->restaurant_id)->first();
-        $dmc_id = $restaurant->dmc_id;
+        
+        // Handle restaurant dmc_id as array since it's cast as array in Restaurant model
+        $dmcIds = $restaurant->getSelectedDmcIds();
+        $dmc_id = !empty($dmcIds) ? $dmcIds[0] : null;
         $hotel_id = $restaurant->owned_by;
         $meal->restaurant_id = $request->restaurant_id;
         $meal->item_description = $request->item_description;
@@ -770,9 +981,30 @@ class HotelRestaurantController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $meal = Meal::where('meal_id',$id)->first();
+        if (!$meal) {
+            abort(404, 'Meal not found.');
+        }
+
         $restaurant = Restaurant::where('restaurant_id', $meal->restaurant_id)->first();
-        $dmc_id = $restaurant->dmc_id;
+        if (!$restaurant) {
+            abort(404, 'Restaurant not found.');
+        }
+
+        $auth_user = Auth::user();
+        
+        // Handle restaurant dmc_id as array since it's cast as array in Restaurant model
+        $dmcIds = $restaurant->getSelectedDmcIds();
+        $dmc_id = !empty($dmcIds) ? $dmcIds[0] : null;
         $hotel_id = $restaurant->owned_by;
+
+        // Check if user has permission to delete this meal
+        if($auth_user->role_id != 1 && $auth_user->role_id != 20) {
+            // For non-admin users, check if they own this meal's restaurant
+            if(!in_array($auth_user->userId, $dmcIds)) {
+                abort(403, 'You do not have permission to delete this meal.');
+            }
+        }
+
         $delete = $meal->delete();
         return redirect()->route('hotel-meals-create', [
             'dmc_id' => $dmc_id,
@@ -781,6 +1013,8 @@ class HotelRestaurantController extends Controller
         
     
     }
+
+
 }
 
 
