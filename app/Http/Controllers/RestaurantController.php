@@ -46,10 +46,15 @@ class RestaurantController extends Controller
         }
         elseif($user->role_id == 10){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+                $selectedDmcIds = $restaurant->getSelectedDmcIds();
+                return !empty(array_intersect($selectedDmcIds, $dmc_ids));
+            });
         }
         elseif ($user->role_id == 11) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->where('dmc_id', $user->userId)->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+                return $restaurant->hasSelectedByDmc($user->userId);
+            });
         }
 
         elseif(in_array($user->role_id, [25, 63, 119])){
@@ -67,11 +72,16 @@ class RestaurantController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+                $selectedDmcIds = $restaurant->getSelectedDmcIds();
+                return !empty(array_intersect($selectedDmcIds, $dmc_ids));
+            });
         } 
         
         elseif($user->role_id == 35){
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->where('dmc_id', $user->created_by)->get();
+            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+                return $restaurant->hasSelectedByDmc($user->created_by);
+            });
         }
         elseif($user->role_id == 78){
             $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
@@ -280,9 +290,13 @@ class RestaurantController extends Controller
         if($auth_user->user_type == 1){
             $hotels = Hotel::where('status', 1)->get();
         }elseif($auth_user->user_type == 2){
-            $hotels = Hotel::where('dmc_id', $auth_user->userId)->where('status', 1)->get();
+            $hotels = Hotel::where('status', 1)->get()->filter(function($hotel) use ($auth_user) {
+                return $hotel->hasSelectedByDmc($auth_user->userId);
+            });
         }else {
-            $hotels = Hotel::where('dmc_id', $auth_user->userId)->where('status', 1)->get();
+            $hotels = Hotel::where('status', 1)->get()->filter(function($hotel) use ($auth_user) {
+                return $hotel->hasSelectedByDmc($auth_user->userId);
+            });
         }
 
         $authuser = auth()->user();
@@ -416,48 +430,47 @@ class RestaurantController extends Controller
             }
         }
         $auth_user = Auth::user();
+            // if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
+            //     $dmc_id = $request->dmc;
+            //     $status = 1;
+            // } elseif ($auth_user->role_id == 11) {
+            //     $dmc_id = $auth_user->userId;
+            //     $status = 1;
+            // } elseif(auth()->user()->role_id ==35){
+            //     $userdmc = User::where('userId', auth()->user()->created_by)->first();
+            //     $dmc_id = $userdmc->userId;
+            //     $status = 1;
+            // }
+            // elseif(auth()->user()->role_id == 78){
+            //     $user_product_head = User::where('userId', auth()->user()->created_by)->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            //     $dmc_id = $user_product_head_dmc->userId;
+            //     $status = 1;
+            // }
+            // elseif(auth()->user()->role_id == 120){
+            //     $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
+            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            //     $dmc_id = $user_product_head_dmc->userId;
+            //     $status = 1;
+            // }
+            // else{
+            //     $dmc_id = $request->dmc;
+            // }
+            // $dmc_id = User::where('role_id', 20)->value('userId') ?? 0;
+            // $status = 1;
+            // // 🔍 Check for existing hotel at same lat/lng for this DMC
+            // $existingRestaurant = Restaurant::where([
+            //     ['latitude', $request->latitude],
+            //     ['longitude', $request->longitude],
+            //     ['dmc_id', $dmc_id]
+            // ])->first();
 
-        $auth_user = Auth::user();
-            if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
-                $dmc_id = $request->dmc;
-                $status = 1;
-            } elseif ($auth_user->role_id == 11) {
-                $dmc_id = $auth_user->userId;
-                $status = 1;
-            } elseif(auth()->user()->role_id ==35){
-                $userdmc = User::where('userId', auth()->user()->created_by)->first();
-                $dmc_id = $userdmc->userId;
-                $status = 1;
-            }
-            elseif(auth()->user()->role_id == 78){
-                $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $dmc_id = $user_product_head_dmc->userId;
-                $status = 1;
-            }
-            elseif(auth()->user()->role_id == 120){
-                $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $dmc_id = $user_product_head_dmc->userId;
-                $status = 1;
-            }
-            else{
-                $dmc_id = $request->dmc;
-            }
-
-            // 🔍 Check for existing hotel at same lat/lng for this DMC
-            $existingRestaurant = Restaurant::where([
-                ['latitude', $request->latitude],
-                ['longitude', $request->longitude],
-                ['dmc_id', $dmc_id]
-            ])->first();
-
-            if ($existingRestaurant) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('error', 'A Restaurant already exists at this location for the selected DMC.');
-            }
+            // if ($existingRestaurant) {
+            //     return redirect()->back()
+            //         ->withInput()
+            //         ->with('error', 'A Restaurant already exists at this location for the selected DMC.');
+            // }
 
         //Create a new restaurant record
         $restaurant = new Restaurant();
@@ -490,8 +503,8 @@ class RestaurantController extends Controller
         $restaurant->images = $imagePathsJson;
         $restaurant->master_image = $masterImage;
         $restaurant->is_active = $request->input('restaurant_status');
-        $restaurant->status = $status;
-        $restaurant->dmc_id = $dmc_id ?? 0;
+        $restaurant->status = 1;
+        // $restaurant->dmc_id = $dmc_id ?? 0;
         $restaurant->description = $request->input('description');
         $restaurant->remarks = $request->input('remarks');
         $restaurant->terms_conditions = $request->input('terms_conditions');
@@ -705,7 +718,8 @@ class RestaurantController extends Controller
     }
 
     /**
-     * Generate a coupon for restaurant booking
+     * Show DMC Restaurants Selection Page
+     * For DMC users to select/manage their restaurants
      */
     public function generateCoupon(Request $request)
     {        
@@ -1218,9 +1232,10 @@ const fs = require('fs');
     }
 
     /**
-     * Try generating image using PhantomJS
+     * Remove Individual Restaurant from DMC Selection
+     * Handle individual restaurant removal with AJAX
      */
-    private function tryPhantomJS($htmlFile, $imageFile)
+    public function removeRestaurant(Request $request)
     {
         try {
             Log::info('Trying PhantomJS method');
@@ -1352,13 +1367,11 @@ page.open('file://$htmlFile', function(status) {
             
             return response()->json([
                 'success' => true,
-                'message' => 'Voucher image generated successfully',
-                'image' => base64_encode($imageData),
-                'filename' => $filename,
-                'size' => strlen($imageData)
+                'message' => 'Restaurant removed successfully!'
             ]);
             
         } catch (\Exception $e) {
+            \Log::error('Restaurant removal error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error processing image: ' . $e->getMessage()

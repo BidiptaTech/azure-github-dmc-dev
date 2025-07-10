@@ -12,5 +12,8 @@ class Rate extends Model
     protected $table = 'rates'; 
     protected $guarded = []; 
 
-    
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'dmc_id', 'userId');
+    }
 }

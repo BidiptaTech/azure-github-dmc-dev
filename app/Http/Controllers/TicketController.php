@@ -20,7 +20,7 @@ class TicketController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
 
-        $tickets = Ticket::all();
+        $tickets = Ticket::where('dmc_id', Auth::user()->userId)->get();
         return view('tickets.tickets', compact('tickets'));
     }
 
@@ -88,6 +88,7 @@ class TicketController extends Controller
         $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
         $ticket->status = $request->status ? 1 : 0;
         $ticket->created_by = Auth::user()->userId ?? null;
+        $ticket->dmc_id = Auth::user()->userId ?? null;
         $ticket->attraction_id = $attraction_id;
         $ticket->save();
 
