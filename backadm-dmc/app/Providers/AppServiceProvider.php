@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Filesystem;
@@ -58,22 +57,5 @@ class AppServiceProvider extends ServiceProvider
                 throw $e;
             }
         });
-            
-            // Force HTTPS URLs everywhere
-            if (config("app.env") === "production" || isset($_SERVER["HTTPS"]) || request()->header("x-forwarded-proto") == "https") {
-                URL::forceScheme("https");
-                URL::forceRootUrl(config("app.url"));
-            }
-            
-            // Set asset URL for subdirectory
-            if (config("app.asset_url")) {
-                URL::asset("/");
-            }
-            
-            // Force HTTPS for all requests
-            if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"]) && $_SERVER["HTTP_X_FORWARDED_PROTO"] === "https") {
-                request()->server->set("HTTPS", "on");
-                request()->server->set("SERVER_PORT", 443);
-            }
     }
 }

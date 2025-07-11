@@ -1,17 +1,23 @@
 # Apache Configuration for Large File Uploads
 # Add these directives to your .htaccess file
 
-# Increase PHP limits via Apache
-php_value post_max_size 100M
-php_value upload_max_filesize 20M
-php_value max_file_uploads 50
+# Increase PHP limits via Apache (increased for multiple images)
+php_value post_max_size 120M
+php_value upload_max_filesize 25M
+php_value max_file_uploads 20
 php_value max_execution_time 300
 php_value max_input_time 300
 php_value memory_limit 512M
 php_value max_input_vars 3000
 
+# Additional PHP settings for better upload handling
+php_value output_buffering Off
+php_value max_input_nesting_level 128
+php_value auto_prepend_file none
+php_value auto_append_file none
+
 # Apache specific settings
-LimitRequestBody 104857600  # 100MB in bytes
+LimitRequestBody 125829120  # 120MB in bytes
 LimitRequestFields 1000
 LimitRequestFieldSize 8190
 

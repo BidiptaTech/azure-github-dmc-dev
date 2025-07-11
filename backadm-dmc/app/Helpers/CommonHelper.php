@@ -795,24 +795,26 @@ class CommonHelper
             return [0, null]; // Invalid type, return 0
         }
 
-        // Extract all DMC IDs from JSON arrays
-        foreach ($records as $record) {
-            $dmc_id_data = $record->dmc_id;
-            if (is_string($dmc_id_data)) {
-                // If it's a JSON string, decode it
-                $decoded = json_decode($dmc_id_data, true);
-                if (is_array($decoded)) {
-                    $hotel_dmc_ids = array_merge($hotel_dmc_ids, $decoded);
-                } else {
-                    // Single ID as string
+        // Extract all DMC IDs from JSON arrays (only if records exist)
+        if (isset($records) && !empty($records) && $records->count() > 0) {
+            foreach ($records as $record) {
+                $dmc_id_data = $record->dmc_id;
+                if (is_string($dmc_id_data)) {
+                    // If it's a JSON string, decode it
+                    $decoded = json_decode($dmc_id_data, true);
+                    if (is_array($decoded)) {
+                        $hotel_dmc_ids = array_merge($hotel_dmc_ids, $decoded);
+                    } else {
+                        // Single ID as string
+                        $hotel_dmc_ids[] = (int)$dmc_id_data;
+                    }
+                } elseif (is_array($dmc_id_data)) {
+                    // Already an array
+                    $hotel_dmc_ids = array_merge($hotel_dmc_ids, $dmc_id_data);
+                } elseif (is_numeric($dmc_id_data)) {
+                    // Single numeric ID
                     $hotel_dmc_ids[] = (int)$dmc_id_data;
                 }
-            } elseif (is_array($dmc_id_data)) {
-                // Already an array
-                $hotel_dmc_ids = array_merge($hotel_dmc_ids, $dmc_id_data);
-            } elseif (is_numeric($dmc_id_data)) {
-                // Single numeric ID
-                $hotel_dmc_ids[] = (int)$dmc_id_data;
             }
         }
 
