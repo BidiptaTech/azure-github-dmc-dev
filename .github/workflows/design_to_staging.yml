@@ -6,7 +6,7 @@ on:
       - design_staging
 
 permissions:
-  contents: write  # Required for git push
+  contents: write  # Required to allow pushing changes
 
 jobs:
   sync-design:
@@ -18,14 +18,14 @@ jobs:
         with:
           ref: design_staging
           path: design_staging
-          fetch-depth: 0  # ✅ Needed to avoid history/commit errors
+          fetch-depth: 0  # Full history to avoid commit errors
 
       - name: Checkout staging branch
         uses: actions/checkout@v4
         with:
           ref: staging
           path: staging
-          fetch-depth: 0  # ✅ Needed for correct history during commit
+          fetch-depth: 0  # Full history to support rebase
 
       - name: Copy files to staging root (excluding protected files/folders)
         run: |
@@ -43,9 +43,13 @@ jobs:
           git config user.email "actions@github.com"
 
           git add .
-
-          # Ensure protected files/folders are not included in commit
+          # Unstage protected files just in case
           git reset backadm-dmc .htaccess laravel-debug.php startup.sh || true
 
           git commit -m "Auto-sync from design_staging to staging on $(date)" || echo "No changes to commit"
+
+          # ✅ Pull latest changes to avoid non-fast-forward error
+          git pull origin staging --rebase
+
+          # ✅ Push using your personal access token (PAT)
           git push https://x-access-token:${{ secrets.STAGING_GH_PAT }}@github.com/${{ github.repository }} HEAD:staging
