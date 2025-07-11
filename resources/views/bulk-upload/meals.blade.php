@@ -1,165 +1,170 @@
 @extends('layouts.layout')
-@section('title', 'Attraction Bulk Upload')
+
+@section('title', 'Meal Bulk Upload')
 
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
-        <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="mb-1">Attraction Bulk Upload</h4>
-                <p class="text-muted mb-0">Upload multiple attractions at once using Excel/CSV file</p>
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-1">Meal Bulk Upload</h4>
+                <p class="mb-4">Upload meals for restaurants owned by your DMC.</p>
             </div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="#">Bulk Upload</a></li>
-                    <li class="breadcrumb-item active">Attractions</li>
-                </ol>
-            </nav>
         </div>
 
-        <div class="row">
-            <!-- Instructions Card -->
-            <div class="col-12 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="ri-information-line me-2"></i>Instructions
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <h6>Step 1: Download Template</h6>
-                            <p class="text-muted small mb-2">Download our Excel template with sample data and required columns.</p>
-                            <a href="{{ route('bulk-upload.attractions.template') }}" class="btn btn-outline-primary btn-sm">
-                                <i class="ri-download-line me-1"></i>Download Template
-                            </a>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <h6>Step 2: Fill Data</h6>
-                            <p class="text-muted small">Fill in your attraction data according to the template format. Required fields are marked with *</p>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <h6>Step 3: Upload File</h6>
-                            <p class="text-muted small">Upload your completed Excel file using the upload area.</p>
-                        </div>
-
-                        <div class="alert alert-info">
-                            <small>
-                                <i class="ri-lightbulb-line me-1"></i>
-                                <strong>Tips:</strong>
-                                <ul class="mb-0 mt-1">
-                                    <li>Maximum file size: 10MB</li>
-                                    <li>Supported formats: .xlsx, .xls, .csv</li>
-                                    <li>Use 24-hour format for timing (e.g., 09:00-18:00)</li>
-                                    <li>Entry fees should be numeric values</li>
-                                </ul>
-                            </small>
-                        </div>
+        @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show enhanced-alert" role="alert">
+            <div class="d-flex align-items-start">
+                <div class="alert-icon me-3">
+                    <i class="ri-check-double-line fs-4 text-success"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="alert-content">
+                        {!! nl2br(str_replace(['**', '*'], ['<strong>', '</strong>'], e(session('success')))) !!}
                     </div>
                 </div>
+                <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
             </div>
+        </div>
+        @endif
 
-            <!-- Upload Section -->
-            <div class="col-12 col-lg-8 mb-4">
+        @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        @endif
+
+        @if(session('errors') && count(session('errors')) > 0)
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>Upload Errors:</strong>
+            <ul class="mb-0">
+                @foreach(session('errors') as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        @endif
+
+        <div class="row">
+            <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="ri-map-pin-2-line me-2"></i>Upload Attractions
-                        </h5>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Select Restaurant for Meal Upload</h5>
                     </div>
                     <div class="card-body">
-                        @if(session('success'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="ri-check-circle-line me-2"></i>
-                                {{ session('success') }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        @endif
-
-                        @if(session('error'))
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <i class="ri-error-warning-line me-2"></i>
-                                {{ session('error') }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        @endif
-
-                        @if(session('errors') && count(session('errors')) > 0)
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                <h6><i class="ri-alert-line me-2"></i>Upload Errors:</h6>
-                                <ul class="mb-0">
-                                    @foreach(session('errors') as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        @endif
-
-                        <form action="{{ route('bulk-upload.attractions.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
-                            @csrf
-                            <div class="mb-4">
-                                <label class="form-label">Select CSV File</label>
-                                <div class="dropzone-area border rounded p-4 text-center" id="dropzone">
-                                    <div class="dropzone-content">
-                                        <i class="ri-upload-cloud-2-line display-4 text-muted mb-3"></i>
-                                        <h5>Drag & drop your file here</h5>
-                                        <p class="text-muted">or <a href="#" class="text-primary" id="browseBtn">browse files</a></p>
-                                        <input type="file" name="file" id="fileInput" class="d-none" accept=".xlsx,.xls,.csv" required>
-                                        <small class="text-muted">Supported formats: .csv (Max: 10MB)</small>
+                        @if($restaurants->count() > 0)
+                            <div class="row">
+                                @foreach($restaurants as $restaurant)
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border shadow-sm">
+                                        <div class="card-body d-flex flex-column">
+                                            <h6 class="card-title text-primary">{{ $restaurant->name }}</h6>
+                                            <p class="card-text text-muted mb-2">
+                                                <i class="ri-restaurant-line me-1"></i>Restaurant ID: {{ $restaurant->restaurant_id }}
+                                            </p>
+                                            
+                                                                         <div class="mb-3">
+                                         <small class="text-muted d-block mb-1">Available Meals:</small>
+                                         <div class="d-flex flex-wrap gap-1">
+                                             @if(isset($restaurant->breakfast_available) && $restaurant->breakfast_available)
+                                                 <span class="badge bg-success">Breakfast</span>
+                                             @endif
+                                             @if(isset($restaurant->lunch_available) && $restaurant->lunch_available)
+                                                 <span class="badge bg-info">Lunch</span>
+                                             @endif
+                                             @if(isset($restaurant->dinner_available) && $restaurant->dinner_available)
+                                                 <span class="badge bg-warning">Dinner</span>
+                                             @endif
+                                             @if(!isset($restaurant->breakfast_available) && !isset($restaurant->lunch_available) && !isset($restaurant->dinner_available))
+                                                 <span class="badge bg-secondary">Meal info not available</span>
+                                             @endif
+                                         </div>
+                                     </div>
+                                    
+                                    <div class="mt-auto">
+                                        <div class="btn-group w-100" role="group">
+                                            <a href="{{ route('bulk-upload.meals.template', $restaurant->restaurant_id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="ri-download-line me-1"></i>Download Template
+                                            </a>
+                                            <button type="button" class="btn btn-primary btn-sm" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#uploadModal{{ $restaurant->restaurant_id }}">
+                                                <i class="ri-upload-line me-1"></i>Upload Meals
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <div id="fileInfo" class="mt-3 d-none">
-                                    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-file-excel-2-line text-success me-2"></i>
-                                            <div>
-                                                <div class="fw-medium" id="fileName"></div>
-                                                <small class="text-muted" id="fileSize"></small>
+                            </div>
+                        </div>
+
+                        <!-- Upload Modal for each restaurant -->
+                        <div class="modal fade" id="uploadModal{{ $restaurant->restaurant_id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Upload Meals for {{ $restaurant->name }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form action="{{ route('bulk-upload.meals.upload', $restaurant->restaurant_id) }}" method="POST" enctype="multipart/form-data">
+                                        @csrf
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Select CSV File</label>
+                                                <input type="file" class="form-control" name="file" accept=".csv,.txt" required>
+                                                <div class="form-text">
+                                                    <small class="text-muted">
+                                                        Please upload a CSV file with meal data. Maximum file size: 10MB.
+                                                        <br>
+                                                        <strong>Available meals for this restaurant:</strong>
+                                                        @if(isset($restaurant->breakfast_available) && $restaurant->breakfast_available) Breakfast @endif
+                                                        @if(isset($restaurant->lunch_available) && $restaurant->lunch_available) Lunch @endif
+                                                        @if(isset($restaurant->dinner_available) && $restaurant->dinner_available) Dinner @endif
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="alert alert-info">
+                                                <h6><i class="ri-information-line me-1"></i>Upload Guidelines:</h6>
+                                                <ul class="mb-0 small">
+                                                    <li>Download the template first to see the required format</li>
+                                                    <li>You can only upload meals for meal types that are available for this restaurant</li>
+                                                    <li>For <strong>Buffet</strong>: Adult Price and Child Price are required</li>
+                                                    <li>For <strong>Set Menu</strong>: Item Price and Item Type are required</li>
+                                                    <li>Item Description is required for all meal types</li>
+                                                </ul>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" id="removeFile">
-                                            <i class="ri-close-line"></i>
-                                        </button>
-                                    </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="ri-upload-line me-1"></i>Upload Meals
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                            </div>
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="skipDuplicates">
-                                    <label class="form-check-label" for="skipDuplicates">
-                                        Skip duplicate entries
-                                    </label>
-                                </div>
-                                <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
-                                    <i class="ri-upload-line me-1"></i>Upload Attractions
-                                </button>
-                            </div>
-                        </form>
-
-                        <!-- Progress Bar -->
-                        <div id="progressSection" class="mt-4 d-none">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="text-muted">Uploading...</span>
-                                <span id="progressText">0%</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="progressBar" style="width: 0%"></div>
                             </div>
                         </div>
+                        @endforeach
                     </div>
-                </div>
+                @else
+                    <div class="text-center py-5">
+                        <i class="ri-restaurant-line display-1 text-muted"></i>
+                        <h5 class="mt-3">No Restaurants Found</h5>
+                        <p class="text-muted">You don't have any restaurants assigned to your DMC yet.<br>
+                        Please contact your administrator to assign restaurants to your DMC.</p>
+                    </div>
+                @endif
             </div>
         </div>
 
         <!-- Recent Uploads - Modern UI -->
-        <div class="card border-0 shadow-sm">
+        @php
+            $uploadHistory = \App\Models\UploadHistory::getRecentHistory('meals', auth()->user()->userId, 10);
+        @endphp
+        <div class="card border-0 shadow-sm mt-4">
             <div class="card-header bg-gradient-primary text-white border-0">
                 <div class="d-flex align-items-center justify-content-between">
                     <h5 class="card-title mb-0 text-white">
@@ -210,7 +215,7 @@
                                                 </div>
                                                 <div>
                                                     <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
-                                                    <small class="text-muted">CSV File</small>
+                                                    <small class="text-muted">Meal CSV File</small>
                                                 </div>
                                             </div>
                                         </td>
@@ -306,7 +311,7 @@
                                 <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
                             </div>
                             <h6 class="text-muted mb-2">No Upload History</h6>
-                            <p class="text-muted small mb-0">Your upload history will appear here once you start uploading files.</p>
+                            <p class="text-muted small mb-0">Your meal upload history will appear here once you start uploading files.</p>
                         </div>
                     </div>
                 @endif
@@ -315,42 +320,47 @@
     </div>
 </div>
 
+@endsection
+
+<!-- Modern Upload History Styles - Matching Attraction Tickets Design -->
 <style>
-.dropzone-area {
-    border: 2px dashed #e0e0e0 !important;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.dropzone-area:hover {
-    border-color: #6366f1 !important;
-    background-color: rgba(99, 102, 241, 0.02);
-}
-
-.dropzone-area.dragover {
-    border-color: #6366f1 !important;
-    background-color: rgba(99, 102, 241, 0.05);
+/* Color Variables */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-color: #667eea;
+    --success-color: #28a745;
+    --info-color: #17a2b8;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-bg: #f8f9fa;
+    --border-color: #e9ecef;
+    --text-muted: #6c757d;
+    --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    --border-radius: 0.75rem;
+    --border-radius-sm: 0.5rem;
 }
 
 /* Modern Upload History Styles */
 .bg-gradient-primary {
-    background: linear-gradient(135deg, #696cff 0%, #5a67d8 100%);
+    background: var(--primary-gradient);
 }
 
 .modern-table {
-    border: none;
+    border: none !important;
 }
 
 .modern-table thead th {
     background-color: #f8fafc;
     font-weight: 600;
     color: #475569;
-    border-bottom: 2px solid #e2e8f0;
+    border: none !important;
+    border-bottom: 2px solid #e2e8f0 !important;
     padding: 1rem 1.25rem;
 }
 
 .modern-table tbody tr {
-    border: none;
+    border: none !important;
     transition: all 0.2s ease;
 }
 
@@ -361,8 +371,8 @@
 }
 
 .upload-row td {
-    border: none;
-    border-bottom: 1px solid #f1f5f9;
+    border: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
     vertical-align: middle;
 }
 
@@ -388,6 +398,10 @@
     background: #f0f9ff;
     border-radius: 12px;
     border: 1px solid #e0f2fe;
+}
+
+.empty-state {
+    padding: 3rem 2rem;
 }
 
 .badge {
@@ -436,10 +450,6 @@
     border: 1px solid rgba(14, 165, 233, 0.2) !important;
 }
 
-.empty-state {
-    padding: 3rem 2rem;
-}
-
 .card.border-0.shadow-sm {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
     border-radius: 12px;
@@ -448,22 +458,6 @@
 
 .card-header.bg-gradient-primary {
     padding: 1.25rem 1.5rem;
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .card-header.bg-gradient-primary {
-        padding: 1rem;
-    }
-    
-    .upload-card {
-        padding: 1rem !important;
-    }
-    
-    .badge {
-        font-size: 0.7rem;
-        padding: 0.25rem 0.5rem;
-    }
 }
 
 /* Animation for loading states */
@@ -493,7 +487,70 @@
     opacity: 0.7;
     font-size: 0.9em;
 }
+
+/* Enhanced Alert Styles */
+.enhanced-alert {
+    border: none;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #d1edff 0%, #e8f8f5 100%);
+    border-left: 4px solid #28a745;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+}
+
+.enhanced-alert .alert-icon {
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.enhanced-alert .alert-content {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #155724;
+}
+
+.enhanced-alert .alert-content strong {
+    color: #0f5132;
+    font-weight: 600;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .card-header.bg-gradient-primary {
+        padding: 1rem;
+    }
+    
+    .upload-card {
+        padding: 1rem !important;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .modern-table thead th {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+}
 </style>
 
-<script src="{{ asset('js/bulk-upload.js') }}"></script>
+@section('page-script')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        var alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            var bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+});
+</script>
 @endsection 

@@ -49,12 +49,13 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
 
-                            @if($roleId == 10)
+                            @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
                                 <th>DMC</th>
-                            @elseif($roleId != 11)
+                            @elseif(!in_array($roleId, [11, 20])) {{-- Not DMC or Virtual DMC --}}
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
+
                             {{-- <th>Adult Price</th>
                             <th>Child Price</th> --}}
                             <th>location</th>
@@ -75,12 +76,12 @@
                                     $roleId = auth()->user()->role_id;
                                 @endphp
 
-                                @if($roleId == 10)
+                                @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
                                     @php
                                         $dmcUser = App\Models\User::where('userId', $attraction->dmc_id)->first();
                                     @endphp
                                     <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                @elseif($roleId != 11)
+                                @elseif(!in_array($roleId, [11, 20])) {{-- Not DMC or Virtual DMC --}}
                                     @php
                                         $dmcUser = App\Models\User::where('userId', $attraction->dmc_id)->first();
                                         $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
@@ -88,6 +89,7 @@
                                     <td>{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
                                     <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                                 @endif
+
                                 {{-- <td>
                                     @if($attraction->adult_price)
                                         {{ $attraction->adult_price }}

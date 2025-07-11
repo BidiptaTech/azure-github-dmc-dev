@@ -53,6 +53,9 @@ class AttractionController extends Controller
                 return $attraction->hasSelectedByDmc($user->userId);
             });
         }
+        elseif ($user->role_id == 20) {
+            $attractions = Attraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+        }
 
         elseif(in_array($user->role_id, [25,26, 60,49, 92,89])){
 
@@ -264,7 +267,7 @@ class AttractionController extends Controller
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }
-        if(in_array($authuser->role_id, [11, 35, 74, 93])){
+        if(in_array($authuser->role_id, [11, 20, 35, 74, 93])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -363,25 +366,25 @@ class AttractionController extends Controller
         }
 
         $auth_user = Auth::user();
-            // if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
-            //     $dmc_id = $request->dmc;
-            //     $status = 1;
-            // } elseif ($auth_user->role_id == 11) {
-            //     $dmc_id = $auth_user->userId;
-            //     $status = 1;
-            // } elseif(auth()->user()->role_id ==35){
-            //     $userdmc = User::where('userId', auth()->user()->created_by)->first();
-            //     $dmc_id = $userdmc->userId;
-            //     $status = 1;
-            // }
-            // elseif(auth()->user()->role_id == 74){
-            //     $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            //     $dmc_id = $user_product_head_dmc->userId;
-            //     $status = 1;
-            // }
-            // elseif(auth()->user()->role_id == 93){
-            //     $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
+            if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
+                $dmc_id = $request->dmc;
+                $status = 1;
+            } elseif ($auth_user->role_id == 11) {
+                $dmc_id = $auth_user->userId;
+                $status = 1;
+            } elseif(auth()->user()->role_id ==35){
+                $userdmc = User::where('userId', auth()->user()->created_by)->first();
+                $dmc_id = $userdmc->userId;
+                $status = 1;
+            }
+            elseif(auth()->user()->role_id == 74){
+                $user_product_head = User::where('userId', auth()->user()->created_by)->first();
+                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+                $dmc_id = $user_product_head_dmc->userId;
+                $status = 1;
+            }
+            elseif(auth()->user()->role_id == 93){
+                $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
 
             //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
 

@@ -54,6 +54,9 @@ class RestaurantController extends Controller
                 return $restaurant->hasSelectedByDmc($user->userId);
             });
         }
+        elseif ($user->role_id == 20) {
+            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->where('dmc_id', $user->userId)->get();
+        }
 
         elseif(in_array($user->role_id, [25, 63, 119])){
             if($user->role_id == 25){
@@ -327,7 +330,7 @@ class RestaurantController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if(in_array($authuser->role_id, [11, 35, 78, 120])){
+        if(in_array($authuser->role_id, [11, 20, 35, 78, 120])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
