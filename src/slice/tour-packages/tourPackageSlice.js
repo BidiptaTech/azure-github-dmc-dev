@@ -198,33 +198,42 @@ const tourPackageSlice = createSlice({
 
     // Add all services
     setAllServices: (state, action) => {
-      // Check if action.payload is an array
       if (Array.isArray(action.payload)) {
-        console.log("%c REDUX: Setting ALL services in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");
+        console.log(
+          "%c REDUX: Setting ALL services in tourPackageSlice",
+          "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;"
+        );
         console.log("Previous services count:", state.AllServices.length);
         console.log("Previous services:", [...state.AllServices]);
         console.log("New services count:", action.payload.length);
         console.log("New services:", action.payload);
-        
-        // Replace the entire state with the new array, filtering out any CustomerInfo type
+    
+        // Replace state, filtering out CustomerInfo if type exists
         state.AllServices = action.payload.filter(service => service.type !== 'CustomerInfo');
         console.log("%c AllServices array replaced", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;");
       } else {
-        console.log("%c REDUX: Adding a service in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");
+        console.log(
+          "%c REDUX: Adding a service in tourPackageSlice",
+          "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;"
+        );
         console.log("Current services:", [...state.AllServices]);
         console.log("Service to add:", action.payload);
-        
-        // If it's a CustomerInfo type, we don't add it as a separate entry anymore
+    
+        // Skip if it's explicitly CustomerInfo
         if (action.payload.type === 'CustomerInfo') {
           console.log("%c CustomerInfo is now embedded in service data, not added as separate entry", "background: #e74c3c; color: #ffffff; padding: 2px; font-weight: bold;");
           return;
         }
-        
-        // If it's a single item, add it to the array if it doesn't exist already
-        const exists = state.AllServices.some(service => 
-          service.id === action.payload.id && service.type === action.payload.type
-        );
-        
+    
+        let exists = false;
+    
+        // Only do duplicate check if both id and type exist
+        if ('id' in action.payload && 'type' in action.payload) {
+          exists = state.AllServices.some(service =>
+            service.id === action.payload.id && service.type === action.payload.type
+          );
+        }
+    
         if (!exists) {
           state.AllServices.push(action.payload);
           console.log("%c Service added successfully. New count:", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;", state.AllServices.length);
