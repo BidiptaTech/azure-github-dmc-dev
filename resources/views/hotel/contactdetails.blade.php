@@ -307,7 +307,7 @@
                 <!-- Action Buttons -->
                 <div class="d-flex justify-content-between mt-4">
                     <button type="submit" class="btn btn-primary px-4"
-                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Save</button>
+                    >Save</button>
                 </div>
             </form>
         </div>

@@ -91,7 +91,7 @@ class DashboardController extends Controller
      */
     private function canViewAllProducts($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11, 35]); // Admin, Super Admin, Master DMC, DMC, Product Head
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC, Product Head
     }
     
     /**
@@ -107,7 +107,7 @@ class DashboardController extends Controller
      */
     private function canViewZones($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11]); // Admin, Super Admin, Master DMC, DMC only
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC only
     }
     
     /**
@@ -173,7 +173,7 @@ class DashboardController extends Controller
     private function canViewBusinessMetrics($user)
     {
         // Product managers and product head cannot see business metrics, only sales and upper roles can
-        return in_array($user->role_id, [1, 2, 10, 11, 33, 12, 37, 38]); // Exclude product managers and product head
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38]); // Exclude product managers and product head
     }
     
     /**
@@ -191,7 +191,7 @@ class DashboardController extends Controller
      */
     private function canViewAgents($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11, 33, 12, 37, 38]); // Sales hierarchy only
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38]); // Sales hierarchy only
     }
     
     /**
@@ -281,12 +281,12 @@ class DashboardController extends Controller
             $counts['agents'] = $this->getAgentCounts($dateRanges, $user);
         }
         
-        if (in_array($user->role_id, [1, 2, 10, 11])) { // Only higher level roles can see users
+        if (in_array($user->role_id, [1, 2, 10, 11, 19, 20])) { // Only higher level roles can see users
             $counts['users'] = $this->getUserCounts($dateRanges, $user);
         }
         
         // Configuration entities - for higher level roles and product managers
-        if (in_array($user->role_id, [1, 2, 10, 11, 35]) || $this->isProductManager($user)) {
+        if (in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35]) || $this->isProductManager($user)) {
             $counts['facilities'] = $this->getFacilityCounts($dateRanges, $user);
             $counts['categories'] = $this->getCategoryCounts($dateRanges, $user);
         }
@@ -501,7 +501,7 @@ class DashboardController extends Controller
         $query = Tour::where('status', 1);
         
         // Apply role-based filtering for tours
-        if (in_array($user->role_id, [11, 33, 12, 37, 38])) {
+        if (in_array($user->role_id, [11, 20, 33, 12, 37, 38])) {
             $agentIds = $this->getAgentIdsByUserRole($user);
             if ($agentIds->isNotEmpty()) {
                 $query->whereIn('agent_id', $agentIds);
@@ -606,10 +606,12 @@ class DashboardController extends Controller
             case 1: // Admin
             case 2: // Super Admin
             case 10: // Master DMC
+            case 19: // Virtual Master DMC
                 // These roles can see all enquiries
                 break;
 
             case 11: // DMC
+            case 20: // Virtual DMC
                 // DMC can see all agents' enquiries
                 $dmc_id = $user->userId;
 
@@ -738,7 +740,7 @@ class DashboardController extends Controller
         $query = Agent::query();
         
         // Apply role-based filtering
-        if (in_array($user->role_id, [10, 11, 33, 12, 37, 38])) {
+        if (in_array($user->role_id, [10, 11, 19, 20, 33, 12, 37, 38])) {
             $allIds = $this->getAllRelatedUserIds($user);
             if ($allIds->isNotEmpty()) {
                 $query->whereIn('sales_manager_dmc', $allIds);
@@ -1018,8 +1020,21 @@ class DashboardController extends Controller
                 }
                 break;
                 
+            case 19: // Virtual Master DMC
+                $dmcIds = User::where('master_dmc_id', $user->userId)
+                             ->whereIn('role_id', [11, 20]) // Include both regular DMC and Virtual DMC
+                             ->pluck('userId');
+                if ($dmcIds->isNotEmpty()) {
+                    $query->whereIn($dmcField, $dmcIds);
+                }
+                break;
+                
             case 11: // DMC
                 $this->applyDmcFieldFilter($query, $dmcField, $user->userId);
+                break;
+                
+            case 20: // Virtual DMC
+                $query->where($dmcField, $user->userId);
                 break;
                 
             case 33: // Sales Head
@@ -1078,18 +1093,19 @@ class DashboardController extends Controller
     {
         switch ($user->role_id) {
             case 11: // DMC
+            case 20: // Virtual DMC
                 return $user->userId;
                 
             case 33: // Sales Head
                 $dmcUser = User::where('userId', $user->created_by)->first();
-                return ($dmcUser && $dmcUser->role_id == 11) ? $dmcUser->userId : null;
+                return ($dmcUser && in_array($dmcUser->role_id, [11, 20])) ? $dmcUser->userId : null;
                 
             case 12:
             case 37: // Sales Manager
                 $salesHead = User::where('userId', $user->created_by)->first();
                 if ($salesHead) {
                     $dmcUser = User::where('userId', $salesHead->created_by)->first();
-                    return ($dmcUser && $dmcUser->role_id == 11) ? $dmcUser->userId : null;
+                    return ($dmcUser && in_array($dmcUser->role_id, [11, 20])) ? $dmcUser->userId : null;
                 }
                 break;
                 
@@ -1099,7 +1115,7 @@ class DashboardController extends Controller
                     $salesHead = User::where('userId', $salesManager->created_by)->first();
                     if ($salesHead) {
                         $dmcUser = User::where('userId', $salesHead->created_by)->first();
-                        return ($dmcUser && $dmcUser->role_id == 11) ? $dmcUser->userId : null;
+                        return ($dmcUser && in_array($dmcUser->role_id, [11, 20])) ? $dmcUser->userId : null;
                     }
                 }
                 break;
@@ -1172,6 +1188,57 @@ class DashboardController extends Controller
                 
                 return $allIds;
                 
+            case 19: // Virtual Master DMC
+                $virtualMasterDmcId = $user->userId;
+                
+                // Get all DMCs under this Virtual Master DMC (include both regular DMC and Virtual DMC)
+                $dmcs = User::where('master_dmc_id', $virtualMasterDmcId)
+                           ->whereIn('role_id', [11, 20])
+                           ->pluck('userId');
+                
+                Log::info("DEBUG: Virtual Master DMC found DMCs", [
+                    'virtual_master_dmc_id' => $virtualMasterDmcId,
+                    'dmcs_found' => $dmcs->toArray()
+                ]);
+                
+                // Get all sales heads under these DMCs
+                $salesHeads = User::whereIn('created_by', $dmcs)
+                                 ->where('role_id', 33)
+                                 ->pluck('userId');
+                
+                Log::info("DEBUG: Sales heads found for Virtual Master DMC", [
+                    'sales_heads' => $salesHeads->toArray()
+                ]);
+                
+                // Continue with other hierarchy levels...
+                $salesManagers = User::whereIn('created_by', $salesHeads)
+                                   ->whereIn('role_id', [12, 37])
+                                   ->pluck('userId');
+                
+                $assistantManagers = User::whereIn('created_by', $salesManagers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                
+                $allIds = collect([$virtualMasterDmcId])
+                    ->merge($dmcs)
+                    ->merge($salesHeads)
+                    ->merge($salesManagers)
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
+                
+                Log::info("DEBUG: Final all IDs for Virtual Master DMC", [
+                    'all_ids' => $allIds->toArray()
+                ]);
+                
+                // Check how many agents this returns
+                $agentCount = Agent::whereIn('sales_manager_dmc', $allIds)->count();
+                Log::info("DEBUG: Agent count for Virtual Master DMC", [
+                    'agent_count' => $agentCount
+                ]);
+                
+                return $allIds;
+                
             case 11: // DMC
                 $dmcId = $user->userId;
                 
@@ -1188,6 +1255,28 @@ class DashboardController extends Controller
                                         ->pluck('userId');
                 
                 return collect([$dmcId])
+                    ->merge($salesHeads)
+                    ->merge($salesManagers)
+                    ->merge($assistantManagers)
+                    ->unique()
+                    ->filter();
+                    
+            case 20: // Virtual DMC
+                $virtualDmcId = $user->userId;
+                
+                $salesHeads = User::where('created_by', $virtualDmcId)
+                                 ->where('role_id', 33)
+                                 ->pluck('userId');
+                
+                $salesManagers = User::whereIn('created_by', $salesHeads)
+                                   ->whereIn('role_id', [12, 37])
+                                   ->pluck('userId');
+                
+                $assistantManagers = User::whereIn('created_by', $salesManagers)
+                                        ->where('role_id', 38)
+                                        ->pluck('userId');
+                
+                return collect([$virtualDmcId])
                     ->merge($salesHeads)
                     ->merge($salesManagers)
                     ->merge($assistantManagers)

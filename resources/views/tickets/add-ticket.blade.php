@@ -31,7 +31,15 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-header">
-                            <h4 class="card-title mb-0">Create New Ticket</h4>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h4 class="card-title mb-0">Create New Ticket</h4>
+                                @if(auth()->user()->role_id == '11')
+                                    <a href="{{ route('tickets.bulk_upload_for_attraction', $attraction->attraction_id) }}" 
+                                       class="btn btn-warning btn-sm">
+                                        <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Tickets
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                         <div class="card-body">
                             <form action="{{ route('tickets.store') }}" method="POST">
