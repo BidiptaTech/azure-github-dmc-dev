@@ -1391,7 +1391,7 @@ class UserController extends Controller
             $get_country_name = $this->auth_user->country;
 
         }
-        if($this->auth_user->role_id == 10){
+        if($this->auth_user->role_id == 10 || $this->auth_user->role_id == 19){
             $masterDmcId = $this->auth_user->userId;
             $country_name = Country::where('name', $request->country_name)->first();
             $get_country_name = $country_name ? $country_name->name : $request->country_name;

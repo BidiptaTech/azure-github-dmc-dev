@@ -223,7 +223,7 @@
                     </div>
                     <div class="detail-card">
                         <div class="detail-label">Date</div>
-                        <div class="detail-value">{{ $bookingDetails['check_in_date'] ?? 'N/A' }}</div>
+                        <div class="detail-value">{{ $check_in_date ?? 'N/A' }}</div>
                     </div>
                     <div class="detail-card">
                         <div class="detail-label">Time</div>

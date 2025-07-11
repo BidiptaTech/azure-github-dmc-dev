@@ -25,9 +25,9 @@
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary me-2">
                     <i class="ri-arrow-left-line me-1"></i>Back to Packages
                 </a>
-                <a href="{{ route('packages.edit', $package->package_id) }}" class="btn btn-primary">
+                <!-- <a href="{{ route('packages.edit', $package->package_id) }}" class="btn btn-primary">
                     <i class="ri-edit-line me-1"></i>Edit Package
-                </a>
+                </a> -->
             </div>
         </div>
 
