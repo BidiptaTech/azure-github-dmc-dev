@@ -331,6 +331,8 @@ const CustomerInfo = forwardRef((props, ref) => {
         package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
       } : null;
       
+     
+      
       const bookingDetails = {
         agent_id: Cookies.get("AgentId") || "0",
         data: [{
@@ -363,10 +365,11 @@ const CustomerInfo = forwardRef((props, ref) => {
           dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
           bookingType: "booking",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
+          package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking"
@@ -523,10 +526,11 @@ const CustomerInfo = forwardRef((props, ref) => {
           dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
           bookingType: "enquiry",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
+          package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",

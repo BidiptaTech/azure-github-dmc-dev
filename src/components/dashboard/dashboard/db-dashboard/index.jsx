@@ -8,20 +8,38 @@ import SalesManagerDashboard from "./components/SalesManagerDashboard";
 import DashboardCard from "./components/DashboardCard";
 import ChartMain from "./components/ChartMain";
 import RecentBooking from "./components/RercentBooking";
-import { Grid, Container, Box, Tab, Tabs } from "@mui/material";
+import { Grid, Container, Box, Tab, Tabs, Stack, Typography, Avatar, Chip, Card, CardContent, Fade, Grow } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
-  Notifications,
   Search,
   EventNote,
   AssessmentOutlined,
   MoreHoriz,
   EmailOutlined,
   CardGiftcardOutlined,
+  SupervisorAccount,
+  ManageAccounts,
+  Person,
+  TrendingUp,
+  Business,
+  AccountBalance,
+  BarChart,
+  Settings,
+  WorkOutline,
+  Diamond,
+  EmojiEvents,
+  Star,
+  Badge,
 } from "@mui/icons-material";
 import EnquiryList from "./components/EnquiryList";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
 import PreDefinePackages from "./PreDefine-Packages";
+import { 
+  DashboardEntrance, 
+  AnimatedBox, 
+  StaggeredContainer, 
+  AnimatedGrid 
+} from "@/components/dashboard/DashboardAnimations";
 
 // Custom Tab Panel component
 function TabPanel(props) {
@@ -79,85 +97,94 @@ const DashboardLayout = () => {
     // Default to Agent dashboard for any other role
     return (
       <>
-        <Box
-          sx={{
-            borderBottom: 1,
-            borderColor: "divider",
-            backgroundColor: "white",
-            borderRadius: "12px 12px 0 0",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-            padding: "0 20px",
-          }}
-        >
-          <Tabs
-            value={mainTabValue}
-            onChange={handleMainTabChange}
-            aria-label="dashboard tabs"
-            indicatorColor="primary"
-            textColor="primary"
+        <AnimatedBox direction="down" delay={600}>
+          <Box
+            className="dashboard-tabs"
             sx={{
-              "& .MuiTab-root": {
-                textTransform: "none",
-                fontWeight: 500,
-                fontSize: "15px",
-                minHeight: "56px",
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: "8px",
-              },
+              borderBottom: 1,
+              borderColor: "divider",
+              backgroundColor: "white",
+              borderRadius: "12px 12px 0 0",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              padding: "0 20px",
             }}
           >
-            <Tab
-              icon={<EventNote />}
-              label="Bookings Details"
-              iconPosition="start"
-              {...a11yProps(0)}
-            />
-            <Tab 
-              icon={<EmailOutlined />} 
-              label="Booking Enquiries" 
-              iconPosition="start" 
-              {...a11yProps(1)} 
-            />
-            <Tab 
-              icon={<CardGiftcardOutlined />} 
-              label="Fixed Itinerary Packages" 
-              iconPosition="start" 
-              {...a11yProps(2)} 
-            />
-            {/* <Tab 
-              icon={<AssessmentOutlined />} 
-              label="Booking Overview" 
-              iconPosition="start" 
-              {...a11yProps(1)} 
-            />
-            <Tab 
-              icon={<MoreHoriz />} 
-              label="Recent Bookings" 
-              iconPosition="start" 
-              {...a11yProps(2)} 
-            /> */}
-          </Tabs>
-        </Box>
+            <Tabs
+              value={mainTabValue}
+              onChange={handleMainTabChange}
+              aria-label="dashboard tabs"
+              indicatorColor="primary"
+              textColor="primary"
+              sx={{
+                "& .MuiTab-root": {
+                  textTransform: "none",
+                  fontWeight: 500,
+                  fontSize: "15px",
+                  minHeight: "56px",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "8px",
+                },
+              }}
+            >
+              <Tab
+                icon={<EventNote />}
+                label="Bookings Details"
+                iconPosition="start"
+                {...a11yProps(0)}
+              />
+              <Tab 
+                icon={<EmailOutlined />} 
+                label="Booking Enquiries" 
+                iconPosition="start" 
+                {...a11yProps(1)} 
+              />
+              <Tab 
+                icon={<CardGiftcardOutlined />} 
+                label="Fixed Itinerary Packages" 
+                iconPosition="start" 
+                {...a11yProps(2)} 
+              />
+              {/* <Tab 
+                icon={<AssessmentOutlined />} 
+                label="Booking Overview" 
+                iconPosition="start" 
+                {...a11yProps(1)} 
+              />
+              <Tab 
+                icon={<MoreHoriz />} 
+                label="Recent Bookings" 
+                iconPosition="start" 
+                {...a11yProps(2)} 
+              /> */}
+            </Tabs>
+          </Box>
+        </AnimatedBox>
 
         <TabPanel value={mainTabValue} index={0} sx={{ p: 0 }}>
           {/* Insert your booking details content here */}
-          <BasicTabs />
+          <AnimatedBox direction="up" delay={800}>
+            <BasicTabs />
+          </AnimatedBox>
         </TabPanel>
         
         <TabPanel value={mainTabValue} index={1} sx={{ p: 0 }}>
           {/* Insert your booking enquiries content here */}
-          <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
-            <EnquiryList />
-          </Box>
+          <AnimatedBox direction="up" delay={800}>
+            <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
+              <EnquiryList />
+            </Box>
+          </AnimatedBox>
         </TabPanel>
         
         <TabPanel value={mainTabValue} index={2} sx={{ p: 0 }}>
           {/* Insert your predefine packages content here */}
-          <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
-            <PreDefinePackages />
-          </Box>
+          <AnimatedBox direction="up" delay={800}>
+            <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
+              <PreDefinePackages />
+            </Box>
+          </AnimatedBox>
         </TabPanel>
         
         {/* <TabPanel value={mainTabValue} index={1}>
@@ -212,138 +239,225 @@ const DashboardLayout = () => {
       <main>
         <Outlet /> {/* This renders the nested routes */}
         {isDashboardPage && (
-          <div
-            className="dashboard"
-            style={{
-              backgroundColor: "#f9fafb",
-              minHeight: "calc(100vh - 200px)",
-              marginTop: "20px",
-              padding: "0 20px",
-            }}
-          >
-            <Container maxWidth="xxl">
-              <div className="dashboard__main" style={{ padding: "30px 0" }}>
-                <div
-                  className="dashboard__header"
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "30px",
-                  }}
-                >
-                  <div className="dashboard__title">
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
-                      }}
-                    >
-                      <DashboardIcon sx={{ color: "#4361ee", fontSize: 32 }} />
-                      <h1
-                        style={{
-                          fontSize: "28px",
-                          fontWeight: "700",
-                          margin: "0",
-                          color: "#333",
-                        }}
-                      >
-                        {userRole === "Sales Head(DMC)" 
-                          ? "Sales Head Dashboard" 
-                          : userRole === "Sales Manager (DMC)" 
-                            ? "Sales Manager Dashboard" 
-                            : userRole === "Assistant Manager (DMC)" 
-                              ? "Assistant Manager Dashboard" 
-                              : "Dashboard"}
-                      </h1>
-                    </div>
-                    <p
-                      style={{
-                        margin: "5px 0 0 44px",
-                        color: "#666",
-                        fontSize: "15px",
-                      }}
-                    >
-                      {userRole === "Sales Manager (DMC)" || userRole === "Sales Head(DMC)"||userRole =="Assistant Manager (DMC)"
-                        ? "Welcome back! Here's your team's performance at a glance"
-                        : "Welcome back! Here's an overview of your bookings"}
-                    </p>
-                  </div>
-
-                  {/* <div
-                    style={{
-                      display: "flex",
-                      gap: "12px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        backgroundColor: "white",
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                      }}
-                    >
-                      <Search sx={{ color: "#888", marginRight: "8px" }} />
-                      <input
-                        type="text"
-                        placeholder="Search..."
-                        style={{
-                          border: "none",
-                          outline: "none",
-                          fontSize: "15px",
-                          minWidth: "180px",
-                        }}
-                      />
-                    </div>
-                    <div
-                      style={{
-                        backgroundColor: "white",
-                        borderRadius: "8px",
-                        width: "40px",
-                        height: "40px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                        cursor: "pointer",
+          <DashboardEntrance>
+            <div
+              className="dashboard"
+              style={{
+                backgroundColor: "#f9fafb",
+                minHeight: "calc(100vh - 200px)",
+                marginTop: "20px",
+                padding: "0 20px",
+              }}
+            >
+              <Container maxWidth="xxl">
+                <div className="dashboard__main" style={{ padding: "30px 0" }}>
+                  <AnimatedBox direction="left" delay={200}>
+                    <Card
+                      elevation={0}
+                      sx={{
+                        background: 
+                          userRole === "Sales Head(DMC)" 
+                            ? "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)" // Red gradient for Sales Head
+                            : userRole === "Sales Manager (DMC)" 
+                              ? "linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)" // Teal gradient for Sales Manager
+                              : userRole === "Assistant Manager (DMC)" 
+                                ? "linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)" // Yellow-Pink gradient for Assistant Manager
+                                : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", // Default blue-purple gradient for Agent
+                        borderRadius: "16px",
+                        marginBottom: "30px",
+                        overflow: "hidden",
                         position: "relative",
+                        transition: "all 0.3s ease-in-out",
+                        "&::before": {
+                          content: '""',
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: "rgba(255, 255, 255, 0.1)",
+                          backdropFilter: "blur(10px)",
+                        },
+                        "&:hover": {
+                          transform: "translateY(-2px)",
+                          boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+                        }
                       }}
                     >
-                      <Notifications
-                        sx={{ color: "#4361ee", fontSize: "22px" }}
-                      />
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "-5px",
-                          right: "-5px",
-                          backgroundColor: "#FF5C5C",
-                          color: "white",
-                          borderRadius: "50%",
-                          width: "18px",
-                          height: "18px",
-                          fontSize: "11px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: "500",
-                        }}
-                      >
-                        3
-                      </div>
-                    </div>
-                  </div> */}
-                </div>
+                      <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Stack direction="row" spacing={3} alignItems="center">
+                            <Grow in={true} timeout={800}>
+                              <Avatar
+                                sx={{
+                                  width: 64,
+                                  height: 64,
+                                  background: "rgba(255, 255, 255, 0.2)",
+                                  backdropFilter: "blur(10px)",
+                                  border: "2px solid rgba(255, 255, 255, 0.3)",
+                                }}
+                              >
+                                {userRole === "Sales Head(DMC)" ? (
+                                  <SupervisorAccount sx={{ fontSize: 32, color: "white" }} />
+                                ) : userRole === "Sales Manager (DMC)" ? (
+                                  <ManageAccounts sx={{ fontSize: 32, color: "white" }} />
+                                ) : userRole === "Assistant Manager (DMC)" ? (
+                                  <Business sx={{ fontSize: 32, color: "white" }} />
+                                ) : (
+                                  <Person sx={{ fontSize: 32, color: "white" }} />
+                                )}
+                              </Avatar>
+                            </Grow>
+                            
+                            <Fade in={true} timeout={1000}>
+                              <Stack spacing={1}>
+                                <Stack direction="row" alignItems="center" spacing={2}>
+                                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                                    {userRole === "Sales Head(DMC)" ? (
+                                      <AccountBalance sx={{ fontSize: 32, color: "white" }} />
+                                    ) : userRole === "Sales Manager (DMC)" ? (
+                                      <BarChart sx={{ fontSize: 32, color: "white" }} />
+                                    ) : userRole === "Assistant Manager (DMC)" ? (
+                                      <Settings sx={{ fontSize: 32, color: "white" }} />
+                                    ) : (
+                                      <WorkOutline sx={{ fontSize: 32, color: "white" }} />
+                                    )}
+                                    <Typography
+                                      variant="h4"
+                                      component="h1"
+                                      sx={{
+                                        fontWeight: 700,
+                                        color: "white",
+                                        fontSize: { xs: "1.5rem", sm: "2rem" },
+                                        textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                      }}
+                                    >
+                                      {userRole === "Sales Head(DMC)" 
+                                        ? "Executive Dashboard" 
+                                        : userRole === "Sales Manager (DMC)" 
+                                          ? "Manager Dashboard" 
+                                          : userRole === "Assistant Manager (DMC)" 
+                                            ? "Assistant Dashboard" 
+                                            : "Agent Dashboard"}
+                                    </Typography>
+                                  </Stack>
+                                  
+                                  <Chip
+                                    label={
+                                      userRole === "Sales Head(DMC)" 
+                                        ? "Sales Head" 
+                                        : userRole === "Sales Manager (DMC)" 
+                                          ? "Sales Manager" 
+                                          : userRole === "Assistant Manager (DMC)" 
+                                            ? "Assistant Manager" 
+                                            : "Agent"
+                                    }
+                                    size="small"
+                                    sx={{
+                                      background: 
+                                        userRole === "Sales Head(DMC)" 
+                                          ? "rgba(255, 255, 255, 0.25)" // Slightly more opaque for red bg
+                                          : userRole === "Sales Manager (DMC)" 
+                                            ? "rgba(255, 255, 255, 0.22)" // Balanced for teal bg
+                                            : userRole === "Assistant Manager (DMC)" 
+                                              ? "rgba(255, 255, 255, 0.28)" // More opaque for yellow bg
+                                              : "rgba(255, 255, 255, 0.2)", // Default for blue bg
+                                      color: "white",
+                                      fontWeight: 600,
+                                      fontSize: "0.75rem",
+                                      border: 
+                                        userRole === "Sales Head(DMC)" 
+                                          ? "1px solid rgba(255, 255, 255, 0.4)" // Stronger border for red
+                                          : userRole === "Sales Manager (DMC)" 
+                                            ? "1px solid rgba(255, 255, 255, 0.35)" // Medium border for teal
+                                            : userRole === "Assistant Manager (DMC)" 
+                                              ? "1px solid rgba(255, 255, 255, 0.45)" // Strongest border for yellow
+                                              : "1px solid rgba(255, 255, 255, 0.3)", // Default border
+                                      backdropFilter: "blur(10px)",
+                                      textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                                    }}
+                                  />
+                                </Stack>
+                                
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <TrendingUp sx={{ fontSize: 16, color: "rgba(255, 255, 255, 0.8)" }} />
+                                  <Typography
+                                    variant="body1"
+                                    sx={{
+                                      color: "rgba(255, 255, 255, 0.9)",
+                                      fontSize: "0.95rem",
+                                      fontWeight: 400,
+                                    }}
+                                  >
+                                    {userRole === "Sales Head(DMC)" 
+                                      ? "Executive overview and strategic management"
+                                      : userRole === "Sales Manager (DMC)" 
+                                        ? "Team performance monitoring and sales analytics"
+                                        : userRole === "Assistant Manager (DMC)" 
+                                          ? "Operational management and team coordination"
+                                          : "Booking management and client services"}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                            </Fade>
+                          </Stack>
+                          
+                          <Fade in={true} timeout={1200}>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Box
+                                sx={{
+                                  background: "rgba(255, 255, 255, 0.1)",
+                                  backdropFilter: "blur(10px)",
+                                  borderRadius: "12px",
+                                  px: 3,
+                                  py: 1.5,
+                                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                                }}
+                              >
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  {userRole === "Sales Head(DMC)" ? (
+                                    <Diamond sx={{ fontSize: 18, color: "white" }} />
+                                  ) : userRole === "Sales Manager (DMC)" ? (
+                                    <EmojiEvents sx={{ fontSize: 18, color: "white" }} />
+                                  ) : userRole === "Assistant Manager (DMC)" ? (
+                                    <Star sx={{ fontSize: 18, color: "white" }} />
+                                  ) : (
+                                    <Badge sx={{ fontSize: 18, color: "white" }} />
+                                  )}
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      color: "white",
+                                      fontWeight: 600,
+                                      fontSize: "0.9rem",
+                                      textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                                    }}
+                                  >
+                                    {userRole === "Sales Head(DMC)" 
+                                      ? "Executive Level" 
+                                      : userRole === "Sales Manager (DMC)" 
+                                        ? "Management Level" 
+                                        : userRole === "Assistant Manager (DMC)" 
+                                          ? "Supervisor Level" 
+                                          : "Agent Level"}
+                                  </Typography>
+                                </Stack>
+                              </Box>
+                            </Stack>
+                          </Fade>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </AnimatedBox>
 
-                {/* Render dashboard content based on role */}
-                {renderDashboardContent()}
-              </div>
-            </Container>
-          </div>
+                  <AnimatedBox direction="up" delay={400}>
+                    {/* Render dashboard content based on role */}
+                    {renderDashboardContent()}
+                  </AnimatedBox>
+                </div>
+              </Container>
+            </div>
+          </DashboardEntrance>
         )}
       </main>
       <DefaultFooter />
