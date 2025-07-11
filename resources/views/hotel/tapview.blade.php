@@ -86,12 +86,12 @@
    
 
     <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $roomCount > 0 ? (Request::routeIs('hotel-restaurant-create')|| Request::routeIs('hotel-meals-create') ? 'active' : '') : 'disabled' }}" 
-        id="pills-event-tab" 
-        href="{{ $roomCount > 0 ? env('APP_URL') . route('hotel-restaurant-create', $hotel->hotel_unique_id, false) : '#' }}"
+        <a class="nav-link {{ $bedWithRoomCount > 0 ? (Request::routeIs('hotel-restaurant-create')|| Request::routeIs('hotel-meals-create') ? 'active' : '') : 'disabled' }}" 
+        id="pills-restaurant-tab" 
+        href="{{ $bedWithRoomCount > 0 ? route('hotel-restaurant-create', $hotel->hotel_unique_id) : '#' }}"
         role="tab" 
-        aria-selected="{{ $roomCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $roomCount > 0 ? '0' : '-1' }}">
+        aria-selected="{{ $bedWithRoomCount > 0 ? 'true' : 'false' }}" 
+        tabindex="{{ $bedWithRoomCount > 0 ? '0' : '-1' }}">
             Hotel Restaurants
         </a>
     </li>
