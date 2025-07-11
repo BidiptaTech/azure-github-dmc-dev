@@ -209,7 +209,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('restaurant-meals/{restaurant_id}', [RestaurantController::class, 'restaurant_create'])->name('meals.restaurant_create');
         Route::get('restaurant/calendar/{restaurant_id}', [RestaurantController::class, 'restaurantCalendar'])->name('restaurant.calendar');
         Route::resource('restaurant', RestaurantController::class);
-        Route::get('hotel-restaurant/{id}', [HotelRestaurantController::class, 'create'])->name('hotel-restaurant-create');
+        Route::get('restaurant-hotel/{id}', [HotelRestaurantController::class, 'create'])->name('hotel-restaurant-create');
 
         Route::get('hotel-restaurant-edit/{id}', [HotelRestaurantController::class, 'edit'])->name('hotel-restaurant-edit');
         Route::post('hotel-restaurant-update/{id}', [HotelRestaurantController::class, 'update'])->name('hotel-restaurant-update');
