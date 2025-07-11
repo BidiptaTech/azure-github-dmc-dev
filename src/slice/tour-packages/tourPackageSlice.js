@@ -198,42 +198,140 @@ const tourPackageSlice = createSlice({
 
     // Add all services
     setAllServices: (state, action) => {
-      // Check if action.payload is an array
+      // 🔹 If payload is an array (bulk)
       if (Array.isArray(action.payload)) {
         console.log("%c REDUX: Setting ALL services in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");
         console.log("Previous services count:", state.AllServices.length);
         console.log("Previous services:", [...state.AllServices]);
         console.log("New services count:", action.payload.length);
         console.log("New services:", action.payload);
-        
-        // Replace the entire state with the new array, filtering out any CustomerInfo type
-        //state.AllServices = action.payload.filter(service => service.type !== 'CustomerInfo');
-        state.AllServices = action.payload;
-        console.log("%c AllServices array replaced", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;");
-      } else {
+    
+        // Preserve search form data from existing services
+        const preservedSearchFormData = [...state.AllServices].filter(service =>
+          'tour_id' in service &&
+          'country' in service &&
+          'city' in service &&
+          'check_in_time' in service &&
+          'check_out_time' in service &&
+          !service.type // optional: only preserve if no type
+        );
+
+        // Preserve existing services with id and type (that won't be updated)
+        const preservedExistingServices = [...state.AllServices].filter(service =>
+          'id' in service && 'type' in service
+        );
+    
+        const newServices = [];
+        const updatedServices = [];
+    
+        action.payload.forEach(newService => {
+          // Skip CustomerInfo
+          if (newService.type === 'CustomerInfo') {
+            console.log("%c Skipping CustomerInfo in array", "background: #e74c3c; color: #ffffff; padding: 2px;");
+            return;
+          }
+    
+          // Search form data — always add if not already present
+          if (
+            'tour_id' in newService &&
+            'country' in newService &&
+            'city' in newService &&
+            'check_in_time' in newService &&
+            'check_out_time' in newService &&
+            !newService.type
+          ) {
+            const exists = preservedSearchFormData.some(service =>
+              service.tour_id === newService.tour_id &&
+              service.country === newService.country &&
+              service.city === newService.city &&
+              service.check_in_time === newService.check_in_time &&
+              service.check_out_time === newService.check_out_time
+            );
+    
+            if (!exists) {
+              preservedSearchFormData.push(newService);
+              console.log("%c Added unique search form data", "background: #8e44ad; color: #ffffff; padding: 2px;");
+            } else {
+              console.log("%c Duplicate search form data, skipped", "background: #e67e22; color: #ffffff; padding: 2px;");
+            }
+    
+            return; // don't process further as normal service
+          }
+    
+          // Normal service with id and type
+          if ('id' in newService && 'type' in newService) {
+            const existingServiceIndex = preservedExistingServices.findIndex(service =>
+              service.id === newService.id && service.type === newService.type
+            );
+    
+            if (existingServiceIndex >= 0) {
+              // Update existing service
+              preservedExistingServices[existingServiceIndex] = newService;
+              console.log("%c Updated existing service with id/type", "background: #3498db; color: #ffffff; padding: 2px;");
+            } else {
+              // Add new service
+              newServices.push(newService);
+              console.log("%c Standard service added from array", "background: #27ae60; color: #ffffff; padding: 2px;");
+            }
+          } else {
+            // Service without id/type, just add it
+            newServices.push(newService);
+            console.log("%c Service without id/type added", "background: #9b59b6; color: #ffffff; padding: 2px;");
+          }
+        });
+    
+        // Set new state: preserved search form data + preserved/updated existing services + new services
+        state.AllServices = [...preservedSearchFormData, ...preservedExistingServices, ...newServices];
+        console.log("%c Final AllServices state updated (array)", "background: #2ecc71; color: #ffffff; padding: 2px;");
+        console.log("Final services count:", state.AllServices.length);
+      }
+    
+      // 🔹 If payload is a single object
+      else {
+        const newService = action.payload;
         console.log("%c REDUX: Adding a service in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");
         console.log("Current services:", [...state.AllServices]);
-        console.log("Service to add:", action.payload);
-        
-        // If it's a CustomerInfo type, we don't add it as a separate entry anymore
-        if (action.payload.type === 'CustomerInfo') {
-          console.log("%c CustomerInfo is now embedded in service data, not added as separate entry", "background: #e74c3c; color: #ffffff; padding: 2px; font-weight: bold;");
+        console.log("Service to add:", newService);
+    
+        if (newService.type === 'CustomerInfo') {
+          console.log("%c CustomerInfo is embedded, not stored", "background: #e74c3c; color: #ffffff; padding: 2px;");
           return;
         }
-        
-        // If it's a single item, add it to the array if it doesn't exist already
-        const exists = state.AllServices.some(service => 
-          service.id === action.payload.id && service.type === action.payload.type
-        );
-        
+    
+        let exists = false;
+    
+        // Check for standard service
+        if ('id' in newService && 'type' in newService) {
+          exists = state.AllServices.some(service =>
+            service.id === newService.id && service.type === newService.type
+          );
+        }
+        // Check for search form data
+        else if (
+          'tour_id' in newService &&
+          'country' in newService &&
+          'city' in newService &&
+          'check_in_time' in newService &&
+          'check_out_time' in newService
+        ) {
+          exists = state.AllServices.some(service =>
+            service.tour_id === newService.tour_id &&
+            service.country === newService.country &&
+            service.city === newService.city &&
+            service.check_in_time === newService.check_in_time &&
+            service.check_out_time === newService.check_out_time
+          );
+        }
+    
         if (!exists) {
-          state.AllServices.push(action.payload);
-          console.log("%c Service added successfully. New count:", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;", state.AllServices.length);
+          state.AllServices.push(newService);
+          console.log("%c Service added successfully", "background: #27ae60; color: #ffffff; padding: 2px;");
         } else {
           console.log("%c Service already exists, not added.", "background: #e74c3c; color: #ffffff; padding: 2px; font-weight: bold;");
         }
       }
     },
+
     setPackageData: (state, action) => {
       state.packageData = action.payload;
     },
