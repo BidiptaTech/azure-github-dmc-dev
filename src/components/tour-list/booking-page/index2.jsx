@@ -119,7 +119,7 @@ export default function Index2() {
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails
   );
-  // console.log('attractionDetails srk................................................',attractionDetails);
+   console.log('attractionDetails srk................................................',attractionDetails);
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
@@ -289,7 +289,7 @@ export default function Index2() {
             dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "booking",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-            package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
+            package_attraction_id:attractionDetails?.packages?.[0]?.package_attraction_id || null,
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],
@@ -487,7 +487,7 @@ export default function Index2() {
             dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "enquiry",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-            package_attraction_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id || null,
+            package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],

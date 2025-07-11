@@ -11,8 +11,10 @@ const metadata = {
 export default function DBDashboard() {
   return (
     <>
+    <div className="header-margin">
       <MetaComponent meta={metadata} />
       <DashboardPage />
+      </div>
     </>
   );
 }

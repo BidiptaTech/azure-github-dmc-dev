@@ -78,7 +78,7 @@ const MainMenu = ({ style = "" }) => {
                   }`}
                 >
                   Book Tour
-                </span>
+                </span> 
               </div>
               <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
                 Discover Your Dream Destinations

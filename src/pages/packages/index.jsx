@@ -63,7 +63,7 @@ const Packages = () => {
             <div className="d-flex flex-column align-items-center y-gap-20">
                 <div className="col-md-6">
                     <ThemeProvider theme={theme}>
-                        <Button 
+                    <Button 
                             variant="contained"
                             fullWidth
                             onClick={handleTourPackagesClick}
@@ -73,27 +73,24 @@ const Packages = () => {
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '10px',
-                              background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
-                              background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
+                              background: 'linear-gradient(90deg,rgb(43, 50, 150),rgb(9, 19, 161),rgb(43, 50, 150))',
                               color: 'white',
                               ml: 1.5,
-                              fontWeight: 1000,
-                              fontSize: '1.25rem',
+                              fontWeight: 550,
+                              fontSize: '1.5rem',
                               textTransform: 'none',
-                              borderRadius: '25px 25px 8px 8px', // Dolphin-like rounded top
-                              boxShadow: '0px 10px 30px rgba(0, 255, 255, 0.25)',
+                              borderRadius: '25px 25px 25px 25px', // Dolphin-like rounded top
+                              boxShadow: '10px 30px 30px rgba(153, 232, 252, 0.25)',
                               transition: 'all 0.3s ease',
                               position: 'relative',
                               overflow: 'visible',
                               '&:hover': {
                                 transform: 'translateY(-3px)',
                                 boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
-                                transform: 'translateY(-3px)',
-                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
                               }
                             }}
                         >
-                            Create your own packages
+                            Create Your Own Packages
                         </Button>
                     </ThemeProvider>
                 </div>

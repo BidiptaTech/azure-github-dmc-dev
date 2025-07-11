@@ -90,7 +90,7 @@ const TourListPage2 = () => {
               {/* <TopHeaderFilter /> */}
               {/* <div className="mt-30"></div> */}
               {/* End mt--30 */}
-              <div className="row y-gap-30">
+              <div className="row y-gap-30" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
                 <TourProperties />
               </div>
               {/* End .row */}

@@ -298,7 +298,7 @@ const ActivityListPage1 = () => {
 
               <div className="mt-30"></div>
 
-              <div className="row y-gap-15">
+              <div className="row y-gap-15" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
                 <ActivityProperties
                   guides={filteredGuides}
                   searchText={searchText}

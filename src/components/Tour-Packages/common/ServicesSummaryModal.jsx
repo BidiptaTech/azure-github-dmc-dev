@@ -31,6 +31,8 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CloseIcon from '@mui/icons-material/Close';
 import PrintIcon from '@mui/icons-material/Print';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import moment from 'moment';
 
 const ServicesSummaryModal = ({ open, onClose }) => {
@@ -202,6 +204,12 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       title: 'Attraction',
       bgColor: 'rgba(244, 67, 54, 0.1)'
     },
+    attraction_package: {
+      icon: <AttractionsIcon />,
+      color: '#e91e63',
+      title: 'Attraction Package',
+      bgColor: 'rgba(233, 30, 99, 0.1)'
+    },
     restaurant: {
       icon: <RestaurantIcon />,
       color: '#ff9800',
@@ -269,12 +277,20 @@ const ServicesSummaryModal = ({ open, onClose }) => {
     window.print();
   };
 
-  // Debug: Log services to console
-  React.useEffect(() => {
-    console.log('All Services:', allServices);
-    console.log('Hotel Services:', hotelServices);
-    console.log('Other Services:', otherServices);
-  }, [allServices, hotelServices, otherServices]);
+  // Function to capitalize first letter of each word
+  const capitalizeWords = (str) => {
+    if (!str) return '';
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
+  // Debug: Log services to console (commented out for production)
+  // React.useEffect(() => {
+  //   console.log('All Services:', allServices);
+  //   console.log('Hotel Services:', hotelServices);
+  //   console.log('Other Services:', otherServices);
+  // }, [allServices, hotelServices, otherServices]);
 
   return (
     <Dialog 
@@ -290,26 +306,80 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          p: 3,
+          borderRadius: 2,
+          mb: 2,
+          boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+        }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="h5" fontWeight={600}>
-              Trip Services Summary
-            </Typography>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'rgba(255, 255, 255, 0.2)', 
+                mr: 2,
+                width: 48,
+                height: 48,
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <SummarizeIcon sx={{ fontSize: 24, color: 'white' }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+                Trip Services Summary
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'white', opacity: 0.9, fontWeight: 500 }}>
+                Complete overview of your travel itinerary
+              </Typography>
+            </Box>
             {allServices.length > 0 && (
               <Chip 
                 label={`${allServices.length} Service${allServices.length !== 1 ? 's' : ''}`} 
-                color="primary" 
-                sx={{ ml: 2 }} 
+                sx={{ 
+                  ml: 3,
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  fontWeight: 600,
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }} 
               />
             )}
           </Box>
-          <Box>
-            {/* {allServices.length > 0 && (
-              <IconButton onClick={handlePrint} sx={{ mr: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {allServices.length > 0 && (
+              <IconButton 
+                onClick={handlePrint} 
+                sx={{ 
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  '&:hover': { 
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
                 <PrintIcon />
               </IconButton>
-            )} */}
-            <IconButton onClick={onClose}>
+            )}
+            <IconButton 
+              onClick={onClose}
+              sx={{ 
+                bgcolor: 'rgba(255, 255, 255, 0.1)',
+                color: 'white',
+                '&:hover': { 
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  transform: 'scale(1.05)'
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
@@ -318,13 +388,129 @@ const ServicesSummaryModal = ({ open, onClose }) => {
 
       <DialogContent sx={{ pt: 2 }}>
         {allServices.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              No services selected yet
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Start adding hotels, attractions, restaurants, and other services to see your trip summary here.
-            </Typography>
+          <Box sx={{ 
+            textAlign: 'center', 
+            py: 8,
+            px: 3,
+            bgcolor: 'rgba(33, 150, 243, 0.02)',
+            borderRadius: 3,
+            border: '2px dashed rgba(33, 150, 243, 0.2)'
+          }}>
+            <Box sx={{ mb: 3 }}>
+              <Avatar 
+                sx={{ 
+                  width: 80, 
+                  height: 80, 
+                  bgcolor: 'rgba(33, 150, 243, 0.1)',
+                  mx: 'auto',
+                  mb: 2
+                }}
+              >
+                <AddCircleOutlineIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+              </Avatar>
+              <Typography variant="h5" color="text.primary" fontWeight={600} gutterBottom>
+                No Services Selected Yet
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                Start building your perfect trip by adding hotels, attractions, restaurants, and other services.
+              </Typography>
+            </Box>
+
+            <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: 600, mx: 'auto' }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card variant="outlined" sx={{ 
+                  p: 2, 
+                  textAlign: 'center',
+                  borderColor: 'rgba(25, 118, 210, 0.2)',
+                  bgcolor: 'rgba(25, 118, 210, 0.02)',
+                  '&:hover': { 
+                    bgcolor: 'rgba(25, 118, 210, 0.05)',
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.3s ease'
+                  }
+                }}>
+                  <HotelIcon sx={{ fontSize: 32, color: '#1976d2', mb: 1 }} />
+                  <Typography variant="subtitle2" fontWeight={600} color="primary.main">
+                    Hotels
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Book accommodations
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card variant="outlined" sx={{ 
+                  p: 2, 
+                  textAlign: 'center',
+                  borderColor: 'rgba(244, 67, 54, 0.2)',
+                  bgcolor: 'rgba(244, 67, 54, 0.02)',
+                  '&:hover': { 
+                    bgcolor: 'rgba(244, 67, 54, 0.05)',
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.3s ease'
+                  }
+                }}>
+                  <AttractionsIcon sx={{ fontSize: 32, color: '#f44336', mb: 1 }} />
+                  <Typography variant="subtitle2" fontWeight={600} color="#f44336">
+                    Attractions
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Explore destinations
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card variant="outlined" sx={{ 
+                  p: 2, 
+                  textAlign: 'center',
+                  borderColor: 'rgba(255, 152, 0, 0.2)',
+                  bgcolor: 'rgba(255, 152, 0, 0.02)',
+                  '&:hover': { 
+                    bgcolor: 'rgba(255, 152, 0, 0.05)',
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.3s ease'
+                  }
+                }}>
+                  <RestaurantIcon sx={{ fontSize: 32, color: '#ff9800', mb: 1 }} />
+                  <Typography variant="subtitle2" fontWeight={600} color="#ff9800">
+                    Restaurants
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Dining experiences
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card variant="outlined" sx={{ 
+                  p: 2, 
+                  textAlign: 'center',
+                  borderColor: 'rgba(33, 150, 243, 0.2)',
+                  bgcolor: 'rgba(33, 150, 243, 0.02)',
+                  '&:hover': { 
+                    bgcolor: 'rgba(33, 150, 243, 0.05)',
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.3s ease'
+                  }
+                }}>
+                  <DirectionsCarIcon sx={{ fontSize: 32, color: '#2196f3', mb: 1 }} />
+                  <Typography variant="subtitle2" fontWeight={600} color="#2196f3">
+                    Transport
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Get around easily
+                  </Typography>
+                </Card>
+              </Grid>
+            </Grid>
+
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                ✨ Your trip summary will appear here once you start adding services
+              </Typography>
+            </Box>
           </Box>
         ) : (
           <>
@@ -679,6 +865,17 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                                   extra: `Adults: ${serviceData?.adultCount || 0}, Children: ${serviceData?.childCount || 0}, Seniors: ${serviceData?.seniorCount || 0}`,
                                   price: serviceData?.totalPrice
                                 };
+                              case 'attraction_package':
+                                return {
+                                  name: capitalizeWords(serviceData?.ticketName || serviceData?.package_details?.package_name || 'Attraction Package'),
+                                  location: serviceData?.location,
+                                  time: serviceData?.visitTime || 'Time not specified',
+                                  extra: `${serviceData?.AttractionName || ''} | Adults: ${serviceData?.adultCount || 0}, Children: ${serviceData?.childCount || 0}, Seniors: ${serviceData?.seniorCount || 0}`,
+                                  price: serviceData?.totalPrice,
+                                  description: serviceData?.package_details?.package_description || serviceData?.ticket_details?.description,
+                                  packageDetails: serviceData?.package_details,
+                                  ticketDetails: serviceData?.ticket_details
+                                };
                               case 'restaurant':
                                 return {
                                   name: serviceData?.restaurantName || 'Restaurant',
@@ -807,6 +1004,110 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                                             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                                               {details.extra}
                                             </Typography>
+                                          )}
+
+                                          {/* Special display for attraction packages */}
+                                          {service.type === 'attraction_package' && details.packageDetails && (
+                                            <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(233, 30, 99, 0.05)', borderRadius: 1, border: '1px solid rgba(233, 30, 99, 0.2)' }}>
+                                              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#e91e63', mb: 2 }}>
+                                                🎫 Package Details
+                                              </Typography>
+                                              
+                                              {/* Package Information */}
+                                              <Box sx={{ mb: 2, p: 1.5, bgcolor: 'white', borderRadius: 1, border: '1px solid rgba(233, 30, 99, 0.1)' }}>
+                                                <Grid container spacing={2} alignItems="center">
+                                                  <Grid item xs={12} sm={6}>
+                                                    <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.85rem' }}>
+                                                      📍 Main Attraction: {serviceData?.AttractionName}
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                                      📅 Date: {serviceData?.bookingDate} | ⏰ Time: {serviceData?.visitTime}
+                                                    </Typography>
+                                                  </Grid>
+                                                  <Grid item xs={12} sm={6}>
+                                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                                      <Chip label={`${serviceData?.adultCount || 0} Adults`} size="small" color="primary" />
+                                                      {serviceData?.childCount > 0 && <Chip label={`${serviceData.childCount} Children`} size="small" color="secondary" />}
+                                                      {serviceData?.seniorCount > 0 && <Chip label={`${serviceData.seniorCount} Seniors`} size="small" color="info" />}
+                                                    </Box>
+                                                  </Grid>
+                                                </Grid>
+                                              </Box>
+                                              
+                                              {/* Included Attractions with Images */}
+                                              {details.packageDetails.package_attractions && (
+                                                <Box sx={{ mb: 2 }}>
+                                                  <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.85rem', mb: 1.5 }}>
+                                                    🎯 Included Attractions ({details.packageDetails.package_attractions.length}):
+                                                  </Typography>
+                                                  <Grid container spacing={1.5}>
+                                                    {details.packageDetails.package_attractions.map((attraction, idx) => (
+                                                      <Grid item xs={12} sm={6} md={4} key={idx}>
+                                                        <Card variant="outlined" sx={{ height: '100%', borderColor: 'rgba(233, 30, 99, 0.2)' }}>
+                                                          <Box sx={{ position: 'relative', height: 80 }}>
+                                                            {attraction.master_image ? (
+                                                              <Box 
+                                                                component="img" 
+                                                                src={attraction.master_image} 
+                                                                alt={attraction.name}
+                                                                sx={{
+                                                                  width: '100%',
+                                                                  height: '100%',
+                                                                  objectFit: 'cover'
+                                                                }}
+                                                              />
+                                                            ) : (
+                                                              <Box 
+                                                                sx={{
+                                                                  width: '100%', 
+                                                                  height: '100%', 
+                                                                  bgcolor: 'rgba(233, 30, 99, 0.1)',
+                                                                  display: 'flex',
+                                                                  alignItems: 'center',
+                                                                  justifyContent: 'center'
+                                                                }}
+                                                              >
+                                                                <AttractionsIcon sx={{ fontSize: 24, color: '#e91e63' }} />
+                                                              </Box>
+                                                            )}
+                                                            <Chip 
+                                                              label={`#${idx + 1}`} 
+                                                              size="small" 
+                                                              color="primary"
+                                                              sx={{ 
+                                                                position: 'absolute', 
+                                                                top: 4, 
+                                                                right: 4,
+                                                                fontSize: '0.7rem',
+                                                                height: 20
+                                                              }} 
+                                                            />
+                                                          </Box>
+                                                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem', mb: 0.5 }}>
+                                                              {attraction.name}
+                                                            </Typography>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                              <LocationOnIcon sx={{ fontSize: 12, mr: 0.5, color: 'text.secondary' }} />
+                                                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                                {attraction.location}, {attraction.country}
+                                                              </Typography>
+                                                            </Box>
+                                                            {attraction.attraction_id && (
+                                                              <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                                                                ID: {attraction.attraction_id}
+                                                              </Typography>
+                                                            )}
+                                                          </CardContent>
+                                                        </Card>
+                                                      </Grid>
+                                                    ))}
+                                                  </Grid>
+                                                </Box>
+                                              )}
+
+
+                                            </Box>
                                           )}
                                         </Stack>
                                       </Grid>

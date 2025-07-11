@@ -12,7 +12,10 @@ import {
   CardMedia,
   Grid,
   Button,
-  styled
+  styled,
+  Chip,
+  Avatar,
+  alpha
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -26,7 +29,11 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import GroupIcon from '@mui/icons-material/Group';
 import InfoIcon from '@mui/icons-material/Info';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import ListIcon from '@mui/icons-material/List';
+import PackageIcon from '@mui/icons-material/Inventory';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { useSelector } from 'react-redux';
+import { capitalizeWords } from '../../../utils/textUtils';
 
 // Styled components
 const StyledModal = styled(Modal)(({ theme }) => ({
@@ -79,6 +86,9 @@ const BookingSummaryModal = ({
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
   console.log("bookingData", bookingData);
   if (!bookingData) return null;
+
+  // Check if this is a package booking
+  const isPackage = bookingData.type === 'attraction_package' || bookingData.ticketId?.startsWith('pkg_');
 
   // Calculate total price
   const calculateTotalPrice = () => {
@@ -162,6 +172,191 @@ const BookingSummaryModal = ({
 
           <Divider />
 
+          {/* Package Includes Section - Show at top for packages */}
+          {isPackage && bookingData.packageAttractions && bookingData.packageAttractions.length > 0 && (
+            <SummarySection>
+              <Box 
+                sx={{ 
+                  mb: 3,
+                  p: 2.5,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: 3,
+                  color: 'white',
+                  textAlign: 'center'
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+                  <PackageIcon sx={{ mr: 1.5, fontSize: 32 }} />
+                  Package Includes
+                </Typography>
+                <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
+                  {bookingData.packageAttractions.length} Amazing Attractions
+                </Typography>
+              </Box>
+              
+              <Grid container spacing={3}>
+                {bookingData.packageAttractions.map((attraction, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={`attraction-${attraction.attraction_id || index}`}>
+                    <Card 
+                      elevation={0}
+                      sx={{
+                        height: '100%',
+                        border: '2px solid',
+                        borderColor: 'primary.light',
+                        borderRadius: 3,
+                        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&:hover': {
+                          boxShadow: '0 12px 32px rgba(102, 126, 234, 0.25)',
+                          transform: 'translateY(-8px) scale(1.02)',
+                          borderColor: 'primary.main',
+                          '& .attraction-number': {
+                            transform: 'scale(1.1) rotate(5deg)',
+                          },
+                          '& .attraction-image': {
+                            transform: 'scale(1.1)',
+                          }
+                        }
+                      }}
+                    >
+                      {/* Attraction Number Badge */}
+                      <Box
+                        className="attraction-number"
+                        sx={{
+                          position: 'absolute',
+                          top: 12,
+                          left: 12,
+                          zIndex: 2,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <Avatar 
+                          sx={{ 
+                            width: 32, 
+                            height: 32, 
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            fontSize: '0.875rem',
+                            fontWeight: 700,
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+                          }}
+                        >
+                          {index + 1}
+                        </Avatar>
+                      </Box>
+                      
+                      {/* Image Container */}
+                      <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                        <CardMedia
+                          component="img"
+                          className="attraction-image"
+                          sx={{ 
+                            height: 180, 
+                            objectFit: 'cover',
+                            transition: 'transform 0.4s ease'
+                          }}
+                          image={attraction.master_image}
+                          alt={attraction.name}
+                        />
+                        {/* Gradient Overlay */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '60px',
+                            background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                          }}
+                        />
+                      </Box>
+                      
+                      <CardContent sx={{ p: 2.5 }}>
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={700}
+                          sx={{ 
+                            mb: 1, 
+                            lineHeight: 1.3,
+                            color: 'primary.main',
+                            fontSize: '1.1rem'
+                          }}
+                        >
+                          {capitalizeWords(attraction.name)}
+                        </Typography>
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                          <LocationOnIcon 
+                            sx={{ 
+                              mr: 1, 
+                              color: 'secondary.main',
+                              fontSize: 20 
+                            }} 
+                          />
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ 
+                              fontSize: '0.9rem',
+                              fontWeight: 500
+                            }}
+                          >
+                            {attraction.location}, {attraction.country}
+                          </Typography>
+                        </Box>
+                        
+                        {/* Package Badge */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Chip
+                            label="Included"
+                            color="success"
+                            size="small"
+                            icon={<VerifiedIcon />}
+                            sx={{ 
+                              fontWeight: 600,
+                              '& .MuiChip-icon': { fontSize: 16 }
+                            }}
+                          />
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'primary.main',
+                              fontWeight: 600,
+                              fontSize: '0.8rem'
+                            }}
+                          >
+                            Attraction {index + 1}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+              
+              {/* Package Summary */}
+              <Box 
+                sx={{ 
+                  mt: 4,
+                  p: 3,
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  borderRadius: 3,
+                  color: 'white',
+                  textAlign: 'center'
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  <VerifiedIcon sx={{ mr: 1, fontSize: 24 }} />
+                  Complete Package Experience
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                  Enjoy {bookingData.packageAttractions.length} carefully curated attractions in one convenient package
+                </Typography>
+              </Box>
+            </SummarySection>
+          )}
+
           {/* Booking Date */}
           {bookingData && (
             <SummarySection>
@@ -185,76 +380,90 @@ const BookingSummaryModal = ({
             </SummarySection>
           )}
 
-          {/* Attraction Details */}
-          <SummarySection>
-            <Card sx={{ display: 'flex', mb: 2 }}>
-              <CardMedia
-                component="img"
-                sx={{ width: 200, height: 200, objectFit: 'cover' }}
-                image={bookingData.image}
-                alt={bookingData.attraction}
-              />
-              <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    {bookingData.attraction}
+          {/* Attraction Details - Only show for individual tickets, not packages */}
+          {!isPackage && (
+            <SummarySection>
+              <Card sx={{ display: 'flex', mb: 2 }}>
+                <CardMedia
+                  component="img"
+                  sx={{ width: 200, height: 200, objectFit: 'cover' }}
+                  image={bookingData.image}
+                  alt={bookingData.attraction}
+                />
+                <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <CardContent>
+                                      <Typography variant="h6" gutterBottom>
+                    {capitalizeWords(bookingData.attraction)}
                   </Typography>
-                  <DetailRow>
-                    <LocationOnIcon color="primary" />
-                    <Typography>
-                      {bookingData.city !== 'Not specified' ? `${bookingData.city}, ` : ''}{bookingData.country}
-                    </Typography>
-                  </DetailRow>
-                  <Box 
-                    sx={{ 
-                      mt: 2,
-                      p: 1.5,
-                      borderRadius: 1,
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1
-                    }}
-                  >
-                    <AccessTimeIcon sx={{ color: 'white' }} />
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        Opening Hours
+                    <DetailRow>
+                      <LocationOnIcon color="primary" />
+                      <Typography>
+                        {bookingData.city !== 'Not specified' ? `${bookingData.city}, ` : ''}{bookingData.country}
                       </Typography>
-                      <Typography sx={{ fontSize: '1rem',color: 'white', }}>
-                        {bookingData.openingHours}
-                      </Typography>
+                    </DetailRow>
+                    <Box 
+                      sx={{ 
+                        mt: 2,
+                        p: 1.5,
+                        borderRadius: 1,
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}
+                    >
+                      <AccessTimeIcon sx={{ color: 'white' }} />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          Opening Hours
+                        </Typography>
+                        <Typography sx={{ fontSize: '1rem',color: 'white', }}>
+                          {bookingData.openingHours}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                  {/* <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    {bookingData.description}
-                  </Typography> */}
-                </CardContent>
-              </Box>
-            </Card>
-          </SummarySection>
+                  </CardContent>
+                </Box>
+              </Card>
+            </SummarySection>
+          )}
 
-          {/* Ticket Details */}
+          {/* Ticket/Package Details */}
           <SummarySection>
-            <Typography variant="h6" gutterBottom>
-              <ConfirmationNumberIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Ticket Information
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              {isPackage ? (
+                <PackageIcon sx={{ mr: 1, color: 'secondary.main', fontSize: 28 }} />
+              ) : (
+                <ConfirmationNumberIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              )}
+              <Typography variant="h6">
+                {isPackage ? 'Package Information' : 'Ticket Information'}
+              </Typography>
+              {isPackage && (
+                <Chip 
+                  label="Package" 
+                  color="secondary" 
+                  size="small" 
+                  sx={{ ml: 1.5, height: '24px' }} 
+                />
+              )}
+            </Box>
+            
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <PriceCard>
                   <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Selected Ticket
+                    {isPackage ? 'Selected Package' : 'Selected Ticket'}
                   </Typography>
-                  <Typography variant="body1">
-                    {bookingData.ticketType}
-                  </Typography>
-                  {/* {bookingData.ticketDescription && (
-                    <Typography variant="body2" color="text.secondary">
-                      {bookingData.ticketDescription}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body1" fontWeight={500}>
+                      {capitalizeWords(bookingData.ticketType)}
                     </Typography>
-                  )} */}
+                    {isPackage && (
+                      <VerifiedIcon color="secondary" fontSize="small" />
+                    )}
+                  </Box>
                 </PriceCard>
               </Grid>
               <Grid item xs={12} md={4}>
@@ -265,9 +474,6 @@ const BookingSummaryModal = ({
                   <Typography variant="body1">
                     {bookingData.timeSlot}
                   </Typography>
-                  {/* <Typography variant="body2" color="text.secondary">
-                    Duration: {bookingData.duration}
-                  </Typography> */}
                 </PriceCard>
               </Grid>
               <Grid item xs={12} md={4}>
@@ -275,9 +481,6 @@ const BookingSummaryModal = ({
                   <Typography variant="subtitle1" color="primary" gutterBottom>
                     Booking Mode
                   </Typography>
-                  {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                     {bookingData.mode.toUpperCase()}
-                  </Typography> */}
                   {bookingData.mode === 'dmc' && (
                     <Box sx={{ 
                       display: 'flex', 
@@ -316,6 +519,8 @@ const BookingSummaryModal = ({
               </Grid>
             </Grid>
           </SummarySection>
+
+
 
           {/* Guest Details and Total Price */}
           <SummarySection>
