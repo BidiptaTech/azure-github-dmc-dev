@@ -238,7 +238,7 @@ const tourPackageSlice = createSlice({
             'city' in newService &&
             'check_in_time' in newService &&
             'check_out_time' in newService &&
-            !newService.type
+            !newService.type 
           ) {
             const exists = preservedSearchFormData.some(service =>
               service.tour_id === newService.tour_id &&
