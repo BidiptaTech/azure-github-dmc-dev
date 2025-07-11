@@ -44,7 +44,8 @@ import { fetchLists } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
-import { Button, InputAdornment, TextField, Typography } from "@mui/material";
+import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton } from "@mui/material";
+import { Visibility } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -142,6 +143,21 @@ const countryMap = {
 };
 
 const formatDate = (dateString) => {
+  // Parse the date in 'DD/MM/YYYY' format
+  const [day, month, year] = dateString.split("/");
+
+  // Create a new Date object from the parsed values (month is zero-indexed in JS Date)
+  const date = new Date(`${year}-${month}-${day}`);
+
+  // Get the day, month (abbreviated), and year for compact display
+  const dayFormatted = String(date.getDate()).padStart(2, "0");
+  const monthFormatted = date.toLocaleString("en-us", { month: "short" }); // Abbreviated month name
+  const yearFormatted = String(date.getFullYear()).slice(-2); // Last 2 digits of year
+
+  return `${dayFormatted} ${monthFormatted} ${yearFormatted}`;
+};
+
+const formatDateTooltip = (dateString) => {
   // Parse the date in 'DD/MM/YYYY' format
   const [day, month, year] = dateString.split("/");
 
@@ -1144,8 +1160,8 @@ export default function Pending() {
               border: "1px solid #e0e6ed",
             }}
           >
-            <div className="overflow-scroll scroll-bar-2">
-              <table className="table-3 -border-bottom col-12">
+            <div className="overflow-hidden">
+              <table className="table-3 -border-bottom col-12" style={{ width: "100%", tableLayout: "fixed" }}>
                 <thead className="bg-light-2">
                   <tr>
                     <th
@@ -1173,15 +1189,18 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                           whiteSpace: "nowrap",
                         }}
                       >
                         <i
-                          className="icon-settings"
+                          className="icon-menu"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Actions
@@ -1216,14 +1235,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
                           className="icon-ticket"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Booking ID
@@ -1273,14 +1295,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
                           className="icon-calendar"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Start Date
@@ -1330,14 +1355,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
                           className="icon-calendar-2"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         End Date
@@ -1393,14 +1421,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
-                          className="icon-passenger"
+                          className="icon-group"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Pax
@@ -1439,14 +1470,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
                           className="icon-destination"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Destination
@@ -1478,14 +1512,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
                           className="icon-customer"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Customer Name
@@ -1516,14 +1553,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
-                          className="icon-status"
+                          className="icon-check"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Status
@@ -1555,14 +1595,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
-                          className="icon-payment"
+                          className="icon-usd"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Payment
@@ -1594,14 +1637,17 @@ export default function Pending() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
                         }}
                       >
                         <i
-                          className="icon-payment-status"
+                          className="icon-usd"
                           style={{
-                            fontSize: "16px",
-                            transition: "transform 0.3s ease",
+                            fontSize: "14px",
+                            color: "#3554D1",
                           }}
                         ></i>
                         Payment Status
@@ -1671,125 +1717,89 @@ export default function Pending() {
                           <div
                             style={{
                               display: "flex",
-                              gap: "10px",
+                              gap: "8px",
                               flexWrap: "nowrap",
                               whiteSpace: "nowrap",
+                              alignItems: "center",
                             }}
                           >
-                            <button
-                              className="button h-40 px-20 text-13 fw-500 rounded-8"
-                              style={{
-                                backgroundColor: "#3554D1",
-                                color: "white",
-                                border: "none",
-                                transition: "all 0.3s ease",
-                                boxShadow: "0 2px 6px rgba(53, 84, 209, 0.2)",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.backgroundColor = "#2C46BA";
-                                e.target.style.boxShadow =
-                                  "0 4px 8px rgba(53, 84, 209, 0.3)";
-                                e.target.querySelector("i").style.transform =
-                                  "scale(1.2)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.backgroundColor = "#3554D1";
-                                e.target.style.boxShadow =
-                                  "0 2px 6px rgba(53, 84, 209, 0.2)";
-                                e.target.querySelector("i").style.transform =
-                                  "scale(1)";
-                              }}
-                              onClick={() => handleViewDetails(list)}
-                            >
-                              <i
-                                className="icon-eye"
-                                style={{
-                                  fontSize: "16px",
-                                  transition: "transform 0.3s ease",
-                                }}
-                              ></i>
-                              View
-                            </button>
+                            <Tooltip title="View Details" arrow>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleViewDetails(list)}
+                                                                  sx={{
+                                    color: "#4361ee",
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "6px",
+                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      backgroundColor: "rgba(67, 97, 238, 0.12)",
+                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                  }}
+                                >
+                                  <Visibility sx={{ fontSize: "16px" }} />
+                              </IconButton>
+                            </Tooltip>
                             {/* Only render Edit button if editOff is not 1 */}
                             {/* {list.editOff !== 1 && (
-                              <button
-                                className="button h-40 px-20 text-13 fw-500 rounded-8"
-                                style={{
-                                  backgroundColor: "#FF9800",
+                              <Tooltip title="Edit" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleEdit(list)}
+                                  sx={{
+                                    backgroundColor: "#FF9800",
+                                    color: "white",
+                                    width: "36px",
+                                    height: "36px",
+                                    boxShadow: "0 2px 6px rgba(255, 152, 0, 0.2)",
+                                    transition: "all 0.3s ease",
+                                    "&:hover": {
+                                      backgroundColor: "#F57C00",
+                                      boxShadow: "0 4px 8px rgba(255, 152, 0, 0.3)",
+                                      transform: "translateY(-2px)",
+                                    },
+                                  }}
+                                >
+                                  <i
+                                    className="icon-edit"
+                                    style={{
+                                      fontSize: "16px",
+                                    }}
+                                  ></i>
+                                </IconButton>
+                              </Tooltip>
+                            )} */}
+                            {/* <Tooltip title="Delete" arrow>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDelete(list.id)}
+                                sx={{
+                                  backgroundColor: "#F44336",
                                   color: "white",
-                                  border: "none",
+                                  width: "36px",
+                                  height: "36px",
+                                  boxShadow: "0 2px 6px rgba(244, 67, 54, 0.2)",
                                   transition: "all 0.3s ease",
-                                  boxShadow: "0 2px 6px rgba(255, 152, 0, 0.2)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
+                                  "&:hover": {
+                                    backgroundColor: "#E53935",
+                                    boxShadow: "0 4px 8px rgba(244, 67, 54, 0.3)",
+                                    transform: "translateY(-2px)",
+                                  },
                                 }}
-                                onMouseEnter={(e) => {
-                                  e.target.style.backgroundColor = "#F57C00";
-                                  e.target.style.boxShadow =
-                                    "0 4px 8px rgba(255, 152, 0, 0.3)";
-                                  e.target.querySelector("i").style.transform =
-                                    "rotate(15deg)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.backgroundColor = "#FF9800";
-                                  e.target.style.boxShadow =
-                                    "0 2px 6px rgba(255, 152, 0, 0.2)";
-                                  e.target.querySelector("i").style.transform =
-                                    "rotate(0deg)";
-                                }}
-                                onClick={() => handleEdit(list)}
                               >
                                 <i
-                                  className="icon-edit"
+                                  className="icon-trash-2"
                                   style={{
                                     fontSize: "16px",
-                                    transition: "transform 0.3s ease",
                                   }}
                                 ></i>
-                                Edit
-                              </button>
-                            )} */}
-                            {/* <button
-                              className="button h-40 px-20 text-13 fw-500 rounded-8"
-                              style={{
-                                backgroundColor: "#F44336",
-                                color: "white",
-                                border: "none",
-                                transition: "all 0.3s ease",
-                                boxShadow: "0 2px 6px rgba(244, 67, 54, 0.2)",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.backgroundColor = "#E53935";
-                                e.target.style.boxShadow =
-                                  "0 4px 8px rgba(244, 67, 54, 0.3)";
-                                e.target.querySelector("i").style.transform =
-                                  "scale(1.2)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.backgroundColor = "#F44336";
-                                e.target.style.boxShadow =
-                                  "0 2px 6px rgba(244, 67, 54, 0.2)";
-                                e.target.querySelector("i").style.transform =
-                                  "scale(1)";
-                              }}
-                              onClick={() => handleDelete(list.id)}
-                            >
-                              <i
-                                className="icon-trash-2"
-                                style={{
-                                  fontSize: "16px",
-                                  transition: "transform 0.3s ease",
-                                }}
-                              ></i>
-                              Delete
-                            </button> */}
+                              </IconButton>
+                            </Tooltip> */}
                           </div>
                         </td>
                     <td style={{ padding: "16px 20px" }}>
@@ -1828,38 +1838,52 @@ export default function Pending() {
   </div>
 </td>
                         <td style={{ padding: "16px 20px" }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
+                          <Tooltip 
+                            title={formatDateTooltip(list.check_in_time)}
+                            arrow
+                            placement="top"
                           >
-                            <i
-                              className="icon-calendar"
-                              style={{ fontSize: "18px", color: "#4CAF50" }}
-                            ></i>
-                            <span style={{ whiteSpace: "nowrap" }}>
-                              {formatDate(list.check_in_time)}
-                            </span>
-                          </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <i
+                                className="icon-calendar"
+                                style={{ fontSize: "18px", color: "#4CAF50" }}
+                              ></i>
+                              <span style={{ whiteSpace: "nowrap" }}>
+                                {formatDate(list.check_in_time)}
+                              </span>
+                            </div>
+                          </Tooltip>
                         </td>
                         <td style={{ padding: "16px 20px" }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
+                          <Tooltip 
+                            title={formatDateTooltip(list.check_out_time)}
+                            arrow
+                            placement="top"
                           >
-                            <i
-                              className="icon-calendar-2"
-                              style={{ fontSize: "18px", color: "#F44336" }}
-                            ></i>
-                            <span style={{ whiteSpace: "nowrap" }}>
-                              {formatDate(list.check_out_time)}
-                            </span>
-                          </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <i
+                                className="icon-calendar-2"
+                                style={{ fontSize: "18px", color: "#F44336" }}
+                              ></i>
+                              <span style={{ whiteSpace: "nowrap" }}>
+                                {formatDate(list.check_out_time)}
+                              </span>
+                            </div>
+                          </Tooltip>
                         </td>
                         <td
                           style={{
@@ -1982,127 +2006,188 @@ export default function Pending() {
                         </td>
                         <td
                           style={{
-                            padding: "16px 10px",
+                            padding: "8px 12px",
                           }}
                         >
-                          <div
-                            style={{
-                              borderRadius: "8px",
-                              padding: "12px 16px",
-                              backgroundColor: "rgba(225, 245, 255, 0.8)",
-                              boxShadow: "0 2px 6px rgba(33, 150, 243, 0.12)",
-                              transition: "all 0.2s ease",
-                            }}
+                          <Tooltip 
+                            title={`Original: SGD ${Math.ceil(list.finalAmount + list.discountAmount)} | Discount: SGD ${Math.ceil(list.discountAmount)} | Final: SGD ${Math.ceil(list.finalAmount)}`}
+                            arrow
+                            placement="top"
                           >
                             <div
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                flexDirection: "row",
-                                gap: "8px",
-                                whiteSpace: "nowrap",
+                                borderRadius: "8px",
+                                padding: "10px 12px",
+                                backgroundColor: "rgba(225, 245, 255, 0.9)",
+                                border: "1px solid rgba(33, 150, 243, 0.2)",
+                                boxShadow: "0 2px 8px rgba(33, 150, 243, 0.15)",
+                                transition: "all 0.3s ease",
+                                cursor: "pointer",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(33, 150, 243, 0.25)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                               }}
                             >
-                              <span
+                              <div
                                 style={{
-                                  fontWeight: "600",
-                                  color: "#e53935",
-                                  fontSize: "13px",
-                                  letterSpacing: "0.2px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: "6px",
                                 }}
                               >
-                                Discount: SGD {Math.ceil(list.discountAmount)}
-                              </span>
-                            </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                flexDirection: "row",
-                                marginTop: "8px",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <span
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-usd" style={{ fontSize: "12px", color: "#e53935" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
+                                    -{Math.ceil(list.discountAmount)}
+                                  </span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-tag" style={{ fontSize: "12px", color: "#1976d2" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#1976d2", fontWeight: "600" }}>
+                                    {Math.ceil(list.finalAmount)}
+                                  </span>
+                                </div>
+                              </div>
+                              <div
                                 style={{
-                                  fontWeight: "600",
-                                  color: "#424242",
-                                  fontSize: "14px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px",
+                                  padding: "4px 8px",
+                                  backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                  borderRadius: "6px",
+                                  border: "1px solid rgba(33, 150, 243, 0.1)",
                                 }}
                               >
-                                Final Amount: SGD {Math.ceil(list.finalAmount)}
-                              </span>
+                                <i className="icon-wallet" style={{ fontSize: "14px", color: "#1976d2" }}></i>
+                                <span style={{ fontSize: "12px", fontWeight: "700", color: "#1976d2" }}>
+                                  SGD {Math.ceil(list.finalAmount)}
+                                </span>
+                              </div>
                             </div>
-                          </div>
+                          </Tooltip>
                         </td>
 
-                        <td style={{ padding: "16px 20px" }}>
-                          <div
-                            style={{
-                              borderRadius: "8px",
-                              padding: "12px 16px",
-                              backgroundColor:
-                                list.payment_status === "Not Paid"
-                                  ? "rgba(253, 236, 234, 0.9)"
-                                  : list.payment_status === "Partially Paid"
-                                  ? "rgba(227, 242, 253, 0.9)"
-                                  : list.payment_status === "Completely Paid"
-                                  ? "rgba(232, 245, 233, 0.9)"
-                                  : "rgba(224, 224, 224, 0.9)",
-                              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
-                              transition: "all 0.2s ease",
-                            }}
+                        <td style={{ padding: "8px 12px" }}>
+                          <Tooltip 
+                            title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
+                            arrow
+                            placement="top"
                           >
                             <div
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                flexDirection: "row",
-                                gap: "8px",
-                                whiteSpace: "nowrap",
+                                borderRadius: "8px",
+                                padding: "10px 12px",
+                                backgroundColor:
+                                  list.payment_status === "Not Paid"
+                                    ? "rgba(253, 236, 234, 0.95)"
+                                    : list.payment_status === "Partially Paid"
+                                    ? "rgba(227, 242, 253, 0.95)"
+                                    : list.payment_status === "Completely Paid"
+                                    ? "rgba(232, 245, 233, 0.95)"
+                                    : "rgba(224, 224, 224, 0.95)",
+                                border: `1px solid ${
+                                  list.payment_status === "Not Paid"
+                                    ? "rgba(211, 47, 47, 0.3)"
+                                    : list.payment_status === "Partially Paid"
+                                    ? "rgba(25, 118, 210, 0.3)"
+                                    : list.payment_status === "Completely Paid"
+                                    ? "rgba(56, 142, 60, 0.3)"
+                                    : "rgba(97, 97, 97, 0.3)"
+                                }`,
+                                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+                                transition: "all 0.3s ease",
+                                cursor: "pointer",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.12)";
                               }}
                             >
                               {list.dueAmount > 0 && (
-                                <span
+                                <div
                                   style={{
-                                    fontWeight: "600",
-                                    color: "#e53935",
-                                    fontSize: "13px",
-                                    letterSpacing: "0.2px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                    marginBottom: "6px",
+                                    padding: "3px 8px",
+                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                    borderRadius: "12px",
+                                    border: "1px solid rgba(229, 57, 53, 0.2)",
                                   }}
                                 >
-                                  Due Amount: SGD {Math.ceil(list.dueAmount)}
-                                </span>
+                                  <i className="icon-alert-circle" style={{ fontSize: "10px", color: "#e53935" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
+                                    Due: SGD {Math.ceil(list.dueAmount)}
+                                  </span>
+                                </div>
                               )}
-                            </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                flexDirection: "row",
-                                marginTop: "8px",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <span
+                              <div
                                 style={{
-                                  fontWeight: "600",
-                                  color:
-                                    list.payment_status === "Not Paid"
-                                      ? "#d32f2f"
-                                      : list.payment_status === "Partially Paid"
-                                      ? "#1976d2"
-                                      : list.payment_status ===
-                                        "Completely Paid"
-                                      ? "#388e3c"
-                                      : "#616161",
-                                  fontSize: "14px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px",
+                                  padding: "4px 8px",
+                                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                  borderRadius: "6px",
+                                  border: "1px solid rgba(0, 0, 0, 0.1)",
                                 }}
                               >
-                                {list.payment_status}
-                              </span>
+                                <i 
+                                  className={
+                                    list.payment_status === "Not Paid"
+                                      ? "icon-x-circle"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "icon-clock"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "icon-check-circle"
+                                      : "icon-help-circle"
+                                  }
+                                  style={{ 
+                                    fontSize: "14px", 
+                                    color:
+                                      list.payment_status === "Not Paid"
+                                        ? "#d32f2f"
+                                        : list.payment_status === "Partially Paid"
+                                        ? "#1976d2"
+                                        : list.payment_status === "Completely Paid"
+                                        ? "#388e3c"
+                                        : "#616161"
+                                  }}
+                                ></i>
+                                <span
+                                  style={{
+                                    fontWeight: "700",
+                                    fontSize: "12px",
+                                    color:
+                                      list.payment_status === "Not Paid"
+                                        ? "#d32f2f"
+                                        : list.payment_status === "Partially Paid"
+                                        ? "#1976d2"
+                                        : list.payment_status === "Completely Paid"
+                                        ? "#388e3c"
+                                        : "#616161",
+                                  }}
+                                >
+                                  {list.payment_status}
+                                </span>
+                              </div>
                             </div>
-                          </div>
+                          </Tooltip>
                         </td>
                       </tr>
                     ))

@@ -23,6 +23,7 @@ import {
   fetchZoneVehicles,
   setPortZoneType,
 } from "@/slice/port/pickupDropSlice";
+import { Typography } from "@mui/material";
 import DateSearch1 from "../common/DateSearch1";
 import SearchBar from "../activity-list-v2/PortLocation2";
 import DateSearch2 from "../common/DateSearch2";
@@ -340,8 +341,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
         <div className="single-row-container">
           {/* Port Selection */}
-          <div className="search-item port-selection">
-            <label className="text-15 fw-500 ls-2 lh-16">
+          <div className="search-item port-selection mb-10">
+            <label className="text-15 fw-500 ls-2 lh-16 mb-10">
               Select Port Type:
             </label>
             <select
@@ -506,26 +507,36 @@ const MainFilterSearchBox2 = ({ Location }) => {
           </div>
 
           {/* Time Selection */}
-          <div className="search-item time-selection">
+          <div className="search-item time-selection mb-10">
             {selectedPort === "Entry Port" ? (
+              <>
+              <Typography variant="subtitle2" fontWeight={100} sx={{ mb: 1, color: '#000' }}>
+        Pick Up Time
+      </Typography>
               <Pickuptime
                 entryytime={entryytime}
                 setentryytime={setentryytime}
                 setTime={setTime}
                 disabled={!isDropoffLocationEnabled}
               />
+              </>
             ) : (
+              <>
+              <Typography variant="subtitle2" fontWeight={100} sx={{ mb: 1, color: '#000' }}>
+        Exit Time
+      </Typography>
               <Pickuptime1
                 entryytime={entryytime1}
                 setentryytime={setentryytime1}
                 setTime={setTime1}
                 disabled={!isDropoffLocationEnabled}
               />
+              </>
             )}
           </div>
 
           {/* Date Selection */}
-          <div className="search-item date-selection">
+          <div className="search-item date-selection mb-10">
             <h4
               className={`text-15 fw-500 ls-2 lh-16 mt-15 ${
                 !isDropoffLocationEnabled ? "text-gray-400" : ""
@@ -549,7 +560,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           </div>
 
           {/* Search Button */}
-          <div className="search-item search-button">
+          <div className="search-item search-button mb-15">
             <button
               className={`mainSearch__submit button -dark-1 py-15 px-35 rounded-4 ${
                 isSearchButtonEnabled

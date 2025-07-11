@@ -38,20 +38,21 @@ const MainMenu = ({ style = "" }) => {
           <Link
             to="/dashboard/db-dashboard"
             className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+            style={{ flexDirection: "column", alignItems: "flex-start" }}
           >
-            <div style={{ minWidth: "40px", display: "flex", justifyContent: "center" }}>
-              <FaChartLine className="text-22 text-green-1" />
-            </div>
-            <span
-              className={`fw-600 text-15 ${
-                pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
-              }`}
-            >
-              Dashboard
-              <span className="text-12 text-light-1 fw-400 ml-8 block"> &nbsp;
-                Manage Your Experience
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <FaChartLine className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+              <span
+                className={`fw-600 text-15 ${
+                  pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
+                }`}
+              >
+                Dashboard
               </span>
-            </span>
+            </div>
+            <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+              Manage Your Experience
+            </div>
           </Link>
         </li>
 
@@ -65,22 +66,23 @@ const MainMenu = ({ style = "" }) => {
             <Link
               to="/dashboard/db-dashboard/home_1"
               className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+              style={{ flexDirection: "column", alignItems: "flex-start" }}
             >
-              <div style={{ minWidth: "40px", display: "flex", justifyContent: "center" }}>
-                <FaCompass className="text-22 text-green-1" />
-              </div>
-              <span
-                className={`fw-600 text-15 ${
-                  pathname === "/dashboard/db-dashboard/home_1"
-                    ? "text-green-1"
-                    : ""
-                }`}
-              >
-                Book Tour
-                <span className="text-12 text-light-1 fw-400 ml-8 block">
-                  Discover Your Dream Destinations
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <FaCompass className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+                <span
+                  className={`fw-600 text-15 ${
+                    pathname === "/dashboard/db-dashboard/home_1"
+                      ? "text-green-1"
+                      : ""
+                  }`}
+                >
+                  Book Tour
                 </span>
-              </span>
+              </div>
+              <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+                Discover Your Dream Destinations
+              </div>
             </Link>
           </li>
         )}
@@ -95,22 +97,23 @@ const MainMenu = ({ style = "" }) => {
             <Link
               to="/dashboard/db-dashboard/home_2"
               className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+              style={{ flexDirection: "column", alignItems: "flex-start" }}
             >
-              <div style={{ minWidth: "40px", display: "flex", justifyContent: "center" }}>
-                <FaEnvelopeOpenText className="text-22 text-green-1" />
-              </div>
-              <span
-                className={`fw-600 text-15 ${
-                  pathname === "/dashboard/db-dashboard/home_2"
-                    ? "text-green-1"
-                    : ""
-                }`}
-              >
-                Book An Enquiry
-                <span className="text-12 text-light-1 fw-400 ml-8 block">
-                  Reach Out for Custom Requests
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <FaEnvelopeOpenText className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+                <span
+                  className={`fw-600 text-15 ${
+                    pathname === "/dashboard/db-dashboard/home_2"
+                      ? "text-green-1"
+                      : ""
+                  }`}
+                >
+                  Book An Enquiry
                 </span>
-              </span>
+              </div>
+              <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+                Reach Out for Custom Requests
+              </div>
             </Link>
           </li>
         )}
@@ -123,20 +126,21 @@ const MainMenu = ({ style = "" }) => {
           <Link
             to={packagesPath}
             className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+            style={{ flexDirection: "column", alignItems: "flex-start" }}
           >
-            <div style={{ minWidth: "40px", display: "flex", justifyContent: "center" }}>
-              <FaBoxOpen className="text-22 text-green-1" />
-            </div>
-            <span
-              className={`fw-600 text-15 ${
-                pathname === packagesPath ? "text-green-1" : ""
-              }`}
-            >
-              Packages
-              <span className="text-12 text-light-1 fw-400 ml-8 block">
-              Custom Travel Bundles
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <FaBoxOpen className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+              <span
+                className={`fw-600 text-15 ${
+                  pathname === packagesPath ? "text-green-1" : ""
+                }`}
+              >
+                Packages
               </span>
-            </span>
+            </div>
+            <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+              Custom Travel Bundles
+            </div>
           </Link>
         </li>
       </ul>

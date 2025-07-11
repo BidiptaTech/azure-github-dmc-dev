@@ -138,7 +138,13 @@ export const createBooking = createAsyncThunk(
 
       if (response?.data?.service?.date_service) {
         dispatch(setDateService(response.data.service.date_service));
-        dispatch(setAttractionService(response.data.service.data));
+        
+        // Handle both attraction and attraction_package data
+        const attractionData = response.data.service.attraction || [];
+        const attractionPackageData = response.data.service.attraction_package || [];
+        const combinedData = [...attractionData, ...attractionPackageData];
+        
+        dispatch(setAttractionService(combinedData));
       }
 
       return response.data;
@@ -202,6 +208,7 @@ const attractionsSlice = createSlice({
       state.checkoutData = action.payload;
     },
     setAttractionService: (state, action) => {
+      console.log('AttractionService', action.payload);
       state.services = action.payload;
     },
     setSearchParams: (state, action) => {

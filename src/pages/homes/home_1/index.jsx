@@ -1,9 +1,7 @@
 // import DefaultFooter from "@/components/footer/default";
 // import Header11 from "@/components/header/header-11";
 import Hero1 from "@/components/hero/hero-1";
-
 import CallToActions from "@/components/common/CallToActions";
-
 import MetaComponent from "@/components/common/MetaComponent";
 
 const metadata = {
@@ -24,7 +22,6 @@ const Home_1 = () => {
       {/* End Hero 1 */}
 
       <CallToActions />
-
       {/* End Call To Actions Section */}
 
       {/* <DefaultFooter /> */}

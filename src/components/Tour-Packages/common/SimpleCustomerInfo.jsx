@@ -12,12 +12,20 @@ import {
   FormControl,
   Select,
   MenuItem,
+  Chip,
+  Alert,
 } from '@mui/material';
 
 const SimpleCustomerInfo = () => {
   const dispatch = useDispatch();
   const allServices = useSelector(state => state.tourPackages?.AllServices || []);
   console.log("allServicesssd", allServices);
+  const customerInfo = useSelector(state => state.tourPackages?.packageData?.customer_info || {});
+  console.log("customerInfo", customerInfo);
+  
+  // Check if customerInfo has data (form should be read-only)
+  const hasCustomerInfo = customerInfo && Object.keys(customerInfo).length > 0 && 
+    (customerInfo.fullName || customerInfo.email || customerInfo.phone);
   
   // Get user_country and searchLocation from Redux store (same as CustomerInfo.jsx)
   const user_country = useSelector((state) => state.auth.user_country);
@@ -50,9 +58,42 @@ const SimpleCustomerInfo = () => {
   const prevFormRef = useRef({});
   const formUpdatedRef = useRef(false);
   
+  // Auto-populate form when customerInfo is available
+  useEffect(() => {
+    if (hasCustomerInfo) {
+      console.log("Auto-populating form with customerInfo:", customerInfo);
+      setForm(prevForm => ({
+        ...prevForm,
+        fullName: customerInfo.fullName || '',
+        email: customerInfo.email || '',
+        phone: customerInfo.phone || '',
+        address1: customerInfo.address1 || '',
+        address2: customerInfo.address2 || '',
+        state: customerInfo.state || '',
+        zip: customerInfo.zip || '',
+        specialRequests: customerInfo.specialRequests || '',
+        countryCode: customerInfo.countryCode || prevForm.countryCode,
+      }));
+      
+      // Set form as valid since it's populated with existing data
+      setFormValid(true);
+      dispatch(setCustomerInfoValid(true));
+      
+      // Find and set the country based on countryCode
+      if (customerInfo.countryCode && user_country) {
+        const country = user_country.find(c => c.country_code === customerInfo.countryCode);
+        if (country) {
+          setSelectedCountry(country);
+          setDialMinLength(country.contact_min_length);
+          setDialMaxLength(country.contact_max_length);
+        }
+      }
+    }
+  }, [customerInfo, hasCustomerInfo, user_country, dispatch]);
+
   // Initialize selected country from user_country array (same as CustomerInfo.jsx)
   useEffect(() => {
-    if (user_country && user_country.length > 0) {
+    if (user_country && user_country.length > 0 && !hasCustomerInfo) {
       // Set default to first country in the array
       const defaultCountry = user_country[0];
       setSelectedCountry(defaultCountry);
@@ -64,11 +105,11 @@ const SimpleCustomerInfo = () => {
       }));
       formUpdatedRef.current = true;
     }
-  }, [user_country]);
+  }, [user_country, hasCustomerInfo]);
 
   // Auto-set country based on search location (same as CustomerInfo.jsx)
   useEffect(() => {
-    if (searchLocation && searchLocation[0] && user_country) {
+    if (searchLocation && searchLocation[0] && user_country && !hasCustomerInfo) {
       const country = user_country.find(
         (c) => c.code.toLowerCase() === searchLocation[0].toLowerCase()
       );
@@ -83,10 +124,12 @@ const SimpleCustomerInfo = () => {
         formUpdatedRef.current = true;
       }
     }
-  }, [searchLocation, user_country]);
+  }, [searchLocation, user_country, hasCustomerInfo]);
 
   // Handler for country selection (same as CustomerInfo.jsx)
   const handleCountryChange = (event) => {
+    if (hasCustomerInfo) return; // Prevent changes when form is read-only
+    
     const selectedCountryCode = event.target.value;
     const country = user_country.find(c => c.code === selectedCountryCode);
     
@@ -173,6 +216,8 @@ const SimpleCustomerInfo = () => {
 
   // Function to handle input change
   const handleChange = (e) => {
+    if (hasCustomerInfo) return; // Prevent changes when form is read-only
+    
     const { name, value } = e.target;
     setForm((prevForm) => ({
       ...prevForm,
@@ -192,6 +237,8 @@ const SimpleCustomerInfo = () => {
 
   // Function to handle blur event (field loses focus)
   const handleBlur = (e) => {
+    if (hasCustomerInfo) return; // Prevent changes when form is read-only
+    
     const { name, value } = e.target;
     setTouched((prevTouched) => ({ ...prevTouched, [name]: true }));
 
@@ -266,13 +313,27 @@ const SimpleCustomerInfo = () => {
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h5">Customer Information</Typography>
+        {hasCustomerInfo && (
+          <Chip 
+            label="Auto-filled" 
+            color="success" 
+            variant="outlined" 
+            size="small"
+          />
+        )}
       </Box>
       
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please provide your contact information below. Fields marked with * are required.
-      </Typography>
+      {hasCustomerInfo ? (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Your information has been automatically filled from your Tour Package Booking.
+        </Alert>
+      ) : (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Please provide your contact information below. Fields marked with * are required.
+        </Typography>
+      )}
       
       <Grid container spacing={2}>
         <Grid item xs={12}>
@@ -286,6 +347,10 @@ const SimpleCustomerInfo = () => {
             onBlur={handleBlur}
             error={!!errors.fullName && touched.fullName}
             helperText={touched.fullName && errors.fullName}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
 
@@ -300,6 +365,10 @@ const SimpleCustomerInfo = () => {
             onBlur={handleBlur}
             error={!!errors.email && touched.email}
             helperText={touched.email && errors.email}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
 
@@ -314,7 +383,9 @@ const SimpleCustomerInfo = () => {
             onBlur={handleBlur}
             error={!!errors.phone && touched.phone}
             helperText={touched.phone && errors.phone}
+            disabled={hasCustomerInfo}
             InputProps={{
+              readOnly: hasCustomerInfo,
               startAdornment: (
                 <InputAdornment position="start">
                   <FormControl 
@@ -331,6 +402,7 @@ const SimpleCustomerInfo = () => {
                       value={selectedCountry?.code || ''}
                       onChange={handleCountryChange}
                       disableUnderline
+                      disabled={hasCustomerInfo}
                       sx={{
                         fontSize: '0.875rem',
                         '& .MuiSelect-select': {
@@ -373,6 +445,10 @@ const SimpleCustomerInfo = () => {
             onBlur={handleBlur}
             error={!!errors.address1 && touched.address1}
             helperText={touched.address1 && errors.address1}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
 
@@ -384,6 +460,10 @@ const SimpleCustomerInfo = () => {
             variant="outlined"
             value={form.address2}
             onChange={handleChange}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
 
@@ -398,6 +478,10 @@ const SimpleCustomerInfo = () => {
             onBlur={handleBlur}
             error={!!errors.state && touched.state}
             helperText={touched.state && errors.state}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
 
@@ -412,6 +496,10 @@ const SimpleCustomerInfo = () => {
             onBlur={handleBlur}
             error={!!errors.zip && touched.zip}
             helperText={touched.zip && errors.zip}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
 
@@ -425,6 +513,10 @@ const SimpleCustomerInfo = () => {
             variant="outlined"
             value={form.specialRequests}
             onChange={handleChange}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
           />
         </Grid>
       </Grid>
@@ -434,7 +526,10 @@ const SimpleCustomerInfo = () => {
           variant="body2" 
           color={formValid ? "success.main" : "text.secondary"}
         >
-          {formValid ? "✓ Information saved" : "Fill in all required fields to save automatically"}
+          {hasCustomerInfo 
+            ? "✓ Information loaded from package data" 
+            : (formValid ? "✓ Information saved" : "Fill in all required fields to save automatically")
+          }
         </Typography>
       </Box>
     </Paper>

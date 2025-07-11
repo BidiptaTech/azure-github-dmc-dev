@@ -4,46 +4,8 @@ import PreDefinePackagesPage from '../pre-define-packages';
 import { useSelector, useDispatch } from 'react-redux';
 import { Button, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { createTheme, ThemeProvider, keyframes } from '@mui/material/styles';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { setPackageData } from '@/slice/tour-packages/tourPackageSlice';
-
-// Dolphin jumping animation keyframes
-const dolphinJump = keyframes`
-  0% {
-    transform: translateY(0) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-15px) rotate(-5deg);
-  }
-  50% {
-    transform: translateY(-30px) rotate(0deg);
-  }
-  75% {
-    transform: translateY(-15px) rotate(5deg);
-  }
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-`;
-
-// Create splash effect
-const splashEffect = keyframes`
-  0% {
-    box-shadow: 0px 10px 30px rgba(0, 255, 255, 0.2);
-  }
-  50% {
-    box-shadow: 0px 20px 40px rgba(0, 255, 255, 0.4), 
-                0px 0px 10px 5px rgba(0, 255, 255, 0.3);
-  }
-  100% {
-    box-shadow: 0px 10px 30px rgba(0, 255, 255, 0.2);
-  }
-`;
-
-
-
-// Create splash effect
-
 
 // Create a custom theme for the button
 const theme = createTheme({
@@ -70,6 +32,7 @@ const theme = createTheme({
           transition: 'all 0.3s ease',
           '&:hover': {
             transform: 'translateY(-3px)',
+            transform: 'translateY(-3px)',
             boxShadow: '0px 15px 30px rgba(0, 255, 255, 0.5)',
           },
         },
@@ -95,6 +58,7 @@ const Packages = () => {
     return (
       <div className="pre-define-packages-background">
       <div className="pre-define-packages-background">
+      <div className="pre-define-packages-background">
         <div className="packages-container" style={{ padding: '100px 20px', textAlign: 'center' }}>
             <div className="d-flex flex-column align-items-center y-gap-20">
                 <div className="col-md-6">
@@ -110,6 +74,7 @@ const Packages = () => {
                               justifyContent: 'center',
                               gap: '10px',
                               background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
+                              background: 'linear-gradient(90deg,rgb(56, 221, 56),rgb(17, 209, 0),rgb(17, 223, 69))',
                               color: 'white',
                               ml: 1.5,
                               fontWeight: 1000,
@@ -123,6 +88,8 @@ const Packages = () => {
                               '&:hover': {
                                 transform: 'translateY(-3px)',
                                 boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
+                                transform: 'translateY(-3px)',
+                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
                               }
                             }}
                         >
@@ -132,6 +99,7 @@ const Packages = () => {
                 </div>
             </div>
             <PreDefinePackagesPage />
+        </div>
         </div>
         </div>
         </div>
