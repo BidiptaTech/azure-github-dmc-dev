@@ -9,6 +9,7 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
+  FormControl,
   Button,
   Tooltip,
   Alert,
@@ -25,6 +26,11 @@ import {
   LinearProgress,
   Autocomplete,
   TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Paper,
 } from '@mui/material';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import CloseIcon from '@mui/icons-material/Close';
@@ -39,9 +45,93 @@ import PersonIcon from '@mui/icons-material/Person';
 import GroupIcon from '@mui/icons-material/Group';
 import ElderlyIcon from '@mui/icons-material/Elderly';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChildCareIcon from '@mui/icons-material/ChildCare';
+import AccessibilityNewIcon from '@mui/icons-material/AccessibilityNew';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
+import CancelIcon from '@mui/icons-material/Cancel';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import ArticleIcon from '@mui/icons-material/Article';
+import LanguageIcon from '@mui/icons-material/Language';
+import ListIcon from '@mui/icons-material/List';
+import PackageIcon from '@mui/icons-material/Inventory';
 import { useSelector } from 'react-redux';
+import { styled } from '@mui/material/styles';
+import { capitalizeWords } from '../../../utils/textUtils';
 
-const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate, dayIndex }) => {
+// Styled components
+const ModalSidebar = styled(Box)(({ theme }) => ({
+  width: '280px',
+  borderLeft: `1px solid ${theme.palette.divider}`,
+  backgroundColor: alpha(theme.palette.primary.main, 0.02),
+  height: '100%',
+  padding: theme.spacing(2),
+  display: 'flex',
+  flexDirection: 'column',
+}));
+
+const SidebarHeader = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.common.white,
+  padding: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  marginBottom: theme.spacing(2),
+}));
+
+const ContentBox = styled(Box)(({ theme }) => ({
+  marginTop: theme.spacing(2),
+  padding: theme.spacing(1.5, 2),
+  backgroundColor: alpha(theme.palette.primary.main, 0.05),
+  borderRadius: theme.shape.borderRadius,
+  position: 'relative',
+  overflow: 'hidden',
+  '&:before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '4px',
+    height: '100%',
+    backgroundColor: theme.palette.primary.main,
+  }
+}));
+
+const PriceCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  boxShadow: 'none',
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: theme.shape.borderRadius,
+  transition: 'all 0.3s',
+  position: 'relative',
+  overflow: 'hidden',
+  '&:hover': {
+    transform: 'translateY(-3px)',
+    boxShadow: '0 10px 20px rgba(0,0,0,0.08)',
+    '& .price-icon': {
+      transform: 'scale(1.1)',
+    }
+  },
+  '& .price-icon': {
+    transition: 'transform 0.3s',
+  }
+}));
+
+const PriceCardHeader = styled(Box)(({ theme, type }) => {
+  let color = theme.palette.primary.main;
+  if (type === 'child') color = theme.palette.success.main;
+  if (type === 'senior') color = theme.palette.warning.main;
+  
+  return {
+    backgroundColor: alpha(color, 0.1),
+    padding: theme.spacing(1.5),
+    borderBottom: `1px solid ${alpha(color, 0.2)}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  };
+});
+
+const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate, dayIndex, packages = [] }) => {
   const theme = useTheme();
   // States
   const [modalOpen, setModalOpen] = useState(false);
@@ -72,9 +162,46 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
       bookingDate, 
       dayIndex, 
       effectiveBookingDate,
-      sectionIndex 
+      sectionIndex,
+      packages,
+      'packages length': packages?.length,
+      'tickets length': tickets?.length
     });
-  }, [bookingDate, dayIndex, effectiveBookingDate, sectionIndex]);
+    console.log('TicketTypeSelector - Full packages data:', packages);
+    console.log('TicketTypeSelector - Full tickets data:', tickets);
+  }, [bookingDate, dayIndex, effectiveBookingDate, sectionIndex, packages, tickets]);
+
+  // Get all available options (tickets + packages)
+  const allOptions = [
+    ...tickets.map(ticket => ({ 
+      ...ticket, 
+      type: 'attraction' 
+    })),
+    ...packages.map(pkg => ({
+      ticket_id: `pkg_${pkg.id}`,
+      ticket_name: pkg.name,
+      dmc_adult_price: parseFloat(pkg.adult_price || 0),
+      dmc_child_price: parseFloat(pkg.child_price || 0),
+      dmc_senior_price: parseFloat(pkg.senior_citizen_price || 0),
+      description: pkg.description,
+      attractions: pkg.attractions,
+      type: 'attraction_package',
+      packageDetails: pkg,
+      package_attraction_id: pkg.package_attraction_id || null
+    }))
+  ];
+
+  // Debug allOptions
+  useEffect(() => {
+    console.log('TicketTypeSelector - allOptions:', allOptions);
+    console.log('TicketTypeSelector - allOptions length:', allOptions.length);
+    console.log('TicketTypeSelector - packages in allOptions:', allOptions.filter(item => item.type === 'package'));
+  }, [allOptions]);
+
+  // Function to check if selected item is a package
+  const isPackage = (item) => {
+    return item && item.type === 'attraction_package';
+  };
 
   // Format price in different currencies
   const formatPrice = (price, type) => {
@@ -95,6 +222,20 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   // Get price based on price type (residential or NRI)
   const getPrice = (ticket, priceField) => {
     if (!ticket) return 0;
+    
+    // For packages, use the package prices directly
+    if (isPackage(ticket)) {
+      switch (priceField) {
+        case "adult":
+          return parseFloat(ticket.dmc_adult_price) || 0;
+        case "child":
+          return parseFloat(ticket.dmc_child_price) || 0;
+        case "senior":
+          return parseFloat(ticket.dmc_senior_price) || 0;
+        default:
+          return 0;
+      }
+    }
     
     if (nriStatus === "nri") {
       switch (priceField) {
@@ -137,22 +278,22 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
     return cleanedText.replace(/\s+/g, ' ').trim();
   };
 
-  // Enhanced description rendering with better styling
+  // Handle description truncation and toggle
   const renderDescription = (description, type = "description") => {
     if (!description) return null;
     
     const words = description.split(/\s+/);
     const wordCount = words.length;
-    const wordLimit = 15;
+    const wordLimit = 10;
     
     const getIcon = () => {
       switch (type) {
         case "description":
-          return <InfoIcon sx={{ fontSize: 20, color: 'white' }} />;
+          return <InfoIcon fontSize="small" color="primary" sx={{ mr: 1 }} />;
         case "remarks":
-          return <CommentIcon sx={{ fontSize: 20, color: 'white' }} />;
+          return <CommentIcon fontSize="small" color="warning" sx={{ mr: 1 }} />;
         case "terms":
-          return <GavelIcon sx={{ fontSize: 20, color: 'white' }} />;
+          return <GavelIcon fontSize="small" color="error" sx={{ mr: 1 }} />;
         default:
           return null;
       }
@@ -171,19 +312,6 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
       }
     };
 
-    const getColor = () => {
-      switch (type) {
-        case "description":
-          return theme.palette.info.main;
-        case "remarks":
-          return theme.palette.warning.main;
-        case "terms":
-          return theme.palette.error.main;
-        default:
-          return theme.palette.primary.main;
-      }
-    };
-
     const openTextModal = () => {
       setTextModalContent({
         title: getTitle(),
@@ -194,72 +322,86 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
 
     if (wordCount <= wordLimit) {
       return (
-        <Card sx={{ 
-          mt: 2,
-          bgcolor: getColor(),
-          borderRadius: 2,
-          overflow: 'hidden',
-          boxShadow: `0 4px 12px ${alpha(getColor(), 0.3)}`
-        }}>
-          <CardContent sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', mb: 1, alignItems: 'center', gap: 1 }}>
+        <ContentBox>
+          <Box display="flex" alignItems="center" mb={0.5}>
               {getIcon()}
-              <Typography fontWeight={600} color="white" variant="subtitle2">
-                {getTitle()}
-              </Typography>
+            <Typography variant="subtitle2">{getTitle()}</Typography>
             </Box>
-            <Typography variant="body2" color="white" sx={{ lineHeight: 1.5 }}>
-              {description}
-            </Typography>
-          </CardContent>
-        </Card>
+          <Typography variant="body2">{description}</Typography>
+        </ContentBox>
       );
     }
 
     const truncatedText = words.slice(0, wordLimit).join(" ");
     
     return (
-      <Card sx={{ 
-        mt: 2,
-        bgcolor: getColor(),
-        borderRadius: 2,
-        overflow: 'hidden',
-        boxShadow: `0 4px 12px ${alpha(getColor(), 0.3)}`
-      }}>
-        <CardContent sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', mb: 1, alignItems: 'center', gap: 1 }}>
+      <ContentBox>
+        <Box display="flex" alignItems="center" mb={0.5}>
             {getIcon()}
-            <Typography fontWeight={600} color="white" variant="subtitle2">
-              {getTitle()}
-            </Typography>
+          <Typography variant="subtitle2">{getTitle()}</Typography>
           </Box>
-          <Typography variant="body2" color="white" sx={{ lineHeight: 1.5, mb: 1 }}>
+        <Typography variant="body2">
             {truncatedText + "..."}
           </Typography>
           <Button 
-            onClick={openTextModal}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openTextModal();
+          }}
             sx={{ 
               p: 0,
+            mt: 0.5, 
               minWidth: 'auto',
               textTransform: 'none',
-              textDecoration: 'underline',
-              color: 'white',
-              fontSize: '0.875rem',
-              '&:hover': {
-                bgcolor: 'transparent',
-                textDecoration: 'underline'
-              }
-            }}
-          >
-            Read more
+            fontSize: '14px' 
+          }}
+          endIcon={<ArticleIcon fontSize="small" />}
+        >
+          Show more
           </Button>
-        </CardContent>
-      </Card>
+      </ContentBox>
     );
   };
 
+  // Get icon for price type
+  const getPriceIcon = (type) => {
+    switch(type) {
+      case 'adult':
+        return <PersonIcon />;
+      case 'child':
+        return <ChildCareIcon />;
+      case 'senior':
+        return <AccessibilityNewIcon />;
+      default:
+        return <LocalOfferIcon />;
+    }
+  };
+
+  // Get color for price type
+  const getPriceColor = (type) => {
+    switch(type) {
+      case 'adult':
+        return 'primary';
+      case 'child':
+        return 'success';
+      case 'senior':
+        return 'warning';
+      default:
+        return 'primary';
+    }
+  };
+
   const handleOpenModal = (ticket) => {
-    setSelectedTicket(ticket);
+    // Add package_type and type to the ticket object
+    const ticketWithType = {
+      ...ticket,
+      type: isPackage(ticket) ? 'attraction_package' : 'attraction',
+      package_type: isPackage(ticket) ? 1 : 0,
+      package_attraction_id: isPackage(ticket) ? ticket.package_attraction_id : null
+    };
+    
+    setSelectedTicket(ticketWithType);
     setModalOpen(true);
     
     // Check time slot immediately when modal opens
@@ -319,10 +461,16 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
     }
     
     // Update the ticket selection - this will trigger the main component's Redux dispatch
-    onTicketTypeChange({
+    const ticketData = {
       ticketId: selectedTicket?.ticket_id,
-      priceType: nriStatus
-    });
+      priceType: nriStatus,
+      type: isPackage(selectedTicket) ? 'attraction_package' : 'attraction'
+    };
+    
+    console.log('TicketTypeSelector - handleBookNow - Passing ticket data:', ticketData);
+    console.log('TicketTypeSelector - handleBookNow - Selected ticket type:', ticketData.type);
+    
+    onTicketTypeChange(ticketData);
     
     setBookingSuccess(true);
     setModalOpen(false);
@@ -342,20 +490,48 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
       return;
     }
     
+    // Update the ticket selection with final details
+    if (selectedTicket) {
+      const finalTicket = {
+        ...selectedTicket,
+        type: isPackage(selectedTicket) ? 'attraction_package' : 'attraction',
+        package_type: isPackage(selectedTicket) ? 1 : 0,
+        package_attraction_id: isPackage(selectedTicket) ? selectedTicket.package_attraction_id : null
+      };
+      
+      // Update the ticket selection
+      const ticketData = {
+        ticketId: finalTicket.ticket_id,
+        priceType: nriStatus,
+        type: finalTicket.type
+      };
+      
+      console.log('TicketTypeSelector - Passing ticket data:', ticketData);
+      console.log('TicketTypeSelector - Selected ticket type:', finalTicket.type);
+      
+      onTicketTypeChange(ticketData);
+    }
+    
     handleBookNow();
+  };
+
+  // Handle NRI status changes
+  const handleNriStatusChange = (event) => {
+    console.log("Changing NRI status to:", event.target.value);
+    setNriStatus(event.target.value);
   };
 
   return (
     <Box sx={{ position: 'relative', width: '100%' }}>
       <Autocomplete
-        value={tickets.find(t => t.ticket_id === selectedTicketType) || null}
+        value={allOptions.find(t => t.ticket_id === selectedTicketType) || null}
         onChange={(event, newValue) => {
           if (newValue) {
             handleOpenModal(newValue);
           }
         }}
-        options={tickets}
-        getOptionLabel={(option) => option.ticket_name || ''}
+        options={allOptions}
+        getOptionLabel={(option) => capitalizeWords(option.ticket_name || '')}
         noOptionsText="No tickets available"
         disabled={disabled}
         renderOption={(props, option) => {
@@ -378,9 +554,19 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                       <ConfirmationNumberIcon sx={{ fontSize: 18 }} />
                     )}
                   </Avatar>
+                  <Box>
                   <Typography fontWeight={600} color="text.primary">
-                    {option.ticket_name}
+                    {capitalizeWords(option.ticket_name)}
                   </Typography>
+                    {isPackage(option) && (
+                      <Chip 
+                        size="small" 
+                        label="Package" 
+                        color="secondary" 
+                        sx={{ mt: 0.5, height: '18px', fontSize: '10px' }} 
+                      />
+                    )}
+                  </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                   {option.description && (
@@ -392,7 +578,7 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                       <DescriptionIcon sx={{ fontSize: 12, color: 'info.main' }} />
                     </Avatar>
                   )}
-                  {option.remarks && (
+                  {!isPackage(option) && option.remarks && (
                     <Avatar sx={{ 
                       bgcolor: alpha(theme.palette.warning.main, 0.1),
                       width: 20, 
@@ -401,7 +587,7 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                       <CommentIcon sx={{ fontSize: 12, color: 'warning.main' }} />
                     </Avatar>
                   )}
-                  {option.terms_conditions && (
+                  {!isPackage(option) && option.terms_conditions && (
                     <Avatar sx={{ 
                       bgcolor: alpha(theme.palette.error.main, 0.1),
                       width: 20, 
@@ -435,93 +621,96 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                   sx={{ fontSize: '0.7rem', height: 20 }}
                 />
               </Box>
+              {isPackage(option) && option.attractions && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography 
+                    variant="caption" 
+                    color="text.secondary"
+                    sx={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <ListIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
+                    {option.attractions.length} attraction{option.attractions.length !== 1 ? 's' : ''}
+                  </Typography>
+                </Box>
+              )}
             </Box>
           );
         }}
-        renderInput={(params) => (
+        renderInput={(params) => {
+          const selectedOption = allOptions.find(t => t.ticket_id === selectedTicketType);
+          return (
           <TextField
             {...params}
             label="Select Ticket"
             fullWidth
-          />
-        )}
+              InputProps={{
+                ...params.InputProps,
+                startAdornment: selectedOption ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+                    {isPackage(selectedOption) ? (
+                      <PackageIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
+                    ) : (
+                      <ConfirmationNumberIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                    )}
+                  </Box>
+                ) : null,
+                ...params.InputProps.startAdornment
+              }}
+            />
+          );
+        }}
       />
 
-      {/* Enhanced Ticket Details Modal */}
-      <Modal
+      {/* Enhanced Ticket Details Modal with Sidebar */}
+      <Dialog
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        closeAfterTransition
+        maxWidth="lg"
+        fullWidth
+        TransitionComponent={Zoom}
       >
-        <Fade in={modalOpen}>
-          <Card sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '95%',
-            maxWidth: 900,
-            maxHeight: '95vh',
-            borderRadius: 3,
-            overflow: 'auto',
-            boxShadow: `0 24px 48px ${alpha(theme.palette.common.black, 0.3)}`,
-            zIndex: 100000,
-          }}>
-            <CardContent sx={{ p: 0 }}>
-              {/* Modal Header */}
-              <Box sx={{ 
-                p: 3,
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center' 
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ 
-                    bgcolor: theme.palette.primary.main, 
-                    width: 48, 
-                    height: 48 
-                  }}>
-                    <ConfirmationNumberIcon sx={{ fontSize: 24 }} />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h5" fontWeight={700} color="primary.main">
-                      Confirm Ticket Selection
+        <DialogTitle sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box display="flex" alignItems="center">
+            <ConfirmationNumberIcon color="primary" sx={{ mr: 1.5, fontSize: 28 }} />
+            <Typography variant="h6">
+              {isPackage(selectedTicket) ? 'Confirm Package Selection' : 'Confirm Ticket Selection'}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Review details and pricing before booking
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {nriStatus === "nri" && (
+            {!isPackage(selectedTicket) && (
                     <Chip
-                      label="Foreigner Pricing"
-                      color="warning"
-                      variant="filled"
-                      sx={{ fontWeight: 600 }}
-                    />
-                  )}
-                  <IconButton 
-                    onClick={() => setModalOpen(false)} 
-                    sx={{ 
-                      bgcolor: alpha(theme.palette.error.main, 0.1),
-                      '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
-                    }}
-                  >
+                icon={<LanguageIcon />}
+                label={nriStatus === "nri" ? "Foreigner Pricing" : "Local Pricing"}
+                color="primary" 
+                size="small" 
+                sx={{ ml: 1.5 }} 
+              />
+            )}
+            {isPackage(selectedTicket) && (
+              <Chip 
+                icon={<ListIcon />}
+                label={`${selectedTicket.attractions?.length || 0} Attractions`}
+                color="secondary" 
+                size="small" 
+                sx={{ ml: 1.5 }} 
+              />
+            )}
+          </Box>
+          <IconButton onClick={() => setModalOpen(false)} size="small">
                     <CloseIcon />
                   </IconButton>
-                </Box>
-              </Box>
+        </DialogTitle>
 
+        <DialogContent sx={{ p: 0, display: 'flex', height: '600px' }}>   
+          {selectedTicket && (
+            <>
+              {/* Main Content Area */}
+              <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
               {/* Time Slot Warning */}
               {!formSections[sectionIndex]?.timeSlot && (
                 <Alert 
                   severity="error" 
                   icon={<ErrorOutlineIcon />}
                   sx={{ 
-                    m: 2,
+                      mb: 2,
                     borderRadius: 2,
                     '& .MuiAlert-message': { fontWeight: 600 }
                   }}
@@ -534,172 +723,396 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
               <Fade in={!!validationError}>
                 <Box>
                   {validationError && (
-                    <Alert severity="error" sx={{ m: 2, borderRadius: 2 }}>
+                      <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
                       {validationError}
                     </Alert>
                   )}
                 </Box>
               </Fade>
 
-              {selectedTicket && (
-                <Box sx={{ p: 3 }}>
-                  {/* Ticket Header */}
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 2, 
-                    mb: 3,
+                <Box 
+                  display="flex" 
+                  alignItems="center" 
+                  mb={2.5}
+                  sx={{
+                    backgroundColor: alpha('#3554D1', 0.05),
                     p: 2,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.success.main, 0.05),
-                    border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
-                  }}>
-                    <Avatar sx={{ 
-                      bgcolor: theme.palette.success.main,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'primary.light',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      backgroundColor: 'primary.main',
+                      borderRadius: '50%',
                       width: 48,
-                      height: 48
-                    }}>
-                      <ConfirmationNumberIcon sx={{ fontSize: 24 }} />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h5" fontWeight={700} color="text.primary">
-                        {selectedTicket.ticket_name}
+                      height: 48,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 2
+                    }}
+                  >
+                    <VerifiedIcon sx={{ color: 'white', fontSize: 28 }} />
+                  </Box>
+                  <Box flexGrow={1}>
+                    <Typography variant="h6" color="primary.main">
+                        {capitalizeWords(selectedTicket.ticket_name)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Selected ticket option
+                    {isPackage(selectedTicket) && (
+                      <Typography variant="caption" color="text.secondary">
+                        Package with {selectedTicket.attractions?.length || 0} attractions
                       </Typography>
+                    )}
                     </Box>
                   </Box>
 
-                  {/* Content Sections */}
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={4}>
-                      {renderDescription(stripPTags(selectedTicket.description), "description")}
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                      {renderDescription(stripPTags(selectedTicket.remarks), "remarks")}
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                      {renderDescription(stripPTags(selectedTicket.terms_conditions), "terms")}
-                    </Grid>
-                  </Grid>
-
-                  {/* Price Type Selection */}
-                  <Card sx={{ 
-                    my: 3,
-                    bgcolor: alpha(theme.palette.primary.main, 0.05),
-                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    borderRadius: 2
-                  }}>
-                    <CardContent sx={{ p: 2 }}>
-                      <Typography fontWeight={600} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AttachMoneyIcon color="primary" />
-                        Select Price Type:
-                      </Typography>
+                {/* Price Type Selection Radio Buttons - Only for regular tickets */}
+                {!isPackage(selectedTicket) && (
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      mt: 1,
+                      mb: 2.5, 
+                      p: 2,
+                      bgcolor: alpha('#3554D1', 0.05),
+                      borderRadius: 1
+                    }}
+                  >
+                    <FormControl component="fieldset">
+                      <Box display="flex" alignItems="center">
+                        <CurrencyExchangeIcon sx={{ mr: 1, color: 'primary.main' }} />
+                        <Typography fontWeight={500} mr={3}>Select Price Type:</Typography>
                       <RadioGroup
                         row
+                          name="priceType"
                         value={nriStatus}
-                        onChange={(e) => setNriStatus(e.target.value)}
-                        sx={{ gap: 2 }}
+                          onChange={handleNriStatusChange}
                       >
                         <FormControlLabel 
                           value="residential" 
-                          control={<Radio />} 
+                            control={<Radio color="primary" />} 
                           label={
-                            <Chip 
-                              label="Local Resident" 
-                              color={nriStatus === "residential" ? "primary" : "default"}
-                              variant={nriStatus === "residential" ? "filled" : "outlined"}
-                              sx={{ fontWeight: 600 }}
-                            />
-                          }
+                              <Box display="flex" alignItems="center">
+                                <Box component="span" mr={0.5}>Local</Box>
+                                {nriStatus === 'residential' && (
+                                  <CheckCircleIcon fontSize="small" color="primary" />
+                                )}
+                              </Box>
+                            } 
+                            sx={{
+                              '& .MuiFormControlLabel-label': {
+                                color: nriStatus === 'residential' ? 'primary.main' : 'text.primary',
+                                fontWeight: nriStatus === 'residential' ? 500 : 400
+                              }
+                            }}
                         />
                         <FormControlLabel 
                           value="nri" 
-                          control={<Radio />} 
+                            control={<Radio color="primary" />} 
                           label={
-                            <Chip 
-                              label="Foreigner" 
-                              color={nriStatus === "nri" ? "warning" : "default"}
-                              variant={nriStatus === "nri" ? "filled" : "outlined"}
-                              sx={{ fontWeight: 600 }}
-                            />
-                          }
+                              <Box display="flex" alignItems="center">
+                                <Box component="span" mr={0.5}>Foreigner</Box>
+                                {nriStatus === 'nri' && (
+                                  <CheckCircleIcon fontSize="small" color="primary" />
+                                )}
+                              </Box>
+                            }
+                            sx={{
+                              '& .MuiFormControlLabel-label': {
+                                color: nriStatus === 'nri' ? 'primary.main' : 'text.primary',
+                                fontWeight: nriStatus === 'nri' ? 500 : 400
+                              }
+                            }}
                         />
                       </RadioGroup>
-                    </CardContent>
-                  </Card>
+                      </Box>
+                    </FormControl>
+                  </Paper>
+                )}
 
-                  {/* Enhanced Pricing Display */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" align="center" sx={{ mb: 2, fontWeight: 700 }}>
-                      {nriStatus === "residential" ? "🏠 Local Resident Prices" : "🌍 Foreigner Prices"}
+                {/* Price Cards in Grid */}
+                <Box 
+                  textAlign="center" 
+                  mb={2} 
+                  py={1} 
+                  bgcolor={alpha('#3554D1', 0.05)} 
+                  borderRadius={1}
+                >
+                  <Typography variant="h6" display="flex" alignItems="center" justifyContent="center">
+                    <AttachMoneyIcon sx={{ mr: 1 }} />
+                    {isPackage(selectedTicket) ? 'Package Pricing' : (nriStatus === "residential" ? "Local Prices" : "Foreigner Prices")}
                     </Typography>
+                </Box>
 
                     <Grid container spacing={2}>
-                      {[
-                        { type: "adult", icon: PersonIcon, color: "primary" },
-                        { type: "child", icon: GroupIcon, color: "info" },
-                        { type: "senior", icon: ElderlyIcon, color: "warning" }
-                      ].map(({ type, icon: Icon, color }) => (
-                        <Grid item xs={12} md={4} key={type}>
-                          <Card sx={{ 
-                            border: `2px solid ${alpha(theme.palette[color].main, 0.2)}`,
-                            borderRadius: 2,
-                            bgcolor: alpha(theme.palette[color].main, 0.05),
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              boxShadow: `0 8px 24px ${alpha(theme.palette[color].main, 0.2)}`,
-                              transform: 'translateY(-2px)'
-                            }
-                          }}>
-                            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
-                              <Avatar sx={{ 
-                                bgcolor: theme.palette[color].main,
-                                mx: 'auto',
-                                mb: 1.5,
-                                width: 48,
-                                height: 48
-                              }}>
-                                <Icon sx={{ fontSize: 24 }} />
+                  {['adult', 'child', 'senior'].map(priceType => (
+                    <Grid item xs={12} sm={4} key={`${priceType}-${nriStatus}`}>
+                      <Fade in={true} timeout={500}>
+                        <PriceCard>
+                          <PriceCardHeader type={priceType}>
+                            <Box display="flex" alignItems="center">
+                              {getPriceIcon(priceType)}
+                              <Typography 
+                                variant="subtitle1" 
+                                fontWeight={500}
+                                sx={{ ml: 1 }}
+                              >
+                                {priceType.charAt(0).toUpperCase() + priceType.slice(1)} Price
+                              </Typography>
+                            </Box>
+                            <Avatar 
+                              className="price-icon"
+                              sx={{ 
+                                width: 32, 
+                                height: 32, 
+                                bgcolor: `${getPriceColor(priceType)}.main`,
+                              }}
+                            >
+                              {priceType === 'adult' ? 'A' : priceType === 'child' ? 'C' : 'S'}
                               </Avatar>
-                              <Typography variant="h6" color={`${color}.main`} fontWeight={700} sx={{ mb: 1 }}>
-                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </PriceCardHeader>
+                          
+                          <CardContent>                          
+                            <Typography 
+                              variant="h5" 
+                              component="div" 
+                              fontWeight={600}
+                              color={`${getPriceColor(priceType)}.main`}
+                              textAlign="center"
+                              mb={1.5}
+                            >
+                              {formatPrice(getPrice(selectedTicket, priceType), "main")}
                               </Typography>
-                              <Typography variant="h5" fontWeight={700} color="text.primary" sx={{ mb: 1 }}>
-                                {formatPrice(getPrice(selectedTicket, type), "main")}
-                              </Typography>
+                            
+                            <Divider sx={{ mb: 1.5 }} />
+                            
+                            <Box>
                               {currencyCode !== "USD" && (
-                                <Typography variant="body2" color="text.secondary">
-                                  {formatPrice(getPrice(selectedTicket, type), "usd")}
+                                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {formatPrice(getPrice(selectedTicket, priceType), "usd")}
                                 </Typography>
+                                </Box>
                               )}
+
                               {currencyCode !== "SGD" && (
-                                <Typography variant="body2" color="text.secondary">
-                                  {formatPrice(getPrice(selectedTicket, type), "sgd")}
+                                <Box display="flex" alignItems="center" justifyContent="space-between">
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {formatPrice(getPrice(selectedTicket, priceType), "sgd")}
                                 </Typography>
+                                </Box>
                               )}
+                            </Box>
                             </CardContent>
-                          </Card>
+                        </PriceCard>
+                      </Fade>
+                        </Grid>
+                      ))}
+                    </Grid>
+                
+                {/* Package Info - If selected ticket is a package */}
+                {isPackage(selectedTicket) && selectedTicket.attractions && selectedTicket.attractions.length > 0 && (
+                  <Box mt={4}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        mb: 2, 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        color: 'primary.main' 
+                      }}
+                    >
+                      <ListIcon sx={{ mr: 1 }} />
+                      Included Attractions
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {selectedTicket.attractions.map((attraction, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={`attraction-${attraction.attraction_id}`}>
+                          <Paper 
+                            elevation={0}
+                            sx={{
+                              p: 2,
+                              mb: 2,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 1,
+                              transition: 'all 0.3s ease',
+                              height: '100%',
+                              '&:hover': {
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                transform: 'translateY(-3px)',
+                              }
+                            }}
+                          >
+                            <Box 
+                              sx={{ 
+                                width: '100%', 
+                                height: 140, 
+                                mb: 1.5,
+                                borderRadius: 1,
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}
+                            >
+                              <img 
+                                src={attraction.master_image} 
+                                alt={attraction.name}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover'
+                                }}
+                              />
+                  </Box>
+                            <Typography 
+                              variant="subtitle1" 
+                              fontWeight={600}
+                              sx={{ mb: 0.5 }}
+                            >
+                              {attraction.name}
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                              sx={{ mb: 1 }}
+                            >
+                              {attraction.location}, {attraction.country}
+                            </Typography>
+                          </Paper>
                         </Grid>
                       ))}
                     </Grid>
                   </Box>
-
-                  <Divider sx={{ my: 3 }} />
-
-                  {/* Action Buttons */}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                )}
+                
+                {/* Description sections */}
+                <Grid container spacing={2} mt={1}>
+                  {selectedTicket.description && (
+                    <Grid item xs={12} md={isPackage(selectedTicket) ? 12 : 4}>
+                      {renderDescription(stripPTags(selectedTicket.description), "description")}
+                    </Grid>
+                  )}
+                  {!isPackage(selectedTicket) && selectedTicket.remarks && (
+                    <Grid item xs={12} md={4}>
+                      {renderDescription(stripPTags(selectedTicket.remarks), "remarks")}
+                    </Grid>
+                  )}
+                  {!isPackage(selectedTicket) && selectedTicket.terms_conditions && (
+                    <Grid item xs={12} md={4}>
+                      {renderDescription(stripPTags(selectedTicket.terms_conditions), "terms")}
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+              
+              {/* Right Sidebar */}
+              <ModalSidebar>
+                <SidebarHeader>
+                  <Box display="flex" alignItems="center">
+                    <ListIcon sx={{ mr: 1 }} />
+                    <Typography variant="subtitle1" fontWeight={600}>
+                      Attraction Options
+                    </Typography>
+                  </Box>
+                </SidebarHeader>
+                
+                <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
+                  {allOptions.map((item, index) => (
+                    <Paper
+                      key={item.ticket_id}
+                      elevation={0}
+                      sx={{
+                        p: 1.5,
+                        mb: 1.5,
+                        backgroundColor: selectedTicket?.ticket_id === item.ticket_id 
+                          ? alpha('#3554D1', 0.08) 
+                          : 'background.paper',
+                        border: '1px solid',
+                        borderColor: selectedTicket?.ticket_id === item.ticket_id 
+                          ? 'primary.main' 
+                          : 'divider',
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: alpha('#3554D1', 0.05),
+                          borderColor: alpha('#3554D1', 0.3),
+                        }
+                      }}
+                      onClick={() => setSelectedTicket(item)}
+                    >
+                      <Box display="flex" alignItems="center">
+                        {isPackage(item) && (
+                          <Chip 
+                            size="small" 
+                            label="Package" 
+                            color="secondary" 
+                            sx={{ mr: 1, height: '18px', fontSize: '10px' }} 
+                          />
+                        )}
+                        <Typography 
+                          variant="body2" 
+                          fontWeight={selectedTicket?.ticket_id === item.ticket_id ? 600 : 400}
+                          color={selectedTicket?.ticket_id === item.ticket_id ? 'primary' : 'textPrimary'}
+                        >
+                          {capitalizeWords(item.ticket_name)}
+                        </Typography>
+                      </Box>
+                      
+                      <Box display="flex" flexDirection="column" mt={1}>
+                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                          <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'primary.main', fontSize: 14 }} />
+                          Adult: {formatPrice(getPrice(item, "adult"), "main")}
+                        </Typography>
+                        
+                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                          <ChildCareIcon fontSize="small" sx={{ mr: 0.5, color: 'success.main', fontSize: 14 }} />
+                          Child: {formatPrice(getPrice(item, "child"), "main")}
+                        </Typography>
+                        
+                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center' }}>
+                          <AccessibilityNewIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main', fontSize: 14 }} />
+                          Senior: {formatPrice(getPrice(item, "senior"), "main")}
+                        </Typography>
+                      </Box>
+                      
+                      {isPackage(item) && item.attractions && (
+                        <Box mt={1}>
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary"
+                            sx={{ display: 'flex', alignItems: 'center' }}
+                          >
+                            <ListIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
+                            {item.attractions.length} attraction{item.attractions.length !== 1 ? 's' : ''}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {selectedTicket?.ticket_id === item.ticket_id && (
+                        <Chip 
+                          label="Selected" 
+                          color="primary" 
+                          size="small" 
+                          icon={<CheckCircleIcon />} 
+                          sx={{ mt: 1, fontSize: 11 }}
+                        />
+                      )}
+                    </Paper>
+                  ))}
+                </Box>
+              </ModalSidebar>
+            </>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button 
                       variant="outlined" 
-                      size="large"
+            color="primary" 
                       onClick={() => setModalOpen(false)}
-                      sx={{ 
-                        minWidth: 120,
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        fontWeight: 600
-                      }}
+            startIcon={<CancelIcon />}
                     >
                       Cancel
                     </Button>
@@ -710,122 +1123,48 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                       <span>
                         <Button 
                           variant="contained" 
-                          color="success" 
-                          size="large"
+                color="primary" 
                           onClick={handleConfirmSelection}
                           disabled={!formSections[sectionIndex]?.timeSlot}
                           startIcon={<CheckCircleIcon />}
-                          sx={{ 
-                            minWidth: 140,
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.3)}`,
-                            '&:hover': {
-                              boxShadow: `0 6px 16px ${alpha(theme.palette.success.main, 0.4)}`,
-                            }
-                          }}
-                        >
-                          Book Now
+              >
+                Confirm Selection
                         </Button>
                       </span>
                     </Tooltip>
-                  </Box>
-                  
-                  {/* Reminder */}
-                  <Box sx={{ 
-                    mt: 2, 
-                    p: 2,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.warning.main, 0.1),
-                    border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`
-                  }}>
-                    <Typography 
-                      variant="body2" 
-                      color="warning.dark" 
-                      sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        fontWeight: 600,
-                        gap: 1
-                      }}
-                    >
-                      <Box component="span" sx={{ fontSize: '1.2rem' }}>⚠️</Box>
-                      Remember: A time slot must be selected to complete the booking.
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Fade>
-      </Modal>
+        </DialogActions>
+      </Dialog>
 
       {/* Text Content Modal */}
-      <Modal
+      <Dialog
         open={textModalContent.isOpen}
         onClose={() => setTextModalContent({...textModalContent, isOpen: false})}
-        closeAfterTransition
+        maxWidth="md"
+        fullWidth
+        TransitionComponent={Zoom}
       >
-        <Fade in={textModalContent.isOpen}>
-          <Card sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90%',
-            maxWidth: 700,
-            borderRadius: 3,
-            maxHeight: '80vh',
-            overflow: 'auto',
-            boxShadow: `0 24px 48px ${alpha(theme.palette.common.black, 0.2)}`,
-            zIndex: 100000,
-          }}>
-            <CardContent sx={{ p: 0 }}>
-              <Box sx={{ 
-                p: 3,
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center' 
-              }}>
-                <Typography variant="h6" fontWeight={700} color="primary.main">
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <ArticleIcon color="primary" sx={{ mr: 1.5 }} />
+            <Typography variant="h6" component="span">
                   {textModalContent.title}
                 </Typography>
-                <IconButton 
-                  onClick={() => setTextModalContent({...textModalContent, isOpen: false})}
-                  sx={{ 
-                    bgcolor: alpha(theme.palette.error.main, 0.1),
-                    '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
               </Box>
-              <Box sx={{ p: 3 }}>
-                <Typography variant="body1" sx={{ lineHeight: 1.7, mb: 3 }}>
-                  {textModalContent.content}
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">{textModalContent.content}</Typography>
+        </DialogContent>
+        <DialogActions>
                   <Button 
                     variant="contained"
+            color="primary" 
                     onClick={() => setTextModalContent({...textModalContent, isOpen: false})}
-                    sx={{ 
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 600
-                    }}
+            startIcon={<CheckCircleIcon />}
                   >
                     Close
                   </Button>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Fade>
-      </Modal>
+        </DialogActions>
+      </Dialog>
       
       {/* Success Alert */}
       <Zoom in={bookingSuccess}>
