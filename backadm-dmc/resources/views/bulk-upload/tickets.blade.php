@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'Attraction Bulk Upload')
+@section('title', 'Ticket Bulk Upload')
 
 @section('content')
 <div class="content-wrapper">
@@ -7,14 +7,14 @@
         <!-- Header Section -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h4 class="mb-1">Attraction Bulk Upload</h4>
-                <p class="text-muted mb-0">Upload multiple attractions at once using Excel/CSV file</p>
+                <h4 class="mb-1">Ticket Bulk Upload</h4>
+                <p class="text-muted mb-0">Upload multiple tickets for your attractions using Excel/CSV file</p>
             </div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="#">Bulk Upload</a></li>
-                    <li class="breadcrumb-item active">Attractions</li>
+                    <li class="breadcrumb-item active">Tickets</li>
                 </ol>
             </nav>
         </div>
@@ -31,20 +31,20 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <h6>Step 1: Download Template</h6>
-                            <p class="text-muted small mb-2">Download our Excel template with sample data and required columns.</p>
-                            <a href="{{ route('bulk-upload.attractions.template') }}" class="btn btn-outline-primary btn-sm">
+                            <p class="text-muted small mb-2">Download our CSV template with your attractions and their existing tickets.</p>
+                            <a href="{{ route('bulk-upload.tickets.template') }}" class="btn btn-outline-primary btn-sm">
                                 <i class="ri-download-line me-1"></i>Download Template
                             </a>
                         </div>
                         
                         <div class="mb-3">
-                            <h6>Step 2: Fill Data</h6>
-                            <p class="text-muted small">Fill in your attraction data according to the template format. Required fields are marked with *</p>
+                            <h6>Step 2: Fill Ticket Data</h6>
+                            <p class="text-muted small">Add new tickets for your attractions. Each row represents one ticket for an attraction. Required fields are marked with *</p>
                         </div>
                         
                         <div class="mb-3">
                             <h6>Step 3: Upload File</h6>
-                            <p class="text-muted small">Upload your completed Excel file using the upload area.</p>
+                            <p class="text-muted small">Upload your completed CSV file using the upload area.</p>
                         </div>
 
                         <div class="alert alert-info">
@@ -53,10 +53,18 @@
                                 <strong>Tips:</strong>
                                 <ul class="mb-0 mt-1">
                                     <li>Maximum file size: 10MB</li>
-                                    <li>Supported formats: .xlsx, .xls, .csv</li>
-                                    <li>Use 24-hour format for timing (e.g., 09:00-18:00)</li>
-                                    <li>Entry fees should be numeric values</li>
+                                    <li>Supported format: .csv only</li>
+                                    <li>Multiple tickets per attraction allowed</li>
+                                    <li>Price fields should be numeric values</li>
+                                    <li>Only DMC users can upload tickets</li>
                                 </ul>
+                            </small>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <small>
+                                <i class="ri-alert-line me-1"></i>
+                                <strong>Note:</strong> You can only create tickets for attractions that belong to your account.
                             </small>
                         </div>
                     </div>
@@ -68,7 +76,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
-                            <i class="ri-map-pin-2-line me-2"></i>Upload Attractions
+                            <i class="ri-ticket-2-line me-2"></i>Upload Tickets
                         </h5>
                     </div>
                     <div class="card-body">
@@ -100,7 +108,7 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('bulk-upload.attractions.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <form action="{{ route('bulk-upload.tickets.upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
                             @csrf
                             <div class="mb-4">
                                 <label class="form-label">Select CSV File</label>
@@ -109,15 +117,15 @@
                                         <i class="ri-upload-cloud-2-line display-4 text-muted mb-3"></i>
                                         <h5>Drag & drop your file here</h5>
                                         <p class="text-muted">or <a href="#" class="text-primary" id="browseBtn">browse files</a></p>
-                                        <input type="file" name="file" id="fileInput" class="d-none" accept=".xlsx,.xls,.csv" required>
-                                        <small class="text-muted">Supported formats: .csv (Max: 10MB)</small>
+                                        <input type="file" name="file" id="fileInput" class="d-none" accept=".csv" required>
+                                        <small class="text-muted">Supported format: .csv (Max: 10MB)</small>
                                     </div>
                                 </div>
                                 
                                 <div id="fileInfo" class="mt-3 d-none">
                                     <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
                                         <div class="d-flex align-items-center">
-                                            <i class="ri-file-excel-2-line text-success me-2"></i>
+                                            <i class="ri-file-text-line text-success me-2"></i>
                                             <div>
                                                 <div class="fw-medium" id="fileName"></div>
                                                 <small class="text-muted" id="fileSize"></small>
@@ -134,11 +142,11 @@
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="skipDuplicates">
                                     <label class="form-check-label" for="skipDuplicates">
-                                        Skip duplicate entries
+                                        Skip duplicate ticket names
                                     </label>
                                 </div>
                                 <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
-                                    <i class="ri-upload-line me-1"></i>Upload Attractions
+                                    <i class="ri-upload-line me-1"></i>Upload Tickets
                                 </button>
                             </div>
                         </form>
@@ -322,14 +330,19 @@
     cursor: pointer;
 }
 
-.dropzone-area:hover {
-    border-color: #6366f1 !important;
-    background-color: rgba(99, 102, 241, 0.02);
+.dropzone-area:hover,
+.dropzone-area.dragover {
+    border-color: #696cff !important;
+    background-color: #f8f9ff;
 }
 
 .dropzone-area.dragover {
-    border-color: #6366f1 !important;
-    background-color: rgba(99, 102, 241, 0.05);
+    transform: scale(1.02);
+}
+
+.btn-disabled {
+    pointer-events: none;
+    opacity: 0.6;
 }
 
 /* Modern Upload History Styles */

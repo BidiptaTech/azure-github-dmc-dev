@@ -16,8 +16,10 @@ use App\Models\Restaurant;
 use App\Models\Meal;
 use App\Models\Vehicle;
 use App\Models\Attraction;
+use App\Models\Ticket;
 use App\Models\Country;
 use App\Models\City;
+use App\Models\UploadHistory;
 use Carbon\Carbon;
 
 // PhpSpreadsheet classes are referenced via fully-qualified names within methods to avoid IDE autoload issues.
@@ -96,20 +98,15 @@ class BulkUploadController extends Controller
     {
         $auth_user = Auth::user();
         
-        // Define role groups for restaurant bulk upload access
-        $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-        $dmcRestaurantRoles = [78, 120]; // Product Manager Restaurant (DMC), Assistant PM Restaurant (DMC)
-        $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-        $travclicksRestaurantRoles = [48, 118]; // Product Manager Restaurant (Travclicks), Assistant PM Restaurant (Travclicks)
-        
-        // Check if user has access to restaurant bulk upload
-        $hasAccess = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcRestaurantRoles, $travclicksFullAccessRoles, $travclicksRestaurantRoles));
-        
-        if (!$hasAccess) {
-            abort(403, 'You do not have permission to access restaurant bulk upload.');
+        // Only Virtual DMC (role_id = 20) can access restaurant bulk upload
+        if ($auth_user->role_id != 20) {
+            abort(403, 'Only Virtual DMC users can access restaurant bulk upload.');
         }
         
-        return view('bulk-upload.restaurants');
+        // Get upload history (simple approach to avoid UploadHistory model issues)
+        $uploadHistory = collect();
+        
+        return view('bulk-upload.restaurants', compact('uploadHistory'));
     }
 
     public function vehicles()
@@ -134,7 +131,25 @@ class BulkUploadController extends Controller
             abort(403, 'You do not have permission to access attraction bulk upload.');
         }
         
-        return view('bulk-upload.attractions');
+        // Get upload history
+        $uploadHistory = $this->getUploadHistory('attractions');
+        
+        return view('bulk-upload.attractions', compact('uploadHistory'));
+    }
+
+    public function tickets()
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role - role_id is stored as string "11"
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
+        }
+        
+        // Get upload history
+        $uploadHistory = $this->getUploadHistory('tickets');
+        
+        return view('bulk-upload.tickets', compact('uploadHistory'));
     }
 
     // Hotel Template Download (CSV format)
@@ -1279,69 +1294,45 @@ class BulkUploadController extends Controller
     {
         $auth_user = Auth::user();
 
-        // Define role groups
-        $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-        $dmcRestaurantRoles = [78, 120]; // Product Manager Restaurant (DMC), Assistant PM Restaurant (DMC)
-        $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-        $travclicksRestaurantRoles = [48, 118]; // Product Manager Restaurant (Travclicks), Assistant PM Restaurant (Travclicks)
-
-        // Check if user is DMC or Travclicks
-        $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcRestaurantRoles));
-        $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksRestaurantRoles));
-
-        if ($isDmcUser || ($auth_user->role_id == 20)) { // DMC users or Virtual DMC
-            return $this->downloadDmcRestaurantTemplate($auth_user);
-        } elseif ($isTravclicksUser) { // Travclicks users
-            return $this->downloadTravclicksRestaurantTemplate($auth_user);
-        } else {
-            abort(403, 'You do not have permission to download restaurant templates.');
+        // Only Virtual DMC (role_id = 20) can download restaurant templates
+        if ($auth_user->role_id != 20) {
+            abort(403, 'Only Virtual DMC users can download restaurant templates.');
         }
+
+        return $this->downloadVirtualDmcRestaurantTemplate($auth_user);
     }
 
-    private function downloadDmcRestaurantTemplate($auth_user)
+    private function downloadVirtualDmcRestaurantTemplate($auth_user)
     {
         $headers = [
-            // Restaurant Basic Info
+            // Restaurant Basic Info matching actual table structure
             'Restaurant Name*',
+            'Cuisine*',
             'Country*',
-            'City*', 
+            'City*',
             'Latitude*',
             'Longitude*',
-            'Cuisine*',
-            'Ownership*',
-            'Property*',
-            'Breakfast Availability',
-            'Lunch Availability',
-            'Dinner Availability',
+            'Breakfast Available (1=Yes, 0=No)',
             'Breakfast Open Time',
             'Breakfast Close Time',
+            'Lunch Available (1=Yes, 0=No)',
             'Lunch Open Time', 
             'Lunch Close Time',
+            'Dinner Available (1=Yes, 0=No)',
             'Dinner Open Time',
             'Dinner Close Time',
+            'Owned By (0=Third Party, 1=Hotel Owned)',
             'Master Image',
-            'Additional Image',
+            'Additional Images (comma-separated)',
             'Description',
             'Terms and Condition',
-            'Restaurant Status (1=Active, 0=Inactive)',
-            
-            // Meal Info Headers
-            'Meal Type*',
-            'Beverage*',
-            'Meals*',
-            // 'Item Name',
-            'Item Price', 
-            'Item Type',
-            'Adult Price',
-            'Child Price',
-            'Item Description*',
-            'Meal Status (1=Active, 0=Inactive)'
+            'Restaurant Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$headers];
 
-        // Get restaurants based on user role
-        $restaurants = Restaurant::where('dmc_id', $auth_user->userId)
+        // Get restaurants created by Virtual DMC
+        $restaurants = Restaurant::where('created_by', $auth_user->userId)
                                 ->where('status', 1)
                                 ->get();
 
@@ -1355,11 +1346,11 @@ class BulkUploadController extends Controller
                         $row = [
                             // Restaurant info only on first meal row
                             $mealIndex === 0 ? ($restaurant->name ?? '') : '',
+                            $mealIndex === 0 ? ($restaurant->cuisine ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->country ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->city ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->latitude ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->longitude ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->cuisine ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->owned_by ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->property ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->breakfast_available ? '1' : '0') : '',
@@ -1431,11 +1422,11 @@ class BulkUploadController extends Controller
                     // Restaurant without meals - add restaurant row with sample meal
                     $row = [
                         $restaurant->name ?? '',
+                        $restaurant->cuisine ?? '',
                         $restaurant->country ?? '',
                         $restaurant->city ?? '',
                         $restaurant->latitude ?? '',
                         $restaurant->longitude ?? '',
-                        $restaurant->cuisine ?? '',
                         $restaurant->owned_by ?? '',
                         $restaurant->property ?? '',
                         $restaurant->breakfast_available ? '1' : '0',
@@ -1452,77 +1443,59 @@ class BulkUploadController extends Controller
                         $restaurant->description ?? '',
                         $restaurant->terms_conditions ?? '',
                         $restaurant->is_active ? '1' : '0',
-                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
                     ];
                     $data[] = $row;
                 }
             }
         } else {
-            // No existing restaurants, add sample data for DMC format
+            // No existing restaurants, add sample data for Virtual DMC format
             $sampleData1 = [
                 'Sample Restaurant',
+                'Italian',
                 'United States',
                 'New York',
                 '40.7128',
                 '-74.0060',
-                'Italian',
-                'Independent',
-                'Fine Dining',
-                '1',
-                '1', 
                 '1',
                 '07:00',
                 '11:00',
+                '1', 
                 '12:00',
                 '15:00',
+                '1',
                 '18:00',
                 '23:00',
+                '0',
                 'restaurant_main.jpg',
                 'rest1.jpg,rest2.jpg',
                 'Authentic Italian restaurant with fresh ingredients',
                 'No outside food allowed. Dress code applies.',
-                'Breakfast',
-                'Non Alcoholic',
-                'Buffet',
-                '',
-                '',
-                'Vegetarian',
-                '25.00',
-                '12.50',
-                'Continental breakfast with fresh fruits and pastries'
+                '1'
             ];
 
             $sampleData2 = [
+                'Cafe Delight',
+                'French',
+                'France',
+                'Paris',
+                '48.8566',
+                '2.3522',
+                '1',
+                '06:30',
+                '10:30',
+                '0', 
                 '',
                 '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'Lunch',
-                'Alcoholic',
-                'Set Menu',
-                'Pasta Carbonara',
-                '18.50',
-                'Non Vegetarian',
-                '',
-                '',
-                'Authentic Italian pasta with pancetta and parmesan'
+                '1',
+                '17:00',
+                '22:00',
+                '1',
+                'cafe_main.jpg',
+                'cafe1.jpg,cafe2.jpg,cafe3.jpg',
+                'Modern French cafe with delicious pastries',
+                'Reservation required for dinner. No cancellation within 2 hours.',
+                '1'
             ];
 
             $data[] = $sampleData1;
@@ -1530,7 +1503,7 @@ class BulkUploadController extends Controller
         }
 
         $content = $this->generateCsvContent($data);
-        $filename = 'dmc_restaurant_bulk_upload_template.csv';
+        $filename = 'virtual_dmc_restaurant_bulk_upload_template.csv';
 
         return Response::make($content, 200, [
             'Content-Type' => 'text/csv',
@@ -1830,25 +1803,12 @@ class BulkUploadController extends Controller
             
             $auth_user = Auth::user();
             
-            // Define role groups for access control
-            $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-            $dmcRestaurantRoles = [78, 120]; // Product Manager Restaurant (DMC), Assistant PM Restaurant (DMC)
-            $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-            $travclicksRestaurantRoles = [48, 118]; // Product Manager Restaurant (Travclicks), Assistant PM Restaurant (Travclicks)
-            
-            // Check if user has access and determine format
-            $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcRestaurantRoles));
-            $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksRestaurantRoles));
-            
-            if (!$isDmcUser && !$isTravclicksUser) {
-                return redirect()->back()->with('error', 'You do not have permission to upload restaurants.');
+            // Only Virtual DMC (role_id = 20) can upload restaurants
+            if ($auth_user->role_id != 20) {
+                return redirect()->back()->with('error', 'Only Virtual DMC users can upload restaurants.');
             }
 
-            if ($isDmcUser || ($auth_user->role_id == 20)) { // DMC users or Virtual DMC
-                return $this->uploadDmcRestaurants($csvData, $auth_user);
-            } else { // Travclicks users
-                return $this->uploadTravclicksRestaurants($csvData, $auth_user);
-            }
+            return $this->uploadVirtualDmcRestaurants($csvData, $auth_user);
                 
         } catch (\Exception $e) {
             DB::rollback();
@@ -1857,15 +1817,13 @@ class BulkUploadController extends Controller
         }
     }
 
-    private function uploadDmcRestaurants($csvData, $auth_user)
+    private function uploadVirtualDmcRestaurants($csvData, $auth_user)
     {
         $successCount = 0;
         $errorCount = 0;
         $errors = [];
         
         DB::beginTransaction();
-        
-        $currentRestaurant = null;
         
         foreach ($csvData as $rowIndex => $row) {
             $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
@@ -1876,115 +1834,105 @@ class BulkUploadController extends Controller
                     continue;
                 }
                 
-                // Map CSV columns to variables
+                // Map CSV columns to match template structure 
                 $restaurantName = trim($row[0] ?? '');
-                $country = trim($row[1] ?? '');
-                $city = trim($row[2] ?? '');
-                $latitude = trim($row[3] ?? '');
-                $longitude = trim($row[4] ?? '');
-                $cuisine = trim($row[5] ?? '');
-                $ownership = trim($row[6] ?? '');
-                $property = trim($row[7] ?? '');
-                $breakfastAvailability = trim($row[8] ?? '0');
+                $cuisine = trim($row[1] ?? '');
+                $country = trim($row[2] ?? '');
+                $city = trim($row[3] ?? '');
+                $latitude = trim($row[4] ?? '');
+                $longitude = trim($row[5] ?? '');
+                $breakfastAvailability = trim($row[6] ?? '0');
+                $breakfastOpenTime = trim($row[7] ?? '');
+                $breakfastCloseTime = trim($row[8] ?? '');
                 $lunchAvailability = trim($row[9] ?? '0');
-                $dinnerAvailability = trim($row[10] ?? '0');
-                $breakfastOpenTime = trim($row[11] ?? '');
-                $breakfastCloseTime = trim($row[12] ?? '');
-                $lunchOpenTime = trim($row[13] ?? '');
-                $lunchCloseTime = trim($row[14] ?? '');
-                $dinnerOpenTime = trim($row[15] ?? '');
-                $dinnerCloseTime = trim($row[16] ?? '');
-                $masterImage = trim($row[17] ?? '');
-                $additionalImage = trim($row[18] ?? '');
-                $description = trim($row[19] ?? '');
-                $termsCondition = trim($row[20] ?? '');
+                $lunchOpenTime = trim($row[10] ?? '');
+                $lunchCloseTime = trim($row[11] ?? '');
+                $dinnerAvailability = trim($row[12] ?? '0');
+                $dinnerOpenTime = trim($row[13] ?? '');
+                $dinnerCloseTime = trim($row[14] ?? '');
+                $ownedBy = trim($row[15] ?? '0'); // 0 = Third party, 1 = Hotel owned
+                $masterImage = trim($row[16] ?? '');
+                $additionalImages = trim($row[17] ?? '');
+                $description = trim($row[18] ?? '');
+                $termsConditions = trim($row[19] ?? '');
+                $status = trim($row[20] ?? '1');
                 
-                // Meal data starts from column 21
-                $mealType = trim($row[21] ?? '');
-                $beverage = trim($row[22] ?? '');
-                $mealsType = trim($row[23] ?? '');
-                $itemName = trim($row[24] ?? '');
-                $itemPrice = trim($row[25] ?? '');
-                $itemType = trim($row[26] ?? '');
-                $adultPrice = trim($row[27] ?? '');
-                $childPrice = trim($row[28] ?? '');
-                $itemDescription = trim($row[29] ?? '');
-                
-                // Validate required meal fields
-                if (empty($mealType) || empty($beverage) || empty($mealsType) || empty($itemDescription)) {
-                    $errors[] = "Row {$rowNumber}: Missing required meal fields (Meal Type, Beverage, Meals, or Item Description)";
+                // Validate required restaurant fields
+                if (empty($restaurantName) || empty($cuisine) || empty($country) || empty($city)) {
+                    $errors[] = "Row {$rowNumber}: Missing required restaurant fields (Restaurant Name, Cuisine, Country, or City)";
                     $errorCount++;
                     continue;
                 }
                 
-                // Process restaurant (only if restaurant name is provided)
-                if (!empty($restaurantName)) {
-                    // Validate required restaurant fields
-                    if (empty($country) || empty($city) || empty($cuisine)) {
-                        $errors[] = "Row {$rowNumber}: Missing required restaurant fields (Country, City, or Cuisine)";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Create new restaurant
-                    $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-                    $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
-                    while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-                        $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
-                    }
-                    
-                    $restaurant = new Restaurant();
-                    $restaurant->restaurant_id = $restaurantId;
-                    $restaurant->name = $restaurantName;
+                // Create new restaurant with location and additional data
+                $restaurant = new Restaurant();
+                $restaurant->name = $restaurantName;
+                $restaurant->cuisine = $cuisine;
+                $restaurant->breakfast_available = ($breakfastAvailability == '1') ? 1 : 0;
+                $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
+                $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
+                $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
+                
+                // Set country and city if columns exist
+                if (\Schema::hasColumn('restaurants', 'country')) {
                     $restaurant->country = $country;
+                }
+                if (\Schema::hasColumn('restaurants', 'city')) {
                     $restaurant->city = $city;
+                }
+                if (\Schema::hasColumn('restaurants', 'latitude')) {
                     $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
+                }
+                if (\Schema::hasColumn('restaurants', 'longitude')) {
                     $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
-                    $restaurant->cuisine = $cuisine;
-                    $restaurant->ownership = $ownership;
-                    $restaurant->property = $property;
-                    $restaurant->breakfast_availability = ($breakfastAvailability == '1') ? 1 : 0;
-                    $restaurant->lunch_availability = ($lunchAvailability == '1') ? 1 : 0;
-                    $restaurant->dinner_availability = ($dinnerAvailability == '1') ? 1 : 0;
-                    
-                    // Set time fields based on availability
-                    if ($restaurant->breakfast_availability && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
-                        $restaurant->breakfast_open_time = $breakfastOpenTime;
-                        $restaurant->breakfast_close_time = $breakfastCloseTime;
-                    }
-                    if ($restaurant->lunch_availability && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
-                        $restaurant->lunch_open_time = $lunchOpenTime;
-                        $restaurant->lunch_close_time = $lunchCloseTime;
-                    }
-                    if ($restaurant->dinner_availability && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
-                        $restaurant->dinner_open_time = $dinnerOpenTime;
-                        $restaurant->dinner_close_time = $dinnerCloseTime;
-                    }
-                    
-                    $restaurant->master_image = $masterImage;
-                    $restaurant->additional_image = $additionalImage;
+                }
+                if (\Schema::hasColumn('restaurants', 'description')) {
                     $restaurant->description = $description;
-                    $restaurant->terms_condition = $termsCondition;
-                    $restaurant->is_active = 1;
-                    $restaurant->status = 1; // Default approved status
-                    $restaurant->dmc_id = $auth_user->userId; // DMC users assign to their own DMC
+                }
+                if (\Schema::hasColumn('restaurants', 'terms_conditions')) {
+                    $restaurant->terms_conditions = $termsConditions;
+                }
+                if (\Schema::hasColumn('restaurants', 'hotel_id')) {
+                    $restaurant->hotel_id = 1; // Default hotel ID
+                }
+                if (\Schema::hasColumn('restaurants', 'status')) {
+                    $restaurant->status = ($status == '1') ? 1 : 0;
+                }
+                if (\Schema::hasColumn('restaurants', 'is_active')) {
+                    $restaurant->is_active = ($status == '1') ? 1 : 0;
+                }
+                if (\Schema::hasColumn('restaurants', 'dmc_id')) {
+                    $restaurant->dmc_id = $auth_user->userId;
+                }
+                if (\Schema::hasColumn('restaurants', 'created_by')) {
                     $restaurant->created_by = $auth_user->userId;
-                    
-                    $restaurant->save();
-                    $currentRestaurant = $restaurant;
                 }
                 
-                // Ensure we have a current restaurant to add meals to
-                if (!$currentRestaurant) {
-                    $errors[] = "Row {$rowNumber}: No restaurant context for meal. Ensure restaurant details are provided first.";
-                    $errorCount++;
-                    continue;
+                // Set time fields based on availability
+                if ($restaurant->breakfast_available && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
+                    $restaurant->opening_time_bf = $breakfastOpenTime;
+                    $restaurant->closing_time_bf = $breakfastCloseTime;
+                }
+                if ($restaurant->lunch_available && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
+                    $restaurant->opening_time_lunch = $lunchOpenTime;
+                    $restaurant->closing_time_lunch = $lunchCloseTime;
+                }
+                if ($restaurant->dinner_available && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
+                    $restaurant->opening_time_dinner = $dinnerOpenTime;
+                    $restaurant->closing_time_dinner = $dinnerCloseTime;
                 }
                 
-                // Create meal
-                $this->createMeal($currentRestaurant, $mealType, $beverage, $mealsType, $itemName, $itemPrice, $itemType, $adultPrice, $childPrice, $itemDescription, '1', $auth_user->userId);
+                // Set image fields if they exist in the table
+                if (!empty($masterImage)) {
+                    $restaurant->master_image = $masterImage;
+                }
+                if (!empty($additionalImages)) {
+                    // Convert comma-separated images to JSON array
+                    $imagesArray = array_map('trim', explode(',', $additionalImages));
+                    $restaurant->images = json_encode($imagesArray);
+                }
                 
+                $restaurant->save();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -1996,169 +1944,12 @@ class BulkUploadController extends Controller
         
         DB::commit();
         
-        $message = "Upload completed. {$successCount} meals processed successfully.";
+        $message = "Upload completed. {$successCount} restaurants processed successfully.";
         if ($errorCount > 0) {
             $message .= " {$errorCount} errors occurred.";
         }
         
         return redirect()->back()
-            ->with('success', $message)
-            ->with('errors', $errors);
-    }
-
-    private function uploadTravclicksRestaurants($csvData, $auth_user)
-    {
-        $successCount = 0;
-        $errorCount = 0;
-        $errors = [];
-        
-        DB::beginTransaction();
-        
-        $currentRestaurant = null;
-        
-        foreach ($csvData as $rowIndex => $row) {
-            $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
-            
-            try {
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-                
-                // Map CSV columns to variables - same as DMC format for Travclicks
-                $restaurantName = trim($row[0] ?? '');
-                $country = trim($row[1] ?? '');
-                $city = trim($row[2] ?? '');
-                $latitude = trim($row[3] ?? '');
-                $longitude = trim($row[4] ?? '');
-                $cuisine = trim($row[5] ?? '');
-                $ownership = trim($row[6] ?? '');
-                $property = trim($row[7] ?? '');
-                $breakfastAvailability = trim($row[8] ?? '0');
-                $lunchAvailability = trim($row[9] ?? '0');
-                $dinnerAvailability = trim($row[10] ?? '0');
-                $breakfastOpenTime = trim($row[11] ?? '');
-                $breakfastCloseTime = trim($row[12] ?? '');
-                $lunchOpenTime = trim($row[13] ?? '');
-                $lunchCloseTime = trim($row[14] ?? '');
-                $dinnerOpenTime = trim($row[15] ?? '');
-                $dinnerCloseTime = trim($row[16] ?? '');
-                $masterImage = trim($row[17] ?? '');
-                $additionalImage = trim($row[18] ?? '');
-                $description = trim($row[19] ?? '');
-                $termsCondition = trim($row[20] ?? '');
-                
-                // Meal data starts from column 21
-                $mealType = trim($row[21] ?? '');
-                $beverage = trim($row[22] ?? '');
-                $mealsType = trim($row[23] ?? '');
-                $itemName = trim($row[24] ?? '');
-                $itemPrice = trim($row[25] ?? '');
-                $itemType = trim($row[26] ?? '');
-                $adultPrice = trim($row[27] ?? '');
-                $childPrice = trim($row[28] ?? '');
-                $itemDescription = trim($row[29] ?? '');
-                
-                // Validate required meal fields
-                if (empty($mealType) || empty($beverage) || empty($mealsType) || empty($itemDescription)) {
-                    $errors[] = "Row {$rowNumber}: Missing required meal fields (Meal Type, Beverage, Meals, or Item Description)";
-                    $errorCount++;
-                    continue;
-                }
-                
-                // Process restaurant (only if restaurant name is provided)
-                if (!empty($restaurantName)) {
-                    // Validate required restaurant fields
-                    if (empty($country) || empty($city) || empty($cuisine)) {
-                        $errors[] = "Row {$rowNumber}: Missing required restaurant fields (Country, City, or Cuisine)";
-                    $errorCount++;
-                    continue;
-                }
-                
-                // Create new restaurant
-                $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-                $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-                $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
-                while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-                    $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
-                }
-                
-                $restaurant = new Restaurant();
-                $restaurant->restaurant_id = $restaurantId;
-                $restaurant->name = $restaurantName;
-                    $restaurant->country = $country;
-                    $restaurant->city = $city;
-                    $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
-                    $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
-                    $restaurant->cuisine = $cuisine;
-                    $restaurant->ownership = $ownership;
-                    $restaurant->property = $property;
-                    $restaurant->breakfast_availability = ($breakfastAvailability == '1') ? 1 : 0;
-                    $restaurant->lunch_availability = ($lunchAvailability == '1') ? 1 : 0;
-                    $restaurant->dinner_availability = ($dinnerAvailability == '1') ? 1 : 0;
-                    
-                    // Set time fields based on availability
-                    if ($restaurant->breakfast_availability && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
-                        $restaurant->breakfast_open_time = $breakfastOpenTime;
-                        $restaurant->breakfast_close_time = $breakfastCloseTime;
-                    }
-                    if ($restaurant->lunch_availability && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
-                        $restaurant->lunch_open_time = $lunchOpenTime;
-                        $restaurant->lunch_close_time = $lunchCloseTime;
-                    }
-                    if ($restaurant->dinner_availability && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
-                        $restaurant->dinner_open_time = $dinnerOpenTime;
-                        $restaurant->dinner_close_time = $dinnerCloseTime;
-                    }
-                    
-                    $restaurant->master_image = $masterImage;
-                    $restaurant->additional_image = $additionalImage;
-                    $restaurant->description = $description;
-                    $restaurant->terms_condition = $termsCondition;
-                    $restaurant->is_active = 1;
-                $restaurant->status = 1; // Default approved status
-                
-                // Set dmc_id based on user role
-                if ($auth_user->role_id == 20) {
-                    // Virtual DMC - assign to their own DMC
-                    $restaurant->dmc_id = $auth_user->userId;
-                } else {
-                    // Other Travclicks users - assign to their userId
-                    $restaurant->dmc_id = $auth_user->userId;
-                }
-                
-                $restaurant->created_by = $auth_user->userId;
-                $restaurant->save();
-                    $currentRestaurant = $restaurant;
-                }
-                
-                // Ensure we have a current restaurant to add meals to
-                if (!$currentRestaurant) {
-                    $errors[] = "Row {$rowNumber}: No restaurant context for meal. Ensure restaurant details are provided first.";
-                    $errorCount++;
-                    continue;
-                }
-                
-                // Create meal
-                $this->createMeal($currentRestaurant, $mealType, $beverage, $mealsType, $itemName, $itemPrice, $itemType, $adultPrice, $childPrice, $itemDescription, '1', $auth_user->userId);
-                
-                $successCount++;
-                
-            } catch (\Exception $e) {
-                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
-                $errorCount++;
-                Log::error("Restaurant bulk upload error on row {$rowNumber}: " . $e->getMessage());
-            }
-        }
-        
-        DB::commit();
-        
-        $message = "Upload completed. {$successCount} meals processed successfully.";
-        if ($errorCount > 0) {
-            $message .= " {$errorCount} errors occurred.";
-        }
-        
-                return redirect()->back()
             ->with('success', $message)
             ->with('errors', $errors);
     }
@@ -2211,27 +2002,28 @@ class BulkUploadController extends Controller
         $meal = new Meal();
         $meal->meal_id = $mealId;
         $meal->restaurant_id = $restaurant->restaurant_id;
-        $meal->item_name = $itemName ?: 'Menu Item';
+        $meal->name = $itemName ?: 'Menu Item';
         $meal->item_description = $itemDescription;
+        $meal->dmc_id = $restaurant->dmc_id; // Set DMC ID from restaurant
         
-        // Map meal type (breakfast/lunch/dinner)
-        $meal->meal_type = match(strtolower($mealType)) {
+        // Map meal period (breakfast/lunch/dinner)
+        $meal->meal_period = match(strtolower($mealType)) {
             'breakfast' => 1,
             'lunch' => 2,
             'dinner' => 3,
             default => 1
         };
         
-        // Map beverage
-        $meal->beverage = match(strtolower($beverage)) {
+        // Map category (beverage type)
+        $meal->category = match(strtolower($beverage)) {
             'alcoholic' => 1,
             'non alcoholic' => 2,
             'no beverage' => 3,
             default => 2
         };
         
-        // Map meals (buffet/set menu)
-        $meal->meals = match(strtolower($mealsType)) {
+        // Map type (buffet/set menu)
+        $meal->type = match(strtolower($mealsType)) {
             'buffet' => 1,
             'set menu' => 2,
             default => 2
@@ -2251,7 +2043,7 @@ class BulkUploadController extends Controller
             $meal->adult_price = is_numeric($adultPrice) ? floatval($adultPrice) : 0;
             $meal->child_price = is_numeric($childPrice) ? floatval($childPrice) : 0;
         } else {
-            $meal->item_price = is_numeric($itemPrice) ? floatval($itemPrice) : 0;
+            $meal->price = is_numeric($itemPrice) ? floatval($itemPrice) : 0;
         }
         
         $meal->is_active = ($mealStatus == '1') ? 1 : 0;
@@ -2500,6 +2292,7 @@ class BulkUploadController extends Controller
         $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcAttractionRoles));
         $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksAttractionRoles));
 
+        // Virtual DMC (role_id = 20) uses DMC template format but with their own data scope
         if ($isDmcUser || ($auth_user->role_id == 20)) { // DMC users or Virtual DMC
             return $this->downloadDmcAttractionTemplate($auth_user);
         } elseif ($isTravclicksUser) { // Travclicks users
@@ -2527,7 +2320,7 @@ class BulkUploadController extends Controller
             'Close Time*',
             'Master Image*',
             'Additional Images',
-            'Important Notes*',
+            'Description*',
             'Terms & Conditions*',
             'Status*'
         ];
@@ -2559,9 +2352,9 @@ class BulkUploadController extends Controller
                     is_array($attraction->additional_image) ? implode(',', $attraction->additional_image) : 
                         (is_string($attraction->additional_image) && !empty($attraction->additional_image) ? 
                          implode(',', json_decode($attraction->additional_image, true) ?? []) : ''),
-                    $attraction->important_notes ?? '',
+                    $attraction->description ?? '',
                     $attraction->terms_conditions ?? '',
-                    $attraction->is_active ? '1' : '0'
+                    $attraction->status ? '1' : '0'
                 ];
                 
                 $data[] = $row;
@@ -2649,9 +2442,9 @@ class BulkUploadController extends Controller
                     is_array($attraction->additional_image) ? implode(',', $attraction->additional_image) : 
                         (is_string($attraction->additional_image) && !empty($attraction->additional_image) ? 
                          implode(',', json_decode($attraction->additional_image, true) ?? []) : ''),
-                    $attraction->important_notes ?? '',
+                    $attraction->description ?? '',
                     $attraction->terms_conditions ?? '',
-                    $attraction->is_active ? '1' : '0'
+                    $attraction->status ? '1' : '0'
                 ];
                 
                 $data[] = $row;
@@ -2713,6 +2506,171 @@ class BulkUploadController extends Controller
         ]);
     }
 
+    // Ticket Template Download - Only for DMC users (role_id = 11)
+    public function downloadTicketTemplate()
+    {
+        $auth_user = Auth::user();
+
+        // Check for DMC role - role_id is stored as string "11"
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
+        }
+
+        return $this->downloadDmcTicketTemplate($auth_user);
+    }
+
+    private function downloadDmcTicketTemplate($auth_user)
+    {
+        try {
+            // Get attractions with their existing tickets for this DMC user
+            $attractions = Attraction::with(['tickets' => function($query) {
+                $query->where('status', 1);
+            }])
+            ->where('dmc_id', $auth_user->userId)
+            ->where('status', 1)
+            ->get();
+        } catch (\Exception $e) {
+            // If there's an issue with the query, just return sample data
+            $attractions = collect();
+        }
+
+        // Headers for attraction + ticket data
+        $headers = [
+            'Attraction Name*',
+            'Country*',
+            'City*',
+            'Ticket Name*',
+            'Child Price(local)*',
+            'Adult Price(local)*',
+            'Senior Citizen Price(local)*',
+            'Child Price(foreigner)*',
+            'Adult Price(foreigner)*',
+            'Senior Citizen Price(foreigner)*',
+            'Important Notes*',
+            'Terms & Conditions*',
+            'Status*'
+        ];
+
+        $data = [$headers];
+
+        if ($attractions->count() > 0) {
+            foreach ($attractions as $attraction) {
+                $isFirstRowForAttraction = true;
+                
+                // First, show existing tickets for this attraction
+                if (isset($attraction->tickets) && $attraction->tickets->count() > 0) {
+                    foreach ($attraction->tickets as $ticket) {
+                        $row = [
+                            $isFirstRowForAttraction ? ($attraction->name ?? '') : '',
+                            $isFirstRowForAttraction ? ($attraction->country ?? '') : '',
+                            $isFirstRowForAttraction ? ($attraction->location ?? '') : '',
+                            $ticket->name ?? '',
+                            $ticket->child_price ?? '0',
+                            $ticket->adult_price ?? '0',
+                            $ticket->senior_adult_price ?? '0',
+                            $ticket->child_price_nri ?? '0',
+                            $ticket->adult_price_nri ?? '0',
+                            $ticket->senior_adult_price_nri ?? '0',
+                            $ticket->description ?? '',
+                            $ticket->terms_conditions ?? '',
+                            $ticket->status ? '1' : '0'
+                        ];
+                        $data[] = $row;
+                        $isFirstRowForAttraction = false;
+                    }
+                }
+                
+                // Then add an empty row for this attraction so users can add new tickets
+                $emptyRow = [
+                    $isFirstRowForAttraction ? ($attraction->name ?? '') : '',
+                    $isFirstRowForAttraction ? ($attraction->country ?? '') : '',
+                    $isFirstRowForAttraction ? ($attraction->location ?? '') : '',
+                    '', // Empty ticket name - user can add new ticket
+                    '', '', '', '', '', '', // Empty prices
+                    '', // Empty important notes
+                    '', // Empty terms & conditions
+                    '1' // Default active status
+                ];
+                $data[] = $emptyRow;
+            }
+        } else {
+            // No attractions found, add sample data
+            $sampleData = [
+                'Sample Museum',
+                'United States',
+                'New York',
+                'Adult Entry Ticket',
+                '10.00',
+                '25.00',
+                '20.00',
+                '15.00',
+                '35.00',
+                '30.00',
+                'Please arrive 15 minutes before scheduled time',
+                'No refunds after booking confirmation',
+                '1'
+            ];
+            $data[] = $sampleData;
+
+            // Add another sample ticket for the same attraction (empty attraction details)
+            $sampleData2 = [
+                '', // Empty attraction name
+                '', // Empty country
+                '', // Empty city
+                'VIP Entry Ticket',
+                '20.00',
+                '50.00',
+                '40.00',
+                '25.00',
+                '60.00',
+                '50.00',
+                'Includes guided tour and priority access',
+                'No refunds after booking confirmation',
+                '1'
+            ];
+            $data[] = $sampleData2;
+            
+            // Add empty row for users to add more tickets to the same attraction
+            $emptyRow = [
+                '', // Empty attraction name
+                '', // Empty country
+                '', // Empty city
+                '', // Empty ticket name - user can add new ticket
+                '', '', '', '', '', '', // Empty prices
+                '', // Empty important notes
+                '', // Empty terms & conditions
+                '1' // Default active status
+            ];
+            $data[] = $emptyRow;
+            
+            // Add sample for second attraction to show multiple attraction format
+            $sampleData3 = [
+                'Adventure Park',
+                'Singapore', 
+                'Singapore',
+                'Standard Entry',
+                '5.00',
+                '15.00',
+                '10.00',
+                '8.00',
+                '20.00',
+                '15.00',
+                'All safety equipment included',
+                'Weather dependent. No refunds for cancellations',
+                '1'
+            ];
+            $data[] = $sampleData3;
+        }
+
+        $content = $this->generateCsvContent($data);
+        $filename = 'dmc_ticket_bulk_upload_template.csv';
+
+        return Response::make($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
     // Helper method to generate CSV content
     private function generateCsvContent($data)
     {
@@ -2747,6 +2705,7 @@ class BulkUploadController extends Controller
             }
             fclose($handle);
         }
+      
         return $data;
     }
 
@@ -3106,28 +3065,73 @@ class BulkUploadController extends Controller
             ]);
 
             $file = $request->file('file');
+            $auth_user = Auth::user();
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $cacheKey = "attraction_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 60 seconds)
+            if (cache()->has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            }
+            
+            // Mark this upload as in progress
+            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+            
             $csvData = $this->readCsvFile($file->getPathname());
             
             if (empty($csvData)) {
                 return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
             }
 
-            array_shift($csvData); // Remove header
+            // Remove header row
+            array_shift($csvData);
+            
+            // Filter out empty rows to prevent double processing
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, function($cell) {
+                    return !empty(trim($cell));
+                }));
+            });
+            
+            // Re-index the array after filtering
+            $csvData = array_values($csvData);
+            
+
+            
+            // Define role groups for access control
+            $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
+            $dmcAttractionRoles = [80, 122]; // Product Manager Attraction (DMC), Assistant PM Attraction (DMC)
+            $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
+            $travclicksAttractionRoles = [50, 123]; // Product Manager Attraction (Travclicks), Assistant PM Attraction (Travclicks)
+            
+            // Check if user has access
+            $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcAttractionRoles));
+            $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksAttractionRoles));
+            
+            if (!$isDmcUser && !$isTravclicksUser) {
+                return redirect()->back()->with('error', 'You do not have permission to upload attractions.');
+            }
             
             $successCount = 0;
             $errorCount = 0;
             $errors = [];
             
-            DB::beginTransaction();
-            $auth_user = Auth::user();
+            // Track attractions being processed in this upload to prevent duplicates within the same CSV
+            $processedAttractions = [];
             
+            DB::beginTransaction();
             foreach ($csvData as $rowIndex => $row) {
-                $rowNumber = $rowIndex + 2;
+                $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
                 
                 try {
-                    if (empty(array_filter($row))) continue;
+                    // Double-check for empty rows (shouldn't be needed now, but just in case)
+                    if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
+                        continue;
+                    }
                     
-                    // Map to new column structure
+                    // Map CSV columns to variables
                     $attractionName = trim($row[0] ?? '');
                     $country = trim($row[1] ?? '');
                     $city = trim($row[2] ?? '');
@@ -3156,12 +3160,46 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate attraction ID
-                    $lastAttraction = Attraction::withTrashed()->orderBy('created_at', 'desc')->first();
+                    // Create unique key for this attraction
+                    $attractionKey = strtolower($attractionName . '|' . $country . '|' . $city);
+                    
+                    // Check for duplicate within this CSV upload first
+                    if (isset($processedAttractions[$attractionKey])) {
+                        $errors[] = "Row {$rowNumber}: Duplicate attraction '{$attractionName}' in {$city}, {$country} found in this CSV (previously at row {$processedAttractions[$attractionKey]})";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Check for duplicate attraction in database
+                    $existingAttraction = Attraction::where('name', $attractionName)
+                                                  ->where('dmc_id', $auth_user->userId)
+                                                  ->first();
+                    
+                    if ($existingAttraction) {
+                        $errors[] = "Row {$rowNumber}: Attraction '{$attractionName}' already exists for your account";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Mark this attraction as being processed
+                    $processedAttractions[$attractionKey] = $rowNumber;
+                    
+                    // Generate unique attraction ID
+                    $lastAttraction = Attraction::withTrashed()->orderBy('attraction_id', 'desc')->first();
                     $attraction_max_id = $lastAttraction->attraction_id ?? 0;
-                    $attractionId = \App\Helpers\CommonHelper::createId($attraction_max_id);
-                    while (Attraction::where('attraction_id', $attractionId)->exists()) {
-                        $attractionId = \App\Helpers\CommonHelper::createId($attractionId);
+                  
+                    // Generate new ID with retry logic
+                    $maxRetries = 10;
+                    $retryCount = 0;
+                    do {
+                        $attractionId = \App\Helpers\CommonHelper::createId($attraction_max_id + $retryCount);
+                        $retryCount++;
+                    } while (Attraction::where('attraction_id', $attractionId)->exists() && $retryCount < $maxRetries);
+                    
+                    if ($retryCount >= $maxRetries) {
+                        $errors[] = "Row {$rowNumber}: Could not generate unique attraction ID";
+                        $errorCount++;
+                        continue;
                     }
                     
                     // Process additional images (comma-separated to JSON array)
@@ -3170,28 +3208,9 @@ class BulkUploadController extends Controller
                         $additionalImagesArray = array_map('trim', explode(',', $additionalImages));
                     }
                     
-                    // Create description with additional info
+                    // Use Important Notes as description (no additional data appended)
                     $description = $importantNotes;
-                    if (!empty($termsConditions)) {
-                        $description .= "\n\nTerms & Conditions: " . $termsConditions;
-                    }
-                    
-                    // Add opening schedule info to description
-                    $openingSchedule = [];
-                    if ($morningOpening == '1') $openingSchedule[] = 'Morning';
-                    if ($afternoonOpening == '1') $openingSchedule[] = 'Afternoon';
-                    if ($eveningOpening == '1') $openingSchedule[] = 'Evening';
-                    if ($nightOpening == '1') $openingSchedule[] = 'Night';
-                    
-                    if (!empty($openingSchedule)) {
-                        $description .= "\n\nOpening Schedule: " . implode(', ', $openingSchedule);
-                    }
-                    
-                    $description .= "\n\nSenior Age Threshold: " . $seniorAgeThreshold;
-                    $description .= "\nMaximum Child Age: " . $maxChildAge;
-                    $description .= "\nLatitude: " . $latitude;
-                    $description .= "\nLongitude: " . $longitude;
-                    
+                  
                     // Create attraction record
                     $attraction = new Attraction();
                     $attraction->attraction_id = $attractionId;
@@ -3203,11 +3222,11 @@ class BulkUploadController extends Controller
                     $attraction->close_time = $closeTime;
                     
                     // Map additional fields if they exist in the database
-                    if (Schema::hasColumn('attractions', 'city')) {
-                    $attraction->city = $city;
+                    if (Schema::hasColumn('attractions', 'location')) {
+                        $attraction->location = $city;
                     }
                     if (Schema::hasColumn('attractions', 'country')) {
-                    $attraction->country = $country;
+                        $attraction->country = $country;
                     }
                     if (Schema::hasColumn('attractions', 'latitude')) {
                         $attraction->latitude = is_numeric($latitude) ? floatval($latitude) : null;
@@ -3215,11 +3234,11 @@ class BulkUploadController extends Controller
                     if (Schema::hasColumn('attractions', 'longitude')) {
                         $attraction->longitude = is_numeric($longitude) ? floatval($longitude) : null;
                     }
-                    if (Schema::hasColumn('attractions', 'senior_age_threshold')) {
-                        $attraction->senior_age_threshold = is_numeric($seniorAgeThreshold) ? intval($seniorAgeThreshold) : null;
+                    if (Schema::hasColumn('attractions', 'senior_min_age')) {
+                        $attraction->senior_min_age = is_numeric($seniorAgeThreshold) ? intval($seniorAgeThreshold) : null;
                     }
-                    if (Schema::hasColumn('attractions', 'max_child_age')) {
-                        $attraction->max_child_age = is_numeric($maxChildAge) ? intval($maxChildAge) : null;
+                    if (Schema::hasColumn('attractions', 'child_max_age')) {
+                        $attraction->child_max_age = is_numeric($maxChildAge) ? intval($maxChildAge) : null;
                     }
                     if (Schema::hasColumn('attractions', 'morning_opening')) {
                         $attraction->morning_opening = ($morningOpening == '1') ? 1 : 0;
@@ -3233,23 +3252,19 @@ class BulkUploadController extends Controller
                     if (Schema::hasColumn('attractions', 'night_opening')) {
                         $attraction->night_opening = ($nightOpening == '1') ? 1 : 0;
                     }
-                    if (Schema::hasColumn('attractions', 'important_notes')) {
-                        $attraction->important_notes = $importantNotes;
-                    }
                     if (Schema::hasColumn('attractions', 'terms_conditions')) {
                         $attraction->terms_conditions = $termsConditions;
-                    }
-                    if (Schema::hasColumn('attractions', 'is_active')) {
-                    $attraction->is_active = ($status == '1') ? 1 : 0;
                     }
                     if (Schema::hasColumn('attractions', 'status')) {
                         $attraction->status = ($status == '1') ? 1 : 0;
                     }
+                    
+                    // Set dmc_id - Virtual DMC (role_id = 20) assigns to their own userId like DMC users
                     if (Schema::hasColumn('attractions', 'dmc_id')) {
-                    $attraction->dmc_id = $auth_user->userId;
+                        $attraction->dmc_id = $auth_user->userId;
                     }
                     if (Schema::hasColumn('attractions', 'created_by')) {
-                    $attraction->created_by = $auth_user->userId;
+                        $attraction->created_by = $auth_user->userId;
                     }
                     
                     $attraction->save();
@@ -3258,26 +3273,1128 @@ class BulkUploadController extends Controller
                 } catch (\Exception $e) {
                     $errors[] = "Row {$rowNumber}: " . $e->getMessage();
                     $errorCount++;
+                    Log::error("Attraction bulk upload error on row {$rowNumber}: " . $e->getMessage());
                 }
             }
             
-            DB::commit();
+                        if ($successCount > 0) {
+                DB::commit();
+            } else {
+                DB::rollback();
+            }
+            
+            // Clear the upload cache on completion
+            cache()->forget($cacheKey);
+            
+            // Save upload history
+            UploadHistory::createRecord(
+                'attractions',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
             
             $message = "Upload completed. {$successCount} attractions processed successfully.";
             if ($errorCount > 0) {
                 $message .= " {$errorCount} errors occurred.";
             }
-            
+
             return redirect()->back()
                 ->with('success', $message)
                 ->with('errors', $errors);
                 
         } catch (\Exception $e) {
             DB::rollback();
+            // Clear the upload cache on error
+            if (isset($cacheKey)) {
+                cache()->forget($cacheKey);
+            }
+            Log::error('Attraction bulk upload failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
     }
 
-    // Additional upload methods for other entities would follow similar patterns
-    // You can implement uploadDrivers, uploadGuides, etc. following the same CSV pattern
-} 
+    // Ticket Upload Method - Only for DMC users (role_id = 11)
+    public function uploadTickets(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+            ]);
+
+            $file = $request->file('file');
+            $auth_user = Auth::user();
+            
+            // Check for DMC role - role_id is stored as string "11"
+            if (!$auth_user || $auth_user->role_id !== '11') {
+                return redirect()->back()->with('error', 'Access denied. Only DMC users can upload tickets.');
+            }
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $cacheKey = "ticket_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 60 seconds)
+            if (cache()->has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            }
+            
+            // Mark this upload as in progress
+            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+            
+            $csvData = $this->readCsvFile($file->getPathname());
+            
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
+            }
+
+            // Remove header row
+            array_shift($csvData);
+            
+            // Filter out empty rows to prevent double processing
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, function($cell) {
+                    return !empty(trim($cell));
+                }));
+            });
+            
+            // Re-index the array after filtering
+            $csvData = array_values($csvData);
+            
+            $successCount = 0;
+            $errorCount = 0;
+            $errors = [];
+            $currentAttraction = null; // Track current attraction context
+            
+            DB::beginTransaction();
+            
+            foreach ($csvData as $rowIndex => $row) {
+                $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
+                
+                try {
+                    // Map CSV columns to variables
+                    $attractionName = trim($row[0] ?? '');
+                    $country = trim($row[1] ?? '');
+                    $city = trim($row[2] ?? '');
+                    $ticketName = trim($row[3] ?? '');
+                    $childPrice = trim($row[4] ?? '0');
+                    $adultPrice = trim($row[5] ?? '0');
+                    $seniorAdultPrice = trim($row[6] ?? '0');
+                    $childPriceNri = trim($row[7] ?? '0');
+                    $adultPriceNri = trim($row[8] ?? '0');
+                    $seniorAdultPriceNri = trim($row[9] ?? '0');
+                    $description = trim($row[10] ?? '');
+                    $termsConditions = trim($row[11] ?? '');
+                    $status = trim($row[12] ?? '1');
+                    
+                    // Check if this row defines a new attraction context
+                    if (!empty($attractionName) && !empty($country) && !empty($city)) {
+                        // Find the attraction for this DMC user
+                        $attraction = Attraction::where('name', $attractionName)
+                                              ->where('country', $country)
+                                              ->where('location', $city)
+                                              ->where('dmc_id', $auth_user->userId)
+                                              ->first();
+                        
+                        if (!$attraction) {
+                            $errors[] = "Row {$rowNumber}: Attraction '{$attractionName}' not found in {$city}, {$country} for your account";
+                            $errorCount++;
+                            continue;
+                        }
+                        
+                        $currentAttraction = $attraction;
+                    }
+                    
+                    // Validate that we have an attraction context
+                    if (!$currentAttraction) {
+                        $errors[] = "Row {$rowNumber}: No attraction context found. Please ensure attraction details are provided first.";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Skip rows that don't have ticket information (empty ticket name)
+                    if (empty($ticketName)) {
+                        continue;
+                    }
+                    
+                    // Validate required ticket fields only
+                    if (empty($adultPrice) || empty($description) || empty($termsConditions)) {
+                        $errors[] = "Row {$rowNumber}: Missing required ticket fields (Adult Price, Important Notes, or Terms & Conditions)";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Check for duplicate ticket name for this attraction
+                    $existingTicket = \App\Models\Ticket::where('name', $ticketName)
+                                                       ->where('attraction_id', $currentAttraction->attraction_id)
+                                                       ->first();
+                    
+                    if ($existingTicket) {
+                        $errors[] = "Row {$rowNumber}: Ticket '{$ticketName}' already exists for attraction '{$currentAttraction->name}'";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Generate unique ticket ID - get the maximum ticket_id and increment
+                    $maxTicketId = \App\Models\Ticket::withTrashed()->max('ticket_id');
+                    
+                    // Ensure it's at least 8 digits
+                    if (!$maxTicketId || $maxTicketId < 10000000) {
+                        $ticketMaxId = 10000000;
+                    } else {
+                        $ticketMaxId = $maxTicketId + 1;
+                    }
+                    
+                    // Double-check for uniqueness (in case of concurrent uploads)
+                    while (\App\Models\Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists()) {
+                        $ticketMaxId++;
+                    }
+                    
+                    // Create ticket record
+                    $ticket = new \App\Models\Ticket();
+                    $ticket->ticket_id = $ticketMaxId;
+                    $ticket->name = $ticketName;
+                    $ticket->description = $description;
+                    $ticket->terms_conditions = $termsConditions;
+                    $ticket->child_price = is_numeric($childPrice) ? floatval($childPrice) : 0;
+                    $ticket->adult_price = is_numeric($adultPrice) ? floatval($adultPrice) : 0;
+                    $ticket->senior_adult_price = is_numeric($seniorAdultPrice) ? floatval($seniorAdultPrice) : 0;
+                    $ticket->child_price_nri = is_numeric($childPriceNri) ? floatval($childPriceNri) : 0;
+                    $ticket->adult_price_nri = is_numeric($adultPriceNri) ? floatval($adultPriceNri) : 0;
+                    $ticket->senior_adult_price_nri = is_numeric($seniorAdultPriceNri) ? floatval($seniorAdultPriceNri) : 0;
+                    $ticket->status = ($status == '1') ? 1 : 0;
+                    $ticket->attraction_id = $currentAttraction->attraction_id;
+                    $ticket->dmc_id = $auth_user->userId; // Store DMC's userId
+                    $ticket->created_by = $auth_user->userId;
+                    
+                    $ticket->save();
+                    $successCount++;
+                    
+                    Log::info("SUCCESS: Created ticket '{$ticketName}' for attraction '{$currentAttraction->name}' with ID {$ticket->ticket_id}");
+                    
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                    $errorCount++;
+                    Log::error("Ticket bulk upload error on row {$rowNumber}: " . $e->getMessage());
+                }
+            }
+            
+            if ($successCount > 0) {
+                DB::commit();
+            } else {
+                DB::rollback();
+            }
+            
+            // Clear the upload cache on completion
+            cache()->forget($cacheKey);
+            
+            // Save upload history
+            UploadHistory::createRecord(
+                'tickets',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+            
+            $message = "Upload completed. {$successCount} tickets processed successfully.";
+            if ($errorCount > 0) {
+                $message .= " {$errorCount} errors occurred.";
+            }
+
+            return redirect()->back()
+                ->with('success', $message)
+                ->with('errors', $errors);
+                
+        } catch (\Exception $e) {
+            DB::rollback();
+            // Clear the upload cache on error
+            if (isset($cacheKey)) {
+                cache()->forget($cacheKey);
+            }
+            Log::error('Ticket bulk upload failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+        }
+    }
+
+    // Get upload history for display
+    public function getUploadHistory($uploadType)
+    {
+        $auth_user = Auth::user();
+        return UploadHistory::getRecentHistory($uploadType, $auth_user->userId, 10);
+    }
+
+    // Attraction-specific ticket bulk upload page
+    public function attractionTickets($attraction_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role - role_id is stored as string "11"
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
+        }
+
+        // Get the attraction
+        $attraction = Attraction::where('attraction_id', $attraction_id)->first();
+        if (!$attraction) {
+            return redirect()->back()->with('error', 'Attraction not found.');
+        }
+
+        // Get upload history for this attraction
+        $uploadHistory = UploadHistory::where('upload_type', 'attraction_tickets')
+                                    ->where('uploaded_by', $auth_user->userId)
+                                    ->orderBy('created_at', 'desc')
+                                    ->limit(10)
+                                    ->get();
+        
+        return view('bulk-upload.attraction-tickets', compact('attraction', 'uploadHistory'));
+    }
+
+    // Download template for specific attraction
+    public function downloadAttractionTicketTemplate($attraction_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can download ticket templates.');
+        }
+
+        // Get the attraction
+        $attraction = Attraction::where('attraction_id', $attraction_id)->first();
+        if (!$attraction) {
+            abort(404, 'Attraction not found.');
+        }
+
+        $data = $this->generateAttractionTicketCsvData($attraction);
+        $content = $this->generateCsvContent($data);
+        $filename = 'tickets_template_' . str_replace(' ', '_', strtolower($attraction->name)) . '.csv';
+
+        return Response::make($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    // Generate CSV template data for attraction-specific ticket upload
+    private function generateAttractionTicketCsvData($attraction)
+    {
+        $header = [
+            'Ticket Name*',
+            'Child Price(local)*',
+            'Adult Price(local)*',
+            'Senior Citizen Price(local)*',
+            'Child Price(foreigner)*',
+            'Adult Price(foreigner)*',
+            'Senior Citizen Price(foreigner)*',
+            'Important Notes*',
+            'Terms & Conditions*',
+            'Status*'
+        ];
+
+        $data = [$header];
+
+        // Add sample data
+        $sampleData = [
+            'Standard Entry Ticket',
+            '15.00',
+            '25.00',
+            '20.00',
+            '20.00',
+            '35.00',
+            '30.00',
+            'Valid for one day entry. Please bring valid ID.',
+            'No refund after booking. Entry subject to availability.',
+            '1'
+        ];
+        $data[] = $sampleData;
+
+        // Add another sample
+        $sampleData2 = [
+            'VIP Entry Ticket',
+            '25.00',
+            '50.00',
+            '40.00',
+            '30.00',
+            '60.00',
+            '50.00',
+            'Includes priority access and guided tour.',
+            'Advance booking required. No cancellation allowed.',
+            '1'
+        ];
+        $data[] = $sampleData2;
+
+        // Add empty row for user input
+        $emptyRow = ['', '', '', '', '', '', '', '', '', '1'];
+        $data[] = $emptyRow;
+
+        return $data;
+    }
+
+    // Upload tickets for specific attraction
+    public function uploadAttractionTickets(Request $request, $attraction_id)
+    {
+        $auth_user = Auth::user();
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        try {
+            // Enhanced validation
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+            ], [
+                'file.required' => 'Please select a file to upload.',
+                'file.mimes' => 'Only CSV and TXT files are allowed.',
+                'file.max' => 'File size should not exceed 10MB.'
+            ]);
+
+            $file = $request->file('file');
+            
+            // Check for DMC role
+            if (!$auth_user || $auth_user->role_id !== '11') {
+                return redirect()->back()->with('error', 'Access denied. Only DMC users can upload tickets.');
+            }
+
+            // Get the attraction
+            $attraction = Attraction::where('attraction_id', $attraction_id)->first();
+            if (!$attraction) {
+                return redirect()->back()->with('error', 'Attraction not found.');
+            }
+
+            // Check if attraction belongs to this DMC
+            if ($attraction->dmc_id != $auth_user->userId) {
+                return redirect()->back()->with('error', 'You can only upload tickets for your own attractions.');
+            }
+
+            // Check if file was uploaded successfully
+            if (!$file->isValid()) {
+                return redirect()->back()->with('error', 'File upload failed. Please try again.');
+            }
+
+            // Check file size
+            if ($file->getSize() == 0) {
+                return redirect()->back()->with('error', 'The uploaded file is empty.');
+            }
+            
+            // Read CSV file with enhanced error handling
+            try {
+                $csvData = $this->readCsvFile($file->getPathname());
+            } catch (\Exception $e) {
+                Log::error('CSV file reading failed: ' . $e->getMessage());
+                return redirect()->back()->with('error', 'Failed to read CSV file. Please ensure the file is properly formatted.');
+            }
+            
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'The uploaded file is empty or contains no valid data.');
+            }
+
+            // Check if CSV has header row
+            if (count($csvData) < 2) {
+                return redirect()->back()->with('error', 'The CSV file must contain at least a header row and one data row.');
+            }
+
+            // Validate CSV structure
+            $expectedColumns = 10; // Based on template
+            $headerRow = $csvData[0];
+            if (count($headerRow) < $expectedColumns) {
+                return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns, found " . count($headerRow) . ".");
+            }
+
+            // Remove header row
+            array_shift($csvData);
+            
+            // Filter out empty rows more thoroughly
+            $csvData = array_filter($csvData, function($row) {
+                // Check if all cells are empty or whitespace
+                $nonEmptyCells = array_filter($row, function($cell) {
+                    return !empty(trim($cell ?? ''));
+                });
+                return count($nonEmptyCells) > 0;
+            });
+            
+            $csvData = array_values($csvData);
+            
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'No valid data rows found in the CSV file.');
+            }
+
+            // Limit number of rows to prevent timeout
+            if (count($csvData) > 1000) {
+                return redirect()->back()->with('error', 'Maximum 1000 rows allowed per upload. Your file contains ' . count($csvData) . ' rows.');
+            }
+            
+            DB::beginTransaction();
+            
+            foreach ($csvData as $rowIndex => $row) {
+                $rowNumber = $rowIndex + 2; // +2 because we removed header and array is 0-indexed
+                
+                try {
+                    // Ensure row has enough columns
+                    if (count($row) < $expectedColumns) {
+                        $errors[] = "Row {$rowNumber}: Insufficient columns. Expected {$expectedColumns}, found " . count($row);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Map CSV columns to variables with better null handling
+                    $ticketName = trim($row[0] ?? '');
+                    $childPrice = trim($row[1] ?? '0');
+                    $adultPrice = trim($row[2] ?? '0');
+                    $seniorAdultPrice = trim($row[3] ?? '0');
+                    $childPriceNri = trim($row[4] ?? '0');
+                    $adultPriceNri = trim($row[5] ?? '0');
+                    $seniorAdultPriceNri = trim($row[6] ?? '0');
+                    $description = trim($row[7] ?? '');
+                    $termsConditions = trim($row[8] ?? '');
+                    $status = trim($row[9] ?? '1');
+                    
+                    // Enhanced validation for required fields
+                    $missingFields = [];
+                    if (empty($ticketName)) $missingFields[] = 'Ticket Name';
+                    if (empty($adultPrice) || $adultPrice === '0') $missingFields[] = 'Adult Price';
+                    if (empty($description)) $missingFields[] = 'Important Notes';
+                    if (empty($termsConditions)) $missingFields[] = 'Terms & Conditions';
+                    
+                    if (!empty($missingFields)) {
+                        $errors[] = "Row {$rowNumber}: Missing required fields: " . implode(', ', $missingFields);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate numeric fields
+                    $numericFields = [
+                        'Child Price' => $childPrice,
+                        'Adult Price' => $adultPrice,
+                        'Senior Adult Price' => $seniorAdultPrice,
+                        'Child Price (NRI)' => $childPriceNri,
+                        'Adult Price (NRI)' => $adultPriceNri,
+                        'Senior Adult Price (NRI)' => $seniorAdultPriceNri
+                    ];
+
+                    foreach ($numericFields as $fieldName => $value) {
+                        if (!empty($value) && !is_numeric($value)) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2; // Skip to next row
+                        }
+                    }
+
+                    // Validate status field
+                    if (!in_array($status, ['0', '1'])) {
+                        $errors[] = "Row {$rowNumber}: Status must be 0 (inactive) or 1 (active). Found: '{$status}'";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate ticket name length
+                    if (strlen($ticketName) > 255) {
+                        $errors[] = "Row {$rowNumber}: Ticket name is too long (maximum 255 characters)";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Check for duplicate ticket name for this attraction
+                    try {
+                        $existingTicket = \App\Models\Ticket::where('name', $ticketName)
+                                                           ->where('attraction_id', $attraction->attraction_id)
+                                                           ->first();
+                        
+                        if ($existingTicket) {
+                            $errors[] = "Row {$rowNumber}: Ticket '{$ticketName}' already exists for this attraction";
+                            $errorCount++;
+                            continue;
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Database check error for row {$rowNumber}: " . $e->getMessage());
+                        $errors[] = "Row {$rowNumber}: Database error while checking for duplicates";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Generate unique ticket ID with better error handling
+                    try {
+                        $maxTicketId = \App\Models\Ticket::withTrashed()->max('ticket_id');
+                        
+                        if (!$maxTicketId || $maxTicketId < 10000000) {
+                            $ticketMaxId = 10000000;
+                        } else {
+                            $ticketMaxId = $maxTicketId + 1;
+                        }
+                        
+                        // Double-check for uniqueness with limit to prevent infinite loop
+                        $attempts = 0;
+                        while (\App\Models\Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists() && $attempts < 100) {
+                            $ticketMaxId++;
+                            $attempts++;
+                        }
+
+                        if ($attempts >= 100) {
+                            throw new \Exception("Unable to generate unique ticket ID after 100 attempts");
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Ticket ID generation error for row {$rowNumber}: " . $e->getMessage());
+                        $errors[] = "Row {$rowNumber}: Error generating ticket ID";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Create ticket record with enhanced error handling
+                    try {
+                        $ticket = new \App\Models\Ticket();
+                        $ticket->ticket_id = $ticketMaxId;
+                        $ticket->name = $ticketName;
+                        $ticket->description = $description;
+                        $ticket->terms_conditions = $termsConditions;
+                        $ticket->child_price = is_numeric($childPrice) ? floatval($childPrice) : 0;
+                        $ticket->adult_price = is_numeric($adultPrice) ? floatval($adultPrice) : 0;
+                        $ticket->senior_adult_price = is_numeric($seniorAdultPrice) ? floatval($seniorAdultPrice) : 0;
+                        $ticket->child_price_nri = is_numeric($childPriceNri) ? floatval($childPriceNri) : 0;
+                        $ticket->adult_price_nri = is_numeric($adultPriceNri) ? floatval($adultPriceNri) : 0;
+                        $ticket->senior_adult_price_nri = is_numeric($seniorAdultPriceNri) ? floatval($seniorAdultPriceNri) : 0;
+                        $ticket->status = ($status == '1') ? 1 : 0;
+                        $ticket->attraction_id = $attraction->attraction_id;
+                        $ticket->dmc_id = $auth_user->userId;
+                        $ticket->created_by = $auth_user->userId;
+                        
+                        $ticket->save();
+                        $successCount++;
+                    } catch (\Exception $e) {
+                        Log::error("Ticket save error for row {$rowNumber}: " . $e->getMessage());
+                        $errors[] = "Row {$rowNumber}: Error saving ticket - " . $e->getMessage();
+                        $errorCount++;
+                    }
+                    
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNumber}: Unexpected error - " . $e->getMessage();
+                    $errorCount++;
+                    Log::error("Attraction ticket bulk upload error on row {$rowNumber}: " . $e->getMessage());
+                }
+            }
+            
+            // Commit transaction only if we have successes
+            if ($successCount > 0) {
+                DB::commit();
+            } else {
+                DB::rollback();
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            Log::error('Validation error in attraction ticket upload: ' . json_encode($e->errors()));
+            return redirect()->back()
+                ->withErrors($e->validator)
+                ->withInput();
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Attraction ticket bulk upload failed with exception: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return redirect()->back()->with('error', 'Upload failed due to an unexpected error. Please check your file format and try again.');
+        }
+
+        // Save upload history regardless of success/failure
+        try {
+            UploadHistory::createRecord(
+                'attraction_tickets',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData ?? []),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to save upload history: ' . $e->getMessage());
+        }
+        
+        // Generate user-friendly messages
+        if ($successCount > 0 && $errorCount == 0) {
+            $message = "Success! {$successCount} tickets uploaded successfully for {$attraction->name}.";
+            return redirect()->back()->with('success', $message);
+        } elseif ($successCount > 0 && $errorCount > 0) {
+            $message = "Partial success: {$successCount} tickets uploaded successfully, {$errorCount} failed for {$attraction->name}.";
+            return redirect()->back()
+                ->with('success', $message)
+                ->with('errors', $errors);
+        } else {
+            $message = "Upload failed: {$errorCount} errors occurred. No tickets were uploaded.";
+            return redirect()->back()
+                ->with('error', $message)
+                ->with('errors', $errors);
+        }
+    }
+
+    // Meal Upload Methods for DMC Users
+    public function meals()
+    {
+        //dd(1);
+        $auth_user = Auth::user();
+
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Only DMC users can access meal bulk upload.');
+        }
+        
+        // Get restaurants that belong to this DMC - Simple approach for debugging
+        try {
+            // First, let's see what columns exist
+            $testRestaurant = Restaurant::first();
+            if ($testRestaurant) {
+                Log::info('Restaurant columns available: ' . json_encode(array_keys($testRestaurant->getAttributes())));
+            }
+            
+            // Try to get restaurants for this DMC
+            $restaurants = Restaurant::where('dmc_id', $auth_user->userId)->where('status', 1)->get();
+            // If no restaurants found, try getting all restaurants for testing
+            if ($restaurants->isEmpty()) {
+                Log::info('No restaurants found for DMC user: ' . $auth_user->userId);
+                $restaurants = Restaurant::take(3)->get(); // Get first 3 for testing
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Error in meals method: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()->back()->with('error', 'Database error: ' . $e->getMessage());
+        }
+        return view('bulk-upload.meals', compact('restaurants'));
+    }
+
+    public function downloadMealTemplate($restaurant_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Only DMC (role_id = 11) can download meal templates
+        if ($auth_user->role_id != '11') {
+            abort(403, 'Only DMC users can download meal templates.');
+        }
+        
+        // Verify restaurant belongs to this DMC
+        $restaurant = Restaurant::where('restaurant_id', $restaurant_id)
+                                ->where('dmc_id', $auth_user->userId)
+                                ->where('status', 1)
+                                ->first();
+        
+        if (!$restaurant) {
+            abort(404, 'Restaurant not found or access denied.');
+        }
+        
+        return $this->generateDmcMealTemplate($restaurant);
+    }
+
+    private function generateDmcMealTemplate($restaurant)
+    {
+        $headers = [
+            'Meal Type*',
+            'Beverage*',
+            'Meals*',
+            'Item Price',
+            'Item Type',
+            'Adult Price',
+            'Child Price',
+            'Item Description*'
+        ];
+
+        $data = [$headers];
+
+        // Get existing meals for this restaurant
+        $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->get();
+
+        if ($meals->count() > 0) {
+            foreach ($meals as $meal) {
+                $row = [
+                    // Meal Type (using meal_period column)
+                    match($meal->meal_period ?? 1) {
+                        1 => 'Breakfast',
+                        2 => 'Lunch', 
+                        3 => 'Dinner',
+                        default => 'Breakfast'
+                    },
+                    
+                    // Beverage (using category column)
+                    match($meal->category ?? 2) {
+                        1 => 'Alcoholic',
+                        2 => 'Non Alcoholic',
+                        3 => 'No Beverage',
+                        default => 'Non Alcoholic'
+                    },
+                    
+                    // Meals Type (using type column)
+                    ($meal->type == 1) ? 'Buffet' : 'Set Menu',
+                    
+                    // Item Price (only for Set Menu - type = 2)
+                    ($meal->type == 2) ? ($meal->price ?? '') : '',
+                    
+                    // Item Type (only for Set Menu - type = 2, empty for Buffet)
+                    ($meal->type == 2) ? (match($meal->item_type ?? null) {
+                        1 => 'Vegetarian',
+                        2 => 'Non Vegetarian',
+                        default => ''
+                    }) : '',
+                    
+                    // Adult Price (only for Buffet - type = 1)
+                    ($meal->type == 1) ? ($meal->adult_price ?? '') : '',
+                    
+                    // Child Price (only for Buffet - type = 1)
+                    ($meal->type == 1) ? ($meal->child_price ?? '') : '',
+                    
+                    // Item Description
+                    $meal->item_description ?? ''
+                ];
+                
+                $data[] = $row;
+            }
+        } else {
+            // No existing meals, add sample data based on restaurant's meal availability
+            if (isset($restaurant->breakfast_available) && $restaurant->breakfast_available) {
+                $sampleBreakfast = [
+                    'Breakfast',
+                    'Non Alcoholic',
+                    'Buffet',
+                    '', // No item price for Buffet
+                    '', // No item type for Buffet
+                    '25.00', // Adult price for Buffet
+                    '12.50', // Child price for Buffet
+                    'Continental breakfast with fresh fruits and pastries'
+                ];
+                $data[] = $sampleBreakfast;
+            }
+            
+            if (isset($restaurant->lunch_available) && $restaurant->lunch_available) {
+                $sampleLunch = [
+                    'Lunch',
+                    'Non Alcoholic',
+                    'Set Menu',
+                    '18.50', // Item price for Set Menu
+                    'Non Vegetarian', // Item type for Set Menu
+                    '', // No adult price for Set Menu
+                    '', // No child price for Set Menu
+                    'Authentic local cuisine lunch special'
+                ];
+                $data[] = $sampleLunch;
+            }
+            
+            if (isset($restaurant->dinner_available) && $restaurant->dinner_available) {
+                $sampleDinner = [
+                    'Dinner',
+                    'Alcoholic',
+                    'Set Menu',
+                    '35.00', // Item price for Set Menu
+                    'Non Vegetarian', // Item type for Set Menu
+                    '', // No adult price for Set Menu
+                    '', // No child price for Set Menu
+                    'Premium dinner with wine pairing'
+                ];
+                $data[] = $sampleDinner;
+            }
+            
+            // If no meal types are available, add one example of each meal type
+            if (!isset($restaurant->breakfast_available) && !isset($restaurant->lunch_available) && !isset($restaurant->dinner_available)) {
+                // Add Buffet example
+                $buffetExample = [
+                    'Breakfast',
+                    'Non Alcoholic',
+                    'Buffet',
+                    '', // No item price for Buffet
+                    '', // No item type for Buffet  
+                    '25.00', // Adult price required for Buffet
+                    '12.50', // Child price required for Buffet
+                    'Sample buffet breakfast description'
+                ];
+                $data[] = $buffetExample;
+                
+                // Add Set Menu example
+                $setMenuExample = [
+                    'Lunch',
+                    'Non Alcoholic', 
+                    'Set Menu',
+                    '18.50', // Item price required for Set Menu
+                    'Vegetarian', // Item type required for Set Menu
+                    '', // No adult price for Set Menu
+                    '', // No child price for Set Menu
+                    'Sample set menu lunch description'
+                ];
+                $data[] = $setMenuExample;
+            }
+        }
+
+        $content = $this->generateCsvContent($data);
+        $filename = 'meal_bulk_upload_template_' . $restaurant->restaurant_id . '.csv';
+
+        return Response::make($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    public function uploadMeals(Request $request, $restaurant_id)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240', // 10MB limit
+            ]);
+
+            $auth_user = Auth::user();
+            
+            // Only DMC (role_id = 11) can upload meals
+            if ($auth_user->role_id != 11) {
+                return redirect()->back()->with('error', 'Only DMC users can upload meals.');
+            }
+            
+            // Verify restaurant belongs to this DMC
+            $restaurant = Restaurant::where('restaurant_id', $restaurant_id)
+                                    ->where('dmc_id', $auth_user->userId)
+                                    ->where('status', 1)
+                                    ->first();
+            
+            if (!$restaurant) {
+                return redirect()->back()->with('error', 'Restaurant not found or access denied.');
+            }
+
+            $file = $request->file('file');
+            $csvData = $this->readCsvFile($file->getPathname());
+            
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
+            }
+
+            // Remove header row
+            array_shift($csvData);
+
+            return $this->processMealUpload($csvData, $restaurant, $auth_user);
+                
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Meal bulk upload failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+        }
+    }
+
+    private function processMealUpload($csvData, $restaurant, $auth_user)
+    {
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        DB::beginTransaction();
+        
+        foreach ($csvData as $rowIndex => $row) {
+            $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
+            
+            try {
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+                
+                // Map CSV columns to variables
+                $mealType = trim($row[0] ?? '');
+                $beverage = trim($row[1] ?? '');
+                $mealsType = trim($row[2] ?? '');
+                $itemPrice = trim($row[3] ?? '');
+                $itemType = trim($row[4] ?? '');
+                $adultPrice = trim($row[5] ?? '');
+                $childPrice = trim($row[6] ?? '');
+                $itemDescription = trim($row[7] ?? '');
+                
+                // Validate required fields
+                if (empty($mealType) || empty($beverage) || empty($mealsType) || empty($itemDescription)) {
+                    $errors[] = "Row {$rowNumber}: Missing required fields (Meal Type, Beverage, Meals Type, or Item Description)";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate meal type availability for restaurant
+                $mealTypeNum = match(strtolower($mealType)) {
+                    'breakfast' => 1,
+                    'lunch' => 2,
+                    'dinner' => 3,
+                    default => null
+                };
+                
+                if ($mealTypeNum === null) {
+                    $errors[] = "Row {$rowNumber}: Invalid meal type. Must be Breakfast, Lunch, or Dinner";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Check if meal type is available for this restaurant
+                $availabilityField = match($mealTypeNum) {
+                    1 => 'breakfast_available',
+                    2 => 'lunch_available',
+                    3 => 'dinner_available'
+                };
+                
+                if (!$restaurant->$availabilityField) {
+                    $errors[] = "Row {$rowNumber}: {$mealType} is not available for this restaurant";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate beverage type
+                if (!in_array(strtolower($beverage), ['alcoholic', 'non alcoholic', 'no beverage'])) {
+                    $errors[] = "Row {$rowNumber}: Invalid beverage type. Must be Alcoholic, Non Alcoholic, or No Beverage";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate meals type and required fields
+                $mealsTypeNum = match(strtolower($mealsType)) {
+                    'buffet' => 1,
+                    'set menu' => 2,
+                    default => null
+                };
+                
+                if ($mealsTypeNum === null) {
+                    $errors[] = "Row {$rowNumber}: Invalid meals type. Must be Buffet or Set Menu";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate pricing and dependencies based on meal type
+                if ($mealsTypeNum == 1) { // Buffet
+                    // For Buffet: Adult Price and Child Price are required, Item Price and Item Type should be empty
+                    if (empty($adultPrice) || empty($childPrice)) {
+                        $errors[] = "Row {$rowNumber}: Buffet requires Adult Price and Child Price";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!is_numeric($adultPrice) || !is_numeric($childPrice)) {
+                        $errors[] = "Row {$rowNumber}: Adult Price and Child Price must be numeric for Buffet";
+                        $errorCount++;
+                        continue;
+                    }
+                    // Check if unwanted fields are filled for Buffet
+                    if (!empty($itemPrice)) {
+                        $errors[] = "Row {$rowNumber}: Item Price should be empty for Buffet meals";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!empty($itemType)) {
+                        $errors[] = "Row {$rowNumber}: Item Type should be empty for Buffet meals";
+                        $errorCount++;
+                        continue;
+                    }
+                } else { // Set Menu
+                    // For Set Menu: Item Price and Item Type are required, Adult Price and Child Price should be empty
+                    if (empty($itemPrice)) {
+                        $errors[] = "Row {$rowNumber}: Set Menu requires Item Price";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!is_numeric($itemPrice)) {
+                        $errors[] = "Row {$rowNumber}: Item Price must be numeric for Set Menu";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (empty($itemType)) {
+                        $errors[] = "Row {$rowNumber}: Set Menu requires Item Type (Vegetarian or Non Vegetarian)";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!in_array(strtolower($itemType), ['vegetarian', 'non vegetarian'])) {
+                        $errors[] = "Row {$rowNumber}: Invalid item type. Must be Vegetarian or Non Vegetarian";
+                        $errorCount++;
+                        continue;
+                    }
+                    // Check if unwanted fields are filled for Set Menu
+                    if (!empty($adultPrice)) {
+                        $errors[] = "Row {$rowNumber}: Adult Price should be empty for Set Menu meals";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!empty($childPrice)) {
+                        $errors[] = "Row {$rowNumber}: Child Price should be empty for Set Menu meals";
+                        $errorCount++;
+                        continue;
+                    }
+                }
+                
+                // Create meal using existing createMeal method
+                $this->createMeal(
+                    $restaurant, 
+                    $mealType, 
+                    $beverage, 
+                    $mealsType, 
+                    '', // itemName - not used in new format
+                    $itemPrice, 
+                    $itemType, 
+                    $adultPrice, 
+                    $childPrice, 
+                    $itemDescription, 
+                    '1', // mealStatus - active by default
+                    $auth_user->userId
+                );
+                
+                $successCount++;
+                
+            } catch (\Exception $e) {
+                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                $errorCount++;
+                Log::error("Meal bulk upload error on row {$rowNumber}: " . $e->getMessage());
+            }
+        }
+        
+        DB::commit();
+        
+        // Store upload history using the createRecord method
+        try {
+            UploadHistory::createRecord(
+                'meals',
+                request()->file('file')->getClientOriginalName(),
+                request()->file('file')->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to save upload history: ' . $e->getMessage());
+        }
+        
+        // Enhanced success message with restaurant name and meal details
+        $restaurantName = $restaurant->name;
+        $message = "🍽️ **Meal Upload Complete for {$restaurantName}!**\n\n";
+        $message .= "✅ **{$successCount} meals** successfully added to your restaurant menu";
+        
+        if ($errorCount > 0) {
+            $message .= "\n⚠️ **{$errorCount} records** failed to upload";
+        }
+        
+        $message .= "\n📍 Restaurant: **{$restaurantName}**";
+        $message .= "\n📊 Total processed: **" . ($successCount + $errorCount) . " records**";
+        
+        if ($successCount > 0) {
+            // Add meal type breakdown
+            $mealTypes = [];
+            foreach ($csvData as $row) {
+                if (!empty($row[0])) {
+                    $mealType = trim($row[0]);
+                    if (!isset($mealTypes[$mealType])) {
+                        $mealTypes[$mealType] = 0;
+                    }
+                    $mealTypes[$mealType]++;
+                }
+            }
+            
+            if (!empty($mealTypes)) {
+                $message .= "\n🍴 **Meal types added:**";
+                foreach ($mealTypes as $type => $count) {
+                    $message .= "\n   • {$type}: {$count} items";
+                }
+            }
+        }
+        
+        return redirect()->back()
+            ->with('success', $message)
+            ->with('errors', $errors);
+    }
+}

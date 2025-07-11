@@ -44,9 +44,12 @@
           <thead>
             <tr>
               <th>No</th>
+              <th>Agency Company</th>
               <th>Name</th>
               <th>Email</th>
-              <th>phone</th>
+              <th>Phone</th>
+              <th>Country & City</th>
+              <th>Service Country</th>
               {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                   <th>Action</th>
               {{-- @endif --}}
@@ -56,9 +59,35 @@
             @foreach ($agents as $key => $agent)
               <tr>
                 <td>{{ ++$key }}</td>
+                <td>{{ $agent->company_name ?? 'N/A' }}</td>
                 <td>{{ $agent->name }}</td>
                 <td>{{ $agent->email }}</td>
                 <td>{{ $agent->phone }}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                        <div>
+                            <span class="fw-medium text-primary">{{ $agent->user_country ?? 'N/A' }}</span>
+                            <br>
+                            <small class="text-muted">{{ $agent->city ?? 'N/A' }}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                  @if($agent->country)
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-globe text-primary me-2"></i>
+                        <div>
+                            <span class="fw-medium text-dark">{{ str_replace(',', ', ', $agent->country) }}</span>
+                        </div>
+                    </div>
+                  @else
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-globe text-muted me-2"></i>
+                        <span class="text-muted">-</span>
+                    </div>
+                  @endif
+                </td>
                 {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                 <td>
                   <div class="d-flex gap-2">
