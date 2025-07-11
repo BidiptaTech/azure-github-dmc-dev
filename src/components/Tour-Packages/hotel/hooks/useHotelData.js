@@ -41,18 +41,18 @@ const useHotelData = (mealPlanOptions) => {
   
   // Fetch existing tour data when component mounts - ONLY if we already have packageData (update mode)
   
-  // useEffect(() => {
-  //   if (tourId) {
-  //     console.log("HOTEL COMPONENT - Fetching existing tour data for tour ID:", tourId);
-  //     dispatch(UpdateCustomPackage({ tour_id: tourId }))
-  //       .then(response => {
-  //         console.log("HOTEL COMPONENT - UpdateCustomPackage response:", response);
-  //       })
-  //       .catch(error => {
-  //         console.error("HOTEL COMPONENT - Error fetching tour data:", error);
-  //       });
-  //   }
-  // }, [tourId, dispatch]);
+  useEffect(() => {
+    if (tourId) {
+      console.log("HOTEL COMPONENT - Fetching existing tour data for tour ID:", tourId);
+      dispatch(UpdateCustomPackage({ tour_id: tourId }))
+        .then(response => {
+          console.log("HOTEL COMPONENT - UpdateCustomPackage response:", response);
+        })
+        .catch(error => {
+          console.error("HOTEL COMPONENT - Error fetching tour data:", error);
+        });
+    }
+  }, [tourId, dispatch]);
   
   // Function to create an initial hotel configuration
   const createInitialHotelConfiguration = useCallback((searchCriteria = {}) => {
