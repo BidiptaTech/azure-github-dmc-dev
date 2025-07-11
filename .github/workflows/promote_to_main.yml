@@ -27,16 +27,41 @@ jobs:
           echo "Event: ${{ github.event_name }}"
           echo "Ref: ${{ github.ref }}"
           echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Triggering Actor: ${{ github.triggering_actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Run Number: ${{ github.run_number }}"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "PR Merged: ${{ github.event.pull_request.merged }}"
             echo "Base Branch: ${{ github.event.pull_request.base.ref }}"
             echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
           fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "Push Ref: ${{ github.event.ref }}"
+            echo "Before SHA: ${{ github.event.before }}"
+            echo "After SHA: ${{ github.event.after }}"
+            echo "Pusher Name: ${{ github.event.pusher.name }}"
+            echo "Pusher Email: ${{ github.event.pusher.email }}"
+          fi
+          echo "=== Environment Variables ==="
+          env | grep GITHUB_ | sort
 
       - name: 📅 Checkout staging branch
         uses: actions/checkout@v4
         with:
           ref: staging
+          fetch-depth: 0  # Fetch full history for better debugging
+
+      - name: 🔍 Git History Debug
+        run: |
+          echo "=== Current Branch ==="
+          git branch -a
+          echo "=== Latest 5 commits ==="
+          git log --oneline -5
+          echo "=== Staging branch status ==="
+          git show-branch staging
 
       - name: 🧠 Setup PHP
         uses: shivammathur/setup-php@v2
@@ -230,4 +255,7 @@ jobs:
           echo "📆 Deploy triggered by: ${{ github.event_name }}"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "📋 PR: #${{ github.event.pull_request.number }} from ${{ github.event.pull_request.head.ref }}"
+          fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "🔄 Push from: ${{ github.event.pusher.name }} (${{ github.event.pusher.email }})"
           fi
