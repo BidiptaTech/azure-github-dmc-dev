@@ -10,7 +10,6 @@ if (!function_exists('hasPermission')) {
      * @param string $permissionName
      * @return bool
      */
-    
     function hasPermission($permissionName)
     {
         $user = Auth::user();
