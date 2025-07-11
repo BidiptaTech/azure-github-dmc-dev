@@ -168,7 +168,7 @@ const TourListPage1 = () => {
             <div className="col-xl-3">
               <aside
                 className="sidebar y-gap-40 xl:d-none"
-                style={{ marginTop: "50px" }}
+                style={{ marginTop: "0px" }}
               >
                 <Sidebar />
               </aside>
@@ -196,7 +196,9 @@ const TourListPage1 = () => {
             </div>
 
             <div className="col-xl-9">
-              <TourProperties />
+              <div style={{ marginTop: "0px", paddingLeft: "2rem" }}>
+                <TourProperties />
+              </div>
             </div>
           </div>
         </div>

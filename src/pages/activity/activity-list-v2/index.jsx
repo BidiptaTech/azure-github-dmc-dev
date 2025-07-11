@@ -354,7 +354,7 @@ const ActivityListPage2 = () => {
               />
               <div className="mt-30"></div>
               {/* End mt--30 */}
-              <div className="row y-gap-30">
+              <div className="row y-gap-30" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
                 <ActivityProperties
                   vehicles={filteredVehicles}
                   status={status}

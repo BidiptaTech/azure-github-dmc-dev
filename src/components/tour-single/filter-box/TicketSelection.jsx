@@ -24,6 +24,7 @@ import {
   DialogContent,
   DialogActions,
   Avatar,
+
  
 } from "@mui/material";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
@@ -45,8 +46,10 @@ import LanguageIcon from '@mui/icons-material/Language';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CloseIcon from '@mui/icons-material/Close';
 import ListIcon from '@mui/icons-material/List';
+import PackageIcon from '@mui/icons-material/Inventory';
 
 import { styled, alpha } from "@mui/material/styles";
+import { capitalizeWords } from '../../../utils/textUtils';
 
 const StyledDropdown = styled(Paper)(({ theme, isOpen }) => ({
   display: 'flex',
@@ -224,6 +227,10 @@ const TicketSelection = ({
       package_type: ticket.type === 'package' ? 1 : 0,
       package_attraction_id: ticket.type === 'package' ? ticket.package_attraction_id : null
     };
+    
+    setSelectedTicket(ticketWithType);
+    // Add package_type to the ticket object
+ 
     
     setSelectedTicket(ticketWithType);
     // Add package_type to the ticket object
@@ -444,7 +451,7 @@ const TicketSelection = ({
   const allOptions = [
     ...ticketOptions.map(ticket => ({ 
       ...ticket, 
-      type: 'ticket' 
+      type: 'attraction' 
     })),
     ...packages.map(pkg => ({
       ticket_id: `pkg_${pkg.id}`,
@@ -454,7 +461,7 @@ const TicketSelection = ({
       dmc_senior_price: parseFloat(pkg.senior_citizen_price || 0),
       description: pkg.description,
       attractions: pkg.attractions,
-      type: 'package',
+      type: 'attraction_package',
       packageDetails: pkg, // Store the full package data
       package_attraction_id: pkg.package_attraction_id || null
     }))
@@ -462,7 +469,7 @@ const TicketSelection = ({
 
   // Function to check if selected item is a package
   const isPackage = (item) => {
-    return item && item.type === 'package';
+    return item && item.type === 'attraction_package';
   };
 
   return (
@@ -477,17 +484,28 @@ const TicketSelection = ({
             isOpen={isDropdownOpen}
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
-            <Typography 
-              sx={{ 
-                fontWeight: 500, 
-                color: 'text.primary',
-                flexGrow: 1
-              }}
-            >
-              {selectedTicket
-                ? selectedTicket.ticket_name
-                : "Select Ticket Package"}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+              {selectedTicket && (
+                <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+                  {isPackage(selectedTicket) ? (
+                    <PackageIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
+                  ) : (
+                    <ConfirmationNumberIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                  )}
+                </Box>
+              )}
+              <Typography 
+                sx={{ 
+                  fontWeight: 500, 
+                  color: 'text.primary',
+                  flexGrow: 1
+                }}
+              >
+                {selectedTicket
+                  ? capitalizeWords(selectedTicket.ticket_name)
+                  : "Select Ticket Package"}
+              </Typography>
+            </Box>
             {isDropdownOpen ? 
               <KeyboardArrowUpIcon color="action" /> : 
               <KeyboardArrowDownIcon color="action" />
@@ -510,7 +528,7 @@ const TicketSelection = ({
                 >
                   <Box width="100%">
                     <Box display="flex" alignItems="center">
-                      {item.type === 'package' && (
+                      {item.type === 'attraction_package' && (
                         <Chip 
                           size="small" 
                           label="Package" 
@@ -518,21 +536,14 @@ const TicketSelection = ({
                           sx={{ mr: 1, height: '18px', fontSize: '10px' }} 
                         />
                       )}
-                      {item.type === 'package' && (
-                        <Chip 
-                          size="small" 
-                          label="Package" 
-                          color="secondary" 
-                          sx={{ mr: 1, height: '18px', fontSize: '10px' }} 
-                        />
-                      )}
+                    
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: selectedTicket?.ticket_id === item.ticket_id ? 600 : 500
                         }}
                       >
-                        {item.ticket_name}
+                        {capitalizeWords(item.ticket_name)}
                       </Typography>
                     </Box>
                     <Box display="flex" alignItems="center" mt={0.5}>
@@ -618,6 +629,7 @@ const TicketSelection = ({
           </IconButton>
         </DialogTitle>
         
+         
         <DialogContent sx={{ p: 0, display: 'flex', height: '600px' }}>   
           {selectedTicket && (
             <>
@@ -651,7 +663,7 @@ const TicketSelection = ({
                 </Box>
                 <Box flexGrow={1}>
                   <Typography variant="h6" color="primary.main">
-                    {selectedTicket.ticket_name}
+                    {capitalizeWords(selectedTicket.ticket_name)}
                   </Typography>
                     {isPackage(selectedTicket) && (
                       <Typography variant="caption" color="text.secondary">
@@ -957,7 +969,7 @@ const TicketSelection = ({
                       onClick={() => setSelectedTicket(item)}
                     >
                       <Box display="flex" alignItems="center">
-                        {item.type === 'package' && (
+                        {item.type === 'attraction_package' && (
                           <Chip 
                             size="small" 
                             label="Package" 
@@ -970,7 +982,7 @@ const TicketSelection = ({
                           fontWeight={selectedTicket?.ticket_id === item.ticket_id ? 600 : 400}
                           color={selectedTicket?.ticket_id === item.ticket_id ? 'primary' : 'textPrimary'}
                         >
-                          {item.ticket_name}
+                          {capitalizeWords(item.ticket_name)}
                         </Typography>
                       </Box>
                       
@@ -997,7 +1009,7 @@ const TicketSelection = ({
                         </Typography>
                       </Box>
                       
-                      {item.type === 'package' && item.attractions && (
+                      {item.type === 'attraction_package' && item.attractions && (
                         <Box mt={1}>
                           <Typography 
                             variant="caption" 

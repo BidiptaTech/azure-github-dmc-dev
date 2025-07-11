@@ -60,6 +60,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   
   console.log('Attraction update', attractionspack);
+  console.log('AttractionDetails:', attractionDetails);
+  console.log('Packages from attractionDetails:', attractionDetails?.packages);
 
   // Helper function to convert any date format to YYYY-MM-DD string
   const formatDateToString = (dateInput) => {
@@ -212,9 +214,12 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         bookingType: attractionData.bookingType || "enquiry"
       };
 
+      // Determine if this is a package booking
+      const isPackageBooking = processedAttractionData.package_type === 1 || processedAttractionData.ticketId?.startsWith('pkg_');
+      
       // Create service object with booking_id preserved
       const serviceObject = {
-        type: "attraction",
+        type: isPackageBooking ? "attraction_package" : "attraction",
         agent_id: agentId,
         tour_id: tourId,
         data: [processedAttractionData]
@@ -329,8 +334,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       
       // Filter out attraction services that contain this booking
       const filteredServices = currentServices.map(service => {
-        // Check if this is an attraction service
-        if (service.type === "attraction") {
+        // Check if this is an attraction service (including attraction packages)
+        if (service.type === "attraction" || service.type === "attraction_package") {
           // Check if this service contains data that matches our booking
           if (service.data && Array.isArray(service.data)) {
             // Remove the specific booking with matching ID and booking_id (if available)
@@ -433,7 +438,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       // Find and update existing attraction service for this dayIndex
       let found = false;
       const updatedServices = currentServices.map(service => {
-        if (service.type === "attraction" && service.data && Array.isArray(service.data)) {
+        if ((service.type === "attraction" || service.type === "attraction_package") && service.data && Array.isArray(service.data)) {
           const updatedData = service.data.map(item => {
             if (item.dayIndex === dayIndex && item.id === bookingData.id) {
               found = true;
@@ -451,8 +456,11 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
       // If not found, add new service entry
       if (!found) {
+        // Determine if this is a package booking
+        const isPackageBooking = bookingData.package_type === 1 || bookingData.ticketId?.startsWith('pkg_');
+        
         const newAttractionService = {
-          type: "attraction",
+          type: isPackageBooking ? "attraction_package" : "attraction",
           agent_id: agentId,
           tour_id: tourId,
           data: [bookingData]
@@ -505,7 +513,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       dmc_id: agentId,
       bookingDate: updatedSection.bookingDate,
       dayIndex: dayIndex,
-      bookingType: "enquiry"
+      bookingType: "enquiry",
+      package_type: summaryData.type === 'attraction_package' ? 1 : 0,
+      package_attraction_id: summaryData.type === 'attraction_package' ? summaryData.packageDetails?.package_id : null,
+      ...(summaryData.type === 'attraction_package' && summaryData.packageDetails && { package_details: summaryData.packageDetails })
     };
 
     // Clone existing services
@@ -514,7 +525,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Find and update existing attraction service for this dayIndex
     let found = false;
     const updatedServices = currentServices.map(service => {
-      if (service.type === "attraction" && service.data && Array.isArray(service.data)) {
+      if ((service.type === "attraction" || service.type === "attraction_package") && service.data && Array.isArray(service.data)) {
         const updatedData = service.data.map(item => {
           if (item.dayIndex === dayIndex && item.id === bookingData.id) {
             found = true;
@@ -621,6 +632,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         ...newFormSections[sectionIndex],
         ticketType: value.ticketId,
         priceType: value.priceType,
+        type: value.type || 'attraction', // Add the type field
         bookingDate: bookingDate // Preserve booking date
       };
       setFormSections(newFormSections);
@@ -731,6 +743,9 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         currency: 'SGD',
         priceType: booking.originalData.nri || 'residential',
         booking_id: booking.originalData.booking_id, // Preserve booking_id
+        type: booking.originalData.type || 'attraction',
+        packageAttractions: booking.originalData.packageAttractions || null,
+        packageDescription: booking.originalData.packageDescription || null,
       };
     }
 
@@ -739,12 +754,26 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     const ticketDetails = attractionDetails?.ticket_prices?.find(
       ticket => ticket.ticket_id === booking.ticketType
     );
+    
+    // Check if this is a package booking
+    console.log('getBookingSummary - booking.ticketType:', booking.ticketType, 'type:', typeof booking.ticketType);
+    console.log('getBookingSummary - booking.type:', booking.type);
+    
+    const isPackage = (typeof booking.ticketType === 'string' && booking.ticketType.startsWith('pkg_')) || booking.type === 'attraction_package';
+    const packageDetails = isPackage ? attractionDetails?.packages?.find(
+      pkg => `pkg_${pkg.id}` === booking.ticketType
+    ) : null;
 
     // Get prices based on mode and price type (residential/nri)
     let adultPrice, childPrice, seniorPrice;
     const isNRI = booking.priceType === 'nri';
     
-    if (currentMode === 'dmc') {
+    if (isPackage && packageDetails) {
+      // Use package prices
+      adultPrice = parseFloat(packageDetails.adult_price) || 0;
+      childPrice = parseFloat(packageDetails.child_price) || 0;
+      seniorPrice = parseFloat(packageDetails.senior_citizen_price) || 0;
+    } else if (currentMode === 'dmc') {
       if (isNRI) {
         adultPrice = parseFloat(ticketDetails?.dmc_adult_price_nri) || 0;
         childPrice = parseFloat(ticketDetails?.dmc_child_price_nri) || 0;
@@ -769,6 +798,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       return times.join(", ") || "Not specified";
     };
 
+    // Get package details if it's a package booking
+    const packageDetailsForBooking = isPackage ? {
+      package_id: packageDetails?.id || null,
+      package_name: packageDetails?.name || 'Package',
+      package_attractions: packageDetails?.attractions || [],
+      package_description: packageDetails?.description || "",
+      package_adult_price: adultPrice || 0,
+      package_child_price: childPrice || 0,
+      package_senior_price: seniorPrice || 0,
+      package_total_attractions: packageDetails?.attractions?.length || 0
+    } : null;
+
     const summaryData = {
       attraction: selectedAttraction?.attraction_name || 'Not selected',
       location: selectedAttraction?.city || 'Not specified',
@@ -778,8 +819,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       description: selectedAttraction?.description || 'No description available',
       pax: booking.pax || { Adults: 0, Children: 0, Seniors: 0 },
       timeSlot: booking.timeSlot || 'Not selected',
-      ticketType: ticketDetails?.ticket_name || 'Not selected',
-      ticketDescription: ticketDetails?.description || 'No description available',
+      ticketType: isPackage ? packageDetails?.name : (ticketDetails?.ticket_name || 'Not selected'),
+      ticketDescription: isPackage ? packageDetails?.description : (ticketDetails?.description || 'No description available'),
       adultPrice,
       childPrice,
       seniorPrice,
@@ -797,6 +838,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       tax_amount: selectedAttraction?.tax_amount || ticketDetails?.tax_amount,
       currency: selectedAttraction?.currency || 'SGD',
       priceType: booking.priceType || 'residential',
+      type: isPackage ? 'attraction_package' : 'attraction',
+      packageAttractions: isPackage ? packageDetails?.attractions : null,
+      packageDescription: isPackage ? packageDetails?.description : null,
+      packageDetails: packageDetailsForBooking, // Add the full package details for booking
     };
 
     console.log('Summary data:', summaryData);
@@ -872,7 +917,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           bookingDate: section.originalData.bookingDate,
           dayIndex: section.originalData.dayIndex,
           bookingType: section.originalData.bookingType || "enquiry",
-          booking_id: section.originalData.booking_id // Preserve booking_id
+          booking_id: section.originalData.booking_id, // Preserve booking_id
+          package_type: section.originalData.package_type || 0,
+          package_attraction_id: section.originalData.package_attraction_id || null,
+          ...(section.originalData.package_details && { package_details: section.originalData.package_details })
         };
       }
 
@@ -910,13 +958,16 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: agentId,
         bookingDate: section.bookingDate,
         dayIndex: dayIndex,
-        bookingType: "enquiry"
+        bookingType: "enquiry",
+        package_type: summaryData.type === 'attraction_package' ? 1 : 0,
+        package_attraction_id: summaryData.type === 'attraction_package' ? summaryData.packageDetails?.package_id : null,
+        ...(summaryData.type === 'attraction_package' && summaryData.packageDetails && { package_details: summaryData.packageDetails })
       };
     });
 
     // Remove any existing attraction services for this dayIndex
     const filteredServices = existingServices.filter(service => {
-      if (service.type === "attraction" && service.data && Array.isArray(service.data)) {
+      if ((service.type === "attraction" || service.type === "attraction_package") && service.data && Array.isArray(service.data)) {
         // Keep services that don't match this dayIndex
         return !service.data.some(item => item.dayIndex === dayIndex);
       }
@@ -925,8 +976,11 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     // Create new attraction service entries
     const newAttractionServices = attractionsForRedux.map((attractionData, index) => {
+      // Determine if this is a package booking
+      const isPackageBooking = attractionData.package_type === 1 || attractionData.ticketId?.startsWith('pkg_');
+      
       const serviceObject = {
-        type: "attraction",
+        type: isPackageBooking ? "attraction_package" : "attraction",
         agent_id: agentId,
         tour_id: tourId,
         data: [attractionData]
@@ -1439,6 +1493,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                               formSections={formSections}
                               bookingDate={date}
                               dayIndex={dayIndex}
+                              packages={attractionDetails?.packages || []}
                             />
                             </Box>
                           </Box>
