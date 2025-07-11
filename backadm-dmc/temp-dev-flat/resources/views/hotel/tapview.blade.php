@@ -88,7 +88,7 @@
     <li class="nav-item" role="presentation">
         <a class="nav-link {{ $roomCount > 0 ? (Request::routeIs('hotel-restaurant-create')|| Request::routeIs('hotel-meals-create') ? 'active' : '') : 'disabled' }}" 
         id="pills-event-tab" 
-        href="{{ $roomCount > 0 ? route('hotel-restaurant-create', $hotel->hotel_unique_id) : '#' }}"
+        href="{{ $roomCount > 0 ? env('BASE_URL') . route('hotel-restaurant-create', $hotel->hotel_unique_id, false) : '#' }}"
         role="tab" 
         aria-selected="{{ $roomCount > 0 ? 'true' : 'false' }}" 
         tabindex="{{ $roomCount > 0 ? '0' : '-1' }}">
