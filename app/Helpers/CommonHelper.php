@@ -796,7 +796,7 @@ class CommonHelper
         }
 
         // Extract all DMC IDs from JSON arrays (only if records exist)
-        if (isset($records) && !empty($records) && $records->count() > 0) {
+        if ($type === 'hotel' || $type === 'attraction' || $type === 'restaurant') {
             foreach ($records as $record) {
                 $dmc_id_data = $record->dmc_id;
                 if (is_string($dmc_id_data)) {
