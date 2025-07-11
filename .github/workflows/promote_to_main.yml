@@ -206,4 +206,4 @@ jobs:
           echo "🔋 OPcache and Composer cache cleared for clean run"
           echo "🚀 Production-ready optimization: route, view, and config cached"
           echo "🚧 Secure headers and HTTPS enforced by NGINX"
-          echo "📆 Deploy triggered by push to staging branch"
+          echo "📆 Deploy triggered by push to staging branch" 
