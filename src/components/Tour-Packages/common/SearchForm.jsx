@@ -80,6 +80,7 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 });
 
 export default function SearchForm({ onNext, setActiveTab, packageData: propPackageData }) {
+
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -683,22 +684,22 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     // Get tour_id from packageData
     const tourId = packageData?.tour?.tour_id;
-    dispatch(setAllServices({
-      country: country,
-      city: city,
-      check_in_time: formattedCheckIn,
-      check_out_time: formattedCheckOut,
-      tour_id: tourId,
-      guests: {
-        adults: guestCounts.Adults.toString(),
-        children: guestCounts.Children.toString(),
-        infants: guestCounts.Infants.toString(),
-        maleCount: maleCount,
-        femaleCount: femaleCount,
-        childrenAges: guestCounts.ages || [],
-        adultGenders: genders
-      }
-    }));
+    // dispatch(setAllServices({
+    //   country: country,
+    //   city: city,
+    //   check_in_time: formattedCheckIn,
+    //   check_out_time: formattedCheckOut,
+    //   tour_id: tourId,
+    //   guests: {
+    //     adults: guestCounts.Adults.toString(),
+    //     children: guestCounts.Children.toString(),
+    //     infants: guestCounts.Infants.toString(),
+    //     maleCount: maleCount,
+    //     femaleCount: femaleCount,
+    //     childrenAges: guestCounts.ages || [],
+    //     adultGenders: genders
+    //   }
+    // }));
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
@@ -907,14 +908,16 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     //   });
   };
 
+ 
+
   const handleUpdate = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) return;
 
-    // Clear previous customer info when starting new search
+    // Clear previous customer info when starting update
     dispatch(clearUserInfo());
-    dispatch(clearAllServices());
+    // dispatch(clearAllServices());
     // Clear previous data
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
@@ -922,10 +925,15 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     dispatch(resetVehicles1()); 
     dispatch(resetguide());
     
+    
     // Format Dates
     const formattedCheckIn = moment(startDate).format("DD/MM/YYYY");
+    console.log("formattedCheckIn",formattedCheckIn);
     const formattedCheckOut = moment(endDate).format("DD/MM/YYYY");
 
+ 
+
+    
     // Get the country and city data
     const country = selectedLocation.country;
     const city = selectedLocation.city;
@@ -941,15 +949,24 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       ...Array(femaleCount).fill("Female")
     ];
 
-    dispatch(updateSearchState({
-      location: [city], // or just city if location is a single string
-      ucheckIn: formatedHotelCheckIn,
-      ucheckOut: formatedHotelCheckOut,
-      guests: guestCounts
+    // Get tour_id from packageData
+    const tourId = packageData?.tour?.tour_id;
+    dispatch(setAllServices({
+      country: country,
+      city: city,
+      check_in_time: formattedCheckIn,
+      check_out_time: formattedCheckOut,
+      tour_id: tourId,
+      guests: {
+        adults: guestCounts.Adults.toString(),
+        children: guestCounts.Children.toString(),
+        infants: guestCounts.Infants.toString(),
+        maleCount: maleCount,
+        femaleCount: femaleCount,
+        childrenAges: guestCounts.ages || [],
+        adultGenders: genders
+      }
     }));
-    
-    // Step 2: Fetch hotels using pagination args
-    dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     // Update tour packages search criteria in Redux
     dispatch(setSearchCriteria({
@@ -982,7 +999,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       date: moment(startDate),
       adults: guestCounts.Adults,
       children: guestCounts.Children,
-      tour_id: tourdetails?.tour_id
+      tour_id: tourId // Use tour_id from packageData
     }));
 
     // Update the guide search params and fetch guides
@@ -997,7 +1014,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       date: moment(startDate),
       adults: guestCounts.Adults,
       children: guestCounts.Children,
-      tour_id: tourdetails?.tour_id
+      tour_id: tourId // Use tour_id from packageData
     }));
 
     // Fetch guides with the required parameters
@@ -1012,7 +1029,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       date: formattedAttractionDate, // Use YYYY-MM-DD format
       adults: guestCounts.Adults,
       children: guestCounts.Children,
-      tour_id: tourdetails?.tour_id, // Add tour_id
+      tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
       fromMainSearch: false
     }));
@@ -1023,7 +1040,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       date: formattedAttractionDate,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
-      tour_id: tourdetails?.tour_id,
+      tour_id: tourId,
       fromMainSearch: false
     });
 
@@ -1032,7 +1049,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       date: formattedAttractionDate,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
-      tour_id: tourdetails?.tour_id,
+      tour_id: tourId, // Use tour_id from packageData
       fromMainSearch: false
     }))
     .then((response) => {
@@ -1042,7 +1059,15 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       console.error('fetchRestaurants error:', error);
     });
 
-   
+   dispatch(updateSearchState({
+  location: [city], // or just city if location is a single string
+  ucheckIn: formatedHotelCheckIn,
+  ucheckOut: formatedHotelCheckOut,
+  guests: guestCounts
+}));
+
+// Step 2: Fetch hotels using pagination args
+dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -1073,74 +1098,23 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       })
     );
 
+    // Set existing tour data in Redux state
+    dispatch(updateSearchState({ location: packageData?.tour?.destination }));
+    dispatch(setId(tourId));
+    dispatch(settourdetails(packageData.tour));
+
     
 
-    // Use our new fetch tour packages action
-    dispatch(fetchTourPackages({
-      country: country,
-      city: city,
-      checkIn: formattedCheckIn,
-      checkOut: formattedCheckOut,
-      guests: {
-        adults: guestCounts.Adults,
-        children: guestCounts.Children,
-        infants: guestCounts.Infants,
-        maleCount: maleCount,
-        femaleCount: femaleCount,
-        childrenAges: guestCounts.ages || [],
+    // Move to the first tab (Itinerary) after update completes
+    if (onNext) {
+      onNext();
+      // If the parent component has a setActiveTab function, call it to show the Itinerary tab
+      if (typeof setActiveTab === 'function') {
+        setActiveTab(0); // Select the first tab (Itinerary)
       }
-    }))
-      .unwrap()
-      .then((data) => {
-        console.log("Tour packages response:", data);
-        dispatch(updateSearchState({ location: data.destination }));
-        dispatch(setId(data.data.tour_id));
-        dispatch(setPackageData(null));
-        dispatch(settourdetails(data));
-        // Move to the first tab (Itinerary) after search completes
-        if (onNext) {
-          onNext();
-          // If the parent component has a setActiveTab function, call it to show the Itinerary tab
-          // This assumes the parent component passes this function as a prop if needed
-          if (typeof setActiveTab === 'function') {
-            setActiveTab(0); // Select the first tab (Itinerary)
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching tour packages:", error);
-        setSnackbarMessage(
-          "Failed to fetch tour packages. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setOpenSnackbar(true);
-      });
+    }
 
-    // For backward compatibility, also create a booking ID
-    // dispatch(fetchBookingid())
-    //   .unwrap()
-    //   .then((data) => {
-    //     console.log("Enquiry response:", data);
-    //     const id = data?.enquiry_id || data?.data?.enquiry_id || data?.tour_id || data?.data?.tour_id;
-
-    //     if (id) {
-    //       // Update state with API response
-    //       dispatch(updateSearchState({ 
-    //         location: country,
-    //         cityName: city,
-    //         countryName: country
-    //       }));
-          
-    //       dispatch(settourdetails(data)); // Set full enquiry details
-    //       dispatch(setId(id)); // Set the ID
-    //       dispatch(setTourId(id));
-    //       dispatch(setBookingType("enquiry")); // Set booking type to enquiry
-    //       dispatch(setType("enquiry"));
-    //     }
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error creating enquiry:", error);
-    //   });
+    console.log("Tour package updated successfully with tour_id:", tourId);
   };
 
  
@@ -1431,6 +1405,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   : '0 8px 32px rgba(102, 126, 234, 0.4)',
                 position: 'relative',
                 overflow: 'hidden',
+                color: 'white',
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -1568,4 +1543,4 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       </Snackbar>
     </Box>
   );
-} 
+}
