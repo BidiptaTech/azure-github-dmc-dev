@@ -142,7 +142,7 @@
                             <select class="form-select" id="user_country" name="user_country">
                                 <option disabled value>Choose a country...</option>
                                 @foreach($country as $c)
-                                    <option value="{{ $c->name }}" {{ $users->country == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    <option value="{{ $c->name }}" {{ $users->user_country == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                 @endforeach
                             </select>
                         </div>

@@ -142,10 +142,10 @@
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 <input type="text" class="form-control" id="country"
-                                value="{{in_array(auth()->user()->role_id, [11, 35, 78, 120]) ? $userCountry : ''}}"
-                                    placeholder="{{ auth()->user()->role_id == 11 ? 'Your country' : 'Select DMC First' }}" 
+                                value="{{in_array(auth()->user()->role_id, [11, 20, 35, 78, 120]) ? $userCountry : ''}}"
+                                    placeholder="{{ auth()->user()->role_id == 11 || auth()->user()->role_id == 20 ? 'Your country' : 'Select DMC First' }}" 
                                     name="country" required 
-                                    {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
+                                    {{ auth()->user()->role_id == 11 || auth()->user()->role_id == 20 ? 'readonly' : 'readonly' }}>
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -157,13 +157,13 @@
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 @php
                                     $roleId = auth()->user()->role_id;
-                                    $placeholder = $roleId == 11 ? 'Select City' : 'Select DMC First';
+                                    $placeholder = $roleId == 11 || $roleId == 20 ? 'Select City' : 'Select DMC First';
                                 @endphp
                                 
                                 <select name="city" id="citySelect" class="form-control" required>
                                     <option value="">{{ $placeholder }}</option>
 
-                                    @if(in_array($roleId, [11, 35, 78, 120]))
+                                    @if(in_array($roleId, [11, 20, 35, 78, 120]))
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}">{{ $city->name }}</option>
                                         @endforeach
@@ -1111,8 +1111,8 @@ $(document).ready(function() {
         // Get the user's role ID
         var userRoleId = {{ auth()->user()->role_id }};
         // Get the current user's country if they are a DMC
-        var userCountry = "{{ auth()->user()->role_id == 11 ? auth()->user()->country : '' }}";
-        var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
+        var userCountry = "{{ auth()->user()->role_id == 11 || auth()->user()->role_id == 20 ? auth()->user()->country : '' }}";
+        var dmcId = "{{ auth()->user()->role_id == 11 || auth()->user()->role_id == 20 ? auth()->user()->userId : '' }}";
         
         // // Initialize Select2 for city
         $('#citySelect').select2({
@@ -1123,7 +1123,7 @@ $(document).ready(function() {
         });
         
         // Check if the user role is DMC (role_id = 11)
-        if (userRoleId == 11) {
+        if (userRoleId == 11 || userRoleId == 20) {
             // Hide the DMC select box
             $('#dmc-container').hide();
             $('#dmc').prop('required', false);

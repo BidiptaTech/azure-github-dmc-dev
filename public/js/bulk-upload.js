@@ -34,14 +34,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        dropzone.addEventListener('click', function() {
-            fileInput.click();
+        dropzone.addEventListener('click', function(e) {
+            // Only trigger file input if the click was not on the browse button
+            if (e.target !== browseBtn && !browseBtn.contains(e.target)) {
+                fileInput.click();
+            }
         });
     }
 
     if (browseBtn) {
         browseBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling to dropzone
             fileInput.click();
         });
     }
@@ -63,15 +67,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleFile(file) {
-        // Validate file type
+        // Validate file type - support Excel and CSV files
         const allowedTypes = [
             'text/csv',
             'application/csv',
-            'text/plain'
+            'text/plain',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         ];
         
-        if (!allowedTypes.includes(file.type)) {
-            alert('Please select a valid CSV file.');
+        // Also check file extensions as backup
+        const fileName = file.name.toLowerCase();
+        const allowedExtensions = ['.csv', '.xlsx', '.xls'];
+        const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+        
+        if (!allowedTypes.includes(file.type) && !hasValidExtension) {
+            alert('Please select a valid file (.csv, .xlsx, .xls).');
             return;
         }
 
@@ -137,25 +148,50 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    // Track if form is already being submitted
+    let isSubmitting = false;
+
     // Form submission with progress
     if (uploadForm) {
         uploadForm.addEventListener('submit', function(e) {
-            e.preventDefault();
+            // Prevent double submission
+            if (isSubmitting || uploadBtn.disabled) {
+                e.preventDefault();
+                return false;
+            }
             
-            const formData = new FormData(this);
+            // Validate file is selected
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Please select a file to upload.');
+                return false;
+            }
             
-            // Show progress section
+            // Mark as submitting
+            isSubmitting = true;
+            
+            // Show progress section and disable button
             if (progressSection) {
                 progressSection.classList.remove('d-none');
             }
             uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="ri-loader-line me-1"></i>Uploading...';
             
-            // Simulate progress (in real implementation, you'd use XMLHttpRequest for actual progress)
+            // Disable dropzone interactions to prevent changes during upload
+            if (dropzone) {
+                dropzone.style.pointerEvents = 'none';
+                dropzone.style.opacity = '0.6';
+            }
+            if (browseBtn) {
+                browseBtn.style.pointerEvents = 'none';
+            }
+            
+            // Simulate progress for user feedback
             let progress = 0;
             const progressInterval = setInterval(function() {
-                progress += Math.random() * 15;
-                if (progress >= 95) {
-                    progress = 95;
+                progress += Math.random() * 10;
+                if (progress >= 90) {
+                    progress = 90;
                     clearInterval(progressInterval);
                 }
                 
@@ -165,49 +201,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (progressText) {
                     progressText.textContent = Math.round(progress) + '%';
                 }
-            }, 200);
+            }, 300);
             
-            // Submit form
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                clearInterval(progressInterval);
-                if (progressBar) {
-                    progressBar.style.width = '100%';
-                }
-                if (progressText) {
-                    progressText.textContent = '100%';
-                }
-                
-                setTimeout(() => {
-                    if (data.success) {
-                        window.location.reload();
-                    } else {
-                        alert('Upload failed: ' + (data.message || 'Unknown error'));
-                        if (progressSection) {
-                            progressSection.classList.add('d-none');
-                        }
-                        uploadBtn.disabled = false;
-                    }
-                }, 500);
-            })
-            .catch(error => {
-                clearInterval(progressInterval);
-                if (progressSection) {
-                    progressSection.classList.add('d-none');
-                }
-                uploadBtn.disabled = false;
-                
-                // Fallback to regular form submission
-                this.submit();
-            });
+            // Allow normal form submission (no AJAX)
+            // The progress will complete when page reloads with results
+            return true;
         });
     }
 }); 

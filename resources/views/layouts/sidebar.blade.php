@@ -146,9 +146,14 @@
         background: rgba(13, 148, 136, 0.1);
     }
     
-    .ri-landscape-line {
-        color: #65a30d !important; /* Lime */
-        background: rgba(101, 163, 13, 0.1);
+    .ri-camera-3-line {
+        color: #8b5cf6 !important; /* Purple */
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .ri-stack-line {
+        color: #10b981 !important; /* Emerald */
+        background: rgba(16, 185, 129, 0.1);
     }
     
     .ri-restaurant-2-line {
@@ -691,7 +696,7 @@
             <!-- End Reports -->
             
             <!-- Bulk Upload -->
-            @if(in_array(auth()->user()->role_id, [1, 2, 11, 33, 34, 35, 36, 37, 38]))
+            @if(in_array(auth()->user()->role_id, [1, 2, 11, 19, 20, 33, 34, 35, 36, 37, 38]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Bulk Upload">Bulk Upload</span>
                 </li>
@@ -717,14 +722,15 @@
                                 <div data-i18n="Guides">Guides</div>
                             </a>
                         </li>
-                        <li class="menu-item    @if(Request::is('bulk-upload/restaurants')) active @endif">
-                            <a href="{{ route('bulk-upload.restaurants') }}" class="menu-link">
-                                <div data-i18n="Restaurants">Restaurants</div>
-                            </a>
-                        </li>
                         <li class="menu-item @if(Request::is('bulk-upload/vehicles')) active @endif">
                             <a href="{{ route('bulk-upload.vehicles') }}" class="menu-link">
                                 <div data-i18n="Vehicles">Vehicles</div>
+                            </a>
+                        </li>
+                        @if(auth()->user()->role_id !== '11')
+                        <li class="menu-item @if(Request::is('bulk-upload/restaurants')) active @endif">
+                            <a href="{{ route('bulk-upload.restaurants') }}" class="menu-link">
+                                <div data-i18n="Restaurants">Restaurants</div>
                             </a>
                         </li>
                         <li class="menu-item @if(Request::is('bulk-upload/attractions')) active @endif">
@@ -732,6 +738,19 @@
                                 <div data-i18n="Attractions">Attractions</div>
                             </a>
                         </li>
+                        @endif
+                        @if(auth()->user()->role_id == '11')
+                        <li class="menu-item @if(Request::is('bulk-upload/tickets')) active @endif">
+                            <a href="{{ route('bulk-upload.tickets') }}" class="menu-link">
+                                <div data-i18n="Attraction Tickets">Attraction Tickets</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('bulk-upload/meals')) active @endif">
+                            <a href="{{ route('bulk-upload.meals') }}" class="menu-link">
+                                <div data-i18n="Restaurant Meals">Restaurant Meals</div>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </li>
             @endif
@@ -1075,7 +1094,7 @@
 
                 <li class="menu-item @if(Request::is('attraction*') && !Request::is('attractions/attraction-approval*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-landscape-line"></i>
+                        <i class="menu-icon tf-icons ri-camera-3-line"></i>
                         <div data-i18n="Attractions & Experiences">Attractions & Experiences</div>
                     </a>
                     <ul class="menu-sub">
@@ -1117,7 +1136,7 @@
 
                 <li class="menu-item @if(Request::is('packaged-attractions*') && !Request::is('packaged-attractions/packaged-attraction-approval*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-landscape-line"></i>
+                        <i class="menu-icon tf-icons ri-stack-line"></i>
                         <div data-i18n="Attraction Package">Attraction Package</div>
                     </a>
                     <ul class="menu-sub">

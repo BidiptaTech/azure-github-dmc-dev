@@ -46,6 +46,7 @@
               <th>Name</th>
               <th>Email</th>
               <th>phone</th>
+              <th>Country & City</th>
               
               @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <th>Travclicks On</th>
@@ -81,6 +82,16 @@
                 <td>{{ $user->name }}</td>
                 <td>{{ $user->email }}</td>
                 <td>{{ $user->phone }}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                        <div>
+                            <span class="fw-medium text-primary">{{ $user->user_country ?? 'N/A' }}</span>
+                            <br>
+                            <small class="text-muted">{{ $user->city ?? 'N/A' }}</small>
+                        </div>
+                    </div>
+                </td>
                 
                 @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <td>

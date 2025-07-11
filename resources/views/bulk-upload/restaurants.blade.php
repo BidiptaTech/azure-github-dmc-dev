@@ -49,54 +49,43 @@
 
                         <div class="alert alert-success mb-3">
                             <h6 class="alert-heading">📊 Export & Import Feature</h6>
-                            <p class="mb-0">The template download includes all your existing restaurants and meals. You can modify this data and re-upload to update your restaurants, or add new ones.</p>
+                            <p class="mb-0">The template download includes all your existing restaurants. You can modify this data and re-upload to update your restaurants, or add new ones.</p>
                         </div>
 
                         <div class="alert alert-info mb-4">
-                            <h6 class="alert-heading">🍽️ Restaurant & Meal Upload Format</h6>
-                            <p class="mb-3">This system allows you to upload restaurants with their meal menus:</p>
+                            <h6 class="alert-heading">🍽️ Restaurant Data Upload Format</h6>
+                            <p class="mb-3">Virtual DMCs can upload restaurant information only (no meal data):</p>
                             
                             <div class="mb-3">
-                                <strong>Restaurant Info:</strong>
+                                <strong>Required Fields:</strong>
                                 <ul class="mb-2 mt-1 small">
-                                    <li>Provide restaurant details in the first row for each restaurant</li>
-                                    <li>Required: Restaurant Name*</li>
-                                    <li>Optional: Status (1=Active, 0=Inactive)</li>
+                                    <li><strong>Restaurant Name*</strong> - Name of the restaurant</li>
+                                    <li><strong>Cuisine*</strong> - Type of cuisine (Italian, French, Indian, etc.)</li>
+                                    <li><strong>Country*</strong> - Restaurant location country</li>
+                                    <li><strong>City*</strong> - Restaurant location city</li>
                                 </ul>
                             </div>
                             
                             <div class="mb-3">
-                                <strong>Meal Structure:</strong>
+                                <strong>Optional Fields:</strong>
                                 <ul class="mb-2 mt-1 small">
-                                    <li><strong>Meal Type:</strong> Breakfast, Lunch, or Dinner</li>
-                                    <li><strong>Beverage:</strong> Alcoholic, Non Alcoholic, No Beverage</li>
-                                    <li><strong>Meals:</strong> Buffet or Set Menu</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <strong>For Buffet Meals:</strong>
-                                <ul class="mb-2 mt-1 small">
-                                    <li>Required: Adult Price*, Child Price*, Description*</li>
-                                    <li>Leave Item Name and Item Price empty</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <strong>For Set Menu Meals:</strong>
-                                <ul class="mb-2 mt-1 small">
-                                    <li>Required: Item Name*, Item Price*, Item Type*, Description*</li>
-                                    <li>Item Type: Vegetarian or Non Vegetarian</li>
-                                    <li>Leave Adult Price and Child Price empty</li>
+                                    <li><strong>Latitude/Longitude:</strong> Geographic coordinates for location</li>
+                                    <li><strong>Meal Availability:</strong> Breakfast/Lunch/Dinner (1=Available, 0=Not Available)</li>
+                                    <li><strong>Opening Times:</strong> Use HH:MM format (24-hour)</li>
+                                    <li><strong>Owned By:</strong> 0=Third Party, 1=Hotel Owned</li>
+                                    <li><strong>Images:</strong> Master image URL and additional images (comma-separated)</li>
+                                    <li><strong>Description:</strong> Restaurant details and overview</li>
+                                    <li><strong>Terms & Conditions:</strong> Restaurant policies</li>
+                                    <li><strong>Status:</strong> 1=Active, 0=Inactive</li>
                                 </ul>
                             </div>
                             
                             <hr class="my-3">
-                            <p class="mb-2"><strong>Multiple Meals Per Restaurant:</strong></p>
+                            <p class="mb-2"><strong>Upload Format:</strong></p>
                             <ul class="mb-0 small">
-                                <li>First row: Restaurant details + First meal</li>
-                                <li>Subsequent rows: Leave restaurant columns empty, add meal details</li>
-                                <li>Each meal must have all required meal fields filled</li>
+                                <li>One restaurant per row</li>
+                                <li>Download template to see correct column order</li>
+                                <li>All columns must be present (can be empty for optional fields)</li>
                             </ul>
                         </div>
 

@@ -21,4 +21,9 @@ class Attraction extends Model
     {
         return $this->belongsTo(User::class, 'dmc_id', 'userId');
     }
+
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'attraction_id', 'attraction_id');
+    }
 }

@@ -33,19 +33,19 @@
                     <div id="mealsDetailsContainer">
                         <div class="meals-form">
                             <div class="row">
-                                <!-- Restaurant -->
+                                <!-- Restaurant (Read-only) -->
                                 <div class="col-md-3 mb-3">
-                                    <label for="restaurant_id" class="form-label"><strong>Reastaurant</strong><span class="text-danger">*</span></label>
-                                    <select name="restaurant_id" id="restaurantSelect" class="form-control">
-                                        <option value="">Select a Restaurant</option>
-                                        <option value="0">Third Party</option>
-                                        @foreach($restaurants as $restaurant)
-                                            <option {{$meals->restaurant_id == $restaurant->restaurant_id ? 'selected' : ''}} value="{{ $restaurant->restaurant_id }}">{{ $restaurant->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('restaurant_id')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
+                                    <label for="restaurant_name" class="form-label"><strong>Restaurant</strong></label>
+                                    <input type="text" 
+                                           id="restaurant_name" 
+                                           class="form-control bg-light" 
+                                           value="{{ $meals->restaurant_id == 0 ? 'Third Party' : ($meals->restaurant ? $meals->restaurant->name : 'Unknown Restaurant') }}" 
+                                           readonly 
+                                           style="background-color: #f8f9fa; cursor: not-allowed;">
+                                    <input type="hidden" name="restaurant_id" value="{{ $meals->restaurant_id }}">
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="ri-information-line me-1"></i>Restaurant cannot be changed after meal creation
+                                    </small>
                                 </div>
 
                                 <div class="col-md-3 mb-3">

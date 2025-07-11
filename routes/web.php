@@ -279,6 +279,11 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
         // tickets
         Route::resource('tickets', TicketController::class);
         Route::get('tickets/add_ticket/{attraction_id}', [TicketController::class, 'add_ticket'])->name('tickets.add_ticket');
+        Route::get('tickets/bulk_upload/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'attractionTickets'])->name('tickets.bulk_upload_for_attraction');
+        Route::post('tickets/bulk_upload/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractionTickets'])->name('tickets.upload_for_attraction');
+        Route::get('tickets/template/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTicketTemplate'])->name('tickets.template_for_attraction');
+
+
 
         // reports
         Route::resource('report', ReportController::class);
@@ -430,6 +435,16 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
             Route::get('/attractions', [App\Http\Controllers\BulkUploadController::class, 'attractions'])->name('attractions');
             Route::post('/attractions', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractions'])->name('attractions.upload');
             Route::get('/attractions/template', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTemplate'])->name('attractions.template');
+            
+            // Ticket Bulk Upload Routes - Only for DMC (role_id = 11)
+            Route::get('/tickets', [App\Http\Controllers\BulkUploadController::class, 'tickets'])->name('tickets');
+            Route::post('/tickets', [App\Http\Controllers\BulkUploadController::class, 'uploadTickets'])->name('tickets.upload');
+            Route::get('/tickets/template', [App\Http\Controllers\BulkUploadController::class, 'downloadTicketTemplate'])->name('tickets.template');
+            
+            // Meal Bulk Upload Routes - Only for DMC (role_id = 11)
+            Route::get('/meals', [App\Http\Controllers\BulkUploadController::class, 'meals'])->name('meals');
+            Route::post('/meals/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadMeals'])->name('meals.upload');
+            Route::get('/meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadMealTemplate'])->name('meals.template');
         });
 
 
