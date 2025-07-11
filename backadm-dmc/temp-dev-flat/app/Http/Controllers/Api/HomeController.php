@@ -168,36 +168,60 @@ class HomeController extends Controller
                 $time_slots[] = "{$open_times[$i]} - {$close_times[$i]}";
             }
 
-            // Handle pricing for different DMCs
-            $pricingDetails = [];
+            // Initialize pricing variables
+            $dmc_adult_price = 0;
+            $dmc_child_price = 0;
+            $dmc_senior_price = 0;
+            $dmc_dmc_id = 0;
+            $travClicks_adult_price = 0;
+            $travClicks_child_price = 0;
+            $travClicks_senior_price = 0;
+            $trav_dmc_id = 0;
 
+            // Check if the current DMC has access to this attraction
+            $hasAccess = false;
             foreach ($attractionCollection as $attraction) {
-                $tickets = Ticket::where('attraction_id', $attraction->attraction_id)->get();
-                $lowestChildPrice = $tickets->min('child_price');
-                $lowestAdultPrice = $tickets->min('adult_price');
-                $lowestSeniorAdultPrice = $tickets->min('senior_adult_price');
-                
-                if($this->isDmcIdMatch($attraction->dmc_id, $dmc_id)){
+                if ($attraction->hasSelectedByDmc($dmc_id)) {
+                    $hasAccess = true;
+                    break;
+                }
+            }
+
+            if ($hasAccess) {
+                // Get tickets for this attraction from the DMC
+                $tickets = Ticket::where('attraction_id', $firstAttraction->attraction_id)
+                    ->where('dmc_id', $dmc_id)
+                    ->where('status', 1)
+                    ->get();
+
+                if ($tickets->isNotEmpty()) {
+                    // Use ticket prices from the specific DMC
+                    $lowestChildPrice = $tickets->min('child_price') ?? 0;
+                    $lowestAdultPrice = $tickets->min('adult_price') ?? 0;
+                    $lowestSeniorAdultPrice = $tickets->min('senior_adult_price') ?? 0;
+                    
+                    // Calculate DMC-specific prices
                     list($dmc_adult_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestAdultPrice, $dmc_id, $name, 'attraction', $city);
                     list($dmc_child_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestChildPrice, $dmc_id, $name, 'attraction', $city);
                     list($dmc_senior_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestSeniorAdultPrice, $dmc_id, $name, 'attraction', $city);
-                }else{
-                    $dmc_adult_price = 0;
-                    $dmc_child_price = 0;
-                    $dmc_dmc_id = 0;
-                    $dmc_senior_price = 0;
                 }
-                $travClicks_adult_price = 0;
-                $travClicks_child_price = 0;
-                $travClicks_senior_price = 0;
-                $trav_dmc_id = 0;
-                if($agent){ 
-                    list($travClicks_adult_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($lowestAdultPrice, $dmc_id, $name, 'attraction', $city);
-                    list($travClicks_child_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($lowestChildPrice, $dmc_id, $name, 'attraction', $city);
-                    list($travClicks_senior_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($lowestSeniorAdultPrice, $dmc_id, $name, 'attraction', $city);
-                    $pricingDetails[] = [
-                        
-                    ];
+            }
+
+            // Calculate TravClicks prices (general pricing)
+            if ($agent) {
+                // Get all tickets for this attraction regardless of DMC
+                $allTickets = Ticket::where('attraction_id', $firstAttraction->attraction_id)
+                    ->where('status', 1)
+                    ->get();
+
+                if ($allTickets->isNotEmpty()) {
+                    $generalLowestChildPrice = $allTickets->min('child_price') ?? 0;
+                    $generalLowestAdultPrice = $allTickets->min('adult_price') ?? 0;
+                    $generalLowestSeniorPrice = $allTickets->min('senior_adult_price') ?? 0;
+                    
+                    list($travClicks_adult_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestAdultPrice, $dmc_id, $name, 'attraction', $city);
+                    list($travClicks_child_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestChildPrice, $dmc_id, $name, 'attraction', $city);
+                    list($travClicks_senior_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestSeniorPrice, $dmc_id, $name, 'attraction', $city);
                 }
             }
 
@@ -227,7 +251,6 @@ class HomeController extends Controller
                 'dmc_user_name' => User::where('userId', $dmc_dmc_id)->value('name') ?? '',
                 'travClicks_adult_price' => round((float)$travClicks_adult_price, 2),
                 'travClicks_senior_price' => round((float)$travClicks_senior_price, 2),
-                
                 'travClicks_child_price' => round((float)$travClicks_child_price, 2),
                 'travclicks_dmc_id' => $trav_dmc_id,
                 'city' => $firstAttraction->location,
@@ -405,32 +428,5 @@ class HomeController extends Controller
         return $formattedPackages;
     }
     
-    /**
-     * Check if a DMC ID matches the stored dmc_id field (handles both integer and JSON array formats)
-     * 
-     * @param mixed $storedDmcId The dmc_id field from database (can be integer or JSON array)
-     * @param int $targetDmcId The DMC ID to check for
-     * @return bool
-     */
-    private function isDmcIdMatch($storedDmcId, $targetDmcId)
-    {
-        // Handle both old integer format and new JSON array format for dmc_id
-        $dmcIds = [];
-        
-        if (is_string($storedDmcId)) {
-            // Try to decode as JSON first
-            $decoded = json_decode($storedDmcId, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                $dmcIds = $decoded;
-            } else {
-                // If not valid JSON, treat as single integer string
-                $dmcIds = [(int)$storedDmcId];
-            }
-        } else {
-            // If it's already an integer
-            $dmcIds = [(int)$storedDmcId];
-        }
-        
-        return in_array((int)$targetDmcId, $dmcIds);
-    }
+
 }
