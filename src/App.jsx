@@ -18,6 +18,7 @@ if (typeof window !== "undefined") {
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ScrollTopBehaviour from "./components/common/ScrollTopBehaviour";
 import Home from "./pages";
+import LandingPage from "./pages/landing";
 import Home_1 from "./pages/homes/home_1";
 import Home_2 from "./pages/homes/home_2";
 import BlogListV1 from "./pages/blogs/blog-list-v1";
@@ -179,7 +180,7 @@ function App() {
           {/*  <Route path="destinations" element={<Destinations />} /> */}
           <Route
             path="/"
-            element={<Navigate to="/dashboard/db-dashboard" replace />}
+            element={<LandingPage />}
           />
           <Route path="/dashboard/tour-packages" element={
             <ProtectedRoute>

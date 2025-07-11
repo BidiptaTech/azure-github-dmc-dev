@@ -207,7 +207,8 @@ const tourPackageSlice = createSlice({
         console.log("New services:", action.payload);
         
         // Replace the entire state with the new array, filtering out any CustomerInfo type
-        state.AllServices = action.payload.filter(service => service.type !== 'CustomerInfo');
+        //state.AllServices = action.payload.filter(service => service.type !== 'CustomerInfo');
+        state.AllServices = action.payload;
         console.log("%c AllServices array replaced", "background: #2ecc71; color: #ffffff; padding: 2px; font-weight: bold;");
       } else {
         console.log("%c REDUX: Adding a service in tourPackageSlice", "background: #0a3d62; color: #ffffff; padding: 4px; font-weight: bold;");

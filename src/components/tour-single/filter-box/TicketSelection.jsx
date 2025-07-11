@@ -24,6 +24,7 @@ import {
   DialogContent,
   DialogActions,
   Avatar,
+
  
 } from "@mui/material";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
@@ -226,6 +227,10 @@ const TicketSelection = ({
       package_type: ticket.type === 'package' ? 1 : 0,
       package_attraction_id: ticket.type === 'package' ? ticket.package_attraction_id : null
     };
+    
+    setSelectedTicket(ticketWithType);
+    // Add package_type to the ticket object
+ 
     
     setSelectedTicket(ticketWithType);
     // Add package_type to the ticket object
@@ -624,6 +629,7 @@ const TicketSelection = ({
           </IconButton>
         </DialogTitle>
         
+         
         <DialogContent sx={{ p: 0, display: 'flex', height: '600px' }}>   
           {selectedTicket && (
             <>

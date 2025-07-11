@@ -39,7 +39,11 @@ const MainMenu = ({ style = "" }) => {
             to="/dashboard/db-dashboard"
             className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
             style={{ flexDirection: "column", alignItems: "flex-start" }}
+           
           >
+            
+             
+                
             <div style={{ display: "flex", alignItems: "center" }}>
               <FaChartLine className="text-22 text-green-1" style={{ marginRight: "8px" }} />
               <span
@@ -53,6 +57,7 @@ const MainMenu = ({ style = "" }) => {
             <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
               Manage Your Experience
             </div>
+           
           </Link>
         </li>
 
@@ -67,6 +72,7 @@ const MainMenu = ({ style = "" }) => {
               to="/dashboard/db-dashboard/home_1"
               className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
               style={{ flexDirection: "column", alignItems: "flex-start" }}
+             
             >
               <div style={{ display: "flex", alignItems: "center" }}>
                 <FaCompass className="text-22 text-green-1" style={{ marginRight: "8px" }} />
@@ -147,5 +153,6 @@ const MainMenu = ({ style = "" }) => {
     </nav>
   );
 };
+
 
 export default MainMenu;

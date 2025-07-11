@@ -229,6 +229,8 @@ export default function Index2() {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
+   
+      
       // Get package details if it's a package booking
       const packageDetails = isPackageBooking ? {
         package_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id,
@@ -294,6 +296,7 @@ export default function Index2() {
           },
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking",
@@ -492,6 +495,7 @@ export default function Index2() {
           },
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",

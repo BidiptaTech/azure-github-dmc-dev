@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Button, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+
 import { setPackageData } from '@/slice/tour-packages/tourPackageSlice';
 
 // Create a custom theme for the button
@@ -85,6 +86,8 @@ const Packages = () => {
                               position: 'relative',
                               overflow: 'visible',
                               '&:hover': {
+                                transform: 'translateY(-3px)',
+                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
                                 transform: 'translateY(-3px)',
                                 boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
                               }

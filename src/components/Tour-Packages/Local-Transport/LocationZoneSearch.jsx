@@ -15,6 +15,8 @@ import {
   Fade,
   useTheme,
   alpha,
+  Tooltip,
+  ClickAwayListener,
 } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
@@ -35,6 +37,18 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
   const zone = useSelector((state) => state.localtour.zone);
   
   const [selectedItem, setSelectedItem] = useState(null);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+
+  const handleDisabledClick = () => {
+    if (disabled) {
+      setTooltipOpen(true);
+      setTimeout(() => setTooltipOpen(false), 3000); // Auto-hide after 3 seconds
+    }
+  };
+
+  const handleTooltipClose = () => {
+    setTooltipOpen(false);
+  };
   
   // Create grouped options array with headers from zone data
   const options = [];
@@ -194,75 +208,131 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
   const getOptionDisabled = (option) => option.isHeader;
 
   return (
-    <Autocomplete
-      value={selectedItem}
-      onChange={handleSelect}
-      options={options}
-      getOptionLabel={getOptionLabel}
-      getOptionKey={getOptionKey}
-      getOptionDisabled={getOptionDisabled}
-      isOptionEqualToValue={isOptionEqualToValue}
-      noOptionsText="No drop-off locations available"
-      disabled={disabled}
-      renderOption={renderOption}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          placeholder="Where is your drop off?"
-          fullWidth
-          variant="outlined"
-          disabled={disabled}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          InputProps={{
-            ...params.InputProps,
-            startAdornment: (
-              <InputAdornment position="start">
-                <PlaceIcon sx={{ color: '#2196f3' }} />
-              </InputAdornment>
-            ),
-            sx: {
-              borderRadius: 2,
-              bgcolor: 'white',
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: alpha('#2196f3', 0.3),
-                  borderWidth: 2,
-                },
-                '&:hover fieldset': {
-                  borderColor: '#2196f3',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#2196f3',
-                  borderWidth: 2,
-                },
+    <ClickAwayListener onClickAway={handleTooltipClose}>
+      <Box sx={{ position: 'relative' }}>
+        <Tooltip
+          title="Please select a pickup location first to enable drop-off selection"
+          open={disabled ? (tooltipOpen || undefined) : false}
+          disableHoverListener={!disabled}
+          disableFocusListener
+          disableTouchListener={!disabled}
+          arrow
+          placement="top"
+          enterDelay={disabled ? 500 : 0}
+          leaveDelay={disabled ? 200 : 0}
+          sx={{
+            '& .MuiTooltip-tooltip': {
+              bgcolor: '#1565c0',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '1rem',
+              lineHeight: 1.4,
+              borderRadius: '12px',
+              padding: '12px 16px',
+              maxWidth: '320px',
+              boxShadow: '0 8px 32px rgba(21, 101, 192, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+            },
+            '& .MuiTooltip-arrow': {
+              color: '#1565c0',
+              '&::before': {
+                border: '1px solid rgba(255, 255, 255, 0.2)',
               },
             },
           }}
-          sx={{
-            '& .MuiInputLabel-root': {
-              color: '#2196f3',
-            },
-            '& .MuiInputLabel-root.Mui-focused': {
-              color: '#2196f3',
-            },
-          }}
-        />
-      )}
-      ListboxProps={{
-        style: {
-          maxHeight: '300px'
-        }
-      }}
-      slotProps={{
-        popper: {
-          sx: {
-            zIndex: 999999
-          }
-        }
-      }}
-      forcePopupIcon={false}
-    />
+        >
+          <Box sx={{ position: 'relative' }}>
+            {/* Invisible overlay to capture clicks when disabled */}
+            {disabled && (
+              <Box
+                onClick={handleDisabledClick}
+                onMouseDown={handleDisabledClick}
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 1,
+                  cursor: 'not-allowed',
+                  backgroundColor: 'transparent',
+                }}
+              />
+            )}
+            <Autocomplete
+              value={selectedItem}
+              onChange={handleSelect}
+              options={options}
+              getOptionLabel={getOptionLabel}
+              getOptionKey={getOptionKey}
+              getOptionDisabled={getOptionDisabled}
+              isOptionEqualToValue={isOptionEqualToValue}
+              noOptionsText="No drop-off locations available"
+              disabled={disabled}
+              renderOption={renderOption}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder="Where is your drop off?"
+                  fullWidth
+                  variant="outlined"
+                  disabled={disabled}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PlaceIcon sx={{ color: disabled ? '#ccc' : '#2196f3' }} />
+                      </InputAdornment>
+                    ),
+                    sx: {
+                      borderRadius: 2,
+                      bgcolor: 'white',
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: alpha('#2196f3', 0.3),
+                          borderWidth: 2,
+                        },
+                        '&:hover fieldset': {
+                          borderColor: disabled ? alpha('#2196f3', 0.3) : '#2196f3',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#2196f3',
+                          borderWidth: 2,
+                        },
+                      },
+                    },
+                  }}
+                  sx={{
+                    '& .MuiInputLabel-root': {
+                      color: '#2196f3',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#2196f3',
+                    },
+                  }}
+                />
+              )}
+              ListboxProps={{
+                style: {
+                  maxHeight: '300px'
+                }
+              }}
+              slotProps={{
+                popper: {
+                  sx: {
+                    zIndex: 999999
+                  }
+                }
+              }}
+              forcePopupIcon={false}
+            />
+          </Box>
+        </Tooltip>
+      </Box>
+    </ClickAwayListener>
   );
 };
 
@@ -316,24 +386,7 @@ const SearchZone = ({
     <Box sx={{ width: '100%' }}>
       {/* Location Input Fields in Horizontal Layout */}
       <Grid container spacing={3}>
-      {picktype === "" && (
-              <Box mt={1}>
-                <Alert 
-                  severity="info" 
-                  variant="outlined"
-                  sx={{ 
-                    borderRadius: 2,
-                    bgcolor: alpha('#2196f3', 0.05),
-                    '& .MuiAlert-message': {
-                      color: '#1976d2',
-                      fontWeight: 500,
-                    }
-                  }}
-                >
-                  Please select a pickup location first to enable drop-off selection
-                </Alert>
-              </Box>
-            )}
+      
         {/* Pick-up Location */}
         <Grid item xs={12} md={6}>
           <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
@@ -388,10 +441,8 @@ const SearchZone = ({
               disabled={picktype === ""}
               picktype={picktype}
             />
-
-            {/* Disabled State Message */}
-           
         </Grid>
+        
       </Grid>
     </Box>
   );
