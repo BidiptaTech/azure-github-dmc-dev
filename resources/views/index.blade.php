@@ -422,7 +422,7 @@
     }
 
     .insight-content small {
-        color: #718096;
+        color: #718096; 
     }
 
     /* Responsive Design */
