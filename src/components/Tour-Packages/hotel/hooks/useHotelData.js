@@ -25,6 +25,7 @@ const useHotelData = (mealPlanOptions) => {
   
   // Get package data from Redux store
   const packageData = useSelector(state => state.tourPackages.packageData);
+  console.log("packageDatahotel",packageData?.tour?.booking);
   
   // Function to get booking ID for a specific hotel configuration (simplified)
   const getBookingIdForConfig = useCallback((config) => {
