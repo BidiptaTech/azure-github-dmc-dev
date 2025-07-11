@@ -6,6 +6,47 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 
 <style>
+    /* Navigation Pills Styling */
+    .nav-pills .nav-link {
+        border-radius: 50px;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin: 0 8px;
+        color: #6c757d;
+        background-color: #f8f9fa;
+        border: 2px solid transparent;
+    }
+    
+    .nav-pills .nav-link:hover {
+        background-color: #e9ecef;
+        color: #495057;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .nav-pills .nav-link.active {
+        background-color: #696cff;
+        color: white;
+        box-shadow: 0 4px 12px rgba(105, 108, 255, 0.3);
+    }
+    
+    .nav-pills .nav-link.disabled {
+        background-color: #f8f9fa;
+        color: #adb5bd;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .nav-pills .nav-link.disabled:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .nav-pills .nav-link i {
+        font-size: 1.1rem;
+    }
+    
     /* Flatpickr container styling */
     /* .flatpickr-input {
         height: 40px !important;
@@ -76,17 +117,148 @@
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
         outline: none !important;
     }
+    
+    /* Read-only mode styling */
+    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+    .form-control[readonly],
+    .form-control[disabled],
+    .form-select[disabled] {
+        background-color: #f8f9fa !important;
+        border-color: #e9ecef !important;
+        color: #6c757d !important;
+        opacity: 0.8;
+        cursor: not-allowed;
+    }
+    
+    .form-check-input[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .btn[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .delete-image-btn[disabled] {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        background-color: #6c757d !important;
+    }
+    
+    .delete-image-btn[disabled]:hover {
+        background-color: #6c757d !important;
+        transform: none !important;
+    }
+    @endif
+    
+    /* Lock icon animation */
+    @keyframes lockPulse {
+        0% { opacity: 0.7; }
+        50% { opacity: 1; }
+        100% { opacity: 0.7; }
+    }
+    
+    .lock-icon {
+        animation: lockPulse 2s infinite;
+    }
 </style>
 <!-- Start of the form -->
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
     
+        <!-- Navigation Pills for Restaurant and Meals -->
+        <ul class="nav nav-pills mb-4 mt-4 d-flex justify-content-center" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link active" 
+                   href="{{ route('hotel-restaurant-edit', $restaurant->restaurant_id) }}" 
+                   role="tab">
+                    <i class="fas fa-utensils me-2"></i>Restaurant
+                </a>
+            </li>
+            
+                        <li class="nav-item" role="presentation">
+                @php
+                    // Get DMC and Hotel information for meals listing
+                    $dmcIds = $restaurant->getSelectedDmcIds();
+                    $dmcId = !empty($dmcIds) ? $dmcIds[0] : (is_array($restaurant->dmc_id) ? $restaurant->dmc_id[0] : $restaurant->dmc_id);
+                    $hotelId = $restaurant->owned_by;
+                    
+                    // Count meals for this restaurant filtered by DMC
+                    $restaurantMeals = \App\Models\Meal::where('restaurant_id', $restaurant->restaurant_id)
+                        ->where('dmc_id', $dmcId)
+                        ->get();
+                    $mealsCount = $restaurantMeals->count();
+                @endphp
+                
+                @if($dmcId && $hotelId)
+                    <a class="nav-link {{ request()->routeIs('hotel-meals-create') || request()->routeIs('hotel-meal-edit') ? 'active' : '' }}" 
+                       href="{{ route('hotel-meals-create', ['dmc_id' => $dmcId, 'hotel_id' => $hotelId]) }}?restaurant_id={{ $restaurant->restaurant_id }}" 
+                       role="tab"
+                       title="View and manage meals for this restaurant">
+                        <i class="fas fa-hamburger me-2"></i>Meals
+                        @if($mealsCount > 0)
+                            <span class="badge bg-success ms-1">{{ $mealsCount }}</span>
+                        @else
+                            <small class="d-block" style="font-size: 0.75rem;">Add meals</small>
+                        @endif
+                    </a>
+                @else
+                    <a class="nav-link disabled" 
+                       href="javascript:void(0);" 
+                       role="tab"
+                       title="Missing DMC or Hotel information">
+                        <i class="fas fa-hamburger me-2"></i>Meals
+                        <small class="d-block" style="font-size: 0.75rem;">Missing data</small>
+                    </a>
+                @endif
+            </li>
+        </ul>
+        
         <x-alert />
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Edit Hotel Restaurant
+                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-lock text-warning me-2 lock-icon" style="font-size: 1.2rem;" 
+                           data-bs-toggle="tooltip" data-bs-placement="top" 
+                           title="Read-only mode: You don't have permission to edit this restaurant"></i>
+                        <span>View Restaurant Details</span>
+                        <span class="badge bg-warning ms-2 px-2 py-1" style="font-size: 0.75rem;">
+                            <i class="fas fa-eye me-1"></i>Read Only
+                        </span>
+                    </div>
+                @else
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-edit text-success me-2" style="font-size: 1.2rem;"></i>
+                        <span>Edit Hotel Restaurant</span>
+                    </div>
+                @endif
                 
             </h5>
+            
+            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                <!-- Read-Only Mode Alert -->
+                <div class="alert alert-warning alert-dismissible fade show mx-4 mt-3" role="alert" style="border-left: 4px solid #ffc107;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-shield-alt me-2" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Access Restricted - Read Only Mode
+                            </h6>
+                            <p class="mb-0">
+                                You are viewing this restaurant in <strong>read-only mode</strong>. 
+                                Only users with administrative privileges (Role ID 1 or 20) can modify restaurant information.
+                                <br><small class="text-muted"><i class="fas fa-utensils me-1"></i>Meal sections can be expanded for viewing, but fields cannot be edited.</small>
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+            
             <form id="restaurantForm" method="POST" action="{{ route('hotel-restaurant-update', $restaurant->restaurant_id) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('POST')
@@ -95,16 +267,16 @@
                 <div id="restaurantDetailsContainer">
                     <div class="restaurant-form">
                         <div class="row">
-                            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 48 || auth()->user()->role_id == 63 || auth()->user()->role_id == 118|| auth()->user()->role_id == 119)
+                            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                                 <div class="mb-3 col-md-3" id="dmc-container">
                                     <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <select id="dmc" class="form-control" disabled>
                                         
                                         @foreach ($dmcs as $dmc)
-                                            <option value="{{ $dmc->userId }}" {{ $restaurant->dmc_id == $dmc->userId ? 'selected' : '' }}>{{ $dmc->company_name }}</option>
+                                            <option value="{{ $dmc->userId }}" {{ in_array($dmc->userId, (array)$restaurant->dmc_id) ? 'selected' : '' }}>{{ $dmc->company_name }}</option>
                                         @endforeach
                                     </select>
-                                    <input type="hidden" name="dmc_id" value="{{ $restaurant->dmc_id }}">
+                                    <input type="hidden" name="dmc_id" value="{{ is_array($restaurant->dmc_id) ? $restaurant->dmc_id[0] : $restaurant->dmc_id }}">
                                 </div>
                             @endif
 
@@ -122,7 +294,8 @@
                             <!-- Restaurant City -->
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
-                                <select name="city" id="citySelect" class="form-control" required>
+                                <select name="city" id="citySelect" class="form-control" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="{{ $restaurant->city }}">{{ $restaurant->city }}</option>
                                     @foreach($city as $c)
                                         @if($c->name != $restaurant->city)
@@ -138,7 +311,8 @@
                             <!-- Restaurant Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="name" class="form-label"><strong>Restaurant Name</strong><span class="text-danger">*</span></label>
-                                <input value="{{$restaurant->name}}" type="text" class="form-control" name="name" placeholder="Enter Restaurant Name" required>
+                                <input value="{{$restaurant->name}}" type="text" class="form-control" name="name" placeholder="Enter Restaurant Name" required
+                                       @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 @error('name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -151,7 +325,8 @@
                                 </label>
                                 <input name="latitude" type="text" id="latitude" value="{{$restaurant->latitude}}" class="form-control"
                                     placeholder="Enter Latitude" required
-                                    oninput="validateLatitude(this)">
+                                    oninput="validateLatitude(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message text-danger" id="latitude-validation-message"></small>
                                 @error('latitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -165,7 +340,8 @@
                                 </label>
                                 <input name="longitude" type="text" id="longitude" value="{{$restaurant->longitude}}" class="form-control"
                                     placeholder="Enter Longitude" required
-                                    oninput="validateLongitude(this)">
+                                    oninput="validateLongitude(this)"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message text-danger" id="longitude-validation-message"></small>
                                 @error('longitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -175,7 +351,8 @@
                             <!-- Cuisine Type -->
                             <div class="col-md-3 mb-3">
                                 <label for="cuisine" class="form-label"><strong>Cuisine</strong><span class="text-danger">*</span></label>
-                                <input value="{{$restaurant->cuisine}}" type="text" class="form-control" name="cuisine" placeholder="Enter Cuisine Type" required>
+                                <input value="{{$restaurant->cuisine}}" type="text" class="form-control" name="cuisine" placeholder="Enter Cuisine Type" required
+                                       @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 @error('cuisine')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -184,7 +361,8 @@
                             <!-- Ownership -->
                             <div class="col-md-3 mb-3">
                                 <label for="owned_by" class="form-label"><strong>Ownership</strong><span class="text-danger">*</span></label>
-                                <select name="owned_by" class="form-select" required>
+                                <select name="owned_by" class="form-select" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="" {{ is_null($restaurant->owned_by) ? 'selected' : '' }}>Select</option>
                                     <option value="0" {{ $restaurant->owned_by === "0" ? 'selected' : '' }}>Third Party</option>
                                     @foreach($hotels as $hotel)
@@ -200,7 +378,8 @@
 
                             <div class="col-md-3 mb-3">
                                 <label for="property" class="form-label"><strong>Property</strong><span class="text-danger">*</span></label>
-                                <select name="property" class="form-select">
+                                <select name="property" class="form-select"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="">Select</option>
                                     <option value="third_party" {{ old('property', $restaurant->property) == 'third_party' ? 'selected' : '' }}>Third Party</option>
                                     <option value="owner" {{ old('property', $restaurant->property) == 'owner' ? 'selected' : '' }}>Ownership</option>
@@ -305,17 +484,20 @@
                             <div class="col-md-12 mb-3">
                                 <label class="form-label"><strong>Breakfast Availability</strong></label>
                                 <div class="form-check form-switch">
-                                    <input id="breakfastToggle" {{ $restaurant->breakfast_available == 1 ? 'checked' : '' }} class="form-check-input" type="checkbox" name="breakfast_available" value="1">
+                                    <input id="breakfastToggle" {{ $restaurant->breakfast_available == 1 ? 'checked' : '' }} class="form-check-input" type="checkbox" name="breakfast_available" value="1"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <label class="form-check-label">Available</label>
                                 </div>
                                 <div class="row mt-2 d-none" id="breakfastFields">
                                     <div class="col-md-3">
                                         <label for="opening_time_bf" class="form-label"><strong>Opening Time</strong></label>
-                                        <input value="{{$restaurant->opening_time_bf}}" type="text" class="form-control time-picker" id="opening_time_bf" name="opening_time_bf" placeholder="Select opening time">
+                                        <input value="{{$restaurant->opening_time_bf}}" type="text" class="form-control time-picker" id="opening_time_bf" name="opening_time_bf" placeholder="Select opening time"
+                                               @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="closing_time_bf" class="form-label"><strong>Closing Time</strong></label>
-                                        <input value="{{$restaurant->closing_time_bf}}" type="text" class="form-control time-picker" id="closing_time_bf" name="closing_time_bf" placeholder="Select closing time">
+                                        <input value="{{$restaurant->closing_time_bf}}" type="text" class="form-control time-picker" id="closing_time_bf" name="closing_time_bf" placeholder="Select closing time"
+                                               @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     </div>
                                     <!-- Breakfast Price -->
                                     {{-- <div class="col-md-3 mb-3">
@@ -334,17 +516,20 @@
                             <div class="col-md-12 mb-3">
                                 <label class="form-label"><strong>Lunch Availability</strong></label>
                                 <div class="form-check form-switch">
-                                    <input id="lunchToggle" {{ $restaurant->lunch_available == 1 ? 'checked' : '' }} class="form-check-input" type="checkbox" name="lunch_available" value="1">
+                                    <input id="lunchToggle" {{ $restaurant->lunch_available == 1 ? 'checked' : '' }} class="form-check-input" type="checkbox" name="lunch_available" value="1"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <label class="form-check-label">Available</label>
                                 </div>
                                 <div class="row mt-2 d-none" id="lunchFields">
                                     <div class="col-md-3">
                                         <label for="opening_time_lunch" class="form-label"><strong>Opening Time</strong></label>
-                                        <input value="{{$restaurant->opening_time_lunch}}" type="text" class="form-control time-picker" id="opening_time_lunch" name="opening_time_lunch" placeholder="Select opening time">
+                                        <input value="{{$restaurant->opening_time_lunch}}" type="text" class="form-control time-picker" id="opening_time_lunch" name="opening_time_lunch" placeholder="Select opening time"
+                                               @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="closing_time_lunch" class="form-label"><strong>Closing Time</strong></label>
-                                        <input value="{{$restaurant->closing_time_lunch}}" type="text" class="form-control time-picker" id="closing_time_lunch" name="closing_time_lunch" placeholder="Select closing time">
+                                        <input value="{{$restaurant->closing_time_lunch}}" type="text" class="form-control time-picker" id="closing_time_lunch" name="closing_time_lunch" placeholder="Select closing time"
+                                               @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     </div>
                                     <!-- Lunch Price -->
                                     {{-- <div class="col-md-3 mb-3">
@@ -363,17 +548,20 @@
                             <div class="col-md-12">
                                 <label class="form-label"><strong>Dinner Availability</strong></label>
                                 <div class="form-check form-switch">
-                                    <input id="dinnerToggle" {{ $restaurant->dinner_available == 1 ? 'checked' : '' }} class="form-check-input" type="checkbox" name="dinner_available" value="1">
+                                    <input id="dinnerToggle" {{ $restaurant->dinner_available == 1 ? 'checked' : '' }} class="form-check-input" type="checkbox" name="dinner_available" value="1"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <label class="form-check-label">Available</label>
                                 </div>
                                 <div class="row mt-2 d-none" id="dinnerFields">
                                     <div class="col-md-3">
                                         <label for="opening_time_dinner" class="form-label"><strong>Opening Time</strong></label>
-                                        <input value="{{$restaurant->opening_time_dinner}}" type="text" class="form-control time-picker" id="opening_time_dinner" name="opening_time_dinner" placeholder="Select opening time">
+                                        <input value="{{$restaurant->opening_time_dinner}}" type="text" class="form-control time-picker" id="opening_time_dinner" name="opening_time_dinner" placeholder="Select opening time"
+                                               @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="closing_time_dinner" class="form-label"><strong>Closing Time</strong></label>
-                                        <input value="{{$restaurant->closing_time_dinner}}" type="text" class="form-control time-picker" id="closing_time_dinner" name="closing_time_dinner" placeholder="Select closing time">
+                                        <input value="{{$restaurant->closing_time_dinner}}" type="text" class="form-control time-picker" id="closing_time_dinner" name="closing_time_dinner" placeholder="Select closing time"
+                                               @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     </div>
                                     {{-- <div class="col-md-3 mb-3">
                                         <label for="dinner_price" class="form-label"><strong>Dinner Price</strong><span class="text-danger">*</span></label>
@@ -395,10 +583,16 @@
                                     <label for="master_image" class="form-label"><strong>Master
                                             Image</strong></label>
                                     <div id="master-drop-area" class="form-control"
-                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                        Drag & Drop your files here or click to upload.
+                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) background-color: #f8f9fa; opacity: 0.6; pointer-events: none; @endif">
+                                        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                            Drag & Drop your files here or click to upload.
+                                        @else
+                                            Image upload is restricted for your role.
+                                        @endif
                                         <input type="file" id="master_image" name="master_image" multiple
-                                            style="display: none;">
+                                            style="display: none;"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     </div>
                                 </div>
                                 <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
@@ -412,7 +606,8 @@
                                         <button
                                             class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                             data-image="{{ $restaurant->master_image }}"
-                                            style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
+                                            style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                             &times;
                                         </button>
                                     </div>
@@ -426,10 +621,16 @@
                                     <label for="images" class="form-label"><strong>Additional
                                             Images</strong></label>
                                     <div id="drop-area" class="form-control"
-                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                        Drag & Drop your files here or click to upload.
+                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) background-color: #f8f9fa; opacity: 0.6; pointer-events: none; @endif">
+                                        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                            Drag & Drop your files here or click to upload.
+                                        @else
+                                            Image upload is restricted for your role.
+                                        @endif
                                         <input type="file" id="images" name="images[]" multiple
-                                            style="display: none;">
+                                            style="display: none;"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     </div>
 
                                     <div id="preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
@@ -453,7 +654,8 @@
                                         <button
                                             class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                             data-image="{{ $img }}"
-                                            style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
+                                            style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                             &times;
                                         </button>
                                     </div>
@@ -476,7 +678,8 @@
                 <div class="col-md-12 mb-3">
                     <label for="description" class="form-label"><strong>Description</strong><span
                             style="color: red;">*</span></label>
-                    <textarea id="summernote" name="description" class="form-control" rows="10">{{ old('description', $restaurant->description) }}</textarea required>
+                    <textarea id="summernote" name="description" class="form-control" rows="10"
+                              @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('description', $restaurant->description) }}</textarea required>
                     @error('description')
                         <div class="text-danger mt-1">{{ $message }}</div>
                     @enderror
@@ -485,7 +688,8 @@
                 <!-- Remarks -->
                 <div class="col-md-12 mb-3">
                     <label for="remarks" class="form-label"><strong>Remarks</strong></label>
-                    <textarea id="remarks" name="remarks" class="form-control" rows="4" placeholder="Enter any remarks or notes (optional)">{{ old('remarks', $restaurant->remarks) }}</textarea>
+                    <textarea id="remarks" name="remarks" class="form-control" rows="4" placeholder="Enter any remarks or notes (optional)"
+                              @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('remarks', $restaurant->remarks) }}</textarea>
                     @error('remarks')
                     <div class="text-danger mt-1">{{ $message }}</div>
                     @enderror
@@ -494,7 +698,8 @@
                 <!-- Terms & Conditions -->
                 <div class="col-md-12 mb-3">
                     <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
-                    <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions..." required>{{ old('terms_conditions', $restaurant->terms_conditions) }}</textarea>
+                    <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions..." required
+                              @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('terms_conditions', $restaurant->terms_conditions) }}</textarea>
                     @error('terms_conditions')
                     <div class="text-danger mt-1">{{ $message }}</div>
                     @enderror
@@ -505,7 +710,7 @@
                     <label for="restaurant_status" class="form-label"><strong>Status</strong></label>
                     <span style="color: red; font-weight: bold;">*</span>
                     <input {{$restaurant->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="restaurant_status" type="checkbox" id="restaurant_status"
-                        value="1">
+                        value="1" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                     <label class="form-check-label"></label>
                     @error('restaurant_status')
                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -514,13 +719,53 @@
 
                 <!-- Submit Buttons -->
                 <div class="d-flex gap-3 mt-4">
-                    <button type="submit" class="btn btn-primary px-4">Update</button>
+                    <button type="submit" class="btn btn-primary px-4"
+                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Update</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 <!-- End of the form -->
+<!-- Navigation Tab Enhancement Script -->
+<script>
+$(document).ready(function() {
+    // Handle clicks on disabled meals tab
+    $('.nav-link.disabled').on('click', function(e) {
+        e.preventDefault();
+        
+        // Show a more informative tooltip/alert
+        var message = $(this).attr('title');
+        
+        // Create a temporary tooltip-like notification
+        if (message) {
+            // Remove any existing notifications
+            $('.tab-notification').remove();
+            
+            var notification = $('<div class="alert alert-warning alert-dismissible fade show tab-notification" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 300px;">' +
+                '<i class="fas fa-exclamation-triangle me-2"></i>' + message +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                '</div>');
+            
+            $('body').append(notification);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(function() {
+                notification.fadeOut(function() {
+                    $(this).remove();
+                });
+            }, 5000);
+        }
+    });
+    
+    // Initialize Bootstrap tooltips for better UX
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
 @endsection
 @section('scripts') 
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>
@@ -528,24 +773,56 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
-        $('#summernote').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter your content here...', 
-        });
-        $('#remarks').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter any remarks or notes (optional)...', 
-        });
-        $('#terms_conditions').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter terms and conditions...', 
-        });
+        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+            $('#summernote').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Enter your content here...', 
+            });
+            $('#remarks').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Enter any remarks or notes (optional)...', 
+            });
+            $('#terms_conditions').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Enter terms and conditions...', 
+            });
+        @else
+            $('#summernote').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Description editing is restricted for your role.',
+                toolbar: false,
+                disableResizeEditor: true
+            });
+            $('#summernote').summernote('disable');
+            
+            $('#remarks').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Remarks editing is restricted for your role.',
+                toolbar: false,
+                disableResizeEditor: true
+            });
+            $('#remarks').summernote('disable');
+            
+            $('#terms_conditions').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Terms & conditions editing is restricted for your role.',
+                toolbar: false,
+                disableResizeEditor: true
+            });
+            $('#terms_conditions').summernote('disable');
+        @endif
         // Initialize Select2 for city
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
@@ -940,7 +1217,7 @@
         var userRoleId = {{ auth()->user()->role_id }}; // Adjust this line based on your authentication method
 
         // Check if the user role is one of the specified IDs
-        if ([1, 2, 3, 4].includes(userRoleId)) {
+        if ([1, 20].includes(userRoleId)) {
             $('#dmc-container').show(); // Show the DMC select box
             $('#dmc').prop('required', true); // Set DMC as required
         } else {

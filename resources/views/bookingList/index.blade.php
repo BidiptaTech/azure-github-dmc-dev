@@ -614,6 +614,29 @@
                                                                                     <i class="fas fa-envelope"></i> Mail Preview
                                                                                 </button>
                                                                                 @endif
+
+                                                                                @if(strtolower(str_replace(' ', '_', $service->type)) === 'restaurant')
+                                                                                <button type="button" class="btn btn-sm btn-outline-success generate-coupon" 
+                                                                                        data-id="{{ $service->id }}"
+                                                                                        data-type="{{ strtolower(str_replace(' ', '_', $service->type)) }}"
+                                                                                        data-tour-id="{{ $tour['tour_id'] }}"
+                                                                                        data-booking-id="{{ $service->booking_id }}"
+                                                                                        data-agent-name="{{ $tour['agent_name'] ?? 'N/A' }}"
+                                                                                        data-dmc-company="{{ $tour['dmc_company'] ?? 'N/A' }}"
+                                                                                        data-destination="{{ $tour['destination'] }}"
+                                                                                        data-display-id="{{ $tour_date->display_id ?? 'N/A' }}"
+                                                                                        data-check-in="{{ $tour_date->check_in_time ?? '' }}"
+                                                                                        data-check-out="{{ $tour_date->check_out_time ?? '' }}"
+                                                                                        data-total-pax="{{ $totalPax }}"
+                                                                                        data-adults="{{ $tour['adult'] ?? 0 }}"
+                                                                                        data-children="{{ $tour['child'] ?? 0 }}"
+                                                                                        data-infants="{{ $tour['infant'] ?? 0 }}"
+                                                                                        data-males="{{ $tour['male_count'] ?? 0 }}"
+                                                                                        data-females="{{ $tour['female_count'] ?? 0 }}"
+                                                                                        data-details="{{ htmlspecialchars(json_encode($service->data_decoded)) }}">
+                                                                                    <i class="fas fa-ticket-alt"></i> Generate Coupon
+                                                                                </button>
+                                                                                @endif
                                                                               @if(in_array(Auth::user()->role_id, $allowedRoles) && $tour['is_approve'] == 1)
                                                                                 <button type="button" class="btn btn-sm btn-outline-warning edit-details" 
                                                                                         data-id="{{ $service->id }}"
@@ -932,6 +955,189 @@
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
+
+        // Generate Coupon Button Click Handler
+        $('.generate-coupon').on('click', function() {
+            const btn = $(this);
+            let encodedDetails = btn.attr('data-details');
+            
+            // Decode and parse restaurant details
+            let restaurantData;
+            try {
+                let decodedDetails = $('<div/>').html(encodedDetails).text();
+                console.log("Decoded details:", decodedDetails); // Debug log
+                restaurantData = JSON.parse(decodedDetails);
+                console.log("Parsed restaurant data:", restaurantData); // Debug log
+            } catch (e) {
+                console.error("Error parsing restaurant details:", e);
+                console.error("Raw encoded details:", encodedDetails);
+                console.error("Decoded details:", $('<div/>').html(encodedDetails).text());
+                showToast('Error parsing restaurant data. Please try again.', 'error');
+                return;
+            }
+            
+            const bookingId = btn.data('booking-id');
+            const tourId = btn.data('tour-id');
+            const displayId = btn.data('display-id');
+            const destination = btn.data('destination');
+            const checkInDate = btn.data('check-in');
+            const totalPax = btn.data('total-pax');
+            const adults = btn.data('adults');
+            const children = btn.data('children');
+            const agentName = btn.data('agent-name');
+            const dmcCompany = btn.data('dmc-company');
+            
+            // Show format selection modal
+            showFormatSelectionModal(restaurantData, {
+                bookingId: bookingId,
+                tourId: tourId,
+                displayId: displayId,
+                destination: destination,
+                checkInDate: checkInDate,
+                totalPax: totalPax,
+                adults: adults,
+                children: children,
+                agentName: agentName,
+                dmcCompany: dmcCompany
+            });
+        });
+
+        // Function to show format selection modal
+        function showFormatSelectionModal(restaurantData, bookingData) {
+            const modalHtml = `
+                <div class="modal fade" id="formatModal" tabindex="-1" aria-labelledby="formatModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="formatModalLabel">
+                                    <i class="fas fa-ticket-alt text-success"></i> Generate Restaurant Voucher
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <h6>Booking ID: ${bookingData.displayId}</h6>
+                                    <p class="text-muted mb-3">Restaurant: ${restaurantData[0]?.restaurantName || 'N/A'}</p>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-code fa-3x text-primary mb-3"></i>
+                                                <h5 class="card-title">HTML Format</h5>
+                                                <p class="card-text">Generate as HTML file for printing or viewing in browser</p>
+                                                <button type="button" class="btn btn-primary" id="generateHtml">
+                                                    <i class="fas fa-file-code"></i> Generate HTML
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-image fa-3x text-success mb-3"></i>
+                                                <h5 class="card-title">Image Format</h5>
+                                                <p class="card-text">Generate as PNG image for storage or sharing</p>
+                                                <button type="button" class="btn btn-success" id="generateImage">
+                                                    <i class="fas fa-camera"></i> Generate Image
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            $('#formatModal').remove();
+            
+            // Add modal to body
+            $('body').append(modalHtml);
+            
+            // Show modal
+            $('#formatModal').modal('show');
+            
+            // Handle HTML generation
+            $('#generateHtml').on('click', function() {
+                $('#formatModal').modal('hide');
+                generateVoucher(restaurantData, bookingData, 'html');
+            });
+            
+            // Handle Image generation
+            $('#generateImage').on('click', function() {
+                $('#formatModal').modal('hide');
+                generateVoucher(restaurantData, bookingData, 'image');
+            });
+        }
+
+        // Function to generate voucher in specified format
+        function generateVoucher(restaurantData, bookingData, format) {
+            // Show loading toast
+            showToast('Generating voucher in ' + format.toUpperCase() + ' format...', 'info');
+            
+            // Make AJAX call to generate voucher
+            $.ajax({
+                url: "{{ route('generate.restaurant.coupon') }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    restaurant_data: restaurantData,
+                    booking_id: bookingData.bookingId,
+                    tour_id: bookingData.tourId,
+                    display_id: bookingData.displayId,
+                    destination: bookingData.destination,
+                    check_in_date: bookingData.checkInDate,
+                    total_pax: bookingData.totalPax,
+                    adults: bookingData.adults,
+                    children: bookingData.children,
+                    agent_name: bookingData.agentName,
+                    dmc_company: bookingData.dmcCompany,
+                    format: format
+                },
+                success: function(response) {
+                    if (response.success) {
+                        if (format === 'html') {
+                            // Open HTML in new window
+                            const newWindow = window.open('', '_blank');
+                            newWindow.document.write(response.html);
+                            newWindow.document.close();
+                            showToast('HTML voucher generated successfully!', 'success');
+                        } else if (format === 'image') {
+                            if (response.method === 'html2canvas') {
+                                // Open HTML with image generation capability
+                                const newWindow = window.open('', '_blank');
+                                newWindow.document.write(response.html);
+                                newWindow.document.close();
+                                showToast('Voucher opened with image generation capability. Click the "Download as Image" button.', 'info');
+                            } else {
+                                // Server-generated image
+                                if (response.image) {
+                                    // Create and download image
+                                    const link = document.createElement('a');
+                                    link.href = 'data:image/png;base64,' + response.image;
+                                    link.download = response.filename;
+                                    link.click();
+                                    showToast('Image voucher downloaded successfully!', 'success');
+                                } else {
+                                    showToast('Image generated successfully!', 'success');
+                                }
+                            }
+                        }
+                    } else {
+                        showToast(response.message || 'Failed to generate voucher', 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showToast('Something went wrong. Please try again later.', 'error');
+                }
+            });
+        }
 
         // Mail Preview Button Click Handler
         $('.mail-preview').on('click', function() {

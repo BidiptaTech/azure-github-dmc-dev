@@ -13,6 +13,7 @@ use App\Models\Meal;
 use App\Models\Room;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\CommonHelper;
 use App\Models\Country;
 use App\Models\City;
@@ -43,10 +44,15 @@ class RestaurantController extends Controller
         }
         elseif($user->role_id == 10){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+                $selectedDmcIds = $restaurant->getSelectedDmcIds();
+                return !empty(array_intersect($selectedDmcIds, $dmc_ids));
+            });
         }
         elseif ($user->role_id == 11) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->where('dmc_id', $user->userId)->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+                return $restaurant->hasSelectedByDmc($user->userId);
+            });
         }
         elseif ($user->role_id == 20) {
             $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->where('dmc_id', $user->userId)->get();
@@ -67,11 +73,16 @@ class RestaurantController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+                $selectedDmcIds = $restaurant->getSelectedDmcIds();
+                return !empty(array_intersect($selectedDmcIds, $dmc_ids));
+            });
         } 
         
         elseif($user->role_id == 35){
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->where('dmc_id', $user->created_by)->get();
+            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+                return $restaurant->hasSelectedByDmc($user->created_by);
+            });
         }
         elseif($user->role_id == 78){
             $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
@@ -280,9 +291,13 @@ class RestaurantController extends Controller
         if($auth_user->user_type == 1){
             $hotels = Hotel::where('status', 1)->get();
         }elseif($auth_user->user_type == 2){
-            $hotels = Hotel::where('dmc_id', $auth_user->userId)->where('status', 1)->get();
+            $hotels = Hotel::where('status', 1)->get()->filter(function($hotel) use ($auth_user) {
+                return $hotel->hasSelectedByDmc($auth_user->userId);
+            });
         }else {
-            $hotels = Hotel::where('dmc_id', $auth_user->userId)->where('status', 1)->get();
+            $hotels = Hotel::where('status', 1)->get()->filter(function($hotel) use ($auth_user) {
+                return $hotel->hasSelectedByDmc($auth_user->userId);
+            });
         }
 
         $authuser = auth()->user();
@@ -416,48 +431,47 @@ class RestaurantController extends Controller
             }
         }
         $auth_user = Auth::user();
+            // if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
+            //     $dmc_id = $request->dmc;
+            //     $status = 1;
+            // } elseif ($auth_user->role_id == 11) {
+            //     $dmc_id = $auth_user->userId;
+            //     $status = 1;
+            // } elseif(auth()->user()->role_id ==35){
+            //     $userdmc = User::where('userId', auth()->user()->created_by)->first();
+            //     $dmc_id = $userdmc->userId;
+            //     $status = 1;
+            // }
+            // elseif(auth()->user()->role_id == 78){
+            //     $user_product_head = User::where('userId', auth()->user()->created_by)->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            //     $dmc_id = $user_product_head_dmc->userId;
+            //     $status = 1;
+            // }
+            // elseif(auth()->user()->role_id == 120){
+            //     $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
+            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            //     $dmc_id = $user_product_head_dmc->userId;
+            //     $status = 1;
+            // }
+            // else{
+            //     $dmc_id = $request->dmc;
+            // }
+            // $dmc_id = User::where('role_id', 20)->value('userId') ?? 0;
+            // $status = 1;
+            // // 🔍 Check for existing hotel at same lat/lng for this DMC
+            // $existingRestaurant = Restaurant::where([
+            //     ['latitude', $request->latitude],
+            //     ['longitude', $request->longitude],
+            //     ['dmc_id', $dmc_id]
+            // ])->first();
 
-        $auth_user = Auth::user();
-            if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
-                $dmc_id = $request->dmc;
-                $status = 1;
-            } elseif ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
-                $dmc_id = $auth_user->userId;
-                $status = 1;
-            } elseif(auth()->user()->role_id ==35){
-                $userdmc = User::where('userId', auth()->user()->created_by)->first();
-                $dmc_id = $userdmc->userId;
-                $status = 1;
-            }
-            elseif(auth()->user()->role_id == 78){
-                $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $dmc_id = $user_product_head_dmc->userId;
-                $status = 1;
-            }
-            elseif(auth()->user()->role_id == 120){
-                $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $dmc_id = $user_product_head_dmc->userId;
-                $status = 1;
-            }
-            else{
-                $dmc_id = $request->dmc;
-            }
-
-            // 🔍 Check for existing hotel at same lat/lng for this DMC
-            $existingRestaurant = Restaurant::where([
-                ['latitude', $request->latitude],
-                ['longitude', $request->longitude],
-                ['dmc_id', $dmc_id]
-            ])->first();
-
-            if ($existingRestaurant) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('error', 'A Restaurant already exists at this location for the selected DMC.');
-            }
+            // if ($existingRestaurant) {
+            //     return redirect()->back()
+            //         ->withInput()
+            //         ->with('error', 'A Restaurant already exists at this location for the selected DMC.');
+            // }
 
         //Create a new restaurant record
         $restaurant = new Restaurant();
@@ -490,8 +504,8 @@ class RestaurantController extends Controller
         $restaurant->images = $imagePathsJson;
         $restaurant->master_image = $masterImage;
         $restaurant->is_active = $request->input('restaurant_status');
-        $restaurant->status = $status;
-        $restaurant->dmc_id = $dmc_id ?? 0;
+        $restaurant->status = 1;
+        // $restaurant->dmc_id = $dmc_id ?? 0;
         $restaurant->description = $request->input('description');
         $restaurant->remarks = $request->input('remarks');
         $restaurant->terms_conditions = $request->input('terms_conditions');
@@ -702,5 +716,143 @@ class RestaurantController extends Controller
         $restaurant->save();
         return redirect()->back()
         ->with('success', 'Close dates and holidays saved successfully');
+    }
+
+    /**
+     * Show DMC Restaurants Selection Page
+     * For DMC users to select/manage their restaurants
+     */
+    public function dmcRestaurantsSelection(Request $request)
+    {
+        // Check if user is DMC (role_id = 11)
+        $user = auth()->user();
+        if ($user->role_id != 11) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        // Get all available restaurants
+        $allRestaurants = Restaurant::where('status', 1)
+                                   ->orderBy('name', 'asc')
+                                   ->get();
+        
+        // Filter restaurants that are selected by the current DMC
+        $selectedRestaurants = $allRestaurants->filter(function($restaurant) use ($user) {
+            return $restaurant->hasSelectedByDmc($user->userId);
+        });
+        
+        // Get restaurants that are not selected by the current DMC
+        $availableRestaurants = $allRestaurants->filter(function($restaurant) use ($user) {
+            return !$restaurant->hasSelectedByDmc($user->userId);
+        });
+
+        return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants'));
+    }
+
+    /**
+     * Update DMC Restaurants Selection
+     * Handle checkbox updates for restaurant selection
+     */
+    public function updateDmcRestaurants(Request $request)
+    {
+        $user = auth()->user();
+        if ($user->role_id != 11) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+
+        $selectedRestaurants = $request->input('selected_restaurants', []);
+        
+        // Remove DMC ID from all restaurants first
+        Restaurant::whereJsonContains('dmc_id', $user->userId)->get()->each(function($restaurant) use ($user) {
+            $restaurant->removeDmcId($user->userId);
+        });
+        
+        // Add DMC ID to selected restaurants
+        if (!empty($selectedRestaurants)) {
+            Restaurant::whereIn('restaurant_id', $selectedRestaurants)->get()->each(function($restaurant) use ($user) {
+                $restaurant->addDmcId($user->userId);
+            });
+        }
+
+        return redirect()->back()->with('success', 'Restaurant selection updated successfully!');
+    }
+
+    /**
+     * Select Individual Restaurant for DMC
+     * Handle individual restaurant selection with AJAX
+     */
+    public function selectRestaurant(Request $request)
+    {
+        try {
+            $restaurantId = $request->input('restaurant_id');
+            $user = Auth::user();
+            
+            // Find the restaurant
+            $restaurant = Restaurant::find($restaurantId);
+            if (!$restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not found.'
+                ], 404);
+            }
+            
+            // Add the DMC ID to the restaurant's dmc_id array
+            $restaurant->addDmcId($user->userId);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant selected successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Restaurant selection error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while selecting the restaurant.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove Individual Restaurant from DMC Selection
+     * Handle individual restaurant removal with AJAX
+     */
+    public function removeRestaurant(Request $request)
+    {
+        try {
+            $restaurantId = $request->input('restaurant_id');
+            $user = Auth::user();
+            
+            // Find the restaurant
+            $restaurant = Restaurant::find($restaurantId);
+            if (!$restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not found.'
+                ], 404);
+            }
+            
+            // Check if this DMC has selected this restaurant
+            if (!$restaurant->hasSelectedByDmc($user->userId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not selected by you.'
+                ], 400);
+            }
+            
+            // Remove the DMC ID from the restaurant's dmc_id array
+            $restaurant->removeDmcId($user->userId);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant removed successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Restaurant removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while removing the restaurant.'
+            ], 500);
+        }
     }
 }

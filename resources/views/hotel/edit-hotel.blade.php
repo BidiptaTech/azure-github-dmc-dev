@@ -38,6 +38,61 @@
     .select2-container .select2-results__option {
         padding: 12px 10px;
     }
+    
+    /* Read-only mode styling */
+    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+    .readonly-mode {
+        position: relative;
+    }
+    
+    .readonly-mode::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 40%, rgba(255, 193, 7, 0.1) 50%, transparent 60%);
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    .form-control[readonly],
+    .form-control[disabled],
+    .form-select[disabled] {
+        background-color: #f8f9fa !important;
+        border-color: #e9ecef !important;
+        color: #6c757d !important;
+        opacity: 0.8;
+        cursor: not-allowed;
+        position: relative;
+    }
+    
+    .form-control[readonly]::after,
+    .form-control[disabled]::after {
+        content: '\f023';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #ffc107;
+        font-size: 12px;
+        z-index: 2;
+    }
+    @endif
+    
+    /* Lock icon animation */
+    @keyframes lockPulse {
+        0% { opacity: 0.7; }
+        50% { opacity: 1; }
+        100% { opacity: 0.7; }
+    }
+    
+    .lock-icon {
+        animation: lockPulse 2s infinite;
+    }
 </style>
 
 <div class="page-content mt-5">
@@ -49,12 +104,48 @@
                     @include('hotel.tapview', ['hotel' => $hotel])
                     <div class="card mb-6">
                         <h5 class="card-header d-flex justify-content-between align-items-center">
-                            Edit Hotel
+                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-lock text-warning me-2 lock-icon" style="font-size: 1.2rem;" 
+                                       data-bs-toggle="tooltip" data-bs-placement="top" 
+                                       title="Read-only mode: You don't have permission to edit this hotel"></i>
+                                    <span>View Hotel Details</span>
+                                    <span class="badge bg-warning ms-2 px-2 py-1" style="font-size: 0.75rem;">
+                                        <i class="fas fa-eye me-1"></i>Read Only
+                                    </span>
+                                </div>
+                            @else
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-edit text-success me-2" style="font-size: 1.2rem;"></i>
+                                    <span>Edit Hotel</span>
+                                </div>
+                            @endif
                             {{-- <a href="{{ route('hotels.index') }}" class="btn btn-sm btn-outline-danger">
                                 <i class="mdi mdi-arrow-left"></i> Back
                             </a> --}}
                         </h5>
                     </div>
+                    
+                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20)
+                        <!-- Read-Only Mode Alert -->
+                        <div class="alert alert-warning alert-dismissible fade show mx-4 mt-3" role="alert" style="border-left: 4px solid #ffc107;">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-shield-alt me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-1">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Access Restricted - Read Only Mode
+                                    </h6>
+                                    <p class="mb-0">
+                                        You are viewing this hotel in <strong>read-only mode</strong>. 
+                                        Only users with administrative privileges (Admin) can modify hotel information.
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+                    
                     <div class="card-body p-4">
                         <form id="hotelForm" method="POST"
                             action="{{ route('hotels.update', $hotel->hotel_unique_id) }}"
@@ -66,25 +157,13 @@
                             <input type="hidden" name="removed_master_image" id="removed_master_image" value="">
                             <div class="row">
                                 <!-- Hotel Name -->
-                                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 47 || auth()->user()->role_id == 59 || auth()->user()->role_id ==82|| auth()->user()->role_id == 83)
-                                <div class="mb-3 col-md-4" id="dmc-container">
-                                    <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                    <select id="dmc" class="form-control" disabled>
-                                        <option value="">Select DMC</option>
-                                        @foreach ($dmcs as $dmc)
-                                            <option value="{{ $dmc->userId }}" {{ $hotel->dmc_id == $dmc->userId ? 'selected' : '' }}>{{ $dmc->company_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <input type="hidden" name="dmc_id" value="{{ $hotel->dmc_id }}">
-                                </div>
-                                @endif
                                 <div class="mb-3 col-md-4">
                                     <label for="input35" class="form-label"><strong>Hotel Name</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <input type="text" class="form-control" id="input35" name="name"
                                         value="{{ old('name', $hotel->name) }}" placeholder="Enter Hotel Name" 
-                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 2) readonly @endif required>
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif required>
                                     @error('name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -124,7 +203,8 @@
                                 <!-- Accommodation Type -->
                                 <div class="col-md-4 mb-3">
                                     <label for="hotelCategory" class="form-label"><strong>Accomodations Type</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_category" id="hotelCategory" class="form-control">
+                                    <select name="hotel_category" id="hotelCategory" class="form-control"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select a Category</option>
                                         <option value="1" {{ $hotel->accomodation_type == 1 ? 'selected' : '' }}>Hotel</option>
                                         <option value="2" {{ $hotel->accomodation_type == 2 ? 'selected' : '' }}>Motel</option>
@@ -149,7 +229,8 @@
                                 <!-- Ownership / Affiliation -->
                                 <div class="col-md-4 mb-3">
                                     <label for="hotel_ownership" class="form-label"><strong>Ownership</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_ownership" id="hotel_ownership" class="form-control" onchange="toggleChainNameField()">
+                                    <select name="hotel_ownership" id="hotel_ownership" class="form-control" onchange="toggleChainNameField()"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select Ownership</option>
                                         <option value="1" {{ $hotel->ownership_type == 1 ? 'selected' : '' }}>Chain Hotels</option>
                                         <option value="2" {{ $hotel->ownership_type == 2 ? 'selected' : '' }}>Independent Hotels</option>
@@ -164,8 +245,22 @@
                                 <div class="col-md-4 mb-3" id="chain_name_container" style="{{ $hotel->ownership_type == 1 ? 'display:block' : 'display:none' }}">
                                     <label for="chain_name" class="form-label"><strong>Chain Hotel Name</strong><span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="chain_name" name="chain_name" 
-                                           placeholder="Enter Chain Hotel Name" value="{{ old('chain_name', $hotel->chain_hotel_name) }}">
+                                           placeholder="Enter Chain Hotel Name" value="{{ old('chain_name', $hotel->chain_hotel_name) }}"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('chain_name')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="mb-3 col-md-4">
+                                    <label for="phone" class="form-label"><strong>General Phone No</strong>
+                                        <span style="color: red; font-weight: bold;">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" id="phone" name="phone" 
+                                           value="{{ old('phone', $hotel->phone) }}" 
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                                    <small class="validation-message text-danger" id="phone-validation-message"></small>
+                                    @error('phone')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -173,7 +268,8 @@
                                 <!-- Segment -->
                                 <div class="col-md-4 mb-3">
                                     <label for="segment" class="form-label"><strong>Type or Segment</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_segment" id="segment" class="form-control">
+                                    <select name="hotel_segment" id="segment" class="form-control"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select Ownership</option>
                                         <option value="1" {{ $hotel->hotel_segment == 1 ? 'selected' : '' }}>Budget/Economy Hotels</option>
                                         <option value="2" {{ $hotel->hotel_segment == 2 ? 'selected' : '' }}>Mid-Range Hotels</option>
@@ -203,7 +299,8 @@
                                 <!-- Star Rating -->
                                 <div class="col-md-4 mb-3">
                                     <label for="star_rating" class="form-label"><strong>Star Rating</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_star_rating" id="star_rating" class="form-control">
+                                    <select name="hotel_star_rating" id="star_rating" class="form-control"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Star Rating</option>
                                         <option value="1" {{ $hotel->hotel_star_rating == 1 ? 'selected' : '' }}>1-Star</option>
                                         <option value="2" {{ $hotel->hotel_star_rating == 2 ? 'selected' : '' }}>2-Star</option>
@@ -225,7 +322,8 @@
                                     <input type="email" class="form-control" id="email" name="email" 
                                            value="{{ old('email', $hotel->email) }}"
                                            placeholder="Enter Email" required
-                                           oninput="validateEmail(this)">
+                                           oninput="validateEmail(this)"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message text-danger" id="email-validation-message"></small>
                                     @error('email')
                                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -239,7 +337,7 @@
                                     </label>
                                     <input type="text" class="form-control" id="address" name="address"
                                         value="{{ old('address', $hotel->address) }}" placeholder="Enter Address"
-                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 2) readonly @endif required>
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif required>
                                     @error('address')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -269,7 +367,8 @@
                                     <label for="city" class="form-label"><strong>City</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <select name="city" id="citySelect" class="form-control" required>
+                                    <select name="city" id="citySelect" class="form-control" required
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="{{ $hotel->city }}">{{ $hotel->city }}</option>
                                         @foreach($city as $c)
                                             @if($c->name != $hotel->city)
@@ -286,7 +385,8 @@
                                 <div class="mb-3 col-md-4">
                                     <label for="state" class="form-label"><strong>State/Provision</strong></label>
                                     <input type="text" class="form-control" id="state" name="state"
-                                        value="{{ old('state', $hotel->state) }}" placeholder="Enter State">
+                                        value="{{ old('state', $hotel->state) }}" placeholder="Enter State"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('state')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -301,7 +401,8 @@
                                     <input type="text" class="form-control" id="pincode" name="pincode"
                                            value="{{ old('zipcode', $hotel->zipcode) }}"
                                            placeholder="Enter Postal Code" required
-                                           oninput="validatePincode(this)">
+                                           oninput="validatePincode(this)"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message text-danger" id="pincode-validation-message"></small>
                                     @error('pincode')
                                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -317,7 +418,8 @@
                                     <input type="text" class="form-control" id="latitude" name="latitude"
                                            value="{{ old('latitude', $hotel->latitude) }}"
                                            placeholder="Enter Latitude" required
-                                           oninput="validateLatitude(this)">
+                                           oninput="validateLatitude(this)"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message text-danger" id="latitude-validation-message"></small>
                                     @error('latitude')
                                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -332,7 +434,8 @@
                                     <input type="text" class="form-control" id="longitude" name="longitude"
                                            value="{{ old('longitude', $hotel->longitude) }}"
                                            placeholder="Enter Longitude" required
-                                           oninput="validateLongitude(this)">
+                                           oninput="validateLongitude(this)"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message text-danger" id="longitude-validation-message"></small>
                                     @error('longitude')
                                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -343,7 +446,8 @@
                                     <label for="country_code" class="form-label"><strong>Country Code</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <select class="form-control" id="country_code" name="country_code">
+                                    <select class="form-control" id="country_code" name="country_code"
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select Country</option>
                                         @foreach ($country_code as $code => $name)
                                         <option value="{{ $code }}"
@@ -362,7 +466,8 @@
                                            value="{{ old('phone', $hotel->phone) }}" 
                                            placeholder="Enter Phone" required
                                            pattern="^[0-9]{8,15}$"
-                                           oninput="validatePhone(this)">
+                                           oninput="validatePhone(this)"
+                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <small class="validation-message text-danger" id="phone-validation-message"></small>
                                     @error('phone')
                                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -402,7 +507,7 @@
                                         </sup>
                                     </label>
                                     <select name="weekend_days[]" id="weekend_days" class="form-control" multiple
-                                        required>
+                                        required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="Saturday"
                                             {{ in_array('Saturday', $selectedDays) ? 'selected' : '' }}>Saturday
                                         </option>
@@ -431,7 +536,8 @@
                                     <input type="number" class="form-control" id="infant_age_limit"
                                         name="infant_age_limit"
                                         value="{{ old('infant_age_limit', $hotel->infant_age_limit) }}"
-                                        placeholder="Enter Infant Age Limit" required>
+                                        placeholder="Enter Infant Age Limit" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('infant_age_limit')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -443,7 +549,8 @@
                                     <input type="number" class="form-control" id="child_age_limit"
                                         name="child_age_limit"
                                         value="{{ old('child_age_limit', $hotel->child_age_limit) }}"
-                                        placeholder="Enter Child Age Limit">
+                                        placeholder="Enter Child Age Limit"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('child_age_limit')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -455,7 +562,8 @@
                                     <input type="number" class="form-control" id="extra_bed_age_limit"
                                         name="extra_bed_age_limit"
                                         value="{{ old('extra_bed_age_limit', $hotel->extra_bed_age_limit) }}"
-                                        placeholder="Enter Hotel Owner Company Name" required>
+                                        placeholder="Enter Hotel Owner Company Name" required
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('extra_bed_age_limit')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -470,7 +578,8 @@
                                                     <input 
                                                     value="{{ old('check_in_time', $hotel->{'check_in_time'} ?? '') }}"
                                                     type="text" id="check_in_time" name="check_in_time" class="form-control"
-                                                        placeholder="Enter start time (e.g., 09:00)">
+                                                        placeholder="Enter start time (e.g., 09:00)"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                                 </div>
                                                 @error('time_range')
                                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -482,7 +591,8 @@
                                                     <input 
                                                     value="{{ old('check_out_time', $hotel->{'check_out_time'} ?? '') }}"
                                                     type="text" id="check_out_time" name="check_out_time" class="form-control"
-                                                        placeholder="Enter start time (e.g., 09:00)">
+                                                        placeholder="Enter start time (e.g., 09:00)"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                                 </div>
                                                 @error('time_range')
                                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -496,7 +606,8 @@
                                                         value="{{ old('time_range', $hotel->{'12_hour_book'} ?? '') }}"
                                                         type="text" id="time_range" name="time_range"
                                                         class="form-control"
-                                                        placeholder="Enter time range (e.g., 09:00)">
+                                                        placeholder="Enter time range (e.g., 09:00)"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                                 </div>
                                                 @error('time_range')
                                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -504,7 +615,8 @@
                                             </div>
                                             <div class="mb-3 col-md-2">
                                             <label for="time_range" class="form-label"><strong>Hour</strong></label>
-                                                <select id="duration" name="duration" class="form-control">
+                                                <select id="duration" name="duration" class="form-control"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                                     <option value="">Select a value</option>
                                                     <option value="1"
                                                         {{ old('duration', $hotel->duration) == 1 ? 'selected' : '' }}>1
@@ -556,7 +668,8 @@
 
                                             <div class="mb-3 col-md-2">
                                                 <label for="end_time" class="form-label"><strong>Type</strong></label>
-                                                <select id="day_usage_type" name="day_usage_type" class="form-control">
+                                                <select id="day_usage_type" name="day_usage_type" class="form-control"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                                     <option value="" disabled
                                                         {{ old('day_usage_type', $hotel->twelve_hours_charge) === null ? 'selected' : '' }}>
                                                         Select a value
@@ -578,7 +691,8 @@
                                                     <input
                                                         value="{{ old('twelve_hours_charge', $hotel->{'twelve_hours_charge'} ?? '') }}"
                                                         type="number" id="percentPrice" name="percentPrice"
-                                                        class="form-control" placeholder="Enter Charge">
+                                                        class="form-control" placeholder="Enter Charge"
+                                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                                 </div>
                                                 @error('percentPrice')
                                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -595,10 +709,16 @@
                                             <label for="master_image" class="form-label"><strong>Master
                                                     Image</strong></label>
                                             <div id="master-drop-area" class="form-control"
-                                                style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                                Drag & Drop your files here or click to upload.
+                                                style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; 
+                                                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) background-color: #f8f9fa; opacity: 0.6; pointer-events: none; @endif">
+                                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                                    Drag & Drop your files here or click to upload.
+                                                @else
+                                                    Image upload is restricted for your role.
+                                                @endif
                                                 <input type="file" id="master_image" name="master_image" multiple
-                                                    style="display: none;">
+                                                    style="display: none;"
+                                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                             </div>
                                             <small class="text-muted mt-1">
                                                 <i class="fas fa-info-circle"></i> 
@@ -616,7 +736,8 @@
                                                 <button
                                                     class="master-delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                                     data-image="{{ $hotel->main_image }}"
-                                                    style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
+                                                    style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;"
+                                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                                     &times;
                                                 </button>
                                             </div>
@@ -632,10 +753,16 @@
                                         <label for="images" class="form-label"><strong>Additional
                                                 Images</strong></label>
                                         <div id="drop-area" class="form-control"
-                                            style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                            Drag & Drop your files here or click to upload.
+                                            style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;
+                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) background-color: #f8f9fa; opacity: 0.6; pointer-events: none; @endif">
+                                            @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+                                                Drag & Drop your files here or click to upload.
+                                            @else
+                                                Image upload is restricted for your role.
+                                            @endif
                                             <input type="file" id="images" name="images[]" multiple
-                                                style="display: none;">
+                                                style="display: none;"
+                                                @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         </div>
                                         <small class="text-muted mt-1">
                                             <i class="fas fa-info-circle"></i> 
@@ -663,7 +790,8 @@
                                                 <button
                                                     class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                                     data-image="{{ $img }}"
-                                                    style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
+                                                    style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;"
+                                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                                     &times;
                                                 </button>
                                             </div>
@@ -684,7 +812,8 @@
                                 <div class="col-md-12 mb-3">
                                     <label for="description" class="form-label"><strong>Hotel Description</strong><span
                                             style="color: red;">*</span></label>
-                                    <textarea id="summernote" name="description" class="form-control" rows="10">{{ old('description', $hotel->description) }}</textarea required>
+                                    <textarea id="summernote" name="description" class="form-control" rows="10"
+                                              @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('description', $hotel->description) }}</textarea required>
                                     @error('description')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -697,14 +826,16 @@
                                 <input type="hidden" name="hotel_status" value="0" required>
                                 <input class="form-check-input" name="hotel_status" 
                                     @if($hotel->is_active == 1) checked @endif 
-                                    type="checkbox" id="hotel_status" value="1">
+                                    type="checkbox" id="hotel_status" value="1"
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <label class="form-check-label"></label>
                             </div>
 
                             <!-- Submit and Reset Buttons -->
                             <div class="d-flex align-items-center gap-3">
 
-                                <button type="submit" class="btn btn-success px-4">Update</button>
+                                <button type="submit" class="btn btn-success px-4"
+                                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Update</button>
                             </div>
                         </form>
                     </div>
@@ -869,12 +1000,24 @@
 
 <script>
     $(document).ready(function() {
-        $('#summernote').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter your content here...', 
-        });
+        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+            $('#summernote').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Enter your content here...', 
+            });
+        @else
+            $('#summernote').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Description editing is restricted for your role.',
+                toolbar: false,
+                disableResizeEditor: true
+            });
+            $('#summernote').summernote('disable');
+        @endif
         // Initialize Select2 for city
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
@@ -1503,12 +1646,24 @@
 </script>
 <script>
     $(document).ready(function() {
-        $('#summernote').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter your content here...', 
-        });
+        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+            $('#summernote').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Enter your content here...', 
+            });
+        @else
+            $('#summernote').summernote({
+                height: 200,      
+                minHeight: 200,   
+                maxHeight: 500,   
+                placeholder: 'Description editing is restricted for your role.',
+                toolbar: false,
+                disableResizeEditor: true
+            });
+            $('#summernote').summernote('disable');
+        @endif
     });
 </script>
 

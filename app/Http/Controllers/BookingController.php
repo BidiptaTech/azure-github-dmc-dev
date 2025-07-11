@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Order;
+use App\Helpers\CommonHelper;
 
 class BookingController extends Controller
 {
@@ -63,8 +64,8 @@ class BookingController extends Controller
     
         // Check if invoice PDF is uploaded before storing
         if ($request->hasFile('invoice_pdf')) {
-            $invoicePath = $request->file('invoice_pdf')->store('invoices', 'public');
-            $order->invoice_pdf = $invoicePath;
+            $invoicePathData = CommonHelper::image_path('file_storage', $request->file('invoice_pdf'));
+            $order->invoice_pdf = $invoicePathData['master_value'] ?? null;
         }
     
         // Update order details with reference_id
