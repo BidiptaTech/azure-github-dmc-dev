@@ -127,7 +127,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
         Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
         Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
@@ -513,6 +513,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
         // Restaurant Coupon
         Route::post('/generate-restaurant-coupon', [RestaurantController::class, 'generateCoupon'])->name('generate.restaurant.coupon');
+        Route::get('/view-voucher-image/{booking_id}/{tour_id}', [RestaurantController::class, 'viewVoucherImage'])->name('view.voucher.image');
+        Route::resource('restaurant', RestaurantController::class);
 
         
     });

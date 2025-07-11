@@ -147,6 +147,7 @@ class RestaurantController extends Controller
     public function updateRestaurantApproval(Request $request, $id)
     {
         // dd($request->all());
+        // dd($request->all());
         // Reset fields for Breakfast if not available
         if ($request->breakfast_available != 1) {
             $request->merge([
@@ -1422,6 +1423,93 @@ page.open('file://{$htmlFile}', function(status) {
     }
 
     /**
+     * View voucher image in browser instead of downloading
+     */
+    public function viewVoucherImage($bookingId, $tourId)
+    {
+        try {
+            // Find the order
+            $order = Order::where('booking_id', $bookingId)->where('tour_id', $tourId)->first();
+            
+            if (!$order || !$order->voucher_image) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Voucher image not found'
+                ], 404);
+            }
+            
+            $imageUrl = $order->voucher_image;
+            
+            // If it's a full URL (Azure, S3, etc.), fetch the image content
+            if (filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+                try {
+                    // Create a context for the file_get_contents to handle different scenarios
+                    $context = stream_context_create([
+                        'http' => [
+                            'method' => 'GET',
+                            'header' => [
+                                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Accept: image/png,image/*,*/*;q=0.8'
+                            ],
+                            'timeout' => 30,
+                            'ignore_errors' => true
+                        ]
+                    ]);
+                    
+                    $imageContent = file_get_contents($imageUrl, false, $context);
+                    
+                    if ($imageContent === false) {
+                        Log::warning('Failed to fetch image from URL: ' . $imageUrl);
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Failed to retrieve image from storage'
+                        ], 404);
+                    }
+                    
+                    // Return the image with proper headers for viewing
+                    return response($imageContent)
+                        ->header('Content-Type', 'image/png')
+                        ->header('Content-Disposition', 'inline; filename="voucher_' . $bookingId . '.png"')
+                        ->header('Cache-Control', 'public, max-age=3600')
+                        ->header('X-Content-Type-Options', 'nosniff');
+                        
+                } catch (\Exception $e) {
+                    Log::error('Error fetching voucher image: ' . $e->getMessage(), [
+                        'image_url' => $imageUrl,
+                        'booking_id' => $bookingId,
+                        'tour_id' => $tourId
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error retrieving image: ' . $e->getMessage()
+                    ], 500);
+                }
+            }
+            
+            // If it's a local path, serve it directly
+            if (file_exists(public_path($imageUrl))) {
+                return response()->file(public_path($imageUrl), [
+                    'Content-Type' => 'image/png',
+                    'Content-Disposition' => 'inline; filename="voucher_' . $bookingId . '.png"',
+                    'Cache-Control' => 'public, max-age=3600'
+                ]);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Image file not found'
+            ], 404);
+            
+        } catch (\Exception $e) {
+            Log::error('Error serving voucher image: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error serving image'
+            ], 500);
+        }
+    }
+
+    /**
      * Store client-generated voucher image
      */
     private function storeClientGeneratedImage(Request $request)
@@ -1524,7 +1612,82 @@ page.open('file://{$htmlFile}', function(status) {
                 ], 500);
             }
 
+
+            // Create temporary file
+            $imageFilename = 'restaurant_voucher_' . $bookingId . '_' . date('Ymd_His') . '.png';
+            $tempImageFile = tempnam(sys_get_temp_dir(), 'voucher_') . '.png';
+            file_put_contents($tempImageFile, $decodedImage);
+
+            Log::info('Temporary image file created', [
+                'temp_file' => $tempImageFile,
+                'file_size' => filesize($tempImageFile),
+                'filename' => $imageFilename
+            ]);
+
+            // Create uploaded file object for CommonHelper
+            $uploadedFile = new \Illuminate\Http\UploadedFile(
+                $tempImageFile,
+                $imageFilename,
+                'image/png',
+                null,
+                true
+            );
+
+            // Use CommonHelper to save the image
+            $pathData = CommonHelper::image_path('file_storage', $uploadedFile, 'vouchers');
+            
+            Log::info('CommonHelper image_path result', [
+                'path_data' => $pathData,
+                'master_value' => $pathData['master_value'] ?? null
+            ]);
+
+            if (!empty($pathData['master_value'])) {
+                // Update the order with the image URL
+                $order = Order::where('booking_id', $bookingId)->where('tour_id', $tourId)->first();
+                if ($order) {
+                    $order->voucher_image = $pathData['master_value'];
+                    $order->save();
+
+                    Log::info('Order updated with voucher image', [
+                        'booking_id' => $bookingId,
+                        'tour_id' => $tourId,
+                        'image_url' => $pathData['master_value']
+                    ]);
+                } else {
+                    Log::warning('Order not found for voucher image update', [
+                        'booking_id' => $bookingId,
+                        'tour_id' => $tourId
+                    ]);
+                }
+
+                // Clean up temp file
+                if (file_exists($tempImageFile)) {
+                    unlink($tempImageFile);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Voucher image stored successfully',
+                    'image_url' => $pathData['master_value']
+                ]);
+            } else {
+                Log::error('Failed to store image via CommonHelper', [
+                    'path_data' => $pathData
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to store image'
+                ], 500);
+            }
+
         } catch (\Exception $e) {
+            Log::error('Error storing client-generated voucher image', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             Log::error('Error storing client-generated voucher image', [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
