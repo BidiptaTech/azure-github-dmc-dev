@@ -1118,14 +1118,16 @@ class CommonHelper
                     "dmc_email" => $orderData->dmc_email ?? null,
                     "dmc_phone" => $orderData->dmc_phone ?? null,
                     "No_of_rooms" => $orderData->No_of_rooms ?? 0,
-                    "No_of_beds" => $orderData->No_of_beds ?? 0
+                    "No_of_beds" => $orderData->No_of_beds ?? 0,
+                    "dmc_logo" => $orderData->dmc_logo ?? null,
+                    "hotel_name" => $orderData->hotel_name ?? null,
                 ];
             }
+            
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;
             }
-            
             // Get company settings for the email
             $logoSetting = self::masterSettingsName('logo');
             $nameSetting = self::masterSettingsName('name');
