@@ -153,26 +153,26 @@ class EnquiryController extends Controller
         }
 
         // Fetch all services for the given city and DMC
+        // Hotels, Attractions, Restaurants have dmc_id as JSON arrays [2,3,4]
         $hotels = Hotel::with(['rooms' => function($query) {
             $query->select('hotel_id', 'double_weekday_price', 'room_type', 'room_id')
                   ->selectRaw('(double_weekday_price / 2) as single_base_price');
-        }])->whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        }])->whereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id])
         ->where('city', $city)->where('country', $country)->get();
         
-        $attractions = Attraction::whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        $attractions = Attraction::whereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id])
         ->where('location', $city)->where('country', $country)->get();
         
-        $restaurants = Restaurant::whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        $restaurants = Restaurant::whereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id])
         ->where('city', $city)->where('country', $country)->get();
         
-        $vehicles = Vehicle::whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
-        ->where('city', $city)->get();
+        // Vehicles and Guides have dmc_id as normal integers
+        $vehicles = Vehicle::where('dmc_id', $dmc_id)->where('city', $city)->get();
         
         $city_id = City::where('name', $city)->first();
         $ports = Port::where('city_id', $city_id->city_id)->where('country', $country)->get();
         
-        $guides = Guide::with('languages')->whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
-        ->where('city', $city)->where('country', $country)->get();
+        $guides = Guide::with('languages')->where('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
         
         // Create custom arrays with only necessary data
         $hotel_list = $hotels->map(function($hotel) {
@@ -578,6 +578,7 @@ class EnquiryController extends Controller
                 'entry_dropoff_location' => $entry_dropoff_location,
 
                 'exit_port' => $enquiry->exit_port,
+                'created_at' => $enquiry->created_at,
                 'approx_price' => $enquiry->approx_price,
                 'exit_port_address' => $enquiry->exit_port_address,
                 'exit_pickup_type' => $enquiry->exit_pickup_type,
