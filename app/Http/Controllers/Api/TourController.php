@@ -1035,7 +1035,7 @@ class TourController extends Controller
                     $hotel_id = $data['hotelDetails']['hotel_id'];
 
                     $hotel = Hotel::where('hotel_unique_id', $hotel_id)->first();
-                    $hotel_email = "saurabh.coactive@gmail.com";
+                    $hotel_email = $hotel->email;
 
                     foreach ($validatedData['data'] as $entry) {
                         if (isset($entry['rooms']) && is_array($entry['rooms'])) {
@@ -1053,13 +1053,12 @@ class TourController extends Controller
                                         $bedTypes[] = $bed['bed_type'];
                                         // Get meal information if available
                                             $mealInfo[] = $bed['mealTypes'][0];
-                                        
                                     }
                                 }
                             }
                         }
                     }
-                    
+                                       
                     $orderData = [
                         "booking_id" => 'BK-' . rand(10000, 99999), // fallback ID
                         "customer_name" => $data['fullName'] ?? "Guest",

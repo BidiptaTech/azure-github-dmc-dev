@@ -68,12 +68,12 @@ class PackageController extends Controller
         }
 
         $dmc_id = $this->getDmcIdForCurrentUser();
-
+        return response()->json(['message' => 'DMC ID: ' . $dmc_id], 200);
         if (!$dmc_id) {
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
 
-        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)
+        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmc_id)
             ->whereDate('start_date', '<=', $date)
             ->whereDate('expire_date', '>=', $date);
         if (!empty($city)) {
@@ -520,7 +520,6 @@ class PackageController extends Controller
             if(!$agent_id || $agent_id === 'null'){
                 if($user->userId){
                     $dmc_id = null;
-                    $agent_creator_id = null;     
                     $agent_creator_id = $user->userId;
                     $agent_ids = [];
                     // Check user role and determine DMC ID based on role hierarchy

@@ -18,7 +18,70 @@ class PackagedAttractionController extends Controller
      */
     public function index()
     {
-        $packagedAttractions = PackagedAttraction::latest()->get();
+        if (!hasPermission('view attraction')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        $user = auth()->user();
+        $packagedAttractions = [];
+        
+        if ($user->role_id == 4) {
+            $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('status', 1)
+                ->orderBy('id', 'DESC')
+                ->get();
+        } elseif ($user->role_id == 3) {
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('status', 1)->get();
+        } elseif (in_array($user->role_id, [1, 2, 23])) {
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('status', 1)->get();
+        }
+        elseif($user->role_id == 10){
+            $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+        }
+        elseif ($user->role_id == 11) {
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+        }
+        elseif ($user->role_id == 20) {
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+        }
+        elseif(in_array($user->role_id, [25,26, 60,49, 92,89])){
+            if($user->role_id == 25 || $user->role_id == 26){
+                $master_dmc_id = $user->created_by;
+            }
+            elseif($user->role_id == 60 || $user->role_id == 49){
+                $product_head = User::where('userId', $user->created_by)->first();
+                $master_dmc_id = $product_head->created_by;
+            }
+            elseif($user->role_id == 92 || $user->role_id == 89){
+                $product_manager = User::where('userId', $user->created_by)->first();
+                $product_head = User::where('userId', $product_manager->created_by)->first();
+                $master_dmc_id = $product_head->created_by;
+            }
+            $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+        } 
+        elseif($user->role_id == 35){
+            $userdmc = User::where('userId', $user->created_by)->first();
+            $dmc_id = $userdmc->userId;
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $dmc_id)->get();
+        }
+        elseif($user->role_id == 74){
+            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
+            if($assistant_product_manager_ids){
+                $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
+            }else{
+                $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+            }
+        }
+        elseif($user->role_id == 93 || $user->role_id == 90){
+            if($user->role_id != 111){
+                $assistant_product_manager = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
+            }
+            
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+        }
+        
         return view('packaged_attractions.list', compact('packagedAttractions'));
     }
 
@@ -27,7 +90,36 @@ class PackagedAttractionController extends Controller
      */
     public function create()
     {
-        $attractions = Attraction::where('status', 1)->get();
+        if (!hasPermission('create attraction')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+        $user = auth()->user();
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }
+        elseif($user->role_id == 35){
+            $userdmc = User::where('userId', $user->created_by)->first();
+            $dmc_id = $userdmc->userId;
+        }
+        elseif($user->role_id == 74){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $dmc_id = $user_product_head_dmc->userId;
+        }
+        elseif($user->role_id == 93){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $dmc_id = $user_product_head_dmc->userId;
+        }
+        if($dmc_id){
+            $attractions = Attraction::where('is_active', 1)
+            ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
+            ->get();
+                }
+        else{
+            $attractions = Attraction::where('is_active', 1)->get();
+        }
         return view('packaged_attractions.create', compact('attractions'));
     }
 
@@ -36,6 +128,10 @@ class PackagedAttractionController extends Controller
      */
     public function store(Request $request)
     {
+        if (!hasPermission('create attraction')) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+        
         try {
             // $validator = Validator::make($request->all(), [
             //     'package_attraction_name' => 'required|string|max:255',
@@ -55,27 +151,26 @@ class PackagedAttractionController extends Controller
             // }
 
             $user = auth()->user();
-            if($user->role_id == 11){
+            $dmc_id = null;
+            
+            if ($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23) {
+                $dmc_id = $request->dmc ?? null;
+            } elseif ($user->role_id == 11) {
                 $dmc_id = $user->userId;
-            }
-            elseif($user->role_id == 35){
-                $product_head_id = $user->userId;
-                $product_head = User::where('userId', $product_head_id)->first();
-                $dmc_id = $product_head->created_by;
+            } elseif($user->role_id == 35){
+                $userdmc = User::where('userId', $user->created_by)->first();
+                $dmc_id = $userdmc->userId;
             }
             elseif($user->role_id == 74){
-                $product_manager_id = $user->userId;
-                $product_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $product_head->created_by;
+                $user_product_head = User::where('userId', $user->created_by)->first();
+                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+                $dmc_id = $user_product_head_dmc->userId;
             }
             elseif($user->role_id == 93){
-                $assistant_manager_id = $user->userId;
-                $product_manager = User::where('userId', $user->created_by)->first();
-                $product_head = User::where('userId', $product_manager->created_by)->first();
-                $dmc_id = $product_head->created_by;
-            }
-            else{
-                $dmc_id = null;
+                $user_product_manager = User::where('userId', $user->created_by)->first();
+                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+                $dmc_id = $user_product_head_dmc->userId;
             }
             // Generate unique package ID
             $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -134,6 +229,10 @@ class PackagedAttractionController extends Controller
      */
     public function show(string $id)
     {
+        if (!hasPermission('view attraction')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+        
         $packagedAttraction = PackagedAttraction::findOrFail($id);
         return view('packaged_attractions.show', compact('packagedAttraction'));
     }
@@ -143,6 +242,9 @@ class PackagedAttractionController extends Controller
      */
     public function edit(string $id)
     {
+        if (!hasPermission('edit attraction')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
         $packagedAttraction = PackagedAttraction::findOrFail($id);
         $attractions = Attraction::where('status', 1)->get();
         return view('packaged_attractions.edit', compact('packagedAttraction', 'attractions'));
@@ -153,6 +255,9 @@ class PackagedAttractionController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        if (!hasPermission('edit attraction')) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
         try {
             $validator = Validator::make($request->all(), [
                 'package_attraction_name' => 'required|string|max:255',
@@ -224,6 +329,9 @@ class PackagedAttractionController extends Controller
      */
     public function destroy(string $id)
     {
+        if (!hasPermission('delete attraction')) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
         try {
             $packagedAttraction = PackagedAttraction::findOrFail($id);
             
@@ -246,6 +354,10 @@ class PackagedAttractionController extends Controller
      */
     public function getAttractions(Request $request)
     {
+        if (!hasPermission('view attraction')) {
+            abort(403, 'You do not have permission to access this data.');
+        }
+        
         $attractions = Attraction::where('status', 1);
         
         if ($request->has('search')) {
@@ -262,6 +374,10 @@ class PackagedAttractionController extends Controller
      */
     public function uploadImages(Request $request)
     {
+        if (!hasPermission('create attraction')) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+        
         $validator = Validator::make($request->all(), [
             'images' => 'required|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -289,6 +405,10 @@ class PackagedAttractionController extends Controller
      */
     public function removeImage($id)
     {
+        if (!hasPermission('edit attraction')) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+        
         $packagedAttraction = PackagedAttraction::findOrFail($id);
         
         // For simplicity, we'll just remove the main image

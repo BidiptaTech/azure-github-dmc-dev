@@ -1101,7 +1101,7 @@ class CommonHelper
                     "payment_status" => $orderData->payment_status ?? "Pending",
                     "room_type" => $orderData->room_type ?? "Standard",
                     "bed_type" => $orderData->bed_type ?? "Queen Size",
-                    
+                    "meal_plan" => $orderData->meal_plan ?? null,
                     "check_in_time" => $orderData->check_in_time ?? "00:00",
                     "check_out_time" => $orderData->check_out_time ?? "00:00",
                     "max_occupancy" => $orderData->max_occupancy ?? "Not specified",
@@ -1123,11 +1123,14 @@ class CommonHelper
                     "hotel_name" => $orderData->hotel_name ?? null,
                 ];
             }
+
+            
             
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;
             }
+            
             // Get company settings for the email
             $logoSetting = self::masterSettingsName('logo');
             $nameSetting = self::masterSettingsName('name');

@@ -79,7 +79,8 @@ class Package extends Model
         'status',
         'created_by',
         'updated_by',
-        'itinerary'
+        'itinerary',
+        'dmc_id'
     ];
 
     const CATEGORIES = [

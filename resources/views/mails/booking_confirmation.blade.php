@@ -765,14 +765,14 @@
                 @endif
 
                 
-                @if(isset($mealTypes) && is_array($mealTypes) && count($mealTypes) > 0)
-                <div class="detail-row">
-                    <div class="detail-label">
-                        <i class="fas fa-concierge-bell detail-icon"></i>
-                        Meal Options:
-                    </div>
-                    <div class="detail-value">{{ implode(", ", $mealTypes) }}</div>
-                </div>
+                @if(isset($meal_plan) && $meal_plan != null)
+                    <div class="detail-row">
+                        <div class="detail-label">
+                            <i class="fas fa-concierge-bell detail-icon"></i>
+                            Meal Options:
+                        </div>
+                        <div class="detail-value">{{ $meal_plan }}</div>
+                    </div>                                            
                 @endif
                 
                 
