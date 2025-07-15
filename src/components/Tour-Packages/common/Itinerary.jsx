@@ -387,6 +387,9 @@ export default function Itinerary({ onBookingSuccess }) {
         case 'attraction':
           services.attractions.push(booking);
           break;
+        case 'attraction_package':
+          services.attractions.push(booking);
+          break;
         case 'restaurant':
           services.restaurants.push(booking);
           break;
