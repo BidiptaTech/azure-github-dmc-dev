@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use App\Models\Hotel;
 use App\Models\Driver;
 use App\Models\Guide;
@@ -146,10 +147,39 @@ class BulkUploadController extends Controller
             abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
         }
         
-        // Get upload history
+        // Get attractions that belong to this DMC - same approach as meals
+        try {
+            // First, let's see what columns exist
+            $testAttraction = Attraction::first();
+            if ($testAttraction) {
+                Log::info('Attraction columns available: ' . json_encode(array_keys($testAttraction->getAttributes())));
+            }
+            
+            // Try to get attractions for this DMC
+            $attractions = Attraction::withCount('tickets')
+                                   ->where('dmc_id', $auth_user->userId)
+                                   ->where('status', 1)
+                                   ->get();
+            
+            // If no attractions found, try getting all attractions for testing
+            if ($attractions->isEmpty()) {
+                Log::info('No attractions found for DMC user: ' . $auth_user->userId);
+                $attractions = Attraction::withCount('tickets')
+                                       ->where('status', 1)
+                                       ->take(3)
+                                       ->get(); // Get first 3 for testing
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Error in tickets method: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()->back()->with('error', 'Database error: ' . $e->getMessage());
+        }
+        
+        // Get upload history for tickets
         $uploadHistory = $this->getUploadHistory('tickets');
         
-        return view('bulk-upload.tickets', compact('uploadHistory'));
+        return view('bulk-upload.tickets', compact('attractions', 'uploadHistory'));
     }
 
     // Hotel Template Download (CSV format)
@@ -1874,37 +1904,37 @@ class BulkUploadController extends Controller
                 $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
                 
                 // Set country and city if columns exist
-                if (\Schema::hasColumn('restaurants', 'country')) {
+                if (Schema::hasColumn('restaurants', 'country')) {
                     $restaurant->country = $country;
                 }
-                if (\Schema::hasColumn('restaurants', 'city')) {
+                if (Schema::hasColumn('restaurants', 'city')) {
                     $restaurant->city = $city;
                 }
-                if (\Schema::hasColumn('restaurants', 'latitude')) {
+                if (Schema::hasColumn('restaurants', 'latitude')) {
                     $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
                 }
-                if (\Schema::hasColumn('restaurants', 'longitude')) {
+                if (Schema::hasColumn('restaurants', 'longitude')) {
                     $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
                 }
-                if (\Schema::hasColumn('restaurants', 'description')) {
+                if (Schema::hasColumn('restaurants', 'description')) {
                     $restaurant->description = $description;
                 }
-                if (\Schema::hasColumn('restaurants', 'terms_conditions')) {
+                if (Schema::hasColumn('restaurants', 'terms_conditions')) {
                     $restaurant->terms_conditions = $termsConditions;
                 }
-                if (\Schema::hasColumn('restaurants', 'hotel_id')) {
+                if (Schema::hasColumn('restaurants', 'hotel_id')) {
                     $restaurant->hotel_id = 1; // Default hotel ID
                 }
-                if (\Schema::hasColumn('restaurants', 'status')) {
+                if (Schema::hasColumn('restaurants', 'status')) {
                     $restaurant->status = ($status == '1') ? 1 : 0;
                 }
-                if (\Schema::hasColumn('restaurants', 'is_active')) {
+                if (Schema::hasColumn('restaurants', 'is_active')) {
                     $restaurant->is_active = ($status == '1') ? 1 : 0;
                 }
-                if (\Schema::hasColumn('restaurants', 'dmc_id')) {
+                if (Schema::hasColumn('restaurants', 'dmc_id')) {
                     $restaurant->dmc_id = $auth_user->userId;
                 }
-                if (\Schema::hasColumn('restaurants', 'created_by')) {
+                if (Schema::hasColumn('restaurants', 'created_by')) {
                     $restaurant->created_by = $auth_user->userId;
                 }
                 
@@ -3338,13 +3368,10 @@ class BulkUploadController extends Controller
             $fileHash = hash_file('md5', $file->getPathname());
             $cacheKey = "ticket_upload_{$fileHash}_{$auth_user->userId}";
             
-            // Check if this exact file was uploaded recently (within last 60 seconds)
+            // Check if this exact file was uploaded recently (within last 30 seconds)
             if (cache()->has($cacheKey)) {
                 return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
             }
-            
-            // Mark this upload as in progress
-            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
             
             $csvData = $this->readCsvFile($file->getPathname());
             
@@ -3421,9 +3448,57 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Validate required ticket fields only
-                    if (empty($adultPrice) || empty($description) || empty($termsConditions)) {
-                        $errors[] = "Row {$rowNumber}: Missing required ticket fields (Adult Price, Important Notes, or Terms & Conditions)";
+                    // Validate required ticket fields
+                    $missingFields = [];
+                    if (empty($ticketName)) $missingFields[] = 'Ticket Name';
+                    if (empty($childPrice) || $childPrice === '0') $missingFields[] = 'Child Price';
+                    if (empty($adultPrice) || $adultPrice === '0') $missingFields[] = 'Adult Price';
+                    if (empty($seniorAdultPrice) || $seniorAdultPrice === '0') $missingFields[] = 'Senior Citizen Price';
+                    if (empty($childPriceNri) || $childPriceNri === '0') $missingFields[] = 'Child Price NRI';
+                    if (empty($adultPriceNri) || $adultPriceNri === '0') $missingFields[] = 'Adult Price NRI';
+                    if (empty($seniorAdultPriceNri) || $seniorAdultPriceNri === '0') $missingFields[] = 'Senior Citizen Price NRI';
+                    if (empty($description)) $missingFields[] = 'Important Notes';
+                    if (empty($termsConditions)) $missingFields[] = 'Terms & Conditions';
+                    
+                    if (!empty($missingFields)) {
+                        $errors[] = "Row {$rowNumber}: Missing required fields: " . implode(', ', $missingFields);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate numeric fields and ensure they are greater than 0
+                    $numericFields = [
+                        'Child Price' => $childPrice,
+                        'Adult Price' => $adultPrice,
+                        'Senior Citizen Price' => $seniorAdultPrice,
+                        'Child Price NRI' => $childPriceNri,
+                        'Adult Price NRI' => $adultPriceNri,
+                        'Senior Citizen Price NRI' => $seniorAdultPriceNri
+                    ];
+
+                    foreach ($numericFields as $fieldName => $value) {
+                        if (!empty($value) && !is_numeric($value)) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2; // Skip to next row
+                        }
+                        if (!empty($value) && is_numeric($value) && floatval($value) <= 0) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be greater than 0. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2; // Skip to next row
+                        }
+                    }
+
+                    // Validate status field
+                    if (!in_array($status, ['0', '1'])) {
+                        $errors[] = "Row {$rowNumber}: Status must be 0 (inactive) or 1 (active). Found: '{$status}'";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate ticket name length
+                    if (strlen($ticketName) > 255) {
+                        $errors[] = "Row {$rowNumber}: Ticket name is too long (maximum 255 characters)";
                         $errorCount++;
                         continue;
                     }
@@ -3485,12 +3560,11 @@ class BulkUploadController extends Controller
             
             if ($successCount > 0) {
                 DB::commit();
+                // Cache file hash only after successful processing
+                cache()->put($cacheKey, true, 30); // Cache for 30 seconds
             } else {
                 DB::rollback();
             }
-            
-            // Clear the upload cache on completion
-            cache()->forget($cacheKey);
             
             // Save upload history
             UploadHistory::createRecord(
@@ -3515,10 +3589,6 @@ class BulkUploadController extends Controller
                 
         } catch (\Exception $e) {
             DB::rollback();
-            // Clear the upload cache on error
-            if (isset($cacheKey)) {
-                cache()->forget($cacheKey);
-            }
             Log::error('Ticket bulk upload failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
@@ -3587,29 +3657,29 @@ class BulkUploadController extends Controller
     private function generateAttractionTicketCsvData($attraction)
     {
         $header = [
-            'Ticket Name*',
-            'Child Price(local)*',
-            'Adult Price(local)*',
-            'Senior Citizen Price(local)*',
-            'Child Price(foreigner)*',
-            'Adult Price(foreigner)*',
-            'Senior Citizen Price(foreigner)*',
-            'Important Notes*',
-            'Terms & Conditions*',
-            'Status*'
+            'Ticket Name (Required)',
+            'Child Price(local) (Required)',
+            'Adult Price(local) (Required)',
+            'Senior Citizen Price(local) (Required)',
+            'Child Price(foreigner) (Required)',
+            'Adult Price(foreigner) (Required)',
+            'Senior Citizen Price(foreigner) (Required)',
+            'Important Notes (Required)',
+            'Terms & Conditions (Required)',
+            'Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$header];
 
-        // Add sample data
+        // Add sample data with proper required field values
         $sampleData = [
             'Standard Entry Ticket',
-            '15.00',
-            '25.00',
-            '20.00',
-            '20.00',
-            '35.00',
-            '30.00',
+            '15.00',  // Child Price (required)
+            '25.00',  // Adult Price (required)
+            '20.00',  // Senior Citizen Price (required)
+            '20.00',  // Child Price NRI (required)
+            '35.00',  // Adult Price NRI (required)
+            '30.00',  // Senior Citizen Price NRI (required)
             'Valid for one day entry. Please bring valid ID.',
             'No refund after booking. Entry subject to availability.',
             '1'
@@ -3619,20 +3689,20 @@ class BulkUploadController extends Controller
         // Add another sample
         $sampleData2 = [
             'VIP Entry Ticket',
-            '25.00',
-            '50.00',
-            '40.00',
-            '30.00',
-            '60.00',
-            '50.00',
+            '25.00',  // Child Price (required)
+            '50.00',  // Adult Price (required)
+            '40.00',  // Senior Citizen Price (required)
+            '30.00',  // Child Price NRI (required)
+            '60.00',  // Adult Price NRI (required)
+            '50.00',  // Senior Citizen Price NRI (required)
             'Includes priority access and guided tour.',
             'Advance booking required. No cancellation allowed.',
             '1'
         ];
         $data[] = $sampleData2;
 
-        // Add empty row for user input
-        $emptyRow = ['', '', '', '', '', '', '', '', '', '1'];
+        // Add empty row for user input (with notes for required fields)
+        $emptyRow = ['[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '1'];
         $data[] = $emptyRow;
 
         return $data;
@@ -3759,7 +3829,12 @@ class BulkUploadController extends Controller
                     // Enhanced validation for required fields
                     $missingFields = [];
                     if (empty($ticketName)) $missingFields[] = 'Ticket Name';
+                    if (empty($childPrice) || $childPrice === '0') $missingFields[] = 'Child Price';
                     if (empty($adultPrice) || $adultPrice === '0') $missingFields[] = 'Adult Price';
+                    if (empty($seniorAdultPrice) || $seniorAdultPrice === '0') $missingFields[] = 'Senior Citizen Price';
+                    if (empty($childPriceNri) || $childPriceNri === '0') $missingFields[] = 'Child Price NRI';
+                    if (empty($adultPriceNri) || $adultPriceNri === '0') $missingFields[] = 'Adult Price NRI';
+                    if (empty($seniorAdultPriceNri) || $seniorAdultPriceNri === '0') $missingFields[] = 'Senior Citizen Price NRI';
                     if (empty($description)) $missingFields[] = 'Important Notes';
                     if (empty($termsConditions)) $missingFields[] = 'Terms & Conditions';
                     
@@ -3769,19 +3844,24 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Validate numeric fields
+                    // Validate numeric fields and ensure they are greater than 0
                     $numericFields = [
                         'Child Price' => $childPrice,
                         'Adult Price' => $adultPrice,
-                        'Senior Adult Price' => $seniorAdultPrice,
-                        'Child Price (NRI)' => $childPriceNri,
-                        'Adult Price (NRI)' => $adultPriceNri,
-                        'Senior Adult Price (NRI)' => $seniorAdultPriceNri
+                        'Senior Citizen Price' => $seniorAdultPrice,
+                        'Child Price NRI' => $childPriceNri,
+                        'Adult Price NRI' => $adultPriceNri,
+                        'Senior Citizen Price NRI' => $seniorAdultPriceNri
                     ];
 
                     foreach ($numericFields as $fieldName => $value) {
                         if (!empty($value) && !is_numeric($value)) {
                             $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2; // Skip to next row
+                        }
+                        if (!empty($value) && is_numeric($value) && floatval($value) <= 0) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be greater than 0. Found: '{$value}'";
                             $errorCount++;
                             continue 2; // Skip to next row
                         }
@@ -3922,14 +4002,28 @@ class BulkUploadController extends Controller
             return redirect()->back()->with('success', $message);
         } elseif ($successCount > 0 && $errorCount > 0) {
             $message = "Partial success: {$successCount} tickets uploaded successfully, {$errorCount} failed for {$attraction->name}.";
+            
+            // Create error bag for Laravel
+            $validator = Validator::make([], []);
+            foreach ($errors as $error) {
+                $validator->errors()->add('upload', $error);
+            }
+            
             return redirect()->back()
                 ->with('success', $message)
-                ->with('errors', $errors);
+                ->withErrors($validator);
         } else {
             $message = "Upload failed: {$errorCount} errors occurred. No tickets were uploaded.";
+            
+            // Create error bag for Laravel  
+            $validator = Validator::make([], []);
+            foreach ($errors as $error) {
+                $validator->errors()->add('upload', $error);
+            }
+            
             return redirect()->back()
                 ->with('error', $message)
-                ->with('errors', $errors);
+                ->withErrors($validator);
         }
     }
 
@@ -4133,6 +4227,8 @@ class BulkUploadController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
+
+
 
     public function uploadMeals(Request $request, $restaurant_id)
     {
