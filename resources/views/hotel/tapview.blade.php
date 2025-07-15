@@ -51,6 +51,7 @@
      @php
         $roomCount = App\Models\Room::where('hotel_id', $hotel->hotel_unique_id)->count();
     @endphp
+    @if(in_array(Auth::user()->role_id, [1, 20]))
     <li class="nav-item" role="presentation">
         <a 
             class="nav-link {{ $roomCount > 0 ? (Request::routeIs('beds.create') ? 'active' : '') : 'disabled' }}" 
@@ -61,7 +62,7 @@
             Bed Type
         </a>
     </li> 
-    
+    @endif
     @php
         $bedCount = App\Models\BedMaster::where('hotel_id', $hotel->hotel_unique_id)->count();
     @endphp
@@ -86,7 +87,7 @@
 
     <li class="nav-item" role="presentation">
         <a class="nav-link {{ $roomCount > 0 ? (Request::routeIs('hotel-restaurant-create')|| Request::routeIs('hotel-meals-create') ? 'active' : '') : 'disabled' }}" 
-        id="pills-event-tab" 
+        id="pills-restaurant-tab" 
         href="{{ $roomCount > 0 ? route('hotel-restaurant-create', $hotel->hotel_unique_id) : '#' }}"
         role="tab" 
         aria-selected="{{ $roomCount > 0 ? 'true' : 'false' }}" 

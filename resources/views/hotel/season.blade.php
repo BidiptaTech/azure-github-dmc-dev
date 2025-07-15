@@ -14,6 +14,83 @@
 @extends('layouts.datatablecss')
 @include('hotel.tapview', ['hotel' => $hotel])
 <link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet">
+
+<style>
+/* DMC Filter Styles */
+#dmcFilter {
+    border: 1px solid #d9dee3;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    background-color: #fff;
+    color: #566a7f;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#dmcFilter:focus {
+    border-color: #696cff;
+    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    outline: 0;
+}
+
+/* DMC Badge Styles */
+.badge.bg-primary {
+    background-color: #696cff !important;
+}
+
+.badge.bg-secondary {
+    background-color: #8592a3 !important;
+}
+
+/* Filter Info Text */
+.filter-info {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* DataTable Responsive Styles */
+.dataTables_wrapper .dataTables_filter input {
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid #d9dee3;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.5rem 0.75rem;
+    margin: 0 0.125rem;
+    border: 1px solid #d9dee3;
+    border-radius: 0.375rem;
+    background-color: #fff;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background-color: #696cff;
+    border-color: #696cff;
+    color: #fff !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background-color: #e7e7ff;
+    border-color: #696cff;
+    color: #696cff !important;
+}
+
+/* Table Styles */
+.table> :not(caption)>*>* {
+    padding: 0.75rem;
+}
+
+/* Button Styles */
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
@@ -27,6 +104,30 @@
                @csrf
                <input type="hidden" class="form-control" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
                <input type="hidden" class="form-control" name="room_id" value="{{ $room->room_id }}">
+               
+               @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+               <!-- DMC Selection (Required for Admin and Role 20) -->
+               <div class="row mb-3">
+                   <div class="col-md-12">
+                       <div class="alert alert-info">
+                           <strong>Note:</strong> As an admin/manager, you must select a DMC to add seasons on their behalf.
+                       </div>
+                   </div>
+               </div>
+               <div class="row mb-3">
+                   <div class="col-md-6">
+                       <label for="dmc_selection" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                       <select id="dmc_selection" class="form-control" name="dmc_id" required>
+                           <option value="">Select DMC</option>
+                           @foreach($dmcUsers as $dmc)
+                               <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                           @endforeach
+                       </select>
+                       <small class="text-muted">You are adding seasons on behalf of the selected DMC.</small>
+                   </div>
+               </div>
+               @endif
+               
                <hr>
                <div id="hotelRatesContainer">
                   <div class="hotel-rate-form">
@@ -171,6 +272,19 @@
                   <h5 class="card-title mb-0">Seasons of {{ $hotel->name }}</h5>
                </div>
                <div class="d-flex justify-content-between gap-3">
+                  @if($auth_user->role_id == 1)
+                  <!-- DMC Filter Dropdown for Admin -->
+                  <div class="d-flex align-items-center gap-2">
+                     <label for="dmcFilter" class="form-label mb-0 text-nowrap"><strong>Filter by DMC:</strong></label>
+                     <select class="form-select" id="dmcFilter" style="min-width: 220px;">
+                        <option value="">All DMCs</option>
+                        @foreach($dmcUsers as $dmc)
+                           <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                        @endforeach
+                     </select>
+                  </div>
+                  @endif
+
                   <!-- Export Dropdown Button -->
                   <div class="dropdown">
                         <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -195,6 +309,9 @@
                      <th>End Date</th>
                      <th>Event Name</th>
                      <th>Event Type</th>
+                     @if($auth_user->role_id == 1)
+                     <th>DMC</th>
+                     @endif
                      <th>Weekday Price</th>
                      <th>Weekend Price</th>
                      <th>Active</th>
@@ -206,11 +323,21 @@
                      use Carbon\Carbon;
                   @endphp
                   @foreach ($rates as $rate)
-                  <tr>
+                  <tr data-dmc-id="{{ $rate->dmc_id ?? 'unknown' }}">
                      <td class="category-name">{{ \App\Helpers\CommonHelper::DateFormatAdmin($rate->start_date) }}</td>
                      <td class="category-name">{{ \App\Helpers\CommonHelper::DateFormatAdmin($rate->end_date) }}</td>
                      <td>{{ $rate->event }}</td>
                      <td>{{ $rate->event_type }}</td>
+                     @if($auth_user->role_id == 1)
+                     <td>
+                        <span class="badge {{ $rate->dmc_id ? 'bg-primary' : 'bg-secondary' }}">
+                           {{ $rate->dmc_company ?? 'Unknown DMC' }}
+                        </span>
+                        @if($rate->dmc_id)
+                           <br><small class="text-muted">{{ $rate->dmc_name ?? '' }}</small>
+                        @endif
+                     </td>
+                     @endif
                      <td>{{ $rate->weekday_price }}</td>
                      <td>{{ $rate->weekend_price }}</td>
                      <td>{{$rate->is_active == 1 ? 'Yes' : 'No'}}</td>
@@ -282,7 +409,7 @@
 <script>
     $(document).ready(function() {
         // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
+        var dataTable = $('.datatables-basic').DataTable({
             responsive: true,
             buttons: [
                 'copy',
@@ -297,6 +424,45 @@
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
         });
+
+        // DMC Filter functionality (only for admin users)
+        @if($auth_user->role_id == 1)
+        
+        // Custom search function for DMC filtering
+        $.fn.dataTable.ext.search.push(
+            function(settings, data, dataIndex) {
+                var selectedDmc = $('#dmcFilter').val();
+                var row = $(settings.nTable).DataTable().row(dataIndex).node();
+                var dmcId = $(row).attr('data-dmc-id');
+                
+                // If no filter selected, show all
+                if (selectedDmc === '') {
+                    return true;
+                }
+                
+                // Check if the row matches the selected DMC
+                return dmcId === selectedDmc;
+            }
+        );
+        
+        $('#dmcFilter').on('change', function() {
+            var selectedDmc = $(this).val();
+            
+            // Redraw the table with the new filter
+            dataTable.draw();
+            
+            // Update the table title
+            var totalRows = dataTable.data().length;
+            var filteredRows = dataTable.rows({search: 'applied'}).count();
+            
+            if (selectedDmc !== '') {
+                var dmcText = $('#dmcFilter option:selected').text();
+                $('.card-title').html('Seasons of {{ $hotel->name }} - ' + dmcText + ' (' + filteredRows + ' of ' + totalRows + ')');
+            } else {
+                $('.card-title').html('Seasons of {{ $hotel->name }} (' + totalRows + ' total)');
+            }
+        });
+        @endif
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
@@ -318,6 +484,19 @@
         $('#exportPrint').on('click', function() {
             $('.datatables-basic').DataTable().button('.buttons-print').trigger();
         });
+        
+        @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+        // DMC Selection Validation for Admin and Role 20
+        $('#hotelForm').on('submit', function(e) {
+            const dmcSelection = $('#dmc_selection').val();
+            if (!dmcSelection) {
+                e.preventDefault();
+                alert('Please select a DMC before submitting the form.');
+                $('#dmc_selection').focus();
+                return false;
+            }
+        });
+        @endif
     });
 </script>
 <!-- End DataTable JS -->

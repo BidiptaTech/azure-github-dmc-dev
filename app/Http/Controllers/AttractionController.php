@@ -43,10 +43,15 @@ class AttractionController extends Controller
         }
         elseif($user->role_id == 10){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($dmc_ids) {
+                $selectedDmcIds = $attraction->getSelectedDmcIds();
+                return !empty(array_intersect($selectedDmcIds, $dmc_ids));
+            });
         }
         elseif ($user->role_id == 11) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($user) {
+                return $attraction->hasSelectedByDmc($user->userId);
+            });
         }
         elseif ($user->role_id == 20) {
             $attractions = Attraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
@@ -67,10 +72,15 @@ class AttractionController extends Controller
                 $master_dmc_id = $product_head->created_by;
             }
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($dmc_ids) {
+                $selectedDmcIds = $attraction->getSelectedDmcIds();
+                return !empty(array_intersect($selectedDmcIds, $dmc_ids));
+            });
         } 
         elseif($user->role_id == 35){
-            $attractions = Attraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
+            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($user) {
+                return $attraction->hasSelectedByDmc($user->created_by);
+            });
         }
         elseif($user->role_id == 74){
             $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
@@ -359,7 +369,7 @@ class AttractionController extends Controller
             if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
                 $dmc_id = $request->dmc;
                 $status = 1;
-            } elseif ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
+            } elseif ($auth_user->role_id == 11) {
                 $dmc_id = $auth_user->userId;
                 $status = 1;
             } elseif(auth()->user()->role_id ==35){
@@ -375,30 +385,31 @@ class AttractionController extends Controller
             }
             elseif(auth()->user()->role_id == 93){
                 $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-
-                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-
-                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-
-                $dmc_id = $user_product_head_dmc->userId;
-                $status = 1;
             }
-            else{
-                $dmc_id = $request->dmc;
-            }
+            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
 
-            // 🔍 Check for existing hotel at same lat/lng for this DMC
-            $existingAttraction = Attraction::where([
-                ['latitude', $request->latitude],
-                ['longitude', $request->longitude],
-                ['dmc_id', $dmc_id]
-            ])->first();
+            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
 
-            if ($existingAttraction) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('error', 'A Attraction already exists at this location for the selected DMC.');
-            }
+            //     $dmc_id = $user_product_head_dmc->userId;
+            //     $status = 1;
+            // }
+            // else{
+            //     $dmc_id = $request->dmc;
+            // }
+            // $dmc_id = User::where('role_id', 20)->value('userId') ?? 0;
+            // $status = 1;
+            // // 🔍 Check for existing hotel at same lat/lng for this DMC
+            // $existingAttraction = Attraction::where([
+            //     ['latitude', $request->latitude],
+            //     ['longitude', $request->longitude],
+            //     ['dmc_id', $dmc_id]
+            // ])->first();
+
+            // if ($existingAttraction) {
+            //     return redirect()->back()
+            //         ->withInput()
+            //         ->with('error', 'A Attraction already exists at this location for the selected DMC.');
+            // }
 
         //Create a new attraction record
         $attraction = new Attraction();
@@ -417,8 +428,8 @@ class AttractionController extends Controller
         $attraction->remarks = $request->input('remarks');
         $attraction->terms_conditions = $request->input('terms_conditions');
         $attraction->attraction_id = $attractionId;
-        $attraction->status = $status;
-        $attraction->dmc_id = $dmc_id ?? 0;
+        $attraction->status = 1;
+        // $attraction->dmc_id = $dmc_id ?? 0;
         $attraction->is_active = $request->input('attraction_status') == 1 ? 1 : 0;
         $attraction->additional_image = $imagePathsJson;
         $attraction->master_image = $masterImage;
@@ -610,5 +621,142 @@ class AttractionController extends Controller
         return redirect()->back()
         ->with('success', 'Attraction Calender deleted successfully');
     }
-    
+
+    /**
+     * Show DMC Attractions Selection Page
+     * For DMC users to select/manage their attractions
+     */
+    public function dmcAttractionsSelection(Request $request)
+    {
+        // Check if user is DMC (role_id = 11)
+        $user = auth()->user();
+        if ($user->role_id != 11) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        // Get all available attractions
+        $allAttractions = Attraction::where('status', 1)
+                                   ->orderBy('name', 'asc')
+                                   ->get();
+        
+        // Filter attractions that are selected by the current DMC
+        $selectedAttractions = $allAttractions->filter(function($attraction) use ($user) {
+            return $attraction->hasSelectedByDmc($user->userId);
+        });
+        
+        // Get attractions that are not selected by the current DMC
+        $availableAttractions = $allAttractions->filter(function($attraction) use ($user) {
+            return !$attraction->hasSelectedByDmc($user->userId);
+        });
+
+        return view('services.attractions', compact('availableAttractions', 'selectedAttractions'));
+    }
+
+    /**
+     * Update DMC Attractions Selection
+     * Handle checkbox updates for attraction selection
+     */
+    public function updateDmcAttractions(Request $request)
+    {
+        $user = auth()->user();
+        if ($user->role_id != 11) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+
+        $selectedAttractions = $request->input('selected_attractions', []);
+        
+        // Remove DMC ID from all attractions first
+        Attraction::whereJsonContains('dmc_id', $user->userId)->get()->each(function($attraction) use ($user) {
+            $attraction->removeDmcId($user->userId);
+        });
+        
+        // Add DMC ID to selected attractions
+        if (!empty($selectedAttractions)) {
+            Attraction::whereIn('attraction_id', $selectedAttractions)->get()->each(function($attraction) use ($user) {
+                $attraction->addDmcId($user->userId);
+            });
+        }
+
+        return redirect()->back()->with('success', 'Attraction selection updated successfully!');
+    }
+
+    /**
+     * Select Individual Attraction for DMC
+     * Handle individual attraction selection with AJAX
+     */
+    public function selectAttraction(Request $request)
+    {
+        try {
+            $attractionId = $request->input('attraction_id');
+            $user = Auth::user();
+            
+            // Find the attraction
+            $attraction = Attraction::find($attractionId);
+            if (!$attraction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction not found.'
+                ], 404);
+            }
+            
+            // Add the DMC ID to the attraction's dmc_id array
+            $attraction->addDmcId($user->userId);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Attraction selected successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Attraction selection error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while selecting the attraction.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove Individual Attraction from DMC Selection
+     * Handle individual attraction removal with AJAX
+     */
+    public function removeAttraction(Request $request)
+    {
+        try {
+            $attractionId = $request->input('attraction_id');
+            $user = Auth::user();
+            
+            // Find the attraction
+            $attraction = Attraction::find($attractionId);
+            if (!$attraction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction not found.'
+                ], 404);
+            }
+            
+            // Check if this DMC has selected this attraction
+            if (!$attraction->hasSelectedByDmc($user->userId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction not selected by you.'
+                ], 400);
+            }
+            
+            // Remove the DMC ID from the attraction's dmc_id array
+            $attraction->removeDmcId($user->userId);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Attraction removed successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Attraction removal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while removing the attraction.'
+            ], 500);
+        }
+    }
 }
