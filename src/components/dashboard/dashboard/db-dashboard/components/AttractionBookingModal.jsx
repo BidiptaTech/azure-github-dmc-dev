@@ -143,6 +143,12 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
 
   if (!booking) return null;
 
+  // Debug logging to see what data is received
+  console.log('AttractionBookingModal - Received booking:', booking);
+  console.log('AttractionBookingModal - bookingType:', booking.bookingType);
+  console.log('AttractionBookingModal - package_details:', booking.package_details);
+  console.log('AttractionBookingModal - package_type:', booking.package_type);
+
   // Data normalization
   const serviceDetails =
     booking.service_details ||
@@ -251,7 +257,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
         <Grid container spacing={3}>
           {/* Attraction/Package Information */}
           <Grid item xs={12}>
-            {booking.bookingType === 'package' && booking.package_details ? (
+            {(booking.bookingType === 'package' || booking.package_type === 1) && (booking.package_details || booking.packageAttractions) ? (
               // Package Display
               <Card
                 elevation={2}
@@ -271,7 +277,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                       sx={{ color: "#FF9800", mr: 1, fontSize: 28 }}
                     />
                                          <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                       {utils.formatPackageName(booking.package_details.package_name || booking.ticketName) || "Package Booking"}
+                       {utils.formatPackageName(booking.package_details?.package_name || booking.ticketName) || "Package Booking"}
                      </Typography>
                     <Chip
                       label="Package"
@@ -317,7 +323,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                         variant="body1"
                         sx={{ fontWeight: "medium", ml: 4 }}
                       >
-                        {booking.package_details.package_total_attractions || booking.package_details.package_attractions?.length || 0}
+                        {booking.package_details?.package_total_attractions || booking.package_details?.package_attractions?.length || booking.packageAttractions?.length || 0}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -327,7 +333,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                   </Typography>
                   
                   <Grid container spacing={2}>
-                    {booking.package_details.package_attractions?.map((attraction, index) => (
+                    {(booking.package_details?.package_attractions || booking.packageAttractions)?.map((attraction, index) => (
                       <Grid item xs={12} md={6} key={index}>
                         <Card
                           elevation={1}
@@ -354,11 +360,11 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                   overflow: "hidden",
                                 }}
                               >
-                                {attraction.master_image ? (
+                                {attraction.master_image || attraction.image ? (
                                   <CardMedia
                                     component="img"
-                                    image={attraction.master_image}
-                                    alt={attraction.name || "Attraction"}
+                                    image={attraction.master_image || attraction.image}
+                                    alt={attraction.name || attraction.attraction_name || "Attraction"}
                                     sx={{
                                       width: "100%",
                                       height: "100%",
@@ -382,12 +388,12 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                             <Grid item xs={8}>
                               <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
                                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
-                                  {attraction.name}
+                                  {attraction.name || attraction.attraction_name}
                                 </Typography>
                                 <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
                                   <LocationOnIcon sx={{ color: "#FF9800", mr: 0.5, fontSize: 16 }} />
                                   <Typography variant="body2" color="textSecondary">
-                                    {attraction.location}, {attraction.country}
+                                    {attraction.location || attraction.city}, {attraction.country}
                                   </Typography>
                                 </Box>
                               </CardContent>
