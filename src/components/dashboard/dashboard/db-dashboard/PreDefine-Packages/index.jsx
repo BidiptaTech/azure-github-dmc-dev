@@ -522,27 +522,39 @@ const PreDefinePackages = () => {
             pax: totalPax || 0,
             destination: destination,
             customerName: customerName,
-            agentId: booking.agent_id || 
-                    booking.agentId ||
-                    booking.agent ||
-                    booking.assigned_agent_id ||
-                    booking.assignedAgentId ||
-                    booking.created_by ||
-                    booking.createdBy ||
-                    booking.user_id ||
-                    booking.userId ||
-                    (bookingDetails && bookingDetails.agent_id) || 
-                    (bookingDetails && bookingDetails.agentId) || 
-                    (bookingDetails && bookingDetails.agent) || 
-                    (bookingDetails && bookingDetails.assigned_agent_id) ||
-                    (bookingDetails && bookingDetails.created_by) ||
-                    (bookingDetails && bookingDetails.createdBy) ||
-                    (bookingDetails && bookingDetails.user_id) ||
-                    (bookingDetails && bookingDetails.userId) ||
-                    (userInfo && userInfo.agent_id) ||
-                    (userInfo && userInfo.user_id) || 
-                    (packageInfo && packageInfo.agent_id) || 
-                    '0001',
+            agentId: (() => {
+                // Priority order for agent ID extraction
+                // 1. Direct booking fields
+                if (booking.agent_id) return booking.agent_id;
+                if (booking.agentId) return booking.agentId;
+                if (booking.agent) return booking.agent;
+                if (booking.assigned_agent_id) return booking.assigned_agent_id;
+                if (booking.assignedAgentId) return booking.assignedAgentId;
+                if (booking.created_by) return booking.created_by;
+                if (booking.createdBy) return booking.createdBy;
+                if (booking.user_id) return booking.user_id;
+                if (booking.userId) return booking.userId;
+                
+                // 2. From parsed booking_details
+                if (bookingDetails && bookingDetails.agent_id) return bookingDetails.agent_id;
+                if (bookingDetails && bookingDetails.agentId) return bookingDetails.agentId;
+                if (bookingDetails && bookingDetails.agent) return bookingDetails.agent;
+                if (bookingDetails && bookingDetails.assigned_agent_id) return bookingDetails.assigned_agent_id;
+                if (bookingDetails && bookingDetails.created_by) return bookingDetails.created_by;
+                if (bookingDetails && bookingDetails.createdBy) return bookingDetails.createdBy;
+                if (bookingDetails && bookingDetails.user_id) return bookingDetails.user_id;
+                if (bookingDetails && bookingDetails.userId) return bookingDetails.userId;
+                
+                // 3. From parsed user_info
+                if (userInfo && userInfo.agent_id) return userInfo.agent_id;
+                if (userInfo && userInfo.user_id) return userInfo.user_id;
+                
+                // 4. From parsed package info
+                if (packageInfo && packageInfo.agent_id) return packageInfo.agent_id;
+                
+                // 5. Default fallback
+                return '0001';
+            })(),
             status: (() => {
                 // Handle numeric status codes
                 if (booking.status) {
@@ -556,9 +568,33 @@ const PreDefinePackages = () => {
                 }
                 return 'Pending'; // Default status
             })(),
-            payment: (bookingDetails && bookingDetails.total_price) ||
-                booking.payment_amount || booking.total_payment || '0',
-            paymentStatus: booking.payment_status || 'Unpaid',
+            payment: (() => {
+                // Priority order for payment extraction
+                // 1. From parsed booking_details
+                if (bookingDetails && bookingDetails.total_price) return bookingDetails.total_price;
+                if (bookingDetails && bookingDetails.price) return bookingDetails.price;
+                if (bookingDetails && bookingDetails.amount) return bookingDetails.amount;
+                
+                // 2. Direct booking fields
+                if (booking.payment_amount) return booking.payment_amount;
+                if (booking.total_payment) return booking.total_payment;
+                if (booking.price) return booking.price;
+                if (booking.amount) return booking.amount;
+                
+                // 3. From parsed package info
+                if (packageInfo && packageInfo.price) return packageInfo.price;
+                if (packageInfo && packageInfo.amount) return packageInfo.amount;
+                
+                // 4. Default fallback
+                return '0';
+            })(),
+            paymentStatus: (() => {
+                // Priority order for payment status extraction
+                if (booking.payment_status) return booking.payment_status;
+                if (bookingDetails && bookingDetails.payment_status) return bookingDetails.payment_status;
+                if (bookingDetails && bookingDetails.status) return bookingDetails.status;
+                return 'Unpaid'; // Default payment status
+            })(),
 
             // Preserve original data for modal
             booking_id: booking.booking_id || booking.id,
@@ -599,6 +635,26 @@ const PreDefinePackages = () => {
             "userInfo.user_id": userInfo && userInfo.user_id,
             "packageInfo.agent_id": packageInfo && packageInfo.agent_id,
             "Final agentId used": result.agentId
+        });
+        
+        // Log payment and status fields for debugging
+        console.log("Payment and Status fields found:", {
+            "booking.payment_amount": booking.payment_amount,
+            "booking.total_payment": booking.total_payment,
+            "booking.price": booking.price,
+            "booking.amount": booking.amount,
+            "booking.status": booking.status,
+            "booking.payment_status": booking.payment_status,
+            "bookingDetails.total_price": bookingDetails && bookingDetails.total_price,
+            "bookingDetails.price": bookingDetails && bookingDetails.price,
+            "bookingDetails.amount": bookingDetails && bookingDetails.amount,
+            "bookingDetails.payment_status": bookingDetails && bookingDetails.payment_status,
+            "bookingDetails.status": bookingDetails && bookingDetails.status,
+            "packageInfo.price": packageInfo && packageInfo.price,
+            "packageInfo.amount": packageInfo && packageInfo.amount,
+            "Final payment used": result.payment,
+            "Final status used": result.status,
+            "Final paymentStatus used": result.paymentStatus
         });
         
         return result;
