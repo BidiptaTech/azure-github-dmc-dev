@@ -54,7 +54,7 @@ class AttractionController extends Controller
             });
         }
         elseif ($user->role_id == 20) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $attractions = Attraction::orderBy('updated_at', 'desc')->whereJsonContains('dmc_id', $user->userId)->get();
         }
 
         elseif(in_array($user->role_id, [25,26, 60,49, 92,89])){
