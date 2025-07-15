@@ -90,7 +90,7 @@ const LandingNavbar = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
                 <Box
                   component="img"
-                  src="public/Images/travclicklogo.jpeg"
+                  src="Images/travclicklogo.jpeg"
                   alt="TravClicks Logo"
                   sx={{
                     width: 300,
