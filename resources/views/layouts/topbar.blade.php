@@ -95,7 +95,7 @@
                       @endphp
                       @if(Auth::id() != 1)
                       <div class="p-3 border-bottom">
-                          <div class="d-flex align-items-center justify-content-between p-3 rounded-3" 
+                          <!-- <div class="d-flex align-items-center justify-content-between p-3 rounded-3" 
                                style="background: linear-gradient(135deg, #777dd4 0%, #5ad888 100%); color: white;">
                               <div class="d-flex align-items-center">
                                   <div>
@@ -107,7 +107,7 @@
                                   <div class="fw-bold fs-5">₹{{ number_format($walletBalance, 2) }}</div>
                                   <small class="opacity-75">{{ $walletBalance >= 0 ? 'Positive' : 'Negative' }}</small>
                               </div>
-                          </div>
+                          </div> -->
                       </div>
                       @endif
 
