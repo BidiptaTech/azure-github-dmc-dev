@@ -145,16 +145,22 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         timeSlot: attractionData.visitTime || '',
         ticketType: attractionData.ticketId || '',
         priceType: attractionData.nri || 'residential',
+        type: attractionService.type || 'attraction', // Include service type
         bookingDate: attractionData.bookingDate || bookingDate,
-        // Store the original data for reference, including booking_id
+        // Store the original data for reference, including booking_id and service type
         originalData: {
           ...attractionData,
-          booking_id: attractionService.booking_id // Preserve booking_id from service level
+          booking_id: attractionService.booking_id, // Preserve booking_id from service level
+          type: attractionService.type || 'attraction' // Preserve service type
         }
       };
     });
 
     console.log('Initialized form sections for current day:', newFormSections);
+    console.log('Form sections by type:', {
+      attractions: newFormSections.filter(s => s.type === 'attraction').length,
+      packages: newFormSections.filter(s => s.type === 'attraction_package').length
+    });
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
   }, [attractionspack, dayIndex, bookingDate]);
@@ -176,8 +182,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     console.log('Dispatching ALL attractions from attractionspack to Redux:', attractionspack);
 
-    // Remove any existing attraction services using the ref
-    const filteredServices = currentServicesRef.current.filter(service => service.type !== "attraction");
+    // Remove any existing attraction services using the ref (both attraction and attraction_package types)
+    const filteredServices = currentServicesRef.current.filter(service => 
+      service.type !== "attraction" && service.type !== "attraction_package"
+    );
 
     // Create new attraction service entries for ALL attractions, preserving booking_id
     const newAttractionServices = attractionspack.map(attractionService => {
@@ -189,6 +197,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       }
 
       console.log('Processing attraction for Redux:', attractionData);
+      console.log('Service type:', attractionService.type, 'Package type:', attractionData.package_type);
       
       const processedAttractionData = {
         id: attractionData.id,
@@ -211,11 +220,17 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         dmc_id: attractionData.dmc_id,
         bookingDate: attractionData.bookingDate,
         dayIndex: attractionData.dayIndex,
-        bookingType: attractionData.bookingType || "enquiry"
+        bookingType: attractionData.bookingType || "enquiry",
+        // Include package-related fields if they exist
+        package_type: attractionData.package_type || (attractionService.type === "attraction_package" ? 1 : 0),
+        package_attraction_id: attractionData.package_attraction_id || null,
+        ...(attractionData.package_details && { package_details: attractionData.package_details })
       };
 
-      // Determine if this is a package booking
-      const isPackageBooking = processedAttractionData.package_type === 1 || processedAttractionData.ticketId?.startsWith('pkg_');
+      // Determine if this is a package booking (check service type first, then data properties)
+      const isPackageBooking = attractionService.type === "attraction_package" || 
+                               processedAttractionData.package_type === 1 || 
+                               (typeof processedAttractionData.ticketId === 'string' && processedAttractionData.ticketId.startsWith('pkg_'));
       
       // Create service object with booking_id preserved
       const serviceObject = {
@@ -242,6 +257,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     const finalServices = [...filteredServices, ...newAttractionServices];
 
     console.log('Dispatching ALL attraction services to Redux:', finalServices);
+    console.log('Services by type:', {
+      attractions: newAttractionServices.filter(s => s.type === 'attraction').length,
+      packages: newAttractionServices.filter(s => s.type === 'attraction_package').length
+    });
     dispatch(setAllServices(finalServices));
     
     // Update the last dispatch ref
@@ -457,7 +476,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       // If not found, add new service entry
       if (!found) {
         // Determine if this is a package booking
-        const isPackageBooking = bookingData.package_type === 1 || bookingData.ticketId?.startsWith('pkg_');
+        const isPackageBooking = bookingData.package_type === 1 || (typeof bookingData.ticketId === 'string' && bookingData.ticketId.startsWith('pkg_'));
         
         const newAttractionService = {
           type: isPackageBooking ? "attraction_package" : "attraction",
@@ -744,8 +763,9 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         priceType: booking.originalData.nri || 'residential',
         booking_id: booking.originalData.booking_id, // Preserve booking_id
         type: booking.originalData.type || 'attraction',
-        packageAttractions: booking.originalData.packageAttractions || null,
-        packageDescription: booking.originalData.packageDescription || null,
+        packageAttractions: booking.originalData.package_details?.package_attractions || null,
+        packageDescription: booking.originalData.package_details?.package_description || null,
+        packageDetails: booking.originalData.package_details || null, // Add full package details
       };
     }
 
@@ -977,7 +997,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Create new attraction service entries
     const newAttractionServices = attractionsForRedux.map((attractionData, index) => {
       // Determine if this is a package booking
-      const isPackageBooking = attractionData.package_type === 1 || attractionData.ticketId?.startsWith('pkg_');
+      const isPackageBooking = attractionData.package_type === 1 || (typeof attractionData.ticketId === 'string' && attractionData.ticketId.startsWith('pkg_'));
       
       const serviceObject = {
         type: isPackageBooking ? "attraction_package" : "attraction",
