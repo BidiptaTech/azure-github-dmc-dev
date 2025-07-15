@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PreDefinePackagesPage from '../pre-define-packages';
 import { useSelector, useDispatch } from 'react-redux';
@@ -12,13 +12,13 @@ import { setPackageData } from '@/slice/tour-packages/tourPackageSlice';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#3554D1', // Match the blue-1 class used elsewhere
+      main: '#3554D1',
     },
   },
   typography: {
     button: {
       fontWeight: 500,
-      fontSize: '1.25rem', // Matches text-20
+      fontSize: '1.25rem',
       textTransform: 'none',
     },
   },
@@ -33,7 +33,6 @@ const theme = createTheme({
           transition: 'all 0.3s ease',
           '&:hover': {
             transform: 'translateY(-3px)',
-            transform: 'translateY(-3px)',
             boxShadow: '0px 15px 30px rgba(0, 255, 255, 0.5)',
           },
         },
@@ -46,6 +45,14 @@ const Packages = () => {
     const navigate = useNavigate();
     const userRole = useSelector((state) => state.auth.userRole);
     const dispatch = useDispatch();
+    const [animate, setAnimate] = useState(false);
+    
+    useEffect(() => {
+        // Trigger animation after component mounts
+        setTimeout(() => {
+            setAnimate(true);
+        }, 300);
+    }, []);
     
     const handleTourPackagesClick = () => {
         dispatch(setPackageData(null));
@@ -62,7 +69,11 @@ const Packages = () => {
       <div className="pre-define-packages-background">
         <div className="packages-container" style={{ padding: '100px 20px', textAlign: 'center' }}>
             <div className="d-flex flex-column align-items-center y-gap-20">
-                <div className="col-md-6">
+                <div className="col-md-6" style={{
+                    opacity: animate ? 1 : 0,
+                    transform: animate ? 'translateY(0)' : 'translateY(-50px)',
+                    transition: 'opacity 0.8s ease-out, transform 0.8s ease-out'
+                }}>
                     <ThemeProvider theme={theme}>
                     <Button 
                             variant="contained"
@@ -74,22 +85,41 @@ const Packages = () => {
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '10px',
-                              background: 'linear-gradient(90deg,rgb(43, 50, 150),rgb(9, 19, 161),rgb(43, 50, 150))',
+                              background: 'linear-gradient(90deg, #4776E6, #8E54E9, #4776E6)',
+                              backgroundSize: '200% auto',
+                              animation: 'gradientShift 3s ease infinite',
                               color: 'white',
                               ml: 1.5,
-                              fontWeight: 550,
+                              fontWeight: 600,
                               fontSize: '1.5rem',
                               textTransform: 'none',
-                              borderRadius: '25px 25px 25px 25px', // Dolphin-like rounded top
-                              boxShadow: '10px 30px 30px rgba(153, 232, 252, 0.25)',
-                              transition: 'all 0.3s ease',
+                              borderRadius: '30px',
+                              boxShadow: '0 10px 20px rgba(78, 89, 222, 0.4)',
+                              transition: 'all 0.4s ease',
                               position: 'relative',
-                              overflow: 'visible',
+                              overflow: 'hidden',
+                              '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                top: 0,
+                                left: '-100%',
+                                width: '100%',
+                                height: '100%',
+                                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                                transition: 'all 0.5s ease',
+                              },
                               '&:hover': {
-                                transform: 'translateY(-3px)',
-                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
-                                transform: 'translateY(-3px)',
-                                boxShadow: '0px 12px 30px rgba(0, 255, 255, 0.3)',
+                                transform: 'translateY(-5px)',
+                                boxShadow: '0 15px 25px rgba(78, 89, 222, 0.6)',
+                                '&::before': {
+                                  left: '100%',
+                                  transition: 'all 0.8s ease',
+                                },
+                              },
+                              '@keyframes gradientShift': {
+                                '0%': { backgroundPosition: '0% 50%' },
+                                '50%': { backgroundPosition: '100% 50%' },
+                                '100%': { backgroundPosition: '0% 50%' },
                               }
                             }}
                         >

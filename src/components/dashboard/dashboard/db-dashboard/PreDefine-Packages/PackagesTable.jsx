@@ -284,13 +284,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </TableSortLabel>
                 </TableCell>
               )}
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Payment fontSize="small" />
                   Payment
                 </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 100, width: 100 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Info fontSize="small" />
                   Status
@@ -403,34 +403,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                     </Box>
                   </TableCell>
                 )}
-                {userRole !== 'Agent' && (
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Chip
-                        label={`ID: ${row.agentId || '0001'}`}
-                        size="small"
-                        variant="outlined"
-                        color="primary"
-                        sx={{
-                          fontSize: '0.75rem',
-                          height: '24px',
-                          backgroundColor: '#e3f2fd',
-                          borderColor: '#1976d2',
-                          color: '#1976d2',
-                          '& .MuiChip-label': {
-                            px: 1,
-                            fontWeight: 500
-                          },
-                          '&:hover': {
-                            backgroundColor: '#bbdefb',
-                            borderColor: '#1565c0'
-                          }
-                        }}
-                      />
-                    </Box>
-                  </TableCell>
-                )}
-                <TableCell>
+                <TableCell sx={{ minWidth: 120, width: 120 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', mr: 0.5 }}>
                       S$
@@ -440,7 +413,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                     </Typography>
                   </Box>
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ minWidth: 100, width: 100 }}>
                   <StatusChip status={row.status} />
                 </TableCell>
               </TableRow>
