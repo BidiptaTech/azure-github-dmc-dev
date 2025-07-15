@@ -977,44 +977,88 @@ class TourController extends Controller
 
                 if($flag == 1){
                     // Properly format order data for the email
-                    $hotelData = $order;
-                    // $hotel_id = $hotelData->hotelDetails->hotel_id;
-                    // $hotel_email = Hotel::where('hotel_id', $hotel_id)->value('email');
+                   
+                    $hotel_agent_id = $request->agent_id;
+                    if(!$hotel_agent_id){
+                        $hotel_agent_id = auth()->user()->agent_id;
+                    }
+                    $agent = Agent::where('agent_id', $hotel_agent_id)->first();
+                    $sales_manager_dmc = $agent->sales_manager_dmc;
+                    $dmcId = null;
+                    
+                    if($agent->role_id == 11){
+                        $dmcId = $sales_manager_dmc;
+                    }
+                    elseif($agent->role_id == 33){
+                        $sales_head = User::where('userId', $sales_manager_dmc)->first();
+                        $dmcId = $sales_head->created_by;
+                        
+                    }
+                    elseif($agent->role_id == 37){
+                        $sales_manager = User::where('userId', $sales_manager_dmc)->first();
+                        $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                        $dmcId = $sales_head->created_by;
+                    }
+                    elseif($agent->role_id == 38){
+                        $assistant_sales_manager = User::where('userId', $sales_manager_dmc)->first();
+                        $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
+                        $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                        $dmcId = $sales_head->created_by;
+                    }
 
-                    $hotel_email = "bidipta.mitra@coactivesolutions.co.in";
+                    $dmc_email = null;
+                    $dmc_phone = null;
+                    $dmc_company = null;
+                    $dmc_logo = null;
+                    // $hotel = Hotel::where('hotel_unique_id', $hotel_id)->select('email')->first();
+                    if($dmcId){
+                        $dmc = User::where('userId', $dmcId)->first();
+                        $master_dmc_id = $dmc->master_dmc_id;
+                        $master_dmc = User::where('userId', $master_dmc_id)->first();
+                        $dmc_email = $dmc->email;
+                        $dmc_phone = $dmc->phone;
+                        $dmc_company = $master_dmc->company_name;
+                        $dmc_logo = $master_dmc->logo;
+                    }
                     $totalGuests = 0;
                     $data = $validatedData['data'][0];
+
                     $roomInfo = [];
+                    $roomTypes = [];
                     $bedInfo = [];
-                    $mealInfo = "";
-                    
+                    $bedTypes = [];
+                    $mealInfo = [];
+                    $No_of_rooms = 0;
+                    $No_of_beds = 0;
+                    $checkInTime = $data['hotelDetails']['checkInTime'];
+                    $checkOutTime = $data['hotelDetails']['checkOutTime'];
+                    $hotel_id = $data['hotelDetails']['hotel_id'];
+
+                    $hotel = Hotel::where('hotel_unique_id', $hotel_id)->first();
+                    $hotel_email = $hotel->email;
+
                     foreach ($validatedData['data'] as $entry) {
                         if (isset($entry['rooms']) && is_array($entry['rooms'])) {
                             foreach ($entry['rooms'] as $room) {
                                 // Get room information
                                 $roomInfo = $room;
-                                
+                                $roomTypes[] = $room['room_type'];
+                                $No_of_rooms++;
                                 if (isset($room['beds']) && is_array($room['beds'])) {
                                     foreach ($room['beds'] as $bed) {
                                         $totalGuests += $bed['head_count'] ?? 0;
                                         // Get bed information
                                         $bedInfo = $bed;
-                                        
+                                        $No_of_beds++;
+                                        $bedTypes[] = $bed['bed_type'];
                                         // Get meal information if available
-                                        if (isset($bed['selectedMeals']) && !empty($bed['selectedMeals'])) {
-                                            foreach ($bed['selectedMeals'] as $meal) {
-                                                if (isset($meal['type'])) {
-                                                    $mealInfo = $meal['type'];
-                                                    break;
-                                                }
-                                            }
-                                        }
+                                            $mealInfo[] = $bed['mealTypes'][0];
                                     }
                                 }
                             }
                         }
                     }
-                    
+                                       
                     $orderData = [
                         "booking_id" => 'BK-' . rand(10000, 99999), // fallback ID
                         "customer_name" => $data['fullName'] ?? "Guest",
@@ -1028,15 +1072,15 @@ class TourController extends Controller
                         "total_price" => $data['totalPrice'] ?? 0,
                         "payment_status" => "Confirmed", // or fetch from elsewhere if needed
                         // Room information
-                        "room_type" => $roomInfo['room_type'] ?? "Standard",
-                        "bed_type" => $bedInfo['bed_type'] ?? "Queen Size",
+                        "room_type" => implode(', ', $roomTypes) ?? "Standard",
+                        "bed_type" => implode(', ', $bedTypes) ?? "Queen Size",
                         "max_occupancy" => $bedInfo['max_occupancy'] ?? 1,
                         "head_count" => $bedInfo['head_count'] ?? 1,
                         "baby_cot" => $bedInfo['baby_cot'] ?? 0,
-                        "meal_plan" => $mealInfo,
+                        "meal_plan" => implode(', ', $mealInfo) ?? "Room Only",
                         "hotel_name" => $data['hotelDetails']['hotel_name'] ?? "Hotel",
-                        "check_in_time" => $data['hotelDetails']['checkInTime'] ?? "15:00",
-                        "check_out_time" => $data['hotelDetails']['checkOutTime'] ?? "11:00",
+                        "check_in_time" => $checkInTime ?? "00:00",
+                        "check_out_time" => $checkOutTime ?? "00:00",
                         "mealTypes" => $bedInfo['mealTypes'] ?? [],
                         "selectedMeals" => isset($bedInfo['selectedMeals']) ? json_encode($bedInfo['selectedMeals']) : "",
                         // Customer information fields
@@ -1048,15 +1092,21 @@ class TourController extends Controller
                         "address2" => $data['address2'] ?? null,
                         "state" => $data['state'] ?? null,
                         "zip" => $data['zip'] ?? null,
-                        "specialRequests" => $data['specialRequests'] ?? null
+                        "specialRequests" => $data['specialRequests'] ?? null,
+                        "dmc_email" => $dmc_email,
+                        "dmc_phone" => $dmc_phone,
+                        "dmc_company" => $dmc_company,
+                        "No_of_rooms" => $No_of_rooms,
+                        "No_of_beds" => $No_of_beds,
+                        "dmc_logo" => $dmc_logo
                     ];
                     
                     try {
                         $sendEmail = CommonHelper::sendEmail(
-                            $hotel_email, 
-                            'hotel', 
-                            'Hotel Booking Confirmation', 
-                            'Your hotel booking has been confirmed', 
+                            $hotel_email,
+                            'hotel',
+                            'Hotel Booking Confirmation',
+                            'Your hotel booking has been confirmed',
                             $orderData
                         );
                         
@@ -1066,21 +1116,29 @@ class TourController extends Controller
                         
                         if ($sendEmail === true) {
                             // Email sent successfully
-                            // return response()->json(['message' => 'Hotel booking confirmation email sent successfully'], 200);
+                            Log::info('Email sent successfully in hotel booking', [
+                                'tour_id' => $tour_id,
+                                'hotel_email' => $hotel_email,
+                                'order_data' => $orderData
+                            ]);
                         } else {
                             // Any non-true response is an error message
-                            // return response()->json([
-                            //     'message' => 'Email sending failed',
-                            //     'error' => $sendEmail
-                            // ], 500);
+                            Log::error('Email sending failed in hotel booking', [
+                                'error' => $sendEmail,
+                                'tour_id' => $tour_id,
+                                'hotel_email' => $hotel_email,
+                                'order_data' => $orderData
+                            ]);
                         }
                                                                                   
                     } catch (\Exception $e) {
-                        // Catch any exceptions from sendEmail and return the exact error
-                        // return response()->json([
-                        //     'message' => 'Email sending failed',
-                        //     'error' => $e->getMessage()
-                        // ], 500);
+                        // Catch any exceptions from sendEmail and log the error
+                        Log::error('Email sending failed in hotel booking', [
+                            'error' => $e->getMessage(),
+                            'tour_id' => $tour_id,
+                            'hotel_email' => $hotel_email,
+                            'order_data' => $orderData
+                        ]);
                     }
                 }
             }

@@ -616,6 +616,7 @@
                                                                                 @endif
 
                                                                                 @if(strtolower(str_replace(' ', '_', $service->type)) === 'restaurant')
+                                                                                @if($service->voucher_image == null)
                                                                                 <button type="button" class="btn btn-sm btn-outline-success generate-coupon" 
                                                                                         data-id="{{ $service->id }}"
                                                                                         data-type="{{ strtolower(str_replace(' ', '_', $service->type)) }}"
@@ -636,6 +637,11 @@
                                                                                         data-details="{{ htmlspecialchars(json_encode($service->data_decoded)) }}">
                                                                                     <i class="fas fa-ticket-alt"></i> Generate Coupon
                                                                                 </button>
+                                                                                @else
+                                                                                <a href="{{ route('view.voucher.image', ['booking_id' => $service->booking_id, 'tour_id' => $service->tour_id]) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                                    <i class="fas fa-eye"></i> View Voucher
+                                                                                </a>
+                                                                                @endif
                                                                                 @endif
                                                                               @if(in_array(Auth::user()->role_id, $allowedRoles) && $tour['is_approve'] == 1)
                                                                                 <button type="button" class="btn btn-sm btn-outline-warning edit-details" 

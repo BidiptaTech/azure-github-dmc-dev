@@ -1101,9 +1101,9 @@ class CommonHelper
                     "payment_status" => $orderData->payment_status ?? "Pending",
                     "room_type" => $orderData->room_type ?? "Standard",
                     "bed_type" => $orderData->bed_type ?? "Queen Size",
-                    
-                    "check_in_time" => $orderData->check_in_time ?? "15:00",
-                    "check_out_time" => $orderData->check_out_time ?? "11:00",
+                    "meal_plan" => $orderData->meal_plan ?? null,
+                    "check_in_time" => $orderData->check_in_time ?? "00:00",
+                    "check_out_time" => $orderData->check_out_time ?? "00:00",
                     "max_occupancy" => $orderData->max_occupancy ?? "Not specified",
                     "baby_cot" => $orderData->baby_cot ?? "Not specified",
                     "fullName" => $orderData->fullName ?? null,
@@ -1114,9 +1114,18 @@ class CommonHelper
                     "address2" => $orderData->address2 ?? null,
                     "state" => $orderData->state ?? null,
                     "zip" => $orderData->zip ?? null,
-                    "specialRequests" => $orderData->specialRequests ?? null
+                    "specialRequests" => $orderData->specialRequests ?? null,
+                    "dmc_email" => $orderData->dmc_email ?? null,
+                    "dmc_phone" => $orderData->dmc_phone ?? null,
+                    "No_of_rooms" => $orderData->No_of_rooms ?? 0,
+                    "No_of_beds" => $orderData->No_of_beds ?? 0,
+                    "dmc_logo" => $orderData->dmc_logo ?? null,
+                    "hotel_name" => $orderData->hotel_name ?? null,
                 ];
             }
+
+            
+            
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;
@@ -1129,15 +1138,15 @@ class CommonHelper
             // Add company info to the data array
             $companyData = [
                 "company" => [
-                    "companyName" => $nameSetting['master_value'] ?? config('app.name'),
-                    "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
+                    "companyName" => $orderData['dmc_company'] ?? config('app.name'),
+                    "logo" => $orderData['dmc_logo'] ?? $logoSetting['master_value'] ?? asset('images/logo.png')
                 ]
             ];
             
             // Add mail settings for the template
             $mailSettings = (object)[
-                "support_email" => "support@yourdomain.com",
-                "support_phone" => "+1 (555) 123-4567",
+                "support_email" => $orderData['dmc_email'] ?? null,
+                "support_phone" => $orderData['dmc_phone'] ?? null,
                 "facebook_url" => "https://facebook.com/yourcompany",
                 "twitter_url" => "https://twitter.com/yourcompany",
                 "instagram_url" => "https://instagram.com/yourcompany",
@@ -1176,7 +1185,6 @@ class CommonHelper
                 // Send the email to the actual recipient
                 try {
                     Mail::to($email)->send(new DmcMail($emailHtml, $subject));
-                    
                     // Log successful email sending
                     Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
                     

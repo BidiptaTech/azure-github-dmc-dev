@@ -54,7 +54,7 @@ class AttractionController extends Controller
             });
         }
         elseif ($user->role_id == 20) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $attractions = Attraction::orderBy('updated_at', 'desc')->whereJsonContains('dmc_id', $user->userId)->get();
         }
 
         elseif(in_array($user->role_id, [25,26, 60,49, 92,89])){
@@ -365,7 +365,7 @@ class AttractionController extends Controller
             }
         }
 
-        $auth_user = Auth::user();
+            $auth_user = Auth::user();
             if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
                 $dmc_id = $request->dmc;
                 $status = 1;
@@ -409,7 +409,7 @@ class AttractionController extends Controller
             //     return redirect()->back()
             //         ->withInput()
             //         ->with('error', 'A Attraction already exists at this location for the selected DMC.');
-            // }
+            //}
 
         //Create a new attraction record
         $attraction = new Attraction();
