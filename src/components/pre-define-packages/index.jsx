@@ -268,8 +268,7 @@ const PreDefinePackages = () => {
       formData.agent = selectedAgent;
     }
     
-    // console.log('Form data submitted:', formData);
-    // console.log('Form data submitted:', formData);
+   
     
     // Format the data for API request
     const searchParams = {
