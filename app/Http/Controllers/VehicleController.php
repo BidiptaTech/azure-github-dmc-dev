@@ -41,7 +41,7 @@ class VehicleController extends Controller
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } elseif ($user->role_id == 3) {
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->get();
-        } elseif (in_array($user->role_id, [1, 2, 23])) {
+        } elseif (in_array($user->role_id, [1, 2, 23, 20])) {
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->get();
         }
         elseif ($user->role_id == 10) {
