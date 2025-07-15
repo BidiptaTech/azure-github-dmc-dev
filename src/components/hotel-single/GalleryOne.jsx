@@ -90,7 +90,7 @@ export default function GalleryOne({ hotel }) {
           }}
           onClick={() => navigate("/dashboard/db-dashboard/view-hotel-search/:id")}
         >
-          ← Back To Listing
+          ← 
         </button>
           <div className="row y-gap-20 justify-between items-end">
             <div className="col-auto">
