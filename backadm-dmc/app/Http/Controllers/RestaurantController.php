@@ -55,7 +55,7 @@ class RestaurantController extends Controller
             });
         }
         elseif ($user->role_id == 20) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->where('dmc_id', $user->userId)->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->whereJsonContains('dmc_id', $user->userId)->get();
         }
 
         elseif(in_array($user->role_id, [25, 63, 119])){
