@@ -1025,7 +1025,7 @@ class DashboardController extends Controller
                              ->whereIn('role_id', [11, 20]) // Include both regular DMC and Virtual DMC
                              ->pluck('userId');
                 if ($dmcIds->isNotEmpty()) {
-                    $query->whereIn($dmcField, $dmcIds);
+                    $this->applyDmcFieldFilter($query, $dmcField, $dmcIds->toArray(), true);
                 }
                 break;
                 
@@ -1034,7 +1034,7 @@ class DashboardController extends Controller
                 break;
                 
             case 20: // Virtual DMC
-                $query->where($dmcField, $user->userId);
+                $this->applyDmcFieldFilter($query, $dmcField, $user->userId);
                 break;
                 
             case 33: // Sales Head
