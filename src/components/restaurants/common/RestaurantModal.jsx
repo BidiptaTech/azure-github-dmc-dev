@@ -51,51 +51,99 @@ export default function RestaurantModal({
 }) {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [currentRestaurantDetails, setCurrentRestaurantDetails] = useState(null);
   const dispatch = useDispatch();
-  const selectedRestaurant = useSelector((state) => state.restaurants?.selectedRestaurant);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
   const theme = useTheme();
   // Get tax percentage from auth slice instead of restaurants
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  // Get restaurants list from Redux as fallback
+  const restaurants = useSelector((state) => state.restaurants.restaurants);
 
-  useEffect(() => {
-    // When a booking is selected, fetch its restaurant details
-    if (selectedBooking) {
-      dispatch(fetchRestaurantsDetails({ 
-        restaurantId: selectedBooking.restaurantId,
-        price_mode: selectedBooking.priceTypes?.[0] || 'dmc'
-      }));
+  const handleView = async (booking) => {
+    try {
+      console.log("Original booking data:", booking);
+      
+      // First, try to get restaurant details from the restaurants list
+      let restaurantDetails = null;
+      if (booking.restaurantId && restaurants) {
+        restaurantDetails = restaurants.find(r => r.id === booking.restaurantId);
+        console.log("Found restaurant details from Redux:", restaurantDetails);
+      }
+      
+      // Create enriched booking with available restaurant details
+      const enrichedBooking = {
+        ...booking,
+        service_details: {
+          master_image: restaurantDetails?.master_image || restaurantDetails?.image || null,
+          cuisine: restaurantDetails?.cuisine || restaurantDetails?.cuisine_type || null,
+          city: restaurantDetails?.city || null,
+          country: restaurantDetails?.country || null
+        },
+        // Ensure MealDescription is properly structured
+        MealDescription: booking.MealDescription || []
+      };
+
+      console.log("Enriched booking with fallback data:", enrichedBooking);
+
+      // Then fetch restaurant details specifically for this booking to get the most up-to-date info
+      if (booking.restaurantId) {
+        const result = await dispatch(fetchRestaurantsDetails({ 
+          restaurantId: booking.restaurantId,
+          price_mode: booking.priceTypes?.[0] || 'dmc'
+        }));
+
+        console.log("API result for restaurant details:", result);
+
+        // Update the booking with the fetched restaurant details
+        if (result.payload) {
+          const updatedBooking = {
+            ...enrichedBooking,
+            service_details: {
+              master_image: result.payload.master_image || enrichedBooking.service_details.master_image,
+              cuisine: result.payload.cuisine || enrichedBooking.service_details.cuisine,
+              city: result.payload.city || enrichedBooking.service_details.city,
+              country: result.payload.country || enrichedBooking.service_details.country
+            }
+          };
+          console.log("Final booking data with API details:", updatedBooking);
+          setSelectedBooking(updatedBooking);
+          setIsViewModalOpen(true);
+        } else {
+          // If no restaurant details found from API, use the fallback data
+          console.log("No API data found, using fallback data");
+          setSelectedBooking(enrichedBooking);
+          setIsViewModalOpen(true);
+        }
+      } else {
+        // If no restaurantId, show the booking without restaurant details
+        console.log("No restaurantId found, showing booking without restaurant details");
+        setSelectedBooking(enrichedBooking);
+        setIsViewModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error fetching restaurant details:", error);
+      // If there's an error, still show the booking without restaurant details
+      const enrichedBooking = {
+        ...booking,
+        service_details: {
+          master_image: null,
+          cuisine: null,
+          city: null,
+          country: null
+        },
+        MealDescription: booking.MealDescription || []
+      };
+      setSelectedBooking(enrichedBooking);
+      setIsViewModalOpen(true);
     }
-  }, [selectedBooking?.restaurantId, dispatch]);
-
-  const handleView = (booking) => {
-    // console.log("Original booking data:", booking);
-    // console.log("Selected restaurant data:", selectedRestaurant);
-
-    // Combine booking data with service details
-    const enrichedBooking = {
-      ...booking,
-      service_details: {
-        master_image: selectedRestaurant?.master_image,
-        cuisine: selectedRestaurant?.cuisine,
-        city: selectedRestaurant?.city,
-        country: selectedRestaurant?.country
-      },
-      // Ensure MealDescription is properly structured
-      MealDescription: booking.MealDescription || []
-    };
-
-    // console.log("Enriched booking data:", enrichedBooking);
-    setSelectedBooking(enrichedBooking);
-    setIsViewModalOpen(true);
   };
-
-
 
   const handleCloseViewModal = () => {
     setIsViewModalOpen(false);
     setSelectedBooking(null);
+    setCurrentRestaurantDetails(null);
   };
 
   // Format date for display
