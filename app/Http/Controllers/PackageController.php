@@ -26,7 +26,30 @@ class PackageController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Package::query();
+        $dmc_id = null;
+        $user = auth()->user();
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23){
+            $dmc_id = $request->dmc ?? null;
+        }
+        elseif($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }
+        elseif($user->role_id == 33 || $user->role_id == 34|| $user->role_id == 35 || $user->role_id == 36 ){
+            $userdmc = User::where('userId', $user->created_by)->first();
+            $dmc_id = $userdmc->userId;
+        }
+        elseif(in_array($user->role_id, array_merge(range(64, 78), [37]))) {
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $dmc_id = $user_product_head_dmc->userId;
+        }
+        elseif($user->role_id == 84 || $user->role_id == 93 || $user->role_id == 102  || $user->role_id == 38 || $user->role_id == 81 || $user->role_id == 87 || $user->role_id == 90  || $user->role_id == 96|| $user->role_id == 99 || $user->role_id == 102 || $user->role_id == 105 || $user->role_id == 108 || $user->role_id == 111 || $user->role_id == 114 || $user->role_id == 117 || $user->role_id == 120 || $user->role_id == 123 ){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $dmc_id = $user_product_head_dmc->userId;
+        }
+        $query = Package::where('dmc_id', $dmc_id);
 
         // Duration filter
         if ($request->filled('duration')) {
@@ -276,6 +299,29 @@ class PackageController extends Controller
                 $packageId = CommonHelper::createId($packageId);
             }
 
+            $dmc_id = null;
+            $user = auth()->user();
+            if ($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23) {
+                $dmc_id = $request->dmc ?? null;
+            } elseif ($user->role_id == 11) {
+                $dmc_id = $user->userId;
+            } elseif($user->role_id == 35){
+                $userdmc = User::where('userId', $user->created_by)->first();
+                $dmc_id = $userdmc->userId;
+            }
+            elseif($user->role_id == 74 || $user->role_id == 75 || $user->role_id == 77){
+                $user_product_head = User::where('userId', $user->created_by)->first();
+                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+                $dmc_id = $user_product_head_dmc->userId;
+            }
+            elseif($user->role_id == 84 || $user->role_id == 93 || $user->role_id == 102){
+                $user_product_manager = User::where('userId', $user->created_by)->first();
+                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+                $dmc_id = $user_product_head_dmc->userId;
+            }
+
+
             // Create the package
             $package = Package::create([
                 'package_id' => $packageId,
@@ -311,7 +357,8 @@ class PackageController extends Controller
                 'status' => $validated['status'],
                 'created_by' => auth()->user()->userId,
                 'updated_by' => auth()->user()->userId,
-                'itinerary' => $request->day_wise_itinerary
+                'itinerary' => $request->day_wise_itinerary,
+                'dmc_id' => $dmc_id
             ]);
             
             DB::commit();
