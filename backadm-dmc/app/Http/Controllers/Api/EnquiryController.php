@@ -156,14 +156,23 @@ class EnquiryController extends Controller
         $hotels = Hotel::with(['rooms' => function($query) {
             $query->select('hotel_id', 'double_weekday_price', 'room_type', 'room_id')
                   ->selectRaw('(double_weekday_price / 2) as single_base_price');
-        }])->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
+        }])->whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        ->where('city', $city)->where('country', $country)->get();
         
-        $attractions = Attraction::whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->where('country', $country)->get();
-        $restaurants = Restaurant::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get();
-        $vehicles = Vehicle::whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get(); // Assuming Driver model exists
+        $attractions = Attraction::whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        ->where('location', $city)->where('country', $country)->get();
+        
+        $restaurants = Restaurant::whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        ->where('city', $city)->where('country', $country)->get();
+        
+        $vehicles = Vehicle::whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        ->where('city', $city)->get();
+        
         $city_id = City::where('name', $city)->first();
         $ports = Port::where('city_id', $city_id->city_id)->where('country', $country)->get();
-        $guides = Guide::with('languages')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->where('country', $country)->get(); // Assuming Guide model exists
+        
+        $guides = Guide::with('languages')->whereRaw("(dmc_id::text = ? OR dmc_id::text = ? OR dmc_id::text LIKE '%\"'||?||'\"%')", [$dmc_id, '"'.$dmc_id.'"', $dmc_id])
+        ->where('city', $city)->where('country', $country)->get();
         
         // Create custom arrays with only necessary data
         $hotel_list = $hotels->map(function($hotel) {
