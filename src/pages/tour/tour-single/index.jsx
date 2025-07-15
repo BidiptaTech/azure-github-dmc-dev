@@ -112,7 +112,7 @@ const TourSingleV1Dynamic = () => {
                   style={{
                     minHeight: "40px",
                     position: "relative",
-                    left: "-200px", // Moves it 100px to the left
+                    left: "-100px", // Moves it 100px to the left
                   }}
                   onClick={() =>
                     navigate("/dashboard/db-dashboard/attractions")

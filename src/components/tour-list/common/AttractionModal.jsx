@@ -68,9 +68,28 @@ export default function AttractionModal({
   }, [selectedBooking?.attractionId, dispatch]);
 
   const handleView = (booking) => {
+    // Determine if this is a package booking
+    const isPackageBooking = booking.package_type === 1 || booking.bookingType === 'package';
+    
+    // Ensure package_details are preserved or constructed if missing
+    let packageDetails = booking.package_details;
+    if (isPackageBooking && !packageDetails) {
+      // Try to construct package details from available data
+      packageDetails = {
+        package_name: booking.ticketName || booking.AttractionName || 'Package',
+        package_attractions: booking.packageAttractions || [],
+        package_description: booking.packageDescription || '',
+        package_total_attractions: booking.packageAttractions?.length || 0
+      };
+    }
+    
     // Combine booking data with service details
     const enrichedBooking = {
       ...booking,
+      // Set bookingType to 'package' if it's a package booking, otherwise keep existing or default to 'attraction'
+      bookingType: isPackageBooking ? 'package' : (booking.bookingType || 'attraction'),
+      // Ensure package_details are included if it's a package booking
+      ...(isPackageBooking && packageDetails && { package_details: packageDetails }),
       service_details: {
         master_image: attractionDetails?.master_image,
         location: attractionDetails?.location,
@@ -78,6 +97,12 @@ export default function AttractionModal({
         description: attractionDetails?.description
       }
     };
+
+    // Debug logging to see what data is being passed
+    console.log('AttractionModal - Original booking:', booking);
+    console.log('AttractionModal - Is package booking:', isPackageBooking);
+    console.log('AttractionModal - Package details:', packageDetails);
+    console.log('AttractionModal - Enriched booking:', enrichedBooking);
 
     setSelectedBooking(booking);
     setEnrichedBooking(enrichedBooking);

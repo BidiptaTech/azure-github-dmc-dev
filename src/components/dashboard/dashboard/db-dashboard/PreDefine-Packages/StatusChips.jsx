@@ -71,7 +71,14 @@ export const StatusChip = ({ status }) => {
       label={displayText} 
       color={color} 
       size="small" 
-      sx={{ fontWeight: 500, minWidth: '100px', '& .MuiChip-icon': { fontSize: '16px' } }} 
+      sx={{ 
+        fontWeight: 500, 
+        minWidth: '80px', 
+        height: '24px',
+        fontSize: '0.75rem',
+        '& .MuiChip-icon': { fontSize: '14px' },
+        '& .MuiChip-label': { px: 1 }
+      }} 
     />
   );
 };

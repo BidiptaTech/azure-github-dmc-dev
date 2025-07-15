@@ -88,7 +88,7 @@ const BookingSummaryModal = ({
   if (!bookingData) return null;
 
   // Check if this is a package booking
-  const isPackage = bookingData.type === 'attraction_package' || bookingData.ticketId?.startsWith('pkg_');
+  const isPackage = bookingData.type === 'attraction_package' || (typeof bookingData.ticketId === 'string' && bookingData.ticketId.startsWith('pkg_'));
 
   // Calculate total price
   const calculateTotalPrice = () => {
