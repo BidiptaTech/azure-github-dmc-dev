@@ -45,6 +45,9 @@ export default function AttractionModal({
   bookings = [],
   date,
 }) {
+  // Debug logging to see what data is being received
+  console.log('AttractionModal - Received bookings:', bookings);
+  console.log('AttractionModal - Received date:', date);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [enrichedBooking, setEnrichedBooking] = useState(null);
@@ -183,11 +186,42 @@ export default function AttractionModal({
     }
   };
 
-  // Filter bookings based on the selected date
+  // Filter bookings based on the selected date and ensure they are attraction bookings
   const filteredBookings = Array.isArray(bookings)
-    ? bookings.filter((booking) => booking.bookingDate === date)
+    ? bookings.filter((booking) => {
+        // Only show attraction bookings
+        const isAttractionBooking = booking.attractionId || 
+                                   booking.AttractionId ||
+                                   booking.AttractionName || 
+                                   booking.ticketId ||
+                                   booking.ticketName ||
+                                   booking.package_type === 1 ||
+                                   booking.bookingType === 'package' ||
+                                   (booking.serviceType && booking.serviceType === 'attraction');
+        
+        // Explicitly exclude restaurant bookings
+        const isRestaurantBooking = booking.restaurantId || 
+                                   booking.restaurantName || 
+                                   booking.mealType || 
+                                   booking.mealSpecificType ||
+                                   (booking.serviceType && booking.serviceType === 'restaurant');
+        
+        const shouldInclude = booking.bookingDate === date && isAttractionBooking && !isRestaurantBooking;
+        
+        // Debug logging for filtered bookings
+        if (booking.bookingDate === date) {
+          console.log('AttractionModal - Booking being evaluated:', {
+            booking,
+            isAttractionBooking,
+            isRestaurantBooking,
+            shouldInclude
+          });
+        }
+        
+        return shouldInclude;
+      })
     : [];
-     console.log('filteredBookings',filteredBookings);
+     console.log('AttractionModal - Filtered bookings:', filteredBookings);
     
 
   return (
