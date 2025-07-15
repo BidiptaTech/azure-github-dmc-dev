@@ -68,7 +68,6 @@ class PackageController extends Controller
         }
 
         $dmc_id = $this->getDmcIdForCurrentUser();
-        return response()->json(['message' => 'DMC ID: ' . $dmc_id], 200);
         if (!$dmc_id) {
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
