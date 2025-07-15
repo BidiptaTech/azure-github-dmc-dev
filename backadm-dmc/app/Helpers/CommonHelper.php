@@ -1101,7 +1101,7 @@ class CommonHelper
                     "payment_status" => $orderData->payment_status ?? "Pending",
                     "room_type" => $orderData->room_type ?? "Standard",
                     "bed_type" => $orderData->bed_type ?? "Queen Size",
-                    
+                    "meal_plan" => $orderData->meal_plan ?? null,
                     "check_in_time" => $orderData->check_in_time ?? "00:00",
                     "check_out_time" => $orderData->check_out_time ?? "00:00",
                     "max_occupancy" => $orderData->max_occupancy ?? "Not specified",
@@ -1118,9 +1118,14 @@ class CommonHelper
                     "dmc_email" => $orderData->dmc_email ?? null,
                     "dmc_phone" => $orderData->dmc_phone ?? null,
                     "No_of_rooms" => $orderData->No_of_rooms ?? 0,
-                    "No_of_beds" => $orderData->No_of_beds ?? 0
+                    "No_of_beds" => $orderData->No_of_beds ?? 0,
+                    "dmc_logo" => $orderData->dmc_logo ?? null,
+                    "hotel_name" => $orderData->hotel_name ?? null,
                 ];
             }
+
+            
+            
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;

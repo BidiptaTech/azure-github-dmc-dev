@@ -596,10 +596,12 @@
         
         <!-- Email Body -->
         <div class="email-body">
-            <p class="greeting">Hello {{ $customer_name ?? 'Valued Customer' }}! <i class="fas fa-hand-wave"></i></p>
+            <p class="greeting">Hello {{ $hotel_name ?? 'Valued Customer' }}! <i class="fas fa-hand-wave"></i></p>
             
             <div class="booking-message">
-                <p>{{ $body ?? "We're excited to confirm your booking! Everything is set and ready for your amazing experience. Here are all the details you need to know." }}</p>
+                <p>{{ $body ?? "We’re delighted to inform you that a customer has successfully booked rooms at your hotel. Everything is confirmed and in place to ensure a seamless experience.
+
+                Below are the complete booking details for your reference." }}</p>
             </div>
             
             <!-- Enhanced Dates Section -->
@@ -676,6 +678,27 @@
                     <div class="detail-value">{{ $guests }}</div>
                 </div>
                 @endif
+
+                @if(isset($No_of_rooms) && $No_of_rooms > 0)
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-bed detail-icon"></i>
+                        No of Rooms:
+                    </div>
+                    <div class="detail-value">{{ $No_of_rooms }}</div>
+                </div>
+                @endif
+
+                @if(isset($No_of_beds) && $No_of_beds > 0)
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-bed detail-icon"></i>
+                        No of Beds:
+                    </div>
+                    <div class="detail-value">{{ $No_of_beds }}</div>
+                </div>
+                @endif
+                
                 
                 @if(isset($room_type))
                 <div class="detail-row">
@@ -741,34 +764,15 @@
                 </div>
                 @endif
 
-                @if(isset($No_of_rooms) && $No_of_rooms > 0)
-                <div class="detail-row">
-                    <div class="detail-label">
-                        <i class="fas fa-bed detail-icon"></i>
-                        No of Rooms:
-                    </div>
-                    <div class="detail-value">{{ $No_of_rooms }}</div>
-                </div>
-                @endif
-
-                @if(isset($No_of_beds) && $No_of_beds > 0)
-                <div class="detail-row">
-                    <div class="detail-label">
-                        <i class="fas fa-bed detail-icon"></i>
-                        No of Beds:
-                    </div>
-                    <div class="detail-value">{{ $No_of_beds }}</div>
-                </div>
-                @endif
                 
-                @if(isset($mealTypes) && is_array($mealTypes) && count($mealTypes) > 0)
-                <div class="detail-row">
-                    <div class="detail-label">
-                        <i class="fas fa-concierge-bell detail-icon"></i>
-                        Meal Options:
-                    </div>
-                    <div class="detail-value">{{ implode(", ", $mealTypes) }}</div>
-                </div>
+                @if(isset($meal_plan) && $meal_plan != null)
+                    <div class="detail-row">
+                        <div class="detail-label">
+                            <i class="fas fa-concierge-bell detail-icon"></i>
+                            Meal Options:
+                        </div>
+                        <div class="detail-value">{{ $meal_plan }}</div>
+                    </div>                                            
                 @endif
                 
                 
