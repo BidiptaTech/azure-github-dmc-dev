@@ -739,7 +739,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(auth()->user()->role_id == '11')
+                        {{-- @if(auth()->user()->role_id == '11')
                         <li class="menu-item @if(Request::is('bulk-upload/tickets')) active @endif">
                             <a href="{{ route('bulk-upload.tickets') }}" class="menu-link">
                                 <div data-i18n="Attraction Tickets">Attraction Tickets</div>
@@ -750,7 +750,7 @@
                                 <div data-i18n="Restaurant Meals">Restaurant Meals</div>
                             </a>
                         </li>
-                        @endif
+                        @endif --}}
                     </ul>
                 </li>
             @endif
