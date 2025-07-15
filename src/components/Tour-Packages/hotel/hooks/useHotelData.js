@@ -22,6 +22,8 @@ const useHotelData = (mealPlanOptions) => {
   const urlTourId = router ? router.searchParams.get('tour_id') : null;
   const reduxTourId = useSelector((state) => state.hotels.id);
   const tourId = urlTourId || reduxTourId;
+  const tour_id = useSelector((state) => state.tourPackages.packageData?.tour?.tour_id);
+  console.log("tour_idusehotel",tour_id);
   
   // Get package data from Redux store
   const packageData = useSelector(state => state.tourPackages.packageData);
@@ -42,9 +44,9 @@ const useHotelData = (mealPlanOptions) => {
   // Fetch existing tour data when component mounts - ONLY if we already have packageData (update mode)
   
   useEffect(() => {
-    if (tourId) {
-      console.log("HOTEL COMPONENT - Fetching existing tour data for tour ID:", tourId);
-      dispatch(UpdateCustomPackage({ tour_id: tourId }))
+    if (tour_id) {
+      console.log("HOTEL COMPONENT - Fetching existing tour data for tour ID:", tour_id);
+      dispatch(UpdateCustomPackage({ tour_id: tour_id }))
         .then(response => {
           console.log("HOTEL COMPONENT - UpdateCustomPackage response:", response);
         })
@@ -52,7 +54,7 @@ const useHotelData = (mealPlanOptions) => {
           console.error("HOTEL COMPONENT - Error fetching tour data:", error);
         });
     }
-  }, [tourId, dispatch]);
+  }, [tour_id, dispatch]);
   
   // Function to create an initial hotel configuration
   const createInitialHotelConfiguration = useCallback((searchCriteria = {}) => {
