@@ -299,7 +299,10 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::post('tickets/bulk_upload/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractionTickets'])->name('tickets.upload_for_attraction');
         Route::get('tickets/template/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTicketTemplate'])->name('tickets.template_for_attraction');
 
-
+        // meals bulk upload routes (individual routes without bulk-upload prefix)
+        Route::get('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'restaurantMeals'])->name('meals.bulk_upload_for_restaurant');
+        Route::post('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurantMeals'])->name('meals.upload_for_restaurant');
+        Route::get('meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantMealTemplate'])->name('meals.download_template_for_restaurant');
 
         // reports
         Route::resource('report', ReportController::class);
@@ -441,7 +444,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             Route::get('/guides/template', [App\Http\Controllers\BulkUploadController::class, 'downloadGuideTemplate'])->name('guides.template');
             
             Route::get('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'restaurants'])->name('restaurants');
-            Route::post('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurants'])->name('restaurants.upload');
+            Route::post('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurantss'])->name('restaurants.upload');
             Route::get('/restaurants/template', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantTemplate'])->name('restaurants.template');
             
             Route::get('/vehicles', [App\Http\Controllers\BulkUploadController::class, 'vehicles'])->name('vehicles');
@@ -461,6 +464,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             Route::get('/meals', [App\Http\Controllers\BulkUploadController::class, 'meals'])->name('meals');
             Route::post('/meals/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadMeals'])->name('meals.upload');
             Route::get('/meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadMealTemplate'])->name('meals.template');
+            
+            // Restaurant-specific meal bulk upload routes
+            Route::get('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'restaurantMeals'])->name('meals.bulk_upload_for_restaurant');
+            Route::post('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurantMeals'])->name('meals.upload_for_restaurant');
+            Route::get('meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantMealTemplate'])->name('meals.download_template_for_restaurant');
         });
 
 
