@@ -712,6 +712,7 @@ class EnquiryController extends Controller
                 'data' => [
                     'country' => $formEnquiry->country,
                     'city' => $formEnquiry->city,
+                    'enquiry_id' => $formEnquiry->enquiry_id,
                     'agent_id' => $formEnquiry->agent_id,
                     'agent_name' => $agent ? $agent->name : null,
                     'check_in_time' => $formEnquiry->check_in_time,
