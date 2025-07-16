@@ -178,6 +178,27 @@
         background-color: #f0f7ff;
         color: #435ebe;
     }
+    
+    /* Loading button styles */
+    .generate-coupon.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+        position: relative;
+    }
+    
+    .generate-coupon.loading i.fa-spinner {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .generate-coupon.loading:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -616,7 +637,13 @@
                                                                                 @endif
 
                                                                                 @if(strtolower(str_replace(' ', '_', $service->type)) === 'restaurant')
-                                                                                @if($service->voucher_image == null)
+                                                                                @php
+                                                                                    $voucherImage = $service->voucher_image ?? null;
+                                                                                    if (!$voucherImage && isset($service->data_decoded['voucher_image'])) {
+                                                                                        $voucherImage = $service->data_decoded['voucher_image'];
+                                                                                    }
+                                                                                @endphp
+                                                                                @if($voucherImage == null)
                                                                                 <button type="button" class="btn btn-sm btn-outline-success generate-coupon" 
                                                                                         data-id="{{ $service->id }}"
                                                                                         data-type="{{ strtolower(str_replace(' ', '_', $service->type)) }}"
@@ -965,6 +992,12 @@
         // Generate Coupon Button Click Handler
         $('.generate-coupon').on('click', function() {
             const btn = $(this);
+            
+            // Prevent multiple clicks
+            if (btn.hasClass('loading')) {
+                return;
+            }
+            
             let encodedDetails = btn.attr('data-details');
             
             // Decode and parse restaurant details
@@ -993,8 +1026,15 @@
             const agentName = btn.data('agent-name');
             const dmcCompany = btn.data('dmc-company');
             
-            // Show format selection modal
-            showFormatSelectionModal(restaurantData, {
+            // Store original button content
+            const originalContent = btn.html();
+            
+            // Show loading state
+            btn.addClass('loading').prop('disabled', true);
+            btn.html('<i class="fas fa-spinner fa-spin"></i> Generating...');
+            
+            // Generate voucher silently without opening new tab
+            generateVoucherSilently(restaurantData, {
                 bookingId: bookingId,
                 tourId: tourId,
                 displayId: displayId,
@@ -1005,87 +1045,175 @@
                 children: children,
                 agentName: agentName,
                 dmcCompany: dmcCompany
-            });
+            }, btn, originalContent);
         });
 
-        // Function to show format selection modal
-        function showFormatSelectionModal(restaurantData, bookingData) {
-            const modalHtml = `
-                <div class="modal fade" id="formatModal" tabindex="-1" aria-labelledby="formatModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="formatModalLabel">
-                                    <i class="fas fa-ticket-alt text-success"></i> Generate Restaurant Voucher
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <h6>Booking ID: ${bookingData.displayId}</h6>
-                                    <p class="text-muted mb-3">Restaurant: ${restaurantData[0]?.restaurantName || 'N/A'}</p>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <div class="card h-100">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-code fa-3x text-primary mb-3"></i>
-                                                <h5 class="card-title">HTML Format</h5>
-                                                <p class="card-text">Generate as HTML file for printing or viewing in browser</p>
-                                                <button type="button" class="btn btn-primary" id="generateHtml">
-                                                    <i class="fas fa-file-code"></i> Generate HTML
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card h-100">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-image fa-3x text-success mb-3"></i>
-                                                <h5 class="card-title">Image Format</h5>
-                                                <p class="card-text">Generate as PNG image for storage or sharing</p>
-                                                <button type="button" class="btn btn-success" id="generateImage">
-                                                    <i class="fas fa-camera"></i> Generate Image
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
+        // Function to generate voucher silently without opening new tab
+        function generateVoucherSilently(restaurantData, bookingData, button, originalContent) {
+            // Show loading toast
+            showToast('Generating and saving voucher image...', 'info');
             
-            // Remove existing modal if any
-            $('#formatModal').remove();
-            
-            // Add modal to body
-            $('body').append(modalHtml);
-            
-            // Show modal
-            $('#formatModal').modal('show');
-            
-            // Handle HTML generation
-            $('#generateHtml').on('click', function() {
-                $('#formatModal').modal('hide');
-                generateVoucher(restaurantData, bookingData, 'html');
-            });
-            
-            // Handle Image generation
-            $('#generateImage').on('click', function() {
-                $('#formatModal').modal('hide');
-                generateVoucher(restaurantData, bookingData, 'image');
+            // Make AJAX call to generate voucher HTML
+            $.ajax({
+                url: "{{ route('generate.restaurant.coupon') }}",
+                type: "POST",
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    restaurant_data: restaurantData,
+                    booking_id: bookingData.bookingId,
+                    tour_id: bookingData.tourId,
+                    display_id: bookingData.displayId,
+                    destination: bookingData.destination,
+                    check_in_date: bookingData.checkInDate,
+                    total_pax: bookingData.totalPax,
+                    adults: bookingData.adults,
+                    children: bookingData.children,
+                    agent_name: bookingData.agentName,
+                    dmc_company: bookingData.dmcCompany,
+                    format: 'html'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Create a hidden iframe to render the HTML and capture it
+                        captureVoucherFromHtml(response.html, bookingData, button, originalContent);
+                    } else {
+                        // Reset button state on error
+                        resetButtonState(button, originalContent);
+                        showToast(response.message || 'Failed to generate voucher', 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state on error
+                    resetButtonState(button, originalContent);
+                    showToast('Something went wrong. Please try again later.', 'error');
+                }
             });
         }
 
-        // Function to generate voucher in specified format
+        // Function to capture voucher from HTML without opening new tab
+        function captureVoucherFromHtml(html, bookingData, button, originalContent) {
+            // Create a hidden iframe
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position: absolute; left: -9999px; top: -9999px; width: 600px; height: 300px; border: none;';
+            document.body.appendChild(iframe);
+            
+            // Write HTML to iframe
+            iframe.contentDocument.write(html);
+            iframe.contentDocument.close();
+            
+            // Wait for iframe to load and then capture
+            iframe.onload = function() {
+                setTimeout(function() {
+                    // Load HTML2Canvas in iframe
+                    const script = iframe.contentDocument.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    script.onload = function() {
+                        // Capture the voucher using the iframe's html2canvas
+                        const voucherElement = iframe.contentDocument.querySelector('.voucher');
+                        if (voucherElement) {
+                            // Use the iframe's html2canvas instance
+                            iframe.contentWindow.html2canvas(voucherElement, {
+                                scale: 2,
+                                useCORS: true,
+                                backgroundColor: null,
+                                width: 600,
+                                height: 300,
+                                logging: false
+                            }).then(canvas => {
+                                canvas.toBlob(function(blob) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = function() {
+                                        const base64data = reader.result;
+                                        
+                                        // Store in database via AJAX
+                                        fetch('/generate-restaurant-coupon', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                            },
+                                            body: JSON.stringify({
+                                                booking_id: bookingData.bookingId,
+                                                tour_id: bookingData.tourId,
+                                                action: 'store_image',
+                                                image_data: base64data
+                                            })
+                                        })
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            console.log('Image save response:', data);
+                                            // Remove iframe
+                                            document.body.removeChild(iframe);
+                                            
+                                            if (data.success) {
+                                                console.log('Image saved successfully, replacing button...');
+                                                showToast('Voucher image generated and saved successfully!', 'success');
+                                                // Replace the button with "View Voucher" button
+                                                replaceWithViewVoucherButton(button, bookingData);
+                                            } else {
+                                                console.log('Image save failed:', data.message);
+                                                resetButtonState(button, originalContent);
+                                                showToast('Failed to save image to database: ' + data.message, 'error');
+                                            }
+                                        })
+                                        .catch(error => {
+                                            document.body.removeChild(iframe);
+                                            resetButtonState(button, originalContent);
+                                            console.error('Error storing voucher image:', error);
+                                            showToast('Error saving image to database', 'error');
+                                        });
+                                    };
+                                    reader.readAsDataURL(blob);
+                                }, 'image/png');
+                            }).catch(error => {
+                                document.body.removeChild(iframe);
+                                resetButtonState(button, originalContent);
+                                console.error('Error capturing voucher:', error);
+                                showToast('Error capturing voucher image', 'error');
+                            });
+                        } else {
+                            document.body.removeChild(iframe);
+                            resetButtonState(button, originalContent);
+                            showToast('Voucher element not found', 'error');
+                        }
+                    };
+                    iframe.contentDocument.head.appendChild(script);
+                }, 1000); // Wait for fonts and styling to load
+            };
+        }
+
+        // Function to reset button state
+        function resetButtonState(button, originalContent) {
+            button.removeClass('loading').prop('disabled', false);
+            button.html(originalContent);
+        }
+
+        // Function to replace Generate Coupon button with View Voucher button
+        function replaceWithViewVoucherButton(button, bookingData) {
+            console.log('Replacing button with View Voucher button', { button, bookingData });
+            
+            // Remove loading state
+            button.removeClass('loading').prop('disabled', false);
+            
+            // Create the View Voucher button using the same route format as the original
+            const viewVoucherButton = $(`
+                <a href="/view-voucher-image/${bookingData.bookingId}/${bookingData.tourId}" target="_blank" class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-eye"></i> View Voucher
+                </a>
+            `);
+            
+            console.log('Created view voucher button:', viewVoucherButton);
+            
+            // Replace the original button with the new one
+            button.replaceWith(viewVoucherButton);
+            
+            console.log('Button replacement completed');
+        }
+
+        // Function to generate voucher in specified format (kept for potential future use)
         function generateVoucher(restaurantData, bookingData, format) {
             // Show loading toast
-            showToast('Generating voucher in ' + format.toUpperCase() + ' format...', 'info');
+            showToast('Generating voucher...', 'info');
             
             // Make AJAX call to generate voucher
             $.ajax({
@@ -1109,11 +1237,11 @@
                 success: function(response) {
                     if (response.success) {
                         if (format === 'html') {
-                            // Open HTML in new window
+                            // Open HTML in new window - this will trigger the HTML2Canvas capture
                             const newWindow = window.open('', '_blank');
                             newWindow.document.write(response.html);
                             newWindow.document.close();
-                            showToast('HTML voucher generated successfully!', 'success');
+                            showToast('Voucher opened in new tab. Image will be automatically saved to database.', 'success');
                         } else if (format === 'image') {
                             if (response.method === 'html2canvas') {
                                 // Open HTML with image generation capability

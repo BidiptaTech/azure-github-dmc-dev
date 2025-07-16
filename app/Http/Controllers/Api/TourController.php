@@ -1072,6 +1072,16 @@ class TourController extends Controller
                             }
                         }
                     }
+                    $roomCombinations = [];
+
+                    $max = max(count($roomTypes), count($bedTypes), count($mealInfo));
+                    for ($i = 0; $i < $max; $i++) {
+                        $room = $roomTypes[$i] ?? 'Standard';
+                        $bed = $bedTypes[$i] ?? 'Queen Size';
+                        $meal = $mealInfo[$i] ?? 'Room Only';
+
+                        $roomCombinations[] = "{$room} - {$bed} ({$meal})";
+                    }
                                        
                     $orderData = [
                         "booking_id" => 'BK-' . rand(10000, 99999), // fallback ID
@@ -1085,8 +1095,8 @@ class TourController extends Controller
                         "reference_number" => 'REF-' . rand(1000, 9999),
                         "total_price" => $data['totalPrice'] ?? 0,
                         "payment_status" => "Confirmed", // or fetch from elsewhere if needed
-                        // Room information
-                        "room_type" => implode(', ', $roomTypes) ?? "Standard",
+                        // Room informatio
+                        "room_type" => $roomCombinations,
                         "bed_type" => implode(', ', $bedTypes) ?? "Queen Size",
                         "max_occupancy" => $bedInfo['max_occupancy'] ?? 1,
                         "head_count" => $bedInfo['head_count'] ?? 1,
