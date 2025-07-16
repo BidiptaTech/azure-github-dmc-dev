@@ -461,454 +461,40 @@ const handleBabyCot = (e) => {
                   {/* End romm Grid horizontal content */}
 
 {/*.............start from here Bed Type ..............*/}
-{data.bed_details.map((bed, index2) => {
-  const bedIndex = index2;
-  const maxOccupancy = bed?.max_occupancy;
-  const bedId = bed?.bed_id;
-  const roomTypeIndex = index1;
+{data.bed_details && data.bed_details.length > 0 ? (
+  data.bed_details.map((bed, index2) => {
+    const bedIndex = index2;
+    const maxOccupancy = bed?.max_occupancy;
+    const bedId = bed?.bed_id;
+    const roomTypeIndex = index1;
 
-  // State to manage baby cot selection
+    // State to manage baby cot selection
 
-  // Map bed types to icons
-  const bedTypeIcons = {
-    king: <KingBedOutlinedIcon size={20} />,
-    queen: <BedOutlinedIcon size={20} />,
-    twin: <BedroomParentOutlinedIcon size={20} />,
-    single: <SingleBedOutlinedIcon size={20} />,
-  };
+    // Map bed types to icons
+    const bedTypeIcons = {
+      king: <KingBedOutlinedIcon size={20} />,
+      queen: <BedOutlinedIcon size={20} />,
+      twin: <BedroomParentOutlinedIcon size={20} />,
+      single: <SingleBedOutlinedIcon size={20} />,
+    };
 
-  // Determine the icon to use based on the bed type
-const normalizedBedType = bed?.bed_type.split(' ')[0].toLowerCase();
- // console.log(`Normalized Bed Type: ${normalizedBedType}`);
+    // Determine the icon to use based on the bed type
+  const normalizedBedType = bed?.bed_type.split(' ')[0].toLowerCase();
+   // console.log(`Normalized Bed Type: ${normalizedBedType}`);
 
-  const bedTypeIcon = bedTypeIcons[normalizedBedType] || <FaBed size={20} />;
+    const bedTypeIcon = bedTypeIcons[normalizedBedType] || <FaBed size={20} />;
 
-  return (
-    <div className="roomGrid__content" style={{ gridTemplateColumns: "1fr 350px" }}>
-      <div>
-        {/* Bed Type, Max Occupancy and Actual Occupancy - Redesigned */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: 2, 
-          mb: 2 
-        }}>
-          {/* Bed Type Card */}
-          <Card 
-            elevation={1} 
-            sx={{ 
-              borderRadius: '12px',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
-              },
-              backgroundColor: 'rgba(53, 84, 209, 0.05)'
-            }}
-          >
-            <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <HotelIcon 
-                    sx={{ 
-                      color: '#3554D1',
-                      fontSize: 28,
-                      mr: 1
-                    }} 
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                    {bed?.bed_type.charAt(0).toUpperCase() + bed?.bed_type.slice(1).replace(/_/g, " ")}
-                  </Typography>
-                </Box>
-                <Avatar
-                  sx={{
-                    bgcolor: 'white',
-                    border: '2px solid #3554D1',
-                    color: '#3554D1',
-                    width: 40,
-                    height: 40
-                  }}
-                >
-                  {bedTypeIcon}
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Max Occupancy Card */}
-          <Card 
-            elevation={1} 
-            sx={{ 
-              borderRadius: '12px',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <GroupIcon 
-                  sx={{ 
-                    color: '#3554D1',
-                    fontSize: 28,
-                    mr: 1
-                  }} 
-                />
-                <Typography variant="h6" sx={{ fontWeight: 'bold',fontSize:'16px' }}>
-                  Max Occupancy ({maxOccupancy})
-                </Typography>
-              </Box>
-              
-              <Divider sx={{ my: 1 }} />
-              
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 35, height: 35 } }}>
-                  {Array.from({ length: maxOccupancy }).map((_, i) => (
-                    <Avatar 
-                      key={`max-bed-${bedId}-${i}`} 
-                      sx={{ 
-                        bgcolor: 'rgba(53, 84, 209, 0.1)',
-                        color: '#3554D1',
-                      }}
-                    >
-                      <BedOutlinedIcon fontSize="small" />
-                    </Avatar>
-                  ))}
-                </AvatarGroup>
-                {/* <Typography variant="body1" sx={{ ml: 2, fontWeight: 'medium' }}>
-                  This room can accommodate up to {maxOccupancy} {maxOccupancy === 1 ? 'person' : 'people'}
-                </Typography> */}
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Actual Occupancy Card */}
-          <Card 
-            elevation={1} 
-            sx={{ 
-              borderRadius: '12px',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <PersonIcon 
-                    sx={{ 
-                      color: '#3554D1',
-                      fontSize: 28,
-                      mr: 1
-                    }} 
-                  />
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize:'16px' }}>
-                    Total Occupancy: {(roomDatas?.tour_adult || 0)}
-                  </Typography>
-                </Box>
-                
-                {/* Display breakdown counts */}
-                {/* <Box sx={{ display: 'flex', gap: 1 }}>
-                  {roomDatas?.tour_adult > 0 && (
-                    <Chip
-                      icon={<PersonIcon />}
-                      label={`${roomDatas.tour_adult} ${roomDatas.tour_adult === 1 ? 'Adult' : 'Adults'}`}
-                      color="primary"
-                      size="small"
-                    />
-                  )}
-                  {roomDatas?.tour_child > 0 && (
-                    <Chip
-                      icon={<ChildCareIcon />}
-                      label={`${roomDatas.tour_child} ${roomDatas.tour_child === 1 ? 'Child' : 'Children'}`}
-                      color="warning"
-                      size="small"
-                    />
-                  )}
-                  {roomDatas?.tour_infant > 0 && (
-                    <Chip
-                      icon={<CribIcon />}
-                      label={`${roomDatas.tour_infant} ${roomDatas.tour_infant === 1 ? 'Infant' : 'Infants'}`}
-                      color="secondary"
-                      size="small"
-                    />
-                  )}
-                </Box> */}
-              </Box>
-              
-              <Divider sx={{ my: 1 }} />
-              
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column',
-                gap: 1.5, 
-                mt: 1
-              }}>
-                {/* Adults section - combining male and female */}
-                {(roomDatas?.tour_male > 0 || roomDatas?.tour_female > 0) && (
-                  <Box sx={{ 
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 1,
-                    borderRadius: '8px',
-                    bgcolor: 'rgba(53, 84, 209, 0.05)',
-                  }}>
-                    <Typography variant="subtitle2" color="primary">
-                      Adults ({(roomDatas?.tour_male || 0) + (roomDatas?.tour_female || 0)})
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {/* Male occupancy */}
-                      {roomDatas?.tour_male > 0 && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip
-                            label="Male"
-                            sx={{
-                              backgroundColor: 'rgba(53, 84, 209, 0.1)',
-                              color: '#3554D1',
-                              fontWeight: 'bold',
-                              minWidth: '70px',
-                            }}
-                            size="small"
-                          />
-                          <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
-                            {Array.from({ length: roomDatas.tour_male }).map((_, i) => (
-                              <Avatar 
-                                key={`male-avatar-${i}`} 
-                                sx={{ 
-                                  bgcolor: '#3554D1',
-                                  color: 'white',
-                                }}
-                              >
-                                <PersonIcon fontSize="small" />
-                              </Avatar>
-                            ))}
-                          </AvatarGroup>
-                        </Box>
-                      )}
-                      
-                      {/* Female occupancy */}
-                      {roomDatas?.tour_female > 0 && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip
-                            label="Female"
-                            sx={{
-                              backgroundColor: 'rgba(233, 30, 99, 0.1)',
-                              color: '#E91E63',
-                              fontWeight: 'bold',
-                              minWidth: '70px',
-                            }}
-                            size="small"
-                          />
-                          <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
-                            {Array.from({ length: roomDatas.tour_female }).map((_, i) => (
-                              <Avatar 
-                                key={`female-avatar-${i}`} 
-                                sx={{ 
-                                  bgcolor: '#E91E63',
-                                  color: 'white',
-                                }}
-                              >
-                                <WomanIcon fontSize="small" />
-                              </Avatar>
-                            ))}
-                          </AvatarGroup>
-                        </Box>
-                      )}
-                    </Box>
-                  </Box>
-                )}
-                
-                {/* Children section */}
-                {roomDatas?.tour_child > 0 && (
-                  <Box sx={{ 
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 1,
-                    borderRadius: '8px',
-                    bgcolor: 'rgba(255, 152, 0, 0.05)',
-                  }}>
-                    <Typography variant="subtitle2" color="warning.main">
-                      Children ({roomDatas.tour_child})
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
-                        {Array.from({ length: roomDatas.tour_child }).map((_, i) => (
-                          <Avatar 
-                            key={`child-avatar-${i}`} 
-                            sx={{ 
-                              bgcolor: '#FF9800',
-                              color: 'white',
-                            }}
-                          >
-                            <ChildCareIcon fontSize="small" />
-                          </Avatar>
-                        ))}
-                      </AvatarGroup>
-                    </Box>
-                  </Box>
-                )}
-                
-                {/* Child Adults section (if present) */}
-                {roomDatas?.tour_child_adult > 0 && (
-                  <Box sx={{ 
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 1,
-                    borderRadius: '8px',
-                    bgcolor: 'rgba(76, 175, 80, 0.05)',
-                  }}>
-                    <Typography variant="subtitle2" color="success.main">
-                      Child Adults ({roomDatas.tour_child_adult})
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
-                        {Array.from({ length: roomDatas.tour_child_adult }).map((_, i) => (
-                          <Avatar 
-                            key={`child-adult-avatar-${i}`} 
-                            sx={{ 
-                              bgcolor: '#4CAF50',
-                              color: 'white',
-                            }}
-                          >
-                            <ChildCareIcon fontSize="small" />
-                          </Avatar>
-                        ))}
-                      </AvatarGroup>
-                    </Box>
-                  </Box>
-                )}
-                
-                {/* Infants section */}
-                {roomDatas?.tour_infant > 0 && (
-                  <Box sx={{ 
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    p: 1,
-                    borderRadius: '8px',
-                    bgcolor: 'rgba(156, 39, 176, 0.05)',
-                  }}>
-                    <Typography variant="subtitle2" color="secondary.main">
-                      Infants ({roomDatas.tour_infant})
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
-                        {Array.from({ length: roomDatas.tour_infant }).map((_, i) => (
-                          <Avatar 
-                            key={`infant-avatar-${i}`} 
-                            sx={{ 
-                              bgcolor: '#9C27B0',
-                              color: 'white',
-                            }}
-                          >
-                            <CribIcon fontSize="small" />
-                          </Avatar>
-                        ))}
-                      </AvatarGroup>
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Extra Bed and Baby Cot Section - Redesigned */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: 2, 
-          mt: 2, 
-          mb: 2 
-        }}>
-          {/* Extra Bed Card */}
-          {/* <Card 
-            elevation={1} 
-            sx={{ 
-              borderRadius: '12px',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <SingleBedOutlinedIcon 
-                  sx={{ 
-                    color: bed.extra_bed ? '#3554D1' : 'text.disabled',
-                    fontSize: 28,
-                    mr: 1
-                  }} 
-                />
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  Extra Bed
-                </Typography>
-              </Box>
-              
-              <Divider sx={{ my: 1 }} />
-              
-              {bed.extra_bed ? (
-                <Box sx={{ mt: 1 }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    flexWrap: 'wrap',
-                    gap: 1,
-                    mb: 1
-                  }}>
-                    <Chip 
-                      // icon={<CurrencyExchangeIcon />} 
-                      label={`${currencyCode} ${(bed.extra_bed_price * exchangeRate).toFixed(2)}`}
-                      color="primary"
-                      variant="outlined"
-                      sx={{ fontWeight: 'medium' }}
-                    />
-                    <Chip 
-                      label={`${usdCurrencyCode} ${(bed.extra_bed_price * usdExchangeRate).toFixed(2)}`}
-                      variant="outlined"
-                      sx={{ fontWeight: 'medium' }}
-                    />
-                    <Chip 
-                      label={`SGD ${bed.extra_bed_price}`}
-                      variant="outlined"
-                      sx={{ fontWeight: 'medium' }}
-                    />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Add an extra bed to accommodate additional guests
-                  </Typography>
-                </Box>
-              ) : (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  color: 'text.secondary',
-                  mt: 1
-                }}>
-                  <DoNotDisturbAltOutlinedIcon sx={{ mr: 1 }} />
-                  <Typography variant="body2">
-                    Extra bed is not available for this room type
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card> */}
-
-          {/* Baby Cot Card */}
-          {bed.baby_cot && (
+    return (
+      <div className="roomGrid__content" style={{ gridTemplateColumns: "1fr 350px" }}>
+        <div>
+          {/* Bed Type, Max Occupancy and Actual Occupancy - Redesigned */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 2, 
+            mb: 2 
+          }}>
+            {/* Bed Type Card */}
             <Card 
               elevation={1} 
               sx={{ 
@@ -918,46 +504,365 @@ const normalizedBedType = bed?.bed_type.split(' ')[0].toLowerCase();
                   transform: 'translateY(-3px)',
                   boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
                 },
-                border: babyCotStatus[bed.bed_id] ? '2px solid #3554D1' : 'none'
+                backgroundColor: 'rgba(53, 84, 209, 0.05)'
               }}
             >
-              {/* Debug logs for baby cot price data */}
-              {/* {console.log(`[BABY COT UI DEBUG] Baby cot for bed ${bed.bed_id}:`)}
-              {console.log(`[BABY COT UI DEBUG] - Raw price: ${bed.baby_cot_price}`)}
-              {console.log(`[BABY COT UI DEBUG] - Price type: ${typeof bed.baby_cot_price}`)}
-              {console.log(`[BABY COT UI DEBUG] - Parsed price: ${Number(bed.baby_cot_price)}`)}
-              {console.log(`[BABY COT UI DEBUG] - Status: ${babyCotStatus[bed.bed_id]}`)} */}
-              
               <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <BabyChangingStationIcon 
+                    <HotelIcon 
                       sx={{ 
-                        color: babyCotStatus[bed.bed_id] ? '#3554D1' : 'text.secondary',
+                        color: '#3554D1',
                         fontSize: 28,
                         mr: 1
                       }} 
                     />
                     <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                      Baby Cot
+                      {bed?.bed_type.charAt(0).toUpperCase() + bed?.bed_type.slice(1).replace(/_/g, " ")}
                     </Typography>
                   </Box>
-                  <Switch
-                    checked={!!babyCotStatus[bed.bed_id]}
-                    onChange={handleBabyCot}
-                    color="primary"
-                    disabled={bookingArray.length === 0}
-                    inputProps={{ 'aria-label': 'controlled' }}
-                    name={String(bed.bed_id)}
+                  <Avatar
+                    sx={{
+                      bgcolor: 'white',
+                      border: '2px solid #3554D1',
+                      color: '#3554D1',
+                      width: 40,
+                      height: 40
+                    }}
+                  >
+                    {bedTypeIcon}
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+
+            {/* Max Occupancy Card */}
+            <Card 
+              elevation={1} 
+              sx={{ 
+                borderRadius: '12px',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <GroupIcon 
+                    sx={{ 
+                      color: '#3554D1',
+                      fontSize: 28,
+                      mr: 1
+                    }} 
                   />
+                  <Typography variant="h6" sx={{ fontWeight: 'bold',fontSize:'16px' }}>
+                    Max Occupancy ({maxOccupancy})
+                  </Typography>
                 </Box>
                 
                 <Divider sx={{ my: 1 }} />
                 
-                {babyCotStatus[bed.bed_id] ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                  <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 35, height: 35 } }}>
+                    {Array.from({ length: maxOccupancy }).map((_, i) => (
+                      <Avatar 
+                        key={`max-bed-${bedId}-${i}`} 
+                        sx={{ 
+                          bgcolor: 'rgba(53, 84, 209, 0.1)',
+                          color: '#3554D1',
+                        }}
+                      >
+                        <BedOutlinedIcon fontSize="small" />
+                      </Avatar>
+                    ))}
+                  </AvatarGroup>
+                  {/* <Typography variant="body1" sx={{ ml: 2, fontWeight: 'medium' }}>
+                    This room can accommodate up to {maxOccupancy} {maxOccupancy === 1 ? 'person' : 'people'}
+                  </Typography> */}
+                </Box>
+              </CardContent>
+            </Card>
+
+            {/* Actual Occupancy Card */}
+            <Card 
+              elevation={1} 
+              sx={{ 
+                borderRadius: '12px',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <PersonIcon 
+                      sx={{ 
+                        color: '#3554D1',
+                        fontSize: 28,
+                        mr: 1
+                      }} 
+                    />
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize:'16px' }}>
+                      Total Occupancy: {(roomDatas?.tour_adult || 0)}
+                    </Typography>
+                  </Box>
+                  
+                  {/* Display breakdown counts */}
+                  {/* <Box sx={{ display: 'flex', gap: 1 }}>
+                    {roomDatas?.tour_adult > 0 && (
+                      <Chip
+                        icon={<PersonIcon />}
+                        label={`${roomDatas.tour_adult} ${roomDatas.tour_adult === 1 ? 'Adult' : 'Adults'}`}
+                        color="primary"
+                        size="small"
+                      />
+                    )}
+                    {roomDatas?.tour_child > 0 && (
+                      <Chip
+                        icon={<ChildCareIcon />}
+                        label={`${roomDatas.tour_child} ${roomDatas.tour_child === 1 ? 'Child' : 'Children'}`}
+                        color="warning"
+                        size="small"
+                      />
+                    )}
+                    {roomDatas?.tour_infant > 0 && (
+                      <Chip
+                        icon={<CribIcon />}
+                        label={`${roomDatas.tour_infant} ${roomDatas.tour_infant === 1 ? 'Infant' : 'Infants'}`}
+                        color="secondary"
+                        size="small"
+                      />
+                    )}
+                  </Box> */}
+                </Box>
+                
+                <Divider sx={{ my: 1 }} />
+                
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  gap: 1.5, 
+                  mt: 1
+                }}>
+                  {/* Adults section - combining male and female */}
+                  {(roomDatas?.tour_male > 0 || roomDatas?.tour_female > 0) && (
+                    <Box sx={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1,
+                      p: 1,
+                      borderRadius: '8px',
+                      bgcolor: 'rgba(53, 84, 209, 0.05)',
+                    }}>
+                      <Typography variant="subtitle2" color="primary">
+                        Adults ({(roomDatas?.tour_male || 0) + (roomDatas?.tour_female || 0)})
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {/* Male occupancy */}
+                        {roomDatas?.tour_male > 0 && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label="Male"
+                              sx={{
+                                backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                color: '#3554D1',
+                                fontWeight: 'bold',
+                                minWidth: '70px',
+                              }}
+                              size="small"
+                            />
+                            <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
+                              {Array.from({ length: roomDatas.tour_male }).map((_, i) => (
+                                <Avatar 
+                                  key={`male-avatar-${i}`} 
+                                  sx={{ 
+                                    bgcolor: '#3554D1',
+                                    color: 'white',
+                                  }}
+                                >
+                                  <PersonIcon fontSize="small" />
+                                </Avatar>
+                              ))}
+                            </AvatarGroup>
+                          </Box>
+                        )}
+                        
+                        {/* Female occupancy */}
+                        {roomDatas?.tour_female > 0 && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label="Female"
+                              sx={{
+                                backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                                color: '#E91E63',
+                                fontWeight: 'bold',
+                                minWidth: '70px',
+                              }}
+                              size="small"
+                            />
+                            <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
+                              {Array.from({ length: roomDatas.tour_female }).map((_, i) => (
+                                <Avatar 
+                                  key={`female-avatar-${i}`} 
+                                  sx={{ 
+                                    bgcolor: '#E91E63',
+                                    color: 'white',
+                                  }}
+                                >
+                                  <WomanIcon fontSize="small" />
+                                </Avatar>
+                              ))}
+                            </AvatarGroup>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Children section */}
+                  {roomDatas?.tour_child > 0 && (
+                    <Box sx={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1,
+                      p: 1,
+                      borderRadius: '8px',
+                      bgcolor: 'rgba(255, 152, 0, 0.05)',
+                    }}>
+                      <Typography variant="subtitle2" color="warning.main">
+                        Children ({roomDatas.tour_child})
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
+                          {Array.from({ length: roomDatas.tour_child }).map((_, i) => (
+                            <Avatar 
+                              key={`child-avatar-${i}`} 
+                              sx={{ 
+                                bgcolor: '#FF9800',
+                                color: 'white',
+                              }}
+                            >
+                              <ChildCareIcon fontSize="small" />
+                            </Avatar>
+                          ))}
+                        </AvatarGroup>
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Child Adults section (if present) */}
+                  {roomDatas?.tour_child_adult > 0 && (
+                    <Box sx={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1,
+                      p: 1,
+                      borderRadius: '8px',
+                      bgcolor: 'rgba(76, 175, 80, 0.05)',
+                    }}>
+                      <Typography variant="subtitle2" color="success.main">
+                        Child Adults ({roomDatas.tour_child_adult})
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
+                          {Array.from({ length: roomDatas.tour_child_adult }).map((_, i) => (
+                            <Avatar 
+                              key={`child-adult-avatar-${i}`} 
+                              sx={{ 
+                                bgcolor: '#4CAF50',
+                                color: 'white',
+                              }}
+                            >
+                              <ChildCareIcon fontSize="small" />
+                            </Avatar>
+                          ))}
+                        </AvatarGroup>
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Infants section */}
+                  {roomDatas?.tour_infant > 0 && (
+                    <Box sx={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1,
+                      p: 1,
+                      borderRadius: '8px',
+                      bgcolor: 'rgba(156, 39, 176, 0.05)',
+                    }}>
+                      <Typography variant="subtitle2" color="secondary.main">
+                        Infants ({roomDatas.tour_infant})
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.7rem' } }}>
+                          {Array.from({ length: roomDatas.tour_infant }).map((_, i) => (
+                            <Avatar 
+                              key={`infant-avatar-${i}`} 
+                              sx={{ 
+                                bgcolor: '#9C27B0',
+                                color: 'white',
+                              }}
+                            >
+                              <CribIcon fontSize="small" />
+                            </Avatar>
+                          ))}
+                        </AvatarGroup>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+
+          {/* Extra Bed and Baby Cot Section - Redesigned */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 2, 
+            mt: 2, 
+            mb: 2 
+          }}>
+            {/* Extra Bed Card */}
+            {/* <Card 
+              elevation={1} 
+              sx={{ 
+                borderRadius: '12px',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <SingleBedOutlinedIcon 
+                    sx={{ 
+                      color: bed.extra_bed ? '#3554D1' : 'text.disabled',
+                      fontSize: 28,
+                      mr: 1
+                    }} 
+                  />
+                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                    Extra Bed
+                  </Typography>
+                </Box>
+                
+                <Divider sx={{ my: 1 }} />
+                
+                {bed.extra_bed ? (
                   <Box sx={{ mt: 1 }}>
-                    {PriceHide =="0" ?
-                    (
                     <Box sx={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -966,83 +871,289 @@ const normalizedBedType = bed?.bed_type.split(' ')[0].toLowerCase();
                       mb: 1
                     }}>
                       <Chip 
-                        //icon={<CurrencyExchangeIcon />} 
-                        label={`${currencyCode} ${(parseFloat(bed.baby_cot_price || 0) * exchangeRate).toFixed(2)}`}
+                        // icon={<CurrencyExchangeIcon />} 
+                        label={`${currencyCode} ${(bed.extra_bed_price * exchangeRate).toFixed(2)}`}
                         color="primary"
                         variant="outlined"
                         sx={{ fontWeight: 'medium' }}
                       />
                       <Chip 
-                        label={`${usdCurrencyCode} ${(parseFloat(bed.baby_cot_price || 0) * usdExchangeRate).toFixed(2)}`}
+                        label={`${usdCurrencyCode} ${(bed.extra_bed_price * usdExchangeRate).toFixed(2)}`}
                         variant="outlined"
                         sx={{ fontWeight: 'medium' }}
                       />
                       <Chip 
-                        label={`SGD ${parseFloat(bed.baby_cot_price || 0).toFixed(2)}`}
+                        label={`SGD ${bed.extra_bed_price}`}
                         variant="outlined"
                         sx={{ fontWeight: 'medium' }}
                       />
-                      </Box>  ):(
-                        <div className="text-16 text-dark-1 fw-500">
-                          Price available on request
-                        </div>
-                      )
-                    }
-                    <Typography variant="body2" color="primary">
-                      Baby cot has been added to your selection
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Add an extra bed to accommodate additional guests
                     </Typography>
                   </Box>
                 ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    Toggle the switch to add a baby cot to your room
-                    {bookingArray.length === 0 && (
-                      <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
-                        Please select a room first before adding a baby cot
-                      </Typography>
-                    )}
-                  </Typography>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    color: 'text.secondary',
+                    mt: 1
+                  }}>
+                    <DoNotDisturbAltOutlinedIcon sx={{ mr: 1 }} />
+                    <Typography variant="body2">
+                      Extra bed is not available for this room type
+                    </Typography>
+                  </Box>
                 )}
               </CardContent>
-            </Card>
-          )}
-        </Box>
-      </div>
+            </Card> */}
 
-      <div className="text-14 lh-18 text-light-1">
-        <RenderRoomCards
-          data={data}
-          bedIndex={bedIndex}
-          pax={pax}
-          paxCount={paxCount}
-          setPaxCount={setPaxCount}
-          bed={bed}
-          roomTypeIndex={roomTypeIndex}
-          babyCot={babyCotStatus[bedId] || 0}
-          bedArray={bedArray}
-          setbedArray={setbedArray}
-          occupancyArray={occupancyArray}
-          setOccupancyArray={setOccupancyArray}
-          occupancyCount={occupancyCount}
-          setOccupancyCount={setOccupancyCount}
-          globalCount={globalCount}
-          setGlobalCount={setGlobalCount}
-          maxOccupancy={maxOccupancy}
-          bedId={bedId}
-          priceArr={priceArr}
-          setPriceArr={setPriceArr}
-          mealType={mealType}
-          setMealType={setMealType}
-          hotelType={hotelType}
-          setHotelType={setHotelType}
-          totalPersonCount={totalPersonCount}
-          setTotalPersonCount={setTotalPersonCount}
-          acctualOccupency={pax}
-          bookingArray={bookingArray}
-        />
+            {/* Baby Cot Card */}
+            {bed.baby_cot && (
+              <Card 
+                elevation={1} 
+                sx={{ 
+                  borderRadius: '12px',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                  },
+                  border: babyCotStatus[bed.bed_id] ? '2px solid #3554D1' : 'none'
+                }}
+              >
+                {/* Debug logs for baby cot price data */}
+                {/* {console.log(`[BABY COT UI DEBUG] Baby cot for bed ${bed.bed_id}:`)}
+                {console.log(`[BABY COT UI DEBUG] - Raw price: ${bed.baby_cot_price}`)}
+                {console.log(`[BABY COT UI DEBUG] - Price type: ${typeof bed.baby_cot_price}`)}
+                {console.log(`[BABY COT UI DEBUG] - Parsed price: ${Number(bed.baby_cot_price)}`)}
+                {console.log(`[BABY COT UI DEBUG] - Status: ${babyCotStatus[bed.bed_id]}`)} */}
+                
+                <CardContent sx={{ p: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <BabyChangingStationIcon 
+                        sx={{ 
+                          color: babyCotStatus[bed.bed_id] ? '#3554D1' : 'text.secondary',
+                          fontSize: 28,
+                          mr: 1
+                        }} 
+                      />
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        Baby Cot
+                      </Typography>
+                    </Box>
+                    <Switch
+                      checked={!!babyCotStatus[bed.bed_id]}
+                      onChange={handleBabyCot}
+                      color="primary"
+                      disabled={bookingArray.length === 0}
+                      inputProps={{ 'aria-label': 'controlled' }}
+                      name={String(bed.bed_id)}
+                    />
+                  </Box>
+                  
+                  <Divider sx={{ my: 1 }} />
+                  
+                  {babyCotStatus[bed.bed_id] ? (
+                    <Box sx={{ mt: 1 }}>
+                      {PriceHide =="0" ?
+                      (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        mb: 1
+                      }}>
+                        <Chip 
+                          //icon={<CurrencyExchangeIcon />} 
+                          label={`${currencyCode} ${(parseFloat(bed.baby_cot_price || 0) * exchangeRate).toFixed(2)}`}
+                          color="primary"
+                          variant="outlined"
+                          sx={{ fontWeight: 'medium' }}
+                        />
+                        <Chip 
+                          label={`${usdCurrencyCode} ${(parseFloat(bed.baby_cot_price || 0) * usdExchangeRate).toFixed(2)}`}
+                          variant="outlined"
+                          sx={{ fontWeight: 'medium' }}
+                        />
+                        <Chip 
+                          label={`SGD ${parseFloat(bed.baby_cot_price || 0).toFixed(2)}`}
+                          variant="outlined"
+                          sx={{ fontWeight: 'medium' }}
+                        />
+                        </Box>  ):(
+                          <div className="text-16 text-dark-1 fw-500">
+                            Price available on request
+                          </div>
+                        )
+                      }
+                      <Typography variant="body2" color="primary">
+                        Baby cot has been added to your selection
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Toggle the switch to add a baby cot to your room
+                      {bookingArray.length === 0 && (
+                        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+                          Please select a room first before adding a baby cot
+                        </Typography>
+                      )}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+        </div>
+
+        <div className="text-14 lh-18 text-light-1">
+          <RenderRoomCards
+            data={data}
+            bedIndex={bedIndex}
+            pax={pax}
+            paxCount={paxCount}
+            setPaxCount={setPaxCount}
+            bed={bed}
+            roomTypeIndex={roomTypeIndex}
+            babyCot={babyCotStatus[bedId] || 0}
+            bedArray={bedArray}
+            setbedArray={setbedArray}
+            occupancyArray={occupancyArray}
+            setOccupancyArray={setOccupancyArray}
+            occupancyCount={occupancyCount}
+            setOccupancyCount={setOccupancyCount}
+            globalCount={globalCount}
+            setGlobalCount={setGlobalCount}
+            maxOccupancy={maxOccupancy}
+            bedId={bedId}
+            priceArr={priceArr}
+            setPriceArr={setPriceArr}
+            mealType={mealType}
+            setMealType={setMealType}
+            hotelType={hotelType}
+            setHotelType={setHotelType}
+            totalPersonCount={totalPersonCount}
+            setTotalPersonCount={setTotalPersonCount}
+            acctualOccupency={pax}
+            bookingArray={bookingArray}
+          />
+        </div>
       </div>
+    );
+  })
+) : (
+  // Show message when no bed details are available
+  <div className="roomGrid__content" style={{ gridTemplateColumns: "1fr" }}>
+    <div className="col-12">
+      <Card 
+        elevation={2} 
+        sx={{ 
+          borderRadius: '12px',
+          border: '2px dashed #E0E0E0',
+          backgroundColor: '#FAFAFA',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            borderColor: '#3554D1',
+            backgroundColor: '#F5F7FF',
+          }
+        }}
+      >
+        <CardContent sx={{ 
+          p: 4, 
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            backgroundColor: 'rgba(53, 84, 209, 0.1)',
+            mb: 1
+          }}>
+            <DoNotDisturbAltOutlinedIcon 
+              sx={{ 
+                fontSize: 40,
+                color: '#3554D1'
+              }} 
+            />
+          </Box>
+          
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 'bold',
+              color: '#3554D1',
+              mb: 1
+            }}
+          >
+            No Bed Details Available
+          </Typography>
+          
+          <Typography 
+            variant="body1" 
+            color="text.secondary"
+            sx={{ 
+              maxWidth: 400,
+              lineHeight: 1.6
+            }}
+          >
+            We're sorry, but detailed bed information is not available for this room type at the moment. 
+            Please contact our support team for more information about available accommodations.
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'flex',
+            gap: 2,
+            mt: 2,
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
+            <Chip 
+              icon={<HotelIcon />}
+              label="Room Type Available"
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 'medium' }}
+            />
+            <Chip 
+              icon={<GroupIcon />}
+              label="Contact for Details"
+              color="secondary"
+              variant="outlined"
+              sx={{ fontWeight: 'medium' }}
+            />
+          </Box>
+          
+          <Button
+            variant="outlined"
+            color="primary"
+            sx={{
+              mt: 2,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 'medium',
+              '&:hover': {
+                backgroundColor: '#3554D1',
+                color: 'white',
+              }
+            }}
+          >
+            Contact Support
+          </Button>
+        </CardContent>
+      </Card>
     </div>
-  );
-})}
+  </div>
+)}
                   {/* End romm Grid horizontal content */}
 
                   {/* <div className="roomGrid__content">
