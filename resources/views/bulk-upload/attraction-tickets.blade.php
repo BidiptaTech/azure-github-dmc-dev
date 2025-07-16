@@ -115,25 +115,25 @@
                                 </form>
                             </div>
 
-                            <!-- Display Errors -->
-                            @if(session('errors') && count(session('errors')) > 0)
-                                <div class="error-section mt-4">
-                                    <div class="alert alert-warning modern-alert">
-                                        <div class="alert-header">
-                                            <i class="ri-error-warning-line me-2"></i>
-                                            <strong>Upload Errors Detected</strong>
-                                        </div>
-                                        <div class="error-list">
-                                            @foreach(session('errors') as $error)
-                                                <div class="error-item">
-                                                    <i class="ri-close-circle-line text-danger me-2"></i>
-                                                    {{ $error }}
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
+                                        <!-- Display Errors -->
+            @if($errors->any())
+                <div class="error-section mt-4">
+                    <div class="alert alert-warning modern-alert">
+                        <div class="alert-header">
+                            <i class="ri-error-warning-line me-2"></i>
+                            <strong>Upload Errors Detected</strong>
+                        </div>
+                        <div class="error-list">
+                            @foreach($errors->all() as $error)
+                                <div class="error-item">
+                                    <i class="ri-close-circle-line text-danger me-2"></i>
+                                    {{ $error }}
                                 </div>
-                            @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
                         </div>
                     </div>
 

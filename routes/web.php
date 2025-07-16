@@ -454,8 +454,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             
             // Ticket Bulk Upload Routes - Only for DMC (role_id = 11)
             Route::get('/tickets', [App\Http\Controllers\BulkUploadController::class, 'tickets'])->name('tickets');
-            Route::post('/tickets', [App\Http\Controllers\BulkUploadController::class, 'uploadTickets'])->name('tickets.upload');
-            Route::get('/tickets/template', [App\Http\Controllers\BulkUploadController::class, 'downloadTicketTemplate'])->name('tickets.template');
+            Route::post('/tickets/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractionTickets'])->name('tickets.upload');
+            Route::get('/tickets/template/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTicketTemplate'])->name('tickets.template');
             
             // Meal Bulk Upload Routes - Only for DMC (role_id = 11)
             Route::get('/meals', [App\Http\Controllers\BulkUploadController::class, 'meals'])->name('meals');
@@ -588,7 +588,6 @@ Route::get('/test-booking-email', function() {
         ];
     }
 });
-
 
 
 
