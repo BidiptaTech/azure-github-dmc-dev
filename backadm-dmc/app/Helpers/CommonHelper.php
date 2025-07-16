@@ -1099,7 +1099,7 @@ class CommonHelper
                     "reference_number" => $orderData->reference_number ?? ('REF-' . rand(1000, 9999)),
                     "total_price" => $orderData->total_price ?? 0,
                     "payment_status" => $orderData->payment_status ?? "Pending",
-                    "room_type" => $orderData->room_type ?? "Standard",
+                    "room_type" => $orderData->room_type ?? [],
                     "bed_type" => $orderData->bed_type ?? "Queen Size",
                     "meal_plan" => $orderData->meal_plan ?? null,
                     "check_in_time" => $orderData->check_in_time ?? "00:00",
