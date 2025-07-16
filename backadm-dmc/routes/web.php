@@ -18,6 +18,7 @@ use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\HotelRestaurantController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CustomPackageController;
 use App\Http\Controllers\AttractionController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\GuideController;
@@ -74,6 +75,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     
     // Updated dashboard routes to use the controller
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/custom-packages/create', [CustomPackageController::class, 'create'])->name('custom-packages.create');
     Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
 
     // Add admin middleware to the hotels endpoint

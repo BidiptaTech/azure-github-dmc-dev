@@ -706,12 +706,15 @@ class EnquiryController extends Controller
             // $tour->refresh();
             // $formEnquiry->unique_tour_id = $tour->unique_tour_id;
             // $formEnquiry->save();
+            $agent = Agent::where('agent_id', $formEnquiry->agent_id)->first();
 
             return response()->json([
                 'data' => [
                     'country' => $formEnquiry->country,
                     'city' => $formEnquiry->city,
+                    'enquiry_id' => $formEnquiry->enquiry_id,
                     'agent_id' => $formEnquiry->agent_id,
+                    'agent_name' => $agent ? $agent->name : null,
                     'check_in_time' => $formEnquiry->check_in_time,
                     'check_out_time' => $formEnquiry->check_out_time,
                     'adult' => $formEnquiry->adult,
