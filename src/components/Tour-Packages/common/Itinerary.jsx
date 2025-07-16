@@ -69,7 +69,8 @@ export default function Itinerary({ onBookingSuccess }) {
   const { hotels } = useSelector((state) => state.hotels);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
-  
+  const enquiryDetail = useSelector(state => state.tourPackages.initialPackages?.EnquiryDetails);
+  console.log("enquiryDetaills", enquiryDetail);
   // Get all services from Redux store for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
   console.log("All Services for validation:", allServices);

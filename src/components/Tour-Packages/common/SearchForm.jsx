@@ -91,7 +91,8 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   
   // Get packageData from Redux state and prioritize it over prop
   const reduxPackageData = useSelector((state) => state.tourPackages.packageData);
-  
+  const enquirydetail = useSelector((state) => state.convertToTourList?.enquirydetail);
+  console.log("enquirydetail",enquirydetail);
   // Use Redux state if available, otherwise fall back to prop
   const packageData = reduxPackageData || propPackageData;
   
@@ -111,31 +112,56 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   
   // Initialize dates with packageData if available
   const getInitialStartDate = () => {
+    // Check packageData.tour first
     if (packageData?.tour?.check_in_time) {
       try {
         return moment(packageData.tour.check_in_time).toDate();
       } catch (error) {
-        console.error('Error parsing check_in_time:', error);
+        console.error('Error parsing check_in_time from packageData:', error);
         return null;
       }
     }
+    
+    // Check enquirydetail if packageData.tour doesn't have check_in_time
+    if (enquirydetail?.check_in_time) {
+      try {
+        return moment(enquirydetail.check_in_time).toDate();
+      } catch (error) {
+        console.error('Error parsing check_in_time from enquirydetail:', error);
+        return null;
+      }
+    }
+    
     return null;
   };
 
   const getInitialEndDate = () => {
+    // Check packageData.tour first
     if (packageData?.tour?.check_out_time) {
       try {
         return moment(packageData.tour.check_out_time).toDate();
       } catch (error) {
-        console.error('Error parsing check_out_time:', error);
+        console.error('Error parsing check_out_time from packageData:', error);
         return null;
       }
     }
+    
+    // Check enquirydetail if packageData.tour doesn't have check_out_time
+    if (enquirydetail?.check_out_time) {
+      try {
+        return moment(enquirydetail.check_out_time).toDate();
+      } catch (error) {
+        console.error('Error parsing check_out_time from enquirydetail:', error);
+        return null;
+      }
+    }
+    
     return null;
   };
 
   // Initialize guest counts with packageData if available
   const getInitialGuestCounts = () => {
+    // Check packageData.tour first
     if (packageData?.tour) {
       const tour = packageData.tour;
       return {
@@ -150,6 +176,22 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
            JSON.parse(tour.child_ages || '[]')) : [],
       };
     }
+    
+    // Check enquirydetail if packageData.tour is not available
+    if (enquirydetail) {
+      return {
+        Adults: enquirydetail.adult || 1,
+        Children: enquirydetail.child || 0,
+        Infants: enquirydetail.infant || 0,
+        maleCount: enquirydetail.male_count || 0,
+        femaleCount: enquirydetail.female_count || 0,
+        genders: [], // Initialize empty array for compatibility
+        ages: enquirydetail.child_ages ? 
+          (Array.isArray(enquirydetail.child_ages) ? enquirydetail.child_ages : 
+           JSON.parse(enquirydetail.child_ages || '[]')) : [],
+      };
+    }
+    
     return {
       Adults: 1,
       Children: 0,
@@ -168,21 +210,47 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   console.log("packageDatasss", packageData);
 
+  // Helper functions to get destination and city values
+  const getDestinationValue = () => {
+    if (packageData?.tour?.destination) {
+      return packageData.tour.destination;
+    }
+    if (enquirydetail?.country) {
+      return enquirydetail.country;
+    }
+    return null;
+  };
+
+  const getCityValue = () => {
+    if (packageData?.tour?.city) {
+      return packageData.tour.city;
+    }
+    if (enquirydetail?.city) {
+      return enquirydetail.city;
+    }
+    return null;
+  };
+
+  // Check if data is coming from enquirydetail (to disable date and guest selection)
+  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour);
+
   // Log the initialization values for debugging
   React.useEffect(() => {
-    if (packageData?.tour) {
-      console.log('Initializing form with packageData:', {
-        destination: packageData.tour.destination,
-        checkIn: packageData.tour.check_in_time,
-        checkOut: packageData.tour.check_out_time,
-        adults: packageData.tour.adult,
-        children: packageData.tour.child,
-        maleCount: packageData.tour.male_count,
-        femaleCount: packageData.tour.female_count,
-        agentId: packageData.tour.agent_id
+    if (packageData?.tour || enquirydetail) {
+      const dataSource = packageData?.tour || enquirydetail;
+      console.log('Initializing form with data:', {
+        destination: getDestinationValue(),
+        city: getCityValue(),
+        checkIn: dataSource.check_in_time,
+        checkOut: dataSource.check_out_time,
+        adults: dataSource.adult,
+        children: dataSource.child,
+        maleCount: dataSource.male_count,
+        femaleCount: dataSource.female_count,
+        agentId: dataSource.agent_id
       });
     }
-  }, [packageData]);
+  }, [packageData, enquirydetail]);
 
   // Agent selection state
   const [selectedAgent, setSelectedAgent] = useState('');
@@ -197,19 +265,20 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   console.log("guestCounts",guestCounts);
   // Auto-select agent based on packageData agent_id and agent_name
   React.useEffect(() => {
-    if (packageData?.tour?.agent_id && packageData?.tour?.agent_name && !selectedAgent) {
-      const agentId = packageData.tour.agent_id.toString();
-      const agentName = packageData.tour.agent_name;
+    const dataSource = packageData?.tour || enquirydetail;
+    if (dataSource?.agent_id && dataSource?.agent_name && !selectedAgent) {
+      const agentId = dataSource.agent_id.toString();
+      const agentName = dataSource.agent_name;
       
-      console.log('Auto-selecting agent from packageData:', { agentId, agentName });
+      console.log('Auto-selecting agent from data:', { agentId, agentName });
       
-      // Set agent directly from packageData
+      // Set agent directly from data
       setSelectedAgent(agentId);
       setSelectedAgentName(agentName);
       setIsAgentFromPackageData(true);
       dispatch(setAgentId(agentId));
     }
-  }, [packageData?.tour?.agent_id, packageData?.tour?.agent_name, selectedAgent, dispatch]);
+  }, [packageData?.tour?.agent_id, packageData?.tour?.agent_name, enquirydetail?.agent_id, enquirydetail?.agent_name, selectedAgent, dispatch]);
   
   // Create mapping for country codes to names
   const countryCodeToName = useMemo(() => {
@@ -315,6 +384,11 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   const handleDateChange = (dateRange) => {
+    // Prevent date changes when data is from enquirydetail
+    if (isDataFromEnquiryDetail) {
+      return;
+    }
+    
     if (dateRange && Array.isArray(dateRange) && dateRange.length === 2) {
       const newStartDate = dateRange[0].toDate ? dateRange[0].toDate() : dateRange[0];
       const newEndDate = dateRange[1].toDate ? dateRange[1].toDate() : dateRange[1];
@@ -532,9 +606,10 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     );
 
     // Set existing tour data in Redux state
-    dispatch(updateSearchState({ location: packageData?.tour?.destination }));
+    const dataSource = packageData?.tour || enquirydetail;
+    dispatch(updateSearchState({ location: dataSource?.destination }));
     dispatch(setId(tourId));
-    dispatch(settourdetails(packageData.tour));
+    dispatch(settourdetails(dataSource));
 
     
 
@@ -553,6 +628,11 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   
 
   const handleGuestChange = (updatedGuestCounts) => {
+    // Prevent guest changes when data is from enquirydetail
+    if (isDataFromEnquiryDetail) {
+      return;
+    }
+    
     setGuestCounts(updatedGuestCounts);
   };
 
@@ -846,7 +926,8 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         maleCount: maleCount,
         femaleCount: femaleCount,
         childrenAges: guestCounts.ages || [],
-      }
+      },
+      enq_id:enquirydetail.enquiry_id || null
     }))
       .unwrap()
       .then((data) => {
@@ -1099,9 +1180,10 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     );
 
     // Set existing tour data in Redux state
-    dispatch(updateSearchState({ location: packageData?.tour?.destination }));
+    const dataSource = packageData?.tour || enquirydetail;
+    dispatch(updateSearchState({ location: dataSource?.destination }));
     dispatch(setId(tourId));
-    dispatch(settourdetails(packageData.tour));
+    dispatch(settourdetails(dataSource));
 
     
 
@@ -1121,6 +1203,27 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   // Determine which handler to use based on packageData presence
   const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id > 0);
   const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;
+  
+  // Determine button text based on data source
+  const getButtonText = () => {
+    if (isDataFromEnquiryDetail) {
+      return '🚀 Create Tour for Enquiry';
+    }
+    if (isUpdatingExistingPackage) {
+      return '🔄 Update Tour Package';
+    }
+    return '🚀 Create Amazing Tour Package';
+  };
+  
+  const getButtonSubtext = () => {
+    if (isDataFromEnquiryDetail) {
+      return '📋 Processing existing enquiry with dates and guest details';
+    }
+    if (isUpdatingExistingPackage) {
+      return '📝 Modify existing tour package details';
+    }
+    return '✨ Build personalized travel experiences in seconds';
+  };
 
   return (
     <Box component="form" onSubmit={handleFormSubmit} sx={{ width: '100%' }}>
@@ -1166,8 +1269,8 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 </Typography>
                 <LocationSearch 
                   onLocationSelect={handleLocationSelect}
-                  defaultDestination={packageData?.tour?.destination}
-                  defaultCity={packageData?.tour?.city}
+                  defaultDestination={getDestinationValue()}
+                  defaultCity={getCityValue()}
                 />
               </Box>
             </Grid>
@@ -1178,16 +1281,17 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 sx={{
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: 'white',
+                  bgcolor: isDataFromEnquiryDetail ? '#f5f5f5' : 'white',
                   border: '1px solid #e2e8f0',
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
                   zIndex: 10,
                   overflow: 'visible',
+                  opacity: isDataFromEnquiryDetail ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: '#3b82f6',
-                    boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
+                    borderColor: isDataFromEnquiryDetail ? '#e2e8f0' : '#3b82f6',
+                    boxShadow: isDataFromEnquiryDetail ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
@@ -1197,7 +1301,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   sx={{ 
                     mb: 0.5, 
                     fontWeight: 600, 
-                    color: '#374151',
+                    color: isDataFromEnquiryDetail ? '#9ca3af' : '#374151',
                     textTransform: 'uppercase',
                     fontSize: '0.65rem',
                     letterSpacing: '0.05em',
@@ -1206,14 +1310,44 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                     gap: 0.5
                   }}
                 >
-                  <CalendarIcon sx={{ color: '#10b981', fontSize: 14 }} />
+                  <CalendarIcon sx={{ color: isDataFromEnquiryDetail ? '#9ca3af' : '#10b981', fontSize: 14 }} />
                   Travel Dates
+                  {isDataFromEnquiryDetail && (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        ml: 1, 
+                        color: '#6b7280', 
+                        fontSize: '0.6rem',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      (Locked)
+                    </Typography>
+                  )}
                 </Typography>
-                <DateRangePicker 
-                  onDateChange={handleDateChange}
-                  defaultCheckIn={packageData?.tour?.check_in_time}
-                  defaultCheckOut={packageData?.tour?.check_out_time}
-                />
+                <Box sx={{ position: 'relative' }}>
+                  <DateRangePicker 
+                    onDateChange={handleDateChange}
+                    defaultCheckIn={packageData?.tour?.check_in_time || enquirydetail?.check_in_time}
+                    defaultCheckOut={packageData?.tour?.check_out_time || enquirydetail?.check_out_time}
+                    isDataFromEnquiryDetail={isDataFromEnquiryDetail}
+                  />
+                  {isDataFromEnquiryDetail && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        bgcolor: 'transparent',
+                        zIndex: 10,
+                        cursor: 'not-allowed'
+                      }}
+                    />
+                  )}
+                </Box>
               </Box>
             </Grid>
 
@@ -1223,16 +1357,17 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 sx={{
                   p: 1,
                   borderRadius: 1.5,
-                  bgcolor: 'white',
+                  bgcolor: isDataFromEnquiryDetail ? '#f5f5f5' : 'white',
                   border: '1px solid #e2e8f0',
                   height: '100%',
                   minHeight: '60px',
                   position: 'relative',
                   zIndex: 9,
                   overflow: 'visible',
+                  opacity: isDataFromEnquiryDetail ? 0.7 : 1,
                   '&:hover': {
-                    borderColor: '#3b82f6',
-                    boxShadow: '0 2px 6px rgba(59, 130, 246, 0.1)'
+                    borderColor: isDataFromEnquiryDetail ? '#e2e8f0' : '#3b82f6',
+                    boxShadow: isDataFromEnquiryDetail ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
@@ -1242,7 +1377,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   sx={{ 
                     mb: 0.5, 
                     fontWeight: 600, 
-                    color: '#374151',
+                    color: isDataFromEnquiryDetail ? '#9ca3af' : '#374151',
                     textTransform: 'uppercase',
                     fontSize: '0.65rem',
                     letterSpacing: '0.05em',
@@ -1251,13 +1386,43 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                     gap: 0.5
                   }}
                 >
-                  <PeopleIcon sx={{ color: '#f59e0b', fontSize: 14 }} />
+                  <PeopleIcon sx={{ color: isDataFromEnquiryDetail ? '#9ca3af' : '#f59e0b', fontSize: 14 }} />
                   Guests
+                  {isDataFromEnquiryDetail && (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        ml: 1, 
+                        color: '#6b7280', 
+                        fontSize: '0.6rem',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      (Locked)
+                    </Typography>
+                  )}
                 </Typography>
-                <PaxSelector 
-                  guestCounts={guestCounts}
-                  onGuestChange={handleGuestChange}
-                />
+                <Box sx={{ position: 'relative' }}>
+                  <PaxSelector 
+                    guestCounts={guestCounts}
+                    onGuestChange={handleGuestChange}
+                    disabled={isDataFromEnquiryDetail}
+                  />
+                  {isDataFromEnquiryDetail && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        bgcolor: 'transparent',
+                        zIndex: 10,
+                        cursor: 'not-allowed'
+                      }}
+                    />
+                  )}
+                </Box>
               </Box>
             </Grid>
 
@@ -1397,12 +1562,16 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 fontWeight: 700,
                 textTransform: 'none',
                 minWidth: '280px',
-                background: isUpdatingExistingPackage 
-                  ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: isUpdatingExistingPackage
-                  ? '0 8px 32px rgba(16, 185, 129, 0.4)'
-                  : '0 8px 32px rgba(102, 126, 234, 0.4)',
+                background: isDataFromEnquiryDetail
+                  ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+                  : isUpdatingExistingPackage 
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: isDataFromEnquiryDetail
+                  ? '0 8px 32px rgba(107, 114, 128, 0.4)'
+                  : isUpdatingExistingPackage
+                    ? '0 8px 32px rgba(16, 185, 129, 0.4)'
+                    : '0 8px 32px rgba(102, 126, 234, 0.4)',
                 position: 'relative',
                 overflow: 'hidden',
                 color: 'white',
@@ -1417,24 +1586,28 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                   transition: 'left 0.5s ease'
                 },
                 '&:hover': {
-                  background: isUpdatingExistingPackage
-                    ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                    : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                  boxShadow: isUpdatingExistingPackage
-                    ? '0 12px 40px rgba(16, 185, 129, 0.6)'
-                    : '0 12px 40px rgba(102, 126, 234, 0.6)',
-                  transform: 'translateY(-3px) scale(1.02)',
+                  background: isDataFromEnquiryDetail
+                    ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
+                    : isUpdatingExistingPackage
+                      ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                      : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                  boxShadow: isDataFromEnquiryDetail
+                    ? '0 12px 40px rgba(107, 114, 128, 0.6)'
+                    : isUpdatingExistingPackage
+                      ? '0 12px 40px rgba(16, 185, 129, 0.6)'
+                      : '0 12px 40px rgba(102, 126, 234, 0.6)',
+                  transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-3px) scale(1.02)',
                   '&::before': {
                     left: '100%'
                   }
                 },
                 '&:active': {
-                  transform: 'translateY(-1px) scale(1.01)'
+                  transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-1px) scale(1.01)'
                 },
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
             >
-              {isUpdatingExistingPackage ? '🔄 Update Tour Package' : '🚀 Create Amazing Tour Package'}
+              {getButtonText()}
             </Button>
           </Box>
           
@@ -1448,9 +1621,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                 fontStyle: 'italic'
               }}
             >
-              {isUpdatingExistingPackage 
-                ? '📝 Modify existing tour package details' 
-                : '✨ Build personalized travel experiences in seconds'}
+              {getButtonSubtext()}
             </Typography>
           </Box>
         </Grid>

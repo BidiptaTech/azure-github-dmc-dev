@@ -57,6 +57,7 @@ import { fetchEnquiries } from '@/slice/enquiries/enquiryListSlice';
 import { convertEnquiresToTourId } from '@/slice/enquiries/enquiryToTourSlice';
 import { unwrapResult } from '@reduxjs/toolkit';
 import { fetchLists } from '@/slice/common/TourlistSlice';
+import { useNavigate } from 'react-router-dom';
 // Import the render service components
 import {
   RenderHotelDetails,
@@ -84,6 +85,7 @@ const modalStyle = {
 };
 
 const EnquiryList = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { enquiries, status, error, stats } = useSelector(
     (state) => state.bookingEnquiry
@@ -346,11 +348,18 @@ const EnquiryList = () => {
       // Wait for conversion to complete
       await dispatch(
         convertEnquiresToTourId({ agentId, enquiryID: enquiryId })
-      ).unwrap();
+      ).unwrap()
+      .then((response) => {
+        navigate("/dashboard/tour-packages");
+        console.log("Full Response Data:", response);
+      })
+      .catch((error) => {
+        console.error("Error fetching booking:", error);
+      });
 
       // Then refresh the enquiry list
-      dispatch(fetchEnquiries());
-      dispatch(fetchLists(agentId));
+      // dispatch(fetchEnquiries());
+      // dispatch(fetchLists(agentId));
     } catch (error) {
       console.error("Conversion failed:", error);
       // Optionally show a toast or error message here
