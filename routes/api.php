@@ -23,7 +23,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/listofenquiry', 'App\Http\Controllers\Api\EnquiryController@listofenquiry');
     Route::post('/update-enquiry-form', 'App\Http\Controllers\Api\EnquiryController@UpdateEnquiryForm');
     Route::get('/zone-price', 'App\Http\Controllers\Api\ZoneController@zonewisePrice');
-    Route::post('/create-enquiry-tour', 'App\Http\Controllers\Api\EnquiryController@enquiryToTour');
+    Route::get('/create-enquiry-tour', 'App\Http\Controllers\Api\EnquiryController@enquiryToTour');
 
     Route::get('/hotel-details', 'App\Http\Controllers\Api\HotelController@details');
 

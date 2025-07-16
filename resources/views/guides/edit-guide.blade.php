@@ -261,7 +261,21 @@
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <input id="country" class="form-control" type="text" value="{{$guide->country}}" onchange="validateDriverAge(document.getElementById('driver_age'))" readonly>
+                                
+                                @if(in_array(auth()->user()->role_id, [1, 20]))
+                                    <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                        <option value="">Select Country</option>
+                                        @foreach($country as $countryOption)
+                                            <option value="{{ $countryOption->name }}" 
+                                                {{ $guide->country == $countryOption->name ? 'selected' : '' }}>
+                                                {{ $countryOption->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input id="country" class="form-control" type="text" value="{{$guide->country}}" onchange="validateDriverAge(document.getElementById('driver_age'))" readonly>
+                                @endif
+                                
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -728,6 +742,55 @@
             tags: true,
             width: '100%'
         });
+        
+        // Handle country change for role_id 1 and 20 to load cities
+        var userRoleId = {{ auth()->user()->role_id }};
+        if ([1, 20].includes(userRoleId)) {
+            $('#country').change(function() {
+                var countryName = $(this).val();
+                
+                // Clear city select
+                $('#citySelect').empty().trigger('change');
+                
+                if (countryName) {
+                    // Show loading state
+                    $('#citySelect').append('<option value="">Loading cities...</option>').trigger('change');
+                    
+                    $.ajax({
+                        url: "{{ route('get.cities.by.country') }}",
+                        type: "GET",
+                        data: { 
+                            country: countryName
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            // Clear loading state
+                            $('#citySelect').empty();
+                            
+                            // Add default option
+                            $('#citySelect').append('<option value="">Select or type a city</option>');
+                            
+                            // Add cities from response
+                            if (response.cities && response.cities.length > 0) {
+                                $.each(response.cities, function(key, city) {
+                                    $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                                });
+                            }
+                            
+                            // Trigger change to refresh Select2
+                            $('#citySelect').trigger('change');
+                        },
+                        error: function(xhr, status, error) {
+                            $('#citySelect').empty();
+                            $('#citySelect').append('<option value="">Error loading cities</option>');
+                            $('#citySelect').trigger('change');
+                        }
+                    });
+                } else {
+                    $('#citySelect').append('<option value="">Select a country first</option>').trigger('change');
+                }
+            });
+        }
     });
 </script>
 
