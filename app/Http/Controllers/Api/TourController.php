@@ -428,6 +428,7 @@ class TourController extends Controller
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
                 'order_from' => $order_from,
+                'created_at' => $tour->created_at->format('Y-m-d H:i:s'),
             ];
         }
 
