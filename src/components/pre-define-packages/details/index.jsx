@@ -472,15 +472,7 @@ const PackageDetailsContainer = () => {
     }
   }, [dispatch, id]);
 
-  // Add a separate effect to log package details when they're loaded
-  useEffect(() => {
-    if (packageDetails) {
-      // console.log('API Response - Package Details:', packageDetails);
-      // console.log('API Response - All fields:', Object.keys(packageDetails));
-      // console.log('API Response - Selected Hotels:', packageDetails.selected_hotels);
-      // console.log('API Response - Selected Attractions:', packageDetails.selected_attractions);
-    }
-  }, [packageDetails]);
+
 
   // Initialize day refs and selected items when package details load
   useEffect(() => {
@@ -502,14 +494,14 @@ const PackageDetailsContainer = () => {
 
       // Process the API response data structure
       try {
-        // console.log('Processing package details...');
+       
         
         // First, try to parse the itinerary JSON if it exists (this contains the detailed day-wise data)
         let parsedItinerary = null;
         if (typeof updatedPackageDetails.itinerary === 'string' && updatedPackageDetails.itinerary) {
           try {
             parsedItinerary = JSON.parse(updatedPackageDetails.itinerary);
-            // console.log('Parsed itinerary:', parsedItinerary);
+          
           } catch (e) {
             console.error('Error parsing itinerary JSON:', e);
           }
@@ -517,7 +509,7 @@ const PackageDetailsContainer = () => {
 
         // Handle hotels - prioritize parsed itinerary data
         if (parsedItinerary && parsedItinerary.hotels && Array.isArray(parsedItinerary.hotels)) {
-          // console.log('Setting hotels from parsed itinerary:', parsedItinerary.hotels);
+         
           setSelectedHotels(parsedItinerary.hotels.map(hotel => ({
             ...hotel,
             name: hotel.name || "Unknown Hotel",
@@ -536,7 +528,7 @@ const PackageDetailsContainer = () => {
 
         // Handle attractions and guides from parsed itinerary (day-wise data)
         if (parsedItinerary && parsedItinerary.itinerary && Array.isArray(parsedItinerary.itinerary)) {
-          // console.log('Processing day-wise itinerary data:', parsedItinerary.itinerary);
+          
           
           const allAttractions = [];
           const bookedByDay = {};
@@ -544,7 +536,7 @@ const PackageDetailsContainer = () => {
           const guidesByDay = {};
 
           parsedItinerary.itinerary.forEach((dayData, index) => {
-            // console.log(`Processing day ${index + 1}:`, dayData);
+          
             
             // Process attractions for this day
             if (dayData && dayData.attractions && Array.isArray(dayData.attractions)) {
@@ -581,10 +573,7 @@ const PackageDetailsContainer = () => {
             }
           });
 
-          // console.log('Processed attractions:', allAttractions);
-          // console.log('Booked attractions by day:', bookedByDay);
-          // console.log('Processed guides:', allGuides);
-          // console.log('Guides by day:', guidesByDay);
+      
 
           setSelectedAttractions(allAttractions);
           setBookedAttractions(bookedByDay);
@@ -594,7 +583,7 @@ const PackageDetailsContainer = () => {
           setGuidesByDay(guidesByDay);
           
           // Debug: Log guides by day
-          console.log('Main Component - Guides by day set:', guidesByDay);
+         
           
           // Store parsed itinerary for transport service checks
           setParsedItineraryData(parsedItinerary);
@@ -649,7 +638,7 @@ const PackageDetailsContainer = () => {
 
       // Set current package details with updates
       setCurrentPackageDetails(updatedPackageDetails);
-      // console.log('Set current package details:', updatedPackageDetails);
+    
     }
   }, [packageDetails, searchParams]);
 
@@ -678,7 +667,7 @@ const PackageDetailsContainer = () => {
 
   // Handlers for hotel and guide selection
   const handleHotelSelect = (hotelId) => {
-    // console.log(`Selected hotel: ${hotelId}`);
+   
     setSelectedHotelId(hotelId);
   };
 
@@ -774,7 +763,7 @@ const PackageDetailsContainer = () => {
   }
 
   if (!packageDetails) {
-    // console.log('No package details found');
+   
     return (
       <Container>
         <Box sx={{ mt: 4 }}>
@@ -792,10 +781,6 @@ const PackageDetailsContainer = () => {
     );
   }
 
-  // console.log('Rendering with package details:', packageDetails);
-  // console.log('Selected hotels:', selectedHotels);
-  // console.log('Selected attractions:', selectedAttractions);
-  // console.log('Booked attractions:', bookedAttractions);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>

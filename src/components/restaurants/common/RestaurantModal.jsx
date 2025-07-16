@@ -49,6 +49,9 @@ export default function RestaurantModal({
   bookings = [],
   date,
 }) {
+  // Debug logging to see what data is being received
+  console.log('RestaurantModal - Received bookings:', bookings);
+  console.log('RestaurantModal - Received date:', date);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [currentRestaurantDetails, setCurrentRestaurantDetails] = useState(null);
@@ -209,8 +212,40 @@ export default function RestaurantModal({
   };
 
   const filteredBookings = Array.isArray(bookings)
-    ? bookings.filter((booking) => booking.bookingDate === date)
+    ? bookings.filter((booking) => {
+        // Only show restaurant bookings
+        const isRestaurantBooking = booking.restaurantId || 
+                                   booking.restaurantName || 
+                                   booking.mealType || 
+                                   booking.mealSpecificType ||
+                                   (booking.serviceType && booking.serviceType === 'restaurant');
+        
+        // Explicitly exclude attraction bookings
+        const isAttractionBooking = booking.attractionId || 
+                                   booking.AttractionId ||
+                                   booking.AttractionName || 
+                                   booking.ticketId ||
+                                   booking.ticketName ||
+                                   booking.package_type === 1 ||
+                                   booking.bookingType === 'package';
+        
+        const shouldInclude = booking.bookingDate === date && isRestaurantBooking && !isAttractionBooking;
+        
+        // Debug logging for filtered bookings
+        if (booking.bookingDate === date) {
+          console.log('RestaurantModal - Booking being evaluated:', {
+            booking,
+            isRestaurantBooking,
+            isAttractionBooking,
+            shouldInclude
+          });
+        }
+        
+        return shouldInclude;
+      })
     : [];
+    
+  console.log('RestaurantModal - Filtered bookings:', filteredBookings);
     
   const capitalizeFirstLetter = (str) => {
     return typeof str === "string" && str.length > 0
