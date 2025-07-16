@@ -23,11 +23,11 @@ const BlogNewsSection = () => {
     {
       id: 1,
       title: "The Surfing Man Will Blow Your Mind",
-      image: "/img/destinations/1/1.png",
+      image: "/Images/landingpage/Blogs/1.jpg",
       date: {
         day: "17",
         month: "Mar"
-      },
+      },  
       author: "Admin",
       category: "Travel",
       excerpt: "Discover the ultimate surfing experience with breathtaking waves and stunning scenery.",
@@ -36,7 +36,7 @@ const BlogNewsSection = () => {
     {
       id: 2,
       title: "The Surfing Man Will Blow Your Mind",
-      image: "/img/destinations/1/2.png",
+      image: "/Images/landingpage/Blogs/2.jpg",
       date: {
         day: "15",
         month: "Dec"
@@ -49,7 +49,7 @@ const BlogNewsSection = () => {
     {
       id: 3,
       title: "The Surfing Man Will Blow Your Mind",
-      image: "/img/destinations/1/3.png",
+      image: "/Images/landingpage/Blogs/3.jpg",
       date: {
         day: "20",
         month: "Feb"
@@ -62,7 +62,7 @@ const BlogNewsSection = () => {
     {
       id: 4,
       title: "The Surfing Man Will Blow Your Mind",
-      image: "/img/destinations/1/4.png",
+      image: "/Images/landingpage/Blogs/4.jpg",
       date: {
         day: "27",
         month: "Feb"

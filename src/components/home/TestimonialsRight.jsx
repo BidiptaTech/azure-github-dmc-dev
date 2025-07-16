@@ -130,7 +130,7 @@ const TestimonialsRight = ({ testimonials, currentTestimonial,onPrevious, onNext
       >
         <Box
           component="img"
-          src="/img/destinations/1/2.png"
+          src="/Images/landingpage/destination/Indonesia/5.jpg"
           alt="Destination Cut"
           sx={{
             width: '100%',

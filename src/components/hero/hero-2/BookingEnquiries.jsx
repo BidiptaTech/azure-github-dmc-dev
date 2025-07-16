@@ -34,6 +34,7 @@ import {
   Clear as ClearIcon,
   Help as HelpIcon,
   CheckCircle as CheckCircleIcon,
+  ConfirmationNumber as ConfirmationNumberIcon,
 } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -51,6 +52,7 @@ import RestaurantSearch from "./RestaurantSearch";
 import PreferredGuidesSearch from "./PreferredGuidesSearch";
 import AttractionDropOffSearch from "./AttractionDropOffSearch";
 import RestaurantDropOffSearch from "./RestaurantDropOffSearch";
+import PackageAttractionSearch from "./PackageAttractionSearch";
 
 // Service category colors
 const serviceColors = {
@@ -95,6 +97,13 @@ const serviceColors = {
     dark: "#01579b",
     contrastText: "#fff",
     bg: "rgba(2, 136, 209, 0.08)",
+  },
+  packagedAttractions: {
+    main: "#009688",
+    light: "#4db6ac",
+    dark: "#00695c",
+    contrastText: "#fff",
+    bg: "rgba(0, 150, 136, 0.08)",
   },
 };
 
@@ -263,6 +272,8 @@ const getServiceDescription = (option) => {
       return "Choose your transportation for arrival and departure, including car type and locations.";
     case "attraction":
       return "Add attractions to your itinerary with optional transportation services.";
+    case "packagedAttractions":
+      return "Select from available packaged attraction deals, which include multiple attractions bundled together.";
     case "localTour":
       return "Arrange for local tours with transportation in your destination city.";
     case "tourGuide":
@@ -328,6 +339,7 @@ const BookingEnquiries = ({
     localTour: false,
     tourGuide: false,
     restaurant: false,
+    packagedAttractions: false,
   });
 
   // We need to make sure bookingOptions is properly initialized
@@ -340,6 +352,7 @@ const BookingEnquiries = ({
       "localTour",
       "tourGuide",
       "restaurant",
+      "packagedAttractions",
     ].every((key) => typeof bookingOptions[key] === "boolean");
 
     if (!hasAllOptions) {
@@ -351,6 +364,7 @@ const BookingEnquiries = ({
         localTour: false,
         tourGuide: false,
         restaurant: false,
+        packagedAttractions: false,
         // Don't spread prev to avoid retaining any true values from previous state
       }));
     }
@@ -704,6 +718,18 @@ const BookingEnquiries = ({
     );
   };
 
+  // Handle packaged attractions selection
+  const [selectedPackagedAttractions, setSelectedPackagedAttractions] = useState([]);
+  const handlePackagedAttractionsSelect = (packages) => {
+    setSelectedPackagedAttractions(packages);
+    dispatch(
+      updateServiceDetails({
+        service: "packagedAttractions",
+        data: { selectedPackagedAttractions: packages },
+      })
+    );
+  };
+
   // Handle form submission to go to next step
   const handleSubmitForm = () => {
     console.log("Form submitted - saving all data to Redux");
@@ -756,6 +782,15 @@ const BookingEnquiries = ({
               }
             }));
             break;
+            case 'packagedAttractions':
+              dispatch(updateServiceDetails({
+                service: 'packagedAttractions',
+                data: {
+                  selectedPackagedAttractions: selectedPackagedAttractions || [],
+                  remarks: enquiryData.serviceDetails?.packagedAttractions?.remarks || ""
+                }
+              }));
+              break;
             
           case 'localTour':
             dispatch(updateServiceDetails({
@@ -791,6 +826,8 @@ const BookingEnquiries = ({
             }));
             break;
             
+        
+            
           default:
             break;
         }
@@ -810,6 +847,7 @@ const BookingEnquiries = ({
     setDestinationType("hotel");
     setSelectedDestinations([]);
     setSelectedCars([]);
+    setSelectedPackagedAttractions([]);
     
     // Reset form fields by clearing the form input elements
     const inputElements = document.querySelectorAll('input[type="text"], textarea');
@@ -824,7 +862,8 @@ const BookingEnquiries = ({
       attraction: false,
       localTour: false,
       tourGuide: false,
-      restaurant: false
+      restaurant: false,
+      packagedAttractions: false
     });
     
     // Continue to next step
@@ -841,12 +880,15 @@ const BookingEnquiries = ({
         return <LocationIcon />;
       case "attraction":
         return <TicketIcon />;
+        case "packagedAttractions":
+          return <ConfirmationNumberIcon />;
       case "localTour":
         return <PlaceIcon />;
       case "tourGuide":
         return <PersonIcon />;
       case "restaurant":
         return <RestaurantIcon />;
+      // Or another suitable icon
       default:
         return null;
     }
@@ -860,12 +902,15 @@ const BookingEnquiries = ({
         return "Transport Services";
       case "attraction":
         return "Attraction Services";
+      case "packagedAttractions":
+        return "Packaged Attraction Services";
       case "localTour":
         return "Local Tour Services";
       case "tourGuide":
         return "Guide Services";
       case "restaurant":
         return "Dining Services";
+    
       default:
         return "";
     }
@@ -879,12 +924,15 @@ const BookingEnquiries = ({
         return "Entry/Exit Port";
       case "attraction":
         return "Attraction";
+        case "packagedAttractions":
+          return "Packaged Attractions";
       case "localTour":
         return "Local Tour";
       case "tourGuide":
         return "Tour Guide";
       case "restaurant":
         return "Restaurant";
+     
       default:
         return "";
     }
@@ -1740,7 +1788,34 @@ const BookingEnquiries = ({
                             </Grid>
                           </>
                         )}
-
+                        {option === "packagedAttractions" && (
+                          <>
+                            <Grid item xs={12}>
+                              <PackageAttractionSearch onSelect={handlePackagedAttractionsSelect} />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                multiline
+                                rows={3}
+                                label="Remarks"
+                                variant="outlined"
+                                placeholder="Add any special requests for packaged attractions"
+                                onChange={e => dispatch(updateServiceDetails({ service: "packagedAttractions", data: { remarks: e.target.value } }))}
+                                sx={{
+                                  '& .MuiOutlinedInput-root': {
+                                    '&.Mui-focused fieldset': {
+                                      borderColor: serviceColors[option]?.main
+                                    }
+                                  },
+                                  '& .MuiInputLabel-root.Mui-focused': {
+                                    color: serviceColors[option]?.main
+                                  }
+                                }}
+                              />
+                            </Grid>
+                          </>
+                        )}
                         {option === "localTour" && (
                           <>
                             <Grid item xs={12}>
@@ -1915,6 +1990,9 @@ const BookingEnquiries = ({
                             </Grid>
                           </>
                         )}
+                        
+                    
+                        
                       </Grid>
                     </Box>
                   )}

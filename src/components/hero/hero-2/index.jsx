@@ -14,9 +14,10 @@ const Index = () => {
     hotel: false,
     entryExitPort: false,
     attraction: false,
+    packagedAttractions: false,
     localTour: false,
     tourGuide: false,
-    restaurant: false
+    restaurant: false,
   });
   
   // Add state for modal
@@ -58,7 +59,8 @@ const Index = () => {
       attraction: false,
       localTour: false,
       tourGuide: false,
-      restaurant: false
+      restaurant: false,
+      packagedAttractions: false
     });
   };
   

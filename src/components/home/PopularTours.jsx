@@ -43,7 +43,7 @@ const PopularTours = () => {
       duration: "6 Days, 3 Night",
       rating: 4.0,
       reviews: 10,
-      image: "/img/destinations/1/1.png",
+      image: "/Images/landingpage/destination/Vietnam/6.jpg",
       discount: "40% Off",
       featured: true,
       price: "$59.00"
@@ -55,7 +55,7 @@ const PopularTours = () => {
       duration: "6 Days, 3 Night",
       rating: 4.0,
       reviews: 8,
-      image: "/img/destinations/1/2.png",
+      image: "/Images/landingpage/destination/Vietnam/4.jpg",
       discount: null,
       featured: true,
       price: "$450.00"
@@ -67,7 +67,7 @@ const PopularTours = () => {
       duration: "6 Days, 3 Night",
       rating: 4.2,
       reviews: 12,
-      image: "/img/destinations/1/3.png",
+      image: "/Images/landingpage/destination/Thailand/3.jpg",
       discount: null,
       featured: true,
       price: "$380.00"
@@ -79,7 +79,7 @@ const PopularTours = () => {
       duration: "5 Days, 4 Night",
       rating: 4.8,
       reviews: 25,
-      image: "/img/destinations/1/1.png",
+      image: "/Images/landingpage/destination/Malaysia/2.jpg",
       discount: "25% Off",
       featured: true,
       price: "$899.00"
@@ -91,7 +91,7 @@ const PopularTours = () => {
       duration: "7 Days, 6 Night",
       rating: 4.5,
       reviews: 18,
-      image: "/img/destinations/1/2.png",
+      image: "/Images/landingpage/destination/Malaysia/3.jpg", 
       discount: "30% Off",
       featured: false,
       price: "$1200.00"
@@ -103,7 +103,7 @@ const PopularTours = () => {
       duration: "4 Days, 3 Night",
       rating: 4.3,
       reviews: 15,
-      image: "/img/destinations/1/3.png",
+      image: "/Images/landingpage/destination/Malaysia/5.jpg",
       discount: null,
       featured: true,
       price: "$650.00"

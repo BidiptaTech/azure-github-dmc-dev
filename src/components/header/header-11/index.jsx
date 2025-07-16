@@ -49,7 +49,7 @@ const Header1 = () => {
           <div className="row justify-between items-center" style={{ position: "relative" }}>
             <div className="col-auto" style={{ width: "85%", marginRight: "auto" }}>
               <div className="d-flex items-center">
-                <Link to="/" className="header-logo mr-25">
+                <Link to="/dashboard/db-dashboard" className="header-logo mr-25">
                   <div
                     style={{
                       display: "inline-block",

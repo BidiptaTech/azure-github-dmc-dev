@@ -12,6 +12,7 @@ const initialState = {
   guides: [],
   vehicles: [],
   ports: [],
+  packaged_attractions: [], // <-- add this
   loading: false,
   error: null,
 };
@@ -136,6 +137,7 @@ const enquiryListSlice = createSlice({
       state.guides = [];
       state.vehicles = [];
       state.ports = [];
+      state.packaged_attractions = [];
       state.error = null;
     },
   },
@@ -155,6 +157,7 @@ const enquiryListSlice = createSlice({
         state.guides = action.payload.guides || [];
         state.vehicles = action.payload.vehicles || [];
         state.ports = action.payload.ports || [];
+        state.packaged_attractions = action.payload.packaged_attractions || [];
       })
       .addCase(fetchEnquiryList.rejected, (state, action) => {
         console.error("FETCH ENQUIRY LIST - Status: REJECTED with error:", action.payload);
