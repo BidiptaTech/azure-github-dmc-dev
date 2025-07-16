@@ -46,7 +46,7 @@ export const fetchTourPackages = createAsyncThunk(
       }
 
       // Extract search parameters
-      const { country, city, checkIn, checkOut, guests } = searchParams;
+      const { country, city, checkIn, checkOut, guests, enq_id } = searchParams;
 
       // Make API request to get tour packages
       const response = await axios.post(
@@ -61,7 +61,8 @@ export const fetchTourPackages = createAsyncThunk(
           infant: guests.infants,
           male: guests.maleCount || 0,
           female: guests.femaleCount || 0,
-          children_ages: guests.childrenAges ? guests.childrenAges.join(", ") : ""
+          children_ages: guests.childrenAges ? guests.childrenAges.join(", ") : "",
+          enquiry_id: enq_id || null
         },
         {
           headers: {

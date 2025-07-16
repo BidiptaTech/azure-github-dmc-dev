@@ -71,7 +71,7 @@ const initialFormState = {
   price: 0,
 };
 
-export default function LocalTransportComponent({ dayIndex = 0, date , PointToPoint, Hourly, LocalTransports, tourDates = [] }) {
+const LocalTransportComponent = React.memo(function LocalTransportComponent({ dayIndex = 0, date , PointToPoint, Hourly, LocalTransports, tourDates = [] }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   // Redux selectors
@@ -129,7 +129,74 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   // Track which bookings have already been saved to Redux
   const [savedBookingIds, setSavedBookingIds] = useState([]);
 
+  // Flag to track if initialization has been done for this specific component instance
+  const [hasInitializedBookings, setHasInitializedBookings] = useState(false);
+  const [hasDispatchedToRedux, setHasDispatchedToRedux] = useState(false);
+  const [lastInitializationKey, setLastInitializationKey] = useState('');
+  
+  // Use ref to track if initialization has already been attempted for this component instance
+  const initializationAttempted = useRef(false);
+  
+  // Create a unique key for this component instance to prevent double initialization
+  const initializationKey = useMemo(() => {
+    return `${dayIndex}-${date}-${PointToPoint?.length || 0}-${Hourly?.length || 0}-${LocalTransports?.length || 0}`;
+  }, [dayIndex, date, PointToPoint?.length, Hourly?.length, LocalTransports?.length]);
+  
+  // Initialize bookings from props data when available - only run once and prevent re-initialization
+  useEffect(() => {
+    // Hard stop - if initial setup is already complete, never initialize again
+    if (isInitialSetupComplete) {
+      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (setup already complete)`);
+      return;
+    }
+    
+    // Skip if we've already initialized for this specific instance
+    if (hasInitializedBookings && lastInitializationKey === initializationKey) {
+      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already initialized for key: ${initializationKey})`);
+      return;
+    }
+    
+    if ((PointToPoint && PointToPoint.length > 0) || 
+        (Hourly && Hourly.length > 0) || 
+        (LocalTransports && LocalTransports.length > 0)) {
+      
+      console.log(`Local Transport - Initializing bookings for dayIndex ${dayIndex} with key: ${initializationKey}`);
+      
+      // Mark initialization as done for this key
+      setHasInitializedBookings(true);
+      setLastInitializationKey(initializationKey);
 
+      // Get all bookings from props
+      const initializedBookings = initializeBookingsFromProps();
+
+      if (initializedBookings.length > 0) {
+        console.log(`Local Transport - Setting ${initializedBookings.length} bookings in local state for dayIndex ${dayIndex}`);
+        // Set the bookings in local state - replace any existing bookings for this component
+        setAllBookings(initializedBookings);
+        setExpandedSections(initializedBookings.map((_, index) => index));
+
+        // Update search performed state for the transport types that have data
+        const transportTypesWithData = [...new Set(initializedBookings.map(b => b.transportType))];
+        setSearchPerformed(prev => {
+          const updated = { ...prev };
+          transportTypesWithData.forEach(type => {
+            updated[type] = true;
+          });
+          return updated;
+        });
+      } else {
+        console.log(`Local Transport - No bookings found after filtering for dayIndex ${dayIndex}`);
+      }
+    }
+  }, [
+    // Only depend on dayIndex to prevent re-initialization when props change
+    dayIndex,
+    isInitialSetupComplete,
+    hasInitializedBookings,
+    lastInitializationKey,
+    initializationKey
+    // Remove props from dependencies to prevent re-initialization
+  ]);
 
   // Function to initialize bookings from props data
   const initializeBookingsFromProps = useCallback(() => {
@@ -718,69 +785,34 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
     console.log(`Local Transport - Cleared saved booking IDs and reset flags for new dayIndex: ${dayIndex}`);
   }, [dayIndex, dispatch]);
 
-  // Flag to track if initialization has been done for this specific component instance
-  const [hasInitializedBookings, setHasInitializedBookings] = useState(false);
-  const [hasDispatchedToRedux, setHasDispatchedToRedux] = useState(false);
-  const [lastInitializationKey, setLastInitializationKey] = useState('');
-  
-  // Use ref to track if initialization has already been attempted for this component instance
-  const initializationAttempted = useRef(false);
-  
-  // Create a unique key for this component instance to prevent double initialization
-  const initializationKey = useMemo(() => {
-    return `${dayIndex}-${date}-${PointToPoint?.length || 0}-${Hourly?.length || 0}-${LocalTransports?.length || 0}`;
-  }, [dayIndex, date, PointToPoint?.length, Hourly?.length, LocalTransports?.length]);
-  
-  // Initialize bookings from props data when available - only run once and prevent re-initialization
+  // Dispatch initialized bookings to Redux - only run once and prevent re-dispatching
   useEffect(() => {
-    // Hard stop - if initial setup is already complete, never initialize again
+    // Hard stop - if initial setup is already complete, never dispatch again
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (setup already complete)`);
+      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (setup already complete)`);
       return;
     }
     
-    // Hard stop - if we've already attempted initialization for this component instance
-    if (initializationAttempted.current) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already attempted)`);
+    // Hard stop - if we've already dispatched for this component instance
+    if (hasDispatchedToRedux) {
+      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (already dispatched)`);
       return;
     }
     
-    if ((PointToPoint && PointToPoint.length > 0) || 
-        (Hourly && Hourly.length > 0) || 
-        (LocalTransports && LocalTransports.length > 0)) {
-      
-      console.log(`Local Transport - Initializing bookings for dayIndex ${dayIndex} with key: ${initializationKey}`);
-      
-      // Mark initialization as attempted
-      initializationAttempted.current = true;
-      setHasInitializedBookings(true);
-      setLastInitializationKey(initializationKey);
-
-      // Get all bookings from props
-      const initializedBookings = initializeBookingsFromProps();
-
-      if (initializedBookings.length > 0) {
-        console.log(`Local Transport - Setting ${initializedBookings.length} bookings in local state for dayIndex ${dayIndex}`);
-        // Set the bookings in local state - replace any existing bookings for this component
-        setAllBookings(initializedBookings);
-        setExpandedSections(initializedBookings.map((_, index) => index));
-
-        // Update search performed state for the transport types that have data
-        const transportTypesWithData = [...new Set(initializedBookings.map(b => b.transportType))];
-        setSearchPerformed(prev => {
-          const updated = { ...prev };
-          transportTypesWithData.forEach(type => {
-            updated[type] = true;
-          });
-          return updated;
-        });
-      } else {
-        console.log(`Local Transport - No bookings found after filtering for dayIndex ${dayIndex}`);
-      }
+    if (hasInitializedBookings) {
+      console.log(`Local Transport - Dispatching initialized bookings to Redux for dayIndex ${dayIndex}`);
+      dispatchInitializedBookingsToRedux(allBookings);
+      setHasDispatchedToRedux(true);
+      setIsInitialSetupComplete(true); // Mark setup as complete after dispatching
     }
   }, [
     // Only run when component mounts or dayIndex changes
-    dayIndex
+    dayIndex,
+    hasInitializedBookings,
+    hasDispatchedToRedux,
+    isInitialSetupComplete,
+    dispatchInitializedBookingsToRedux,
+    allBookings
   ]);
 
   // Separate effect to dispatch original bookings to Redux - only once
@@ -888,14 +920,6 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
   useEffect(() => {
     // Skip if no bookings or during loading
     if (allBookings.length === 0) return;
-
-
-
-
-
-
-
-
 
     // Find bookings that are complete but not yet saved
     const newCompleteBookings = allBookings.filter((booking, index) => {
@@ -1724,4 +1748,18 @@ export default function LocalTransportComponent({ dayIndex = 0, date , PointToPo
       )}
     </Container>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo to prevent unnecessary re-renders
+  return (
+    prevProps.dayIndex === nextProps.dayIndex &&
+    prevProps.date === nextProps.date &&
+    prevProps.PointToPoint === nextProps.PointToPoint &&
+    prevProps.Hourly === nextProps.Hourly &&
+    prevProps.LocalTransports === nextProps.LocalTransports &&
+    JSON.stringify(prevProps.tourDates) === JSON.stringify(nextProps.tourDates)
+  );
+});
+
+LocalTransportComponent.displayName = 'LocalTransportComponent';
+
+export default LocalTransportComponent;
