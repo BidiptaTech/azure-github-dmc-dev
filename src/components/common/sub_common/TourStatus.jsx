@@ -32,12 +32,12 @@ export default function TourStatus() {
 
   const { checkIn, checkOut } = useSelector((state) => state.bookings);
   const bookings = useSelector((state) => state.attractions.services || []);
-   console.log("bookings", bookings);
+   console.log("Attraction bookings from Redux:", bookings);
 
   const restaurantBooking = useSelector(
     (state) => state.restaurants.services || []
   );
-  // console.log('restaurantBooking',restaurantBooking);
+  console.log('Restaurant bookings from Redux:', restaurantBooking);
 
   const travelPoint = useSelector(
     (state) => state.localtour.pointtopoint || []

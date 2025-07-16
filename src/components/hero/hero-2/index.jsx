@@ -14,9 +14,10 @@ const Index = () => {
     hotel: false,
     entryExitPort: false,
     attraction: false,
+    packagedAttractions: false,
     localTour: false,
     tourGuide: false,
-    restaurant: false
+    restaurant: false,
   });
   
   // Add state for modal
@@ -58,7 +59,8 @@ const Index = () => {
       attraction: false,
       localTour: false,
       tourGuide: false,
-      restaurant: false
+      restaurant: false,
+      packagedAttractions: false
     });
   };
   
@@ -89,8 +91,8 @@ const Index = () => {
       case "bookingEnquiries":
         return (
           <div className="page-container">
-            <h3 className="text-22 text-white mb-5">Select Your Travel Services</h3>
-            <p className="text-14 text-white opacity-80 mb-15">Customize your trip with hotels, transportation, attractions and more.</p>
+            {/* <h3 className="text-22 text-white mb-5">Select Your Travel Services</h3>
+            <p className="text-14 text-white opacity-80 mb-15">Customize your trip with hotels, transportation, attractions and more.</p> */}
             <BookingEnquiries
               bookingOptions={bookingOptions}
               setBookingOptions={setBookingOptions}
@@ -112,8 +114,8 @@ const Index = () => {
       case "confirmDetails":
         return (
           <div className="page-container">
-            <h3 className="text-22 text-white mb-5">Review and Submit Your Itinerary</h3>
-            <p className="text-14 text-white opacity-80 mb-15">Verify all your selected services before finalizing your booking.</p>
+            {/* <h3 className="text-22 text-white mb-5">Review and Submit Your Itinerary</h3>
+            <p className="text-14 text-white opacity-80 mb-15">Verify all your selected services before finalizing your booking.</p> */}
             <ConfirmDetails 
               bookingOptions={bookingOptions} 
               onBack={goToBookingEnquiries}
@@ -145,9 +147,9 @@ const Index = () => {
             <h1 className="z-2 text-50 lg:text-40 md:text-30 fw-600">
               <span className="gradient-text">Customize Your Travel Experience</span>
             </h1>
-            <p className="z-2 text-white mt-5 mx-auto" style={{maxWidth: "600px"}}>
+            {/* <p className="z-2 text-white mt-5 mx-auto" style={{maxWidth: "600px"}}>
               Tailor your journey with premium services and exclusive options
-            </p>
+            </p> */}
           </div>
         );
       case "confirmDetails":
@@ -156,9 +158,9 @@ const Index = () => {
             <h1 className="z-2 text-50 lg:text-40 md:text-30 fw-600">
               <span className="gradient-text">Finalize Your Perfect Itinerary</span>
             </h1>
-            <p className="z-2 text-white mt-5 mx-auto" style={{maxWidth: "600px"}}>
+            {/* <p className="z-2 text-white mt-5 mx-auto" style={{maxWidth: "600px"}}>
               Review your selections and confirm your personalized travel plan
-            </p>
+            </p> */}
           </div>
         );
       default:

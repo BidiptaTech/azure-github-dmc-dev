@@ -330,7 +330,7 @@ const Sidebar = () => {
       </div> */}
       {/* End search box */}
       
-      <div className="sidebar__item">
+      <div className="sidebar__item pr-10">
         <h5 className="text-18 fw-500 mb-10">Price Mode</h5>
         <div className="sidebar-checkbox">
           <PriceModeFilter 
@@ -360,7 +360,7 @@ const Sidebar = () => {
         {/* End Sidebar-checkbox */}
       {/* End popular filter */}
 
-      <div className="sidebar__item pb-30">
+      <div className="sidebar__item pb-30 pr-10">
         <div className="d-flex justify-content-between align-items-center">
           <h5 className="text-18 fw-500 mb-0">Price Range</h5>
           <button 
