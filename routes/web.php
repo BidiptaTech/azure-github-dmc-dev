@@ -18,6 +18,7 @@ use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\HotelRestaurantController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CustomPackageController;
 use App\Http\Controllers\AttractionController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\GuideController;
@@ -74,6 +75,7 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     
     // Updated dashboard routes to use the controller
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/custom-packages/create', [CustomPackageController::class, 'create'])->name('custom-packages.create');
     Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
 
     // Add admin middleware to the hotels endpoint
@@ -454,8 +456,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             
             // Ticket Bulk Upload Routes - Only for DMC (role_id = 11)
             Route::get('/tickets', [App\Http\Controllers\BulkUploadController::class, 'tickets'])->name('tickets');
-            Route::post('/tickets', [App\Http\Controllers\BulkUploadController::class, 'uploadTickets'])->name('tickets.upload');
-            Route::get('/tickets/template', [App\Http\Controllers\BulkUploadController::class, 'downloadTicketTemplate'])->name('tickets.template');
+            Route::post('/tickets/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractionTickets'])->name('tickets.upload');
+            Route::get('/tickets/template/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTicketTemplate'])->name('tickets.template');
             
             // Meal Bulk Upload Routes - Only for DMC (role_id = 11)
             Route::get('/meals', [App\Http\Controllers\BulkUploadController::class, 'meals'])->name('meals');
@@ -588,7 +590,6 @@ Route::get('/test-booking-email', function() {
         ];
     }
 });
-
 
 
 

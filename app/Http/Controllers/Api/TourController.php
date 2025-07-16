@@ -54,6 +54,7 @@ class TourController extends Controller
         ]);
         $countryNames = request()->input('destination');
         $agent_id = request()->header('agent-id') ?? request()->header('agent_id');
+        $enquiryId = $request->enquiry_id;
         $countryArray = array_map('trim', explode(',', $countryNames));
         $cities = City::whereIn('country', $countryArray)
               ->select('name', 'country')
@@ -74,6 +75,13 @@ class TourController extends Controller
 
             $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT); 
             $display_id = 'DMC-ORD'. $tourId;
+            $formEnquiry = null;
+            if($enquiryId){
+            $formEnquiry = EnquiryForm::where('enquiry_id', $enquiryId)
+                                      ->where('agent_id', $agent_id)
+                                      ->whereNull('unique_tour_id')
+                                      ->first();
+            }
             $tour = new Tour();
             $tour->destination = $validatedData['destination'];
             $tour->adult = $validatedData['adult'];
@@ -91,6 +99,10 @@ class TourController extends Controller
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->save();
             $tour->refresh();
+            if($formEnquiry){
+                $formEnquiry->unique_tour_id = $tour->unique_tour_id;
+                $formEnquiry->save();
+            }
 
             $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
             // LogActivityService::log('create_tour', 'App\Models\Tour', $tourId, $tour);
@@ -112,6 +124,7 @@ class TourController extends Controller
                     'total_pax' => $tour->adult + $tour->child,
                     'service' => $service,
                     'city' => $cities,
+                    'EnquiryDetails' => $formEnquiry ?? '',
                 ],
             ], 201);
         } catch (\Exception $e) {
@@ -415,6 +428,7 @@ class TourController extends Controller
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
                 'order_from' => $order_from,
+                'created_at' => $tour->created_at->format('Y-m-d H:i:s'),
             ];
         }
 
