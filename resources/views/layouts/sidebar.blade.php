@@ -486,34 +486,27 @@
                     </a>
                 </li>
 
-                {{-- @if(Auth::user()->role_id == 11)
-                <!-- Special Discount -->
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Special Discount">Special Discount</span>
-                </li>
-
-                <li class="menu-item @if(Request::is('discount*')) open active @endif">
+                <li class="menu-item" style="height: 8px;"></li>
+                @if(in_array(auth()->user()->role_id, [2, 33]))
+                <li class="menu-item @if(Request::is('custom-packages*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-coupon-line"></i>
-                        <div data-i18n="Special Discount">Special Discount</div>
+                        <i class="menu-icon tf-icons ri-gift-line"></i>
+                        <div data-i18n="Custom Packages">Custom Packages</div>
                     </a>
-
                     <ul class="menu-sub">
-                        <!-- Show Discount -->
-                        <li class="menu-item @if(Request::is('discount')) active @endif">
-                            <a href="{{ route('discount.index') }}" class="menu-link">
-                                <div data-i18n="List Discount">List Discount</div>
+                        <!-- <li class="menu-item @if(Request::is('packages') || Request::is('package')) active @endif">
+                            <a href="{{ route('packages.index') }}" class="menu-link">
+                                <div data-i18n="Custom Package Management">Custom Package Management</div>
                             </a>
-                        </li>
-                        <!-- Create Discount -->
-                        <li class="menu-item @if(Request::is('discount/create')) active @endif">
-                            <a href="{{ route('discount.create') }}" class="menu-link">
-                                <div data-i18n="Create Discount">Create Discount</div>
+                        </li> -->
+                        <li class="menu-item @if(Request::is('custom-packages/create')) active @endif">
+                            <a href="{{ route('custom-packages.create') }}" class="menu-link">
+                                <div data-i18n="Create Custom Package">Create Custom Package</div>
                             </a>
                         </li>
                     </ul>
                 </li>
-                @endif --}}
+                @endif
 
                 @if(in_array(auth()->user()->role_id, [1, 2, 11, 33, 12, 37, 38])) {{-- Dmc = 11, Sales Head(dmc) = 33, Sales Manager(dmc) = [12, 37], Asst. Sales Manager(dmc) = 38 --}}
             {{-- @if(hasPermission('view enquiry')) --}}
