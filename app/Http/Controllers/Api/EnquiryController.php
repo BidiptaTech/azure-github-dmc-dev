@@ -434,6 +434,8 @@ class EnquiryController extends Controller
         $enquiry->exit_pickup_type = $validated['exit_pickup_type'] ?? null;
         $enquiry->exit_pickup_location_id = $validated['exit_pickup_location_id'] ?? null;
         $enquiry->approx_price = $request->approx_price ?? null;
+        $enquiry->packaged_attractions = $request->packaged_attractions ?? null;
+        $enquiry->packaged_attraction_ids = json_encode($request->packaged_attraction_ids ?? []);
 
         // Save the updated enquiry
         $enquiry->save();
@@ -564,6 +566,9 @@ class EnquiryController extends Controller
             $localTransportVehicleIds = is_array($decoded = json_decode($enquiry->local_transport_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
             $portVehicleIds = is_array($decoded = json_decode($enquiry->port_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
 
+            // Decode packaged attraction IDs
+            $packagedAttractionIds = is_array($decoded = json_decode($enquiry->packaged_attraction_ids, true)) ? array_map('intval', $decoded) : [];
+
             // Fetch related models
             $restaurants = Restaurant::whereIn('restaurant_id', $restaurantIds)->get(); 
             $attractions = Attraction::whereIn('attraction_id', $attractionIds)->get();
@@ -572,6 +577,9 @@ class EnquiryController extends Controller
 
             $localTransports = Vehicle::whereIn('vehicle_id', $localTransportVehicleIds)->get();
             $portVehicles = Vehicle::whereIn('vehicle_id', $portVehicleIds)->get();
+
+            // Fetch packaged attractions
+            $packagedAttractions = PackagedAttraction::whereIn('package_attraction_id', $packagedAttractionIds)->get();
 
             $entry_dropoff_location = null;
             if($enquiry->entry_dropoff_type == 'hotel'){
@@ -630,6 +638,9 @@ class EnquiryController extends Controller
                 'guide' => $enquiry->guide,
                 'guide_remarks' => $enquiry->guide_remarks,
                 'guide_details' => $guides,
+
+                'packaged_attractions' => $enquiry->packaged_attractions,
+                'packaged_attraction_details' => $packagedAttractions,
 
                 'entry_port' => $enquiry->entry_port,
                 'entry_port_address' => $enquiry->entry_port_address,
