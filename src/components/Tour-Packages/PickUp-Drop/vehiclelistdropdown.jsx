@@ -650,20 +650,18 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           entrytime: entryTime
         };
 
-        // Create booking data in the same format as currently used
-        const bookingData = {
-          // If we have customer info, spread it into the booking data
-          ...(customerInfoService ? { 
-            fullName: customerInfoService.fullName, 
-            email: customerInfoService.email,
-            phone: customerInfoService.phone,
-            address1: customerInfoService.address1,
-            address2: customerInfoService.address2,
-            state: customerInfoService.state,
-            zip: customerInfoService.zip,
-            specialRequests: customerInfoService.specialRequests,
-            countryCode: customerInfoService.countryCode
-          } : {}),
+              // Create booking data in the same format as currently used
+      const bookingData = {
+        // Customer information fields (will be populated when available or default to empty strings)
+        fullName: customerInfoService?.fullName || "",
+        email: customerInfoService?.email || "",
+        phone: customerInfoService?.phone || "",
+        countryCode: customerInfoService?.countryCode || "",
+        address1: customerInfoService?.address1 || "",
+        address2: customerInfoService?.address2 || "",
+        state: customerInfoService?.state || "",
+        zip: customerInfoService?.zip || "",
+        specialRequests: customerInfoService?.specialRequests || "",
           
           // Core booking details with correct location and timing data
           id: booking.id,
@@ -963,18 +961,16 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     
     // Create booking data matching the exact parameter names from index1.jsx details object
     const bookingData = {
-      // If we have customer info, spread it into the booking data
-      ...(customerInfoService ? { 
-        fullName: customerInfoService.fullName, 
-        email: customerInfoService.email,
-        phone: customerInfoService.phone,
-        address1: customerInfoService.address1,
-        address2: customerInfoService.address2,
-        state: customerInfoService.state,
-        zip: customerInfoService.zip,
-        specialRequests: customerInfoService.specialRequests,
-        countryCode: customerInfoService.countryCode
-      } : {}),
+      // Customer information fields (will be populated when available or default to empty strings)
+      fullName: customerInfoService?.fullName || "",
+      email: customerInfoService?.email || "",
+      phone: customerInfoService?.phone || "",
+      countryCode: customerInfoService?.countryCode || "",
+      address1: customerInfoService?.address1 || "",
+      address2: customerInfoService?.address2 || "",
+      state: customerInfoService?.state || "",
+      zip: customerInfoService?.zip || "",
+      specialRequests: customerInfoService?.specialRequests || "",
       
       // Core booking details with correct location and timing data
       vehicles_id: vehicle.id,

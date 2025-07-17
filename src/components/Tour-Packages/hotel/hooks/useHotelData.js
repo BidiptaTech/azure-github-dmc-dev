@@ -97,7 +97,18 @@ const useHotelData = (mealPlanOptions) => {
       adultDistribution: { male: 0, female: 0 },
       expanded: true,
       selectedGuests: initialGuests,
-      guestMealPlans: Array(initialGuests).fill('self')
+      guestMealPlans: Array(initialGuests).fill('self'),
+      customerDetails: {
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: ""
+      }
     };
     
     console.log("Creating initial hotel configuration:", initialConfig);
@@ -137,6 +148,19 @@ const useHotelData = (mealPlanOptions) => {
                 hotelData.rooms.forEach(room => {
                   if (room.beds && room.beds.length > 0) {
                     room.beds.forEach(bed => {
+                      // Extract customer details from hotel data
+                      const customerDetails = {
+                        fullName: hotelData.fullName || "",
+                        email: hotelData.email || "",
+                        phone: hotelData.phone || "",
+                        countryCode: hotelData.countryCode || "",
+                        address1: hotelData.address1 || "",
+                        address2: hotelData.address2 || "",
+                        state: hotelData.state || "",
+                        zip: hotelData.zip || "",
+                        specialRequests: hotelData.specialRequests || ""
+                      };
+                      
                       // Create configuration from room and bed data, including booking ID
                       const config = createConfigFromRoomAndBed(
                         hotelDetails, 
@@ -146,6 +170,10 @@ const useHotelData = (mealPlanOptions) => {
                         mealPlanOptions, 
                         bookingId
                       );
+                      
+                      // Add customer details to the configuration
+                      config.customerDetails = customerDetails;
+                      
                       allConfigurations.push(config);
                     });
                   }

@@ -927,7 +927,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         femaleCount: femaleCount,
         childrenAges: guestCounts.ages || [],
       },
-      enq_id:enquirydetail.enquiry_id || null
+      enq_id: enquirydetail?.enquiry_id || null
     }))
       .unwrap()
       .then((data) => {
