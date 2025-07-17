@@ -589,7 +589,7 @@ class EnquiryController extends Controller
                     $attractionDetails = [];
                     if (!empty($attractionIds)) {
                         $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
-                            ->select('attraction_id', 'name', 'master_image', 'location', 'country')
+                            ->select('attraction_id', 'name', 'master_image', 'location', 'country','open_time','close_time')
                             ->get();
                     }
 
@@ -664,7 +664,7 @@ class EnquiryController extends Controller
                 'entry_dropoff_location' => $entry_dropoff_location,
 
                 'exit_port' => $enquiry->exit_port,
-                'created_at' => $enquiry->created_at,
+                'created_at' => $enquiry->created_at->format('Y-m-d H:i:s'),
                 'approx_price' => $enquiry->approx_price,
                 'exit_port_address' => $enquiry->exit_port_address,
                 'exit_pickup_type' => $enquiry->exit_pickup_type,
