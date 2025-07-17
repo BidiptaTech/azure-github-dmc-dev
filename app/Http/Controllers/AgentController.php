@@ -29,7 +29,7 @@ class AgentController extends Controller
                 $dmc_id = $user->userId;
 
                 $sales_heads = User::where('created_by', $dmc_id)
-                    ->where('role_id', 33)
+                    ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                     ->pluck('userId');
 
                 $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -51,6 +51,7 @@ class AgentController extends Controller
                 break;
 
             case 33: // Sales Head
+            
                 $sh_id = $user->userId;
 
                 $sales_managers = User::where('created_by', $sh_id)
@@ -87,6 +88,13 @@ class AgentController extends Controller
                 break;
 
             case 38: // Assistant Manager
+            case 128:
+            case 129:
+            case 130:
+            case 134:
+            case 135:
+            case 136:
+            case 138:
                 $agents = Agent::where('sales_manager_dmc', $user->userId)->get();
                 break;
 
@@ -111,7 +119,7 @@ class AgentController extends Controller
             // Direct access to master_dmc_id
             $masterDmc = User::find($user->master_dmc_id);
         } 
-        else if ($user->role_id == 33) { // Sales Head
+        else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
             // Find parent DMC
             $parentDmc = User::where('userId', $user->created_by)
                             ->where('role_id', 11)
@@ -315,7 +323,7 @@ class AgentController extends Controller
             // Direct access to master_dmc_id
             $masterDmc = User::find($user->master_dmc_id);
         } 
-        else if ($user->role_id == 33) { // Sales Head
+        else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
             // Find parent DMC
             $parentDmc = User::where('userId', $user->created_by)
                             ->where('role_id', 11)

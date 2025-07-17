@@ -204,6 +204,13 @@ class FinanceReportController extends Controller
                 return Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id')->toArray();
 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $sh_id = $user->userId;
 
                 $sales_managers = User::where('created_by', $sh_id)
@@ -316,6 +323,13 @@ class FinanceReportController extends Controller
                     ->get();
 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $sh_id = $user->userId;
 
                 $sales_managers = User::where('created_by', $sh_id)

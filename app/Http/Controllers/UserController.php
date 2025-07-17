@@ -44,7 +44,7 @@ class UserController extends Controller
     * Date: 04-10-2024 
     */
     public function index()
-    { 
+    {
         if (!hasPermission('view users')) {
             abort(403, 'You do not have permission to access this page.');
         }
@@ -119,6 +119,11 @@ class UserController extends Controller
                 $creatorIds = $newUsers->pluck('userId');
             } while ($creatorIds->isNotEmpty()); // Continue if there are more creators
             // Final sorted result
+            $rest_users = User::with('roles')
+                    ->where('created_by', $this->auth_user->userId)
+                    ->whereIn('role_id', [128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])   
+                    ->get();
+            $allUsers = $allUsers->merge($rest_users);
             $users = $allUsers->sortBy('userId')->values();
         }
         elseif($this->auth_user->role_id == 24){
@@ -880,7 +885,7 @@ class UserController extends Controller
             ->get();
         }elseif($this->auth_user->role_id == 11){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [33,34,35,36])
+            ->whereIn('role_id', [33,34,35,36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])
             ->orderBy('role_id', 'asc')
             ->get();
         }elseif($this->auth_user->role_id == 12 || $this->auth_user->role_id == 37){
@@ -1387,9 +1392,8 @@ class UserController extends Controller
         }
         
         if($this->auth_user->role_id == 4 || $this->auth_user->role_id == 30 ||$this->auth_user->role_id == 11 
-        ||$this->auth_user->role_id == 12 ||$this->auth_user->role_id == 33 || $this->auth_user->role_id == 37 ||$this->auth_user->role_id == 38 || $this->auth_user->role_id == 34 || $this->auth_user->role_id == 64 || $this->auth_user->role_id == 65 || $this->auth_user->role_id == 66 || $this->auth_user->role_id == 67 || $this->auth_user->role_id == 68 || $this->auth_user->role_id == 81 || $this->auth_user->role_id == 90 || $this->auth_user->role_id == 99 || $this->auth_user->role_id == 108 || $this->auth_user->role_id == 117 || $this->auth_user->role_id == 35 || $this->auth_user->role_id == 74 || $this->auth_user->role_id == 75 || $this->auth_user->role_id == 76 || $this->auth_user->role_id == 77 || $this->auth_user->role_id == 78 || $this->auth_user->role_id == 84 || $this->auth_user->role_id == 93 || $this->auth_user->role_id == 102 || $this->auth_user->role_id == 111 || $this->auth_user->role_id == 120 || $this->auth_user->role_id == 36 || $this->auth_user->role_id == 69 || $this->auth_user->role_id == 70 || $this->auth_user->role_id == 71 || $this->auth_user->role_id == 72 || $this->auth_user->role_id == 73){
+        ||$this->auth_user->role_id == 12 ||$this->auth_user->role_id == 33 || $this->auth_user->role_id == 37 ||$this->auth_user->role_id == 38 || $this->auth_user->role_id == 34 || $this->auth_user->role_id == 64 || $this->auth_user->role_id == 65 || $this->auth_user->role_id == 66 || $this->auth_user->role_id == 67 || $this->auth_user->role_id == 68 || $this->auth_user->role_id == 81 || $this->auth_user->role_id == 90 || $this->auth_user->role_id == 99 || $this->auth_user->role_id == 108 || $this->auth_user->role_id == 117 || $this->auth_user->role_id == 35 || $this->auth_user->role_id == 74 || $this->auth_user->role_id == 75 || $this->auth_user->role_id == 76 || $this->auth_user->role_id == 77 || $this->auth_user->role_id == 78 || $this->auth_user->role_id == 84 || $this->auth_user->role_id == 93 || $this->auth_user->role_id == 102 || $this->auth_user->role_id == 111 || $this->auth_user->role_id == 120 || $this->auth_user->role_id == 36 || $this->auth_user->role_id == 69 || $this->auth_user->role_id == 70 || $this->auth_user->role_id == 71 || $this->auth_user->role_id == 72 || $this->auth_user->role_id == 73 || $this->auth_user->role_id == 128 || $this->auth_user->role_id == 129 || $this->auth_user->role_id == 130 || $this->auth_user->role_id == 131 || $this->auth_user->role_id == 132 || $this->auth_user->role_id == 133 || $this->auth_user->role_id == 134 || $this->auth_user->role_id == 135 || $this->auth_user->role_id == 136 || $this->auth_user->role_id == 137 || $this->auth_user->role_id == 138){
             $get_country_name = $this->auth_user->country;
-
         }
         if($this->auth_user->role_id == 10 || $this->auth_user->role_id == 19){
             $masterDmcId = $this->auth_user->userId;
@@ -1502,7 +1506,7 @@ class UserController extends Controller
             ->get();
         }elseif($this->auth_user->role_id == 11){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [33,34,35,36])
+            ->whereIn('role_id', [33,34,35,36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])
             ->orderBy('role_id', 'asc')
             ->get();
         }elseif($this->auth_user->role_id == 12 || $this->auth_user->role_id == 37){
