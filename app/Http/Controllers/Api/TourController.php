@@ -78,8 +78,8 @@ class TourController extends Controller
             $formEnquiry = null;
             if($enquiryId){
             $formEnquiry = EnquiryForm::where('enquiry_id', $enquiryId)
-                                      ->where('agent_id', $agent_id)
-                                      ->whereNull('unique_tour_id')
+                                    //   ->where('agent_id', $agent_id)
+                                    //   ->whereNull('unique_tour_id')
                                       ->first();
             }
             $tour = new Tour();
@@ -107,6 +107,114 @@ class TourController extends Controller
             $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
             // LogActivityService::log('create_tour', 'App\Models\Tour', $tourId, $tour);
 
+            // Always define as empty collections/arrays
+            $hotels = [];
+            $attraction = [];
+            $restaurant = [];
+            $guide = [];
+            $drivers = [];
+            $ports = [];
+
+            if ($formEnquiry) {
+                // Get hotel details
+                if (!empty($formEnquiry->hotel_ids)) {
+                    $hotelIds = json_decode($formEnquiry->hotel_ids, true);
+                    $hotels = Hotel::select('hotel_unique_id', 'name', 'main_image')->whereIn('hotel_unique_id', $hotelIds)->get();
+                }
+
+                // Get attraction details
+                if (!empty($formEnquiry->attraction_ids)) {
+                    $attractionIds = json_decode($formEnquiry->attraction_ids, true);
+                    $attraction = Attraction::select('attraction_id', 'name', 'master_image')->whereIn('attraction_id', $attractionIds)->get();
+                }
+
+                // Get restaurant details
+                if (!empty($formEnquiry->restaurant_ids)) {
+                    $restaurantIds = json_decode($formEnquiry->restaurant_ids, true);
+                    $restaurant = Restaurant::select('restaurant_id', 'name', 'master_image')->whereIn('restaurant_id', $restaurantIds)->get();
+                }
+
+                // Get guide details
+                if (!empty($formEnquiry->guide_ids)) {
+                    $guideIds = json_decode($formEnquiry->guide_ids, true);
+                    $guide = Guide::select('guide_id', 'name', 'image')->whereIn('guide_id', $guideIds)->get();
+                }
+
+                // Get driver details
+                if (!empty($formEnquiry->local_transport_vehicle_ids)) {
+                    $driverIds = json_decode($formEnquiry->local_transport_vehicle_ids, true);
+                    $drivers = \App\Models\Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'vehicle_model','image')->whereIn('vehicle_id', $driverIds)->get();
+                }
+
+                // Get port details
+                if (!empty($formEnquiry->port_ids)) {
+                    $portIds = json_decode($formEnquiry->port_ids, true);
+                    $ports = \App\Models\Port::select('port_id', 'port_name', 'type', 'country', 'city_id')->whereIn('port_id', $portIds)->get();
+                }
+
+                $entry_ports = [];
+                $exit_ports = [];
+
+                if (!empty($formEnquiry->entry_port_address)) {
+                    $entry_ports = \App\Models\Port::where('port_name', $formEnquiry->entry_port_address)
+                        ->pluck('port_name')
+                        ->toArray();
+                }
+
+                if (!empty($formEnquiry->exit_port_address)) {
+                    $exit_ports = \App\Models\Port::where('port_name', $formEnquiry->exit_port_address)
+                        ->pluck('port_name')
+                        ->toArray();
+                }
+
+                $entry_dropoff = null;
+                if (!empty($formEnquiry->entry_dropoff_type) && !empty($formEnquiry->entry_dropoff_location_id)) {
+                    $type = $formEnquiry->entry_dropoff_type;
+                    $id = $formEnquiry->entry_dropoff_location_id;
+                    $name = null;
+
+                    if ($type === 'hotel') {
+                        $hotel = \App\Models\Hotel::where('hotel_unique_id', $id)->first();
+                        $name = $hotel ? $hotel->name : null;
+                    } elseif ($type === 'attraction') {
+                        $attraction = \App\Models\Attraction::where('attraction_id', $id)->first();
+                        $name = $attraction ? $attraction->name : null;
+                    } elseif ($type === 'restaurant') {
+                        $restaurant = \App\Models\Restaurant::where('restaurant_id', $id)->first();
+                        $name = $restaurant ? $restaurant->name : null;
+                    }
+
+                    $entry_dropoff = [
+                        'type' => $type,
+                        'name' => $name,
+                    ];
+                }
+
+                // Add exit_dropoff logic
+                $exit_dropoff = null;
+                if (!empty($formEnquiry->exit_pickup_type) && !empty($formEnquiry->exit_pickup_location_id)) {
+                    $type = $formEnquiry->exit_pickup_type;
+                    $id = $formEnquiry->exit_pickup_location_id;
+                    $name = null;
+
+                    if ($type === 'hotel') {
+                        $hotel = \App\Models\Hotel::where('hotel_unique_id', $id)->first();
+                        $name = $hotel ? $hotel->name : null;
+                    } elseif ($type === 'attraction') {
+                        $attraction = \App\Models\Attraction::where('attraction_id', $id)->first();
+                        $name = $attraction ? $attraction->name : null;
+                    } elseif ($type === 'restaurant') {
+                        $restaurant = \App\Models\Restaurant::where('restaurant_id', $id)->first();
+                        $name = $restaurant ? $restaurant->name : null;
+                    }
+
+                    $exit_dropoff = [
+                        'type' => $type,
+                        'name' => $name,
+                    ];
+                }
+            }
+
             return response()->json([
                 'message' => 'Tour created successfully',
                 'tour_id' => $tour->unique_tour_id,
@@ -124,7 +232,17 @@ class TourController extends Controller
                     'total_pax' => $tour->adult + $tour->child,
                     'service' => $service,
                     'city' => $cities,
-                    'EnquiryDetails' => $formEnquiry ?? '',
+                    'EnquiryDetails' => [
+                        'hotel' => $hotels,
+                        'attraction' => $attraction,
+                        'restaurant' => $restaurant,
+                        'guide' => $guide,
+                        'driver' => $drivers,
+                        'entry_ports' => $entry_ports,
+                        'exit_ports' => $exit_ports,
+                        'entry_dropoff' => $entry_dropoff,
+                        'exit_dropoff' => $exit_dropoff,
+                    ],
                 ],
             ], 201);
         } catch (\Exception $e) {
