@@ -276,7 +276,7 @@
                     const base64data = reader.result;
                     
                     // Store in database via AJAX
-                    fetch('/generate-restaurant-coupon', {
+                    fetch("{{ route('generate.restaurant.coupon') }}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
