@@ -816,208 +816,6 @@ class RestaurantController extends Controller
     }
 
     /**
-     * Try generating image using wkhtmltoimage
-     */
-    private function tryWkhtmltoimage($htmlFile, $imageFile)
-    {
-        try {
-            Log::info('Trying wkhtmltoimage method');
-            
-            // Check if wkhtmltoimage is available
-            $command = "wkhtmltoimage --width 600 --height 300 --format png --quality 100 \"$htmlFile\" \"$imageFile\" 2>&1";
-            $output = shell_exec($command);
-            
-            Log::info('wkhtmltoimage command output', ['output' => $output]);
-            
-            $success = file_exists($imageFile) && filesize($imageFile) > 0;
-            
-            if (!$success) {
-                Log::warning('wkhtmltoimage failed', [
-                    'file_exists' => file_exists($imageFile),
-                    'filesize' => file_exists($imageFile) ? filesize($imageFile) : 'N/A',
-                    'command' => $command
-                ]);
-            }
-            
-            return $success;
-        } catch (\Exception $e) {
-            Log::error('wkhtmltoimage exception: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Try generating image using Puppeteer
-     */
-    private function tryPuppeteer($htmlFile, $imageFile)
-    {
-        try {
-            Log::info('Trying Puppeteer method');
-            
-            // Check if node is available
-            $nodeCheck = shell_exec('node --version 2>&1');
-            Log::info('Node version check', ['result' => $nodeCheck]);
-            
-            // Create a simple Node.js script for Puppeteer
-            $puppeteerScript = "
-                const puppeteer = require('puppeteer');
-                const fs = require('fs');
-
-                (async () => {
-                    try {
-                        const browser = await puppeteer.launch({headless: true});
-                        const page = await browser.newPage();
-                        await page.setViewport({width: 600, height: 300});
-                        const html = fs.readFileSync('$htmlFile', 'utf8');
-                        await page.setContent(html, {waitUntil: 'networkidle0'});
-                        await page.screenshot({path: '$imageFile', type: 'png', fullPage: true});
-                        await browser.close();
-                        console.log('Success');
-                    } catch (error) {
-                        console.error('Error:', error);
-                    }
-                })();
-                ";
-            
-            $scriptFile = tempnam(sys_get_temp_dir(), 'puppeteer_') . '.js';
-            file_put_contents($scriptFile, $puppeteerScript);
-            
-            $command = "node \"$scriptFile\" 2>&1";
-            $output = shell_exec($command);
-            
-            Log::info('Puppeteer command output', ['output' => $output]);
-            
-            // Clean up script file
-            unlink($scriptFile);
-            
-            $success = file_exists($imageFile) && filesize($imageFile) > 0;
-            
-            if (!$success) {
-                Log::warning('Puppeteer failed', [
-                    'file_exists' => file_exists($imageFile),
-                    'filesize' => file_exists($imageFile) ? filesize($imageFile) : 'N/A'
-                ]);
-            }
-            
-            return $success;
-        } catch (\Exception $e) {
-            Log::error('Puppeteer exception: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Try generating image using PhantomJS
-     */
-    private function tryPhantomJS($htmlFile, $imageFile)
-    {
-        try {
-            Log::info('Trying PhantomJS method');
-            
-            // Check if phantomjs is available
-            $phantomCheck = shell_exec('phantomjs --version 2>&1');
-            Log::info('PhantomJS version check', ['result' => $phantomCheck]);
-            
-            $phantomScript = "
-                var page = require('webpage').create();
-                page.viewportSize = {width: 600, height: 300};
-                page.open('file://{$htmlFile}', function(status) {
-                    if (status === 'success') {
-                        setTimeout(function() {
-                            page.render('{$imageFile}');
-                            phantom.exit();
-                        }, 1000);
-                    } else {
-                        phantom.exit();
-                    }
-                });
-                ";
-            
-            $scriptFile = tempnam(sys_get_temp_dir(), 'phantom_') . '.js';
-            file_put_contents($scriptFile, $phantomScript);
-            
-            $command = "phantomjs \"$scriptFile\" 2>&1";
-            $output = shell_exec($command);
-            
-            Log::info('PhantomJS command output', ['output' => $output]);
-            
-            // Clean up script file
-            unlink($scriptFile);
-            
-            $success = file_exists($imageFile) && filesize($imageFile) > 0;
-            
-            if (!$success) {
-                Log::warning('PhantomJS failed', [
-                    'file_exists' => file_exists($imageFile),
-                    'filesize' => file_exists($imageFile) ? filesize($imageFile) : 'N/A'
-                ]);
-            }
-            
-            return $success;
-        } catch (\Exception $e) {
-            Log::error('PhantomJS exception: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Try simple image generation as fallback
-     */
-    private function trySimpleImageGeneration($html, $imageFile, $bookingId)
-    {
-        try {
-            Log::info('Trying simple image generation method');
-            Log::info('GD extension loaded: ' . (extension_loaded('gd') ? 'yes' : 'no'));
-            
-            // Create a simple image using GD library if available
-            if (extension_loaded('gd')) {
-                // Create a 600x300 image
-                $image = imagecreatetruecolor(600, 300);
-                
-                // Set colors
-                $white = imagecolorallocate($image, 255, 255, 255);
-                $black = imagecolorallocate($image, 0, 0, 0);
-                $blue = imagecolorallocate($image, 102, 126, 234);
-                
-                // Fill background
-                imagefill($image, 0, 0, $white);
-                
-                // Add text
-                $font = 5; // Built-in font
-                imagestring($image, $font, 50, 50, 'Restaurant Voucher', $black);
-                imagestring($image, $font, 50, 80, 'Booking ID: ' . $bookingId, $black);
-                imagestring($image, $font, 50, 110, 'Generated on: ' . date('Y-m-d H:i:s'), $black);
-                imagestring($image, $font, 50, 140, 'This is a fallback image', $black);
-                imagestring($image, $font, 50, 170, 'Please use the View Voucher button', $black);
-                imagestring($image, $font, 50, 200, 'to see the actual voucher', $black);
-                
-                // Save image
-                $success = imagepng($image, $imageFile);
-                imagedestroy($image);
-                
-                Log::info('Simple image generation result', [
-                    'success' => $success,
-                    'image_file' => $imageFile,
-                    'file_exists' => file_exists($imageFile),
-                    'file_size' => file_exists($imageFile) ? filesize($imageFile) : 'N/A'
-                ]);
-                
-                if ($success) {
-                    Log::info('Simple image generated successfully using GD');
-                    return true;
-                }
-            }
-            
-            Log::warning('Simple image generation failed - GD extension not available');
-            return false;
-            
-        } catch (\Exception $e) {
-            Log::error('Simple image generation exception: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
      * Remove Individual Restaurant from DMC Selection
      * Handle individual restaurant removal with AJAX
      */
@@ -1057,267 +855,6 @@ class RestaurantController extends Controller
                 'success' => false,
                 'message' => 'Error removing restaurant: ' . $e->getMessage()
             ], 500);
-        }
-    }
-
-    /**
-     * Fallback to HTML2Canvas (client-side conversion)
-     */
-    private function fallbackToHtml2Canvas($html, $imageFilename, $bookingId)
-    {
-        // Inject HTML2Canvas script and conversion code
-        $html2canvasHtml = str_replace(
-            '</body>',
-            '
-                <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-                <script>
-                    window.onload = function() {
-                        // Add a button to generate image
-                        const button = document.createElement("button");
-                        button.innerHTML = "📷 Download as Image";
-                        button.style.cssText = "position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px 15px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;";
-                        document.body.appendChild(button);
-                        
-                        button.onclick = function() {
-                            button.innerHTML = "📷 Generating...";
-                            button.disabled = true;
-                            
-                            html2canvas(document.querySelector(".voucher"), {
-                                useCORS: true,
-                                allowTaint: true,
-                                scale: 2,
-                                width: 600,
-                                height: 300,
-                                backgroundColor: "#ffffff"
-                            }).then(function(canvas) {
-                                // Create download link
-                                const link = document.createElement("a");
-                                link.download = "' . $imageFilename . '";
-                                link.href = canvas.toDataURL("image/png");
-                                link.click();
-                                
-                                button.innerHTML = "📷 Download as Image";
-                                button.disabled = false;
-                            }).catch(function(error) {
-                                console.error("Error generating image:", error);
-                                button.innerHTML = "❌ Error";
-                            });
-                        };
-                    };
-                </script>
-            </body>',
-            $html
-        );
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Voucher ready for image conversion',
-            'html' => $html2canvasHtml,
-            'filename' => $imageFilename,
-            'method' => 'html2canvas'
-        ]);
-    }
-
-    /**
-     * Return image response
-     */
-    private function returnImageResponse($imageFile, $filename, $download, $htmlFile)
-    {
-        try {
-            $imageData = file_get_contents($imageFile);
-            
-            // Clean up temporary files
-            unlink($imageFile);
-            unlink($htmlFile);
-            
-            if ($download) {
-                return response($imageData)
-                    ->header('Content-Type', 'image/png')
-                    ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
-                    ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                    ->header('Pragma', 'no-cache')
-                    ->header('Expires', '0');
-            }
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Restaurant removed successfully!'
-            ]);
-            
-        } catch (\Exception $e) {
-            \Log::error('Restaurant removal error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error processing image: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-
-        /**
-     * Generate voucher image from HTML and save to storage
-     */
-    private function generateAndSaveVoucherImage($html, $bookingId)
-    {
-        try {
-            // Create a temporary HTML file
-            $tempHtmlFile = tempnam(sys_get_temp_dir(), 'voucher_') . '.html';
-            file_put_contents($tempHtmlFile, $html);
-           
-            // Generate image filename
-            $imageFilename = 'restaurant_voucher_' . $bookingId . '_' . date('Ymd_His') . '.png';
-            $tempImageFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $imageFilename;
-           
-            Log::info('Trying to generate voucher image', [
-                'booking_id' => $bookingId,
-                'temp_html_file' => $tempHtmlFile,
-                'temp_image_file' => $tempImageFile,
-                'html_length' => strlen($html)
-            ]);
-           
-            // Try to generate the image using available methods
-            Log::info('Starting image generation process');
-            
-            $generationSuccess = false;
-            $generationMethod = 'none';
-            
-            if ($this->tryWkhtmltoimage($tempHtmlFile, $tempImageFile)) {
-                Log::info('Image generated successfully using wkhtmltoimage');
-                $generationSuccess = true;
-                $generationMethod = 'wkhtmltoimage';
-                $result = $this->saveImageToStorage($tempImageFile, $imageFilename, $tempHtmlFile);
-                Log::info('wkhtmltoimage storage result', ['result' => $result]);
-                return $result;
-            }
-           
-            if ($this->tryPuppeteer($tempHtmlFile, $tempImageFile)) {
-                Log::info('Image generated successfully using Puppeteer');
-                $generationSuccess = true;
-                $generationMethod = 'puppeteer';
-                $result = $this->saveImageToStorage($tempImageFile, $imageFilename, $tempHtmlFile);
-                Log::info('puppeteer storage result', ['result' => $result]);
-                return $result;
-            }
-           
-            if ($this->tryPhantomJS($tempHtmlFile, $tempImageFile)) {
-                Log::info('Image generated successfully using PhantomJS');
-                $generationSuccess = true;
-                $generationMethod = 'phantomjs';
-                $result = $this->saveImageToStorage($tempImageFile, $imageFilename, $tempHtmlFile);
-                Log::info('phantomjs storage result', ['result' => $result]);
-                return $result;
-            }
-           
-            // Try fallback method using simple image generation
-            if ($this->trySimpleImageGeneration($html, $tempImageFile, $bookingId)) {
-                Log::info('Image generated successfully using simple image generation');
-                $generationSuccess = true;
-                $generationMethod = 'simple_gd';
-                $result = $this->saveImageToStorage($tempImageFile, $imageFilename, $tempHtmlFile);
-                Log::info('simple_gd storage result', ['result' => $result]);
-                return $result;
-            }
-            
-            Log::error('All image generation methods failed', [
-                'generation_success' => $generationSuccess,
-                'generation_method' => $generationMethod,
-                'temp_html_file' => $tempHtmlFile,
-                'temp_image_file' => $tempImageFile
-            ]);
-           
-            Log::warning('All image generation methods failed');
-           
-            // Clean up HTML file if no image was generated
-            if (file_exists($tempHtmlFile)) {
-                unlink($tempHtmlFile);
-            }
-           
-            return null;
-           
-        } catch (\Exception $e) {
-            Log::error('Error generating voucher image: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Save image to storage and return the URL
-     */
-    private function saveImageToStorage($tempImageFile, $imageFilename, $tempHtmlFile)
-    {
-        try {
-            if (!file_exists($tempImageFile) || filesize($tempImageFile) === 0) {
-                Log::warning('Image file does not exist or is empty', [
-                    'temp_image_file' => $tempImageFile,
-                    'file_exists' => file_exists($tempImageFile),
-                    'file_size' => file_exists($tempImageFile) ? filesize($tempImageFile) : 'N/A'
-                ]);
-                return null;
-            }
-
-            // Create uploaded file object for CommonHelper
-            $uploadedFile = new \Illuminate\Http\UploadedFile(
-                $tempImageFile,
-                $imageFilename,
-                'image/png',
-                null,
-                true
-            );
-
-            // Use CommonHelper to save the image
-            Log::info('Calling CommonHelper::image_path', [
-                'storage_type' => 'file_storage',
-                'container' => 'vouchers',
-                'filename' => $imageFilename,
-                'temp_file' => $tempImageFile,
-                'file_exists' => file_exists($tempImageFile),
-                'file_size' => file_exists($tempImageFile) ? filesize($tempImageFile) : 'N/A'
-            ]);
-            
-            $pathData = CommonHelper::image_path('file_storage', $uploadedFile, 'vouchers');
-            
-            Log::info('CommonHelper image_path result', [
-                'path_data' => $pathData,
-                'master_value' => $pathData['master_value'] ?? null,
-                'has_error' => isset($pathData['error']),
-                'error_message' => $pathData['error'] ?? null
-            ]);
-
-            // Clean up temporary files
-            if (file_exists($tempImageFile)) {
-                unlink($tempImageFile);
-            }
-            if (file_exists($tempHtmlFile)) {
-                unlink($tempHtmlFile);
-            }
-
-            if (!empty($pathData['master_value'])) {
-                Log::info('Image saved successfully to storage', [
-                    'image_url' => $pathData['master_value'],
-                    'path_data' => $pathData
-                ]);
-                return $pathData['master_value'];
-            } else {
-                Log::error('Failed to save image via CommonHelper', [
-                    'path_data' => $pathData,
-                    'temp_image_file' => $tempImageFile,
-                    'image_filename' => $imageFilename
-                ]);
-                return null;
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Error saving image to storage: ' . $e->getMessage());
-            
-            // Clean up temporary files on error
-            if (file_exists($tempImageFile)) {
-                unlink($tempImageFile);
-            }
-            if (file_exists($tempHtmlFile)) {
-                unlink($tempHtmlFile);
-            }
-            
-            return null;
         }
     }
 
@@ -1420,243 +957,83 @@ class RestaurantController extends Controller
         }
     }
 
-
-
     public function generateCoupon(Request $request)
     {        
         // Handle image storage request from JavaScript
         if ($request->input('action') === 'store_image') {
             return $this->storeClientGeneratedImage($request);
         }
-       
-        // Validate the incoming request
-        $validated = $request->validate([
-            'restaurant_data' => 'required|array',
-            'booking_id' => 'required',
-            'tour_id' => 'required',
-            'display_id' => 'required',
-            'destination' => 'nullable|string',
-            'check_in_date' => 'nullable',
-            'total_pax' => 'nullable|integer',
-            'adults' => 'nullable|integer',
-            'children' => 'nullable|integer',
-            'agent_name' => 'nullable|string',
-            'dmc_company' => 'nullable|string',
-            'download' => 'nullable|boolean',
-            'format' => 'nullable|string|in:html,image' // Add format option
-        ]);
-
-        try {
-            // Get restaurant data
-            $restaurantData = $request->restaurant_data;
-           
-            // Handle if restaurant data is an array (take first element)
-            if (is_array($restaurantData) && !empty($restaurantData)) {
-                $restaurantData = $restaurantData[0];
-            }
-           
-            // Get restaurant details from database if needed
-            $restaurant = Restaurant::where('restaurant_id', $restaurantData['restaurantId'] ?? null)->first();
-           
-            // Generate coupon code
-            $coupon_code = $request->booking_id . '-' . date('Ymd');
-           
-            // Generate the HTML coupon
-            $html = view('restaurants.coupon_pdf', [
-                'restaurant' => $restaurant,
-                'bookingDetails' => $restaurantData,
-                'booking_id' => $request->booking_id,
-                'tour_id' => $request->tour_id,
-                'display_id' => $request->display_id,
-                'destination' => $request->destination,
-                'check_in_date' => $request->check_in_date,
-                'total_pax' => $request->total_pax,
-                'adults' => $request->adults,
-                'children' => $request->children,
-                'agent_name' => $request->agent_name,
-                'dmc_company' => $request->dmc_company,
-                'coupon_code' => $coupon_code,
-
-            ])->render();
-
-            // Generate and save the image to storage
-            $imageUrl = null;
-            $order = Order::where('booking_id', $request->booking_id)->where('tour_id', $request->tour_id)->first();
-            
-            \Log::info('Looking for order', [
-                'booking_id' => $request->booking_id,
-                'tour_id' => $request->tour_id,
-                'order_found' => $order ? 'yes' : 'no',
-                'order_id' => $order ? $order->id : null,
-                'order_columns' => $order ? array_keys($order->getAttributes()) : []
-            ]);
-            
-            if ($order) {
-                $imageUrl = $this->generateAndSaveVoucherImage($html, $request->booking_id);
-                \Log::info('Image generation result', [
-                    'image_url' => $imageUrl,
-                    'image_url_type' => gettype($imageUrl)
+        
+        // Handle HTML-only rendering request (for client-side image generation)
+        if ($request->input('action') === 'render_html_only') {
+            try {
+                // Validate the incoming request
+                $validated = $request->validate([
+                    'restaurant_data' => 'required|array',
+                    'booking_id' => 'required',
+                    'tour_id' => 'required',
+                    'display_id' => 'required',
                 ]);
                 
-                if ($imageUrl) {
-                    // Check if voucher_image field exists
-                    if (property_exists($order, 'voucher_image') || in_array('voucher_image', array_keys($order->getAttributes()))) {
-                        $order->voucher_image = $imageUrl;
-                        $order->save();
-                        \Log::info('Voucher image saved to database', [
-                            'booking_id' => $request->booking_id,
-                            'tour_id' => $request->tour_id,
-                            'image_url' => $imageUrl
-                        ]);
-                    } else {
-                        \Log::error('voucher_image field does not exist in orders table', [
-                            'order_columns' => array_keys($order->getAttributes())
-                        ]);
-                        // For now, let's store the image URL in the data field as a workaround
-                        $data = $order->data ?? [];
-                        $data['voucher_image'] = $imageUrl;
-                        $order->data = $data;
-                        $order->save();
-                        \Log::info('Voucher image stored in data field as fallback', [
-                            'booking_id' => $request->booking_id,
-                            'tour_id' => $request->tour_id,
-                            'image_url' => $imageUrl
-                        ]);
-                    }
-                } else {
-                    \Log::warning('Failed to generate voucher image', [
-                        'booking_id' => $request->booking_id,
-                        'tour_id' => $request->tour_id
-                    ]);
+                // Get restaurant data
+                $restaurantData = $request->restaurant_data;
+                
+                // Handle if restaurant data is an array (take first element)
+                if (is_array($restaurantData) && !empty($restaurantData)) {
+                    $restaurantData = $restaurantData[0];
                 }
-            } else {
-                \Log::warning('Order not found for voucher image', [
+                
+                // Get restaurant details from database if needed
+                $restaurant = Restaurant::where('restaurant_id', $restaurantData['restaurantId'] ?? null)->first();
+                
+                // Generate coupon code
+                $coupon_code = $request->booking_id . '-' . date('Ymd');
+                
+                // Generate the HTML coupon
+                $html = view('restaurants.coupon_pdf', [
+                    'restaurant' => $restaurant,
+                    'bookingDetails' => $restaurantData,
                     'booking_id' => $request->booking_id,
-                    'tour_id' => $request->tour_id
+                    'tour_id' => $request->tour_id,
+                    'display_id' => $request->display_id,
+                    'destination' => $request->destination,
+                    'check_in_date' => $request->check_in_date,
+                    'total_pax' => $request->total_pax,
+                    'adults' => $request->adults,
+                    'children' => $request->children,
+                    'agent_name' => $request->agent_name,
+                    'dmc_company' => $request->dmc_company,
+                    'coupon_code' => $coupon_code,
+                ])->render();
+                
+                // Return just the HTML for client-side rendering
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Restaurant coupon HTML generated successfully',
+                    'html' => $html
                 ]);
+            } catch (\Exception $e) {
+                // Log the error for debugging
+                \Log::error('Error generating restaurant coupon HTML: ' . $e->getMessage(), [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                    'request_data' => $request->all()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error generating coupon HTML: ' . $e->getMessage()
+                ], 500);
             }
-           
-            // Check if image format is requested
-            if ($request->format === 'image') {
-                // For silent generation, return JSON response with voucher_image
-                if (!$request->download) {
-                    // Check if voucher_image field exists in the order
-                    $voucherImageUrl = null;
-                    if ($order) {
-                        if (property_exists($order, 'voucher_image') || in_array('voucher_image', array_keys($order->getAttributes()))) {
-                            $voucherImageUrl = $order->voucher_image;
-                        } else {
-                            // Check if it's stored in the data field
-                            $data = $order->data ?? [];
-                            $voucherImageUrl = $data['voucher_image'] ?? null;
-                        }
-                    }
-                    
-                    \Log::info('Final response data', [
-                        'imageUrl' => $imageUrl,
-                        'voucherImageUrl' => $voucherImageUrl,
-                        'order_exists' => $order ? 'yes' : 'no',
-                        'order_columns' => $order ? array_keys($order->getAttributes()) : [],
-                        'has_voucher_image_field' => $order ? (property_exists($order, 'voucher_image') || in_array('voucher_image', array_keys($order->getAttributes()))) : false
-                    ]);
-                    
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Restaurant voucher image generated and saved successfully',
-                        'voucher_image' => $voucherImageUrl,
-                        'debug_info' => [
-                            'generated_image_url' => $imageUrl,
-                            'stored_voucher_image' => $voucherImageUrl,
-                            'order_found' => $order ? 'yes' : 'no',
-                            'order_id' => $order ? $order->id : null,
-                            'booking_id' => $request->booking_id,
-                            'tour_id' => $request->tour_id
-                        ]
-                    ]);
-                }
-                // For download requests, return the image file
-                return $this->generateVoucherImage($html, $request->booking_id, $request->download);
-            }
-           
-            // Generate a unique filename for HTML
-            $filename = 'restaurant_voucher_' . $request->booking_id . '_' . date('Ymd_His') . '.html';
-           
-            // If download is requested, return the file as download
-            if ($request->download) {
-                return response($html)
-                    ->header('Content-Type', 'text/html')
-                    ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
-                    ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                    ->header('Pragma', 'no-cache')
-                    ->header('Expires', '0');
-            }
-
-           
-           
-            // Otherwise, return JSON response for preview
-            return response()->json([
-                'success' => true,
-                'message' => 'Restaurant coupon generated successfully',
-                'html' => $html,
-                'filename' => $filename,
-                'voucher_image' => $imageUrl ?? null
-            ]);
-        } catch (\Exception $e) {
-            // Log the error for debugging
-            \Log::error('Error generating restaurant coupon: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-           
-            return response()->json([
-                'success' => false,
-                'message' => 'Error generating coupon: ' . $e->getMessage()
-            ], 500);
         }
-    }
 
-    /**
-     * Generate voucher image from HTML
-     */
-    private function generateVoucherImage($html, $bookingId, $download = false)
-    {
-        try {
-            // Create a temporary HTML file
-            $tempHtmlFile = tempnam(sys_get_temp_dir(), 'voucher_') . '.html';
-            file_put_contents($tempHtmlFile, $html);
-           
-            // Generate image filename
-            $imageFilename = 'restaurant_voucher_' . $bookingId . '_' . date('Ymd_His') . '.png';
-            $tempImageFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $imageFilename;
-           
-            // Method 1: Try using wkhtmltoimage if available
-            if ($this->tryWkhtmltoimage($tempHtmlFile, $tempImageFile)) {
-                return $this->returnImageResponse($tempImageFile, $imageFilename, $download, $tempHtmlFile);
-            }
-           
-            // Method 2: Try using Puppeteer/Chrome headless via node
-            if ($this->tryPuppeteer($tempHtmlFile, $tempImageFile)) {
-                return $this->returnImageResponse($tempImageFile, $imageFilename, $download, $tempHtmlFile);
-            }
-           
-            // Method 3: Try using PhantomJS (if available)
-            if ($this->tryPhantomJS($tempHtmlFile, $tempImageFile)) {
-                return $this->returnImageResponse($tempImageFile, $imageFilename, $download, $tempHtmlFile);
-            }
-           
-            // Method 4: Fallback to HTML2Canvas via browser (return HTML with JS)
-            return $this->fallbackToHtml2Canvas($html, $imageFilename, $bookingId);
-           
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error generating image: ' . $e->getMessage()
-            ], 500);
-        }
+        // If not a browser-generated image or HTML-only request, return error
+        return response()->json([
+            'success' => false,
+            'message' => 'Direct server-side voucher image generation is not supported. Please use the browser to generate and upload the voucher image.'
+        ], 400);
     }
-
 
     /**
      * Store client-generated voucher image
