@@ -1083,6 +1083,54 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           </>
         );
         
+      case "packagedAttractions":
+        return (
+          <>
+            {details.selectedPackagedAttractions && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>Selected Packages:</Typography>
+                <List dense disablePadding>
+                  {Array.isArray(details.selectedPackagedAttractions) && details.selectedPackagedAttractions.length > 0 ?
+                    details.selectedPackagedAttractions.map((pkg, idx) => (
+                      <ListItem key={idx} dense disableGutters alignItems="flex-start">
+                        <ListItemIcon sx={{ minWidth: 30 }}>
+                          <TicketIcon fontSize="small" color="primary" />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={pkg.name || pkg}
+                          secondary={pkg.attractions && pkg.attractions.length > 0 ? (
+                            <>
+                              <Typography variant="caption" color="text.secondary">Includes:</Typography>
+                              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                                {pkg.attractions.map((att) => (
+                                  <li key={att.attraction_id} style={{ fontSize: 12 }}>{att.name}</li>
+                                ))}
+                              </ul>
+                            </>
+                          ) : null}
+                        />
+                      </ListItem>
+                    )) : (
+                      <ListItem dense disableGutters>
+                        <ListItemIcon sx={{ minWidth: 30 }}>
+                          <TicketIcon fontSize="small" color="primary" />
+                        </ListItemIcon>
+                        <ListItemText primary={details.selectedPackagedAttractions?.name || "Selected Package"} />
+                      </ListItem>
+                    )}
+                </List>
+              </Box>
+            )}
+            {details.remarks && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" fontWeight={500}>Remarks:</Typography>
+                <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
+                  "{details.remarks}"
+                </Typography>
+              </Box>
+            )}
+          </>
+        );
       default:
         return (
           <Alert severity="info" sx={{ mt: 2 }}>
@@ -1519,6 +1567,32 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         console.log("Direct submission - attraction IDs:", attractionIds);
         console.log("Direct submission - attraction transport:", attractionDetails.needTransport);
         console.log("Direct submission - attraction car type:", attractionDetails.carType);
+      }
+      if (requestBody.packaged_attractions && serviceDetails.packagedAttractions) {
+        const packagedAttractionsDetails = serviceDetails.packagedAttractions || {};
+        let attractionIds = [];
+        
+        // Handle both when selectedAttractions is an array and when it's a single object
+        if (Array.isArray(packagedAttractionsDetails.selectedPackagedAttractions)) {
+          attractionIds = packagedAttractionsDetails.selectedPackagedAttractions.map(attraction => 
+            attraction.id || attraction.attraction_id
+          ) || [];
+        } else if (packagedAttractionsDetails.selectedPackagedAttractions) {
+          // Handle case when it's a single object
+          const attraction = packagedAttractionsDetails.selectedPackagedAttractions;
+          if (attraction.id || attraction.attraction_id) {
+            attractionIds = [attraction.id || attraction.attraction_id];
+          }
+        }
+        
+        requestBody.packaged_attraction_ids = attractionIds;
+        requestBody.attraction_remarks = packagedAttractionsDetails.remarks || "";
+        requestBody.attraction_transport = packagedAttractionsDetails.needTransport || false;
+        requestBody.attraction_transport_type = packagedAttractionsDetails.carType || "sharable";
+        
+          console.log("Direct submission - packaged attraction IDs:", attractionIds);
+        console.log("Direct submission - packaged attraction transport:", packagedAttractionsDetails.needTransport);
+        console.log("Direct submission - packaged attraction car type:", packagedAttractionsDetails.carType);
       }
 
       // Add restaurant details if selected

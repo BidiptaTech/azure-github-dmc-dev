@@ -52,6 +52,7 @@ export const fetchBookingid = createAsyncThunk(
         male: maleCount,
         female: femaleCount,
         children_ages: guests.childrenAges.join(", "),
+        enquiry_id: null
       };
 
       console.log("Request Body:", requestBody);

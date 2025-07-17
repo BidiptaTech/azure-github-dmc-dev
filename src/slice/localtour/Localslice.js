@@ -689,6 +689,7 @@ const LocalSlice = createSlice({
     },
     setentrytime: (state, action) => {
       state.entrytime = action.payload;
+      console.log("entrytime00", state.entrytime);
     },
     setPickupPlaceid: (state, action) => {
       state.PickupPlaceid = action.payload;

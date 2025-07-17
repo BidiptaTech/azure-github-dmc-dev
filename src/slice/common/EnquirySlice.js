@@ -226,6 +226,7 @@ export const submitEnquiryForm = createAsyncThunk(
         port: selectedServices.includes("entryExitPort"),
         local_transfer: selectedServices.includes("localTour"),
         attraction: selectedServices.includes("attraction"),
+        packaged_attractions: selectedServices.includes("packagedAttractions"),
         restaurant: selectedServices.includes("restaurant"),
         guide: selectedServices.includes("tourGuide"),
         approx_price: approxPrice, // Add the calculated approximate price
@@ -496,6 +497,37 @@ export const submitEnquiryForm = createAsyncThunk(
         // });
       }
 
+        // Add packaged attraction details if selected
+        if (requestBody.packaged_attractions && serviceDetails.packagedAttractions) {
+          const packagedAttractionsDetails = serviceDetails.packagedAttractions || {};
+          let attractionIds = [];
+          
+          // Handle both when selectedAttractions is an array and when it's a single object
+          if (Array.isArray(packagedAttractionsDetails.selectedPackagedAttractions)) {
+            attractionIds = packagedAttractionsDetails.selectedPackagedAttractions.map(attraction => 
+              attraction.attraction_id || attraction.id
+            ) || [];
+          } else if (packagedAttractionsDetails.selectedPackagedAttractions) {
+            // Handle case when it's a single object
+            const attraction = packagedAttractionsDetails.selectedPackagedAttractions;
+            if (attraction.attraction_id || attraction.id) {
+              attractionIds = [attraction.attraction_id || attraction.id];
+            }
+          }
+          
+          requestBody.packaged_attraction_ids = attractionIds;
+          requestBody.attraction_remarks = packagedAttractionsDetails.remarks || "";
+          requestBody.attraction_transport = packagedAttractionsDetails.needTransport || false;
+          requestBody.attraction_transport_type = packagedAttractionsDetails.carType || "sharable";
+          
+          // console.log("Attraction details:", {
+          //   attractionDetails,
+          //   isArray: Array.isArray(attractionDetails.selectedAttractions),
+          //   ids: attractionIds,
+          //   needTransport: attractionDetails.needTransport,
+          //   carType: attractionDetails.carType
+          // });
+        }
       // Add restaurant details if selected
       if (requestBody.restaurant && serviceDetails.restaurant) {
         const restaurantDetails = serviceDetails.restaurant || {};
