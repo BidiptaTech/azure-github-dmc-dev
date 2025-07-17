@@ -50,8 +50,8 @@ export default function RestaurantModal({
   date,
 }) {
   // Debug logging to see what data is being received
-  console.log('RestaurantModal - Received bookings:', bookings);
-  console.log('RestaurantModal - Received date:', date);
+  // console.log('RestaurantModal - Received bookings:', bookings);
+  // console.log('RestaurantModal - Received date:', date);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [currentRestaurantDetails, setCurrentRestaurantDetails] = useState(null);
@@ -66,13 +66,13 @@ export default function RestaurantModal({
 
   const handleView = async (booking) => {
     try {
-      console.log("Original booking data:", booking);
+      // console.log("Original booking data:", booking);
       
       // First, try to get restaurant details from the restaurants list
       let restaurantDetails = null;
       if (booking.restaurantId && restaurants) {
         restaurantDetails = restaurants.find(r => r.id === booking.restaurantId);
-        console.log("Found restaurant details from Redux:", restaurantDetails);
+        // console.log("Found restaurant details from Redux:", restaurantDetails);
       }
       
       // Create enriched booking with available restaurant details
@@ -88,7 +88,7 @@ export default function RestaurantModal({
         MealDescription: booking.MealDescription || []
       };
 
-      console.log("Enriched booking with fallback data:", enrichedBooking);
+      // console.log("Enriched booking with fallback data:", enrichedBooking);
 
       // Then fetch restaurant details specifically for this booking to get the most up-to-date info
       if (booking.restaurantId) {
@@ -97,7 +97,7 @@ export default function RestaurantModal({
           price_mode: booking.priceTypes?.[0] || 'dmc'
         }));
 
-        console.log("API result for restaurant details:", result);
+        // console.log("API result for restaurant details:", result);
 
         // Update the booking with the fetched restaurant details
         if (result.payload) {
@@ -110,18 +110,18 @@ export default function RestaurantModal({
               country: result.payload.country || enrichedBooking.service_details.country
             }
           };
-          console.log("Final booking data with API details:", updatedBooking);
+          //   console.log("Final booking data with API details:", updatedBooking);
           setSelectedBooking(updatedBooking);
           setIsViewModalOpen(true);
         } else {
           // If no restaurant details found from API, use the fallback data
-          console.log("No API data found, using fallback data");
+          // console.log("No API data found, using fallback data");
           setSelectedBooking(enrichedBooking);
           setIsViewModalOpen(true);
         }
       } else {
         // If no restaurantId, show the booking without restaurant details
-        console.log("No restaurantId found, showing booking without restaurant details");
+        // console.log("No restaurantId found, showing booking without restaurant details");
         setSelectedBooking(enrichedBooking);
         setIsViewModalOpen(true);
       }
@@ -245,7 +245,7 @@ export default function RestaurantModal({
       })
     : [];
     
-  console.log('RestaurantModal - Filtered bookings:', filteredBookings);
+  // console.log('RestaurantModal - Filtered bookings:', filteredBookings);
     
   const capitalizeFirstLetter = (str) => {
     return typeof str === "string" && str.length > 0

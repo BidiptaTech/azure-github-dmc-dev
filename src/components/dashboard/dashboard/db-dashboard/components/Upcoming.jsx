@@ -1786,6 +1786,33 @@ export default function Pending() {
     }
   }, [bookings]);
 
+  const user_country = useSelector((state) => {
+    const countryData = state.auth.user_country;
+    if (Array.isArray(countryData)) return countryData;
+    if (typeof countryData === "string" && countryData.includes("[object Object]")) {
+      const actualCountries = state.auth.user_country;
+      if (Array.isArray(actualCountries)) return actualCountries;
+    }
+    if (typeof countryData === "object" && countryData !== null) return [countryData];
+    return [];
+  });
+
+  const countryMappings = useMemo(() => {
+    const nameToCode = {};
+    const codeToName = {};
+    if (user_country && Array.isArray(user_country)) {
+      user_country.forEach((country) => {
+        if (country && country.name && country.code) {
+          nameToCode[country.name] = country.code;
+          nameToCode[country.name.toLowerCase()] = country.code;
+          codeToName[country.code] = country.name;
+          codeToName[country.code.toLowerCase()] = country.name;
+        }
+      });
+    }
+    return { nameToCode, codeToName };
+  }, [user_country]);
+
   return (
     // <Box sx={{ width: "100%" }}>
     <>
@@ -1832,18 +1859,19 @@ export default function Pending() {
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
+                          whiteSpace: "nowrap",
                           transition: "background-color 0.3s ease",
-                          width: "8%",
+                          width: "120px",
+                          minWidth: "120px",
+                          maxWidth: "120px",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "rotate(90deg)";
+                          e.currentTarget.querySelector("i").style.transform = "rotate(90deg)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "rotate(0deg)";
+                          e.currentTarget.querySelector("i").style.transform = "rotate(0deg)";
                         }}
                       >
                         <div
@@ -1854,6 +1882,7 @@ export default function Pending() {
                             gap: "6px",
                             fontSize: "13px",
                             fontWeight: "600",
+                            whiteSpace: "nowrap",
                           }}
                         >
                           <i
@@ -1872,25 +1901,17 @@ export default function Pending() {
                           padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
-                          whiteSpace: "nowrap",
                           cursor: "pointer",
+                          whiteSpace: "nowrap",
                           transition: "background-color 0.3s ease",
-                          width: "12%",
+                          width: "100px",
+                          minWidth: "100px",
+                          maxWidth: "100px",
                         }}
                         onClick={() => handleColumnSort("id")}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.backgroundColor = "#e6eafb")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor = "#f5f7fc")
-                        }
-                        title={`Sort by Booking ID (${
-                          sortColumn === "id"
-                            ? order === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : "click to sort"
-                        })`}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e6eafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#f5f7fc")}
+                        title={`Sort by Booking ID (${sortColumn === "id" ? (order === "asc" ? "ascending" : "descending") : "click to sort"})`}
                       >
                         <div
                           style={{
@@ -1919,7 +1940,6 @@ export default function Pending() {
                                 fontSize: "12px",
                                 opacity: order === "asc" ? 1 : 0.7,
                                 fontWeight: order === "asc" ? "normal" : "bold",
-                                transition: "transform 0.3s ease",
                               }}
                             ></i>
                           )}
@@ -1933,26 +1953,20 @@ export default function Pending() {
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "10%",
+                          width: "90px",
+                          minWidth: "90px",
+                          maxWidth: "90px",
                         }}
                         onClick={() => handleColumnSort("startDate")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1.2)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
                         }}
-                        title={`Sort by Start Date (${
-                          sortColumn === "startDate"
-                            ? order === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : "click to sort"
-                        })`}
+                        title={`Sort by Start Date (${sortColumn === "startDate" ? (order === "asc" ? "ascending" : "descending") : "click to sort"})`}
                       >
                         <div
                           style={{
@@ -1992,29 +2006,22 @@ export default function Pending() {
                           padding: "8px 12px",
                           fontWeight: "600",
                           color: "#3554D1",
-                          whiteSpace: "nowrap",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "10%",
+                          width: "90px",
+                          minWidth: "90px",
+                          maxWidth: "90px",
                         }}
                         onClick={() => handleColumnSort("endDate")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1.2)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
                         }}
-                        title={`Sort by End Date (${
-                          sortColumn === "endDate"
-                            ? order === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : "click to sort"
-                        })`}
+                        title={`Sort by End Date (${sortColumn === "endDate" ? (order === "asc" ? "ascending" : "descending") : "click to sort"})`}
                       >
                         <div
                           style={{
@@ -2051,12 +2058,14 @@ export default function Pending() {
                       <th
                         style={{
                           backgroundColor: "#f5f7fc",
-                          padding: "8px 8px",
+                          padding: "6px 8px",
                           fontWeight: "600",
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "6%",
+                          width: "60px",
+                          minWidth: "60px",
+                          maxWidth: "60px",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -2064,21 +2073,13 @@ export default function Pending() {
                         onClick={() => handleColumnSort("pax")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "rotate(15deg)";
+                          e.currentTarget.querySelector("i").style.transform = "rotate(15deg)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "rotate(0deg)";
+                          e.currentTarget.querySelector("i").style.transform = "rotate(0deg)";
                         }}
-                        title={`Sort by Pax Count (${
-                          sortColumn === "pax"
-                            ? order === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : "click to sort"
-                        })`}
+                        title={`Sort by Pax Count (${sortColumn === "pax" ? (order === "asc" ? "ascending" : "descending") : "click to sort"})`}
                       >
                         <div
                           style={{
@@ -2116,18 +2117,18 @@ export default function Pending() {
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "12%",
+                          width: "120px",
+                          minWidth: "120px",
+                          maxWidth: "120px",
                         }}
                         onClick={() => handleColumnSort("destination")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "translateY(-3px)";
+                          e.currentTarget.querySelector("i").style.transform = "translateY(-3px)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "translateY(0)";
+                          e.currentTarget.querySelector("i").style.transform = "translateY(0)";
                         }}
                       >
                         <div
@@ -2159,18 +2160,17 @@ export default function Pending() {
                           cursor: "pointer",
                           whiteSpace: "nowrap",
                           transition: "background-color 0.3s ease",
-                          width: "12%",
+                          width: "130px",
+                          minWidth: "130px",
+                          maxWidth: "130px",
                         }}
-                        // onClick={() => handleColumnSort("customer_name")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1.2)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
                         }}
                       >
                         <div
@@ -2201,18 +2201,18 @@ export default function Pending() {
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          width: "10%",
+                          width: "100px",
+                          minWidth: "100px",
+                          maxWidth: "100px",
                         }}
                         onClick={() => handleColumnSort("status")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1.2)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
                         }}
                       >
                         <div
@@ -2243,19 +2243,17 @@ export default function Pending() {
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          whiteSpace: "nowrap",
-                          width: "10%",
+                          width: "110px",
+                          minWidth: "110px",
+                          maxWidth: "110px",
                         }}
-                        // onClick={() => handleColumnSort("status")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1.2)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
                         }}
                       >
                         <div
@@ -2286,19 +2284,17 @@ export default function Pending() {
                           color: "#3554D1",
                           cursor: "pointer",
                           transition: "background-color 0.3s ease",
-                          whiteSpace: "nowrap",
-                          width: "12%",
+                          width: "120px",
+                          minWidth: "120px",
+                          maxWidth: "120px",
                         }}
-                        // onClick={() => handleColumnSort("status")}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e6eafb";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1.2)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1.2)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = "#f5f7fc";
-                          e.currentTarget.querySelector("i").style.transform =
-                            "scale(1)";
+                          e.currentTarget.querySelector("i").style.transform = "scale(1)";
                         }}
                       >
                         <div
@@ -2319,6 +2315,34 @@ export default function Pending() {
                             }}
                           ></i>
                           Payment Status
+                        </div>
+                      </th>
+                      <th
+                        style={{
+                          backgroundColor: "#f5f7fc",
+                          padding: "8px 12px",
+                          fontWeight: "600",
+                          color: "#3554D1",
+                          cursor: "pointer",
+                          transition: "background-color 0.3s ease",
+                          whiteSpace: "nowrap",
+                          width: "110px",
+                          minWidth: "110px",
+                          maxWidth: "110px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          <i className="icon-calendar" style={{ fontSize: "14px", color: "#3554D1" }}></i>
+                          Created
                         </div>
                       </th>
                     </tr>
@@ -2362,6 +2386,9 @@ export default function Pending() {
                               height={35}
                             />
                           </td>
+                          <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap" }}>
+                            <Skeleton variant="text" width={100} />
+                          </td>
                         </tr>
                       ))
                     ) : paginatedLists.length > 0 ? (
@@ -2377,14 +2404,16 @@ export default function Pending() {
                         >
                           <td
                             style={{
-                              padding: "16px 20px",
+                              padding: "8px 12px",
+                              minWidth: "120px",
+                              maxWidth: "120px",
                               whiteSpace: "nowrap",
                             }}
                           >
                             <div
                               style={{
                                 display: "flex",
-                                gap: "4px",
+                                gap: "8px",
                                 flexWrap: "nowrap",
                                 alignItems: "center",
                               }}
@@ -2465,13 +2494,13 @@ export default function Pending() {
                                 )}
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px" }}>
+                          <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
                             <div
                               style={{
                                 backgroundColor: "rgba(53, 84, 209, 0.1)",
                                 padding: "6px 8px",
                                 borderRadius: "12px",
-                                fontSize: "12px",
+                                fontSize: "11px",
                                 color: "#3554D1",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -2480,10 +2509,7 @@ export default function Pending() {
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {/* Display ID on top */}
                               <span>{list.display_id}</span>
-
-                              {/* order_from below, if exists */}
                               {list.order_from?.trim() && (
                                 <span
                                   style={{
@@ -2500,17 +2526,13 @@ export default function Pending() {
                               )}
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px" }}>
-                            <Tooltip 
-                              title={formatDateTooltip(list.check_in_time)}
-                              arrow
-                              placement="top"
-                            >
+                          <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                            <Tooltip title={formatDateTooltip(list.check_in_time)} arrow placement="top">
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: "6px",
+                                  gap: "8px",
                                   cursor: "pointer",
                                 }}
                               >
@@ -2524,17 +2546,13 @@ export default function Pending() {
                               </div>
                             </Tooltip>
                           </td>
-                          <td style={{ padding: "16px 20px" }}>
-                            <Tooltip 
-                              title={formatDateTooltip(list.check_out_time)}
-                              arrow
-                              placement="top"
-                            >
+                          <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                            <Tooltip title={formatDateTooltip(list.check_out_time)} arrow placement="top">
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: "6px",
+                                  gap: "8px",
                                   cursor: "pointer",
                                 }}
                               >
@@ -2552,45 +2570,48 @@ export default function Pending() {
                             style={{
                               padding: "16px 10px",
                               whiteSpace: "nowrap",
+                              width: "60px",
+                              minWidth: "60px",
+                              maxWidth: "60px",
                               textAlign: "center",
                             }}
                           >
-                                                          <div
+                            <div
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "4px",
+                                backgroundColor: "rgba(255, 152, 0, 0.1)",
+                                padding: "5px 8px",
+                                borderRadius: "20px",
+                                whiteSpace: "nowrap",
+                                width: "fit-content",
+                                margin: "0 auto",
+                              }}
+                            >
+                              <i
+                                className="icon-passenger"
+                                style={{ fontSize: "18px", color: "#FF9800" }}
+                              ></i>
+                              <span
                                 style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: "3px",
-                                  backgroundColor: "rgba(255, 152, 0, 0.1)",
-                                  padding: "4px 6px",
-                                  borderRadius: "16px",
+                                  fontWeight: "600",
+                                  fontSize: "15px",
+                                  color: "#FF9800",
                                   whiteSpace: "nowrap",
-                                  width: "fit-content",
-                                  margin: "0 auto",
                                 }}
                               >
-                                <i
-                                  className="icon-passenger"
-                                  style={{ fontSize: "18px", color: "#FF9800" }}
-                                ></i>
-                                <span
-                                  style={{
-                                    fontWeight: "600",
-                                    fontSize: "15px",
-                                    color: "#FF9800",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {list.total_pax}
-                                </span>
-                              </div>
+                                {list.total_pax}
+                              </span>
+                            </div>
                           </td>
-                          <td style={{ padding: "16px 20px" }}>
+                          <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "6px",
+                                gap: "8px",
                               }}
                             >
                               <i
@@ -2603,28 +2624,29 @@ export default function Pending() {
                                   color: "#4CAF50",
                                 }}
                               >
-                                {list.destination
-                                  ? list.destination
-                                      .split(",")
-                                      .map(
-                                        (code) =>
-                                          countryMap[code.trim()] ||
-                                          countryMap[
-                                            code.trim().toLowerCase()
-                                          ] ||
-                                          code.trim()
-                                      )
-                                      .join(", ")
-                                  : "N/A"}
+                                {list.destination ? list.destination.split(",").map((code) => {
+                                  const trimmedCode = code.trim();
+                                  // First try to get the name from codeToName mapping
+                                  const countryName = countryMappings.codeToName[trimmedCode];
+                                  if (countryName) {
+                                    return countryName;
+                                  }
+                                  // If not found in codeToName, check if it's already a name
+                                  if (countryMappings.nameToCode[trimmedCode]) {
+                                    return trimmedCode;
+                                  }
+                                  // If neither found, return the original code
+                                  return trimmedCode;
+                                }).join(", ") : "N/A"}
                               </span>
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px" }}>
+                          <td style={{ padding: "16px 20px", width: "130px", minWidth: "130px", maxWidth: "130px" }}>
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "6px",
+                                gap: "8px",
                               }}
                             >
                               <i
@@ -2634,15 +2656,13 @@ export default function Pending() {
                               <span>{list.customer_name || "N/A"}</span>
                             </div>
                           </td>
-                          <td style={{ padding: "16px 20px" }}>
+                          <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "6px",
-                                backgroundColor: getBackgroundColor(
-                                  list.tour_status
-                                ),
+                                backgroundColor: getBackgroundColor(list.tour_status),
                                 padding: "4px 8px",
                                 borderRadius: "16px",
                               }}
@@ -2675,19 +2695,14 @@ export default function Pending() {
                                 style={{
                                   fontWeight: "600",
                                   color: getTextColor(list.tour_status),
-                                  fontSize: "12px",
+                                  fontSize: "11px",
                                 }}
                               >
-                                {" "}
                                 {list.tour_status || "Pending"}
                               </span>
                             </div>
                           </td>
-                          <td
-                            style={{
-                              padding: "8px 12px",
-                            }}
-                          >
+                          <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px" }}>
                             <Tooltip 
                               title={`Original: SGD ${Math.ceil(list.finalAmount + list.discountAmount)} | Discount: SGD ${Math.ceil(list.discountAmount)} | Final: SGD ${Math.ceil(list.finalAmount)}`}
                               arrow
@@ -2754,7 +2769,7 @@ export default function Pending() {
                             </Tooltip>
                           </td>
 
-                          <td style={{ padding: "16px 20px" }}>
+                          <td style={{ padding: "8px 12px" }}>
                             <Tooltip 
                               title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
                               arrow
@@ -2867,6 +2882,11 @@ export default function Pending() {
                                 </div>
                               </div>
                             </Tooltip>
+                          </td>
+                          <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                            <span style={{ fontSize: "11px" }}>
+                              {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
+                            </span>
                           </td>
                         </tr>
                       ))
