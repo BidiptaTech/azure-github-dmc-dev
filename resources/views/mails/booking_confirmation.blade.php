@@ -701,14 +701,19 @@
                 
                 
                 @if(isset($room_type))
-                <div class="detail-row">
-                    <div class="detail-label">
-                        <i class="fas fa-door-open detail-icon"></i>
-                        Room Type:
-                    </div>
-                    <div class="detail-value">{{ $room_type }}</div>
-                </div>
-                @endif
+    <div class="detail-row align-top">
+        <div class="detail-label">
+            <i class="fas fa-door-open detail-icon"></i>
+            Room Type:
+        </div>
+        <div class="detail-value">
+            @foreach($room_type as $room)
+                <div><strong>{{ $loop->iteration }}.</strong> {{ $room }}</div>
+            @endforeach
+        </div>
+    </div>
+@endif
+
                 
                 @if(isset($bed_type))
                 <div class="detail-row">
@@ -719,8 +724,6 @@
                     <div class="detail-value">{{ $bed_type }}</div>
                 </div>
                 @endif
-                
-                
                 
                 @if(isset($hotel_name))
                 <div class="detail-row">
