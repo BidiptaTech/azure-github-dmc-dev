@@ -114,6 +114,11 @@ class TourController extends Controller
             $guide = [];
             $drivers = [];
             $ports = [];
+            $packagedAttractions = [];
+            $entry_ports = [];
+            $exit_ports = [];
+            $entry_dropoff = null;
+            $exit_dropoff = null;
 
             if ($formEnquiry) {
                 // Get hotel details
@@ -150,6 +155,12 @@ class TourController extends Controller
                 if (!empty($formEnquiry->port_ids)) {
                     $portIds = json_decode($formEnquiry->port_ids, true);
                     $ports = \App\Models\Port::select('port_id', 'port_name', 'type', 'country', 'city_id')->whereIn('port_id', $portIds)->get();
+                }
+
+                // Get packaged attraction details
+                if (!empty($formEnquiry->packaged_attraction_ids)) {
+                    $packagedAttractionIds = json_decode($formEnquiry->packaged_attraction_ids, true);
+                    $packagedAttractions = PackagedAttraction::select('package_attraction_id', 'name', 'master_image')->whereIn('package_attraction_id', $packagedAttractionIds)->get();
                 }
 
                 $entry_ports = [];
@@ -242,6 +253,7 @@ class TourController extends Controller
                         'exit_ports' => $exit_ports,
                         'entry_dropoff' => $entry_dropoff,
                         'exit_dropoff' => $exit_dropoff,
+                        'packaged_attractions' => $packagedAttractions,
                     ],
                 ],
             ], 201);
