@@ -18,7 +18,7 @@ export const convertEnquiresToTourId = createAsyncThunk(
        const params = {};
       if (agentId) params.agent_id = agentId;
       if (enquiryID) params.enquiry_id = enquiryID;
-      const response = await axios.post(`${BASE_URL}/create-enquiry-tour`,{},{
+      const response = await axios.get(`${BASE_URL}/create-enquiry-tour`,{
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -42,7 +42,7 @@ export const convertEnquiresToTourId = createAsyncThunk(
 
 
 const initialState = {
-  message: null,     // stores the "Enquiry successfully converted to tour"
+  enquirydetail: null,     // stores the "Enquiry successfully converted to tour"
   loading: false,
   error: null,
 };
@@ -52,7 +52,7 @@ const convertToTourSlice = createSlice({
   initialState,
   reducers: {
     resetConvertState: (state) => {
-      state.message = null;
+      state.enquirydetail = null;
       state.loading = false;
       state.error = null;
     },
@@ -65,7 +65,8 @@ const convertToTourSlice = createSlice({
       })
       .addCase(convertEnquiresToTourId.fulfilled, (state, action) => {
         state.loading = false;
-        state.message = action.payload;
+        state.enquirydetail = action.payload;
+        console.log(state.enquirydetail);
       })
       .addCase(convertEnquiresToTourId.rejected, (state, action) => {
         state.loading = false;
