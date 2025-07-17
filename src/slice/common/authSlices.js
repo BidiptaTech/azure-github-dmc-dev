@@ -137,6 +137,7 @@ const getInitialState = () => {
   const agentId = Cookies.get("AgentId") || null;
   const Username = Cookies.get("Username") || null;
   const Email = Cookies.get("Email") || null;
+  const profilePicture = Cookies.get("profilePicture") || null;
   const exchangeRate = Cookies.get("exchangeRate") || null;
   const currencyCode = Cookies.get("currencyCode") || null;
   const currencySymbol = Cookies.get("currencySymbol") || null;
@@ -177,6 +178,7 @@ const getInitialState = () => {
     logoutError: null,
     Username,
     Email,
+    profilePicture,
     exchangeRate,
     currencyCode,
     currencySymbol,
@@ -221,6 +223,7 @@ export const loginUser = createAsyncThunk(
           agent_id: agentId,
           name: Username,
           email: Email,
+          profile_picture: profilePicture,
           dmc_name: DmcName,
           current_exchange_rate: exchangeRate,
           current_currency_code: currencyCode,
@@ -272,6 +275,16 @@ export const loginUser = createAsyncThunk(
           secure: true,
           sameSite: "Strict",
         });
+        
+        // Store profile picture in cookies
+        if (profilePicture) {
+          Cookies.set("profilePicture", profilePicture, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
         Cookies.set("exchangeRate", exchangeRate, {
           expires: expiryDate,
           secure: true,
@@ -402,6 +415,7 @@ export const loginUser = createAsyncThunk(
           agentId,
           Username,
           Email,
+          profilePicture,
           DmcName,
           exchangeRate,
           currencyCode,
@@ -477,6 +491,7 @@ const authSlice = createSlice({
       state.tourId = null;
       state.Username = null; // Reset Username
       state.Email = null; // Reset Email
+      state.profilePicture = null; // Reset profile picture
       state.exchangeRate = null; // Reset exchangeRate
       state.currencyCode = null; // Reset currencyCode
       state.currencySymbol = null; // Reset currencySymbol
@@ -486,6 +501,7 @@ const authSlice = createSlice({
       Cookies.remove("AgentId");
       Cookies.remove("Username");
       Cookies.remove("Email");
+      Cookies.remove("profilePicture");
       Cookies.remove("exchangeRate");
       Cookies.remove("currencyCode");
       Cookies.remove("currencySymbol");
@@ -509,6 +525,18 @@ const authSlice = createSlice({
     },
     setEmail: (state, action) => {
       state.Email = action.payload;
+    },
+    setProfilePicture: (state, action) => {
+      state.profilePicture = action.payload;
+      if (action.payload) {
+        Cookies.set("profilePicture", action.payload, {
+          expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          secure: true,
+          sameSite: "Strict",
+        });
+      } else {
+        Cookies.remove("profilePicture");
+      }
     },
     setExchangeRate: (state, action) => {
       state.exchangeRate = action.payload;
@@ -574,6 +602,7 @@ const authSlice = createSlice({
         state.agentId = action.payload.agentId;
         state.Username = action.payload.Username;
         state.Email = action.payload.Email;
+        state.profilePicture = action.payload.profilePicture;
         state.DmcName = action.payload.DmcName;
         state.exchangeRate = action.payload.exchangeRate;
         state.currencyCode = action.payload.currencyCode;
@@ -633,6 +662,7 @@ export const {
   setTourIdd,
   setUsername,
   setEmail,
+  setProfilePicture,
   setExchangeRate,
   setCurrencyCode,
   setCurrencySymbol,

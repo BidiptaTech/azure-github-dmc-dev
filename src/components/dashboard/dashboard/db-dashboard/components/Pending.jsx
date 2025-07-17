@@ -2339,9 +2339,9 @@ export default function Pending() {
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
-                        width: "120px",
-                        minWidth: "120px",
-                        maxWidth: "120px",
+                        width: "150px",
+                        minWidth: "150px",
+                        maxWidth: "150px",
                       }}
                       onClick={() => handleColumnSort("destination")}
                       onMouseEnter={(e) => {
@@ -2428,9 +2428,9 @@ export default function Pending() {
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
-                        width: "100px",
-                        minWidth: "100px",
-                        maxWidth: "100px",
+                        width: "120px",
+                        minWidth: "120px",
+                        maxWidth: "120px",
                       }}
                       onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -2798,19 +2798,20 @@ export default function Pending() {
                           >
                             <div
                               style={{
-                                display: "flex",
+                                backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#4CAF50",
+                                fontWeight: "600",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
                                 cursor: "pointer",
                               }}
                             >
-                              <i
-                                className="icon-calendar"
-                                style={{ fontSize: "18px", color: "#4CAF50" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_in_time)}
-                              </span>
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -2822,19 +2823,20 @@ export default function Pending() {
                           >
                             <div
                               style={{
-                                display: "flex",
+                                backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#F44336",
+                                fontWeight: "600",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
                                 cursor: "pointer",
                               }}
                             >
-                              <i
-                                className="icon-calendar-2"
-                                style={{ fontSize: "18px", color: "#F44336" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_out_time)}
-                              </span>
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -2879,7 +2881,7 @@ export default function Pending() {
                           </div>
                         </td>
 
-                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
+                        <td style={{ padding: "16px 20px", width: "150px", minWidth: "150px", maxWidth: "150px" }}>
                           <div
                             style={{
                               display: "flex",
@@ -2895,8 +2897,6 @@ export default function Pending() {
                               style={{
                                 fontWeight: "500",
                                 color: "#4CAF50",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
                             >
@@ -2942,7 +2942,7 @@ export default function Pending() {
                             </span>
                           </div>
                         </td>
-                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
                           <div
                             style={{
                               display: "flex",
@@ -2984,8 +2984,6 @@ export default function Pending() {
                                 fontWeight: "600",
                                 color: getTextColor(list.tour_status),
                                 fontSize: "11px",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
                             >
