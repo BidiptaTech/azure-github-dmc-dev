@@ -1053,7 +1053,7 @@
             // Show loading toast
             showToast('Generating and saving voucher image...', 'info');
             
-            // Make AJAX call to generate voucher HTML
+            // Make AJAX call to get the HTML from the existing blade template
             $.ajax({
                 url: "{{ route('generate.restaurant.coupon') }}",
                 type: "POST",
@@ -1070,16 +1070,16 @@
                     children: bookingData.children,
                     agent_name: bookingData.agentName,
                     dmc_company: bookingData.dmcCompany,
-                    format: 'html'
+                    action: 'render_html_only'
                 },
                 success: function(response) {
-                    if (response.success) {
-                        // Create a hidden iframe to render the HTML and capture it
+                    if (response.success && response.html) {
+                        // Capture the voucher using html2canvas
                         captureVoucherFromHtml(response.html, bookingData, button, originalContent);
                     } else {
                         // Reset button state on error
                         resetButtonState(button, originalContent);
-                        showToast(response.message || 'Failed to generate voucher', 'error');
+                        showToast(response.message || 'Failed to generate voucher HTML', 'error');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -1126,7 +1126,7 @@
                                         const base64data = reader.result;
                                         
                                         // Store in database via AJAX
-                                        fetch('/generate-restaurant-coupon', {
+                                        fetch('{{ route('generate.restaurant.coupon') }}', {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
@@ -1195,12 +1195,12 @@
             // Remove loading state
             button.removeClass('loading').prop('disabled', false);
             
-            // Create the View Voucher button using the same route format as the original
+            // Create the View Voucher button using the route helper
             const viewVoucherButton = $(`
-                <a href="/view-voucher-image/${bookingData.bookingId}/${bookingData.tourId}" target="_blank" class="btn btn-sm btn-outline-success">
+                <a href="{{ route('view.voucher.image', ['booking_id' => ':bookingId', 'tour_id' => ':tourId']) }}" target="_blank" class="btn btn-sm btn-outline-success">
                     <i class="fas fa-eye"></i> View Voucher
                 </a>
-            `);
+            `.replace(':bookingId', bookingData.bookingId).replace(':tourId', bookingData.tourId));
             
             console.log('Created view voucher button:', viewVoucherButton);
             
@@ -3094,7 +3094,7 @@ function formatSGD(amount) {
                                                     <p class="mb-2 fw-medium">${item.exitpickup || 'N/A'}</p>
                                                     ${item.PickupPlaceid ? `
                                                     <div class="text-muted small">
-                                                        <span class="d-block mb-1">Coordinates:</span>
+                                                        <span class="d-block mb-2">Coordinates:</span>
                                                         <div class="d-flex align-items-center gap-2">
                                                             <span class="badge bg-secondary">Lat: ${item.PickupPlaceid.lat || 'N/A'}</span>
                                                             <span class="badge bg-secondary">Lng: ${item.PickupPlaceid.lng || 'N/A'}</span>
@@ -4846,7 +4846,7 @@ $('.view-itinerary').on('click', function() {
     
     // Set the modal content
     modalBody.html(timelineCSS + itineraryHTML);
-});
+}
 
 // Optimized helper function to format dates consistently across the entire application
 function formatDate(dateString) {
