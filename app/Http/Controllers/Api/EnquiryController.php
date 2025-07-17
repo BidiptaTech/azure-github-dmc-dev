@@ -579,7 +579,23 @@ class EnquiryController extends Controller
             $portVehicles = Vehicle::whereIn('vehicle_id', $portVehicleIds)->get();
 
             // Fetch packaged attractions
-            $packagedAttractions = PackagedAttraction::whereIn('package_attraction_id', $packagedAttractionIds)->get();
+            $packagedAttractions = PackagedAttraction::whereIn('package_attraction_id', $packagedAttractionIds)
+                ->get()
+                ->each(function($package) {
+                    // Decode the attractions JSON array
+                    $attractionIds = json_decode($package->attractions, true) ?? [];
+                    
+                    // Fetch the actual attraction details
+                    $attractionDetails = [];
+                    if (!empty($attractionIds)) {
+                        $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
+                            ->select('attraction_id', 'name', 'master_image', 'location', 'country')
+                            ->get();
+                    }
+
+                    // Add attraction details to the package model
+                    $package->attraction_details = $attractionDetails;
+                });
 
             $entry_dropoff_location = null;
             if($enquiry->entry_dropoff_type == 'hotel'){
