@@ -705,8 +705,24 @@ export default function HotelComponent({ searchParams }) {
         return sum + roomPrice;
       }, 0);
           
+      // Find any existing customer info in current services or from the hotel configuration
+      const customerInfoService = allServices.find(service => service.type === 'CustomerInfo');
+      const configCustomerDetails = baseConfig.customerDetails || {};
+
       // Create the hotel booking data
       const hotelData = {
+        // Customer information fields (will be populated when available or default to empty strings)
+        // Priority: 1. CustomerInfo service, 2. Configuration customer details, 3. Empty string
+        fullName: customerInfoService?.fullName || configCustomerDetails.fullName || "",
+        email: customerInfoService?.email || configCustomerDetails.email || "",
+        phone: customerInfoService?.phone || configCustomerDetails.phone || "",
+        countryCode: customerInfoService?.countryCode || configCustomerDetails.countryCode || "",
+        address1: customerInfoService?.address1 || configCustomerDetails.address1 || "",
+        address2: customerInfoService?.address2 || configCustomerDetails.address2 || "",
+        state: customerInfoService?.state || configCustomerDetails.state || "",
+        zip: customerInfoService?.zip || configCustomerDetails.zip || "",
+        specialRequests: customerInfoService?.specialRequests || configCustomerDetails.specialRequests || "",
+        
         id: bookingId,
         bookingType: "enquiry",
         bookingDate: [startDate, endDate],

@@ -426,7 +426,24 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     if (updatedSection.originalData) {
       console.log('Using original data for individual booking update:', updatedSection.originalData);
       
+      // Get customer details from original data if available
+      const customerDetails = {
+        fullName: updatedSection.originalData.fullName || "",
+        email: updatedSection.originalData.email || "",
+        phone: updatedSection.originalData.phone || "",
+        countryCode: updatedSection.originalData.countryCode || "",
+        address1: updatedSection.originalData.address1 || "",
+        address2: updatedSection.originalData.address2 || "",
+        state: updatedSection.originalData.state || "",
+        zip: updatedSection.originalData.zip || "",
+        specialRequests: updatedSection.originalData.specialRequests || "",
+      };
+      
       const bookingData = {
+        // Include customer details
+        ...customerDetails,
+        
+        // Core booking details
         id: updatedSection.originalData.id,
         AttractionId: updatedSection.originalData.AttractionId,
         AttractionName: updatedSection.originalData.AttractionName,
@@ -507,6 +524,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     const totalPrice = adultTotal + childTotal + seniorTotal;
 
     const bookingData = {
+      // Customer information fields (will be populated when available)
+      fullName: "",
+      email: "",
+      phone: "",
+      countryCode: "",
+      address1: "",
+      address2: "",
+      state: "",
+      zip: "",
+      specialRequests: "",
+      
+      // Core booking details
       id: updatedSection.originalData?.id || `attraction-${Date.now()}-${sectionIndex}`,
       AttractionId: updatedSection.attraction,
       AttractionName: summaryData.attraction,
@@ -915,7 +944,25 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       // If we have original data, use it directly
       if (section.originalData) {
         console.log('Using original data for booking:', section.originalData);
+        
+        // Get customer details from original data if available
+        const customerDetails = {
+          fullName: section.originalData.fullName || "",
+          email: section.originalData.email || "",
+          phone: section.originalData.phone || "",
+          countryCode: section.originalData.countryCode || "",
+          address1: section.originalData.address1 || "",
+          address2: section.originalData.address2 || "",
+          state: section.originalData.state || "",
+          zip: section.originalData.zip || "",
+          specialRequests: section.originalData.specialRequests || "",
+        };
+        
         return {
+          // Include customer details
+          ...customerDetails,
+          
+          // Core booking details
           id: section.originalData.id,
           AttractionId: section.originalData.AttractionId,
           AttractionName: section.originalData.AttractionName,
@@ -953,6 +1000,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       const totalPrice = adultTotal + childTotal + seniorTotal;
       
       return {
+        // Customer information fields (will be populated when available)
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: "",
+        
+        // Core booking details
         id: section.originalData?.id || `attraction-${Date.now()}-${index}`,
         AttractionId: section.attraction,
         AttractionName: summaryData.attraction,

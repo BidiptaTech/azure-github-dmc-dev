@@ -500,8 +500,24 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       // If we have original data, use it as base and update with current form values
       if (section.originalData) {
         console.log('Using original data for guide booking:', section.originalData);
+        
+        // Get customer details from original data if available
+        const customerDetails = {
+          fullName: section.originalData.fullName || "",
+          email: section.originalData.email || "",
+          phone: section.originalData.phone || "",
+          countryCode: section.originalData.countryCode || "",
+          address1: section.originalData.address1 || "",
+          address2: section.originalData.address2 || "",
+          state: section.originalData.state || "",
+          zip: section.originalData.zip || "",
+          specialRequests: section.originalData.specialRequests || "",
+        };
+        
         const bookingData = {
           ...section.originalData,
+          // Include customer details
+          ...customerDetails,
           // Update with current form values
           guide_id: section.guide,
           entrypickup: section.pickUpTime,
@@ -548,6 +564,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       const selectedGuideDetails = getSelectedGuide(section.guide);
       
       const bookingData = {
+        // Customer information fields (will be populated when available)
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: "",
+        
+        // Core booking details
         id: bookingId,
         guide_id: section.guide,
         guide_name: summaryData.guideName,
@@ -656,8 +684,23 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     if (updatedSection.originalData) {
       console.log('Using original data for individual guide booking update:', updatedSection.originalData);
       
+      // Get customer details from original data if available
+      const customerDetails = {
+        fullName: updatedSection.originalData.fullName || "",
+        email: updatedSection.originalData.email || "",
+        phone: updatedSection.originalData.phone || "",
+        countryCode: updatedSection.originalData.countryCode || "",
+        address1: updatedSection.originalData.address1 || "",
+        address2: updatedSection.originalData.address2 || "",
+        state: updatedSection.originalData.state || "",
+        zip: updatedSection.originalData.zip || "",
+        specialRequests: updatedSection.originalData.specialRequests || "",
+      };
+      
       const bookingData = {
         ...updatedSection.originalData,
+        // Include customer details
+        ...customerDetails,
         // Update with current form values
         guide_id: updatedSection.guide,
         entrypickup: updatedSection.pickUpTime,
@@ -726,6 +769,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     const selectedGuideDetails = getSelectedGuide(updatedSection.guide);
 
     const bookingData = {
+      // Customer information fields (will be populated when available)
+      fullName: "",
+      email: "",
+      phone: "",
+      countryCode: "",
+      address1: "",
+      address2: "",
+      state: "",
+      zip: "",
+      specialRequests: "",
+      
+      // Core booking details
       id: updatedSection.originalData?.id || `guide-${Date.now()}-${sectionIndex}`,
       guide_id: updatedSection.guide,
       guide_name: summaryData.guideName,

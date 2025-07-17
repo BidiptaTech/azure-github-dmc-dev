@@ -6,7 +6,8 @@ import { Button, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
-import { setPackageData } from '@/slice/tour-packages/tourPackageSlice';
+import { clearPackages, setPackageData } from '@/slice/tour-packages/tourPackageSlice';
+import { resetConvertState } from '@/slice/enquiries/enquiryToTourSlice';
 
 // Create a custom theme for the button
 const theme = createTheme({
@@ -56,6 +57,8 @@ const Packages = () => {
     
     const handleTourPackagesClick = () => {
         dispatch(setPackageData(null));
+        dispatch(clearPackages());
+        dispatch(resetConvertState());
         navigate('/dashboard/tour-packages');
     };
     

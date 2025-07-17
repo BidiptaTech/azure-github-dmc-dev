@@ -54,7 +54,7 @@ import {
 import dayjs from 'dayjs';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchEnquiries } from '@/slice/enquiries/enquiryListSlice';
-import { convertEnquiresToTourId } from '@/slice/enquiries/enquiryToTourSlice';
+import { convertEnquiresToTourId, resetConvertState } from '@/slice/enquiries/enquiryToTourSlice';
 import { unwrapResult } from '@reduxjs/toolkit';
 import { fetchLists } from '@/slice/common/TourlistSlice';
 import { useNavigate } from 'react-router-dom';
@@ -67,6 +67,7 @@ import {
   RenderLocalTransferDetails,
   RenderPortDetails
 } from './renderServices';
+import { clearPackages, setPackageData } from "@/slice/tour-packages/tourPackageSlice";
 
 // Modal style
 const modalStyle = {
@@ -343,6 +344,9 @@ const EnquiryList = () => {
   const handleConvert = async (enquiry) => {
     const agentId = enquiry.agent_id;
     const enquiryId = enquiry.enquiry_id;
+    dispatch(setPackageData(null));
+        dispatch(clearPackages());
+        dispatch(resetConvertState());
 
     try {
       // Wait for conversion to complete
