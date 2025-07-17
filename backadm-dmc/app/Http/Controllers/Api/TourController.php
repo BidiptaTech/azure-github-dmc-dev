@@ -117,6 +117,10 @@ class TourController extends Controller
             $packagedAttractions = [];
             $port_details = [];
             $dropoff_details = [];
+            $name = null;
+            $exit_name = null;
+            $id = null;
+            $exit_id = null;
 
             if ($formEnquiry) {
                 // Get hotel details
@@ -161,28 +165,8 @@ class TourController extends Controller
                     $packagedAttractions = PackagedAttraction::select('package_attraction_id', 'name', 'master_image')->whereIn('package_attraction_id', $packagedAttractionIds)->get();
                 }
 
-                // Combine entry and exit port details
-                if (!empty($formEnquiry->entry_port_address) || !empty($formEnquiry->exit_port_address)) {
-                    $port_details = [
-                        [
-                            'type' => 'entry',
-                            'port_address' => $formEnquiry->entry_port_address,
-                            'is_active' => $formEnquiry->entry_port
-                        ],
-                        [
-                            'type' => 'exit',
-                            'port_address' => $formEnquiry->exit_port_address,
-                            'is_active' => $formEnquiry->exit_port
-                        ]
-                    ];
-                }
-
-                // Combine entry dropoff and exit pickup details
-                $dropoff_details = [];
-                
-                // Add entry dropoff if exists
+                // Handle entry dropoff
                 if (!empty($formEnquiry->entry_dropoff_type) && !empty($formEnquiry->entry_dropoff_location_id)) {
-                    $name = null;
                     $id = $formEnquiry->entry_dropoff_location_id;
                     
                     if ($formEnquiry->entry_dropoff_type === 'hotel') {
@@ -195,36 +179,41 @@ class TourController extends Controller
                         $restaurant = \App\Models\Restaurant::where('restaurant_id', $id)->first();
                         $name = $restaurant ? $restaurant->name : null;
                     }
-
-                    $dropoff_details[] = [
-                        'type' => 'entry',
-                        'location_type' => $formEnquiry->entry_dropoff_type,
-                        'location_id' => $id,
-                        'name' => $name
-                    ];
                 }
 
-                // Add exit pickup if exists
+                // Handle exit pickup
                 if (!empty($formEnquiry->exit_pickup_type) && !empty($formEnquiry->exit_pickup_location_id)) {
-                    $name = null;
-                    $id = $formEnquiry->exit_pickup_location_id;
+                    $exit_id = $formEnquiry->exit_pickup_location_id;
                     
                     if ($formEnquiry->exit_pickup_type === 'hotel') {
-                        $hotel = \App\Models\Hotel::where('hotel_unique_id', $id)->first();
-                        $name = $hotel ? $hotel->name : null;
+                        $hotel = \App\Models\Hotel::where('hotel_unique_id', $exit_id)->first();
+                        $exit_name = $hotel ? $hotel->name : null;
                     } elseif ($formEnquiry->exit_pickup_type === 'attraction') {
-                        $attraction = \App\Models\Attraction::where('attraction_id', $id)->first();
-                        $name = $attraction ? $attraction->name : null;
+                        $attraction = \App\Models\Attraction::where('attraction_id', $exit_id)->first();
+                        $exit_name = $attraction ? $attraction->name : null;
                     } elseif ($formEnquiry->exit_pickup_type === 'restaurant') {
-                        $restaurant = \App\Models\Restaurant::where('restaurant_id', $id)->first();
-                        $name = $restaurant ? $restaurant->name : null;
+                        $restaurant = \App\Models\Restaurant::where('restaurant_id', $exit_id)->first();
+                        $exit_name = $restaurant ? $restaurant->name : null;
                     }
+                }
 
-                    $dropoff_details[] = [
-                        'type' => 'exit',
-                        'location_type' => $formEnquiry->exit_pickup_type,
-                        'location_id' => $id,
-                        'name' => $name
+                // Combine port and location details
+                if (!empty($formEnquiry->entry_port_address) || !empty($formEnquiry->exit_port_address)) {
+                    $port_details = [
+                        [
+                            'type' => 'entry',
+                            'port_address' => $formEnquiry->entry_port_address,
+                            'location_type' => $formEnquiry->entry_dropoff_type,
+                            'location_id' => $id,
+                            'dropoff_name' => $name
+                        ],
+                        [
+                            'type' => 'exit',
+                            'port_address' => $formEnquiry->exit_port_address,
+                            'location_type' => $formEnquiry->exit_pickup_type,
+                            'location_id' => $exit_id,
+                            'dropoff_name' => $exit_name
+                        ]
                     ];
                 }
             }
@@ -253,7 +242,6 @@ class TourController extends Controller
                         'guide' => $guide,
                         'driver' => $drivers,
                         'ports' => $port_details,
-                        'dropoff_locations' => $dropoff_details,
                         'packaged_attractions' => $packagedAttractions,
 
                         'hotel_on'=> $formEnquiry->hotel ?? false  ,
