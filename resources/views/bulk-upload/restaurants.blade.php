@@ -175,7 +175,7 @@
 
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="skipDuplicates">
+                                    <input class="form-check-input" type="checkbox" name="skipDuplicates" id="skipDuplicates">
                                     <label class="form-check-label" for="skipDuplicates">
                                         Skip duplicate entries
                                     </label>
@@ -201,36 +201,158 @@
             </div>
         </div>
 
-        <!-- Recent Uploads -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="ri-history-line me-2"></i>Recent Upload History
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>File Name</th>
-                                <th>Total Records</th>
-                                <th>Success</th>
-                                <th>Failed</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
-                                    <i class="ri-inbox-line display-4 d-block mb-2"></i>
-                                    No upload history available
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <!-- Recent Uploads - Modern UI -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-gradient-primary text-white border-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 text-white">
+                        <i class="ri-history-line me-2"></i>Recent Upload History
+                    </h5>
+                    <span class="badge bg-light bg-opacity-20 text-white">
+                        {{ $uploadHistory ? $uploadHistory->count() : 0 }} uploads
+                    </span>
                 </div>
+            </div>
+            <div class="card-body p-0">
+                @if(isset($uploadHistory) && $uploadHistory->count() > 0)
+                    <!-- Desktop View -->
+                    <div class="table-responsive d-none d-lg-block">
+                        <table class="table table-hover mb-0 modern-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0 py-3">
+                                        <i class="ri-calendar-line text-primary me-1"></i>Upload Time
+                                    </th>
+                                    <th class="border-0 py-3">
+                                        <i class="ri-file-text-line text-primary me-1"></i>File Details
+                                    </th>
+                                    <th class="border-0 py-3">
+                                        <i class="ri-database-line text-primary me-1"></i>Records
+                                    </th>
+                                    <th class="border-0 py-3">
+                                        <i class="ri-checkbox-circle-line text-primary me-1"></i>Results
+                                    </th>
+                                    <th class="border-0 py-3">
+                                        <i class="ri-shield-check-line text-primary me-1"></i>Status
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($uploadHistory as $history)
+                                    <tr class="upload-row">
+                                        <td class="py-3">
+                                            <div class="d-flex flex-column">
+                                                <span class="fw-medium text-dark">{{ date('M d, Y', strtotime($history->created_at)) }}</span>
+                                                <small class="text-muted">{{ date('H:i', strtotime($history->created_at)) }}</small>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="file-icon me-3">
+                                                    <i class="ri-file-excel-2-line text-success fs-4"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-medium text-dark">{{ $history->file_name }}</div>
+                                                    <small class="text-muted">CSV File</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
+                                                    <i class="ri-database-2-line me-1"></i>{{ $history->total_records }} rows
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                                    <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
+                                                </span>
+                                                @if($history->error_count > 0)
+                                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+                                                        <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            @if($history->success_count == $history->total_records)
+                                                <span class="badge bg-success px-3 py-2">
+                                                    <i class="ri-check-double-line me-1"></i>Completed
+                                                </span>
+                                            @elseif($history->success_count > 0)
+                                                <span class="badge bg-warning px-3 py-2">
+                                                    <i class="ri-alert-line me-1"></i>Partial Success
+                                                </span>
+                                            @else
+                                                <span class="badge bg-danger px-3 py-2">
+                                                    <i class="ri-close-circle-line me-1"></i>Failed
+                                                </span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mobile/Tablet View -->
+                    <div class="d-lg-none">
+                        @foreach($uploadHistory as $history)
+                            <div class="upload-card border-bottom px-3 py-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-file-excel-2-line text-success fs-4 me-2"></i>
+                                        <div>
+                                            <div class="fw-medium text-dark">{{ $history->file_name }}</div>
+                                            <small class="text-muted">{{ date('M d, Y H:i', strtotime($history->created_at)) }}</small>
+                                        </div>
+                                    </div>
+                                    @if($history->success_count == $history->total_records)
+                                        <span class="badge bg-success">
+                                            <i class="ri-check-line me-1"></i>Success
+                                        </span>
+                                    @elseif($history->success_count > 0)
+                                        <span class="badge bg-warning">
+                                            <i class="ri-alert-line me-1"></i>Partial
+                                        </span>
+                                    @else
+                                        <span class="badge bg-danger">
+                                            <i class="ri-close-line me-1"></i>Failed
+                                        </span>
+                                    @endif
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                                            {{ $history->total_records }} rows
+                                        </span>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                                            {{ $history->success_count }} ✓
+                                        </span>
+                                        @if($history->error_count > 0)
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                                                {{ $history->error_count }} ✗
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <small class="text-muted">{{ \Carbon\Carbon::parse($history->created_at)->diffForHumans() }}</small>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-5">
+                        <div class="empty-state">
+                            <div class="mb-3">
+                                <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
+                            </div>
+                            <h6 class="text-muted mb-2">No Upload History</h6>
+                            <p class="text-muted small mb-0">Your upload history will appear here once you start uploading files.</p>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -257,6 +379,168 @@
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     border: 1px solid rgba(0, 0, 0, 0.125);
 }
+
+/* Modern Upload History Styles */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #696cff 0%, #5a67d8 100%);
+}
+
+.modern-table {
+    border: none;
+}
+
+.modern-table thead th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1rem 1.25rem;
+}
+
+.modern-table tbody tr {
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.modern-table tbody tr:hover {
+    background-color: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.upload-row td {
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.upload-card {
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.upload-card:hover {
+    background-color: #f8fafc;
+}
+
+.upload-card:last-child {
+    border-bottom: none !important;
+}
+
+.file-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f9ff;
+    border-radius: 12px;
+    border: 1px solid #e0f2fe;
+}
+
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+}
+
+.badge.bg-success {
+    background-color: #16a34a !important;
+    color: white;
+}
+
+.badge.bg-warning {
+    background-color: #eab308 !important;
+    color: white;
+}
+
+.badge.bg-danger {
+    background-color: #dc2626 !important;
+    color: white;
+}
+
+.badge.bg-info {
+    background-color: #0ea5e9 !important;
+    color: white;
+}
+
+/* Soft colored badges for counts */
+.badge.bg-success.bg-opacity-10 {
+    background-color: rgba(34, 197, 94, 0.1) !important;
+    color: #16a34a !important;
+    border: 1px solid rgba(34, 197, 94, 0.2) !important;
+}
+
+.badge.bg-danger.bg-opacity-10 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #dc2626 !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+.badge.bg-info.bg-opacity-10 {
+    background-color: rgba(14, 165, 233, 0.1) !important;
+    color: #0ea5e9 !important;
+    border: 1px solid rgba(14, 165, 233, 0.2) !important;
+}
+
+.empty-state {
+    padding: 3rem 2rem;
+}
+
+.card.border-0.shadow-sm {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.card-header.bg-gradient-primary {
+    padding: 1.25rem 1.5rem;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .card-header.bg-gradient-primary {
+        padding: 1rem;
+    }
+    
+    .upload-card {
+        padding: 1rem !important;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Animation for loading states */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.upload-row,
+.upload-card {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+/* Status indicator improvements */
+.badge i {
+    font-size: 0.875em;
+}
+
+/* Table header icons */
+.table thead th i {
+    opacity: 0.7;
+    font-size: 0.9em;
+}
 </style>
 
 <script>
@@ -273,6 +557,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressSection = document.getElementById('progressSection');
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
+    
+    // Flag to prevent duplicate submissions
+    let isSubmitting = false;
 
     // Drag and drop functionality
     dropzone.addEventListener('dragover', function(e) {
@@ -358,6 +645,14 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
+        // Prevent duplicate submissions
+        if (isSubmitting) {
+            console.log('Form is already being submitted');
+            return false;
+        }
+        
+        isSubmitting = true;
+        
         const formData = new FormData(this);
         
         // Show progress section
@@ -386,11 +681,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text().then(text => {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    // If response is not JSON, it's likely a redirect
+                    window.location.href = response.url;
+                    return { redirected: true };
+                }
+            });
+        })
         .then(data => {
             clearInterval(progressInterval);
             progressBar.style.width = '100%';
             progressText.textContent = '100%';
+            
+            if (data.redirected) return; // Already handled redirect
             
             setTimeout(() => {
                 if (data.success) {
@@ -399,16 +709,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Upload failed: ' + (data.message || 'Unknown error'));
                     progressSection.classList.add('d-none');
                     uploadBtn.disabled = false;
+                    isSubmitting = false;
                 }
             }, 500);
         })
         .catch(error => {
             clearInterval(progressInterval);
-            progressSection.classList.add('d-none');
-            uploadBtn.disabled = false;
+            console.error('Error during fetch operation:', error);
             
-            // Fallback to regular form submission
-            this.submit();
+            // Instead of submitting the form again, just reload the page
+            // This prevents the double submission
+            window.location.reload();
         });
     });
 });

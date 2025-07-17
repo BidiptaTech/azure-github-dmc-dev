@@ -51,6 +51,9 @@ class VehicleController extends Controller
          elseif ($user->role_id == 11) {
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
+         elseif ($user->role_id == 20) {
+            $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+        }
         elseif(in_array($user->role_id, [25, 62, 110])){
             if($user->role_id == 25){
                 $master_dmc_id = $user->created_by;

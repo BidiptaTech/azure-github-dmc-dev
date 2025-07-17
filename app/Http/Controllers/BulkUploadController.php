@@ -20,6 +20,7 @@ use App\Models\Attraction;
 use App\Models\Ticket;
 use App\Models\Country;
 use App\Models\City;
+use App\Models\User;
 use App\Models\UploadHistory;
 use Carbon\Carbon;
 
@@ -59,40 +60,30 @@ class BulkUploadController extends Controller
     {
         $auth_user = Auth::user();
         
-        // Define role groups for driver bulk upload access
-        $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-        $dmcDriverRoles = [81, 124]; // Product Manager Driver (DMC), Assistant PM Driver (DMC)
-        $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-        $travclicksDriverRoles = [51, 125]; // Product Manager Driver (Travclicks), Assistant PM Driver (Travclicks)
-        
-        // Check if user has access to driver bulk upload
-        $hasAccess = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcDriverRoles, $travclicksFullAccessRoles, $travclicksDriverRoles));
-        
-        if (!$hasAccess) {
-            abort(403, 'You do not have permission to access driver bulk upload.');
+        // Only Virtual DMC (role_id = 20) and DMC (role_id = 11) can access driver bulk upload
+        if (!in_array($auth_user->role_id, [20, 11])) {
+            abort(403, 'Only Virtual DMC and DMC users can access driver bulk upload.');
         }
         
-        return view('bulk-upload.drivers');
+        // Get upload history for drivers
+        $uploadHistory = $this->getUploadHistory('drivers');
+        
+        return view('bulk-upload.drivers', compact('uploadHistory'));
     }
 
     public function guides()
     {
         $auth_user = Auth::user();
         
-        // Define role groups for guide bulk upload access
-        $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-        $dmcGuideRoles = [79, 121]; // Product Manager Guide (DMC), Assistant PM Guide (DMC)
-        $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-        $travclicksGuideRoles = [49, 119]; // Product Manager Guide (Travclicks), Assistant PM Guide (Travclicks)
-        
-        // Check if user has access to guide bulk upload
-        $hasAccess = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcGuideRoles, $travclicksFullAccessRoles, $travclicksGuideRoles));
-        
-        if (!$hasAccess) {
-            abort(403, 'You do not have permission to access guide bulk upload.');
+        // Only Virtual DMC (role_id = 20) and DMC (role_id = 11) can access guide bulk upload
+        if (!in_array($auth_user->role_id, [20, 11])) {
+            abort(403, 'Only Virtual DMC and DMC users can access guide bulk upload.');
         }
         
-        return view('bulk-upload.guides');
+        // Get upload history for guides
+        $uploadHistory = $this->getUploadHistory('guides');
+        
+        return view('bulk-upload.guides', compact('uploadHistory'));
     }
 
     public function restaurants()
@@ -104,15 +95,25 @@ class BulkUploadController extends Controller
             abort(403, 'Only Virtual DMC users can access restaurant bulk upload.');
         }
         
-        // Get upload history (simple approach to avoid UploadHistory model issues)
-        $uploadHistory = collect();
+        // Get upload history for restaurants
+        $uploadHistory = $this->getUploadHistory('restaurants');
         
         return view('bulk-upload.restaurants', compact('uploadHistory'));
     }
 
     public function vehicles()
     {
-        return view('bulk-upload.vehicles');
+        $auth_user = Auth::user();
+        
+        // Restrict access to only Virtual DMC (role_id=20) and DMC (role_id=11)
+        if (!in_array($auth_user->role_id, [11, 20])) {
+            abort(403, 'You do not have permission to access vehicle bulk upload. Only DMC and Virtual DMC users can upload vehicles.');
+        }
+        
+        // Get upload history for vehicles
+        $uploadHistory = $this->getUploadHistory('vehicles');
+        
+        return view('bulk-upload.vehicles', compact('uploadHistory'));
     }
 
     public function attractions()
@@ -664,23 +665,12 @@ class BulkUploadController extends Controller
     {
         $auth_user = Auth::user();
 
-        // Define role groups
-        $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-        $dmcDriverRoles = [81, 124]; // Product Manager Driver (DMC), Assistant PM Driver (DMC)
-        $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-        $travclicksDriverRoles = [51, 125]; // Product Manager Driver (Travclicks), Assistant PM Driver (Travclicks)
-
-        // Check if user is DMC or Travclicks
-        $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcDriverRoles));
-        $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksDriverRoles));
-
-        if ($isDmcUser || ($auth_user->role_id == 20)) { // DMC users or Virtual DMC
-            return $this->downloadDmcDriverTemplate($auth_user);
-        } elseif ($isTravclicksUser) { // Travclicks users
-            return $this->downloadTravclicksDriverTemplate($auth_user);
-        } else {
-            abort(403, 'You do not have permission to download driver templates.');
+        // Check if user is Virtual DMC or DMC
+        if (!in_array($auth_user->role_id, [20, 11])) {
+            abort(403, 'Only Virtual DMC and DMC users can download driver templates.');
         }
+
+        return $this->downloadDmcDriverTemplate($auth_user);
     }
 
     private function downloadDmcDriverTemplate($auth_user)
@@ -703,51 +693,41 @@ class BulkUploadController extends Controller
 
         $data = [$headers];
 
-        // Get drivers based on user role - DMC users only see their own drivers
-        $drivers = Driver::where('dmc_id', $auth_user->userId)
-                          ->where('is_active', 1)
-                          ->get();
-
-        if ($drivers->count() > 0) {
-            foreach ($drivers as $driver) {
-                $row = [
-                    $driver->salutation ?? '',
-                    $driver->driver_gender ?? '',
-                    $driver->name ?? '',
-                    $driver->email ?? '',
-                    $driver->phone ?? '',
-                    $driver->address ?? '',
-                    $driver->country ?? '',
-                    $driver->city ?? '',
-                    $driver->license_no ?? '',
-                    $driver->license_exp_date ?? '',
-                    $driver->driver_age ?? '',
-                    $driver->image ?? '',
-                    $driver->is_active ? '1' : '0'
-                ];
-                
-                $data[] = $row;
-            }
-        } else {
-            // No existing drivers, add sample data for DMC format
-        $sampleData = [
-                'Mr',
-                'Male',
+        // Always add sample data for DMC format
+        $sampleData1 = [
+            'Mr',
+            'Male',
             'John Driver',
-            'john@example.com',
-            '+1-555-123-4567',
-                '123 Main Street, Apt 4B',
-                'United States',
-            'New York',
-                'DL123456789',
-                '2025-12-31',
-                '35',
-                'driver_profile.jpg',
-                '1'
-            ];
+            'john.driver@example.com',
+            '65821344',
+            '123 Main Street, Apt 4B',
+            'Singapore',
+            'Singapore',
+            'DL123456789',
+            '2025-12-31',
+            '35',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1747914318_8LrLVP.jpg',
+            '1'
+        ];
 
-            $data[] = $sampleData;
-        }
+        $sampleData2 = [
+            'Miss',
+            'Female',
+            'Jane Smith',
+            'jane.smith@example.com',
+            '65864213',
+            '456 Ocean Drive',
+            'Singapore',
+            'Singapore',
+            'DL987654321',
+            '2026-06-30',
+            '28',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/jane_profile.jpg',
+            '1'
+        ];
+
+        $data[] = $sampleData1;
+        $data[] = $sampleData2;
 
         $content = $this->generateCsvContent($data);
         $filename = 'dmc_driver_bulk_upload_template.csv';
@@ -758,121 +738,22 @@ class BulkUploadController extends Controller
         ]);
     }
 
-    private function downloadTravclicksDriverTemplate($auth_user)
-    {
-        $headers = [
-            'Salutation*',
-            'Driver Gender*',
-            'Name*',
-            'Email*',
-            'Phone No*',
-            'Address*',
-            'Country*',
-            'City*',
-            'License No*',
-            'License Expiry Date*',
-            'Driver Age*',
-            'Profile Image*',
-            'Status*'
-        ];
 
-        $data = [$headers];
-
-        // Get all drivers - Travclicks users can see all data
-        $drivers = Driver::where('is_active', 1)->get();
-
-        if ($drivers->count() > 0) {
-            foreach ($drivers as $driver) {
-                $row = [
-                    $driver->salutation ?? '',
-                    $driver->driver_gender ?? '',
-                    $driver->name ?? '',
-                    $driver->email ?? '',
-                    $driver->phone ?? '',
-                    $driver->address ?? '',
-                    $driver->country ?? '',
-                    $driver->city ?? '',
-                    $driver->license_no ?? '',
-                    $driver->license_exp_date ?? '',
-                    $driver->driver_age ?? '',
-                    $driver->image ?? '',
-                    $driver->is_active ? '1' : '0'
-                ];
-                
-                $data[] = $row;
-            }
-        } else {
-            // No existing drivers, add sample data for Travclicks format
-            $sampleData1 = [
-                'Mr',
-                'Male',
-                'John Driver',
-                'john@example.com',
-                '+1-555-123-4567',
-                '123 Main Street, Apt 4B',
-            'United States',
-                'New York',
-                'DL123456789',
-                '2025-12-31',
-                '35',
-                'driver_profile.jpg',
-            '1'
-        ];
-
-            $sampleData2 = [
-                'Ms',
-                'Female',
-                'Jane Smith',
-                'jane@example.com',
-                '+65-9999-8888',
-                '456 Ocean Drive',
-                'Singapore',
-                'Singapore',
-                'DL987654321',
-                '2026-06-30',
-                '28',
-                'jane_profile.jpg',
-                '1'
-            ];
-
-            $data[] = $sampleData1;
-            $data[] = $sampleData2;
-        }
-
-        $content = $this->generateCsvContent($data);
-        $filename = 'travclicks_driver_bulk_upload_template.csv';
-
-        return Response::make($content, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
-    }
 
     // Guide Template Download
     public function downloadGuideTemplate()
     {
         $auth_user = Auth::user();
 
-        // Define role groups
-        $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-        $dmcGuideRoles = [79, 121]; // Product Manager Guide (DMC), Assistant PM Guide (DMC)
-        $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-        $travclicksGuideRoles = [49, 119]; // Product Manager Guide (Travclicks), Assistant PM Guide (Travclicks)
-
-        // Check if user is DMC or Travclicks
-        $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcGuideRoles));
-        $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksGuideRoles));
-
-        if ($isDmcUser || ($auth_user->role_id == 20)) { // DMC users or Virtual DMC
-            return $this->downloadDmcGuideTemplate($auth_user);
-        } elseif ($isTravclicksUser) { // Travclicks users
-            return $this->downloadTravclicksGuideTemplate($auth_user);
-        } else {
-            abort(403, 'You do not have permission to download guide templates.');
+        // Check if user is Virtual DMC or DMC
+        if (!in_array($auth_user->role_id, [20, 11])) {
+            abort(403, 'Only Virtual DMC and DMC users can download guide templates.');
         }
+
+        return $this->downloadDummyGuideTemplate($auth_user);
     }
 
-    private function downloadDmcGuideTemplate($auth_user)
+    private function downloadDummyGuideTemplate($auth_user)
     {
         $headers = [
             'Salutation',
@@ -902,415 +783,151 @@ class BulkUploadController extends Controller
             'Eight Hour Price*',
             'Ten Hour Price*',
             'Twelve Hour Price*',
-            'Adout*',
-            // 'Specialization',
-            // 'Daily Rate',
-            // 'Guide Type',
-            // 'Availability Status',
+            'About*',
             'Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$headers];
 
-        // Get guides based on user role
-        $guides = Guide::where('dmc_id', $auth_user->userId)
-                      ->where('status', 1)
-                      ->with('languages')
-                      ->get();
-
-            if ($guides->count() > 0) {
-            foreach ($guides as $guide) {
-                // Get guide languages
-                $guideLanguages = \App\Models\GuideLanguage::where('guide_id', $guide->guide_id)->get();
-                
-                if ($guideLanguages->count() > 0) {
-                    // Create a row for each language-proficiency pair
-                    foreach ($guideLanguages as $index => $guideLanguage) {
-                        $row = [
-                            // Guide basic info only on first language row
-                            $index === 0 ? ($guide->salutation ?? '') : '',
-                            $index === 0 ? ($guide->guide_gender ?? '') : '',
-                            $index === 0 ? ($guide->name ?? '') : '',
-                            $index === 0 ? ($guide->email ?? '') : '',
-                            $index === 0 ? ($guide->contact_no ?? '') : '',
-                            $index === 0 ? ($guide->service_type ?? '') : '',
-                            $index === 0 ? ($guide->guide_age ?? '') : '',
-                            $index === 0 ? ($guide->image ?? '') : '',
-                            $index === 0 ? ($guide->government_license_no ?? '') : '',
-                            $index === 0 ? ($guide->license_image ?? '') : '',
-                            $index === 0 ? ($guide->license_exp_date ?? '') : '',
-                            $index === 0 ? ($guide->city ?? '') : '',
-                            $index === 0 ? ($guide->country ?? '') : '',
-                            $index === 0 ? ($guide->experience_years ?? '') : '',
-                            
-                            // Language and proficiency for each row
-                            $guideLanguage->language ?? '',
-                            $guideLanguage->proficiency ?? '',
-                            $guide->day_rate ?? '',
-                            $guide->night_surcharge ?? '',
-                            $guide->night_start_time ?? '',
-                            $guide->night_end_time ?? '',
-                            $guide->hourly_price ?? '',
-                            $guide->two_hour_price ?? '',
-                            $guide->four_hour_price ?? '',
-                            $guide->six_hour_price ?? '',
-                            $guide->eight_hour_price ?? '',
-                            $guide->ten_hour_price ?? '',
-                            $guide->twelve_hour_price ?? '',
-                            $guide->description ?? '',
-                            
-                            // Status only on first row
-                            $index === 0 ? ($guide->is_active ? '1' : '0') : ''
-                        ];
-                        
-                        $data[] = $row;
-                    }
-                } else {
-                    // Guide without languages - add guide row with empty language fields
-                    $row = [
-                        $guide->salutation ?? '',
-                        $guide->guide_gender ?? '',
-                        $guide->name ?? '',
-                        $guide->email ?? '',
-                        $guide->contact_no ?? '',
-                        $guide->service_type ?? '',
-                        $guide->guide_age ?? '',
-                        $guide->image ?? '',
-                        $guide->government_license_no ?? '',
-                        $guide->license_image ?? '',
-                        $guide->license_exp_date ?? '',
-                        $guide->city ?? '',
-                        $guide->country ?? '',
-                        $guide->experience_years ?? '',
-                        '', // Language
-                        '', // Proficiency
-                        $guide->day_rate ?? '',
-                        $guide->night_surcharge ?? '',
-                        $guide->night_start_time ?? '',
-                        $guide->night_end_time ?? '',
-                        $guide->hourly_price ?? '',
-                        $guide->two_hour_price ?? '',
-                        $guide->four_hour_price ?? '',
-                        $guide->six_hour_price ?? '',
-                        $guide->eight_hour_price ?? '',
-                        $guide->ten_hour_price ?? '',
-                        $guide->twelve_hour_price ?? '',
-                        $guide->description ?? '',
-                        $guide->is_active ? '1' : '0'
-                    ];
-                    $data[] = $row;
-                }
-            }
-        } else {
-            // No existing guides, add sample data for DMC format
-            $sampleData1 = [
-                'Mr',
-                'Male',
-                'John Smith',
-                'john@example.com',
-                '+65-9999-1234',
-                '1',
-                '35',
-                'https://example.com/john.jpg',
-                'GL123456',
-                'https://example.com/license.jpg',
-                '2025-12-31',
-                'Singapore',
-                'Singapore',
-                '5',
-                'English',
-                'Fluent',
-                '180',
-                '10',
-                '18:00',
-                '06:00',
-                '30',
-                '55',
-                '100',
-                '140',
-                '180',
-                '220',
-                '250',
-                'Professional tour guide with 5 years experience',
+        // Add sample data with multiple language rows to show the format
+        $sampleData1 = [
+            'Mr',
+            'Male',
+            'John Smith',
+            'john@example.com',
+            '53524567',
+            '1',
+            '35',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
+            'GL123456',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
+            '2025-12-31',
+            'Singapore',
+            'Singapore',
+            '5',
+            'English',
+            'Fluent',
+            '180',
+            '10',
+            '18:00',
+            '06:00',
+            '30',
+            '55',
+            '100',
+            '140',
+            '180',
+            '220',
+            '250',
+            'Professional tour guide with 5 years experience',
             '1'
         ];
 
-            $sampleData2 = [
-                '', // Empty guide info for additional language
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'Mandarin',
-                'Intermediate',
-                '180',
-                '10',
-                '18:00',
-                '06:00',
-                '30',
-                '55',
-                '100',
-                '140',
-                '180',
-                '220',
-                '250',
-                'Professional tour guide with 5 years experience',
-                ''
-            ];
-
-            $data[] = $sampleData1;
-            $data[] = $sampleData2;
-        }
-
-        $content = $this->generateCsvContent($data);
-        $filename = 'dmc_guide_bulk_upload_template.csv';
-
-        return Response::make($content, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
-    }
-
-    private function downloadTravclicksGuideTemplate($auth_user)
-    {
-        $headers = [
-            'Salutation',
-            'Gender*',
-            'Guide Name*',
-            'Email*',
-            'Contact No*',
-            'Service Type*',
-            'Age*',
-            'Master Image*',
-            'License Number*',
-            'License Image*',
-            'License Expiry Date*',
-            'City*',
-            'Country*',
-            'Experience Years*',
-            'Languages*',
-            'Proficiency*',
-            'Minimum Base Price*',
-            'Night Surcharge*',
-            'Night Start Time*',
-            'Night End Time*',
-            'Hourly Price*',
-            'Two Hour Price*',
-            'Four Hour Price*',
-            'Six Hour Price*',
-            'Eight Hour Price*',
-            'Ten Hour Price*',
-            'Twelve Hour Price*',
-            'Adout*',
-            // 'Specialization',
-            // 'Daily Rate',
-            // 'Guide Type',
-            // 'Availability Status',
-            'Status (1=Active, 0=Inactive)'
+        // Second row for the same guide with different language
+        $sampleData2 = [
+            '', // Empty guide info for additional language
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            'Hindi',
+            'Intermediate',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            ''
         ];
 
-        $data = [$headers];
+        // Third row for the same guide with another language
+        $sampleData3 = [
+            '', // Empty guide info for additional language
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            'French',
+            'Beginner',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            ''
+        ];
 
-        // Get guides based on user role
-        $guides = Guide::where('status', 1)
-                      ->with('languages') // Load language relationships
-                      ->get();
+        // Add a second guide example
+        $sampleData4 = [
+            'Miss',
+            'Female',
+            'Jane Doe',
+            'jane@example.com',
+            '69456789',
+            '1',
+            '28',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
+            'GL789012',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
+            '2026-06-30',
+            'Singapore',
+            'Singapore',
+            '3',
+            'Spanish',
+            'Fluent',
+            '200',
+            '15',
+            '19:00',
+            '07:00',
+            '35',
+            '65',
+            '120',
+            '160',
+            '200',
+            '240',
+            '280',
+            'Experienced cultural guide specializing in heritage tours',
+            '1'
+        ];
 
-        if ($guides->count() > 0) {
-            foreach ($guides as $guide) {
-                // Get guide languages
-                $guideLanguages = \App\Models\GuideLanguage::where('guide_id', $guide->guide_id)->get();
-                
-                if ($guideLanguages->count() > 0) {
-                    // Create a row for each language-proficiency pair
-                    foreach ($guideLanguages as $index => $guideLanguage) {
-                        $row = [
-                            // Guide basic info only on first language row
-                            $index === 0 ? ($guide->salutation ?? '') : '',
-                            $index === 0 ? ($guide->guide_gender ?? '') : '',
-                            $index === 0 ? ($guide->name ?? '') : '',
-                            $index === 0 ? ($guide->email ?? '') : '',
-                            $index === 0 ? ($guide->contact_no ?? '') : '',
-                            $index === 0 ? ($guide->service_type ?? '') : '',
-                            $index === 0 ? ($guide->guide_age ?? '') : '',
-                            $index === 0 ? ($guide->image ?? '') : '',
-                            $index === 0 ? ($guide->government_license_no ?? '') : '',
-                            $index === 0 ? ($guide->license_image ?? '') : '',
-                            $index === 0 ? ($guide->license_exp_date ?? '') : '',
-                            $index === 0 ? ($guide->city ?? '') : '',
-                            $index === 0 ? ($guide->country ?? '') : '',
-                            $index === 0 ? ($guide->experience_years ?? '') : '',
-                            
-                            // Language and proficiency for each row
-                            $guideLanguage->language ?? '',
-                            $guideLanguage->proficiency ?? '',
-                            $guide->day_rate ?? '',
-                            $guide->night_surcharge ?? '',
-                            $guide->night_start_time ?? '',
-                            $guide->night_end_time ?? '',
-                            $guide->hourly_price ?? '',
-                            $guide->two_hour_price ?? '',
-                            $guide->four_hour_price ?? '',
-                            $guide->six_hour_price ?? '',
-                            $guide->eight_hour_price ?? '',
-                            $guide->ten_hour_price ?? '',
-                            $guide->twelve_hour_price ?? '',
-                            $guide->description ?? '',
-                            // Status only on first row
-                            $index === 0 ? ($guide->is_active ? '1' : '0') : ''
-                        ];
-                        
-                        $data[] = $row;
-                    }
-                } else {
-                    // Guide without languages - add guide row with empty language fields
-                    $row = [
-                        $guide->salutation ?? '',
-                        $guide->guide_gender ?? '',
-                        $guide->name ?? '',
-                        $guide->email ?? '',
-                        $guide->contact_no ?? '',
-                        $guide->service_type ?? '',
-                        $guide->guide_age ?? '',
-                        $guide->image ?? '',
-                        $guide->government_license_no ?? '',
-                        $guide->license_image ?? '',
-                        $guide->license_exp_date ?? '',
-                        $guide->city ?? '',
-                        $guide->country ?? '',
-                        $guide->experience_years ?? '',
-                        '', // Language
-                        '', // Proficiency
-                        $guide->day_rate ?? '',
-                        $guide->night_surcharge ?? '',
-                        $guide->night_start_time ?? '',
-                        $guide->night_end_time ?? '',
-                        $guide->hourly_price ?? '',
-                        $guide->two_hour_price ?? '',
-                        $guide->four_hour_price ?? '',
-                        $guide->six_hour_price ?? '',
-                        $guide->eight_hour_price ?? '',
-                        $guide->ten_hour_price ?? '',
-                        $guide->twelve_hour_price ?? '',
-                        $guide->description ?? '',
-                        $guide->is_active ? '1' : '0'
-                    ];
-                    $data[] = $row;
-                }
-            }
-        } else {
-            // No existing guides, add sample data for Travclicks format
-            $sampleData1 = [
-                'Mr',
-                'Male',
-                'John Smith',
-                'john@example.com',
-                '+65-9999-1234',
-                '1',
-                '35',
-                'https://example.com/john.jpg',
-                'GL123456',
-                'https://example.com/license.jpg',
-                '2025-12-31',
-                'Singapore',
-                'Singapore',
-                '5',
-                'English',
-                'Fluent',
-                '180',
-                '10',
-                '18:00',
-                '06:00',
-                '30',
-                '55',
-                '100',
-                '140',
-                '180',
-                '220',
-                '250',
-                'Professional tour guide with 5 years experience',
-                '1'
-            ];
-
-            $sampleData2 = [
-                '', // Empty guide info for additional language
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'Mandarin',
-                'Intermediate',
-                '180',
-                '10',
-                '18:00',
-                '06:00',
-                '30',
-                '55',
-                '100',
-                '140',
-                '180',
-                '220',
-                '250',
-                'Professional tour guide with 5 years experience',
-                ''
-            ];
-
-            $sampleData3 = [
-                '', // Empty guide info for additional language
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'French',
-                'Beginner',
-                '180',
-                '10',
-                '18:00',
-                '06:00',
-                '30',
-                '55',
-                '100',  
-                '140',
-                '180',
-                '220',
-                '250',
-                'Professional tour guide with 5 years experience',
-                ''
-            ];
-
-            $data[] = $sampleData1;
-            $data[] = $sampleData2;
-            $data[] = $sampleData3;
-        }
+        $data[] = $sampleData1;
+        $data[] = $sampleData2;
+        $data[] = $sampleData3;
+        $data[] = $sampleData4;
 
         $content = $this->generateCsvContent($data);
-        $filename = 'travclicks_guide_bulk_upload_template.csv';
+        $filename = 'guide_bulk_upload_template.csv';
 
         return Response::make($content, 200, [
             'Content-Type' => 'text/csv',
@@ -1472,7 +1089,7 @@ class BulkUploadController extends Controller
                         $restaurant->description ?? '',
                         $restaurant->terms_conditions ?? '',
                         $restaurant->is_active ? '1' : '0',
-                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
                     ];
                     $data[] = $row;
                 }
@@ -1821,6 +1438,20 @@ class BulkUploadController extends Controller
             ]);
 
             $file = $request->file('file');
+            $auth_user = Auth::user();
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $cacheKey = "restaurant_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 60 seconds)
+            // if (cache()->has($cacheKey)) {
+            //     return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            // }
+            
+            // Mark this upload as in progress
+            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+            
             $csvData = $this->readCsvFile($file->getPathname());
             
             if (empty($csvData)) {
@@ -1830,39 +1461,58 @@ class BulkUploadController extends Controller
             // Remove header row
             array_shift($csvData);
             
-            $auth_user = Auth::user();
+            // Filter out empty rows to prevent double processing
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, function($cell) {
+                    return !empty(trim($cell));
+                }));
+            });
+            
+            // Re-index the array after filtering
+            $csvData = array_values($csvData);
             
             // Only Virtual DMC (role_id = 20) can upload restaurants
             if ($auth_user->role_id != 20) {
                 return redirect()->back()->with('error', 'Only Virtual DMC users can upload restaurants.');
             }
 
-            return $this->uploadVirtualDmcRestaurants($csvData, $auth_user);
+            // Check if we should skip duplicates
+            $skipDuplicates = $request->has('skipDuplicates');
+
+            return $this->uploadVirtualDmcRestaurants($csvData, $auth_user, $skipDuplicates, $file, $cacheKey);
                 
         } catch (\Exception $e) {
             DB::rollback();
+            // Clear the upload cache on error if it exists
+            if (isset($cacheKey)) {
+                cache()->forget($cacheKey);
+            }
             Log::error('Restaurant bulk upload failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
     }
 
-    private function uploadVirtualDmcRestaurants($csvData, $auth_user)
+    private function uploadVirtualDmcRestaurants($csvData, $auth_user, $skipDuplicates = false, $file = null, $cacheKey = null)
     {
         $successCount = 0;
         $errorCount = 0;
         $errors = [];
-
+        $skippedCount = 0;
+        
+        // Track restaurants being processed in this upload to prevent duplicates within the same CSV
+        $processedRestaurants = [];
+        
         DB::beginTransaction();
-
+        
         foreach ($csvData as $rowIndex => $row) {
             $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
-
+            
             try {
                 // Skip empty rows
                 if (empty(array_filter($row))) {
                     continue;
                 }
-
+                
                 // Map CSV columns
                 $restaurantName = trim($row[0] ?? '');
                 $cuisine = trim($row[1] ?? '');
@@ -1885,14 +1535,24 @@ class BulkUploadController extends Controller
                 $description = trim($row[18] ?? '');
                 $termsConditions = trim($row[19] ?? '');
                 $status = trim($row[20] ?? '1');
-
+                
                 // Validate required fields
                 if (empty($restaurantName) || empty($cuisine) || empty($country) || empty($city)) {
                     $errors[] = "Row {$rowNumber}: Missing required restaurant fields (Restaurant Name, Cuisine, Country, or City)";
                     $errorCount++;
                     continue;
                 }
-
+                
+                // Create unique key for this restaurant to check for duplicates within CSV
+                $restaurantKey = strtolower($restaurantName . '|' . $city . '|' . $country);
+                
+                // Check for duplicate within this CSV upload first
+                if (isset($processedRestaurants[$restaurantKey])) {
+                    $errors[] = "Row {$rowNumber}: Duplicate restaurant '{$restaurantName}' in {$city}, {$country} found in this CSV (previously at row {$processedRestaurants[$restaurantKey]})";
+                    $errorCount++;
+                    continue;
+                }
+                
                 // 🔍 Duplicate check: name + city + country (case-insensitive)
                 $existingRestaurant = Restaurant::whereRaw('LOWER(name) = ?', [strtolower($restaurantName)])
                     ->whereRaw('LOWER(city) = ?', [strtolower($city)])
@@ -1900,10 +1560,19 @@ class BulkUploadController extends Controller
                     ->first();
 
                 if ($existingRestaurant) {
-                    $errors[] = "Row {$rowNumber}: Duplicate restaurant '{$restaurantName}' already exists in {$city}, {$country}.";
-                    $errorCount++;
-                    continue;
+                    if ($skipDuplicates) {
+                        // Skip this restaurant without error if skipDuplicates is true
+                        $skippedCount++;
+                        continue;
+                    } else {
+                        $errors[] = "Row {$rowNumber}: Duplicate restaurant '{$restaurantName}' already exists in {$city}, {$country}.";
+                        $errorCount++;
+                        continue;
+                    }
                 }
+                
+                // Mark this restaurant as being processed
+                $processedRestaurants[$restaurantKey] = $rowNumber;
 
                 // Create new restaurant
                 $restaurant = new Restaurant();
@@ -1913,7 +1582,7 @@ class BulkUploadController extends Controller
                 $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
                 $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
                 $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
-
+                
                 if (Schema::hasColumn('restaurants', 'country')) {
                     $restaurant->country = $country;
                 }
@@ -1944,7 +1613,7 @@ class BulkUploadController extends Controller
                 if (Schema::hasColumn('restaurants', 'created_by')) {
                     $restaurant->created_by = $auth_user->userId;
                 }
-
+                
                 // Set time fields
                 if ($restaurant->breakfast_available && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
                     $restaurant->opening_time_bf = $breakfastOpenTime;
@@ -1958,7 +1627,7 @@ class BulkUploadController extends Controller
                     $restaurant->opening_time_dinner = $dinnerOpenTime;
                     $restaurant->closing_time_dinner = $dinnerCloseTime;
                 }
-
+                
                 // Set image fields
                 if (!empty($masterImage)) {
                     $restaurant->master_image = $masterImage;
@@ -1967,7 +1636,7 @@ class BulkUploadController extends Controller
                     $imagesArray = array_map('trim', explode(',', $additionalImages));
                     $restaurant->images = json_encode($imagesArray);
                 }
-
+                
                 // Generate unique restaurant_id
                 $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
                 $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
@@ -1975,25 +1644,51 @@ class BulkUploadController extends Controller
                 while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
                     $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
                 }
-
+                
                 $restaurant->restaurant_id = $restaurantId; // <-- critical line
                 $restaurant->save();
                 $successCount++;
-
+                
             } catch (\Exception $e) {
                 $errors[] = "Row {$rowNumber}: " . $e->getMessage();
                 $errorCount++;
                 Log::error("Restaurant bulk upload error on row {$rowNumber}: " . $e->getMessage());
             }
         }
-
-        DB::commit();
-
+        
+        if ($successCount > 0) {
+            DB::commit();
+        } else {
+            DB::rollback();
+        }
+        
+        // Clear the upload cache if it exists
+        if ($cacheKey) {
+            cache()->forget($cacheKey);
+        }
+        
+        // Save upload history if file info is available
+        if ($file) {
+            UploadHistory::createRecord(
+                'restaurants',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        }
+        
         $message = "Upload completed. {$successCount} restaurants processed successfully.";
         if ($errorCount > 0) {
             $message .= " {$errorCount} errors occurred.";
         }
-
+        if ($skippedCount > 0) {
+            $message .= " {$skippedCount} duplicates skipped.";
+        }
+        
         return redirect()->back()
             ->with('success', $message)
             ->with('errors', $errors);
@@ -2146,11 +1841,15 @@ class BulkUploadController extends Controller
         return $meal;
     }
 
-    private function uploadDmcGuides($csvData, $auth_user)
+    private function uploadGuideData($csvData, $auth_user, $file = null, $cacheKey = null)
     {
         $successCount = 0;
         $errorCount = 0;
         $errors = [];
+        
+        // Track guides being processed in this upload to prevent duplicates within the same CSV
+        $processedGuides = [];
+        $currentGuide = null;
         
         DB::beginTransaction();
         
@@ -2159,61 +1858,165 @@ class BulkUploadController extends Controller
             
             try {
                 // Skip empty rows
-                if (empty(array_filter($row))) {
+                if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
                     continue;
                 }
                 
-                // Map CSV columns to variables for DMC format
-                $guideName = trim($row[0] ?? '');
-                $email = trim($row[1] ?? '');
-                $phone = trim($row[2] ?? '');
-                $licenseNumber = trim($row[3] ?? '');
-                $city = trim($row[4] ?? '');
-                $country = trim($row[5] ?? '');
-                $experience = trim($row[6] ?? '');
-                $languages = trim($row[7] ?? '');
-                $specialization = trim($row[8] ?? '');
-                $dailyRate = trim($row[9] ?? '');
-                $guideType = trim($row[10] ?? '');
-                $availabilityStatus = trim($row[11] ?? '');
-                $status = trim($row[12] ?? '1');
+                // Map CSV columns to variables based on template
+                $salutation = trim($row[0] ?? '');
+                $gender = trim($row[1] ?? '');
+                $guideName = trim($row[2] ?? '');
+                $email = trim($row[3] ?? '');
+                $contactNo = trim($row[4] ?? '');
+                $serviceType = trim($row[5] ?? '');
+                $age = trim($row[6] ?? '');
+                $masterImage = trim($row[7] ?? '');
+                $licenseNumber = trim($row[8] ?? '');
+                $licenseImage = trim($row[9] ?? '');
+                $licenseExpiryDate = trim($row[10] ?? '');
+                $city = trim($row[11] ?? '');
+                $country = trim($row[12] ?? '');
+                $experienceYears = trim($row[13] ?? '');
+                $language = trim($row[14] ?? '');
+                $proficiency = trim($row[15] ?? '');
+                $minimumBasePrice = trim($row[16] ?? '');
+                $nightSurcharge = trim($row[17] ?? '');
+                $nightStartTime = trim($row[18] ?? '');
+                $nightEndTime = trim($row[19] ?? '');
+                $hourlyPrice = trim($row[20] ?? '');
+                $twoHourPrice = trim($row[21] ?? '');
+                $fourHourPrice = trim($row[22] ?? '');
+                $sixHourPrice = trim($row[23] ?? '');
+                $eightHourPrice = trim($row[24] ?? '');
+                $tenHourPrice = trim($row[25] ?? '');
+                $twelveHourPrice = trim($row[26] ?? '');
+                $about = trim($row[27] ?? '');
+                $status = trim($row[28] ?? '1');
                 
-                // Validate required fields
-                if (empty($guideName) || empty($email) || empty($phone) || empty($languages)) {
-                    $errors[] = "Row {$rowNumber}: Missing required fields (Guide Name, Email, Phone, or Languages)";
-                    $errorCount++;
-                    continue;
+                // Check if this is a new guide or additional language for existing guide
+                if (!empty($guideName) && !empty($email) && !empty($contactNo)) {
+                    // This is a new guide or first row for a guide
+                    
+                    // Validate required fields for new guide
+                    if (empty($gender) || empty($guideName) || empty($email) || empty($contactNo) || 
+                        empty($serviceType) || empty($age) || empty($masterImage) || empty($licenseNumber) || 
+                        empty($licenseImage) || empty($licenseExpiryDate) || empty($city) || empty($country) || 
+                        empty($experienceYears) || empty($language) || empty($proficiency) || 
+                        empty($minimumBasePrice) || empty($nightSurcharge) || empty($nightStartTime) || 
+                        empty($nightEndTime) || empty($hourlyPrice) || empty($twoHourPrice) || 
+                        empty($fourHourPrice) || empty($sixHourPrice) || empty($eightHourPrice) || 
+                        empty($tenHourPrice) || empty($twelveHourPrice) || empty($about)) {
+                        $errors[] = "Row {$rowNumber}: Missing required fields for new guide";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Create unique key for this guide
+                    $guideKey = strtolower($guideName . '|' . $email . '|' . $contactNo);
+                    
+                    // Check for duplicate within this CSV upload first
+                    if (isset($processedGuides[$guideKey])) {
+                        $errors[] = "Row {$rowNumber}: Duplicate guide '{$guideName}' found in this CSV (previously at row {$processedGuides[$guideKey]})";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Check for duplicate guide in database
+                    $existingGuide = Guide::where('email', $email)
+                        ->where('dmc_id', $auth_user->userId)
+                        ->first();
+                    
+                    if ($existingGuide) {
+                        $errors[] = "Row {$rowNumber}: Guide with email '{$email}' already exists for your account";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Check for duplicate license number
+                    $existingLicense = Guide::where('government_license_no', $licenseNumber)
+                        ->where('dmc_id', $auth_user->userId)
+                        ->first();
+                    
+                    if ($existingLicense) {
+                        $errors[] = "Row {$rowNumber}: Guide with license number '{$licenseNumber}' already exists for your account";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Mark this guide as being processed
+                    $processedGuides[$guideKey] = $rowNumber;
+                    
+                    // Generate unique guide ID
+                    $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
+                    $guide_max_id = $lastGuide->guide_id ?? 0;
+                    $guideId = \App\Helpers\CommonHelper::createId($guide_max_id);
+                    while (Guide::where('guide_id', $guideId)->exists()) {
+                        $guideId = \App\Helpers\CommonHelper::createId($guideId);
+                    }
+                    
+                    // Create new guide
+                    $guide = new Guide();
+                    $guide->guide_id = $guideId;
+                    $guide->salutation = $salutation;
+                    $guide->guide_gender = $gender;
+                    $guide->name = $guideName;
+                    $guide->email = $email;
+                    $guide->contact_no = $contactNo;
+                    $guide->service_type = is_numeric($serviceType) ? intval($serviceType) : 1;
+                    $guide->guide_age = is_numeric($age) ? intval($age) : 0;
+                    $guide->image = $masterImage;
+                    $guide->government_license_no = $licenseNumber;
+                    $guide->license_image = $licenseImage;
+                    $guide->license_exp_date = $licenseExpiryDate;
+                    $guide->city = $city;
+                    $guide->country = $country;
+                    $guide->experience_years = is_numeric($experienceYears) ? intval($experienceYears) : 0;
+                    $guide->day_rate = is_numeric($minimumBasePrice) ? floatval($minimumBasePrice) : 0;
+                    $guide->night_surcharge = is_numeric($nightSurcharge) ? floatval($nightSurcharge) : 0;
+                    $guide->night_start_time = $nightStartTime;
+                    $guide->night_end_time = $nightEndTime;
+                    $guide->hourly_price = is_numeric($hourlyPrice) ? floatval($hourlyPrice) : 0;
+                    $guide->two_hour_price = is_numeric($twoHourPrice) ? floatval($twoHourPrice) : 0;
+                    $guide->four_hour_price = is_numeric($fourHourPrice) ? floatval($fourHourPrice) : 0;
+                    $guide->six_hour_price = is_numeric($sixHourPrice) ? floatval($sixHourPrice) : 0;
+                    $guide->eight_hour_price = is_numeric($eightHourPrice) ? floatval($eightHourPrice) : 0;
+                    $guide->ten_hour_price = is_numeric($tenHourPrice) ? floatval($tenHourPrice) : 0;
+                    $guide->twelve_hour_price = is_numeric($twelveHourPrice) ? floatval($twelveHourPrice) : 0;
+                    $guide->description = $about;
+                    $guide->is_active = ($status == '1') ? 1 : 0;
+                    $guide->status = 1; // Default approved status
+                    $guide->dmc_id = $auth_user->userId;
+                    $guide->created_by = $auth_user->userId;
+                    
+                    $guide->save();
+                    
+                    // Set current guide for language processing
+                    $currentGuide = $guide;
+                    
+                    // Add first language
+                    if (!empty($language) && !empty($proficiency)) {
+                        $this->addGuideLanguage($guide->guide_id, $language, $proficiency);
+                    }
+                    
+                    $successCount++;
+                    
+                } else {
+                    // This is an additional language for the current guide
+                    if (!$currentGuide) {
+                        $errors[] = "Row {$rowNumber}: No guide context found for language entry";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    if (empty($language) || empty($proficiency)) {
+                        $errors[] = "Row {$rowNumber}: Missing language or proficiency for additional language entry";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Add additional language to current guide
+                    $this->addGuideLanguage($currentGuide->guide_id, $language, $proficiency);
                 }
-                
-                // Create new guide
-                $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-                $guide_max_id = $lastGuide->guide_id ?? 0;
-                $guideId = \App\Helpers\CommonHelper::createId($guide_max_id);
-                while (Guide::where('guide_id', $guideId)->exists()) {
-                    $guideId = \App\Helpers\CommonHelper::createId($guideId);
-                }
-                
-                $guide = new Guide();
-                $guide->guide_id = $guideId;
-                $guide->name = $guideName;
-                $guide->email = $email;
-                $guide->phone = $phone;
-                $guide->license_number = $licenseNumber;
-                $guide->city = $city;
-                $guide->country = $country;
-                $guide->experience = is_numeric($experience) ? intval($experience) : 0;
-                $guide->languages = $languages;
-                $guide->specialization = $specialization;
-                $guide->daily_rate = is_numeric($dailyRate) ? floatval($dailyRate) : 0;
-                $guide->guide_type = $guideType;
-                $guide->availability_status = $availabilityStatus;
-                $guide->is_active = ($status == '1') ? 1 : 0;
-                $guide->status = 1; // Default approved status
-                $guide->dmc_id = $auth_user->userId; // DMC users assign to their own DMC
-                $guide->created_by = $auth_user->userId;
-                
-                $guide->save();
-                $successCount++;
                 
             } catch (\Exception $e) {
                 $errors[] = "Row {$rowNumber}: " . $e->getMessage();
@@ -2222,7 +2025,30 @@ class BulkUploadController extends Controller
             }
         }
         
-        DB::commit();
+        if ($successCount > 0) {
+            DB::commit();
+        } else {
+            DB::rollback();
+        }
+        
+        // Clear the upload cache if it exists
+        if ($cacheKey) {
+            cache()->forget($cacheKey);
+        }
+        
+        // Save upload history if file info is available
+        if ($file) {
+            UploadHistory::createRecord(
+                'guides',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        }
         
         $message = "Upload completed. {$successCount} guides processed successfully.";
         if ($errorCount > 0) {
@@ -2233,134 +2059,173 @@ class BulkUploadController extends Controller
             ->with('success', $message)
             ->with('errors', $errors);
     }
-
-    private function uploadTravclicksGuides($csvData, $auth_user)
+    
+    private function addGuideLanguage($guideId, $language, $proficiency)
     {
-        $successCount = 0;
-        $errorCount = 0;
-        $errors = [];
+        // Check if this language already exists for this guide
+        $existingLanguage = \App\Models\GuideLanguage::where('guide_id', $guideId)
+            ->where('language', $language)
+            ->first();
         
-        DB::beginTransaction();
-        
-        foreach ($csvData as $rowIndex => $row) {
-            $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
+        if ($existingLanguage) {
+            // Update existing language proficiency
+            $existingLanguage->proficiency = $proficiency;
+            $existingLanguage->save();
+        } else {
+            // Create new language entry
+            $max_language_id = \App\Models\GuideLanguage::max('language_id') ?? 0;
+            $language_id = \App\Helpers\CommonHelper::createId($max_language_id);
             
-            try {
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-                
-                // Map CSV columns to variables for Travclicks format
-                $guideName = trim($row[0] ?? '');
-                $email = trim($row[1] ?? '');
-                $phone = trim($row[2] ?? '');
-                $address = trim($row[3] ?? '');
-                $city = trim($row[4] ?? '');
-                $country = trim($row[5] ?? '');
-                $postalCode = trim($row[6] ?? '');
-                $experience = trim($row[7] ?? '');
-                $languages = trim($row[8] ?? '');
-                $specialization = trim($row[9] ?? '');
-                $certification = trim($row[10] ?? '');
-                $dailyRate = trim($row[11] ?? '');
-                $website = trim($row[12] ?? '');
-                $socialMedia = trim($row[13] ?? '');
-                $status = trim($row[14] ?? '1');
-                
-                // Validate required fields
-                if (empty($guideName) || empty($email) || empty($phone) || empty($languages)) {
-                    $errors[] = "Row {$rowNumber}: Missing required fields (Guide Name, Email, Phone, or Languages)";
-                    $errorCount++;
-                    continue;
-                }
-                
-                // Create new guide
-                $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-                $guide_max_id = $lastGuide->guide_id ?? 0;
-                $guideId = \App\Helpers\CommonHelper::createId($guide_max_id);
-                while (Guide::where('guide_id', $guideId)->exists()) {
-                    $guideId = \App\Helpers\CommonHelper::createId($guideId);
-                }
-                
-                $guide = new Guide();
-                $guide->guide_id = $guideId;
-                $guide->name = $guideName;
-                $guide->email = $email;
-                $guide->phone = $phone;
-                $guide->address = $address;
-                $guide->city = $city;
-                $guide->country = $country;
-                $guide->postal_code = $postalCode;
-                $guide->experience = is_numeric($experience) ? intval($experience) : 0;
-                $guide->languages = $languages;
-                $guide->specialization = $specialization;
-                $guide->certification = $certification;
-                $guide->daily_rate = is_numeric($dailyRate) ? floatval($dailyRate) : 0;
-                $guide->website = $website;
-                $guide->social_media = $socialMedia;
-                $guide->is_active = ($status == '1') ? 1 : 0;
-                $guide->status = 1; // Default approved status
-                
-                // Set dmc_id based on user role
-                if ($auth_user->role_id == 20) {
-                    // Virtual DMC - assign to their own DMC
-                    $guide->dmc_id = $auth_user->userId;
-                } else {
-                    // Other Travclicks users - assign to their userId
-                    $guide->dmc_id = $auth_user->userId;
-                }
-                
-                $guide->created_by = $auth_user->userId;
-                $guide->save();
-                
-                $successCount++;
-                
-            } catch (\Exception $e) {
-                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
-                $errorCount++;
-                Log::error("Guide bulk upload error on row {$rowNumber}: " . $e->getMessage());
-            }
+            \App\Models\GuideLanguage::create([
+                'guide_id' => $guideId,
+                'language_id' => $language_id,
+                'language' => $language,
+                'proficiency' => $proficiency,
+            ]);
         }
-        
-        DB::commit();
-        
-        $message = "Upload completed. {$successCount} guides processed successfully.";
-        if ($errorCount > 0) {
-            $message .= " {$errorCount} errors occurred.";
-        }
-        
-        return redirect()->back()
-            ->with('success', $message)
-            ->with('errors', $errors);
     }
 
     // Vehicle Template Download
     public function downloadVehicleTemplate()
     {
+        $auth_user = Auth::user();
+        
+        // Restrict access to only Virtual DMC (role_id=20) and DMC (role_id=11)
+        if (!in_array($auth_user->role_id, [11, 20])) {
+            abort(403, 'You do not have permission to download vehicle templates. Only DMC and Virtual DMC users can download vehicle templates.');
+        }
+
         $headers = [
             'Vehicle Name*',
             'Vehicle Type*',
-            'License Plate*',
-            'Capacity*',
+            'Vehicle Model*',
+            'Model Year*',
+            'Vehicle Plate No*',
+            'Seating Capacity*',
             'City*',
-            'Country*',
-            'Daily Rate',
+            'Vehicle Sharing Option*',
+            'Attraction Private Transport Price*',
+            'Attraction Shared Transport Price*',
+            'Restaurant Private Transport Price*',
+            'Restaurant Shared Transport Price*',
+            'Base Price*',
+            'Cost per KM Below 10*',
+            'Cost per KM 10 to 25*',
+            'Cost per KM Above 25*',
+            'Cost per Hour*',
+            'Cancel Cost*',
+            'Night Base Price*',
+            'Night Cost per KM Below 10*',
+            'Night Cost per KM 10 to 25*',
+            'Night Cost per KM Above 25*',
+            'Night Cost per Hour*',
+            'Night Cancel Cost*',
+            'Vehicle Image*',
+            'Description*',
             'Status (1=Active, 0=Inactive)'
         ];
 
-        $sampleData = [
+        $data = [$headers];
+
+        // Always provide dummy data - 3 rows showing different sharing options
+        // Sample data for Private sharing option
+        $sampleData1 = [
             'Toyota Camry 2023',
             'Sedan',
-            'ABC123',
+            'Camry',
+            '2023',
+            'SG1234A',
             '4',
-            'New York',
-            'United States',
-            '80',
+            'Singapore',
+            'Private',
+            '50.00',
+            '', // Empty for private
+            '30.00',
+            '', // Empty for private
+            '80.00',
+            '2.50',
+            '2.00',
+            '1.80',
+            '15.00',
+            '20.00',
+            '100.00',
+            '3.00',
+            '2.50',
+            '2.20',
+            '18.00',
+            '25.00',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_1234.jpg',
+            'Comfortable sedan for city travel',
             '1'
         ];
 
-        $content = $this->generateCsvContent([$headers, $sampleData]);
+        // Sample data for Sharable sharing option
+        $sampleData2 = [
+            'Honda Civic 2022',
+            'Sedan',
+            'Civic',
+            '2022',
+            'SG5678B',
+            '4',
+            'Singapore',
+            'Sharable',
+            '', // Empty for sharable
+            '35.00',
+            '', // Empty for sharable
+            '25.00',
+            '60.00',
+            '2.00',
+            '1.80',
+            '1.50',
+            '12.00',
+            '15.00',
+            '80.00',
+            '2.50',
+            '2.20',
+            '1.80',
+            '15.00',
+            '20.00',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_5678.jpg',
+            'Economical shared ride option',
+            '1'
+        ];
+
+        // Sample data for Both sharing option
+        $sampleData3 = [
+            'Toyota Vios 2023',
+            'Sedan',
+            'Vios',
+            '2023',
+            'SG9012C',
+            '4',
+            'Singapore',
+            'Both',
+            '45.00',
+            '30.00',
+            '28.00',
+            '20.00',
+            '70.00',
+            '2.20',
+            '1.90',
+            '1.60',
+            '13.00',
+            '18.00',
+            '90.00',
+            '2.80',
+            '2.30',
+            '2.00',
+            '16.00',
+            '22.00',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_9012.jpg',
+            'Versatile vehicle for both private and shared rides',
+            '1'
+        ];
+
+        $data[] = $sampleData1;
+        $data[] = $sampleData2;
+        $data[] = $sampleData3;
+
+        $content = $this->generateCsvContent($data);
         $filename = 'vehicle_bulk_upload_template.csv';
 
         return Response::make($content, 200, [
@@ -2422,20 +2287,20 @@ class BulkUploadController extends Controller
         // Always provide a single dummy/sample row
         $sampleData = [
             'Sample Museum',
-            'United States',
-            'New York',
+            'Singapore',
+            'Singapore',
             '65',
             '12',
-            '40.7128',
-            '-74.0060',
+            '1.7128',
+            '103.8198',
             '1',
             '1',
             '0',
             '0',
             '09:00',
             '17:00',
-            'museum_main.jpg',
-            'image1.jpg,image2.jpg,image3.jpg',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1752212552_1UGsf9.jpg',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1752212551_BYQRMD.jpg',
             'Please arrive 15 minutes before your scheduled time',
             'No refunds after booking confirmation',
             '1'
@@ -2775,196 +2640,273 @@ class BulkUploadController extends Controller
             ]);
 
             $file = $request->file('file');
+            $auth_user = Auth::user();
+            
+            // Only Virtual DMC (role_id = 20) and DMC (role_id = 11) can upload drivers
+            if (!in_array($auth_user->role_id, [20, 11])) {
+                return redirect()->back()->with('error', 'Only Virtual DMC and DMC users can upload drivers.');
+            }
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $cacheKey = "driver_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Mark this upload as in progress
+            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+            
             $csvData = $this->readCsvFile($file->getPathname());
             
             if (empty($csvData)) {
                 return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
             }
 
-            array_shift($csvData); // Remove header
+            // Remove header row
+            array_shift($csvData);
             
-            $auth_user = Auth::user();
+            // Filter out empty rows to prevent double processing
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, function($cell) {
+                    return !empty(trim($cell));
+                }));
+            });
             
-            // Define role groups for access control
-            $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-            $dmcDriverRoles = [81, 124]; // Product Manager Driver (DMC), Assistant PM Driver (DMC)
-            $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-            $travclicksDriverRoles = [51, 125]; // Product Manager Driver (Travclicks), Assistant PM Driver (Travclicks)
-            
-            // Check if user has access
-            $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcDriverRoles));
-            $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksDriverRoles));
-            
-            if (!$isDmcUser && !$isTravclicksUser) {
-                return redirect()->back()->with('error', 'You do not have permission to upload drivers.');
-            }
-            
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
-            
-            DB::beginTransaction();
-            
-            foreach ($csvData as $rowIndex => $row) {
-                $rowNumber = $rowIndex + 2;
-                
-                try {
-                    if (empty(array_filter($row))) continue;
-                    
-                    // Map to new column structure: Salutation*, Driver Gender*, Name*, Email*, Phone No*, Address*, Country*, City*, License No*, License Expiry Date*, Driver Age*, Profile Image*, Status*
-                    $salutation = trim($row[0] ?? '');
-                    $driverGender = trim($row[1] ?? '');
-                    $driverName = trim($row[2] ?? '');
-                    $email = trim($row[3] ?? '');
-                    $phoneNo = trim($row[4] ?? '');
-                    $address = trim($row[5] ?? '');
-                    $country = trim($row[6] ?? '');
-                    $city = trim($row[7] ?? '');
-                    $licenseNo = trim($row[8] ?? '');
-                    $licenseExpiryDate = trim($row[9] ?? '');
-                    $driverAge = trim($row[10] ?? '');
-                    $profileImage = trim($row[11] ?? '');
-                    $status = trim($row[12] ?? '1');
-                    
-                    // Validate required fields
-                    if (empty($driverGender) || empty($driverName) || empty($email) || empty($phoneNo) || 
-                        empty($address) || empty($country) || empty($city) || empty($licenseNo) || 
-                        empty($licenseExpiryDate) || empty($driverAge) || empty($profileImage)) {
-                        $errors[] = "Row {$rowNumber}: Missing required fields";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Check for duplicate email
-                    if (Driver::where('email', $email)->exists()) {
-                        $errors[] = "Row {$rowNumber}: Email already exists";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Check for duplicate license number if the column exists
-                    if (Schema::hasColumn('drivers', 'license_no') && Driver::where('license_no', $licenseNo)->exists()) {
-                        $errors[] = "Row {$rowNumber}: License number already exists";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Generate driver ID
-                    $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $driver_max_id = $lastDriver->driver_id ?? 0;
-                    $driverId = \App\Helpers\CommonHelper::createId($driver_max_id);
-                    while (Driver::where('driver_id', $driverId)->exists()) {
-                        $driverId = \App\Helpers\CommonHelper::createId($driverId);
-                    }
-                    
-                    // Split name into first and last
-                    $nameParts = explode(' ', $driverName, 2);
-                    $firstName = $nameParts[0];
-                    $lastName = isset($nameParts[1]) ? $nameParts[1] : '';
-                    
-                    // Create driver record
-                    $driver = new Driver();
-                    $driver->driver_id = $driverId;
-                    $driver->first_name = $firstName;
-                    $driver->last_name = $lastName;
-                    $driver->email = $email;
-                    $driver->mobile_number = $phoneNo;
-                    $driver->address = $address;
-                    $driver->country = $country;
-                    $driver->city = $city;
-                    $driver->is_active = ($status == '1') ? 1 : 0;
-                    
-                    // Map additional fields if they exist in the database
-                    if (Schema::hasColumn('drivers', 'salutation')) {
-                        $driver->salutation = $salutation;
-                    }
-                    if (Schema::hasColumn('drivers', 'driver_gender')) {
-                        $driver->driver_gender = $driverGender;
-                    }
-                    if (Schema::hasColumn('drivers', 'license_no')) {
-                        $driver->license_no = $licenseNo;
-                    }
-                    if (Schema::hasColumn('drivers', 'license_expiry_date')) {
-                        $driver->license_expiry_date = $licenseExpiryDate;
-                    }
-                    if (Schema::hasColumn('drivers', 'driver_age')) {
-                        $driver->driver_age = is_numeric($driverAge) ? intval($driverAge) : null;
-                    }
-                    if (Schema::hasColumn('drivers', 'profile_image')) {
-                        $driver->profile_image = $profileImage;
-                    }
-                    if (Schema::hasColumn('drivers', 'dmc_id')) {
-                    $driver->dmc_id = $auth_user->userId;
-                    }
-                    if (Schema::hasColumn('drivers', 'created_by')) {
-                    $driver->created_by = $auth_user->userId;
-                    }
-                    if (Schema::hasColumn('drivers', 'status')) {
-                        $driver->status = ($status == '1') ? 1 : 0;
-                    }
-                    
-                    // Handle required fields from migration that may not be in CSV
-                    if (Schema::hasColumn('drivers', 'password')) {
-                        $driver->password = bcrypt('default123'); // Default password
-                    }
-                    if (Schema::hasColumn('drivers', 'activation_in')) {
-                        $driver->activation_in = now();
-                    }
-                    if (Schema::hasColumn('drivers', 'vehicle_plate_no')) {
-                        $driver->vehicle_plate_no = 'TBD'; // To be determined
-                    }
-                    if (Schema::hasColumn('drivers', 'vehicle_model')) {
-                        $driver->vehicle_model = 'TBD';
-                    }
-                    if (Schema::hasColumn('drivers', 'model_year')) {
-                        $driver->model_year = date('Y');
-                    }
-                    if (Schema::hasColumn('drivers', 'vehicle_id')) {
-                        $driver->vehicle_id = 1; // Default to first vehicle
-                    }
-                    if (Schema::hasColumn('drivers', 'sharable')) {
-                        $driver->sharable = 0;
-                    }
-                    if (Schema::hasColumn('drivers', 'night_time')) {
-                        $driver->night_time = '22:00:00';
-                    }
-                    if (Schema::hasColumn('drivers', 'operational_country_id')) {
-                        $driver->operational_country_id = 1; // Default
-                    }
-                    if (Schema::hasColumn('drivers', 'bank_account_holder_name')) {
-                        $driver->bank_account_holder_name = $driverName;
-                    }
-                    if (Schema::hasColumn('drivers', 'account_number')) {
-                        $driver->account_number = 'TBD';
-                    }
-                    if (Schema::hasColumn('drivers', 'state')) {
-                        $driver->state = $city; // Default state to city
-                    }
-                    
-                    $driver->save();
-                    $successCount++;
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
-                    $errorCount++;
-                }
-            }
-            
-            DB::commit();
-            
-            $message = "Upload completed. {$successCount} drivers processed successfully.";
-            if ($errorCount > 0) {
-                $message .= " {$errorCount} errors occurred.";
-            }
-            
-            return redirect()->back()
-                ->with('success', $message)
-                ->with('errors', $errors);
+            // Re-index the array after filtering
+            $csvData = array_values($csvData);
+
+            return $this->uploadDriverData($csvData, $auth_user, $file, $cacheKey);
                 
         } catch (\Exception $e) {
             DB::rollback();
+            // Clear the upload cache on error if it exists
+            if (isset($cacheKey)) {
+                cache()->forget($cacheKey);
+            }
+            Log::error('Driver bulk upload failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
+    }
+
+    private function uploadDriverData($csvData, $auth_user, $file = null, $cacheKey = null)
+    {
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        // Track drivers being processed in this upload to prevent duplicates within the same CSV
+        $processedDrivers = [];
+        
+        DB::beginTransaction();
+        
+        foreach ($csvData as $rowIndex => $row) {
+            $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
+            
+            try {
+                // Skip empty rows
+                if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
+                    continue;
+                }
+                
+                // Map CSV columns to variables based on template
+                $salutation = trim($row[0] ?? '');
+                $driverGender = trim($row[1] ?? '');
+                $driverName = trim($row[2] ?? '');
+                $email = trim($row[3] ?? '');
+                $phoneNo = trim($row[4] ?? '');
+                $address = trim($row[5] ?? '');
+                $country = trim($row[6] ?? '');
+                $city = trim($row[7] ?? '');
+                $licenseNo = trim($row[8] ?? '');
+                $licenseExpiryDate = trim($row[9] ?? '');
+                $driverAge = trim($row[10] ?? '');
+                $profileImage = trim($row[11] ?? '');
+                $status = trim($row[12] ?? '1');
+                
+                // Validate required fields with specific missing field names
+                $missingFields = [];
+                if (empty($salutation)) $missingFields[] = 'Salutation';
+                if (empty($driverGender)) $missingFields[] = 'Driver Gender';
+                if (empty($driverName)) $missingFields[] = 'Driver Name';
+                if (empty($email)) $missingFields[] = 'Email';
+                if (empty($phoneNo)) $missingFields[] = 'Phone Number';
+                if (empty($address)) $missingFields[] = 'Address';
+                if (empty($country)) $missingFields[] = 'Country';
+                if (empty($city)) $missingFields[] = 'City';
+                if (empty($licenseNo)) $missingFields[] = 'License Number';
+                if (empty($licenseExpiryDate)) $missingFields[] = 'License Expiry Date';
+                if (empty($driverAge)) $missingFields[] = 'Driver Age';
+                if (empty($profileImage)) $missingFields[] = 'Profile Image';
+                
+                if (!empty($missingFields)) {
+                    $errors[] = "Row {$rowNumber}: ❌ Missing required fields: " . implode(', ', $missingFields);
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate email format
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = "Row {$rowNumber}: 📧 Invalid email format for '{$email}'. Please use a valid email address (e.g., driver@example.com)";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate age
+                if (!is_numeric($driverAge)) {
+                    $errors[] = "Row {$rowNumber}: 🔢 Driver age must be a number. Found: '{$driverAge}'";
+                    $errorCount++;
+                    continue;
+                }
+                if ($driverAge < 18 || $driverAge > 80) {
+                    $errors[] = "Row {$rowNumber}: 🎂 Driver age must be between 18 and 80 years. Found: {$driverAge} years";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate license expiry date
+                if (!strtotime($licenseExpiryDate)) {
+                    $errors[] = "Row {$rowNumber}: 📅 Invalid license expiry date format: '{$licenseExpiryDate}'. Please use YYYY-MM-DD format (e.g., 2025-12-31)";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Check if license expiry date is in the future
+                if (strtotime($licenseExpiryDate) <= time()) {
+                    $errors[] = "Row {$rowNumber}: ⏰ License expiry date '{$licenseExpiryDate}' must be in the future. Current date: " . date('Y-m-d');
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate salutation
+                if (!in_array($salutation, ['Mr', 'Mrs', 'Miss', 'Dear'])) {
+                    $errors[] = "Row {$rowNumber}: 👤 Invalid salutation '{$salutation}'. Must be one of: Mr, Mrs, Miss, or Dear";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate gender
+                if (!in_array($driverGender, ['Male', 'Female', 'Other'])) {
+                    $errors[] = "Row {$rowNumber}: ⚧ Invalid gender '{$driverGender}'. Must be one of: Male, Female, or Other";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Create unique key for this driver
+                $driverKey = strtolower($email);
+                
+                // Check for duplicate within this CSV upload first
+                if (isset($processedDrivers[$driverKey])) {
+                    $errors[] = "Row {$rowNumber}: 🔄 Duplicate driver email '{$email}' found in this CSV file (previously at row {$processedDrivers[$driverKey]})";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Check for duplicate email in database
+                $existingDriver = Driver::where('email', $email)->first();
+                if ($existingDriver) {
+                    $errors[] = "Row {$rowNumber}: 📧 Driver with email '{$email}' already exists in the system. Please use a different email address";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Check for duplicate license number for this DMC (similar to DriverController logic)
+                $existingLicense = Driver::where('license_no', $licenseNo)
+                    ->where('dmc_id', $auth_user->userId)
+                    ->first();
+                
+                if ($existingLicense) {
+                    $errors[] = "Row {$rowNumber}: 🚗 Driver with license number '{$licenseNo}' already exists for your account. Each driver must have a unique license number";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Mark this driver as being processed
+                $processedDrivers[$driverKey] = $rowNumber;
+                
+                // Generate unique driver ID
+                $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
+                $driver_max_id = $lastDriver->driver_id ?? 0;
+                $driverId = \App\Helpers\CommonHelper::createId($driver_max_id);
+                while (Driver::where('driver_id', $driverId)->exists()) {
+                    $driverId = \App\Helpers\CommonHelper::createId($driverId);
+                }
+                
+                // Create new driver
+                $driver = new Driver();
+                $driver->driver_id = $driverId;
+                $driver->salutation = $salutation;
+                $driver->driver_gender = $driverGender;
+                $driver->name = $driverName;
+                $driver->email = $email;
+                $driver->phone = $phoneNo;
+                $driver->address = $address;
+                $driver->country = $country;
+                $driver->city = $city;
+                $driver->license_no = $licenseNo;
+                $driver->license_exp_date = $licenseExpiryDate;
+                $driver->driver_age = intval($driverAge);
+                $driver->image = $profileImage;
+                $driver->is_active = ($status == '1') ? 1 : 0;
+                $driver->status = 1; // Default approved status
+                $driver->dmc_id = $auth_user->userId;
+                $driver->created_by = $auth_user->userId;
+                
+                // Set default values for required fields
+                $driver->state = $city; // Default state to city
+                $driver->bank_account_holder_name = $driverName;
+                $driver->account_number = 'TBD';
+                $driver->operational_country_id = 1;
+                
+                $driver->save();
+                $successCount++;
+                
+            } catch (\Exception $e) {
+                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                $errorCount++;
+                Log::error("Driver bulk upload error on row {$rowNumber}: " . $e->getMessage());
+            }
+        }
+        
+        if ($successCount > 0) {
+            DB::commit();
+        } else {
+            DB::rollback();
+        }
+        
+        // Clear the upload cache if it exists
+        if ($cacheKey) {
+            cache()->forget($cacheKey);
+        }
+        
+        // Save upload history if file info is available
+        if ($file) {
+            UploadHistory::createRecord(
+                'drivers',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        }
+        
+        // Enhanced success message with emojis and better formatting
+        $message = "🎉 **Driver Upload Complete!**\n\n";
+        $message .= "✅ **{$successCount} drivers** successfully added to your account";
+        
+        if ($errorCount > 0) {
+            $message .= "\n⚠️ **{$errorCount} records** failed to upload due to validation errors";
+        }
+        
+        $message .= "\n📊 **Total processed:** " . ($successCount + $errorCount) . " records";
+        
+        if ($successCount > 0) {
+            $message .= "\n🚗 **New drivers are now available** in your driver management system";
+        }
+        
+        return redirect()->back()
+            ->with('success', $message)
+            ->with('errors', $errors);
     }
 
     // Guide Upload Method
@@ -2976,6 +2918,20 @@ class BulkUploadController extends Controller
             ]);
 
             $file = $request->file('file');
+            $auth_user = Auth::user();
+            
+            // Only Virtual DMC (role_id = 20) and DMC (role_id = 11) can upload guides
+            if (!in_array($auth_user->role_id, [20, 11])) {
+                return redirect()->back()->with('error', 'Only Virtual DMC and DMC users can upload guides.');
+            }
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $cacheKey = "guide_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Mark this upload as in progress
+            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+            
             $csvData = $this->readCsvFile($file->getPathname());
             
             if (empty($csvData)) {
@@ -2985,30 +2941,24 @@ class BulkUploadController extends Controller
             // Remove header row
             array_shift($csvData);
             
-            $auth_user = Auth::user();
+            // Filter out empty rows to prevent double processing
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, function($cell) {
+                    return !empty(trim($cell));
+                }));
+            });
             
-            // Define role groups for access control
-            $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-            $dmcGuideRoles = [79, 121]; // Product Manager Guide (DMC), Assistant PM Guide (DMC)
-            $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-            $travclicksGuideRoles = [49, 119]; // Product Manager Guide (Travclicks), Assistant PM Guide (Travclicks)
-            
-            // Check if user has access and determine format
-            $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcGuideRoles));
-            $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksGuideRoles));
-            
-            if (!$isDmcUser && !$isTravclicksUser) {
-                return redirect()->back()->with('error', 'You do not have permission to upload guides.');
-            }
+            // Re-index the array after filtering
+            $csvData = array_values($csvData);
 
-            if ($isDmcUser || ($auth_user->role_id == 20)) { // DMC users or Virtual DMC
-                return $this->uploadDmcGuides($csvData, $auth_user);
-            } else { // Travclicks users
-                return $this->uploadTravclicksGuides($csvData, $auth_user);
-            }
+            return $this->uploadGuideData($csvData, $auth_user, $file, $cacheKey);
                 
         } catch (\Exception $e) {
             DB::rollback();
+            // Clear the upload cache on error if it exists
+            if (isset($cacheKey)) {
+                cache()->forget($cacheKey);
+            }
             Log::error('Guide bulk upload failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
@@ -3023,93 +2973,382 @@ class BulkUploadController extends Controller
             ]);
 
             $file = $request->file('file');
+            $auth_user = Auth::user();
+            
+            // Restrict access to only Virtual DMC (role_id=20) and DMC (role_id=11)
+            if (!in_array($auth_user->role_id, [11, 20])) {
+                return redirect()->back()->with('error', 'You do not have permission to upload vehicles. Only DMC and Virtual DMC users can upload vehicles.');
+            }
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $cacheKey = "vehicle_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Mark this upload as in progress
+            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+            
             $csvData = $this->readCsvFile($file->getPathname());
             
             if (empty($csvData)) {
                 return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
             }
 
-            array_shift($csvData); // Remove header
+            // Remove header row
+            array_shift($csvData);
             
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
+            // Filter out empty rows to prevent double processing
+            $csvData = array_filter($csvData, function($row) {
+                return !empty(array_filter($row, function($cell) {
+                    return !empty(trim($cell));
+                }));
+            });
             
-            DB::beginTransaction();
-            $auth_user = Auth::user();
-            
-            foreach ($csvData as $rowIndex => $row) {
-                $rowNumber = $rowIndex + 2;
+            // Re-index the array after filtering
+            $csvData = array_values($csvData);
+
+            return $this->uploadVehicleData($csvData, $auth_user, $file, $cacheKey);
                 
-                try {
-                    if (empty(array_filter($row))) continue;
-                    
-                    $vehicleName = trim($row[0] ?? '');
-                    $vehicleType = trim($row[1] ?? '');
-                    $licensePlate = trim($row[2] ?? '');
-                    $capacity = trim($row[3] ?? '');
-                    $city = trim($row[4] ?? '');
-                    $country = trim($row[5] ?? '');
-                    $dailyRate = trim($row[6] ?? '');
-                    $status = trim($row[7] ?? '1');
-                    
-                    if (empty($vehicleName) || empty($vehicleType) || empty($licensePlate) || empty($capacity)) {
-                        $errors[] = "Row {$rowNumber}: Missing required fields";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Check for duplicate license plate
-                    if (Vehicle::where('license_plate', $licensePlate)->exists()) {
-                        $errors[] = "Row {$rowNumber}: License plate already exists";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
-                    $vehicleId = \App\Helpers\CommonHelper::createId($vehicle_max_id);
-                    while (Vehicle::where('vehicle_id', $vehicleId)->exists()) {
-                        $vehicleId = \App\Helpers\CommonHelper::createId($vehicleId);
-                    }
-                    
-                    $vehicle = new Vehicle();
-                    $vehicle->vehicle_id = $vehicleId;
-                    $vehicle->vehicle_name = $vehicleName;
-                    $vehicle->vehicle_type = $vehicleType;
-                    $vehicle->license_plate = $licensePlate;
-                    $vehicle->seating_capacity = is_numeric($capacity) ? intval($capacity) : 0;
-                    $vehicle->city = $city;
-                    $vehicle->country = $country;
-                    $vehicle->daily_rate = is_numeric($dailyRate) ? floatval($dailyRate) : 0;
-                    $vehicle->is_available = ($status == '1') ? 1 : 0;
-                    $vehicle->status = 1;
-                    $vehicle->dmc_id = $auth_user->userId;
-                    $vehicle->created_by = $auth_user->userId;
-                    
-                    $vehicle->save();
-                    $successCount++;
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
-                    $errorCount++;
+        } catch (\Exception $e) {
+            DB::rollback();
+            // Clear the upload cache on error if it exists
+            if (isset($cacheKey)) {
+                cache()->forget($cacheKey);
+            }
+            Log::error('Vehicle bulk upload failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+        }
+    }
+
+    private function uploadVehicleData($csvData, $auth_user, $file = null, $cacheKey = null)
+    {
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        // Track vehicles being processed in this upload to prevent duplicates within the same CSV
+        $processedVehicles = [];
+        
+        DB::beginTransaction();
+        
+        foreach ($csvData as $rowIndex => $row) {
+            $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
+            
+            try {
+                // Skip empty rows
+                if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
+                    continue;
                 }
+                
+                // Map CSV columns to variables based on new template
+                $vehicleName = trim($row[0] ?? '');
+                $vehicleType = trim($row[1] ?? '');
+                $vehicleModel = trim($row[2] ?? '');
+                $modelYear = trim($row[3] ?? '');
+                $vehiclePlateNo = trim($row[4] ?? '');
+                $seatingCapacity = trim($row[5] ?? '');
+                $city = trim($row[6] ?? '');
+                $vehicleSharingOption = trim($row[7] ?? '');
+                $attractionPrivatePrice = trim($row[8] ?? '');
+                $attractionSharedPrice = trim($row[9] ?? '');
+                $restaurantPrivatePrice = trim($row[10] ?? '');
+                $restaurantSharedPrice = trim($row[11] ?? '');
+                $basePrice = trim($row[12] ?? '');
+                $costPerKmBelow10 = trim($row[13] ?? '');
+                $costPerKm10To25 = trim($row[14] ?? '');
+                $costPerKmAbove25 = trim($row[15] ?? '');
+                $costPerHour = trim($row[16] ?? '');
+                $cancelCost = trim($row[17] ?? '');
+                $nightBasePrice = trim($row[18] ?? '');
+                $nightCostPerKmBelow10 = trim($row[19] ?? '');
+                $nightCostPerKm10To25 = trim($row[20] ?? '');
+                $nightCostPerKmAbove25 = trim($row[21] ?? '');
+                $nightCostPerHour = trim($row[22] ?? '');
+                $nightCancelCost = trim($row[23] ?? '');
+                $vehicleImage = trim($row[24] ?? '');
+                $description = trim($row[25] ?? '');
+                $status = trim($row[26] ?? '1');
+                
+                // Validate required fields with specific missing field names
+                $missingFields = [];
+                if (empty($vehicleName)) $missingFields[] = 'Vehicle Name';
+                if (empty($vehicleType)) $missingFields[] = 'Vehicle Type';
+                if (empty($vehicleModel)) $missingFields[] = 'Vehicle Model';
+                if (empty($modelYear)) $missingFields[] = 'Model Year';
+                if (empty($vehiclePlateNo)) $missingFields[] = 'Vehicle Plate No';
+                if (empty($seatingCapacity)) $missingFields[] = 'Seating Capacity';
+                if (empty($city)) $missingFields[] = 'City';
+                if (empty($vehicleSharingOption)) $missingFields[] = 'Vehicle Sharing Option';
+                if (empty($basePrice)) $missingFields[] = 'Base Price';
+                if (empty($costPerKmBelow10)) $missingFields[] = 'Cost per KM Below 10';
+                if (empty($costPerKm10To25)) $missingFields[] = 'Cost per KM 10 to 25';
+                if (empty($costPerKmAbove25)) $missingFields[] = 'Cost per KM Above 25';
+                if (empty($costPerHour)) $missingFields[] = 'Cost per Hour';
+                if (empty($cancelCost)) $missingFields[] = 'Cancel Cost';
+                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Price';
+                if (empty($nightCostPerKmBelow10)) $missingFields[] = 'Night Cost per KM Below 10';
+                if (empty($nightCostPerKm10To25)) $missingFields[] = 'Night Cost per KM 10 to 25';
+                if (empty($nightCostPerKmAbove25)) $missingFields[] = 'Night Cost per KM Above 25';
+                if (empty($nightCostPerHour)) $missingFields[] = 'Night Cost per Hour';
+                if (empty($nightCancelCost)) $missingFields[] = 'Night Cancel Cost';
+                if (empty($vehicleImage)) $missingFields[] = 'Vehicle Image';
+                if (empty($description)) $missingFields[] = 'Description';
+                
+                if (!empty($missingFields)) {
+                    $errors[] = "Row {$rowNumber}: ❌ Missing required fields: " . implode(', ', $missingFields);
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate model year
+                if (!is_numeric($modelYear) || strlen($modelYear) != 4) {
+                    $errors[] = "Row {$rowNumber}: 📅 Model Year must be a 4-digit number. Found: '{$modelYear}'";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate seating capacity
+                if (!is_numeric($seatingCapacity) || $seatingCapacity <= 0) {
+                    $errors[] = "Row {$rowNumber}: 🚗 Seating Capacity must be a positive number. Found: '{$seatingCapacity}'";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate vehicle sharing option
+                if (!in_array($vehicleSharingOption, ['Private', 'Sharable', 'Both'])) {
+                    $errors[] = "Row {$rowNumber}: 🔄 Invalid Vehicle Sharing Option '{$vehicleSharingOption}'. Must be: Private, Sharable, or Both";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Validate pricing fields based on sharing option
+                if ($vehicleSharingOption == 'Private') {
+                    if (empty($attractionPrivatePrice) || empty($restaurantPrivatePrice)) {
+                        $errors[] = "Row {$rowNumber}: 💰 Private sharing option requires Attraction Private Transport Price and Restaurant Private Transport Price";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!empty($attractionSharedPrice) || !empty($restaurantSharedPrice)) {
+                        $errors[] = "Row {$rowNumber}: ⚠️ Private sharing option should not have shared prices filled";
+                        $errorCount++;
+                        continue;
+                    }
+                } elseif ($vehicleSharingOption == 'Sharable') {
+                    if (empty($attractionSharedPrice) || empty($restaurantSharedPrice)) {
+                        $errors[] = "Row {$rowNumber}: 💰 Sharable option requires Attraction Shared Transport Price and Restaurant Shared Transport Price";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!empty($attractionPrivatePrice) || !empty($restaurantPrivatePrice)) {
+                        $errors[] = "Row {$rowNumber}: ⚠️ Sharable option should not have private prices filled";
+                        $errorCount++;
+                        continue;
+                    }
+                } elseif ($vehicleSharingOption == 'Both') {
+                    if (empty($attractionPrivatePrice) || empty($attractionSharedPrice) || empty($restaurantPrivatePrice) || empty($restaurantSharedPrice)) {
+                        $errors[] = "Row {$rowNumber}: 💰 Both option requires all four transport prices to be filled";
+                        $errorCount++;
+                        continue;
+                    }
+                }
+                
+                // Validate numeric fields
+                $numericFields = [
+                    'Attraction Private Transport Price' => $attractionPrivatePrice,
+                    'Attraction Shared Transport Price' => $attractionSharedPrice,
+                    'Restaurant Private Transport Price' => $restaurantPrivatePrice,
+                    'Restaurant Shared Transport Price' => $restaurantSharedPrice,
+                    'Base Price' => $basePrice,
+                    'Cost per KM Below 10' => $costPerKmBelow10,
+                    'Cost per KM 10 to 25' => $costPerKm10To25,
+                    'Cost per KM Above 25' => $costPerKmAbove25,
+                    'Cost per Hour' => $costPerHour,
+                    'Cancel Cost' => $cancelCost,
+                    'Night Base Price' => $nightBasePrice,
+                    'Night Cost per KM Below 10' => $nightCostPerKmBelow10,
+                    'Night Cost per KM 10 to 25' => $nightCostPerKm10To25,
+                    'Night Cost per KM Above 25' => $nightCostPerKmAbove25,
+                    'Night Cost per Hour' => $nightCostPerHour,
+                    'Night Cancel Cost' => $nightCancelCost
+                ];
+                
+                foreach ($numericFields as $fieldName => $value) {
+                    if (!empty($value) && !is_numeric($value)) {
+                        $errors[] = "Row {$rowNumber}: 🔢 {$fieldName} must be a valid number. Found: '{$value}'";
+                        $errorCount++;
+                        continue 2; // Skip to next row
+                    }
+                }
+                
+                // Normalize plate number for duplicate checking (same logic as VehicleController)
+                $normalizedPlateNumber = $this->normalizePlateNumber($vehiclePlateNo);
+                
+                // Get DMC ID based on user role (same logic as VehicleController)
+                $dmc_id = $this->getDmcIdForVehicle($auth_user);
+                
+                // Create unique key for this vehicle
+                $vehicleKey = strtolower($normalizedPlateNumber . '|' . $dmc_id);
+                
+                // Check for duplicate within this CSV upload first
+                if (isset($processedVehicles[$vehicleKey])) {
+                    $errors[] = "Row {$rowNumber}: 🔄 Duplicate vehicle plate number '{$vehiclePlateNo}' found in this CSV (previously at row {$processedVehicles[$vehicleKey]})";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Check for duplicate plate number in database (same logic as VehicleController)
+                $existingVehicle = Vehicle::withTrashed()
+                    ->where('dmc_id', $dmc_id)
+                    ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(UPPER(vehicle_plate_no), ' ', ''), '-', ''), '/', ''), '&', '') = ?", [$normalizedPlateNumber])
+                    ->first();
+                
+                if ($existingVehicle && !$existingVehicle->trashed()) {
+                    $errors[] = "Row {$rowNumber}: 🚗 Vehicle with plate number '{$vehiclePlateNo}' already exists for your account";
+                    $errorCount++;
+                    continue;
+                }
+                
+                // Mark this vehicle as being processed
+                $processedVehicles[$vehicleKey] = $rowNumber;
+                
+                // Generate unique vehicle ID
+                $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
+                $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
+                $vehicleId = \App\Helpers\CommonHelper::createId($vehicle_max_id);
+                while (Vehicle::where('vehicle_id', $vehicleId)->exists()) {
+                    $vehicleId = \App\Helpers\CommonHelper::createId($vehicleId);
+                }
+                
+                // Create new vehicle (same structure as VehicleController)
+                $vehicle = new Vehicle();
+                $vehicle->vehicle_id = $vehicleId;
+                $vehicle->vehicle_name = $vehicleName;
+                $vehicle->vehicle_type = $vehicleType;
+                $vehicle->vehicle_model = $vehicleModel;
+                $vehicle->model_year = intval($modelYear);
+                $vehicle->vehicle_plate_no = $vehiclePlateNo;
+                $vehicle->seating_capacity = intval($seatingCapacity);
+                $vehicle->city = $city;
+                $vehicle->description = $description;
+                $vehicle->image = $vehicleImage;
+                $vehicle->is_available = ($status == '1') ? 1 : 0;
+                $vehicle->dmc_id = $dmc_id;
+                $vehicle->created_by = $auth_user->userId;
+                
+                // Set sharing option (1=Private, 2=Sharable, 3=Both)
+                $vehicle->sharable = match($vehicleSharingOption) {
+                    'Private' => 1,
+                    'Sharable' => 2,
+                    'Both' => 3,
+                    default => 1
+                };
+                
+                // Set transport prices
+                $vehicle->attraction_private_transport_price = is_numeric($attractionPrivatePrice) ? floatval($attractionPrivatePrice) : 0;
+                $vehicle->attraction_shared_transport_price = is_numeric($attractionSharedPrice) ? floatval($attractionSharedPrice) : 0;
+                $vehicle->restaurant_private_transport_price = is_numeric($restaurantPrivatePrice) ? floatval($restaurantPrivatePrice) : 0;
+                $vehicle->restaurant_shared_transport_price = is_numeric($restaurantSharedPrice) ? floatval($restaurantSharedPrice) : 0;
+                
+                // Set pricing fields
+                $vehicle->base_price = is_numeric($basePrice) ? floatval($basePrice) : 0;
+                $vehicle->cost_per_km_below_10 = is_numeric($costPerKmBelow10) ? floatval($costPerKmBelow10) : 0;
+                $vehicle->cost_per_km_10_to_25 = is_numeric($costPerKm10To25) ? floatval($costPerKm10To25) : 0;
+                $vehicle->cost_per_km_above_25 = is_numeric($costPerKmAbove25) ? floatval($costPerKmAbove25) : 0;
+                $vehicle->cost_per_hour = is_numeric($costPerHour) ? floatval($costPerHour) : 0;
+                $vehicle->cancel_cost = is_numeric($cancelCost) ? floatval($cancelCost) : 0;
+                
+                // Set night pricing fields
+                $vehicle->night_base_price = is_numeric($nightBasePrice) ? floatval($nightBasePrice) : 0;
+                $vehicle->night_cost_per_km_below_10 = is_numeric($nightCostPerKmBelow10) ? floatval($nightCostPerKmBelow10) : 0;
+                $vehicle->night_cost_per_km_10_to_25 = is_numeric($nightCostPerKm10To25) ? floatval($nightCostPerKm10To25) : 0;
+                $vehicle->night_cost_per_km_above_25 = is_numeric($nightCostPerKmAbove25) ? floatval($nightCostPerKmAbove25) : 0;
+                $vehicle->night_cost_per_hour = is_numeric($nightCostPerHour) ? floatval($nightCostPerHour) : 0;
+                $vehicle->night_cancel_cost = is_numeric($nightCancelCost) ? floatval($nightCancelCost) : 0;
+                
+                $vehicle->save();
+                $successCount++;
+                
+            } catch (\Exception $e) {
+                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                $errorCount++;
+                Log::error("Vehicle bulk upload error on row {$rowNumber}: " . $e->getMessage());
             }
-            
+        }
+        
+        if ($successCount > 0) {
             DB::commit();
+        } else {
+            DB::rollback();
+        }
+        
+        // Clear the upload cache if it exists
+        if ($cacheKey) {
+            cache()->forget($cacheKey);
+        }
+        
+        // Save upload history if file info is available
+        if ($file) {
+            UploadHistory::createRecord(
+                'vehicles',
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        }
+        
+        // Enhanced success and error messages
+        if ($successCount > 0 && $errorCount == 0) {
+            // Complete success
+            $message = "🎉 **Vehicle Upload Successful!**\n\n";
+            $message .= "✅ **{$successCount} vehicles** have been successfully uploaded to your fleet\n";
+            $message .= "📊 **Total processed:** {$successCount} records\n";
+            $message .= "🚙 **All vehicles are now available** in your vehicle management system\n";
+            $message .= "💡 **Next steps:** You can now view and manage these vehicles in the vehicle section";
             
-            $message = "Upload completed. {$successCount} vehicles processed successfully.";
-            if ($errorCount > 0) {
-                $message .= " {$errorCount} errors occurred.";
-            }
+            return redirect()->back()->with('success', $message);
+            
+        } elseif ($successCount > 0 && $errorCount > 0) {
+            // Partial success
+            $message = "⚠️ **Vehicle Upload Partially Successful**\n\n";
+            $message .= "✅ **{$successCount} vehicles** uploaded successfully\n";
+            $message .= "❌ **{$errorCount} vehicles** failed to upload\n";
+            $message .= "📊 **Total processed:** " . ($successCount + $errorCount) . " records\n";
+            $message .= "🔍 **Please check the errors below** and fix the issues in your CSV file";
             
             return redirect()->back()
                 ->with('success', $message)
                 ->with('errors', $errors);
                 
-        } catch (\Exception $e) {
-            DB::rollback();
-            return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+        } else {
+            // Complete failure
+            $message = "❌ **Vehicle Upload Failed**\n\n";
+            $message .= "🚫 **No vehicles were uploaded** due to validation errors\n";
+            $message .= "📊 **Total errors:** {$errorCount}\n";
+            $message .= "💡 **Please fix all errors below** and try uploading again";
+            
+            return redirect()->back()
+                ->with('error', $message)
+                ->with('errors', $errors);
+        }
+    }
+    
+    // Helper method to normalize plate number (same as VehicleController)
+    private function normalizePlateNumber($plateNumber) {
+        return preg_replace('/[^A-Za-z0-9]/', '', strtoupper($plateNumber));
+    }
+    
+    // Helper method to get DMC ID based on user role (simplified for DMC and Virtual DMC only)
+    private function getDmcIdForVehicle($auth_user) {
+        if ($auth_user->role_id == 11) { // DMC
+            return $auth_user->userId;
+        } elseif ($auth_user->role_id == 20) { // Virtual DMC
+            return $auth_user->userId;
+        } else {
+            // This should not happen as access is restricted to only DMC and Virtual DMC
+            return $auth_user->userId;
         }
     }
 
@@ -3338,7 +3577,7 @@ class BulkUploadController extends Controller
                 'attractions',
                 $file->getClientOriginalName(),
                 $file->getClientOriginalName(),
-                count($csvData),
+                count($csvData ?? []),
                 $successCount,
                 $errorCount,
                 $errors,
@@ -5171,233 +5410,233 @@ class BulkUploadController extends Controller
         }
     }
 
-    public function uploadRestaurantss(Request $request)
-    {
-        try {
-            $request->validate([
-                'file' => 'required|file|mimes:csv,txt|max:10240',
-            ]);
+    // public function uploadRestaurantss(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'file' => 'required|file|mimes:csv,txt|max:10240',
+    //         ]);
 
-            $file = $request->file('file');
-            $auth_user = Auth::user();
-            // dd($auth_user);
+    //         $file = $request->file('file');
+    //         $auth_user = Auth::user();
+    //         // dd($auth_user);
             
-            // Generate file hash to prevent duplicate uploads
-            $fileHash = hash_file('md5', $file->getPathname());
-            $cacheKey = "restaurant_upload_{$fileHash}_{$auth_user->userId}";
+    //         // Generate file hash to prevent duplicate uploads
+    //         $fileHash = hash_file('md5', $file->getPathname());
+    //         $cacheKey = "restaurant_upload_{$fileHash}_{$auth_user->userId}";
             
-            // Check if this exact file was uploaded recently (within last 60 seconds)
-            // if (cache()->has($cacheKey)) {
-            //     return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
-            // }
+    //         // Check if this exact file was uploaded recently (within last 60 seconds)
+    //         // if (cache()->has($cacheKey)) {
+    //         //     return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+    //         // }
             
-            // Mark this upload as in progress
-            cache()->put($cacheKey, true, 60); // Cache for 60 seconds
+    //         // Mark this upload as in progress
+    //         cache()->put($cacheKey, true, 60); // Cache for 60 seconds
             
-            $csvData = $this->readCsvFile($file->getPathname());
+    //         $csvData = $this->readCsvFile($file->getPathname());
             
-            if (empty($csvData)) {
-                return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
-            }
+    //         if (empty($csvData)) {
+    //             return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
+    //         }
 
-            // Remove header row
-            array_shift($csvData);
+    //         // Remove header row
+    //         array_shift($csvData);
             
-            // Filter out empty rows to prevent double processing
-            $csvData = array_filter($csvData, function($row) {
-                return !empty(array_filter($row, function($cell) {
-                    return !empty(trim($cell));
-                }));
-            });
+    //         // Filter out empty rows to prevent double processing
+    //         $csvData = array_filter($csvData, function($row) {
+    //             return !empty(array_filter($row, function($cell) {
+    //                 return !empty(trim($cell));
+    //             }));
+    //         });
             
-            // Re-index the array after filtering
-            $csvData = array_values($csvData);
+    //         // Re-index the array after filtering
+    //         $csvData = array_values($csvData);
             
-            // Define role groups for access control
-            $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-            $dmcAttractionRoles = [80, 122]; // Product Manager Attraction (DMC), Assistant PM Attraction (DMC)
-            $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-            $travclicksAttractionRoles = [50, 123]; // Product Manager Attraction (Travclicks), Assistant PM Attraction (Travclicks)
+    //         // Define role groups for access control
+    //         $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
+    //         $dmcAttractionRoles = [80, 122]; // Product Manager Attraction (DMC), Assistant PM Attraction (DMC)
+    //         $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
+    //         $travclicksAttractionRoles = [50, 123]; // Product Manager Attraction (Travclicks), Assistant PM Attraction (Travclicks)
             
-            // Check if user has access
-            $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcAttractionRoles));
-            $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksAttractionRoles));
+    //         // Check if user has access
+    //         $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcAttractionRoles));
+    //         $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksAttractionRoles));
             
-            if (!$isDmcUser && !$isTravclicksUser) {
-                return redirect()->back()->with('error', 'You do not have permission to upload restaurants.');
-            }
+    //         if (!$isDmcUser && !$isTravclicksUser) {
+    //             return redirect()->back()->with('error', 'You do not have permission to upload restaurants.');
+    //         }
             
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
+    //         $successCount = 0;
+    //         $errorCount = 0;
+    //         $errors = [];
             
-            // Track restaurants being processed in this upload to prevent duplicates within the same CSV
-            $processedRestaurants = [];
+    //         // Track restaurants being processed in this upload to prevent duplicates within the same CSV
+    //         $processedRestaurants = [];
             
-            DB::beginTransaction();
-            foreach ($csvData as $rowIndex => $row) {
-                $rowNumber = $rowIndex + 1; // +2 because we removed header and rows start at 1
+    //         DB::beginTransaction();
+    //         foreach ($csvData as $rowIndex => $row) {
+    //             $rowNumber = $rowIndex + 1; // +2 because we removed header and rows start at 1
                 
-                try {
-                    // Double-check for empty rows (shouldn't be needed now, but just in case)
-                    if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
-                        continue;
-                    }
+    //             try {
+    //                 // Double-check for empty rows (shouldn't be needed now, but just in case)
+    //                 if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
+    //                     continue;
+    //                 }
                     
-                    // Map CSV columns to variables
-                    $restaurantName = trim($row[0] ?? '');
-                    $cuisine = trim($row[1] ?? '');
-                    $country = trim($row[2] ?? '');
-                    $city = trim($row[3] ?? '');
-                    $latitude = trim($row[4] ?? '');
-                    $longitude = trim($row[5] ?? '');
-                    $breakfastAvailability = trim($row[6] ?? '0');
-                    $breakfastOpenTime = trim($row[7] ?? '');
-                    $breakfastCloseTime = trim($row[8] ?? '');
-                    $lunchAvailability = trim($row[9] ?? '0');
-                    $lunchOpenTime = trim($row[10] ?? '');
-                    $lunchCloseTime = trim($row[11] ?? '');
-                    $dinnerAvailability = trim($row[12] ?? '0');
-                    $dinnerOpenTime = trim($row[13] ?? '');
-                    $dinnerCloseTime = trim($row[14] ?? '');
-                    $ownedBy = trim($row[15] ?? '0');
-                    $masterImage = trim($row[16] ?? '');
-                    $additionalImages = trim($row[17] ?? '');
-                    $description = trim($row[18] ?? '');
-                    $termsConditions = trim($row[19] ?? '');
-                    $status = trim($row[20] ?? '1');
-                    // 🔍 Duplicate check: name + city + country (case-insensitive)
-                        $existingRestaurant = Restaurant::whereRaw('LOWER(name) = ?', [strtolower($restaurantName)])
-                        ->whereRaw('LOWER(city) = ?', [strtolower($city)])
-                        ->whereRaw('LOWER(country) = ?', [strtolower($country)])
-                        ->first();
+    //                 // Map CSV columns to variables
+    //                 $restaurantName = trim($row[0] ?? '');
+    //                 $cuisine = trim($row[1] ?? '');
+    //                 $country = trim($row[2] ?? '');
+    //                 $city = trim($row[3] ?? '');
+    //                 $latitude = trim($row[4] ?? '');
+    //                 $longitude = trim($row[5] ?? '');
+    //                 $breakfastAvailability = trim($row[6] ?? '0');
+    //                 $breakfastOpenTime = trim($row[7] ?? '');
+    //                 $breakfastCloseTime = trim($row[8] ?? '');
+    //                 $lunchAvailability = trim($row[9] ?? '0');
+    //                 $lunchOpenTime = trim($row[10] ?? '');
+    //                 $lunchCloseTime = trim($row[11] ?? '');
+    //                 $dinnerAvailability = trim($row[12] ?? '0');
+    //                 $dinnerOpenTime = trim($row[13] ?? '');
+    //                 $dinnerCloseTime = trim($row[14] ?? '');
+    //                 $ownedBy = trim($row[15] ?? '0');
+    //                 $masterImage = trim($row[16] ?? '');
+    //                 $additionalImages = trim($row[17] ?? '');
+    //                 $description = trim($row[18] ?? '');
+    //                 $termsConditions = trim($row[19] ?? '');
+    //                 $status = trim($row[20] ?? '1');
+    //                 // 🔍 Duplicate check: name + city + country (case-insensitive)
+    //                     $existingRestaurant = Restaurant::whereRaw('LOWER(name) = ?', [strtolower($restaurantName)])
+    //                     ->whereRaw('LOWER(city) = ?', [strtolower($city)])
+    //                     ->whereRaw('LOWER(country) = ?', [strtolower($country)])
+    //                     ->first();
 
-                    if ($existingRestaurant) {
-                        $errors[] = "Row {$rowNumber}: Duplicate restaurant '{$restaurantName}' already exists in {$city}, {$country}.";
-                        $errorCount++;
-                        continue;
-                    }
+    //                 if ($existingRestaurant) {
+    //                     $errors[] = "Row {$rowNumber}: Duplicate restaurant '{$restaurantName}' already exists in {$city}, {$country}.";
+    //                     $errorCount++;
+    //                     continue;
+    //                 }
 
-                    // Generate unique restaurant_id
-                    $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-                    $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
-                    while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-                        $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
-                    }
+    //                 // Generate unique restaurant_id
+    //                 $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
+    //                 $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
+    //                 $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
+    //                 while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
+    //                     $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
+    //                 }
                   
-                    // Create new restaurant
-                    $restaurant = new Restaurant();
-                    $restaurant->restaurant_id = $restaurantId; // <-- critical line
-                    $restaurant->name = $restaurantName;
-                    $restaurant->cuisine = $cuisine;
-                    $restaurant->breakfast_available = ($breakfastAvailability == '1') ? 1 : 0;
-                    $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
-                    $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
-                    $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
+    //                 // Create new restaurant
+    //                 $restaurant = new Restaurant();
+    //                 $restaurant->restaurant_id = $restaurantId; // <-- critical line
+    //                 $restaurant->name = $restaurantName;
+    //                 $restaurant->cuisine = $cuisine;
+    //                 $restaurant->breakfast_available = ($breakfastAvailability == '1') ? 1 : 0;
+    //                 $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
+    //                 $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
+    //                 $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
 
-                    if (Schema::hasColumn('restaurants', 'country')) {
-                        $restaurant->country = $country;
-                    }
-                    if (Schema::hasColumn('restaurants', 'city')) {
-                        $restaurant->city = $city;
-                    }
-                    if (Schema::hasColumn('restaurants', 'latitude')) {
-                        $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
-                    }
-                    if (Schema::hasColumn('restaurants', 'longitude')) {
-                        $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
-                    }
-                    if (Schema::hasColumn('restaurants', 'description')) {
-                        $restaurant->description = $description;
-                    }
-                    if (Schema::hasColumn('restaurants', 'terms_conditions')) {
-                        $restaurant->terms_conditions = $termsConditions;
-                    }
-                    if (Schema::hasColumn('restaurants', 'hotel_id')) {
-                        $restaurant->hotel_id = 1; // Default hotel ID
-                    }
-                    if (Schema::hasColumn('restaurants', 'status')) {
-                        $restaurant->status = ($status == '1') ? 1 : 0;
-                    }
-                    if (Schema::hasColumn('restaurants', 'is_active')) {
-                        $restaurant->is_active = ($status == '1') ? 1 : 0;
-                    }
-                    if (Schema::hasColumn('restaurants', 'created_by')) {
-                        $restaurant->created_by = $auth_user->userId;
-                    }
+    //                 if (Schema::hasColumn('restaurants', 'country')) {
+    //                     $restaurant->country = $country;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'city')) {
+    //                     $restaurant->city = $city;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'latitude')) {
+    //                     $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'longitude')) {
+    //                     $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'description')) {
+    //                     $restaurant->description = $description;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'terms_conditions')) {
+    //                     $restaurant->terms_conditions = $termsConditions;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'hotel_id')) {
+    //                     $restaurant->hotel_id = 1; // Default hotel ID
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'status')) {
+    //                     $restaurant->status = ($status == '1') ? 1 : 0;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'is_active')) {
+    //                     $restaurant->is_active = ($status == '1') ? 1 : 0;
+    //                 }
+    //                 if (Schema::hasColumn('restaurants', 'created_by')) {
+    //                     $restaurant->created_by = $auth_user->userId;
+    //                 }
 
-                    // Set time fields
-                    if ($restaurant->breakfast_available && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
-                        $restaurant->opening_time_bf = $breakfastOpenTime;
-                        $restaurant->closing_time_bf = $breakfastCloseTime;
-                    }
-                    if ($restaurant->lunch_available && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
-                        $restaurant->opening_time_lunch = $lunchOpenTime;
-                        $restaurant->closing_time_lunch = $lunchCloseTime;
-                    }
-                    if ($restaurant->dinner_available && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
-                        $restaurant->opening_time_dinner = $dinnerOpenTime;
-                        $restaurant->closing_time_dinner = $dinnerCloseTime;
-                    }
+    //                 // Set time fields
+    //                 if ($restaurant->breakfast_available && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
+    //                     $restaurant->opening_time_bf = $breakfastOpenTime;
+    //                     $restaurant->closing_time_bf = $breakfastCloseTime;
+    //                 }
+    //                 if ($restaurant->lunch_available && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
+    //                     $restaurant->opening_time_lunch = $lunchOpenTime;
+    //                     $restaurant->closing_time_lunch = $lunchCloseTime;
+    //                 }
+    //                 if ($restaurant->dinner_available && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
+    //                     $restaurant->opening_time_dinner = $dinnerOpenTime;
+    //                     $restaurant->closing_time_dinner = $dinnerCloseTime;
+    //                 }
 
-                    // Set image fields
-                    if (!empty($masterImage)) {
-                        $restaurant->master_image = $masterImage;
-                    }
-                    if (!empty($additionalImages)) {
-                        $imagesArray = array_map('trim', explode(',', $additionalImages));
-                        $restaurant->images = json_encode($imagesArray);
-                    }
+    //                 // Set image fields
+    //                 if (!empty($masterImage)) {
+    //                     $restaurant->master_image = $masterImage;
+    //                 }
+    //                 if (!empty($additionalImages)) {
+    //                     $imagesArray = array_map('trim', explode(',', $additionalImages));
+    //                     $restaurant->images = json_encode($imagesArray);
+    //                 }
 
-                    $restaurant->save();
-                    $successCount++;
+    //                 $restaurant->save();
+    //                 $successCount++;
                     
-                } catch (\Exception $e) {
-                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
-                    $errorCount++;
-                    Log::error("Restaurant bulk upload error on row {$rowNumber}: " . $e->getMessage());
-                }
-            }
+    //             } catch (\Exception $e) {
+    //                 $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+    //                 $errorCount++;
+    //                 Log::error("Restaurant bulk upload error on row {$rowNumber}: " . $e->getMessage());
+    //             }
+    //         }
             
-            if ($successCount > 0) {
-                DB::commit();
-            } else {
-                DB::rollback();
-            }
+    //         if ($successCount > 0) {
+    //             DB::commit();
+    //         } else {
+    //             DB::rollback();
+    //         }
             
-            // Clear the upload cache on completion
-            cache()->forget($cacheKey);
+    //         // Clear the upload cache on completion
+    //         cache()->forget($cacheKey);
             
-            // Save upload history
-            UploadHistory::createRecord(
-                'restaurants',
-                $file->getClientOriginalName(),
-                $file->getClientOriginalName(),
-                count($csvData),
-                $successCount,
-                $errorCount,
-                $errors,
-                $auth_user->userId
-            );
+    //         // Save upload history
+    //         UploadHistory::createRecord(
+    //             'restaurants',
+    //             $file->getClientOriginalName(),
+    //             $file->getClientOriginalName(),
+    //             count($csvData),
+    //             $successCount,
+    //             $errorCount,
+    //             $errors,
+    //             $auth_user->userId
+    //         );
             
-            $message = "Upload completed. {$successCount} restaurants processed successfully.";
-            if ($errorCount > 0) {
-                $message .= " {$errorCount} errors occurred.";
-            }
+    //         $message = "Upload completed. {$successCount} restaurants processed successfully.";
+    //         if ($errorCount > 0) {
+    //             $message .= " {$errorCount} errors occurred.";
+    //         }
 
-            return redirect()->back()
-                ->with('success', $message)
-                ->with('errors', $errors);
+    //         return redirect()->back()
+    //             ->with('success', $message)
+    //             ->with('errors', $errors);
                 
-        } catch (\Exception $e) {
-            DB::rollback();
-            // Clear the upload cache on error
-            if (isset($cacheKey)) {
-                cache()->forget($cacheKey);
-            }
-            Log::error('Restaurant bulk upload failed: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         DB::rollback();
+    //         // Clear the upload cache on error
+    //         if (isset($cacheKey)) {
+    //             cache()->forget($cacheKey);
+    //         }
+    //         Log::error('Restaurant bulk upload failed: ' . $e->getMessage());
+    //         return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+    //     }
+    // }
 }

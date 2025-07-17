@@ -444,7 +444,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             Route::get('/guides/template', [App\Http\Controllers\BulkUploadController::class, 'downloadGuideTemplate'])->name('guides.template');
             
             Route::get('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'restaurants'])->name('restaurants');
-            Route::post('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurantss'])->name('restaurants.upload');
+            Route::post('/restaurants', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurants'])->name('restaurants.upload');
             Route::get('/restaurants/template', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantTemplate'])->name('restaurants.template');
             
             Route::get('/vehicles', [App\Http\Controllers\BulkUploadController::class, 'vehicles'])->name('vehicles');
