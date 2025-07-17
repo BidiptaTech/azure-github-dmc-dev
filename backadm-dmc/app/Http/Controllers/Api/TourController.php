@@ -162,7 +162,7 @@ class TourController extends Controller
                 // Get packaged attraction details
                 if (!empty($formEnquiry->packaged_attraction_ids)) {
                     $packagedAttractionIds = json_decode($formEnquiry->packaged_attraction_ids, true);
-                    $packagedAttractions = PackagedAttraction::select('package_attraction_id', 'name', 'master_image')->whereIn('package_attraction_id', $packagedAttractionIds)->get();
+                    $packagedAttractions = PackagedAttraction::select('package_attraction_id', 'name', 'image')->whereIn('package_attraction_id', $packagedAttractionIds)->get();
                 }
 
                 // Handle entry dropoff
