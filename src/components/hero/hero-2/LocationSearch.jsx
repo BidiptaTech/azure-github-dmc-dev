@@ -394,7 +394,7 @@ const SearchBar = ({ onLocationSelect }) => {
         </div>
         
         <div className="w-50">
-          <div className="text-10 text-light-1 ls-2 lh-16 position-relative">
+          <div className="text-13 text-light-1 ls-2 lh-16 position-relative">
             <input
               ref={cityInputRef}
               type="text"
