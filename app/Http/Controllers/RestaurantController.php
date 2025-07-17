@@ -959,12 +959,76 @@ class RestaurantController extends Controller
 
     public function generateCoupon(Request $request)
     {        
-        // Only allow image storage from browser (html2canvas)
+        // Handle image storage request from JavaScript
         if ($request->input('action') === 'store_image') {
             return $this->storeClientGeneratedImage($request);
         }
+        
+        // Handle HTML-only rendering request (for client-side image generation)
+        if ($request->input('action') === 'render_html_only') {
+            try {
+                // Validate the incoming request
+                $validated = $request->validate([
+                    'restaurant_data' => 'required|array',
+                    'booking_id' => 'required',
+                    'tour_id' => 'required',
+                    'display_id' => 'required',
+                ]);
+                
+                // Get restaurant data
+                $restaurantData = $request->restaurant_data;
+                
+                // Handle if restaurant data is an array (take first element)
+                if (is_array($restaurantData) && !empty($restaurantData)) {
+                    $restaurantData = $restaurantData[0];
+                }
+                
+                // Get restaurant details from database if needed
+                $restaurant = Restaurant::where('restaurant_id', $restaurantData['restaurantId'] ?? null)->first();
+                
+                // Generate coupon code
+                $coupon_code = $request->booking_id . '-' . date('Ymd');
+                
+                // Generate the HTML coupon
+                $html = view('restaurants.coupon_pdf', [
+                    'restaurant' => $restaurant,
+                    'bookingDetails' => $restaurantData,
+                    'booking_id' => $request->booking_id,
+                    'tour_id' => $request->tour_id,
+                    'display_id' => $request->display_id,
+                    'destination' => $request->destination,
+                    'check_in_date' => $request->check_in_date,
+                    'total_pax' => $request->total_pax,
+                    'adults' => $request->adults,
+                    'children' => $request->children,
+                    'agent_name' => $request->agent_name,
+                    'dmc_company' => $request->dmc_company,
+                    'coupon_code' => $coupon_code,
+                ])->render();
+                
+                // Return just the HTML for client-side rendering
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Restaurant coupon HTML generated successfully',
+                    'html' => $html
+                ]);
+            } catch (\Exception $e) {
+                // Log the error for debugging
+                \Log::error('Error generating restaurant coupon HTML: ' . $e->getMessage(), [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                    'request_data' => $request->all()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error generating coupon HTML: ' . $e->getMessage()
+                ], 500);
+            }
+        }
 
-        // If not a browser-generated image, return error
+        // If not a browser-generated image or HTML-only request, return error
         return response()->json([
             'success' => false,
             'message' => 'Direct server-side voucher image generation is not supported. Please use the browser to generate and upload the voucher image.'
