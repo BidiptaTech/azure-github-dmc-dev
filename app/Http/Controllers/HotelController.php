@@ -121,7 +121,6 @@ class HotelController extends Controller
             ->where('status', 5)
             ->get();
             }
-        
         return view('hotel.hotel-approval',compact('pendinghotels'));
     }
 
@@ -159,7 +158,7 @@ class HotelController extends Controller
         $validatedData = $request->validate([
             'name' => 'required|string',
             // 'category_type' => 'required|integer',
-            'phone' => 'required|string',
+            'phone' => 'required|string', 
             'email' => 'required|email',
             'address' => 'required|string',
             'city' => 'required|string',
@@ -585,9 +584,9 @@ class HotelController extends Controller
 
         $authuser = auth()->user();
         if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }
@@ -993,7 +992,7 @@ class HotelController extends Controller
         // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
         if ($auth_user->role_id == 1) {
-            $dmcUsers = User::where('role_id', 11)
+            $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
                            ->select('userId', 'name', 'company_name')
                            ->orderBy('company_name', 'asc')
@@ -1098,7 +1097,7 @@ class HotelController extends Controller
         // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
         if ($auth_user->role_id == 1) {
-            $dmcUsers = User::where('role_id', 11)
+            $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
                            ->select('userId', 'name', 'company_name')
                            ->orderBy('company_name', 'asc')
@@ -1148,7 +1147,7 @@ class HotelController extends Controller
         // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
         if ($auth_user->role_id == 1) {
-            $dmcUsers = User::where('role_id', 11)
+            $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
                            ->select('userId', 'name', 'company_name')
                            ->orderBy('company_name', 'asc')

@@ -14,7 +14,7 @@ class BookingController extends Controller
         // if (!hasPermission('view booking')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
-        if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125){
+        if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
             $orderss = Order::with('tour')->where('status', 2)
             ->where('type', 'hotel')
             ->orderBy('id', 'desc') // Orders by ID in descending order
@@ -45,7 +45,6 @@ class BookingController extends Controller
                 ];
             }
         }
-
         return view('booking.index', compact('orders'));
     }
 

@@ -91,7 +91,7 @@ class DashboardController extends Controller
      */
     private function canViewAllProducts($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC, Product Head
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 130, 132, 133, 135, 136, 137, 138]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC, Product Head
     }
     
     /**
@@ -173,7 +173,7 @@ class DashboardController extends Controller
     private function canViewBusinessMetrics($user)
     {
         // Product managers and product head cannot see business metrics, only sales and upper roles can
-        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38]); // Exclude product managers and product head
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138]); // Exclude product managers and product head
     }
     
     /**
@@ -182,7 +182,7 @@ class DashboardController extends Controller
     private function canViewEnquiries($user)
     {
         // Exclude product head and all product manager roles from seeing enquiries
-        $excludedRoles = [35, 74, 75, 76, 77, 78, 84, 93, 102, 111, 120];
+        $excludedRoles = [35, 74, 75, 76, 77, 78, 84, 93, 102, 111, 120, 130, 132, 133, 135, 136, 137, 138];
         return !in_array($user->role_id, $excludedRoles) && $this->canViewBusinessMetrics($user);
     }
     
@@ -191,7 +191,7 @@ class DashboardController extends Controller
      */
     private function canViewAgents($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38]); // Sales hierarchy only
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138]); // Sales hierarchy only
     }
     
     /**
@@ -286,7 +286,7 @@ class DashboardController extends Controller
         }
         
         // Configuration entities - for higher level roles and product managers
-        if (in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35]) || $this->isProductManager($user)) {
+        if (in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 130, 132, 133, 135, 136, 137, 138]) || $this->isProductManager($user)) {
             $counts['facilities'] = $this->getFacilityCounts($dateRanges, $user);
             $counts['categories'] = $this->getCategoryCounts($dateRanges, $user);
         }
@@ -499,9 +499,8 @@ class DashboardController extends Controller
     private function getTourCounts($dateRanges, $user)
     {
         $query = Tour::where('status', 1);
-        
         // Apply role-based filtering for tours
-        if (in_array($user->role_id, [11, 20, 33, 12, 37, 38])) {
+        if (in_array($user->role_id, [11, 20, 33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {
             $agentIds = $this->getAgentIdsByUserRole($user);
             if ($agentIds->isNotEmpty()) {
                 $query->whereIn('agent_id', $agentIds);
@@ -740,7 +739,7 @@ class DashboardController extends Controller
         $query = Agent::query();
         
         // Apply role-based filtering
-        if (in_array($user->role_id, [10, 11, 19, 20, 33, 12, 37, 38])) {
+        if (in_array($user->role_id, [10, 11, 19, 20, 33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {
             $allIds = $this->getAllRelatedUserIds($user);
             if ($allIds->isNotEmpty()) {
                 $query->whereIn('sales_manager_dmc', $allIds);
@@ -973,7 +972,7 @@ class DashboardController extends Controller
     private function getDmcIdForProductManager($user)
     {
         // Check if this is a Product Head (role_id = 35)
-        if ($user->role_id == 35) {
+        if ($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138) {
             // Product Head is created by DMC (role_id = 11)
             return $user->created_by;
         }
@@ -1038,6 +1037,13 @@ class DashboardController extends Controller
                 break;
                 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $dmcUser = User::where('userId', $user->created_by)->first();
                 if ($dmcUser && $dmcUser->role_id == 11) {
                     $this->applyDmcFieldFilter($query, $dmcField, $dmcUser->userId);
@@ -1097,6 +1103,13 @@ class DashboardController extends Controller
                 return $user->userId;
                 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $dmcUser = User::where('userId', $user->created_by)->first();
                 return ($dmcUser && in_array($dmcUser->role_id, [11, 20])) ? $dmcUser->userId : null;
                 
@@ -1284,6 +1297,13 @@ class DashboardController extends Controller
                     ->filter();
                     
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $salesHeadId = $user->userId;
                 
                 $salesManagers = User::where('created_by', $salesHeadId)

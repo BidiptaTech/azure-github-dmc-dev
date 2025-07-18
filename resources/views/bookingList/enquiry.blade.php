@@ -678,7 +678,7 @@
     </div>
 </div>
 @php
-    $allowedRoles = [1, 11, 34, 64, 65, 66, 67, 68, 81, 90, 99, 108, 117, 125];
+    $allowedRoles = [1, 11, 34, 64, 65, 66, 67, 68, 81, 90, 99, 108, 117, 125, 128, 131, 132, 134, 135, 137, 138];
 @endphp
 @if(in_array(Auth::user()->role_id, $allowedRoles))
 <!-- Edit Modal-->

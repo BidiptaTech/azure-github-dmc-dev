@@ -73,10 +73,10 @@ class UserController extends Controller
                 ->whereIn('role_id', [11,24,25,26,27,28,29,30,31,32])
                 ->orderBy('userId', 'asc')
                 ->get();
-        }elseif($this->auth_user->role_id == 11){
+        }elseif($this->auth_user->role_id == 11 || $this->auth_user->role_id == 20){
             $users = User::with('roles')
                 // ->where('master_dmc_id', $this->auth_user->userId)
-                ->whereIn('role_id', [33,34,35,36])
+                ->whereIn('role_id', [33,34,35,36,128,129,130,131,132,133,134,135,136,137,138])
                 ->orderBy('userId', 'asc')
                 ->get();
         }elseif($this->auth_user->role_id == 24){
@@ -85,9 +85,9 @@ class UserController extends Controller
             $users = User::with('roles')->whereIn('role_id',[11,30])->where('master_dmc_id', $masterDmcId)->orderBy('userId', 'asc')->get();
         }elseif($this->auth_user->role_id == 30){
             $users = User::with('roles')->whereIn('role_id',[11])->orderBy('userId', 'asc')->get();
-        }elseif($this->auth_user->role_id == 11){
-            $users = User::with('roles')->whereIn('role_id',[10,33,34,35,36])->orderBy('userId', 'asc')->get();
-        }elseif($this->auth_user->role_id == 33){
+        }elseif($this->auth_user->role_id == 11 || $this->auth_user->role_id == 20){
+            $users = User::with('roles')->whereIn('role_id',[10,33,34,35,36,128,129,130,131,132,133,134,135,136,137,138])->orderBy('userId', 'asc')->get();
+        }elseif($this->auth_user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $users = User::with('roles')->whereIn('role_id',[37,38])->orderBy('userId', 'asc')->get();
         }elseif($this->auth_user->role_id == 37){
             $users = User::with('roles')->whereIn('role_id',[38])->orderBy('userId', 'asc')->get();
@@ -108,13 +108,13 @@ class UserController extends Controller
         elseif($this->auth_user->role_id == 27){
             $users = User::with('roles')->whereIn('role_id',[54,55,56,57,58,95,104,113,86,122])->orderBy('userId', 'asc')->get();
         }
-        elseif($this->auth_user->role_id == 34){
+        elseif($this->auth_user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
             $users = User::with('roles')->whereIn('role_id',[64,65,66,67,68,90,99,108,81,117])->orderBy('userId', 'asc')->get();
         }
-        elseif($this->auth_user->role_id == 35){
+        elseif($this->auth_user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $users = User::with('roles')->whereIn('role_id',[74,75,76,77,78,93,102,111,84,120])->orderBy('userId', 'asc')->get();
         }
-        elseif($this->auth_user->role_id == 36){
+        elseif($this->auth_user->role_id == 36 || $user->role_id == 129 || $user->role_id == 131 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $users = User::with('roles')->whereIn('role_id',[69,70,71,72,73,96,105,114,87,123])->orderBy('userId', 'asc')->get();
         }
         elseif($this->auth_user->role_id == 13){
@@ -335,9 +335,9 @@ class UserController extends Controller
             ->whereIn('role_id', [24,25,26,27])
             ->orderBy('role_id', 'asc')
             ->get();
-        }elseif($this->auth_user->role_id == 11){
+        }elseif($this->auth_user->role_id == 11 || $this->auth_user->role_id == 20){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [33,34,35,36])
+            ->whereIn('role_id', [33,34,35,36,128,129,130,131,132,133,134,135,136,137,138])
             ->orderBy('role_id', 'asc')
             ->get();
         }elseif($this->auth_user->role_id == 12 || $this->auth_user->role_id == 37){
@@ -364,7 +364,7 @@ class UserController extends Controller
             ->whereIn('role_id', [11])
             ->orderBy('role_id', 'asc')
             ->get();
-        }elseif($this->auth_user->role_id == 33){
+        }elseif($this->auth_user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $roles = Role::where('is_active', 1)
             ->where('role_id', 37)
             ->orderBy('role_id', 'asc')
@@ -403,19 +403,19 @@ class UserController extends Controller
             ->orderBy('role_id', 'asc')
             ->get();
         }
-        elseif($this->auth_user->role_id == 34){
+        elseif($this->auth_user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
             $roles = Role::where('is_active', 1)
             ->whereIn('role_id', [64,65,66,67,68])
             ->orderBy('role_id', 'asc')
             ->get();
         }
-        elseif($this->auth_user->role_id == 35){
+        elseif($this->auth_user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $roles = Role::where('is_active', 1)
             ->whereIn('role_id', [74,75,76,77,78])
             ->orderBy('role_id', 'asc')
             ->get();
         }
-        elseif($this->auth_user->role_id == 36){
+        elseif($this->auth_user->role_id == 36 || $user->role_id == 129 || $user->role_id == 131 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $roles = Role::where('is_active', 1)
             ->whereIn('role_id', [69,70,71,72,73])
             ->orderBy('role_id', 'asc')
@@ -740,7 +740,7 @@ class UserController extends Controller
             $get_country_name = User::where('userId', $request->input('salemg_admin'))->value('country') ?? $get_country_name;
         }
 
-        if ($request->input('role') == 11) {
+        if ($request->input('role') == 11 || $request->input('role') == 20) {
             $country_name = Country::where('name', $request->country_name)->first();
             $get_country_name = $country_name ? $country_name->name : $request->country_name;
         }
@@ -753,7 +753,7 @@ class UserController extends Controller
         }
         
         if($this->auth_user->role_id == 4 || $this->auth_user->role_id == 30 ||$this->auth_user->role_id == 11 
-        ||$this->auth_user->role_id == 12 ||$this->auth_user->role_id == 33 || $this->auth_user->role_id == 37 ||$this->auth_user->role_id == 38){
+        ||$this->auth_user->role_id == 12 ||$this->auth_user->role_id == 33 || $this->auth_user->role_id == 37 ||$this->auth_user->role_id == 38 || $this->auth_user->role_id == 128 || $this->auth_user->role_id == 129 || $this->auth_user->role_id == 130 || $this->auth_user->role_id == 134 || $this->auth_user->role_id == 135 || $this->auth_user->role_id == 136 || $this->auth_user->role_id == 138){
             $get_country_name = $this->auth_user->country;
         }
         if($this->auth_user->role_id == 10){
@@ -844,8 +844,8 @@ class UserController extends Controller
         // ... continue with other role conditions as in your create method ...
 
         $countryCodes = User::countryCodes();
-        $master_dmc = User::where('role_id', 10)->get();
-        $dmcs = User::where('user_type', 2)->where('role_id', 11)->get();
+        $master_dmc = User::whereIn('role_id', [10,19])->get();
+        $dmcs = User::where('user_type', 2)->whereIn('role_id', [11,20])->get();
         $adminSalesManager = User::where('role_id', 3)->get();
         $country = Country::get();
 

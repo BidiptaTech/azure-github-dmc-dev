@@ -64,6 +64,13 @@ class EnquiryListController extends Controller
                 break;
 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $sh_id = $user->userId;
 
                 $sales_managers = User::where('created_by', $sh_id)

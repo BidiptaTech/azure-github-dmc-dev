@@ -63,7 +63,7 @@
                             <!-- Will be populated via AJAX -->
                         </select>
                     </div>
-                    @elseif(in_array(Auth::user()->role_id, [11, 34, 65, 99]))
+                    @elseif(in_array(Auth::user()->role_id, [11, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
                     <!-- DMC can only see guide field -->
                     <div class="col-md-12 mb-3">
                         <label for="guide_id" class="form-label">Guide</label>

@@ -31,6 +31,13 @@ class EnquiryController extends Controller
                     $enquiries = Enquiry::where('dmcId', $dmc_id)->get();
                     break;
                 case 33: // Sales Head
+                case 128: // Sales Head
+                case 129: // Sales Head
+                case 130: // Sales Head
+                case 134: // Sales Head
+                case 135: // Sales Head
+                case 136: // Sales Head
+                case 138: // Sales Head
                     $salesManagerId = $user->userId;
                         $saleshead_dmc = User::where('userId',$user->userId)->first(); // SH
                         if ( $saleshead_dmc) {

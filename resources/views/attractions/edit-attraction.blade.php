@@ -57,7 +57,7 @@
                                 <label for="name" class="form-label"><strong>Attraction Name</strong><span
                                         class="text-danger">*</span></label>
                                 <input value="{{$attraction->name}}" type="text" class="form-control" name="name"
-                                    placeholder="Enter Attraction Name" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                    placeholder="Enter Attraction Name" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                 @error('name')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -75,7 +75,7 @@
                             <!-- Location -->
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
-                                <select name="city" id="citySelect" class="form-control" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                <select name="city" id="citySelect" class="form-control" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     <option value="{{ $attraction->location }}">{{ $attraction->location }}</option>
                                     @foreach($city as $c)
                                         @if($c->name != $attraction->location)
@@ -83,7 +83,7 @@
                                         @endif
                                     @endforeach
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                     <input type="hidden" name="city" value="{{ $attraction->location }}">
                                 @endif
                                 @error('city')
@@ -99,7 +99,7 @@
                                     <strong>Senior Age Threshold</strong><span class="text-danger">*</span>
                                 </label>
                                 <input value="{{$attraction->senior_min_age}}" type="number" class="form-control" id="senior_min_age" name="senior_min_age"
-                                    placeholder="e.g., 60" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                    placeholder="e.g., 60" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                 <small class="text-muted">Age at which an adult is considered a senior.</small>
                             </div>
 
@@ -109,7 +109,7 @@
                                     <strong>Maximum Child Age</strong><span class="text-danger">*</span>
                                 </label>
                                 <input value="{{$attraction->child_max_age}}" type="number" class="form-control" id="child_end_age" name="child_end_age"
-                                    placeholder="e.g., 12" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                    placeholder="e.g., 12" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                 <small class="text-muted">Maximum age until a person is considered a child.</small>
                             </div>
 
@@ -192,7 +192,7 @@
                                     <strong>Latitude</strong><span class="text-danger">*</span>
                                 </label>
                                 <input name="latitude" type="text" id="latitude" value="{{$attraction->latitude}}" class="form-control"
-                                    placeholder="Enter Latitude" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : 'oninput="validateLatitude(this)"' }}>
+                                    placeholder="Enter Latitude" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : 'oninput="validateLatitude(this)"' }}>
                                 <small class="validation-message text-danger" id="latitude-validation-message"></small>
                                 @error('latitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -205,7 +205,7 @@
                                     <strong>Longitude</strong><span class="text-danger">*</span>
                                 </label>
                                 <input name="longitude" type="text" id="longitude" value="{{$attraction->longitude}}" class="form-control"
-                                    placeholder="Enter Longitude" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : 'oninput="validateLongitude(this)"' }}>
+                                    placeholder="Enter Longitude" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : 'oninput="validateLongitude(this)"' }}>
                                 <small class="validation-message text-danger" id="longitude-validation-message"></small>
                                 @error('longitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -217,12 +217,12 @@
                                 <label for="morning_opening" class="form-label"><strong>Morning Opening</strong>
                                     <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-control" id="morning_opening" name="morning_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                <select class="form-control" id="morning_opening" name="morning_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     <option value="">Select One</option>
                                     <option value="1" {{ old('morning_opening', $attraction->morning_opening ?? '') == '1' ? 'selected' : '' }}>Yes</option>
                                     <option value="0" {{ old('morning_opening', $attraction->morning_opening ?? '') == '0' ? 'selected' : '' }}>No</option>
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                     <input type="hidden" name="morning_opening" value="{{ $attraction->morning_opening }}">
                                 @endif
                                 @error('morning_opening')
@@ -234,12 +234,12 @@
                                 <label for="afternoon_opening" class="form-label"><strong>Afternoon Opening</strong>
                                     <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-control" id="afternoon_opening" name="afternoon_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                <select class="form-control" id="afternoon_opening" name="afternoon_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     <option value="">Select One</option>
                                     <option value="1" {{ old('afternoon_opening', $attraction->afternoon_opening ?? '') == '1' ? 'selected' : '' }}>Yes</option>
                                     <option value="0" {{ old('afternoon_opening', $attraction->afternoon_opening ?? '') == '0' ? 'selected' : '' }}>No</option>
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                     <input type="hidden" name="afternoon_opening" value="{{ $attraction->afternoon_opening }}">
                                 @endif
                                 @error('afternoon_opening')
@@ -251,12 +251,12 @@
                                 <label for="evening_opening" class="form-label"><strong>Evening Opening</strong>
                                     <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-control" id="evening_opening" name="evening_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                <select class="form-control" id="evening_opening" name="evening_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     <option value="">Select One</option>
                                     <option value="1" {{ old('evening_opening', $attraction->evening_opening ?? '') == '1' ? 'selected' : '' }}>Yes</option>
                                     <option value="0" {{ old('evening_opening', $attraction->evening_opening ?? '') == '0' ? 'selected' : '' }}>No</option>
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                     <input type="hidden" name="evening_opening" value="{{ $attraction->evening_opening }}">
                                 @endif
                                 @error('evening_opening')
@@ -268,12 +268,12 @@
                                 <label for="night_opening" class="form-label"><strong>Night Opening</strong>
                                     <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-control" id="night_opening" name="night_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                <select class="form-control" id="night_opening" name="night_opening" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     <option value="">Select One</option>
                                     <option value="1" {{ old('night_opening', $attraction->night_opening ?? '') == '1' ? 'selected' : '' }}>Yes</option>
                                     <option value="0" {{ old('night_opening', $attraction->night_opening ?? '') == '0' ? 'selected' : '' }}>No</option>
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                     <input type="hidden" name="night_opening" value="{{ $attraction->night_opening }}">
                                 @endif
                                 @error('night_opening')
@@ -353,12 +353,12 @@
                                         <div class="col-md-5 mb-3">
                                             <label for="property" class="form-label"><strong>Open Time:</strong><span class="text-danger">*</span></label>
                                             <input type="text" name="open_time[]" class="form-control open-time" 
-                                                value="{{ $openTime }}" placeholder="Select open time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                                value="{{ $openTime }}" placeholder="Select open time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                         </div>
                                         <div class="col-md-5 mb-3">
                                             <label for="property" class="form-label"><strong>Close Time:</strong><span class="text-danger">*</span></label>
                                             <input type="text" name="close_time[]" class="form-control close-time" 
-                                                value="{{ $closeTimes[$index] ?? '' }}" placeholder="Select close time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                                value="{{ $closeTimes[$index] ?? '' }}" placeholder="Select close time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                         </div>
                                         <div class="col-md-2 mb-3 d-flex align-items-end">
                                             <button type="button" class="btn btn-success add-time" style="margin-bottom: 10px">Add More</button>
@@ -366,14 +366,14 @@
                                         @else
                                         <div class="col-md-5 mb-3">
                                             <input type="text" name="open_time[]" class="form-control open-time" 
-                                                value="{{ $openTime }}" placeholder="Select open time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                                value="{{ $openTime }}" placeholder="Select open time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                         </div>
                                         <div class="col-md-5 mb-3">
                                             <input type="text" name="close_time[]" class="form-control close-time" 
-                                                value="{{ $closeTimes[$index] ?? '' }}" placeholder="Select close time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                                value="{{ $closeTimes[$index] ?? '' }}" placeholder="Select close time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                         </div>
                                         <div class="col-md-2 mb-3 d-flex align-items-end">
-                                            <button type="button" class="btn btn-danger remove-time" style="margin-bottom: 10px" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>Remove</button>
+                                            <button type="button" class="btn btn-danger remove-time" style="margin-bottom: 10px" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>Remove</button>
                                         </div>
                                         @endif
                                     </div>
@@ -383,14 +383,14 @@
                                     <div class="row time-row">
                                         <div class="col-md-5 mb-3">
                                             <label for="property" class="form-label"><strong>Open Time:</strong><span class="text-danger">*</span></label>
-                                            <input type="text" name="open_time[]" class="form-control open-time" placeholder="Select open time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                            <input type="text" name="open_time[]" class="form-control open-time" placeholder="Select open time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                         </div>
                                         <div class="col-md-5 mb-3">
                                             <label for="property" class="form-label"><strong>Close Time:</strong><span class="text-danger">*</span></label>
-                                            <input type="text" name="close_time[]" class="form-control close-time" placeholder="Select close time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>
+                                            <input type="text" name="close_time[]" class="form-control close-time" placeholder="Select close time" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>
                                         </div>
                                         <div class="col-md-2 mb-3 d-flex align-items-end">
-                                            <button type="button" class="btn btn-success add-time" style="margin-bottom: 10px" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>Add More</button>
+                                            <button type="button" class="btn btn-success add-time" style="margin-bottom: 10px" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>Add More</button>
                                         </div>
                                     </div>
                                 @endif
@@ -410,11 +410,11 @@
                                 <div>
                                     <label for="master_image" class="form-label"><strong>Master
                                             Image</strong></label>
-                                    <div id="master-drop-area" class="form-control {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}"
-                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'pointer-events: none; background-color: #f8f9fa;' : '' }}">
-                                        {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'Image upload disabled for your role' : 'Drag & Drop your files here or click to upload.' }}
+                                    <div id="master-drop-area" class="form-control {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}"
+                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'pointer-events: none; background-color: #f8f9fa;' : '' }}">
+                                        {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'Image upload disabled for your role' : 'Drag & Drop your files here or click to upload.' }}
                                         <input type="file" id="master_image" name="master_image" multiple
-                                            style="display: none;" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                            style="display: none;" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     </div>
                                 </div>
                                 <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
@@ -425,7 +425,7 @@
                                     <div class="image-preview-wrapper position-relative">
                                         <img src="{{$attraction->master_image}}" alt="Room Master Image"
                                             style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
-                                        @if(!in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                        @if(!in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                         <button
                                             class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                             data-image="{{ $attraction->master_image }}"
@@ -445,11 +445,11 @@
                                 <div>
                                     <label for="images" class="form-label"><strong>Additional
                                             Images</strong></label>
-                                    <div id="drop-area" class="form-control {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}"
-                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'pointer-events: none; background-color: #f8f9fa;' : '' }}">
-                                        {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'Image upload disabled for your role' : 'Drag & Drop your files here or click to upload.' }}
+                                    <div id="drop-area" class="form-control {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}"
+                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'pointer-events: none; background-color: #f8f9fa;' : '' }}">
+                                        {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'Image upload disabled for your role' : 'Drag & Drop your files here or click to upload.' }}
                                         <input type="file" id="images" name="images[]" multiple
-                                            style="display: none;" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
+                                            style="display: none;" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
                                     </div>
 
                                     <div id="preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
@@ -470,7 +470,7 @@
                                         <input type="hidden" name="existing_images[]" value="{{ $img }}">
                                         <img src="{{ asset($img) }}" alt="Facility Image"
                                             style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
-                                        @if(!in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                        @if(!in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                         <button
                                             class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
                                             data-image="{{ $img }}"
@@ -496,7 +496,7 @@
                         <div class="col-md-12 mb-3">
                             <label for="description" class="form-label"><strong>Important Notes</strong><span
                                     style="color: red;">*</span></label>
-                            <textarea id="summernote" name="description" class="form-control" rows="10" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>{{ old('description', $attraction->description) }}</textarea required>
+                            <textarea id="summernote" name="description" class="form-control" rows="10" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>{{ old('description', $attraction->description) }}</textarea required>
                             @error('description')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -505,7 +505,7 @@
                         <!-- Remarks -->
                         <div class="col-md-12 mb-3">
                             <label for="remarks" class="form-label"><strong>Remarks</strong> <small class="text-muted">(Optional)</small></label>
-                            <textarea id="remarks" name="remarks" class="form-control" rows="4" placeholder="Enter any remarks or notes (optional)" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>{{ old('remarks', $attraction->remarks) }}</textarea>
+                            <textarea id="remarks" name="remarks" class="form-control" rows="4" placeholder="Enter any remarks or notes (optional)" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>{{ old('remarks', $attraction->remarks) }}</textarea>
                             @error('remarks')
                             <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -514,7 +514,7 @@
                         <!-- Terms & Conditions -->
                         <div class="col-md-12 mb-3">
                             <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
-                            <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions..." required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'readonly' : '' }}>{{ old('terms_conditions', $attraction->terms_conditions) }}</textarea>
+                            <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions..." required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'readonly' : '' }}>{{ old('terms_conditions', $attraction->terms_conditions) }}</textarea>
                             @error('terms_conditions')
                             <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -525,8 +525,8 @@
                             <label for="attraction_status" class="form-label"><strong>Status</strong></label>
                             <span style="color: red; font-weight: bold;">*</span>
                             <input {{$attraction->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="attraction_status" type="checkbox" id="attraction_status"
-                                value="1" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'disabled' : '' }}>
-                            @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                                value="1" {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'disabled' : '' }}>
+                            @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                                 <input type="hidden" name="attraction_status" value="{{ $attraction->is_active }}">
                             @endif
                             <label class="form-check-label"></label>
@@ -538,7 +538,7 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        @if(in_array(auth()->user()->role_id, [11, 74, 35, 93]))
+                        @if(in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]))
                             <button type="button" class="btn btn-secondary px-4" disabled>Update (Read Only)</button>
                             <small class="text-muted mt-2">You have read-only access to this attraction.</small>
                         @else
@@ -560,7 +560,7 @@
 
 <script>
     $(document).ready(function() {
-        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
         
         if (isReadOnly) {
             // Disable Summernote editors for readonly roles
@@ -725,7 +725,7 @@
 
             // Remove file and update list on delete
             deleteButton.addEventListener('click', () => {
-                var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+                var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
                 
                 if (isReadOnly) {
                     alert('You do not have permission to delete images.');
@@ -779,7 +779,7 @@
 <!-- delete existing Image -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
         
         // Use event delegation for dynamically added elements
         document.querySelector('.existing-image-preview-container').addEventListener('click', function(e) {
@@ -831,7 +831,7 @@
 <!-- delete existing Master Image -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
         
         // Use event delegation for dynamically added elements
         document.querySelector('.image-preview-container').addEventListener('click', function(e) {
@@ -949,7 +949,7 @@
         deleteButton.style.fontSize = '12px';
         deleteButton.style.lineHeight = '16px';
         deleteButton.addEventListener('click', () => {
-            var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+            var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
             
             if (isReadOnly) {
                 alert('You do not have permission to delete images.');
@@ -1050,7 +1050,7 @@
 <script>
     // Function to initialize flatpickr for time inputs
     function initializeTimePickers(container) {
-        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+        var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
         
         if (!isReadOnly) {
             container.querySelectorAll('.open-time').forEach(function(input) {
@@ -1086,7 +1086,7 @@
         // Add event listener to all add-time buttons
         document.querySelectorAll(".add-time").forEach(function(button) {
             button.addEventListener("click", function() {
-                var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+                var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
                 
                 // Prevent adding new rows for readonly roles
                 if (isReadOnly) {
@@ -1130,7 +1130,7 @@
         // Add event listeners to all remove-time buttons
         document.querySelectorAll(".remove-time").forEach(function(button) {
             button.addEventListener("click", function() {
-                var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93]) ? 'true' : 'false' }};
+                var isReadOnly = {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138]) ? 'true' : 'false' }};
                 
                 // Prevent removing rows for readonly roles
                 if (!isReadOnly) {
