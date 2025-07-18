@@ -8,6 +8,64 @@
 <link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet">
 {{-- <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet"> --}}
 
+<!-- Add Bootstrap Tab Styles -->
+<style>
+.nav-tabs .nav-link {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    margin-right: 0.25rem;
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.nav-tabs .nav-link:hover {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #696cff;
+    border-color: #696cff;
+    color: white;
+}
+
+.tab-content {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    padding: 0;
+    border-radius: 0 0 0.375rem 0.375rem;
+}
+
+.bulk-upload-info {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.bulk-upload-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.75rem 1.5rem;
+    color: white;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.bulk-upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    color: white;
+    text-decoration: none;
+}
+
 <style>
 /* DMC Filter Styles */
 #dmcFilter {
@@ -88,12 +146,36 @@
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
-            <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add Rooms
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Manage Beds for {{ $hotel->name }}</h5>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
-            </h5>
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs" id="bedsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="add-single-tab" data-bs-toggle="tab" data-bs-target="#add-single" 
+                                type="button" role="tab" aria-controls="add-single" aria-selected="true">
+                            <i class="ri-add-line me-1"></i>Add Single Bed
+                        </button>
+                    </li>
+                    @if($auth_user->role_id == 11) {{-- Only DMC users can see bulk upload --}}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" 
+                                type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload
+                        </button>
+                    </li>
+                    @endif
+                </ul>
+                
+                <div class="tab-content" id="bedsTabContent">
+                    <!-- Add Single Bed Tab -->
+                    <div class="tab-pane fade show active" id="add-single" role="tabpanel" aria-labelledby="add-single-tab">
+                        <div class="p-4">
             <form id="hotelForm" method="POST" action="{{ route('storebed') }}"
                 enctype="multipart/form-data" class="card-body">
                 @csrf
@@ -267,13 +349,81 @@
                     @enderror
                 </div>
 
-                <!-- Submit Buttons -->
-                <div class="d-flex gap-3">
-                    <button type="submit" class="btn btn-primary px-4">Save</button>
-                    <!-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}"
-                        class="btn btn-success px-4">Save</a> -->
+                            <!-- Submit Buttons -->
+                            <div class="d-flex gap-3">
+                                <button type="submit" class="btn btn-primary px-4">Save</button>
+                                <!-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}"
+                                    class="btn btn-success px-4">Save</a> -->
+                            </div>
+                        </form>
+                        </div>
+                    </div>
+                    
+                    @if($auth_user->role_id == 11) {{-- Only DMC users can see bulk upload --}}
+                    <!-- Bulk Upload Tab -->
+                    <div class="tab-pane fade" id="bulk-upload" role="tabpanel" aria-labelledby="bulk-upload-tab">
+                        <div class="p-4">
+                            <div class="bulk-upload-info">
+                                <h6 class="mb-3">
+                                    <i class="ri-upload-cloud-2-line me-2"></i>Bulk Upload Beds
+                                </h6>
+                                <p class="mb-3 text-muted">
+                                    Upload multiple beds at once using a CSV file. This feature allows you to quickly add 
+                                    many bed configurations for this hotel in a single upload operation.
+                                </p>
+                                
+                                <!-- Available Bed Types Info -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <h6 class="text-primary mb-2">Available Bed Types:</h6>
+                                        @if($beds->count() > 0)
+                                            @foreach($beds as $bedType)
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <span class="badge bg-primary me-2">{{ $bedType->bedId }}</span>
+                                                    <span class="small">{{ $bedType->name }}</span>
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <span class="text-warning small">No bed types configured for this hotel</span>
+                                        @endif
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-info mb-2">Available Room Categories:</h6>
+                                        @if($rooms->count() > 0)
+                                            @foreach($rooms as $room)
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <span class="badge bg-info me-2">{{ $room->room_id }}</span>
+                                                    <span class="small">{{ $room->room_type }} ({{ $room->no_of_room }} rooms)</span>
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <span class="text-warning small">No room categories configured for this hotel</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info mb-3">
+                                    <strong>Important:</strong> 
+                                    Use the exact Bed Type ID and Room Category ID numbers shown above in your CSV file. 
+                                    Download the template to see the required format and field requirements.
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('beds.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}" 
+                                       class="bulk-upload-btn">
+                                        <i class="ri-upload-cloud-2-line"></i>Go to Bulk Upload
+                                    </a>
+                                    <a href="{{ route('beds.template_for_hotel', $hotel->hotel_unique_id) }}" 
+                                       class="btn btn-outline-primary">
+                                        <i class="ri-download-cloud-2-line me-1"></i>Download Template
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>

@@ -57,34 +57,25 @@
                                         <div class="col-md-6">
                                             <div class="instruction-section">
                                                 <h6 class="instruction-section-title">
-                                                    <i class="ri-file-download-line me-2"></i>Getting Started
+                                                    <i class="ri-rocket-line me-2"></i>Getting Started
                                                 </h6>
                                                 <div class="instruction-item">
-                                                    <i class="ri-download-2-line text-success"></i>
+                                                    <i class="ri-download-cloud-2-line text-success"></i>
                                                     <span>Download the CSV template using the button above</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-edit-line text-primary"></i>
+                                                    <i class="ri-edit-box-line text-primary"></i>
                                                     <span>Fill in your ticket data (required fields marked with *)</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-file-text-line text-warning"></i>
+                                                    <i class="ri-file-upload-line text-warning"></i>
                                                     <span>Maximum file size: 10MB • Formats: CSV, TXT</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-database-line text-info"></i>
+                                                    <i class="ri-database-2-line text-info"></i>
                                                     <span>Maximum 1000 rows per upload</span>
                                                 </div>
                                             </div>
-                                            {{-- <div class="instruction-section mt-4">
-                                                <h6 class="instruction-section-title">
-                                                    <i class="ri-list-check-line me-2"></i>Valid Options
-                                                </h6>
-                                                <div class="instruction-item">
-                                                    <i class="ri-ticket-2-line text-primary"></i>
-                                                    <span><strong>Status:</strong> 1 = Active, 0 = Inactive</span>
-                                                </div>
-                                            </div> --}}
                                         </div>
                                         <div class="col-md-6">
                                             <div class="instruction-section">
@@ -93,48 +84,147 @@
                                                 </h6>
                                                 <div class="instruction-item">
                                                     <i class="ri-checkbox-circle-line text-danger"></i>
-                                                    <span><strong>Required:</strong> Ticket Name, Child Price (local), Adult Price (local), Senior Citizen Price (local), Child Price (foreigner), Adult Price (foreigner), Senior Citizen Price (foreigner), Important Notes, Terms & Conditions, Status</span>
+                                                    <span><strong>Required Fields:</strong> Ticket Name, All Price Fields, Important Notes, Terms & Conditions, Status</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-money-dollar-circle-line text-info"></i>
-                                                    <span>All price fields must be numeric and greater than 0</span>
+                                                    <i class="ri-money-dollar-circle-line text-success"></i>
+                                                    <span><strong>Price Fields:</strong> All must be numeric and greater than 0</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-toggle-line text-info"></i>
-                                                    <span>Status: 1 = Active, 0 = Inactive</span>
-                                                </div>
-                                            </div>
-                                            <div class="instruction-section mt-4">
-                                                <h6 class="instruction-section-title">
-                                                    <i class="ri-shield-check-line me-2"></i>Best Practices
-                                                </h6>
-                                                <div class="instruction-item">
-                                                    <i class="ri-text text-info"></i>
-                                                    <span>Use exact spelling for all values (case-sensitive)</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-calculator-line text-primary"></i>
-                                                    <span>Enter prices as numbers without currency symbols</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-error-warning-line text-warning"></i>
-                                                    <span>Check for empty rows before uploading</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-save-line text-success"></i>
-                                                    <span>Save file as CSV format before uploading</span>
+                                                    <span><strong>Status:</strong> 1 = Active, 0 = Inactive</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row mt-3">
+                                    
+                                    <!-- Price Structure Section -->
+                                    <div class="row mt-4">
                                         <div class="col-12">
-                                            <div class="alert alert-info border-0 mb-0">
-                                                <div class="d-flex align-items-start">
-                                                    <i class="ri-lightbulb-line me-2 mt-1"></i>
-                                                    <div>
-                                                        <strong>Pro Tips:</strong>
-                                                        <span class="ms-2">Double-check all required fields are filled. All price fields must be numeric and greater than 0. Status must be 1 (Active) or 0 (Inactive). Maximum 1000 rows per upload.</span>
+                                            <div class="instruction-section">
+                                                <h6 class="instruction-section-title">
+                                                    <i class="ri-money-dollar-box-line me-2"></i>Price Structure Overview
+                                                </h6>
+                                                <div class="alert alert-info mb-3">
+                                                    <strong>CSV Format:</strong> Your CSV must include all 6 price columns as shown below.
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="price-category-card local-prices">
+                                                            <div class="price-category-header">
+                                                                <i class="ri-home-4-line me-2"></i>
+                                                                <strong>Local Prices</strong>
+                                                            </div>
+                                                            <div class="price-items">
+                                                                <div class="price-item">
+                                                                    <i class="ri-user-smile-line text-primary"></i>
+                                                                    <span>Child Price (local)</span>
+                                                                    <small class="text-muted">Required</small>
+                                                                </div>
+                                                                <div class="price-item">
+                                                                    <i class="ri-user-line text-success"></i>
+                                                                    <span>Adult Price (local)</span>
+                                                                    <small class="text-muted">Required</small>
+                                                                </div>
+                                                                <div class="price-item">
+                                                                    <i class="ri-user-star-line text-warning"></i>
+                                                                    <span>Senior Citizen Price (local)</span>
+                                                                    <small class="text-muted">Required</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="price-category-card foreigner-prices">
+                                                            <div class="price-category-header">
+                                                                <i class="ri-earth-line me-2"></i>
+                                                                <strong>Foreigner Prices</strong>
+                                                            </div>
+                                                            <div class="price-items">
+                                                                <div class="price-item">
+                                                                    <i class="ri-user-smile-line text-primary"></i>
+                                                                    <span>Child Price (foreigner)</span>
+                                                                    <small class="text-muted">Required</small>
+                                                                </div>
+                                                                <div class="price-item">
+                                                                    <i class="ri-user-line text-success"></i>
+                                                                    <span>Adult Price (foreigner)</span>
+                                                                    <small class="text-muted">Required</small>
+                                                                </div>
+                                                                <div class="price-item">
+                                                                    <i class="ri-user-star-line text-warning"></i>
+                                                                    <span>Senior Citizen Price (foreigner)</span>
+                                                                    <small class="text-muted">Required</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Best Practices Section -->
+                                    <div class="row mt-4">
+                                        <div class="col-12">
+                                            <div class="instruction-section">
+                                                <h6 class="instruction-section-title">
+                                                    <i class="ri-shield-check-line me-2"></i>Best Practices
+                                                </h6>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="best-practice-item">
+                                                            <i class="ri-text text-info"></i>
+                                                            <span>Use exact spelling for all values (case-sensitive)</span>
+                                                        </div>
+                                                        <div class="best-practice-item">
+                                                            <i class="ri-calculator-line text-primary"></i>
+                                                            <span>Enter prices as numbers without currency symbols</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="best-practice-item">
+                                                            <i class="ri-error-warning-line text-warning"></i>
+                                                            <span>Check for empty rows before uploading</span>
+                                                        </div>
+                                                        <div class="best-practice-item">
+                                                            <i class="ri-file-check-line text-success"></i>
+                                                            <span>Save file as CSV format before uploading</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pro Tips Section -->
+                                    <div class="row mt-4">
+                                        <div class="col-12">
+                                            <div class="pro-tips-card">
+                                                <div class="pro-tips-header">
+                                                    <i class="ri-lightbulb-flash-line me-2"></i>
+                                                    <strong>Pro Tips</strong>
+                                                </div>
+                                                <div class="pro-tips-content">
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="pro-tip-item">
+                                                                <i class="ri-check-double-line text-success"></i>
+                                                                <span>Double-check all required fields are filled</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="pro-tip-item">
+                                                                <i class="ri-money-dollar-circle-line text-primary"></i>
+                                                                <span>All price fields must be greater than 0</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="pro-tip-item">
+                                                                <i class="ri-upload-cloud-2-line text-info"></i>
+                                                                <span>Maximum 1000 rows per upload</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -837,6 +927,193 @@
     .btn {
         width: 100%;
         justify-content: center;
+    }
+}
+
+/* Enhanced Instruction Styles */
+.price-category-card {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+    border: 1px solid rgba(102, 126, 234, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.price-category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+}
+
+.local-prices {
+    border-left: 4px solid #28a745;
+}
+
+.foreigner-prices {
+    border-left: 4px solid #007bff;
+}
+
+.price-category-header {
+    display: flex;
+    align-items: center;
+    color: #495057;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.price-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.price-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.price-item:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateX(4px);
+}
+
+.price-item i {
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+}
+
+.price-item span {
+    flex: 1;
+    font-weight: 500;
+    color: #495057;
+}
+
+.price-item small {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: #dc3545;
+    color: white;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.best-practice-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.best-practice-item:hover {
+    transform: translateX(4px);
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+.best-practice-item i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.best-practice-item span {
+    color: #495057;
+    font-weight: 500;
+}
+
+.pro-tips-card {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.1);
+}
+
+.pro-tips-header {
+    display: flex;
+    align-items: center;
+    color: #856404;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.pro-tips-content {
+    margin-top: 1rem;
+}
+
+.pro-tip-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.pro-tip-item:hover {
+    background: rgba(255, 255, 255, 0.8);
+    transform: translateY(-1px);
+}
+
+.pro-tip-item i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.pro-tip-item span {
+    color: #495057;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Enhanced instruction section title */
+.instruction-section-title {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+}
+
+/* Responsive improvements for new components */
+@media (max-width: 768px) {
+    .price-category-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .pro-tips-card {
+        padding: 1rem;
+    }
+    
+    .price-item,
+    .best-practice-item,
+    .pro-tip-item {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    .price-item span,
+    .best-practice-item span,
+    .pro-tip-item span {
+        font-size: 0.85rem;
     }
 }
 </style>

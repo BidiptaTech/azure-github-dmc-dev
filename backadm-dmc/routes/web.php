@@ -506,6 +506,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('editseason/{id}/{hotel_id}', [HotelController::class, 'editseason'])->name('season.edit');
         Route::post('updateseason', [HotelController::class, 'updateseason'])->name('season.update');
         Route::delete('deleteseason/{hotel_id}/{id}', [HotelController::class, 'deleteSeason'])->name('season.destroy');
+        
+        // Season Bulk Upload Routes - Only for DMC (role_id = 11)
+        Route::get('seasons/bulk_upload/{hotel_id}', [App\Http\Controllers\BulkUploadController::class, 'hotelSeasons'])->name('seasons.bulk_upload_for_hotel');
+        Route::post('seasons/bulk_upload/{hotel_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadHotelSeasons'])->name('seasons.upload_for_hotel');
+        Route::get('seasons/template/{hotel_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadHotelSeasonTemplate'])->name('seasons.template_for_hotel');
 
         Route::get('/editcontacts/{hotel}', [HotelController::class, 'editcontacts'])->name('contactdetails.edit');
         
@@ -521,6 +526,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('edit_bed/{id}/{hotel_id}', [HotelController::class, 'editbed'])->name('bed.edit');
         Route::post('updatebed', [HotelController::class, 'updatebed'])->name('bed.update');
         Route::delete('deletebed/{hotelId}/{bedId}', [HotelController::class, 'deletebed'])->name('bed.destroy');
+        
+        // Bed Bulk Upload Routes - Only for DMC (role_id = 11)
+        Route::get('beds/bulk_upload/{hotel_id}', [App\Http\Controllers\BulkUploadController::class, 'hotelBeds'])->name('beds.bulk_upload_for_hotel');
+        Route::post('beds/bulk_upload/{hotel_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadHotelBeds'])->name('beds.upload_for_hotel');
+        Route::get('beds/template/{hotel_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadHotelBedTemplate'])->name('beds.template_for_hotel');
         
         // Route::get('/pending-attractions', [AttractionController::class, 'pendingAttraction'])->name('attraction.pending');
         Route::get('attractions/attraction-approval', [AttractionController::class, 'attractionApproval'])->name('attractions.approval');
