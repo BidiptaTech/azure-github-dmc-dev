@@ -28,6 +28,7 @@ import agentListReducer from "../slice/common/agentListSlice"
 import convertToTourListReducer from "../slice/enquiries/enquiryToTourSlice"
 import tourPackagesReducer from "../slice/tour-packages/tourPackageSlice"
 import prePackagesReducer from "../slice/tour-packages/prePackagesSlice"
+import profileReducer from "../slice/common/profileSlice"
 
 export const store = configureStore({
   reducer: {
@@ -59,6 +60,7 @@ export const store = configureStore({
     agentList:agentListReducer,
     convertToTourList:convertToTourListReducer,
     tourPackages: tourPackagesReducer,
-    prePackages: prePackagesReducer
+    prePackages: prePackagesReducer,
+    profile: profileReducer
   },
 });

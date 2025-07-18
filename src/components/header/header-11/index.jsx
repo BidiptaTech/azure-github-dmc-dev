@@ -15,16 +15,13 @@ import MobileMenu from "../MobileMenu";
 const Header1 = () => {
   const [navbar, setNavbar] = useState(false);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const userRole = useSelector((state) => state.auth.userRole);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
 
-  const handleLogout = async () => {
-    dispatch(resetPackages());
-    const result = await dispatch(logoutUser());
-    if (logoutUser.fulfilled.match(result)) {
-      navigate("/login");
-    }
+  const handleLogout = () => {
+    dispatch(logoutUser());
   };
 
   const changeBackground = () => {
@@ -84,7 +81,7 @@ const Header1 = () => {
             <div className="col-auto" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)" }}>
               <div className="d-flex items-center">
                 {/* Logout button positioned to the far right */}
-                {isAuthenticated && (
+                {isAuthenticated && userRole !== "Agent" && (
                   <div className="d-flex items-center mr-15">
                     <Link
                       onClick={handleLogout}

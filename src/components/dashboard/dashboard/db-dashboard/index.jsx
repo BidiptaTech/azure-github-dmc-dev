@@ -52,7 +52,9 @@ import {
 } from "@mui/icons-material";
 import EnquiryList from "./components/EnquiryList";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
-import { logoutUser } from "@/slice/common/authSlices";
+import { logoutUser, updateProfileData } from "@/slice/common/authSlices";
+import { updateProfile, resetProfileState } from "@/slice/common/profileSlice";
+import { BASE_URL } from "@/services/api";
 import PreDefinePackages from "./PreDefine-Packages";
 import { 
   DashboardEntrance, 
@@ -91,6 +93,28 @@ const DashboardLayout = () => {
   const [mainTabValue, setMainTabValue] = useState(0);
    const dispatch = useDispatch();
   
+  // Utility function to convert profile picture path to full URL
+  const getProfilePictureUrl = (profilePicturePath) => {
+    if (!profilePicturePath) return "";
+    if (profilePicturePath.startsWith('http')) return profilePicturePath;
+    
+    // Remove leading slash and backslashes, handle escaped slashes
+    const cleanPath = profilePicturePath.replace(/^\\?\/+/, '').replace(/\\/g, '');
+    
+    // Try different URL constructions based on the API structure
+    const baseUrl = BASE_URL.replace('/api/v1', '');
+    const fullUrl = `${baseUrl}/${cleanPath}`;
+    
+    console.log('Profile picture URL construction:');
+    console.log('Original path:', profilePicturePath);
+    console.log('Clean path:', cleanPath);
+    console.log('Base URL:', baseUrl);
+    console.log('Full URL:', fullUrl);
+    console.log('Current profilePicture from auth state:', profilePicture);
+    
+    return fullUrl;
+  };
+  
   // Agent profile dropdown state
   const [profileAnchorEl, setProfileAnchorEl] = useState(null);
   const isProfileMenuOpen = Boolean(profileAnchorEl);
@@ -106,6 +130,8 @@ const DashboardLayout = () => {
   const [adjustedImage, setAdjustedImage] = useState(null);
   const [imageScale, setImageScale] = useState(1);
   const [imageRotation, setImageRotation] = useState(0);
+  const [imageOffsetX, setImageOffsetX] = useState(0);
+  const [imageOffsetY, setImageOffsetY] = useState(0);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -129,7 +155,7 @@ const DashboardLayout = () => {
   
   const handleViewProfile = () => {
     setProfileModalOpen(true);
-    setPhoneNumber(''); // Initialize with empty or existing phone number
+    setPhoneNumber(phoneNo || ''); // Initialize with existing phone number or empty
     handleProfileClose();
   };
   
@@ -144,6 +170,8 @@ const DashboardLayout = () => {
     setAdjustedImage(null);
     setImageScale(1);
     setImageRotation(0);
+    setImageOffsetX(0);
+    setImageOffsetY(0);
     setPasswordData({
       currentPassword: '',
       newPassword: '',
@@ -158,10 +186,24 @@ const DashboardLayout = () => {
     }));
   };
   
-  const handleSavePassword = () => {
-    // Add password change logic here
-    console.log('Password change requested:', passwordData);
-    // Reset form after successful change
+  const handleSavePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('New passwords do not match!');
+      return;
+    }
+    
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      alert('Please fill in all password fields!');
+      return;
+    }
+
+    await dispatch(updateProfile({
+      old_password: passwordData.currentPassword,
+      new_password: passwordData.newPassword,
+      confirm_password: passwordData.confirmPassword
+    }));
+    
+    // Reset form after API call
     setPasswordData({
       currentPassword: '',
       newPassword: '',
@@ -170,11 +212,16 @@ const DashboardLayout = () => {
     setPasswordChangeMode(false);
   };
   
-  const handleSavePhoneNumber = () => {
-    // Add phone number save logic here
-    console.log('Phone number update requested:', phoneNumber);
-    // You can dispatch an action to update phone number in the backend
-    // For now, we'll just close the edit mode
+  const handleSavePhoneNumber = async () => {
+    if (!phoneNumber.trim()) {
+      alert('Please enter a valid phone number!');
+      return;
+    }
+
+    await dispatch(updateProfile({
+      phone_no: phoneNumber
+    }));
+    
     setPhoneEditMode(false);
   };
   
@@ -204,10 +251,12 @@ const DashboardLayout = () => {
       // Create preview URL and show adjustment modal
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreviewImage(e.target.result);
-        setShowImageAdjustment(true);
-        setImageScale(1);
-        setImageRotation(0);
+              setPreviewImage(e.target.result);
+      setShowImageAdjustment(true);
+      setImageScale(1);
+      setImageRotation(0);
+      setImageOffsetX(0);
+      setImageOffsetY(0);
       };
       reader.readAsDataURL(file);
     }
@@ -219,25 +268,44 @@ const DashboardLayout = () => {
     const img = new Image();
     
     img.onload = () => {
-      // Set canvas size
+      // Set canvas size for the final circular crop
       canvas.width = 200;
       canvas.height = 200;
       
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Apply transformations
+      // Create circular clipping path
       ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2);
+      ctx.clip();
+      
+      // Apply transformations
+      ctx.translate(canvas.width / 2 + imageOffsetX, canvas.height / 2 + imageOffsetY);
       ctx.rotate((imageRotation * Math.PI) / 180);
       ctx.scale(imageScale, imageScale);
       
+      // Calculate image dimensions to fit properly
+      const aspectRatio = img.width / img.height;
+      let drawWidth, drawHeight;
+      
+      if (aspectRatio > 1) {
+        // Landscape image
+        drawHeight = 200;
+        drawWidth = drawHeight * aspectRatio;
+      } else {
+        // Portrait image
+        drawWidth = 200;
+        drawHeight = drawWidth / aspectRatio;
+      }
+      
       // Draw image centered
-      ctx.drawImage(img, -img.width / 2, -img.height / 2, img.width, img.height);
+      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
       ctx.restore();
       
       // Get adjusted image data
-      const adjustedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      const adjustedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setAdjustedImage(adjustedDataUrl);
     };
     
@@ -256,26 +324,53 @@ const DashboardLayout = () => {
     setAdjustedImage(null);
     setImageScale(1);
     setImageRotation(0);
+    setImageOffsetX(0);
+    setImageOffsetY(0);
   };
   
-  const handleUploadProfileImage = () => {
+  const handleUploadProfileImage = async () => {
     const imageToUpload = adjustedImage || previewImage;
-    if (imageToUpload) {
-      // Add API call to upload image here
-      console.log('Uploading profile image:', imageToUpload);
-      
-      // For now, just update the preview and close
-      // In a real app, you would:
-      // 1. Upload to your backend/cloud storage
-      // 2. Update the profilePicture in Redux state
-      // 3. Update the database
-      
-      alert('Profile image uploaded successfully!');
-      setSelectedProfileImage(null);
-      setPreviewImage(null);
-      setAdjustedImage(null);
-      setImageScale(1);
-      setImageRotation(0);
+    console.log('=== IMAGE UPLOAD DEBUG ===');
+    console.log('imageToUpload:', imageToUpload);
+    console.log('selectedProfileImage:', selectedProfileImage);
+    console.log('adjustedImage:', adjustedImage);
+    console.log('canvasRef.current:', canvasRef.current);
+    
+    if (imageToUpload && selectedProfileImage) {
+      try {
+        // Convert canvas to blob if we have adjustedImage and canvas is available
+        if (adjustedImage && canvasRef.current) {
+          console.log('Using canvas adjusted image');
+          const canvas = canvasRef.current;
+          canvas.toBlob(async (blob) => {
+            console.log('Canvas blob created:', blob);
+            const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+            console.log('File created from canvas:', file);
+            const result = await dispatch(updateProfile({ image: file }));
+            console.log('Canvas upload result:', result);
+          }, 'image/jpeg', 0.9);
+        } else {
+          // Use original selected file
+          console.log('Using original selected file:', selectedProfileImage);
+          const result = await dispatch(updateProfile({ image: selectedProfileImage }));
+          console.log('Original file upload result:', result);
+        }
+        
+        // Don't reset state immediately - let the success handler do it
+        console.log('Image upload initiated successfully');
+      } catch (error) {
+        console.error('Error during image upload:', error);
+        // Reset state on error only
+        setSelectedProfileImage(null);
+        setPreviewImage(null);
+        setAdjustedImage(null);
+        setImageScale(1);
+        setImageRotation(0);
+        setImageOffsetX(0);
+        setImageOffsetY(0);
+      }
+    } else {
+      console.log('No image to upload - missing required data');
     }
   };
   
@@ -284,14 +379,57 @@ const DashboardLayout = () => {
     handleProfileClose();
   };
   
+  // Get user data from Redux state
+  const { userRole, Username, Email, profilePicture, phoneNo, agentId } = useSelector((state) => state.auth);
+  const { loading: profileLoading, success: profileSuccess, error: profileError, data: profileData } = useSelector((state) => state.profile);
+
       useEffect(()=>{
        
         
            dispatch(fetchEnquiries())
        
     },[dispatch])
-  // Get user data from Redux state
-  const { userRole, Username, Email, profilePicture, agentId } = useSelector((state) => state.auth);
+
+    // Handle profile update success/error
+    useEffect(() => {
+      if (profileSuccess && profileData) {
+        alert('Profile updated successfully!');
+        console.log('Profile update successful! Response:', profileData);
+        
+        // Update auth state with new profile data
+        if (profileData.data) {
+          console.log('API Response Fields:');
+          console.log('agent_image:', profileData.data.agent_image);
+          console.log('image:', profileData.data.image);
+          
+          const updateData = {};
+          if (profileData.data.phone) {
+            updateData.phone = profileData.data.phone;
+            setPhoneNumber(profileData.data.phone); // Update local state too
+          }
+          if (profileData.data.agent_image) updateData.image = profileData.data.agent_image;
+          
+          console.log('Updating auth state with:', updateData);
+          dispatch(updateProfileData(updateData));
+        }
+        
+        // Reset image upload state when successful
+        setSelectedProfileImage(null);
+        setPreviewImage(null);
+        setAdjustedImage(null);
+        setImageScale(1);
+        setImageRotation(0);
+        setImageOffsetX(0);
+        setImageOffsetY(0);
+        
+        dispatch(resetProfileState());
+      }
+      if (profileError) {
+        alert(`Error updating profile: ${profileError}`);
+        console.error('Profile update error:', profileError);
+        dispatch(resetProfileState());
+      }
+    }, [profileSuccess, profileError, profileData, dispatch]);
 
   // Ensure dashboard content appears ONLY on the exact dashboard route
   const isDashboardPage = location.pathname === "/dashboard/db-dashboard";
@@ -671,14 +809,57 @@ const DashboardLayout = () => {
                                         backdropFilter: "blur(10px)",
                                         border: "1px solid rgba(255, 255, 255, 0.25)",
                                         color: "white",
-                                        padding: "8px",
+                                        padding: "4px",
                                         transition: "all 0.2s ease",
                                         "&:hover": {
                                           background: "rgba(255, 255, 255, 0.25)",
                                         }
                                       }}
                                     >
-                                      <AccountCircleOutlined sx={{ fontSize: 24 }} />
+                                      <Avatar
+                                        src={adjustedImage || getProfilePictureUrl(profilePicture) || ""}
+                                        sx={{
+                                          width: 32,
+                                          height: 32,
+                                          fontSize: "1rem",
+                                          backgroundColor: "rgba(255, 255, 255, 0.2)",
+                                          color: "white",
+                                          animation: "profilePulse 3s ease-in-out infinite",
+                                          transition: "all 0.3s ease",
+                                          "&:hover": {
+                                            transform: "scale(1.15) rotate(5deg)",
+                                            boxShadow: "0 0 20px rgba(255, 255, 255, 0.4)",
+                                          },
+                                          "@keyframes profilePulse": {
+                                            "0%": {
+                                              boxShadow: "0 0 0 0 rgba(255, 255, 255, 0.3)",
+                                            },
+                                            "50%": {
+                                              boxShadow: "0 0 0 8px rgba(255, 255, 255, 0.1)",
+                                            },
+                                            "100%": {
+                                              boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)",
+                                            },
+                                          },
+                                        }}
+                                      >
+                                        {!adjustedImage && !profilePicture && (
+                                          <AccountCircleOutlined 
+                                            sx={{ 
+                                              fontSize: 24,
+                                              animation: "iconGlow 2s ease-in-out infinite alternate",
+                                              "@keyframes iconGlow": {
+                                                "0%": {
+                                                  filter: "brightness(1)",
+                                                },
+                                                "100%": {
+                                                  filter: "brightness(1.3)",
+                                                },
+                                              },
+                                            }} 
+                                          />
+                                        )}
+                                      </Avatar>
                                     </IconButton>
                                   </Tooltip>
                                   
@@ -716,13 +897,47 @@ const DashboardLayout = () => {
                                     transformOrigin={{ horizontal: "right", vertical: "top" }}
                                     anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
                                   >
-                                    <Box sx={{ px: 2, py: 2 }}>
-                                      <Typography variant="subtitle1" fontWeight="bold">
-                                        Agent Profile
-                                      </Typography>
-                                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                        Manage your account settings
-                                      </Typography>
+                                    <Box 
+                                      sx={{ 
+                                        px: 3, 
+                                        py: 0.5,
+                                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                        color: "white",
+                                        borderRadius: "12px 12px 0 0",
+                                        position: "relative",
+                                        overflow: "hidden",
+                                        "&::before": {
+                                          content: '""',
+                                          position: "absolute",
+                                          top: 0,
+                                          left: 0,
+                                          right: 0,
+                                          bottom: 0,
+                                          background: "rgba(255, 255, 255, 0.1)",
+                                          backdropFilter: "blur(10px)",
+                                        }
+                                      }}
+                                    >
+                                      <Box sx={{ position: "relative", zIndex: 1 }}>
+                                        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+                                          <AccountCircleOutlined sx={{ fontSize: 24, color: "white" }} />
+                                          <Typography variant="h6" fontWeight="bold" sx={{ color: "white" }}>
+                                            Agent Profile
+                                          </Typography>
+                                        </Stack>
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                          <SettingsOutlined sx={{ fontSize: 16, color: "rgba(255, 255, 255, 0.8)" }} />
+                                          <Typography 
+                                            variant="body2" 
+                                            sx={{ 
+                                              color: "rgba(255, 255, 255, 0.9)",
+                                              fontSize: "0.85rem"
+                                            }}
+                                          >
+                                            Manage your account settings
+                                          </Typography>
+                                        </Stack>
+                                      </Box>
                                     </Box>
                                     
                                     <Divider />
@@ -758,6 +973,17 @@ const DashboardLayout = () => {
                       sx: {
                         borderRadius: "16px",
                         overflow: "hidden",
+                        animation: profileModalOpen ? "slideInUp 0.4s ease-out" : "none",
+                        "@keyframes slideInUp": {
+                          "0%": {
+                            opacity: 0,
+                            transform: "translateY(30px) scale(0.95)",
+                          },
+                          "100%": {
+                            opacity: 1,
+                            transform: "translateY(0) scale(1)",
+                          },
+                        },
                       }
                     }}
                   >
@@ -771,9 +997,12 @@ const DashboardLayout = () => {
                         justifyContent: "space-between",
                       }}
                     >
-                      <Typography variant="h5" fontWeight="bold">
-                        Agent Profile
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={2}>
+                        <AccountCircleOutlined sx={{ fontSize: 28, color: "white" }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          Agent Profile
+                        </Typography>
+                      </Stack>
                       <IconButton
                         onClick={handleCloseProfileModal}
                         sx={{ color: "white" }}
@@ -788,13 +1017,22 @@ const DashboardLayout = () => {
                          <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
                            <Box sx={{ position: "relative" }}>
                              <Avatar
-                               src={adjustedImage || previewImage || profilePicture || ""}
+                               src={adjustedImage || previewImage || getProfilePictureUrl(profilePicture) || ""}
                                sx={{
                                  width: 120,
                                  height: 120,
                                  border: "4px solid #667eea",
                                  fontSize: "3rem",
                                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                 animation: "pulseGlow 2s ease-in-out infinite alternate",
+                                 "@keyframes pulseGlow": {
+                                   "0%": {
+                                     boxShadow: "0 0 20px rgba(102, 126, 234, 0.3)",
+                                   },
+                                   "100%": {
+                                     boxShadow: "0 0 30px rgba(102, 126, 234, 0.6)",
+                                   },
+                                 },
                                }}
                              >
                                {!adjustedImage && !previewImage && !profilePicture && Username?.charAt(0)?.toUpperCase() || "A"}
@@ -807,7 +1045,24 @@ const DashboardLayout = () => {
                                  right: 0,
                                  background: "white",
                                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                                 "&:hover": { background: "#f5f5f5" },
+                                 "&:hover": { 
+                                   background: "#f5f5f5",
+                                   transform: "scale(1.1) rotate(5deg)",
+                                   transition: "all 0.2s ease",
+                                 },
+                                 transition: "all 0.2s ease",
+                                 animation: "bounce 2s ease-in-out infinite",
+                                 "@keyframes bounce": {
+                                   "0%, 20%, 50%, 80%, 100%": {
+                                     transform: "translateY(0)",
+                                   },
+                                   "40%": {
+                                     transform: "translateY(-3px)",
+                                   },
+                                   "60%": {
+                                     transform: "translateY(-1px)",
+                                   },
+                                 },
                                }}
                              >
                                <CameraAlt sx={{ fontSize: 20, color: "#667eea" }} />
@@ -830,15 +1085,30 @@ const DashboardLayout = () => {
                                  variant="contained"
                                  size="small"
                                  onClick={handleUploadProfileImage}
+                                 disabled={profileLoading}
                                  sx={{
                                    borderRadius: "20px",
                                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                                    "&:hover": {
                                      background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
-                                   }
+                                     transform: "translateY(-2px)",
+                                     boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
+                                   },
+                                   transition: "all 0.3s ease",
+                                   animation: "slideInUp 0.6s ease-out",
+                                   "@keyframes slideInUp": {
+                                     "0%": {
+                                       opacity: 0,
+                                       transform: "translateY(20px)",
+                                     },
+                                     "100%": {
+                                       opacity: 1,
+                                       transform: "translateY(0)",
+                                     },
+                                   },
                                  }}
                                >
-                                 Upload Image
+                                 {profileLoading ? 'Uploading...' : 'Upload Image'}
                                </Button>
                                <Button
                                  variant="outlined"
@@ -849,17 +1119,33 @@ const DashboardLayout = () => {
                                    setAdjustedImage(null);
                                    setImageScale(1);
                                    setImageRotation(0);
+                                   setImageOffsetX(0);
+                                   setImageOffsetY(0);
                                  }}
-                                 sx={{ borderRadius: "20px" }}
+                                 sx={{ 
+                                   borderRadius: "20px",
+                                   transition: "all 0.3s ease",
+                                   animation: "slideInUp 0.6s ease-out 0.1s both",
+                                   "@keyframes slideInUp": {
+                                     "0%": {
+                                       opacity: 0,
+                                       transform: "translateY(20px)",
+                                     },
+                                     "100%": {
+                                       opacity: 1,
+                                       transform: "translateY(0)",
+                                     },
+                                   },
+                                 }}
                                >
                                  Cancel
                                </Button>
                              </Stack>
                            )}
                            
-                           <Typography variant="h6" fontWeight="bold">
+                           {/* <Typography variant="h6" fontWeight="bold">
                              {Username || "Agent Name"}
-                           </Typography>
+                           </Typography> */}
                            <Chip
                              label={userRole || "Agent"}
                              color="primary"
@@ -886,7 +1172,23 @@ const DashboardLayout = () => {
                              sx={{
                                "& .MuiOutlinedInput-root": {
                                  borderRadius: "10px",
-                               }
+                                 transition: "all 0.3s ease",
+                                 "&:hover": {
+                                   boxShadow: "0 2px 8px rgba(102, 126, 234, 0.1)",
+                                   transform: "translateY(-1px)",
+                                 },
+                               },
+                               animation: "fadeInUp 0.8s ease-out",
+                               "@keyframes fadeInUp": {
+                                 "0%": {
+                                   opacity: 0,
+                                   transform: "translateY(15px)",
+                                 },
+                                 "100%": {
+                                   opacity: 1,
+                                   transform: "translateY(0)",
+                                 },
+                               },
                              }}
                            />
                            
@@ -912,7 +1214,7 @@ const DashboardLayout = () => {
                            
                            <TextField
                              label="Phone Number"
-                             value={phoneEditMode ? phoneNumber : (phoneNumber || "Not provided")}
+                             value={phoneEditMode ? phoneNumber : (phoneNo || "Not provided")}
                              onChange={(e) => setPhoneNumber(e.target.value)}
                              InputProps={{
                                startAdornment: (
@@ -927,7 +1229,7 @@ const DashboardLayout = () => {
                                        <IconButton
                                          size="small"
                                          onClick={handleSavePhoneNumber}
-                                         disabled={!phoneNumber.trim()}
+                                         disabled={profileLoading || !phoneNumber.trim()}
                                          sx={{ color: "success.main" }}
                                        >
                                          <Check />
@@ -990,17 +1292,39 @@ const DashboardLayout = () => {
                         {/* Password Change Section */}
                         <Box sx={{ mt: 4 }}>
                           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-                            <Typography variant="h6" fontWeight="bold">
-                              Security
-                            </Typography>
-                            <Button
-                              variant={passwordChangeMode ? "outlined" : "contained"}
-                              startIcon={<Lock />}
-                              onClick={() => setPasswordChangeMode(!passwordChangeMode)}
-                              sx={{ borderRadius: "8px" }}
-                            >
-                              {passwordChangeMode ? "Cancel" : "Change Password"}
-                            </Button>
+                            <Stack direction="row" alignItems="center" spacing={1.5}>
+                              <Lock sx={{ fontSize: 24, color: "primary.main" }} />
+                              <Typography variant="h6" fontWeight="bold">
+                                Security
+                              </Typography>
+                            </Stack>
+                                                         <Button
+                               variant={passwordChangeMode ? "outlined" : "contained"}
+                               startIcon={<Lock />}
+                               onClick={() => setPasswordChangeMode(!passwordChangeMode)}
+                               sx={{ 
+                                 borderRadius: "8px",
+                                 transition: "all 0.3s ease",
+                                 "&:hover": {
+                                   transform: "translateY(-2px)",
+                                   boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                 },
+                                 animation: "pulse 2s ease-in-out infinite",
+                                 "@keyframes pulse": {
+                                   "0%": {
+                                     boxShadow: "0 0 0 0 rgba(102, 126, 234, 0.4)",
+                                   },
+                                   "70%": {
+                                     boxShadow: "0 0 0 10px rgba(102, 126, 234, 0)",
+                                   },
+                                   "100%": {
+                                     boxShadow: "0 0 0 0 rgba(102, 126, 234, 0)",
+                                   },
+                                 },
+                               }}
+                             >
+                               {passwordChangeMode ? "Cancel" : "Change Password"}
+                             </Button>
                           </Stack>
                           
                           {passwordChangeMode && (
@@ -1101,7 +1425,7 @@ const DashboardLayout = () => {
                               <Button
                                 variant="contained"
                                 onClick={handleSavePassword}
-                                disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                                disabled={profileLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
                                 sx={{
                                   borderRadius: "8px",
                                   py: 1.5,
@@ -1111,7 +1435,7 @@ const DashboardLayout = () => {
                                   }
                                 }}
                               >
-                                Save New Password
+                                {profileLoading ? 'Saving...' : 'Save New Password'}
                               </Button>
                             </Stack>
                           )}
@@ -1157,7 +1481,7 @@ const DashboardLayout = () => {
                      <DialogContent sx={{ p: 4 }}>
                        <Grid container spacing={3}>
                          {/* Image Preview */}
-                         <Grid item xs={12} md={6}>
+                         <Grid item xs={12} md={7}>
                            <Paper
                              elevation={3}
                              sx={{
@@ -1174,15 +1498,16 @@ const DashboardLayout = () => {
                              </Typography>
                              <Box
                                sx={{
-                                 width: 200,
-                                 height: 200,
+                                 width: 300,
+                                 height: 300,
                                  border: "2px dashed #ccc",
-                                 borderRadius: "50%",
+                                 borderRadius: "12px",
                                  display: "flex",
                                  alignItems: "center",
                                  justifyContent: "center",
                                  overflow: "hidden",
                                  backgroundColor: "white",
+                                 position: "relative",
                                }}
                              >
                                {previewImage && (
@@ -1190,20 +1515,57 @@ const DashboardLayout = () => {
                                    src={previewImage}
                                    alt="Preview"
                                    style={{
-                                     width: "100%",
-                                     height: "100%",
-                                     objectFit: "cover",
-                                     transform: `scale(${imageScale}) rotate(${imageRotation}deg)`,
+                                     maxWidth: "100%",
+                                     maxHeight: "100%",
+                                     objectFit: "contain",
+                                     transform: `translate(${imageOffsetX}px, ${imageOffsetY}px) scale(${imageScale}) rotate(${imageRotation}deg)`,
                                      transition: "transform 0.3s ease",
                                    }}
                                  />
                                )}
+                               
+                               {/* Crop overlay circle */}
+                               <Box
+                                 sx={{
+                                   position: "absolute",
+                                   top: "50%",
+                                   left: "50%",
+                                   transform: "translate(-50%, -50%)",
+                                   width: 200,
+                                   height: 200,
+                                   borderRadius: "50%",
+                                   border: "2px solid #667eea",
+                                   backgroundColor: "rgba(102, 126, 234, 0.1)",
+                                   pointerEvents: "none",
+                                   zIndex: 1,
+                                 }}
+                               />
+                               
+                               {/* Crop guide text */}
+                               <Typography
+                                 variant="caption"
+                                 sx={{
+                                   position: "absolute",
+                                   bottom: 8,
+                                   left: "50%",
+                                   transform: "translateX(-50%)",
+                                   backgroundColor: "rgba(0,0,0,0.7)",
+                                   color: "white",
+                                   px: 1,
+                                   py: 0.5,
+                                   borderRadius: 1,
+                                   fontSize: "0.7rem",
+                                   zIndex: 2,
+                                 }}
+                               >
+                                 Blue circle shows crop area
+                               </Typography>
                              </Box>
                            </Paper>
                          </Grid>
                          
                          {/* Controls */}
-                         <Grid item xs={12} md={6}>
+                         <Grid item xs={12} md={5}>
                            <Stack spacing={4}>
                              {/* Scale Control */}
                              <Box>
@@ -1245,6 +1607,45 @@ const DashboardLayout = () => {
                                />
                              </Box>
                              
+                             {/* Position Controls */}
+                             <Box>
+                               <Typography variant="body1" fontWeight="bold" sx={{ mb: 2 }}>
+                                 Position
+                               </Typography>
+                               
+                               {/* Horizontal Position */}
+                               <Box sx={{ mb: 2 }}>
+                                 <Typography variant="body2" sx={{ mb: 1 }}>
+                                   Horizontal
+                                 </Typography>
+                                 <Slider
+                                   value={imageOffsetX}
+                                   onChange={(_, value) => setImageOffsetX(value)}
+                                   min={-100}
+                                   max={100}
+                                   step={5}
+                                   valueLabelDisplay="on"
+                                   sx={{ color: "#667eea" }}
+                                 />
+                               </Box>
+                               
+                               {/* Vertical Position */}
+                               <Box>
+                                 <Typography variant="body2" sx={{ mb: 1 }}>
+                                   Vertical
+                                 </Typography>
+                                 <Slider
+                                   value={imageOffsetY}
+                                   onChange={(_, value) => setImageOffsetY(value)}
+                                   min={-100}
+                                   max={100}
+                                   step={5}
+                                   valueLabelDisplay="on"
+                                   sx={{ color: "#667eea" }}
+                                 />
+                               </Box>
+                             </Box>
+                             
                              {/* Quick Rotation Buttons */}
                              <Stack direction="row" spacing={2} justifyContent="center">
                                <IconButton
@@ -1273,6 +1674,8 @@ const DashboardLayout = () => {
                                onClick={() => {
                                  setImageScale(1);
                                  setImageRotation(0);
+                                 setImageOffsetX(0);
+                                 setImageOffsetY(0);
                                }}
                                sx={{ borderRadius: "8px" }}
                              >
