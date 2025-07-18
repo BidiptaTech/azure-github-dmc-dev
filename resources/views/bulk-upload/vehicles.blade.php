@@ -178,8 +178,8 @@
                                             <tr class="upload-row">
                                                 <td class="py-3">
                                                     <div class="d-flex flex-column">
-                                                        <span class="fw-medium text-dark">{{ $history->created_at->format('M d, Y') }}</span>
-                                                        <small class="text-muted">{{ $history->created_at->diffForHumans() }}</small>
+                                                        <span class="fw-medium text-dark">{{ $history->formatted_date }}</span>
+                                                        <small class="text-muted">{{ $history->relative_time }}</small>
                                                     </div>
                                                 </td>
                                                 <td class="py-3">
@@ -188,7 +188,7 @@
                                                             <i class="ri-file-excel-2-line text-success fs-4"></i>
                                                         </div>
                                                         <div>
-                                                            <div class="fw-medium text-dark">{{ $history->original_file_name ?? $history->file_name }}</div>
+                                                            <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
                                                             <small class="text-muted">CSV File</small>
                                                         </div>
                                                     </div>

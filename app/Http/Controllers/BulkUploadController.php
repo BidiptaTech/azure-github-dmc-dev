@@ -958,6 +958,8 @@ class BulkUploadController extends Controller
             'City*',
             'Latitude*',
             'Longitude*',
+            'Owned By*',
+            'Property*',
             'Breakfast Available (1=Yes, 0=No)',
             'Breakfast Open Time',
             'Breakfast Close Time',
@@ -967,7 +969,6 @@ class BulkUploadController extends Controller
             'Dinner Available (1=Yes, 0=No)',
             'Dinner Open Time',
             'Dinner Close Time',
-            'Owned By (0=Third Party, 1=Hotel Owned)',
             'Master Image',
             'Additional Images (comma-separated)',
             'Description',
@@ -1000,19 +1001,19 @@ class BulkUploadController extends Controller
                             $mealIndex === 0 ? ($restaurant->owned_by ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->property ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->breakfast_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->lunch_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->dinner_available ? '1' : '0') : '',
                             $mealIndex === 0 ? ($restaurant->opening_time_bf ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->closing_time_bf ?? '') : '',
+                            $mealIndex === 0 ? ($restaurant->lunch_available ? '1' : '0') : '',
                             $mealIndex === 0 ? ($restaurant->opening_time_lunch ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->closing_time_lunch ?? '') : '',
+                            $mealIndex === 0 ? ($restaurant->dinner_available ? '1' : '0') : '',
                             $mealIndex === 0 ? ($restaurant->opening_time_dinner ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_dinner ?? '') : '',
+                            $mealIndex === 0 ? ($restaurant->closing_time_dinner ?? '') : '', 
                             $mealIndex === 0 ? ($restaurant->master_image ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->images ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->description ?? '') : '',
                             $mealIndex === 0 ? ($restaurant->terms_conditions ?? '') : '',
-                            $restaurant->is_active ? '1' : '0',
+                            $mealIndex === 0 ? ($restaurant->is_active ? '1' : '0') : '',
                             // Meal Type
                             match($meal->meal_period ?? 1) {
                                 1 => 'Breakfast',
@@ -1074,14 +1075,14 @@ class BulkUploadController extends Controller
                         $restaurant->latitude ?? '',
                         $restaurant->longitude ?? '',
                         $restaurant->owned_by ?? '',
-                        $restaurant->property ?? '',
+                        $restaurant->property ?? 'third_party',
                         $restaurant->breakfast_available ? '1' : '0',
-                        $restaurant->lunch_available ? '1' : '0',
-                        $restaurant->dinner_available ? '1' : '0',
                         $restaurant->opening_time_bf ?? '',
                         $restaurant->closing_time_bf ?? '',
+                        $restaurant->lunch_available ? '1' : '0',
                         $restaurant->opening_time_lunch ?? '',
                         $restaurant->closing_time_lunch ?? '',
+                        $restaurant->dinner_available ? '1' : '0',
                         $restaurant->opening_time_dinner ?? '',
                         $restaurant->closing_time_dinner ?? '',
                         $restaurant->master_image ?? '',
@@ -1113,8 +1114,8 @@ class BulkUploadController extends Controller
                 '18:00',
                 '23:00',
                 '0',
-                'restaurant_main.jpg',
-                'rest1.jpg,rest2.jpg',
+                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
+                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg,https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
                 'Authentic Italian restaurant with fresh ingredients',
                 'No outside food allowed. Dress code applies.',
                 '1'
@@ -1157,277 +1158,277 @@ class BulkUploadController extends Controller
         ]);
     }
 
-    private function downloadTravclicksRestaurantTemplate($auth_user)
-    {
-        $headers = [
-            // Restaurant Basic Info
-            'Restaurant Name*',
-            'Country*',
-            'City*', 
-            'Latitude*',
-            'Longitude*',
-            'Cuisine*',
-            'Ownership*',
-            'Property*',
-            'Breakfast Availability',
-            'Lunch Availability',
-            'Dinner Availability',
-            'Breakfast Open Time',
-            'Breakfast Close Time',
-            'Lunch Open Time', 
-            'Lunch Close Time',
-            'Dinner Open Time',
-            'Dinner Close Time',
-            'Master Image',
-            'Additional Image',
-            'Description',
-            'Terms and Condition',
-            'Restaurant Status (1=Active, 0=Inactive)',
+    // private function downloadTravclicksRestaurantTemplate($auth_user)
+    // {
+    //     $headers = [
+    //         // Restaurant Basic Info
+    //         'Restaurant Name*',
+    //         'Country*',
+    //         'City*', 
+    //         'Latitude*',
+    //         'Longitude*',
+    //         'Cuisine*',
+    //         'Ownership*',
+    //         'Property*',
+    //         'Breakfast Availability',
+    //         'Lunch Availability',
+    //         'Dinner Availability',
+    //         'Breakfast Open Time',
+    //         'Breakfast Close Time',
+    //         'Lunch Open Time', 
+    //         'Lunch Close Time',
+    //         'Dinner Open Time',
+    //         'Dinner Close Time',
+    //         'Master Image',
+    //         'Additional Image',
+    //         'Description',
+    //         'Terms and Condition',
+    //         'Restaurant Status (1=Active, 0=Inactive)',
             
-            // Meal Info Headers
-            'Meal Type*',
-            'Beverage*',
-            'Meals*',
-            // 'Item Name',
-            'Item Price', 
-            'Item Type',
-            'Adult Price',
-            'Child Price',
-            'Item Description*'
-        ];
+    //         // Meal Info Headers
+    //         'Meal Type*',
+    //         'Beverage*',
+    //         'Meals*',
+    //         // 'Item Name',
+    //         'Item Price', 
+    //         'Item Type',
+    //         'Adult Price',
+    //         'Child Price',
+    //         'Item Description*'
+    //     ];
 
-        $data = [$headers];
+    //     $data = [$headers];
 
-        // Get all restaurants - Travclicks users can see all data
-        $restaurants = Restaurant::where('status', 1)->get();
+    //     // Get all restaurants - Travclicks users can see all data
+    //     $restaurants = Restaurant::where('status', 1)->get();
 
-        if ($restaurants->count() > 0) {
-            foreach ($restaurants as $restaurant) {
-                // Get meals for this restaurant
-                $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->get();
+    //     if ($restaurants->count() > 0) {
+    //         foreach ($restaurants as $restaurant) {
+    //             // Get meals for this restaurant
+    //             $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->get();
                 
-                if ($meals->count() > 0) {
-                    foreach ($meals as $mealIndex => $meal) {
-                        $row = [
-                            // Restaurant info only on first meal row
-                            $mealIndex === 0 ? ($restaurant->name ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->country ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->city ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->latitude ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->longitude ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->cuisine ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->owned_by ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->property ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->breakfast_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->lunch_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->dinner_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->opening_time_bf ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_bf ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->opening_time_lunch ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_lunch ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->opening_time_dinner ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_dinner ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->master_image ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->images ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->description ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->terms_conditions ?? '') : '',
-                            $restaurant->is_active ? '1' : '0',
+    //             if ($meals->count() > 0) {
+    //                 foreach ($meals as $mealIndex => $meal) {
+    //                     $row = [
+    //                         // Restaurant info only on first meal row
+    //                         $mealIndex === 0 ? ($restaurant->name ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->country ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->city ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->latitude ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->longitude ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->cuisine ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->owned_by ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->property ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->breakfast_available ? '1' : '0') : '',
+    //                         $mealIndex === 0 ? ($restaurant->lunch_available ? '1' : '0') : '',
+    //                         $mealIndex === 0 ? ($restaurant->dinner_available ? '1' : '0') : '',
+    //                         $mealIndex === 0 ? ($restaurant->opening_time_bf ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->closing_time_bf ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->opening_time_lunch ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->closing_time_lunch ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->opening_time_dinner ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->closing_time_dinner ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->master_image ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->images ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->description ?? '') : '',
+    //                         $mealIndex === 0 ? ($restaurant->terms_conditions ?? '') : '',
+    //                         $restaurant->is_active ? '1' : '0',
                             
-                            // Meal Type
-                            match($meal->meal_period ?? 1) {
-                                1 => 'Breakfast',
-                                2 => 'Lunch', 
-                                3 => 'Dinner',
-                                default => 'Breakfast'
-                            },
+    //                         // Meal Type
+    //                         match($meal->meal_period ?? 1) {
+    //                             1 => 'Breakfast',
+    //                             2 => 'Lunch', 
+    //                             3 => 'Dinner',
+    //                             default => 'Breakfast'
+    //                         },
                             
-                            // Beverage
-                            match($meal->category ?? 1) {
-                                1 => 'Alcoholic',
-                                2 => 'Non Alcoholic',
-                                3 => 'No Beverage',
-                                default => 'Non Alcoholic'
-                            },
+    //                         // Beverage
+    //                         match($meal->category ?? 1) {
+    //                             1 => 'Alcoholic',
+    //                             2 => 'Non Alcoholic',
+    //                             3 => 'No Beverage',
+    //                             default => 'Non Alcoholic'
+    //                         },
                             
-                            // Meals Type
-                            match($meal->type ?? '2') {
-                                '1' => 'Buffet',
-                                '2' => 'Set Menu',
-                                1 => 'Buffet',
-                                2 => 'Set Menu',
-                                default => 'Set Menu'
-                            },
+    //                         // Meals Type
+    //                         match($meal->type ?? '2') {
+    //                             '1' => 'Buffet',
+    //                             '2' => 'Set Menu',
+    //                             1 => 'Buffet',
+    //                             2 => 'Set Menu',
+    //                             default => 'Set Menu'
+    //                         },
                             
-                            // Item Name (for Set Menu)
-                            // $meal->meals == 2 ? ($meal->item_name ?? '') : '',
+    //                         // Item Name (for Set Menu)
+    //                         // $meal->meals == 2 ? ($meal->item_name ?? '') : '',
                             
-                            // Item Price (for Set Menu)
-                            ($meal->type == '2' || $meal->type == 2) ? ($meal->price ?? '') : '',
+    //                         // Item Price (for Set Menu)
+    //                         ($meal->type == '2' || $meal->type == 2) ? ($meal->price ?? '') : '',
                             
-                            // Item Type
-                            match($meal->item_type ?? 1) {
-                                1 => 'Vegetarian',
-                                2 => 'Non Vegetarian',
-                                default => 'Vegetarian'
-                            },
+    //                         // Item Type
+    //                         match($meal->item_type ?? 1) {
+    //                             1 => 'Vegetarian',
+    //                             2 => 'Non Vegetarian',
+    //                             default => 'Vegetarian'
+    //                         },
                             
-                            // Adult Price (for Buffet)
-                            ($meal->type == '1' || $meal->type == 1) ? ($meal->adult_price ?? '') : '',
+    //                         // Adult Price (for Buffet)
+    //                         ($meal->type == '1' || $meal->type == 1) ? ($meal->adult_price ?? '') : '',
                             
-                            // Child Price (for Buffet)
-                            ($meal->type == '1' || $meal->type == 1) ? ($meal->child_price ?? '') : '',
+    //                         // Child Price (for Buffet)
+    //                         ($meal->type == '1' || $meal->type == 1) ? ($meal->child_price ?? '') : '',
                             
-                            // Item Description
-                            $meal->item_description ?? '',
-                            $meal->is_active ? '1' : '0'
-                        ];
+    //                         // Item Description
+    //                         $meal->item_description ?? '',
+    //                         $meal->is_active ? '1' : '0'
+    //                     ];
                         
-                        $data[] = $row;
-                    }
-                } else {
-                    // Restaurant without meals - add restaurant row with empty meal fields
-                $row = [
-                    $restaurant->name ?? '',
-                        $restaurant->country ?? '',
-                        $restaurant->city ?? '',
-                        $restaurant->latitude ?? '',
-                        $restaurant->longitude ?? '',
-                    $restaurant->cuisine ?? '',
-                        $restaurant->owned_by ?? '',
-                        $restaurant->property ?? '',
-                        $restaurant->breakfast_available ? '1' : '0',
-                        $restaurant->lunch_available ? '1' : '0',
-                        $restaurant->dinner_available ? '1' : '0',
-                        $restaurant->opening_time_bf ?? '',
-                        $restaurant->closing_time_bf ?? '',
-                        $restaurant->opening_time_lunch ?? '',
-                        $restaurant->closing_time_lunch ?? '',
-                        $restaurant->opening_time_dinner ?? '',
-                        $restaurant->closing_time_dinner ?? '',
-                        $restaurant->master_image ?? '',
-                        $restaurant->images ?? '',
-                        $restaurant->description ?? '',
-                        $restaurant->terms_conditions ?? '',
-                        $restaurant->is_active ? '1' : '0',
-                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-                    ];
-                $data[] = $row;
-                }
-            }
-        } else {
-            // No existing restaurants, add sample data for Travclicks format
-            $sampleData1 = [
-                'Sample Restaurant',
-                'United States',
-                'New York',
-                '40.7128',
-                '-74.0060',
-                'Italian',
-                'Independent',
-                'Fine Dining',
-                '1',
-                '1', 
-                '1',
-                '07:00',
-                '11:00',
-                '12:00',
-                '15:00',
-                '18:00',
-                '23:00',
-                'restaurant_main.jpg',
-                'rest1.jpg,rest2.jpg',
-                'Authentic Italian restaurant with fresh ingredients',
-                'No outside food allowed. Dress code applies.',
-                'Breakfast',
-                'Non Alcoholic',
-                'Buffet',
-                '',
-                '',
-                'Vegetarian',
-                '25.00',
-                '12.50',
-                'Continental breakfast with fresh fruits and pastries'
-            ];
+    //                     $data[] = $row;
+    //                 }
+    //             } else {
+    //                 // Restaurant without meals - add restaurant row with empty meal fields
+    //             $row = [
+    //                 $restaurant->name ?? '',
+    //                     $restaurant->country ?? '',
+    //                     $restaurant->city ?? '',
+    //                     $restaurant->latitude ?? '',
+    //                     $restaurant->longitude ?? '',
+    //                 $restaurant->cuisine ?? '',
+    //                     $restaurant->owned_by ?? '',
+    //                     $restaurant->property ?? '',
+    //                     $restaurant->breakfast_available ? '1' : '0',
+    //                     $restaurant->lunch_available ? '1' : '0',
+    //                     $restaurant->dinner_available ? '1' : '0',
+    //                     $restaurant->opening_time_bf ?? '',
+    //                     $restaurant->closing_time_bf ?? '',
+    //                     $restaurant->opening_time_lunch ?? '',
+    //                     $restaurant->closing_time_lunch ?? '',
+    //                     $restaurant->opening_time_dinner ?? '',
+    //                     $restaurant->closing_time_dinner ?? '',
+    //                     $restaurant->master_image ?? '',
+    //                     $restaurant->images ?? '',
+    //                     $restaurant->description ?? '',
+    //                     $restaurant->terms_conditions ?? '',
+    //                     $restaurant->is_active ? '1' : '0',
+    //                     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    //                 ];
+    //             $data[] = $row;
+    //             }
+    //         }
+    //     } else {
+    //         // No existing restaurants, add sample data for Travclicks format
+    //         $sampleData1 = [
+    //             'Sample Restaurant',
+    //             'United States',
+    //             'New York',
+    //             '40.7128',
+    //             '-74.0060',
+    //             'Italian',
+    //             'Independent',
+    //             'Fine Dining',
+    //             '1',
+    //             '1', 
+    //             '1',
+    //             '07:00',
+    //             '11:00',
+    //             '12:00',
+    //             '15:00',
+    //             '18:00',
+    //             '23:00',
+    //             'restaurant_main.jpg',
+    //             'rest1.jpg,rest2.jpg',
+    //             'Authentic Italian restaurant with fresh ingredients',
+    //             'No outside food allowed. Dress code applies.',
+    //             'Breakfast',
+    //             'Non Alcoholic',
+    //             'Buffet',
+    //             '',
+    //             '',
+    //             'Vegetarian',
+    //             '25.00',
+    //             '12.50',
+    //             'Continental breakfast with fresh fruits and pastries'
+    //         ];
 
-            $sampleData2 = [
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'Lunch',
-                'Alcoholic',
-                'Set Menu',
-                'Pasta Carbonara',
-                '18.50',
-                'Non Vegetarian',
-                '',
-                '',
-                'Authentic Italian pasta with pancetta and parmesan'
-            ];
+    //         $sampleData2 = [
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             '',
+    //             'Lunch',
+    //             'Alcoholic',
+    //             'Set Menu',
+    //             'Pasta Carbonara',
+    //             '18.50',
+    //             'Non Vegetarian',
+    //             '',
+    //             '',
+    //             'Authentic Italian pasta with pancetta and parmesan'
+    //         ];
 
-            $sampleData3 = [
-                'Asian Fusion Cafe',
-                'Singapore',
-                'Singapore',
-                '1.3521',
-                '103.8198',
-                'Asian Fusion',
-                'Franchise',
-                'Casual Dining',
-                '0',
-                '1', 
-                '1',
-                '',
-                '',
-                '11:00',
-                '16:00',
-                '17:00',
-                '22:00',
-                'asian_main.jpg',
-                'asian1.jpg,asian2.jpg',
-                'Modern Asian fusion cuisine with a twist',
-                'Reservation required for dinner. No cancellation within 2 hours.',
-                'Dinner',
-                'No Beverage',
-                'Set Menu',
-                'Ramen Bowl',
-                '14.90',
-                'Non Vegetarian',
-                '',
-                '',
-                'Rich tonkotsu broth with chashu pork and soft-boiled egg'
-            ];
+    //         $sampleData3 = [
+    //             'Asian Fusion Cafe',
+    //             'Singapore',
+    //             'Singapore',
+    //             '1.3521',
+    //             '103.8198',
+    //             'Asian Fusion',
+    //             'Franchise',
+    //             'Casual Dining',
+    //             '0',
+    //             '1', 
+    //             '1',
+    //             '',
+    //             '',
+    //             '11:00',
+    //             '16:00',
+    //             '17:00',
+    //             '22:00',
+    //             'asian_main.jpg',
+    //             'asian1.jpg,asian2.jpg',
+    //             'Modern Asian fusion cuisine with a twist',
+    //             'Reservation required for dinner. No cancellation within 2 hours.',
+    //             'Dinner',
+    //             'No Beverage',
+    //             'Set Menu',
+    //             'Ramen Bowl',
+    //             '14.90',
+    //             'Non Vegetarian',
+    //             '',
+    //             '',
+    //             'Rich tonkotsu broth with chashu pork and soft-boiled egg'
+    //         ];
 
-            $data[] = $sampleData1;
-            $data[] = $sampleData2;
-            $data[] = $sampleData3;
-        }
+    //         $data[] = $sampleData1;
+    //         $data[] = $sampleData2;
+    //         $data[] = $sampleData3;
+    //     }
 
-        $content = $this->generateCsvContent($data);
-        $filename = 'travclicks_restaurant_bulk_upload_template.csv';
+    //     $content = $this->generateCsvContent($data);
+    //     $filename = 'travclicks_restaurant_bulk_upload_template.csv';
 
-        return Response::make($content, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
-    }
+    //     return Response::make($content, 200, [
+    //         'Content-Type' => 'text/csv',
+    //         'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+    //     ]);
+    // }
 
     // Restaurant Upload Method
     public function uploadRestaurants(Request $request)
@@ -1520,21 +1521,22 @@ class BulkUploadController extends Controller
                 $city = trim($row[3] ?? '');
                 $latitude = trim($row[4] ?? '');
                 $longitude = trim($row[5] ?? '');
-                $breakfastAvailability = trim($row[6] ?? '0');
-                $breakfastOpenTime = trim($row[7] ?? '');
-                $breakfastCloseTime = trim($row[8] ?? '');
-                $lunchAvailability = trim($row[9] ?? '0');
-                $lunchOpenTime = trim($row[10] ?? '');
-                $lunchCloseTime = trim($row[11] ?? '');
-                $dinnerAvailability = trim($row[12] ?? '0');
-                $dinnerOpenTime = trim($row[13] ?? '');
-                $dinnerCloseTime = trim($row[14] ?? '');
-                $ownedBy = trim($row[15] ?? '0');
-                $masterImage = trim($row[16] ?? '');
-                $additionalImages = trim($row[17] ?? '');
-                $description = trim($row[18] ?? '');
-                $termsConditions = trim($row[19] ?? '');
-                $status = trim($row[20] ?? '1');
+                $ownedBy = trim($row[6] ?? '0');
+                $property = trim($row[7] ?? 'third_party');
+                $breakfastAvailability = trim($row[8] ?? '0');
+                $breakfastOpenTime = trim($row[9] ?? '');
+                $breakfastCloseTime = trim($row[10] ?? '');
+                $lunchAvailability = trim($row[11] ?? '0');
+                $lunchOpenTime = trim($row[12] ?? '');
+                $lunchCloseTime = trim($row[13] ?? '');
+                $dinnerAvailability = trim($row[14] ?? '0');
+                $dinnerOpenTime = trim($row[15] ?? '');
+                $dinnerCloseTime = trim($row[16] ?? '');
+                $masterImage = trim($row[17] ?? '');
+                $additionalImages = trim($row[18] ?? '');
+                $description = trim($row[19] ?? '');
+                $termsConditions = trim($row[20] ?? '');
+                $status = trim($row[21] ?? '1');
                 
                 // Validate required fields
                 if (empty($restaurantName) || empty($cuisine) || empty($country) || empty($city)) {
@@ -1582,6 +1584,7 @@ class BulkUploadController extends Controller
                 $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
                 $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
                 $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
+                $restaurant->property = $property;
                 
                 if (Schema::hasColumn('restaurants', 'country')) {
                     $restaurant->country = $country;
@@ -5409,234 +5412,4 @@ class BulkUploadController extends Controller
                 ->withErrors($validator);
         }
     }
-
-    // public function uploadRestaurantss(Request $request)
-    // {
-    //     try {
-    //         $request->validate([
-    //             'file' => 'required|file|mimes:csv,txt|max:10240',
-    //         ]);
-
-    //         $file = $request->file('file');
-    //         $auth_user = Auth::user();
-    //         // dd($auth_user);
-            
-    //         // Generate file hash to prevent duplicate uploads
-    //         $fileHash = hash_file('md5', $file->getPathname());
-    //         $cacheKey = "restaurant_upload_{$fileHash}_{$auth_user->userId}";
-            
-    //         // Check if this exact file was uploaded recently (within last 60 seconds)
-    //         // if (cache()->has($cacheKey)) {
-    //         //     return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
-    //         // }
-            
-    //         // Mark this upload as in progress
-    //         cache()->put($cacheKey, true, 60); // Cache for 60 seconds
-            
-    //         $csvData = $this->readCsvFile($file->getPathname());
-            
-    //         if (empty($csvData)) {
-    //             return redirect()->back()->with('error', 'The uploaded file is empty or invalid.');
-    //         }
-
-    //         // Remove header row
-    //         array_shift($csvData);
-            
-    //         // Filter out empty rows to prevent double processing
-    //         $csvData = array_filter($csvData, function($row) {
-    //             return !empty(array_filter($row, function($cell) {
-    //                 return !empty(trim($cell));
-    //             }));
-    //         });
-            
-    //         // Re-index the array after filtering
-    //         $csvData = array_values($csvData);
-            
-    //         // Define role groups for access control
-    //         $dmcFullAccessRoles = [11, 35]; // DMC, Product Head (DMC)
-    //         $dmcAttractionRoles = [80, 122]; // Product Manager Attraction (DMC), Assistant PM Attraction (DMC)
-    //         $travclicksFullAccessRoles = [1, 23, 20, 29]; // Travclicks, Product Head (Travclicks), Virtual DMC, Assistant Manager(PROD HEAD)
-    //         $travclicksAttractionRoles = [50, 123]; // Product Manager Attraction (Travclicks), Assistant PM Attraction (Travclicks)
-            
-    //         // Check if user has access
-    //         $isDmcUser = in_array($auth_user->role_id, array_merge($dmcFullAccessRoles, $dmcAttractionRoles));
-    //         $isTravclicksUser = in_array($auth_user->role_id, array_merge($travclicksFullAccessRoles, $travclicksAttractionRoles));
-            
-    //         if (!$isDmcUser && !$isTravclicksUser) {
-    //             return redirect()->back()->with('error', 'You do not have permission to upload restaurants.');
-    //         }
-            
-    //         $successCount = 0;
-    //         $errorCount = 0;
-    //         $errors = [];
-            
-    //         // Track restaurants being processed in this upload to prevent duplicates within the same CSV
-    //         $processedRestaurants = [];
-            
-    //         DB::beginTransaction();
-    //         foreach ($csvData as $rowIndex => $row) {
-    //             $rowNumber = $rowIndex + 1; // +2 because we removed header and rows start at 1
-                
-    //             try {
-    //                 // Double-check for empty rows (shouldn't be needed now, but just in case)
-    //                 if (empty(array_filter($row, function($cell) { return !empty(trim($cell)); }))) {
-    //                     continue;
-    //                 }
-                    
-    //                 // Map CSV columns to variables
-    //                 $restaurantName = trim($row[0] ?? '');
-    //                 $cuisine = trim($row[1] ?? '');
-    //                 $country = trim($row[2] ?? '');
-    //                 $city = trim($row[3] ?? '');
-    //                 $latitude = trim($row[4] ?? '');
-    //                 $longitude = trim($row[5] ?? '');
-    //                 $breakfastAvailability = trim($row[6] ?? '0');
-    //                 $breakfastOpenTime = trim($row[7] ?? '');
-    //                 $breakfastCloseTime = trim($row[8] ?? '');
-    //                 $lunchAvailability = trim($row[9] ?? '0');
-    //                 $lunchOpenTime = trim($row[10] ?? '');
-    //                 $lunchCloseTime = trim($row[11] ?? '');
-    //                 $dinnerAvailability = trim($row[12] ?? '0');
-    //                 $dinnerOpenTime = trim($row[13] ?? '');
-    //                 $dinnerCloseTime = trim($row[14] ?? '');
-    //                 $ownedBy = trim($row[15] ?? '0');
-    //                 $masterImage = trim($row[16] ?? '');
-    //                 $additionalImages = trim($row[17] ?? '');
-    //                 $description = trim($row[18] ?? '');
-    //                 $termsConditions = trim($row[19] ?? '');
-    //                 $status = trim($row[20] ?? '1');
-    //                 // 🔍 Duplicate check: name + city + country (case-insensitive)
-    //                     $existingRestaurant = Restaurant::whereRaw('LOWER(name) = ?', [strtolower($restaurantName)])
-    //                     ->whereRaw('LOWER(city) = ?', [strtolower($city)])
-    //                     ->whereRaw('LOWER(country) = ?', [strtolower($country)])
-    //                     ->first();
-
-    //                 if ($existingRestaurant) {
-    //                     $errors[] = "Row {$rowNumber}: Duplicate restaurant '{$restaurantName}' already exists in {$city}, {$country}.";
-    //                     $errorCount++;
-    //                     continue;
-    //                 }
-
-    //                 // Generate unique restaurant_id
-    //                 $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-    //                 $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-    //                 $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
-    //                 while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-    //                     $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
-    //                 }
-                  
-    //                 // Create new restaurant
-    //                 $restaurant = new Restaurant();
-    //                 $restaurant->restaurant_id = $restaurantId; // <-- critical line
-    //                 $restaurant->name = $restaurantName;
-    //                 $restaurant->cuisine = $cuisine;
-    //                 $restaurant->breakfast_available = ($breakfastAvailability == '1') ? 1 : 0;
-    //                 $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
-    //                 $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
-    //                 $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
-
-    //                 if (Schema::hasColumn('restaurants', 'country')) {
-    //                     $restaurant->country = $country;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'city')) {
-    //                     $restaurant->city = $city;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'latitude')) {
-    //                     $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'longitude')) {
-    //                     $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'description')) {
-    //                     $restaurant->description = $description;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'terms_conditions')) {
-    //                     $restaurant->terms_conditions = $termsConditions;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'hotel_id')) {
-    //                     $restaurant->hotel_id = 1; // Default hotel ID
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'status')) {
-    //                     $restaurant->status = ($status == '1') ? 1 : 0;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'is_active')) {
-    //                     $restaurant->is_active = ($status == '1') ? 1 : 0;
-    //                 }
-    //                 if (Schema::hasColumn('restaurants', 'created_by')) {
-    //                     $restaurant->created_by = $auth_user->userId;
-    //                 }
-
-    //                 // Set time fields
-    //                 if ($restaurant->breakfast_available && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
-    //                     $restaurant->opening_time_bf = $breakfastOpenTime;
-    //                     $restaurant->closing_time_bf = $breakfastCloseTime;
-    //                 }
-    //                 if ($restaurant->lunch_available && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
-    //                     $restaurant->opening_time_lunch = $lunchOpenTime;
-    //                     $restaurant->closing_time_lunch = $lunchCloseTime;
-    //                 }
-    //                 if ($restaurant->dinner_available && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
-    //                     $restaurant->opening_time_dinner = $dinnerOpenTime;
-    //                     $restaurant->closing_time_dinner = $dinnerCloseTime;
-    //                 }
-
-    //                 // Set image fields
-    //                 if (!empty($masterImage)) {
-    //                     $restaurant->master_image = $masterImage;
-    //                 }
-    //                 if (!empty($additionalImages)) {
-    //                     $imagesArray = array_map('trim', explode(',', $additionalImages));
-    //                     $restaurant->images = json_encode($imagesArray);
-    //                 }
-
-    //                 $restaurant->save();
-    //                 $successCount++;
-                    
-    //             } catch (\Exception $e) {
-    //                 $errors[] = "Row {$rowNumber}: " . $e->getMessage();
-    //                 $errorCount++;
-    //                 Log::error("Restaurant bulk upload error on row {$rowNumber}: " . $e->getMessage());
-    //             }
-    //         }
-            
-    //         if ($successCount > 0) {
-    //             DB::commit();
-    //         } else {
-    //             DB::rollback();
-    //         }
-            
-    //         // Clear the upload cache on completion
-    //         cache()->forget($cacheKey);
-            
-    //         // Save upload history
-    //         UploadHistory::createRecord(
-    //             'restaurants',
-    //             $file->getClientOriginalName(),
-    //             $file->getClientOriginalName(),
-    //             count($csvData),
-    //             $successCount,
-    //             $errorCount,
-    //             $errors,
-    //             $auth_user->userId
-    //         );
-            
-    //         $message = "Upload completed. {$successCount} restaurants processed successfully.";
-    //         if ($errorCount > 0) {
-    //             $message .= " {$errorCount} errors occurred.";
-    //         }
-
-    //         return redirect()->back()
-    //             ->with('success', $message)
-    //             ->with('errors', $errors);
-                
-    //     } catch (\Exception $e) {
-    //         DB::rollback();
-    //         // Clear the upload cache on error
-    //         if (isset($cacheKey)) {
-    //             cache()->forget($cacheKey);
-    //         }
-    //         Log::error('Restaurant bulk upload failed: ' . $e->getMessage());
-    //         return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
-    //     }
-    // }
 }
