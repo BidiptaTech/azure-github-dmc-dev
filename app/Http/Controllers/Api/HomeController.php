@@ -169,10 +169,14 @@ class HomeController extends Controller
             $time_slots = [];
             $open_times = json_decode($firstAttraction->open_time, true) ?? [];
             $close_times = json_decode($firstAttraction->close_time, true) ?? [];
-            $count = min(count($open_times), count($close_times));
-
-            for ($i = 0; $i < $count; $i++) {
-                $time_slots[] = "{$open_times[$i]} - {$close_times[$i]}";
+            
+            // Ensure both are arrays before using count()
+            if (is_array($open_times) && is_array($close_times)) {
+                $count = min(count($open_times), count($close_times));
+                
+                for ($i = 0; $i < $count; $i++) {
+                    $time_slots[] = "{$open_times[$i]} - {$close_times[$i]}";
+                }
             }
 
             // Initialize pricing variables
