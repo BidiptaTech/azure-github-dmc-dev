@@ -48,7 +48,7 @@ class VehicleController extends Controller
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
-         elseif ($user->role_id == 11) {
+         elseif ($user->role_id == 11 || $user->role_id == 20) {
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
          elseif ($user->role_id == 20) {
@@ -71,7 +71,7 @@ class VehicleController extends Controller
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 76){
@@ -154,14 +154,14 @@ class VehicleController extends Controller
         $dmc_id = $request->country_name;
         $drivers = collect(); // Default empty
 
-        if ($user->role_id == 11) {
+        if ($user->role_id == 11 || $user->role_id == 20) {
             // DMC sees their own drivers
             $drivers = Driver::where('status', 1)
                 ->where('dmc_id', $user->userId)
                 ->orderByDesc('updated_at')
                 ->get();
 
-        } elseif ($user->role_id == 35) {
+        } elseif ($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138) {
             // Product Head sees own and APMs they created
             $createdByIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
             $createdByIds[] = $user->userId;
@@ -244,7 +244,7 @@ class VehicleController extends Controller
         }
 
         $auth_user = Auth::user();
-        if ($auth_user->role_id == 11) {
+        if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $dmc_id = $auth_user->userId;
             $status = 5;
         }elseif($auth_user->role_id == 4){
@@ -256,7 +256,7 @@ class VehicleController extends Controller
         }elseif($auth_user->role_id == 1 || $auth_user->role_id == 2){
             $dmc_id = $request->dmc;
             $status = 1;
-        } elseif(auth()->user()->role_id ==35){
+        } elseif(auth()->user()->role_id ==35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138){
             $userdmc = User::where('userId', auth()->user()->created_by)->first();
             $dmc_id = $userdmc->userId;
             $status = 5;
@@ -274,7 +274,7 @@ class VehicleController extends Controller
             $dmc_id = $user_product_head_dmc->userId;
             $status = 5;
         }
-        elseif($auth_user->role_id == 11) {
+        elseif($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $dmc_id = $auth_user->userId;
             $status = 5;
         }

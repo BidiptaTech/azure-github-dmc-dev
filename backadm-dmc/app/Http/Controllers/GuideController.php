@@ -45,12 +45,11 @@ class GuideController extends Controller
         } elseif (in_array($user->role_id, [1, 2, 23])) {
             $guides = Guide::orderBy('updated_at', 'desc')->whereIn('status', [1, 3])->get();
         }
-        elseif($user->role_id == 10){
+        elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
             $guides = Guide::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-
         }
-        elseif ($user->role_id == 11) {
+        elseif ($user->role_id == 11 || $user->role_id == 20) {
             $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif ($user->role_id == 20) {
@@ -73,7 +72,7 @@ class GuideController extends Controller
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
             $guides = Guide::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 75){
@@ -107,9 +106,9 @@ class GuideController extends Controller
         ->where('status', 4)
         ->get();
         }elseif($auth_user->role_id == 2 || $auth_user->role_id == 1 || $auth_user->role_id == 23){
-        $pendingGuides = Guide::with('user')
-        ->where('status', 5)
-        ->get();
+            $pendingGuides = Guide::with('user')
+            ->where('status', 5)
+            ->get();
         }
         return view('guides.guide-approval',compact('pendingGuides'));
     }
@@ -299,12 +298,12 @@ class GuideController extends Controller
         $country = Country::where('is_active', 1)->get();
 
         $authuser = auth()->user();
-        if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+        if($authuser->role_id == 4 ){
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }
-        elseif(in_array($authuser->role_id, [10,25, 63, 119])){
+        elseif(in_array($authuser->role_id, [10,25, 19, 63, 119])){
             if($authuser->role_id == 10){
                 $dmc_ids = User::where('master_dmc_id', $authuser->userId)->get()->pluck('userId')->toArray();
                 $master_dmc_id = Auth::user()->userId;
@@ -325,10 +324,10 @@ class GuideController extends Controller
             $dmcs = User::where('master_dmc_id', $master_dmc_id)->get();
         } 
         else{
-            $dmcs = User::where('role_id', 11)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->get();
         }
 
-        if(in_array($authuser->role_id, [11, 35, 75, 102])){
+        if(in_array($authuser->role_id, [11, 20, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -404,7 +403,7 @@ class GuideController extends Controller
         }
 
         $auth_user = Auth::user();
-        if ($auth_user->role_id == 11) {
+        if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $dmc_id = $auth_user->userId;
             $status = 1;
         } elseif($auth_user->role_id == 4){
@@ -416,7 +415,7 @@ class GuideController extends Controller
         } elseif($auth_user->role_id == 1 || $auth_user->role_id == 2){
             $dmc_id = $request->dmc;
             $status = 1;
-        } elseif(auth()->user()->role_id ==35){
+        } elseif(auth()->user()->role_id ==35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $userdmc = User::where('userId', auth()->user()->created_by)->first();
             $dmc_id = $userdmc->userId;
             $status = 1;
@@ -603,9 +602,9 @@ class GuideController extends Controller
 
         $authuser = auth()->user();
         if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }

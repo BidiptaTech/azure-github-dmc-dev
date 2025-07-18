@@ -141,9 +141,9 @@
                             <th>Total Price</th>
                             <th>Status</th>
                             <th>Action</th>
-                            @if(in_array(auth()->user()->role_id, [11, 33]))
+                            @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
                                 <th>Add Payment</th>
-                            @elseif(auth()->user()->role_id == 36)
+                            @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <th>Confirm Payment </th>
                             @endif
                         </tr>
@@ -232,7 +232,7 @@
                                     </button>
                                 </td>
 
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138)
                                 <td>
                                     @if($booking->status == '1')
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
@@ -247,10 +247,10 @@
                                         <span class="badge bg-danger">Cancelled</span>
                                     @endif
                                     </td>
-                                @elseif(auth()->user()->role_id == 36)
+                                @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <td>
                                         @if($booking->status == '3')
-                                            <button type="button" class="btn btn-sm btn-info confirm-payment-btn" data-booking-id="{{ $booking->id }}">
+                                            <button type="button" class="btn btn-sm btn-info confirm-payment-btn" data-booking-id="{{ $booking->booking_id }}">
                                                 <i class="fas fa-check"></i> Confirm Payment
                                             </button>
                                         @elseif($booking->status == '2')
@@ -592,7 +592,7 @@
     </div>
 
     <!-- Add Payment Modal -->
-    @if(in_array(auth()->user()->role_id, [11, 33]))
+    @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
     <div class="modal fade" id="addPaymentModal{{ $booking->id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $booking->id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content shadow-lg rounded">
@@ -604,20 +604,20 @@
                     <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form id="paymentForm{{ $booking->id }}" action="{{ route('package.add-payment', $booking->id) }}" method="POST">
+                    <form id="paymentForm{{ $booking->booking_id }}" action="{{ route('package.add-payment', $booking->booking_id) }}" method="POST">
                         @csrf
-                        <input type="hidden" name="booking_id" value="{{ $booking->id }}">
+                        <input type="hidden" name="booking_id" value="{{ $booking->booking_id }}">
                         
                         <!-- Payment Amount -->
                         <div class="mb-4">
-                            <label for="payment_amount{{ $booking->id }}" class="form-label fw-bold d-flex align-items-center">
+                            <label for="payment_amount{{ $booking->booking_id }}" class="form-label fw-bold d-flex align-items-center">
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
                             </label>
                             <div class="input-group">
                                 <span class="input-group-text">{{ $currency ?? 'SGD' }}</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
-                                    id="payment_amount{{ $booking->id }}" 
+                                    id="payment_amount{{ $booking->booking_id }}" 
                                     name="payment_amount" 
                                     step="0.01" 
                                     min="0.01" 
@@ -627,12 +627,12 @@
                         
                         <!-- Payment Date -->
                         <div class="mb-4">
-                            <label for="payment_date{{ $booking->id }}" class="form-label fw-bold">
+                            <label for="payment_date{{ $booking->booking_id }}" class="form-label fw-bold">
                                 <i class="fas fa-calendar-alt text-primary me-2"></i>Payment Date
                             </label>
                             <input type="date" 
                                 class="form-control form-control-lg" 
-                                id="payment_date{{ $booking->id }}" 
+                                id="payment_date{{ $booking->booking_id }}" 
                                 name="payment_date" 
                                 value="{{ date('Y-m-d') }}"
                                 required>
@@ -640,11 +640,11 @@
 
                         <!-- Payment Type -->
                         <div class="mb-4">
-                            <label for="payment_type{{ $booking->id }}" class="form-label fw-bold">
+                            <label for="payment_type{{ $booking->booking_id }}" class="form-label fw-bold">
                                 <i class="fas fa-credit-card text-primary me-2"></i>Payment Mode
                             </label>
                             <select class="form-select form-control-lg" 
-                                id="payment_type{{ $booking->id }}" 
+                                id="payment_type{{ $booking->booking_id }}" 
                                 name="payment_type" 
                                 required>
                                 <option value="">Select Payment Mode</option>
@@ -657,10 +657,10 @@
                         
                         <!-- Transaction ID -->
                         <div class="mb-4">
-                            <label for="transaction_id{{ $booking->id }}" class="form-label fw-bold">
+                            <label for="transaction_id{{ $booking->booking_id }}" class="form-label fw-bold">
                                 <i class="fas fa-hashtag text-primary me-2"></i>Transaction ID
                             </label>
-                            <input type="text" class="form-control form-control-lg" id="transaction_id{{ $booking->id }}" name="transaction_id" required>
+                            <input type="text" class="form-control form-control-lg" id="transaction_id{{ $booking->booking_id }}" name="transaction_id" required>
                         </div>
                     </form>
                 </div>
@@ -668,7 +668,7 @@
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-2"></i>Cancel
                     </button>
-                    <button type="button" class="btn btn-success" id="savePaymentBtn{{ $booking->id }}" onclick="submitPaymentForm({{ $booking->id }})">
+                    <button type="button" class="btn btn-success" id="savePaymentBtn{{ $booking->booking_id }}" onclick="submitPaymentForm({{ $booking->booking_id }})">
                         <i class="fas fa-save me-2"></i>Save Payment Details
                     </button>
                 </div>
@@ -794,8 +794,9 @@ $(document).ready(function() {
                 });
                 
                 // Send AJAX request to confirm payment
+                const confirmPaymentUrl = `{{ route('package.confirm-payment', ['booking_id' => '__BOOKING_ID__']) }}`.replace('__BOOKING_ID__', bookingId);
                 $.ajax({
-                    url: `/package-booking/${bookingId}/confirm-payment`,
+                    url: confirmPaymentUrl,
                     type: 'POST',
                     data: {
                         _token: $('meta[name="csrf-token"]').attr('content')
