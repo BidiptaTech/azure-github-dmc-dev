@@ -737,7 +737,7 @@ class PackageController extends Controller
     {
         try {
             // Find the booking by ID
-            $booking = PackageBooking::findOrFail($booking_id);
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
             
             // Check if booking has payment details
             if (empty($booking->payment_amount) || empty($booking->payment_date) || empty($booking->transaction_id)) {
