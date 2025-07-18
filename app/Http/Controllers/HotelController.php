@@ -41,63 +41,63 @@ class HotelController extends Controller
         }
         $user = auth()->user();
         $hotels = [];
-        // if ($user->role_id == 4) {
-        //     // $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
-        //     $hotels = Hotel::whereIn('status', [4, 5, 1])
-        //         // ->whereJsonContains('dmc_id', $dmc_ids)
-        //         ->orderBy('updated_at', 'DESC')
-        //         ->get();
-        // } elseif ($user->role_id == 3) {
-        //     $hotels = Hotel::whereIn('status', [5, 1])->orderBy('updated_at', 'DESC')->get();
-        // } elseif (in_array($user->role_id, [1, 2, 23])) {
-        //     $hotels = Hotel::whereIn('status', [1, 3])->orderBy('updated_at', 'DESC')->get();
-        // }
-        // elseif($user->role_id == 10){
-        //     $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-        //     $hotels = Hotel::orderBy('updated_at', 'desc')->where(function($query) use ($dmc_ids) {
-        //         foreach($dmc_ids as $dmc_id) {
-        //             $query->orWhereJsonContains('dmc_id', $dmc_id);
-        //         }
-        //     })->get();
-        // }
-        // elseif ($user->role_id == 11) {
-        //     $hotels = Hotel::whereJsonContains('dmc_id', $user->userId)->orderBy('updated_at', 'DESC')->get();
-        // }
-        // elseif(in_array($user->role_id, [25, 59, 83])){
-        //     if($user->role_id == 25){
-        //         $master_dmc_id = $user->created_by;
-        //     }
-        //     elseif($user->role_id == 59){
-        //         $product_head = User::where('userId', $user->created_by)->first();
-        //         $master_dmc_id = $product_head->created_by;
-        //     }
-        //     elseif($user->role_id == 83){
-        //         $product_manager = User::where('userId', $user->created_by)->first();
-        //         $product_head = User::where('userId', $product_manager->created_by)->first();
-        //         $master_dmc_id = $product_head->created_by;
-        //     }
+        if ($user->role_id == 4) {
+            // $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
+            $hotels = Hotel::whereIn('status', [4, 5, 1])
+                // ->whereJsonContains('dmc_id', $dmc_ids)
+                ->orderBy('updated_at', 'DESC')
+                ->get();
+        } elseif ($user->role_id == 3) {
+            $hotels = Hotel::whereIn('status', [5, 1])->orderBy('updated_at', 'DESC')->get();
+        } elseif (in_array($user->role_id, [1, 2, 23])) {
+            $hotels = Hotel::whereIn('status', [1, 3])->orderBy('updated_at', 'DESC')->get();
+        }
+        elseif($user->role_id == 10){
+            $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
+            $hotels = Hotel::orderBy('updated_at', 'desc')->where(function($query) use ($dmc_ids) {
+                foreach($dmc_ids as $dmc_id) {
+                    $query->orWhereJsonContains('dmc_id', $dmc_id);
+                }
+            })->get();
+        }
+        elseif ($user->role_id == 11) {
+            $hotels = Hotel::whereJsonContains('dmc_id', $user->userId)->orderBy('updated_at', 'DESC')->get();
+        }
+        elseif(in_array($user->role_id, [25, 59, 83])){
+            if($user->role_id == 25){
+                $master_dmc_id = $user->created_by;
+            }
+            elseif($user->role_id == 59){
+                $product_head = User::where('userId', $user->created_by)->first();
+                $master_dmc_id = $product_head->created_by;
+            }
+            elseif($user->role_id == 83){
+                $product_manager = User::where('userId', $user->created_by)->first();
+                $product_head = User::where('userId', $product_manager->created_by)->first();
+                $master_dmc_id = $product_head->created_by;
+            }
             
-        //     $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-        //     $hotels = Hotel::where(function($query) use ($dmc_ids) {
-        //         foreach($dmc_ids as $dmc_id) {
-        //             $query->orWhereJsonContains('dmc_id', $dmc_id);
-        //         }
-        //     })->orderBy('updated_at', 'DESC')->get();
-        // }
-        // elseif($user->role_id == 77){
-        //     $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-        //     if($assistant_product_manager_ids){
-        //         $hotels = Hotel::whereIn('userId', $assistant_product_manager_ids)->orWhere('userId', $user->userId)->orderBy('hotel_unique_id', 'DESC')->get();
-        //     }else{
-        //         $hotels = Hotel::where('userId', $user->userId)->orderBy('updated_at', 'DESC')->get();
-        //     }
-        // }
-        // elseif($user->role_id == 35){
-        //     $hotels = Hotel::whereJsonContains('dmc_id', $user->created_by)->orderBy('updated_at', 'DESC')->get();
-        // }
-        // elseif($user->role_id == 84){
-        //     $hotels = Hotel::where('userId', $user->userId)->orderBy('updated_at', 'DESC')->get();
-        // }
+            $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
+            $hotels = Hotel::where(function($query) use ($dmc_ids) {
+                foreach($dmc_ids as $dmc_id) {
+                    $query->orWhereJsonContains('dmc_id', $dmc_id);
+                }
+            })->orderBy('updated_at', 'DESC')->get();
+        }
+        elseif($user->role_id == 77){
+            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
+            if($assistant_product_manager_ids){
+                $hotels = Hotel::whereIn('userId', $assistant_product_manager_ids)->orWhere('userId', $user->userId)->orderBy('hotel_unique_id', 'DESC')->get();
+            }else{
+                $hotels = Hotel::where('userId', $user->userId)->orderBy('updated_at', 'DESC')->get();
+            }
+        }
+        elseif($user->role_id == 35){
+            $hotels = Hotel::whereJsonContains('dmc_id', $user->created_by)->orderBy('updated_at', 'DESC')->get();
+        }
+        elseif($user->role_id == 84){
+            $hotels = Hotel::where('userId', $user->userId)->orderBy('updated_at', 'DESC')->get();
+        }
         $hotels = Hotel::where('status', 1)->orderBy('updated_at', 'DESC')->get();
         return view('hotel.hotels', compact('hotels', 'user'));
     }
