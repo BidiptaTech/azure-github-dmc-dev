@@ -49,9 +49,9 @@
                                     $roleId = auth()->user()->role_id;
                                 @endphp
 
-                                @if($roleId == 10)
+                                @if($roleId == 10 || $roleId == 19)
                                     <th>DMC</th>
-                                @elseif($roleId != 11)
+                                @elseif($roleId != 11 && $roleId != 20)
                                     <th>Master Dmc</th>
                                     <th>DMC</th>
                                 @endif
@@ -76,12 +76,12 @@
                                         $roleId = auth()->user()->role_id;
                                     @endphp
 
-                                    @if($roleId == 10)
+                                    @if($roleId == 10 || $roleId == 19)
                                         @php
                                             $dmcUser = App\Models\User::where('userId', $restaurant->dmc_id)->first();
                                         @endphp
                                         <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                    @elseif($roleId != 11)
+                                    @elseif($roleId != 11 && $roleId != 20)
                                         @php
                                             $dmcUser = App\Models\User::where('userId', $restaurant->dmc_id)->first();
                                             $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
