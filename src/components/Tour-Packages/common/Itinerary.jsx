@@ -502,6 +502,20 @@ export default function Itinerary({ onBookingSuccess }) {
     );
   }
 
+  // Helper function to check if sidebar should be shown
+  const shouldShowSidebar = () => {
+    return enquiryDetail?.hotel_on === true || 
+           enquiryDetail?.attraction_on === true || 
+           enquiryDetail?.restaurant_on === true || 
+           enquiryDetail?.guide_on === true || 
+           enquiryDetail?.localtransfer_on === true || 
+           enquiryDetail?.ports_on === true || 
+           enquiryDetail?.pickup_on === true || 
+           enquiryDetail?.entry_port_on === true || 
+           enquiryDetail?.exit_port_on === true || 
+           enquiryDetail?.packaged_attraction_on === true;
+  };
+
   // Function to handle booking
   const handleBookPackage = () => {
     dispatch(BookPackageEnquiry())
@@ -550,7 +564,7 @@ export default function Itinerary({ onBookingSuccess }) {
     <Box>
       <Grid container spacing={3}>
         {/* Main content area - Grid 7 */}
-        <Grid item xs={12} md={enquiryDetail?.hotel_on=== true && enquiryDetail?.attraction_on=== true && enquiryDetail?.restaurant_on=== true && enquiryDetail?.guide_on=== true && enquiryDetail?.localtransfer_on=== true && enquiryDetail?.ports_on=== true || enquiryDetail?.pickup_on=== true || enquiryDetail?.entry_port_on=== true || enquiryDetail?.exit_port_on=== true || enquiryDetail?.packaged_attraction_on=== true ? 8 : 12}>
+        <Grid item xs={12} md={shouldShowSidebar() ? 8 : 12}>
           {/* Top Level Hotel Section */}
           <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -940,7 +954,7 @@ export default function Itinerary({ onBookingSuccess }) {
         </Grid>
         
         {/* Enquiry Details Sidebar - Grid 4 (only shown when enquiryDetail exists) */}
-        {enquiryDetail?.hotel_on=== true && enquiryDetail?.attraction_on=== true && enquiryDetail?.restaurant_on=== true && enquiryDetail?.guide_on=== true && enquiryDetail?.localtransfer_on=== true && enquiryDetail?.ports_on=== true || enquiryDetail?.pickup_on=== true || enquiryDetail?.entry_port_on=== true || enquiryDetail?.exit_port_on=== true || enquiryDetail?.packaged_attraction_on=== true && (
+        {shouldShowSidebar() && (
           <Grid item xs={12} md={5} lg={4}>
             <Paper 
               elevation={3} 
