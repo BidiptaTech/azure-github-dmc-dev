@@ -1130,7 +1130,7 @@ class TourController extends Controller
                     if($agent->role_id == 11){
                         $dmcId = $sales_manager_dmc;
                     }
-                    elseif($agent->role_id == 33){
+                    elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
                         $sales_head = User::where('userId', $sales_manager_dmc)->first();
                         $dmcId = $sales_head->created_by;
                         
@@ -2226,7 +2226,14 @@ class TourController extends Controller
                     $dmc_id = $user->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
                     $dmc_users = User::where('userId', $dmc_id)->first();
                     break;
-                case 33: // Sales Head
+                    case 33: 
+                    case 128: 
+                    case 129: 
+                    case 130: 
+                    case 134: 
+                    case 135: 
+                    case 136: 
+                    case 138: // Sales Head
                     $salesManagerId = $user->sales_manager_dmc;
                         $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SH
                         if ( $saleshead_dmc) {
