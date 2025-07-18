@@ -2030,7 +2030,6 @@ class HotelController extends Controller
         $auth_user = Auth::user();
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
         $rooms = Room::where('hotel_id', $id)
-             ->where('base_room', '!=', 1)
              ->get();
         
         // Get DMC users for admin dropdown (only for admin users)
