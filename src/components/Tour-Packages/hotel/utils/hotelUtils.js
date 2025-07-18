@@ -9,6 +9,70 @@ export const generateUniqueId = () => {
 };
 
 /**
+ * Calculate night indices for hotel dates within the full tour date range
+ * @param {string} hotelCheckIn Hotel check-in date in DD/MM/YYYY format
+ * @param {string} hotelCheckOut Hotel check-out date in DD/MM/YYYY format
+ * @param {Array} tourDates Array of moment objects representing the full tour date range
+ * @returns {Array} Array of night indices within the tour date range
+ */
+export const calculateNightIndicesInTourRange = (hotelCheckIn, hotelCheckOut, tourDates) => {
+  if (!hotelCheckIn || !hotelCheckOut || !tourDates || tourDates.length === 0) {
+    return [];
+  }
+  
+  // Convert hotel dates to moment objects
+  const hotelStartDate = moment(hotelCheckIn, 'DD/MM/YYYY');
+  const hotelEndDate = moment(hotelCheckOut, 'DD/MM/YYYY');
+  
+  // Find the start index in the tour date range
+  let startIndex = -1;
+  for (let i = 0; i < tourDates.length; i++) {
+    if (tourDates[i].isSame(hotelStartDate, 'day')) {
+      startIndex = i;
+      break;
+    }
+  }
+  
+  // Find the end index in the tour date range
+  let endIndex = -1;
+  for (let i = 0; i < tourDates.length; i++) {
+    if (tourDates[i].isSame(hotelEndDate, 'day')) {
+      endIndex = i;
+      break;
+    }
+  }
+  
+  // If dates are not found in tour range, return empty array
+  if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
+    console.warn("Hotel dates not found in tour range or invalid:", {
+      hotelCheckIn,
+      hotelCheckOut,
+      tourRange: tourDates.map(d => d.format('YYYY-MM-DD')),
+      startIndex,
+      endIndex
+    });
+    return [];
+  }
+  
+  // Create night indices array (from start to end-1, since last day is checkout)
+  const nightIndices = [];
+  for (let i = startIndex; i < endIndex; i++) {
+    nightIndices.push(i);
+  }
+  
+  console.log("Calculated night indices for hotel within tour range:", {
+    hotelCheckIn,
+    hotelCheckOut,
+    startIndex,
+    endIndex,
+    nightIndices,
+    nights: nightIndices.length
+  });
+  
+  return nightIndices;
+};
+
+/**
  * Calculate nights from booking dates
  * @param {Array} bookingDates Array of booking dates in YYYY-MM-DD format
  * @returns {Object} Object containing nights count and selected night indices
@@ -134,6 +198,9 @@ export const createConfigFromRoomAndBed = (hotelDetails, room, bed, bookingDates
     mealPlanId: 'self', // Default meal plan
     nights: nights,
     selectedNightIndices: selectedNightIndices,
+    // Add individual hotel booking dates from the booking data
+    hotelCheckIn: bookingDates.length > 0 ? moment(bookingDates[0], 'YYYY-MM-DD').format('DD/MM/YYYY') : moment().format('DD/MM/YYYY'),
+    hotelCheckOut: bookingDates.length > 1 ? moment(bookingDates[1], 'YYYY-MM-DD').format('DD/MM/YYYY') : moment().add(1, 'day').format('DD/MM/YYYY'),
     babyCot: bedData.babyCot,
     occupancyType: bedData.headCount > 1 ? 'multiple' : 'single',
     adultDistribution: { male: 0, female: 0 },
