@@ -104,7 +104,14 @@ class PackageController extends Controller
                 case 11: // DMC
                     return $agent->sales_manager_dmc;
 
-                case 33: // Sales Head
+                case 33: 
+                case 128: 
+                case 129: 
+                case 130: 
+                case 134: 
+                case 135: 
+                case 136: 
+                case 138: // Sales Head
                     return optional(User::find($agent->sales_manager_dmc))->created_by;
 
                 case 12:
@@ -122,7 +129,14 @@ class PackageController extends Controller
 
         // If the user is not an agent (e.g., directly SH, SM, AM)
         switch ($user->role_id) {
-            case 33: // SH
+            case 33: 
+            case 128: 
+            case 129: 
+            case 130: 
+            case 134: 
+            case 135: 
+            case 136: 
+            case 138: // SH
                 return $user->created_by;
 
             case 37: // SM
@@ -345,7 +359,7 @@ class PackageController extends Controller
             if($role_id == 11){
                 $dmc_id = $sales_manager_dmc_id;
             }
-            elseif($role_id == 33){
+            elseif($role_id == 33 || $role_id == 128 || $role_id == 129 || $role_id == 130 || $role_id == 134 || $role_id == 135 || $role_id == 136 || $role_id == 138){
                 $sales_head_id = $user->sales_manager_dmc;
                 $sales_head = User::where('userId', $sales_head_id)->first();
                 $dmc_id = $sales_head->created_by;
@@ -376,7 +390,7 @@ class PackageController extends Controller
                 $dmc_id = $user_id;
             }
             //Sales Head (role_id 33)
-            elseif($user->role_id == 33){
+            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
                 $dmc_id = $user->created_by;
             }
             //Sales Manager (role_id 37)
@@ -525,7 +539,7 @@ class PackageController extends Controller
                     if($user->role_id == 11){
                         $dmc_id = $user->userId;
                     }
-                    elseif ($user->role_id == 33) { // Sales Head
+                    elseif ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
                         $sales_head = User::where('userId', $user->userId)->first();
                         $dmc_id = $sales_head->created_by;
                     } elseif ($user->role_id == 37) { // Sales Manager

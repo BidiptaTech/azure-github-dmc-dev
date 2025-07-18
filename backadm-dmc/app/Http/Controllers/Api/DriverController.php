@@ -103,7 +103,14 @@ class DriverController extends Controller
                     case 11: // Agent is a DMC
                         $dmc_id = $agent->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
                         break;
-                    case 33: // Sales Head
+                        case 33: 
+                        case 128: 
+                        case 129: 
+                        case 130: 
+                        case 134: 
+                        case 135: 
+                        case 136: 
+                        case 138: 
                         $salesManagerId = $agent->sales_manager_dmc;
                              $saleshead_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SH
                             if ( $saleshead_dmc) {
@@ -149,7 +156,8 @@ class DriverController extends Controller
             elseif(Auth::user()->userId){
                 $currentUser = Auth::user();
                 
-                if($currentUser->role_id == 33){
+                if($currentUser->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138)
+                {
                     $dmc_id = $currentUser->created_by;
                 }
                 elseif($currentUser->role_id == 37){
@@ -657,7 +665,14 @@ class DriverController extends Controller
                     case 11: // Agent is a DMC
                         $dmc_id = $agent->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
                         break;
-                    case 33: // Sales Head
+                        case 33: 
+                        case 128: 
+                        case 129: 
+                        case 130: 
+                        case 134: 
+                        case 135: 
+                        case 136: 
+                        case 138: // Sales Head
                         $salesManagerId = $agent->sales_manager_dmc;
                              $saleshead_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SH
                             if ( $saleshead_dmc) {
