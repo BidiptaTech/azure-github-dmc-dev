@@ -419,7 +419,8 @@ class LoginControllerApi extends Controller
         
         return response()->json([
             'success' => true, 
-            'message' => 'Profile updated successfully'
+            'message' => 'Profile updated successfully',
+            'data' => $user
         ]);
     }
 }
