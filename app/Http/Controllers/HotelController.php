@@ -61,7 +61,13 @@ class HotelController extends Controller
             })->get();
         }
         elseif ($user->role_id == 11) {
-            $hotels = Hotel::whereJsonContains('dmc_id', $user->userId)->orderBy('updated_at', 'DESC')->get();
+            $allHotels = Hotel::where('status', 1)
+                          ->with(['category'])
+                          ->orderBy('name', 'asc')
+                          ->get();
+            $hotels = $allHotels->filter(function($hotel) use ($user) {
+                return $hotel->hasSelectedByDmc($user->userId);
+            });
         }
         elseif(in_array($user->role_id, [25, 59, 83])){
             if($user->role_id == 25){
@@ -97,8 +103,9 @@ class HotelController extends Controller
         }
         elseif($user->role_id == 84){
             $hotels = Hotel::where('userId', $user->userId)->orderBy('updated_at', 'DESC')->get();
+        }else{
+            $hotels = Hotel::where('status', 1)->orderBy('updated_at', 'DESC')->get();
         }
-        $hotels = Hotel::where('status', 1)->orderBy('updated_at', 'DESC')->get();
 
         return view('hotel.hotels', compact('hotels', 'user'));
     }
