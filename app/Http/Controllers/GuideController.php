@@ -53,6 +53,9 @@ class GuideController extends Controller
         elseif ($user->role_id == 11) {
             $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
+        elseif ($user->role_id == 20) {
+            $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+        }
         elseif(in_array($user->role_id, [25, 61, 101])){
             if($user->role_id == 25){
                 $master_dmc_id = $user->created_by;

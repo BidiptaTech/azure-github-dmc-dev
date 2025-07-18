@@ -875,7 +875,11 @@
             <!-- End Zone -->
 
             <!-- Services Management for DMC -->
-            @if(Auth::user()->role_id == 11)
+            @php
+                $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120];
+            @endphp
+
+            @if(in_array(Auth::user()->role_id, $allowedRoles))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Services Management">Services Management</span>
                 </li>
@@ -887,25 +891,39 @@
                     </a>
                     <ul class="menu-sub">
                         <!-- DMC Hotels Selection -->
-                        <li class="menu-item @if(Request::is('services/hotels')) active @endif">
-                            <a href="{{ route('services.hotels') }}" class="menu-link">
-                                <div data-i18n="Select Hotels">Select Hotels</div>
-                            </a>
-                        </li>
-                        
+                        @php
+                            $allowedRoles = [11, 35, 77, 84];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                            <li class="menu-item @if(Request::is('services/hotels')) active @endif">
+                                <a href="{{ route('services.hotels') }}" class="menu-link">
+                                    <div data-i18n="Select Hotels">Select Hotels</div>
+                                </a>
+                            </li>
+                        @endif
                         <!-- DMC Attractions Selection -->
+                        @php
+                            $allowedRoles = [11, 35,74, 93];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/attractions')) active @endif">
                             <a href="{{ route('services.attractions') }}" class="menu-link">
-                                <div data-i18n="Select Attractions">Select Attractions</div>
-                            </a>
-                        </li>
+                                    <div data-i18n="Select Attractions">Select Attractions</div>
+                                </a>
+                            </li>
+                        @endif
                         
                         <!-- DMC Restaurants Selection -->
+                        @php
+                            $allowedRoles = [11, 35, 78, 120];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
                             <a href="{{ route('services.restaurants') }}" class="menu-link">
                                 <div data-i18n="Select Restaurants">Select Restaurants</div>
                             </a>
                         </li>
+                        @endif
                     </ul>
                 </li>
             @endif
