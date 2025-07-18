@@ -685,7 +685,7 @@ class BulkUploadController extends Controller
             'Country*',
             'City*',
             'License No*',
-            'License Expiry Date*',
+            'License Expiry Date* (YYYY-MM-DD or DD-MM-YYYY)',
             'Driver Age*',
             'Profile Image*',
             'Status*'
@@ -766,7 +766,7 @@ class BulkUploadController extends Controller
             'Master Image*',
             'License Number*',
             'License Image*',
-            'License Expiry Date*',
+            'License Expiry Date* (YYYY-MM-DD or DD-MM-YYYY)',
             'City*',
             'Country*',
             'Experience Years*',
@@ -1099,11 +1099,13 @@ class BulkUploadController extends Controller
             // No existing restaurants, add sample data for Virtual DMC format
             $sampleData1 = [
                 'Sample Restaurant',
-                'Italian',
-                'United States',
-                'New York',
-                '40.7128',
-                '-74.0060',
+                'Indian',
+                'Singapore',
+                'Singapore',
+                '1.3522',
+                '103.8194',
+                '0',
+                'third_party',
                 '1',
                 '07:00',
                 '11:00',
@@ -1113,7 +1115,6 @@ class BulkUploadController extends Controller
                 '1',
                 '18:00',
                 '23:00',
-                '0',
                 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
                 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg,https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
                 'Authentic Italian restaurant with fresh ingredients',
@@ -1123,23 +1124,24 @@ class BulkUploadController extends Controller
 
             $sampleData2 = [
                 'Cafe Delight',
-                'French',
-                'France',
-                'Paris',
-                '48.8566',
-                '2.3522',
+                'South Indian',
+                'Singapore',
+                'Singapore',
+                '1.352248',
+                '2.352269',
+                '0',
+                'third_party',
                 '1',
                 '06:30',
                 '10:30',
-                '0', 
-                '',
-                '',
+                '1', 
+                '07:00',
+                '11:00',
                 '1',
                 '17:00',
                 '22:00',
-                '1',
-                'cafe_main.jpg',
-                'cafe1.jpg,cafe2.jpg,cafe3.jpg',
+                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
+                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg,https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
                 'Modern French cafe with delicious pastries',
                 'Reservation required for dinner. No cancellation within 2 hours.',
                 '1'
@@ -1914,6 +1916,50 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
+                    // Validate and convert guide license expiry date
+                    $guideParsedDate = false;
+                    $guideConvertedDate = '';
+                    
+                    // Try to parse the date in different formats
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $licenseExpiryDate)) {
+                        // Already in YYYY-MM-DD format
+                        $guideParsedDate = strtotime($licenseExpiryDate);
+                        $guideConvertedDate = $licenseExpiryDate;
+                    } elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $licenseExpiryDate)) {
+                        // DD-MM-YYYY format - convert to YYYY-MM-DD
+                        $guideParsedDate = \DateTime::createFromFormat('d-m-Y', $licenseExpiryDate);
+                        if ($guideParsedDate) {
+                            $guideConvertedDate = $guideParsedDate->format('Y-m-d');
+                            $guideParsedDate = $guideParsedDate->getTimestamp();
+                        }
+                    } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $licenseExpiryDate)) {
+                        // DD/MM/YYYY format - convert to YYYY-MM-DD
+                        $guideParsedDate = \DateTime::createFromFormat('d/m/Y', $licenseExpiryDate);
+                        if ($guideParsedDate) {
+                            $guideConvertedDate = $guideParsedDate->format('Y-m-d');
+                            $guideParsedDate = $guideParsedDate->getTimestamp();
+                        }
+                    } else {
+                        // Try generic strtotime as last resort
+                        $guideParsedDate = strtotime($licenseExpiryDate);
+                        if ($guideParsedDate) {
+                            $guideConvertedDate = date('Y-m-d', $guideParsedDate);
+                        }
+                    }
+                    
+                    if (!$guideParsedDate) {
+                        $errors[] = "Row {$rowNumber}: 📅 Invalid guide license expiry date format: '{$licenseExpiryDate}'. Please use YYYY-MM-DD, DD-MM-YYYY, or DD/MM/YYYY format (e.g., 2025-12-31, 31-12-2025, or 31/12/2025)";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Check if guide license expiry date is in the future
+                    if ($guideParsedDate <= time()) {
+                        $errors[] = "Row {$rowNumber}: ⏰ Guide license expiry date '{$licenseExpiryDate}' must be in the future. Current date: " . date('Y-m-d');
+                        $errorCount++;
+                        continue;
+                    }
+                    
                     // Create unique key for this guide
                     $guideKey = strtolower($guideName . '|' . $email . '|' . $contactNo);
                     
@@ -1970,7 +2016,7 @@ class BulkUploadController extends Controller
                     $guide->image = $masterImage;
                     $guide->government_license_no = $licenseNumber;
                     $guide->license_image = $licenseImage;
-                    $guide->license_exp_date = $licenseExpiryDate;
+                    $guide->license_exp_date = $guideConvertedDate;
                     $guide->city = $city;
                     $guide->country = $country;
                     $guide->experience_years = is_numeric($experienceYears) ? intval($experienceYears) : 0;
@@ -2764,15 +2810,45 @@ class BulkUploadController extends Controller
                     continue;
                 }
                 
-                // Validate license expiry date
-                if (!strtotime($licenseExpiryDate)) {
-                    $errors[] = "Row {$rowNumber}: 📅 Invalid license expiry date format: '{$licenseExpiryDate}'. Please use YYYY-MM-DD format (e.g., 2025-12-31)";
+                // Validate and convert license expiry date
+                $parsedDate = false;
+                $convertedDate = '';
+                
+                // Try to parse the date in different formats
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $licenseExpiryDate)) {
+                    // Already in YYYY-MM-DD format
+                    $parsedDate = strtotime($licenseExpiryDate);
+                    $convertedDate = $licenseExpiryDate;
+                } elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $licenseExpiryDate)) {
+                    // DD-MM-YYYY format - convert to YYYY-MM-DD
+                    $parsedDate = \DateTime::createFromFormat('d-m-Y', $licenseExpiryDate);
+                    if ($parsedDate) {
+                        $convertedDate = $parsedDate->format('Y-m-d');
+                        $parsedDate = $parsedDate->getTimestamp();
+                    }
+                } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $licenseExpiryDate)) {
+                    // DD/MM/YYYY format - convert to YYYY-MM-DD
+                    $parsedDate = \DateTime::createFromFormat('d/m/Y', $licenseExpiryDate);
+                    if ($parsedDate) {
+                        $convertedDate = $parsedDate->format('Y-m-d');
+                        $parsedDate = $parsedDate->getTimestamp();
+                    }
+                } else {
+                    // Try generic strtotime as last resort
+                    $parsedDate = strtotime($licenseExpiryDate);
+                    if ($parsedDate) {
+                        $convertedDate = date('Y-m-d', $parsedDate);
+                    }
+                }
+                
+                if (!$parsedDate) {
+                    $errors[] = "Row {$rowNumber}: 📅 Invalid license expiry date format: '{$licenseExpiryDate}'. Please use YYYY-MM-DD, DD-MM-YYYY, or DD/MM/YYYY format (e.g., 2025-12-31, 31-12-2025, or 31/12/2025)";
                     $errorCount++;
                     continue;
                 }
                 
                 // Check if license expiry date is in the future
-                if (strtotime($licenseExpiryDate) <= time()) {
+                if ($parsedDate <= time()) {
                     $errors[] = "Row {$rowNumber}: ⏰ License expiry date '{$licenseExpiryDate}' must be in the future. Current date: " . date('Y-m-d');
                     $errorCount++;
                     continue;
@@ -2844,7 +2920,7 @@ class BulkUploadController extends Controller
                 $driver->country = $country;
                 $driver->city = $city;
                 $driver->license_no = $licenseNo;
-                $driver->license_exp_date = $licenseExpiryDate;
+                $driver->license_exp_date = $convertedDate;
                 $driver->driver_age = intval($driverAge);
                 $driver->image = $profileImage;
                 $driver->is_active = ($status == '1') ? 1 : 0;

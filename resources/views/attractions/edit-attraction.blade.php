@@ -298,7 +298,7 @@
                                 </div>
 
                                 <!-- Check if there is data in the arrays, else show one default row -->
-                                @if(count($openTimes) > 0)
+                                @if(is_array($openTimes) && count($openTimes) > 0)
                                     <!-- Loop through open and close times to create the input fields -->
                                     @foreach($openTimes as $index => $openTime)
                                     <div class="row time-row">
@@ -346,7 +346,7 @@
                                 @endphp
                             
                                 <!-- First row with time inputs -->
-                                @if(count($openTimes) > 0)
+                                @if(is_array($openTimes) && count($openTimes) > 0)
                                     @foreach($openTimes as $index => $openTime)
                                     <div class="row time-row">
                                         @if($index === 0)
