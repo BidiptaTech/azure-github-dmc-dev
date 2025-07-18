@@ -44,14 +44,14 @@ class RestaurantControllerssssss extends Controller
         } elseif (in_array($user->role_id, [1, 2, 23])) {
             $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->whereIn('status', [1, 3])->get();
         }
-        elseif($user->role_id == 10){
+        elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
             $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
                 $selectedDmcIds = $restaurant->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
         }
-        elseif ($user->role_id == 11) {
+        elseif ($user->role_id == 11 || $user->role_id == 20) {
             $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
                 return $restaurant->hasSelectedByDmc($user->userId);
             });
@@ -78,7 +78,7 @@ class RestaurantControllerssssss extends Controller
             });
         }
        
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
                 return $restaurant->hasSelectedByDmc($user->created_by);
             });
@@ -302,9 +302,9 @@ class RestaurantControllerssssss extends Controller
 
         $authuser = auth()->user();
         if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }
         elseif(in_array($authuser->role_id, [10,25, 63, 119])){
             if($authuser->role_id == 10){
@@ -330,7 +330,7 @@ class RestaurantControllerssssss extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if(in_array($authuser->role_id, [11, 35, 78, 120])){
+        if(in_array($authuser->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -538,9 +538,9 @@ class RestaurantControllerssssss extends Controller
 
         $authuser = auth()->user();
         if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }

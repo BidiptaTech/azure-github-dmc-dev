@@ -30,7 +30,7 @@ class JobSheetController extends Controller
         $user = auth()->user();
         $dmcs = [];
 
-        if ($user->role_id == 10) {
+        if ($user->role_id == 10 || $user->role_id == 19) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)->where('role_id', 11)->get()->pluck('userId')->toArray();
             $dmcs = User::wherein('userId', $dmc_ids)->get();
         }
@@ -55,12 +55,12 @@ class JobSheetController extends Controller
 
 
         $dmcDrivers = [];
-        if(in_array($user->role_id, [11, 34, 66, 108])){
-            if($user->role_id == 11){
+        if(in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138 ])){
+            if($user->role_id == 11 || $user->role_id == 20){
                 $resolvedDmcId = $user->userId;
                 $dmcDrivers = Driver::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
             }
-            elseif($user->role_id == 34){
+            elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                 $resolvedDmcId = $user->created_by;
                 $dmcDrivers = Driver::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
             }
@@ -97,12 +97,12 @@ class JobSheetController extends Controller
             $drivers = [];
             $vehicles = [];
             $tomorrow = Carbon::tomorrow()->toDateString(); // e.g., '2025-06-12'
-            if (in_array($user->role_id, [11, 34, 66, 108])) {
+            if (in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138])) {
                 
-                if($user->role_id == 11){
+                if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 34){
+                elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
                 elseif($user->role_id == 66){
@@ -337,12 +337,12 @@ class JobSheetController extends Controller
 
 
         $dmcGuides = [];
-        if(in_array($user->role_id, [11, 34, 66, 108])){
-            if($user->role_id == 11){
+        if(in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138])){
+            if($user->role_id == 11 || $user->role_id == 20){
                 $resolvedDmcId = $user->userId;
                 $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
             }
-            elseif($user->role_id == 34){
+            elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                 $resolvedDmcId = $user->created_by;
                 $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
             }
@@ -726,11 +726,11 @@ class JobSheetController extends Controller
             
             // Get user's dmcId based on role
             $dmcId = null;
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
-                if($user->role_id == 11){
+            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+                if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
                 elseif($user->role_id == 78){
@@ -1176,11 +1176,11 @@ class JobSheetController extends Controller
             $dmcId = null;
             
             // Determine DMC ID based on user role
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
-                if($user->role_id == 11){
+            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+                if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
                 elseif($user->role_id == 78){
@@ -1215,11 +1215,11 @@ class JobSheetController extends Controller
             $dmcId = null;
             
             // Determine DMC ID based on user role
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
-                if($user->role_id == 11){
+            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+                if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
                 elseif($user->role_id == 78){
@@ -1271,7 +1271,7 @@ class JobSheetController extends Controller
                     $product_head = User::where('userId', $user->created_by)->first();
                     $master_dmc_id = $product_head ? $product_head->created_by : null;
                     $dmc_ids = User::where('master_dmc_id', $master_dmc_id)
-                        ->where('role_id', 11)
+                        ->whereIn('role_id', [11,20])
                         ->pluck('userId')
                         ->toArray();
                 } else if ($user->role_id == 110) {
@@ -1393,11 +1393,11 @@ class JobSheetController extends Controller
             $dmcId = null;
             
             // Determine DMC ID based on user role
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
-                if($user->role_id == 11){
+            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+                if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
                 elseif($user->role_id == 78){
@@ -1522,11 +1522,11 @@ class JobSheetController extends Controller
             $dmcId = null;
             
             // Determine DMC ID based on user role
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
-                if ($user->role_id == 11) {
+            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+                if ($user->role_id == 11 || $user->role_id == 20) {
                     $dmcId = $user->userId;
                 }
-                elseif ($user->role_id == 35) {
+                elseif ($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138) {
                     $dmcId = $user->created_by;
                 }
                 elseif ($user->role_id == 78) {
@@ -1614,11 +1614,11 @@ class JobSheetController extends Controller
             $dmcId = null;
             $type = $request->query('type', 'driver'); // Default to driver orders, can be 'guide'
             // Determine the DMC ID based on user role
-            if (in_array($user->role_id, [11, 35, 78, 120])) {
-                if($user->role_id == 11){
+            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+                if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35){
+                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
                 elseif($user->role_id == 78){

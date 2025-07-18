@@ -26,7 +26,7 @@ class BookingListController extends Controller
                             ->pluck('userId');
     
             $sales_heads = User::whereIn('created_by', $dmc_ids)
-                                ->where('role_id', 33)
+                                ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                                 ->pluck('userId');
     
             $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -50,7 +50,7 @@ class BookingListController extends Controller
                 $dmc_id = $user->userId;
 
                 $sales_heads = User::where('created_by', $dmc_id)
-                    ->where('role_id', 33)
+                    ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                     ->pluck('userId');
 
                 $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -336,7 +336,7 @@ class BookingListController extends Controller
                             ->pluck('userId');
     
             $sales_heads = User::whereIn('created_by', $dmc_ids)
-                                ->where('role_id', 33)
+                                ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                                 ->pluck('userId');
     
             $sales_managers = User::whereIn('created_by', $sales_heads)

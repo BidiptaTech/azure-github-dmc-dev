@@ -33,7 +33,7 @@ class ZoneController extends Controller
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
             $zones = Zone::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
-         elseif ($user->role_id == 11) {
+         elseif ($user->role_id == 11 || $user->role_id == 20) {
             $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif(in_array($user->role_id, [25, 62, 110])){
@@ -53,7 +53,7 @@ class ZoneController extends Controller
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
             $zones = Zone::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 76){

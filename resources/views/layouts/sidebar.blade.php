@@ -528,7 +528,7 @@
             @endif
 
             <!-- Enquiry -->
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,5,6,7,8,9,10,11,12,13, 14, 15, 16, 17,20,21,22,37, 49, 50, 51, 52, 53, 64, 65, 66, 67, 68, 90, 124, 125, 33, 37]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,5,6,7,8,9,10,11,12,13, 14, 15, 16, 17,20,21,22,37, 49, 50, 51, 52, 53, 64, 65, 66, 67, 68, 90, 124, 125, 33, 37, 128, 129, 130, 134, 135, 136, 138]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Negotiation">Negotiation</span>
                 </li>
@@ -746,7 +746,7 @@
             <!-- End Bulk Upload -->
 
                 <!-- Jobsheets -->
-                @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,34, 66, 108]))
+                @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
                     <li class="menu-header small text-uppercase">
                         <span class="menu-header-text">View Jobsheets</span>
                     </li>
@@ -779,7 +779,7 @@
                 <!-- End Jobsheets -->
 
                 <!-- JobSheet -->
-                @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108]))
+                @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
                     <li class="menu-header mt-5">
                         <span class="menu-header-text" data-i18n="Assigned Job">Assigned Job</span>
                     </li>
@@ -790,7 +790,7 @@
                             <div data-i18n="Assigned Job">Assigned Job</div>
                         </a>
                         <ul class="menu-sub">
-                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108]))
+                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
                             <!-- Driver Jobs -->
                             <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
                                 <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
@@ -799,7 +799,7 @@
                             </li>
                             @endif
 
-                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99]))
+                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
                             <!-- Guide Jobs -->
                             <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
                                 <a href="{{ route('jobsheet.guides') }}" class="menu-link">
@@ -872,7 +872,7 @@
 
             <!-- Services Management for DMC -->
             @php
-                $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120];
+                $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138];
             @endphp
 
             @if(in_array(Auth::user()->role_id, $allowedRoles))
@@ -888,7 +888,7 @@
                     <ul class="menu-sub">
                         <!-- DMC Hotels Selection -->
                         @php
-                            $allowedRoles = [11, 35, 77, 84];
+                            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                             <li class="menu-item @if(Request::is('services/hotels')) active @endif">
@@ -899,7 +899,7 @@
                         @endif
                         <!-- DMC Attractions Selection -->
                         @php
-                            $allowedRoles = [11, 35,74, 93];
+                            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/attractions')) active @endif">
@@ -911,7 +911,7 @@
                         
                         <!-- DMC Restaurants Selection -->
                         @php
-                            $allowedRoles = [11, 35, 78, 120];
+                            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/restaurants')) active @endif">

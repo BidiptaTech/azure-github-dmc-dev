@@ -615,20 +615,20 @@
                         <div class="date-label">
                             <i class="fas fa-sign-in-alt"></i> Check-in
                         </div>
-                        <div class="date-day">{{ \Carbon\Carbon::parse($check_in_date)->format('l') }}</div>
-                        <div class="date-full">{{ \Carbon\Carbon::parse($check_in_date)->format('jS F Y') }}</div>
+                        <div class="date-day">{{ isset($check_in_date) ? \Carbon\Carbon::parse($check_in_date)->format('l') : 'Monday' }}</div>
+                        <div class="date-full">{{ isset($check_in_date) ? \Carbon\Carbon::parse($check_in_date)->format('jS F Y') : date('jS F Y', strtotime('+7 days')) }}</div>
                         <div class="date-time">
-                            <i class="fas fa-clock"></i> {{ \Carbon\Carbon::parse($check_in_time)->format('g:i A') ?? '3:00 PM' }}
+                            <i class="fas fa-clock"></i> {{ isset($check_in_time) ? \Carbon\Carbon::parse($check_in_time)->format('g:i A') : '3:00 PM' }}
                         </div>
                     </div>
                     <div class="date-card">
                         <div class="date-label">
                             <i class="fas fa-sign-out-alt"></i> Check-out
                         </div>
-                        <div class="date-day">{{ \Carbon\Carbon::parse($check_out_date)->format('l') }}</div>
-                        <div class="date-full">{{ \Carbon\Carbon::parse($check_out_date)->format('jS F Y') }}</div>
+                        <div class="date-day">{{ isset($check_out_date) ? \Carbon\Carbon::parse($check_out_date)->format('l') : 'Thursday' }}</div>
+                        <div class="date-full">{{ isset($check_out_date) ? \Carbon\Carbon::parse($check_out_date)->format('jS F Y') : date('jS F Y', strtotime('+10 days')) }}</div>
                         <div class="date-time">
-                            <i class="fas fa-clock"></i> {{ \Carbon\Carbon::parse($check_out_time)->format('g:i A') ?? '11:00 AM' }}
+                            <i class="fas fa-clock"></i> {{ isset($check_out_time) ? \Carbon\Carbon::parse($check_out_time)->format('g:i A') : '11:00 AM' }}
                         </div>
                     </div>
                 </div>

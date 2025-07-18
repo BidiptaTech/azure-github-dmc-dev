@@ -115,7 +115,6 @@ class MailController extends Controller
                 return  $e;
             }
             
-            return "Email sent successfully! Check your inbox or spam folder.";
         } catch (\Exception $e) {
             Log::error('Email sending failed: ' . $e->getMessage());
             return  $e;
