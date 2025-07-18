@@ -248,14 +248,10 @@
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-    // Auto-capture and store the voucher image when page loads
-    window.addEventListener('load', function() {
-        setTimeout(function() {
-            captureAndStoreVoucher();
-        }, 1500); // Wait for fonts and styling to load
-    });
-
-    // Function to capture voucher and store in database
+    // Auto-capture disabled - now handled by iframe capture in booking list
+    // This prevents duplicate requests when the voucher is rendered in iframe
+    
+    // Function to capture voucher and store in database (kept for manual use if needed)
     function captureAndStoreVoucher() {
         const voucherElement = document.querySelector('.voucher');
         
@@ -280,7 +276,7 @@
                     const base64data = reader.result;
                     
                     // Store in database via AJAX
-                    fetch('/generate-restaurant-coupon', {
+                    fetch("{{ route('generate.restaurant.coupon') }}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

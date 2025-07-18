@@ -11,6 +11,7 @@ use App\Helpers\CommonHelper;
 use App\Models\User;
 use App\Models\Hotel;
 use App\Models\Attraction;
+use App\Models\PackagedAttraction;
 use App\Models\Restaurant;
 use App\Models\Port;
 use App\Models\Vehicle;
@@ -163,6 +164,25 @@ class EnquiryController extends Controller
         $attractions = Attraction::whereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id])
         ->where('location', $city)->where('country', $country)->get();
         
+        // Fetch packaged attractions for the DMC
+        $packagedAttractions = PackagedAttraction::where('dmc_id', $dmc_id)
+            ->where('status', 1)
+            ->get()
+            ->filter(function($package) use ($city, $country) {
+                // Check if any attraction in the package matches the city and country
+                $attractionIds = json_decode($package->attractions, true) ?? [];
+                if (empty($attractionIds)) {
+                    return false;
+                }
+                
+                $matchingAttractions = Attraction::whereIn('attraction_id', $attractionIds)
+                    ->where('location', $city)
+                    ->where('country', $country)
+                    ->count();
+                
+                return $matchingAttractions > 0;
+            });
+        
         $restaurants = Restaurant::whereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id])
         ->where('city', $city)->where('country', $country)->get();
         
@@ -191,6 +211,7 @@ class EnquiryController extends Controller
             ];
         });
         
+        // Create list for regular attractions
         $attraction_list = $attractions->map(function($attraction) {
             return [
                 'id' => $attraction->id,
@@ -200,6 +221,43 @@ class EnquiryController extends Controller
                 'country' => $attraction->country,
                 'master_image' => $attraction->master_image,
                 'base_price' => $attraction->adult_price,
+                'type' => 'attraction',
+                'child_price' => $attraction->child_price,
+                'description' => $attraction->description,
+            ];
+        });
+        
+        // Create list for packaged attractions
+        $packaged_attractions = $packagedAttractions->map(function($package) {
+            $attractionIds = json_decode($package->attractions, true) ?? [];
+            $attractionDetails = [];
+            
+            if (!empty($attractionIds)) {
+                $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
+                    ->select('attraction_id', 'name', 'location', 'country', 'master_image')
+                    ->get()
+                    ->map(function($attraction) {
+                        return [
+                            'attraction_id' => $attraction->attraction_id,
+                            'name' => $attraction->name,
+                            'location' => $attraction->location,
+                            'country' => $attraction->country,
+                            'master_image' => $attraction->master_image,
+                        ];
+                    });
+            }
+            
+            return [
+                'id' => $package->id,
+                'attraction_id' => $package->package_attraction_id,
+                'name' => $package->name . ' (Package)',
+                'master_image' => $package->image ? json_decode($package->image, true)[0] ?? null : null,
+                'base_price' => $package->adult_price,
+                'type' => 'package',
+                'child_price' => $package->child_price,
+                'senior_citizen_price' => $package->senior_citizen_price,
+                'description' => $package->description,
+                'attractions' => $attractionDetails,
             ];
         });
         
@@ -259,6 +317,7 @@ class EnquiryController extends Controller
             'guides' => $guide_list,
             'vehicles' => $vehicle_list,
             'ports' => $port_list,
+            'packaged_attractions' => $packaged_attractions,
         ];
 
         return response()->json([
@@ -375,6 +434,8 @@ class EnquiryController extends Controller
         $enquiry->exit_pickup_type = $validated['exit_pickup_type'] ?? null;
         $enquiry->exit_pickup_location_id = $validated['exit_pickup_location_id'] ?? null;
         $enquiry->approx_price = $request->approx_price ?? null;
+        $enquiry->packaged_attractions = $request->packaged_attractions ?? null;
+        $enquiry->packaged_attraction_ids = json_encode($request->packaged_attraction_ids ?? []);
 
         // Save the updated enquiry
         $enquiry->save();
@@ -505,6 +566,9 @@ class EnquiryController extends Controller
             $localTransportVehicleIds = is_array($decoded = json_decode($enquiry->local_transport_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
             $portVehicleIds = is_array($decoded = json_decode($enquiry->port_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
 
+            // Decode packaged attraction IDs
+            $packagedAttractionIds = is_array($decoded = json_decode($enquiry->packaged_attraction_ids, true)) ? array_map('intval', $decoded) : [];
+
             // Fetch related models
             $restaurants = Restaurant::whereIn('restaurant_id', $restaurantIds)->get(); 
             $attractions = Attraction::whereIn('attraction_id', $attractionIds)->get();
@@ -513,6 +577,25 @@ class EnquiryController extends Controller
 
             $localTransports = Vehicle::whereIn('vehicle_id', $localTransportVehicleIds)->get();
             $portVehicles = Vehicle::whereIn('vehicle_id', $portVehicleIds)->get();
+
+            // Fetch packaged attractions
+            $packagedAttractions = PackagedAttraction::whereIn('package_attraction_id', $packagedAttractionIds)
+                ->get()
+                ->each(function($package) {
+                    // Decode the attractions JSON array
+                    $attractionIds = json_decode($package->attractions, true) ?? [];
+                    
+                    // Fetch the actual attraction details
+                    $attractionDetails = [];
+                    if (!empty($attractionIds)) {
+                        $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
+                            ->select('attraction_id', 'name', 'master_image', 'location', 'country','open_time','close_time')
+                            ->get();
+                    }
+
+                    // Add attraction details to the package model
+                    $package->attraction_details = $attractionDetails;
+                });
 
             $entry_dropoff_location = null;
             if($enquiry->entry_dropoff_type == 'hotel'){
@@ -572,13 +655,16 @@ class EnquiryController extends Controller
                 'guide_remarks' => $enquiry->guide_remarks,
                 'guide_details' => $guides,
 
+                'packaged_attractions' => $enquiry->packaged_attractions,
+                'packaged_attraction_details' => $packagedAttractions,
+
                 'entry_port' => $enquiry->entry_port,
                 'entry_port_address' => $enquiry->entry_port_address,
                 'entry_dropoff_type' => $enquiry->entry_dropoff_type,
                 'entry_dropoff_location' => $entry_dropoff_location,
 
                 'exit_port' => $enquiry->exit_port,
-                'created_at' => $enquiry->created_at,
+                'created_at' => $enquiry->created_at->format('Y-m-d H:i:s'),
                 'approx_price' => $enquiry->approx_price,
                 'exit_port_address' => $enquiry->exit_port_address,
                 'exit_pickup_type' => $enquiry->exit_pickup_type,
@@ -619,39 +705,53 @@ class EnquiryController extends Controller
             }
 
             // Generate tour ID and save the tour
-            $max_tour_id = Tour::max('tour_id') ?? 0;
-            $tourId = CommonHelper::createId($max_tour_id);
+            // $max_tour_id = Tour::max('tour_id') ?? 0;
+            // $tourId = CommonHelper::createId($max_tour_id);
 
-            $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
-            $display_id = 'DMC-ORD'. $tourId;
+            // $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
+            // $display_id = 'DMC-ORD'. $tourId;
 
-            $tour = new Tour();
-            // Map all common fields between inquiry_form and tours tables
-            $tour->destination = $formEnquiry->country;
-            $tour->adult = $formEnquiry->adult;
-            $tour->child = $formEnquiry->child;
-            $tour->infant = $formEnquiry->infant;
-            $tour->agent_id = $agentId;
-            $tour->tour_id = $tourId;
-            $tour->male_count = $formEnquiry->male_count;
-            $tour->female_count = $formEnquiry->female_count;
-            $tour->check_in_time = $formEnquiry->check_in_time;
-            $tour->check_out_time = $formEnquiry->check_out_time;
-            $tour->display_id = $display_id;
-            $tour->child_ages = $formEnquiry->child_ages;
+            // $tour = new Tour();
+            // // Map all common fields between inquiry_form and tours tables
+            // $tour->destination = $formEnquiry->country;
+            // $tour->adult = $formEnquiry->adult;
+            // $tour->child = $formEnquiry->child;
+            // $tour->infant = $formEnquiry->infant;
+            // $tour->agent_id = $agentId;
+            // $tour->tour_id = $tourId;
+            // $tour->male_count = $formEnquiry->male_count;
+            // $tour->female_count = $formEnquiry->female_count;
+            // $tour->check_in_time = $formEnquiry->check_in_time;
+            // $tour->check_out_time = $formEnquiry->check_out_time;
+            // $tour->display_id = $display_id;
+            // $tour->child_ages = $formEnquiry->child_ages;
 
-            // Map service-related fields if they exist in both tables
-            // Set default status (2 = pending)
-            $tour->tour_status = "Pending";
-            $tour->save();
-            $tour->refresh();
-            $formEnquiry->unique_tour_id = $tour->unique_tour_id;
-            $formEnquiry->save();
+            // // Map service-related fields if they exist in both tables
+            // // Set default status (2 = pending)
+            // $tour->tour_status = "Pending";
+            // $tour->save();
+            // $tour->refresh();
+            // $formEnquiry->unique_tour_id = $tour->unique_tour_id;
+            // $formEnquiry->save();
+            $agent = Agent::where('agent_id', $formEnquiry->agent_id)->first();
 
             return response()->json([
+                'data' => [
+                    'country' => $formEnquiry->country,
+                    'city' => $formEnquiry->city,
+                    'enquiry_id' => $formEnquiry->enquiry_id,
+                    'agent_id' => $formEnquiry->agent_id,
+                    'agent_name' => $agent ? $agent->name : null,
+                    'check_in_time' => $formEnquiry->check_in_time,
+                    'check_out_time' => $formEnquiry->check_out_time,
+                    'adult' => $formEnquiry->adult,
+                    'child' => $formEnquiry->child,
+                    'infant' => $formEnquiry->infant,
+                    'male_count' => $formEnquiry->male_count,
+                    'female_count' => $formEnquiry->female_count,
+                ],
                 'success' => true,
-                'message' => 'Enquiry successfully converted to tour',
-            ], 201);
+            ], 200);
 
         } catch (ValidationException $e) {
             return response()->json([
