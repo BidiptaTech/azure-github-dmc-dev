@@ -31,7 +31,7 @@ class AttractionController extends Controller
         $user = auth()->user();
         $attractions = [];
         if ($user->role_id == 4) {
-            $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
+            $dmc_ids = User::where('role_id', 11)->pluck('userId')->toArray();
             $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
                 ->orderBy('id', 'DESC')
