@@ -550,7 +550,7 @@ export default function Itinerary({ onBookingSuccess }) {
     <Box>
       <Grid container spacing={3}>
         {/* Main content area - Grid 7 */}
-        <Grid item xs={12} md={enquiryDetail ? 8 : 12}>
+        <Grid item xs={12} md={enquiryDetail?.hotel_on=== true && enquiryDetail?.attraction_on=== true && enquiryDetail?.restaurant_on=== true && enquiryDetail?.guide_on=== true && enquiryDetail?.localtransfer_on=== true && enquiryDetail?.ports_on=== true || enquiryDetail?.pickup_on=== true || enquiryDetail?.entry_port_on=== true || enquiryDetail?.exit_port_on=== true || enquiryDetail?.packaged_attraction_on=== true ? 8 : 12}>
           {/* Top Level Hotel Section */}
           <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -851,7 +851,7 @@ export default function Itinerary({ onBookingSuccess }) {
               size="large" 
               disabled={isButtonDisabled}
               startIcon={loading ? null : <ShoppingCartIcon />}
-              onClick={packageData?.tour?.booking?.length > 0 ? handleUpdatePackage : handleBookPackage}
+              onClick={packageData?.tour?.tour_id > 0 ? handleUpdatePackage : handleBookPackage}
               sx={{
                 py: 1.5,
                 px: 4,
@@ -940,7 +940,7 @@ export default function Itinerary({ onBookingSuccess }) {
         </Grid>
         
         {/* Enquiry Details Sidebar - Grid 4 (only shown when enquiryDetail exists) */}
-        {enquiryDetail && (
+        {enquiryDetail?.hotel_on=== true && enquiryDetail?.attraction_on=== true && enquiryDetail?.restaurant_on=== true && enquiryDetail?.guide_on=== true && enquiryDetail?.localtransfer_on=== true && enquiryDetail?.ports_on=== true || enquiryDetail?.pickup_on=== true || enquiryDetail?.entry_port_on=== true || enquiryDetail?.exit_port_on=== true || enquiryDetail?.packaged_attraction_on=== true && (
           <Grid item xs={12} md={5} lg={4}>
             <Paper 
               elevation={3} 
