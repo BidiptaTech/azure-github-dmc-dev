@@ -40,7 +40,7 @@ class TourController extends Controller
                                    ->pluck('userId');
             
                     $sales_heads = User::whereIn('created_by', $dmc_ids)
-                                       ->where('role_id', 33)
+                                       ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                                        ->pluck('userId');
             
                     $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -64,7 +64,7 @@ class TourController extends Controller
                 case 11: // DMC
                     $dmc_id = $user->userId;
                     $sales_heads = User::where('created_by', $dmc_id)
-                        ->where('role_id', 33)
+                        ->whereIn('role_id', [33, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])
                         ->pluck('userId');
 
                     $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -86,6 +86,13 @@ class TourController extends Controller
                     break;
 
                 case 33: // Sales Head
+                case 128:
+                case 129:
+                case 130:
+                case 134:
+                case 135:
+                case 136:
+                case 138:
                     $sh_id = $user->userId;
 
                     $sales_managers = User::where('created_by', $sh_id)
@@ -142,7 +149,7 @@ class TourController extends Controller
         }
         
         // Apply additional role-specific filtering
-        if (in_array($role_id, [36, 126, 127])) {
+        if (in_array($role_id, [36, 126, 127, 129, 131, 133, 134, 136, 137, 138])) {
             // Finance roles - only see tours with payment details
             $query->whereNotNull('payment_details');
         } elseif (in_array($role_id, [124, 125])) {
@@ -175,11 +182,18 @@ class TourController extends Controller
                             break;
                             
                         case 33: // Sales Head
+                        case 128:
+                        case 129:
+                        case 130:
+                        case 134:
+                        case 135:
+                        case 136:
+                        case 138:
                             $salesManagerId = $agent->sales_manager_dmc;
                             $saleshead_dmc = User::where('userId', $salesManagerId)->first();
                             if ($saleshead_dmc) {
                                 $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
-                                if ($dmc_users && $dmc_users->role_id == 11) {
+                                if ($dmc_users && $dmc_users->role_id == 11 || $dmc_users->role_id == 20) {
                                     $dmc_id = $dmc_users->userId;
                                 }
                             }
@@ -194,7 +208,7 @@ class TourController extends Controller
                                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first();
                                 if ($saleshead_dmc) {
                                     $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
-                                    if ($dmc_users && $dmc_users->role_id == 11) {
+                                    if ($dmc_users && $dmc_users->role_id == 11 || $dmc_users->role_id == 20) {
                                         $dmc_id = $dmc_users->userId;
                                     }
                                 }

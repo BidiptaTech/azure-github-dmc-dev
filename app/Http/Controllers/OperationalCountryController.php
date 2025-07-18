@@ -47,13 +47,12 @@ class OperationalCountryController extends Controller
         $countries = Country::where('is_active', 1)->get();
         $authuser = auth()->user();
         if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }
-        
         return view('operational_countries.add-country', compact('countries', 'dmcs'));
     }
 
@@ -102,7 +101,7 @@ public function getExistingCities(Request $request)
             $countryId = CommonHelper::createId($countryId);
         }
         $auth_user = Auth::user();
-            if ($auth_user->role_id == 11) {
+            if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
                 $dmc_id = $auth_user->userId;
                 $status = 2;
             }elseif($auth_user->role_id == 4){

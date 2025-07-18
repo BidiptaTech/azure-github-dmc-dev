@@ -41,11 +41,11 @@ class HotelRestaurantController extends Controller
         } elseif (in_array($user->role_id, [1, 2, 23])) {
             $restaurants = Restaurant::with('hotel')->orderBy('updated_at', 'desc')->whereIn('status', [1, 3])->get();
         }
-        elseif($user->role_id == 10){
+        elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
             $restaurants = Restaurant::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
-        elseif ($user->role_id == 11) {
+        elseif ($user->role_id == 11 || $user->role_id == 20) {
             $restaurants = Restaurant::with('hotel')->orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
 
@@ -67,7 +67,7 @@ class HotelRestaurantController extends Controller
             $restaurants = Restaurant::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
         
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $restaurants = Restaurant::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 78){
@@ -273,7 +273,7 @@ class HotelRestaurantController extends Controller
         $currentUserDmcId = null;
         
         // For DMC users, get their own DMC ID
-        if ($auth_user->role_id == 11) {
+        if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $currentUserDmcId = $auth_user->userId;
         } else {
             // For admin users, use the first available DMC ID or find appropriate one
@@ -491,9 +491,9 @@ class HotelRestaurantController extends Controller
 
         $authuser = auth()->user();
         if($authuser->role_id == 4){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }elseif($authuser->role_id == 3){
-            $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->where('country', $authuser->country)->get();
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }
@@ -657,7 +657,7 @@ class HotelRestaurantController extends Controller
         // Handle different user roles
         if($auth_user->role_id == 1 || $auth_user->role_id == 20) {
             // Admin users - get all DMCs and selected DMC data
-            $dmcs = User::where('role_id', 11)->get();
+            $dmcs = User::whereIn('role_id', [11,20])->get();
             
             // Handle case when no DMC is selected (dmc_id = 0 or invalid)
             if($dmc_id == '0' || !$dmc_id) {

@@ -34,7 +34,7 @@ class PackageController extends Controller
         elseif($user->role_id == 11){
             $dmc_id = $user->userId;
         }
-        elseif($user->role_id == 33 || $user->role_id == 34|| $user->role_id == 35 || $user->role_id == 36 ){
+        elseif($user->role_id == 33 || $user->role_id == 34|| $user->role_id == 35 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $userdmc = User::where('userId', $user->created_by)->first();
             $dmc_id = $userdmc->userId;
         }
@@ -303,9 +303,9 @@ class PackageController extends Controller
             $user = auth()->user();
             if ($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23) {
                 $dmc_id = $request->dmc ?? null;
-            } elseif ($user->role_id == 11) {
+            } elseif ($user->role_id == 11 || $user->role_id == 20) {
                 $dmc_id = $user->userId;
-            } elseif($user->role_id == 35){
+            } elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                 $userdmc = User::where('userId', $user->created_by)->first();
                 $dmc_id = $userdmc->userId;
             }
@@ -639,20 +639,21 @@ class PackageController extends Controller
     {
         $user = auth()->user();
 
-        if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 37 || $user->role_id == 38){
-            if($user->role_id == 11){
+        if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
+            if($user->role_id == 11 || $user->role_id == 20){
                 $dmc_id = $user->userId;
             }
             //sales head
-            elseif($user->role_id == 33){
+            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138
+            ){
                 $dmc_id = $user->created_by;
             }
             //operational head
-            elseif($user->role_id == 34){
+            elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                 $dmc_id = $user->created_by;
             }
             //finance head
-            elseif($user->role_id == 36){
+            elseif($user->role_id == 36 || $user->role_id == 129 || $user->role_id == 131 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                 $dmc_id = $user->created_by;
             }
             //sales manager
@@ -706,7 +707,7 @@ class PackageController extends Controller
             ]);
             
             // Find the booking by ID
-            $booking = PackageBooking::findOrFail($booking_id);
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
             
             // Update booking with payment details
             $booking->status = '3'; // Mark as paid

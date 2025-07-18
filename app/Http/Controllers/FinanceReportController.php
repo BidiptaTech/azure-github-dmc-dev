@@ -65,7 +65,7 @@ class FinanceReportController extends Controller
         return view('reports.sales-revenue', compact('groupedResults', 'startDate', 'endDate', 'groupBy'));
     }
 
-        public function ledger(Request $request)
+    public function ledger(Request $request)
     {
         $user = auth()->user();
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -156,7 +156,7 @@ class FinanceReportController extends Controller
                             
                 // Get all sales heads under these DMCs
                 $salesHeads = User::whereIn('created_by', $dmcs)
-                                 ->where('role_id', 33)
+                                 ->whereIn('role_id', [33, 128, 129, 130, 131, 132, 133, 134, 135, 136, 138])
                                  ->pluck('userId');
                                 
                 // Get all sales managers under these sales heads
@@ -183,7 +183,7 @@ class FinanceReportController extends Controller
                 $dmc_id = $user->userId;
 
                 $sales_heads = User::where('created_by', $dmc_id)
-                    ->where('role_id', 33)
+                    ->whereIn('role_id', [33, 128, 129, 130, 131, 132, 133, 134, 135, 136, 138])
                     ->pluck('userId');
 
                 $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -204,6 +204,14 @@ class FinanceReportController extends Controller
                 return Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id')->toArray();
 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+
+            case 138: // Sales Head
                 $sh_id = $user->userId;
 
                 $sales_managers = User::where('created_by', $sh_id)
@@ -264,7 +272,7 @@ class FinanceReportController extends Controller
                             
                 // Get all sales heads under these DMCs
                 $salesHeads = User::whereIn('created_by', $dmcs)
-                                 ->where('role_id', 33)
+                                 ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                                  ->pluck('userId');
                                 
                 // Get all sales managers under these sales heads
@@ -293,7 +301,7 @@ class FinanceReportController extends Controller
                 $dmc_id = $user->userId;
 
                 $sales_heads = User::where('created_by', $dmc_id)
-                    ->where('role_id', 33)
+                    ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
                     ->pluck('userId');
 
                 $sales_managers = User::whereIn('created_by', $sales_heads)
@@ -316,6 +324,13 @@ class FinanceReportController extends Controller
                     ->get();
 
             case 33: // Sales Head
+            case 128: // Sales Head
+            case 129: // Sales Head
+            case 130: // Sales Head
+            case 134: // Sales Head
+            case 135: // Sales Head
+            case 136: // Sales Head
+            case 138: // Sales Head
                 $sh_id = $user->userId;
 
                 $sales_managers = User::where('created_by', $sh_id)

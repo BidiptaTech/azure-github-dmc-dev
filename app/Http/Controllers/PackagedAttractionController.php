@@ -26,7 +26,7 @@ class PackagedAttractionController extends Controller
         $packagedAttractions = [];
         
         if ($user->role_id == 4) {
-            $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
+            $dmc_ids = User::where('role_id', 11)->pluck('userId')->toArray();
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('status', 1)
                 ->orderBy('id', 'DESC')
                 ->get();
@@ -35,14 +35,11 @@ class PackagedAttractionController extends Controller
         } elseif (in_array($user->role_id, [1, 2, 23])) {
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('status', 1)->get();
         }
-        elseif($user->role_id == 10){
+        elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
-        elseif ($user->role_id == 11) {
-            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
-        }
-        elseif ($user->role_id == 20) {
+        elseif ($user->role_id == 11 || $user->role_id == 20) {
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif(in_array($user->role_id, [25,26, 60,49, 92,89])){
@@ -61,7 +58,7 @@ class PackagedAttractionController extends Controller
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $userdmc = User::where('userId', $user->created_by)->first();
             $dmc_id = $userdmc->userId;
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $dmc_id)->get();
@@ -94,10 +91,11 @@ class PackagedAttractionController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
         $user = auth()->user();
-        if($user->role_id == 11){
+        $dmc_id = null;
+        if($user->role_id == 11 || $user->role_id == 20){
             $dmc_id = $user->userId;
         }
-        elseif($user->role_id == 35){
+        elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $userdmc = User::where('userId', $user->created_by)->first();
             $dmc_id = $userdmc->userId;
         }
@@ -116,7 +114,7 @@ class PackagedAttractionController extends Controller
             $attractions = Attraction::where('is_active', 1)
             ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
             ->get();
-                }
+        }
         else{
             $attractions = Attraction::where('is_active', 1)->get();
         }
@@ -155,9 +153,9 @@ class PackagedAttractionController extends Controller
             
             if ($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23) {
                 $dmc_id = $request->dmc ?? null;
-            } elseif ($user->role_id == 11) {
+            } elseif ($user->role_id == 11 || $user->role_id == 20) {
                 $dmc_id = $user->userId;
-            } elseif($user->role_id == 35){
+            } elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
                 $userdmc = User::where('userId', $user->created_by)->first();
                 $dmc_id = $userdmc->userId;
             }
@@ -333,7 +331,7 @@ class PackagedAttractionController extends Controller
             abort(403, 'You do not have permission to perform this action.');
         }
         try {
-            $packagedAttraction = PackagedAttraction::findOrFail($id);
+            $packagedAttraction = PackagedAttraction::where('package_attraction_id', $id)->first();
             
             // We don't need to manually delete files when using CommonHelper
             // as it handles storage in a centralized way
