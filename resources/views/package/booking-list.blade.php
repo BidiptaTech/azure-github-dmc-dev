@@ -141,9 +141,9 @@
                             <th>Total Price</th>
                             <th>Status</th>
                             <th>Action</th>
-                            @if(in_array(auth()->user()->role_id, [11, 33]))
+                            @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
                                 <th>Add Payment</th>
-                            @elseif(auth()->user()->role_id == 36)
+                            @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <th>Confirm Payment </th>
                             @endif
                         </tr>
@@ -232,7 +232,7 @@
                                     </button>
                                 </td>
 
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138)
                                 <td>
                                     @if($booking->status == '1')
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
@@ -247,7 +247,7 @@
                                         <span class="badge bg-danger">Cancelled</span>
                                     @endif
                                     </td>
-                                @elseif(auth()->user()->role_id == 36)
+                                @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <td>
                                         @if($booking->status == '3')
                                             <button type="button" class="btn btn-sm btn-info confirm-payment-btn" data-booking-id="{{ $booking->booking_id }}">
@@ -592,7 +592,7 @@
     </div>
 
     <!-- Add Payment Modal -->
-    @if(in_array(auth()->user()->role_id, [11, 33]))
+    @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
     <div class="modal fade" id="addPaymentModal{{ $booking->id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $booking->id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content shadow-lg rounded">

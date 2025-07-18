@@ -63,7 +63,7 @@
                             <!-- Will be populated via AJAX -->
                         </select>
                     </div>
-                    @elseif(in_array(Auth::user()->role_id, [11,34,66,108]))
+                    @elseif(in_array(Auth::user()->role_id, [11,34,66,108, 128, 131, 132, 134, 135, 137, 138]))
                     <!-- DMC can only see driver field -->
                     <div class="col-md-12 mb-3">
                         <label for="driver_id" class="form-label">Driver</label>

@@ -955,8 +955,8 @@ document.addEventListener("DOMContentLoaded", function() {
         var userRoleId = {{ auth()->user()->role_id }};
         
         // Get the current user's country if they are a DMC
-        var userCountry = "{{ in_array(auth()->user()->role_id, [11, 20, 35, 74, 93]) ? auth()->user()->country : '' }}";
-        var dmcId = "{{ in_array(auth()->user()->role_id, [11, 20, 35, 74, 93]) ? auth()->user()->userId : '' }}";
+        var userCountry = "{{ in_array(auth()->user()->role_id, [11, 20, 35, 74, 93, 130, 132, 133, 135, 136, 137, 138]) ? auth()->user()->country : '' }}";
+        var dmcId = "{{ in_array(auth()->user()->role_id, [11, 20, 35, 74, 93, 130, 132, 133, 135, 136, 137, 138]) ? auth()->user()->userId : '' }}";
         
         // // Initialize Select2 for city
         $('#citySelect').select2({
