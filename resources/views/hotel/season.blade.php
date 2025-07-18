@@ -100,6 +100,48 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
+            
+            @if($auth_user->role_id == 11)
+            <!-- Tab Navigation for DMC Users -->
+            <div class="card-body pb-0">
+                <ul class="nav nav-tabs nav-fill" role="tablist">
+                    <li class="nav-item">
+                        <button
+                            type="button"
+                            class="nav-link active"
+                            role="tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#single-season"
+                            aria-controls="single-season"
+                            aria-selected="true">
+                            <i class="tf-icons bx bx-calendar-plus"></i>
+                            Add Single Season
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button
+                            type="button"
+                            class="nav-link"
+                            role="tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#bulk-upload"
+                            aria-controls="bulk-upload"
+                            aria-selected="false">
+                            <i class="tf-icons bx bx-upload"></i>
+                            Bulk Upload
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="tab-content">
+                <!-- Single Season Tab -->
+                <div class="tab-pane fade show active" id="single-season" role="tabpanel">
+            @else
+            <!-- No tabs for non-DMC users -->
+            <div>
+            @endif
+            
             <form id="hotelForm" method="POST" action="{{ route('storeseason') }}" enctype="multipart/form-data" class="card-body">
                @csrf
                <input type="hidden" class="form-control" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
@@ -258,6 +300,97 @@
                   <button type="submit" class="btn btn-primary px-4">Save</button>
                </div>
             </form>
+            
+            @if($auth_user->role_id == 11)
+                </div>
+                <!-- End Single Season Tab -->
+                
+                <!-- Bulk Upload Tab -->
+                <div class="tab-pane fade" id="bulk-upload" role="tabpanel">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <div>
+                                        <h4 class="mb-1">Bulk Upload Seasons</h4>
+                                        <p class="text-muted mb-0">Upload multiple seasons at once using CSV file</p>
+                                    </div>
+                                    <a href="{{ route('seasons.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}" 
+                                       class="btn btn-primary">
+                                        <i class="bx bx-upload me-1"></i>
+                                        Go to Bulk Upload
+                                    </a>
+                                </div>
+                                
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="card border-success">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-md bg-success bg-soft rounded me-3">
+                                                        <i class="bx bx-download text-success fs-4"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h5 class="mb-1">Download Template</h5>
+                                                        <p class="text-muted mb-2">Get the CSV template with sample data and proper formatting</p>
+                                                        <a href="{{ route('seasons.template_for_hotel', $hotel->hotel_unique_id) }}" 
+                                                           class="btn btn-outline-success btn-sm">
+                                                            <i class="bx bx-download me-1"></i>Download CSV Template
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="card border-primary">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-md bg-primary bg-soft rounded me-3">
+                                                        <i class="bx bx-upload text-primary fs-4"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h5 class="mb-1">Upload Seasons</h5>
+                                                        <p class="text-muted mb-2">Upload your filled CSV file with season data and pricing</p>
+                                                        <a href="{{ route('seasons.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}" 
+                                                           class="btn btn-primary btn-sm">
+                                                            <i class="bx bx-cloud-upload me-1"></i>Start Bulk Upload
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <h6 class="alert-heading mb-2">
+                                                <i class="bx bx-info-circle me-2"></i>
+                                                Bulk Upload Benefits
+                                            </h6>
+                                            <ul class="mb-0">
+                                                <li><strong>Time Saving:</strong> Upload up to 100 seasons at once</li>
+                                                <li><strong>Validation:</strong> Automatic overlap detection and data validation</li>
+                                                <li><strong>Error Reporting:</strong> Detailed error messages for quick fixes</li>
+                                                <li><strong>Upload History:</strong> Track all your bulk upload activities</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- End Bulk Upload Tab -->
+            </div>
+            <!-- End Tab Content -->
+            @else
+            </div>
+            <!-- End Non-DMC Content -->
+            @endif
       </div>
    </div>
 </div>

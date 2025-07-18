@@ -12,25 +12,25 @@
                                 <div class="header-content">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="icon-wrapper me-3">
-                                            <i class="ri-restaurant-line"></i>
+                                            <i class="ri-calendar-2-line"></i>
                                         </div>
                                         <div>
-                                            <h4 class="card-title mb-1 text-white">Bulk Upload Meals</h4>
-                                            <h6 class="text-white-50 mb-0">{{ $restaurant->name }}</h6>
+                                            <h4 class="card-title mb-1 text-white">Bulk Upload Hotel Seasons</h4>
+                                            <h6 class="text-white-50 mb-0">{{ $hotel->name }}</h6>
                                         </div>
                                     </div>
                                     <p class="text-white-75 mb-0">
-                                        <i class="ri-store-2-line me-1"></i>{{ $restaurant->city ?? 'N/A' }}, {{ $restaurant->country ?? 'N/A' }}
+                                        <i class="ri-map-pin-line me-1"></i>{{ $hotel->city ?? 'N/A' }}, {{ $hotel->country ?? 'N/A' }}
                                     </p>
                                 </div>
                                 <div class="d-flex gap-2 flex-wrap">
-                                    <a href="{{ route('meals.download_template_for_restaurant', $restaurant->restaurant_id) }}" 
+                                    <a href="{{ route('seasons.template_for_hotel', $hotel->hotel_unique_id) }}" 
                                        class="btn btn-light btn-sm shadow-sm">
                                         <i class="ri-download-cloud-2-line me-1"></i>Download Template
                                     </a>
-                                    <a href="{{ route('meals.restaurant_create', $restaurant->restaurant_id) }}" 
+                                    <a href="{{ route('hotels.season', $hotel->hotel_unique_id) }}" 
                                        class="btn btn-outline-light btn-sm">
-                                        <i class="ri-arrow-left-line me-1"></i>Back to Meals
+                                        <i class="ri-arrow-left-line me-1"></i>Back to Seasons
                                     </a>
                                 </div>
                             </div>
@@ -50,7 +50,7 @@
                             <div class="instruction-box mb-4">
                                 <div class="instruction-header">
                                     <i class="ri-information-line me-2"></i>
-                                    <strong>Meal Upload Instructions</strong>
+                                    <strong>Season Upload Instructions</strong>
                                 </div>
                                 <div class="instruction-content">
                                     <div class="row g-4">
@@ -65,7 +65,7 @@
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-edit-line text-primary"></i>
-                                                    <span>Fill in your meal data (required fields marked with *)</span>
+                                                    <span>Fill in your season data (required fields marked with *)</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-file-text-line text-warning"></i>
@@ -73,93 +73,83 @@
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-database-line text-info"></i>
-                                                    <span>Maximum 1000 rows per upload</span>
+                                                    <span>Maximum 100 seasons per upload</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="instruction-section">
                                                 <h6 class="instruction-section-title">
-                                                    <i class="ri-shield-check-line me-2"></i>Restaurant Availability
+                                                    <i class="ri-shield-check-line me-2"></i>Season Validation
                                                 </h6>
                                                 <div class="instruction-item">
-                                                    <i class="ri-{{ $restaurant->breakfast_available ? 'check-circle-line text-success' : 'close-circle-line text-muted' }}"></i>
-                                                    <span class="{{ $restaurant->breakfast_available ? 'text-success' : 'text-muted' }}">
-                                                        <strong>Breakfast:</strong> {{ $restaurant->breakfast_available ? 'Available' : 'Not Available' }}
-                                                    </span>
+                                                    <i class="ri-calendar-check-line text-success"></i>
+                                                    <span><strong>Date Overlap:</strong> System prevents overlapping seasons</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-{{ $restaurant->lunch_available ? 'check-circle-line text-success' : 'close-circle-line text-muted' }}"></i>
-                                                    <span class="{{ $restaurant->lunch_available ? 'text-success' : 'text-muted' }}">
-                                                        <strong>Lunch:</strong> {{ $restaurant->lunch_available ? 'Available' : 'Not Available' }}
-                                                    </span>
+                                                    <i class="ri-calendar-schedule-line text-primary"></i>
+                                                    <span><strong>Date Format:</strong> Use MM/DD/YYYY format only (e.g., 06/01/2025)</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-{{ $restaurant->dinner_available ? 'check-circle-line text-success' : 'close-circle-line text-muted' }}"></i>
-                                                    <span class="{{ $restaurant->dinner_available ? 'text-success' : 'text-muted' }}">
-                                                        <strong>Dinner:</strong> {{ $restaurant->dinner_available ? 'Available' : 'Not Available' }}
-                                                    </span>
+                                                    <i class="ri-calendar-event-line text-warning"></i>
+                                                    <span><strong>Date Logic:</strong> Start date must be before end date</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-user-line text-info"></i>
+                                                    <span><strong>DMC Access:</strong> Only your hotel seasons will be affected</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <!-- Meal Type Structure Cards -->
+                                    <!-- Season Pricing Structure Overview -->
                                     <div class="row g-4 mt-3">
                                         <div class="col-12">
                                             <h6 class="instruction-section-title">
-                                                <i class="ri-restaurant-2-line me-2"></i>Meal Type Structure Overview
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Season Pricing Structure Overview
                                             </h6>
                                         </div>
                                         <div class="col-md-6">
-                                            <div class="meal-type-card buffet-card">
-                                                <div class="meal-type-header">
-                                                    <i class="ri-restaurant-fill me-2"></i>
-                                                    <h6 class="mb-0 text-white">Buffet Meals</h6>
+                                            <div class="season-price-card single-occupancy-card">
+                                                <div class="season-price-header">
+                                                    <i class="ri-user-line me-2"></i>
+                                                    <h6 class="mb-0 text-white">Single Occupancy Pricing</h6>
                                                 </div>
-                                                <div class="meal-type-content">
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-check-line text-success me-2"></i>
-                                                        <span><strong>Required:</strong> Adult Price & Child Price</span>
+                                                <div class="season-price-content">
+                                                    <div class="season-price-item">
+                                                        <i class="ri-sun-line text-warning me-2"></i>
+                                                        <span><strong>Weekday Price:</strong> Monday to Friday rates</span>
                                                     </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-close-line text-danger me-2"></i>
-                                                        <span><strong>Leave Empty:</strong> Item Price & Item Type</span>
+                                                    <div class="season-price-item">
+                                                        <i class="ri-calendar-2-line text-success me-2"></i>
+                                                        <span><strong>Weekend Price:</strong> Saturday and Sunday rates</span>
                                                     </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-calculator-line text-info me-2"></i>
-                                                        <span>Both prices must be > 0</span>
-                                                    </div>
-                                                    <div class="meal-type-example">
+                                                    <div class="season-price-example">
                                                         <small class="text-muted">
-                                                            <strong>Example:</strong> Continental Breakfast Buffet - Adult: $25.00, Child: $12.50
+                                                            <strong>Example:</strong> Weekday: $150.00, Weekend: $200.00
                                                         </small>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
-                                            <div class="meal-type-card setmenu-card">
-                                                <div class="meal-type-header">
-                                                    <i class="ri-bowl-line me-2"></i>
-                                                    <h6 class="mb-0 text-white">Set Menu Meals</h6>
+                                            <div class="season-price-card double-occupancy-card">
+                                                <div class="season-price-header">
+                                                    <i class="ri-group-line me-2"></i>
+                                                    <h6 class="mb-0 text-white">Double Occupancy Pricing</h6>
                                                 </div>
-                                                <div class="meal-type-content">
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-check-line text-success me-2"></i>
-                                                        <span><strong>Required:</strong> Item Price & Item Type</span>
+                                                <div class="season-price-content">
+                                                    <div class="season-price-item">
+                                                        <i class="ri-sun-line text-warning me-2"></i>
+                                                        <span><strong>Weekday Price:</strong> Monday to Friday rates for two guests</span>
                                                     </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-close-line text-danger me-2"></i>
-                                                        <span><strong>Leave Empty:</strong> Adult Price & Child Price</span>
+                                                    <div class="season-price-item">
+                                                        <i class="ri-calendar-2-line text-success me-2"></i>
+                                                        <span><strong>Weekend Price:</strong> Saturday and Sunday rates for two guests</span>
                                                     </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-leaf-line text-success me-2"></i>
-                                                        <span>Type: Vegetarian or Non Vegetarian</span>
-                                                    </div>
-                                                    <div class="meal-type-example">
+                                                    <div class="season-price-example">
                                                         <small class="text-muted">
-                                                            <strong>Example:</strong> Chicken Rice Set - Price: $18.50, Type: Non Vegetarian
+                                                            <strong>Example:</strong> Weekday: $250.00, Weekend: $300.00
                                                         </small>
                                                     </div>
                                                 </div>
@@ -171,23 +161,19 @@
                                         <div class="col-md-6">
                                             <div class="instruction-section">
                                                 <h6 class="instruction-section-title">
-                                                    <i class="ri-list-check-line me-2"></i>Valid Field Options
+                                                    <i class="ri-list-check-line me-2"></i>Required Fields
                                                 </h6>
                                                 <div class="instruction-item">
-                                                    <i class="ri-time-line text-primary"></i>
-                                                    <span><strong>Meal Type:</strong> Breakfast, Lunch, Dinner</span>
+                                                    <i class="ri-text text-danger"></i>
+                                                    <span><strong>Season Name:</strong> Descriptive name for the season</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-goblet-line text-warning"></i>
-                                                    <span><strong>Beverage:</strong> Alcoholic, Non Alcoholic, No Beverage</span>
+                                                    <i class="ri-money-dollar-line text-primary"></i>
+                                                    <span><strong>All Price Fields:</strong> Single & Double, Weekday & Weekend</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-restaurant-fill text-success"></i>
-                                                    <span><strong>Meals:</strong> Buffet, Set Menu</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-leaf-line text-success"></i>
-                                                    <span><strong>Item Type:</strong> Vegetarian, Non Vegetarian (Set Menu only)</span>
+                                                    <i class="ri-calendar-line text-warning"></i>
+                                                    <span><strong>Date Range:</strong> Start and end dates in MM/DD/YYYY format (month/day/year)</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-toggle-line text-info"></i>
@@ -201,20 +187,24 @@
                                                     <i class="ri-error-warning-line me-2"></i>Important Rules
                                                 </h6>
                                                 <div class="instruction-item">
-                                                    <i class="ri-restaurant-2-line text-danger"></i>
-                                                    <span>Can only upload meals for available meal times</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-text text-info"></i>
-                                                    <span>Use exact spelling for dropdown values (case-sensitive)</span>
+                                                    <i class="ri-calendar-close-line text-danger"></i>
+                                                    <span>Cannot create overlapping seasons for the same hotel</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-calculator-line text-primary"></i>
                                                     <span>Enter prices as numbers without currency symbols</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-file-text-line text-warning"></i>
-                                                    <span>Item Description is required for all meals</span>
+                                                    <i class="ri-calendar-check-line text-warning"></i>
+                                                    <span>All dates must be valid and start before end</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-calendar-check-line text-warning"></i>
+                                                    <span>Use forward slashes (/) not dashes (-) in dates (e.g., 01/05/2025)</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-save-line text-success"></i>
+                                                    <span>Save file as CSV format before uploading</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -231,22 +221,26 @@
                                                             <div class="row g-3">
                                                                 <div class="col-md-6">
                                                                     <div class="pro-tip-item">
-                                                                        <i class="ri-check-double-line text-success me-2"></i>
-                                                                        <span>Double-check meal availability for your restaurant before uploading</span>
+                                                                        <i class="ri-calendar-event-line text-success me-2"></i>
+                                                                        <span>Plan seasons well in advance to avoid booking conflicts</span>
                                                                     </div>
                                                                     <div class="pro-tip-item">
                                                                         <i class="ri-price-tag-3-line text-primary me-2"></i>
-                                                                        <span>For Buffet: Both Adult and Child prices are mandatory and must be > 0</span>
+                                                                        <span>Consider market demand when setting seasonal prices</span>
                                                                     </div>
                                                                 </div>
                                                                 <div class="col-md-6">
                                                                     <div class="pro-tip-item">
-                                                                        <i class="ri-bowl-fill text-warning me-2"></i>
-                                                                        <span>For Set Menu: Specify Item Price and whether it's Vegetarian/Non Vegetarian</span>
+                                                                        <i class="ri-calendar-schedule-line text-warning me-2"></i>
+                                                                        <span>Use consistent naming convention for your seasons</span>
                                                                     </div>
                                                                     <div class="pro-tip-item">
-                                                                        <i class="ri-save-line text-success me-2"></i>
-                                                                        <span>Save your file as CSV format before uploading for best compatibility</span>
+                                                                        <i class="ri-file-excel-line text-warning me-2"></i>
+                                                                        <span>Excel may auto-format dates - check they remain MM/DD/YYYY</span>
+                                                                    </div>
+                                                                    <div class="pro-tip-item">
+                                                                        <i class="ri-check-double-line text-success me-2"></i>
+                                                                        <span>Review all data before uploading to prevent errors</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -261,7 +255,7 @@
 
                             <!-- Upload Form -->
                             <div class="upload-section">
-                                <form action="{{ route('meals.upload_for_restaurant', $restaurant->restaurant_id) }}" 
+                                <form action="{{ route('seasons.upload_for_hotel', $hotel->hotel_unique_id) }}" 
                                       method="POST" 
                                       enctype="multipart/form-data" 
                                       class="upload-form">
@@ -289,7 +283,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <button type="submit" class="btn btn-primary w-100 upload-btn">
-                                                <i class="ri-upload-cloud-2-line me-2"></i>Upload Meals
+                                                <i class="ri-upload-cloud-2-line me-2"></i>Upload Seasons
                                             </button>
                                         </div>
                                     </div>
@@ -297,7 +291,7 @@
                             </div>
 
                             <!-- Display Errors -->
-                            @if($errors->any())
+                            @if(session('upload_errors'))
                                 <div class="error-section mt-4">
                                     <div class="alert alert-warning modern-alert">
                                         <div class="alert-header">
@@ -305,7 +299,7 @@
                                             <strong>Upload Errors Detected</strong>
                                         </div>
                                         <div class="error-list">
-                                            @foreach($errors->all() as $error)
+                                            @foreach(session('upload_errors') as $error)
                                                 <div class="error-item">
                                                     <i class="ri-close-circle-line text-danger me-2"></i>
                                                     {{ $error }}
@@ -324,7 +318,7 @@
                             <div class="d-flex align-items-center justify-content-between">
                                 <h5 class="card-title mb-0 text-white">
                                     <i class="ri-history-line me-2"></i>Recent Upload History
-                                    <small class="d-block text-white-50 fs-6 mt-1">{{ $restaurant->name }}</small>
+                                    <small class="d-block text-white-50 fs-6 mt-1">{{ $hotel->name }}</small>
                                 </h5>
                                 <span class="badge bg-light bg-opacity-20 text-white">
                                     {{ $uploadHistory ? $uploadHistory->count() : 0 }} uploads
@@ -371,14 +365,14 @@
                                                             </div>
                                                             <div>
                                                                 <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
-                                                                <small class="text-muted">CSV File</small>
+                                                                <small class="text-muted">Season CSV File</small>
                                                             </div>
                                                         </div>
                                                     </td>
                                                     <td class="py-3">
                                                         <div class="d-flex align-items-center">
                                                             <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
-                                                                <i class="ri-database-2-line me-1"></i>{{ $history->total_records }} rows
+                                                                <i class="ri-database-2-line me-1"></i>{{ $history->total_records }} seasons
                                                             </span>
                                                         </div>
                                                     </td>
@@ -444,7 +438,7 @@
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div class="d-flex gap-2">
                                                     <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
-                                                        {{ $history->total_records }} rows
+                                                        {{ $history->total_records }} seasons
                                                     </span>
                                                     <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
                                                         {{ $history->success_count }} ✓
@@ -467,7 +461,7 @@
                                             <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
                                         </div>
                                         <h6 class="text-muted mb-2">No Upload History</h6>
-                                        <p class="text-muted small mb-0">Upload history for <strong>{{ $restaurant->name }}</strong> will appear here once you start uploading meal files.</p>
+                                        <p class="text-muted small mb-0">Upload history for <strong>{{ $hotel->name }}</strong> will appear here once you start uploading season files.</p>
                                     </div>
                                 </div>
                             @endif
@@ -479,147 +473,8 @@
     </div>
 
 <style>
-.dropzone-area {
-    border: 2px dashed #e0e0e0 !important;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.dropzone-area:hover,
-.dropzone-area.dragover {
-    border-color: #696cff !important;
-    background-color: #f8f9ff;
-}
-
-.dropzone-area.dragover {
-    transform: scale(1.02);
-}
-
-.btn-disabled {
-    pointer-events: none;
-    opacity: 0.6;
-}
-
-/* Modern Upload History Styles */
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #696cff 0%, #5a67d8 100%);
-}
-
-.modern-table {
-    border: none;
-}
-
-.modern-table thead th {
-    background-color: #f8fafc;
-    font-weight: 600;
-    color: #475569;
-    border-bottom: 2px solid #e2e8f0;
-    padding: 1rem 1.25rem;
-}
-
-.modern-table tbody tr {
-    border: none;
-    transition: all 0.2s ease;
-}
-
-.modern-table tbody tr:hover {
-    background-color: #f8fafc;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.upload-row td {
-    border: none;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: middle;
-}
-
-.upload-card {
-    transition: all 0.2s ease;
-    background: white;
-}
-
-.upload-card:hover {
-    background-color: #f8fafc;
-}
-
-.upload-card:last-child {
-    border-bottom: none !important;
-}
-
-.file-icon {
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f0f9ff;
-    border-radius: 12px;
-    border: 1px solid #e0f2fe;
-}
-
-.badge {
-    font-weight: 500;
-    font-size: 0.75rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
-}
-
-.badge.bg-success {
-    background-color: #16a34a !important;
-    color: white;
-}
-
-.badge.bg-warning {
-    background-color: #eab308 !important;
-    color: white;
-}
-
-.badge.bg-danger {
-    background-color: #dc2626 !important;
-    color: white;
-}
-
-.badge.bg-info {
-    background-color: #0ea5e9 !important;
-    color: white;
-}
-
-/* Soft colored badges for counts */
-.badge.bg-success.bg-opacity-10 {
-    background-color: rgba(34, 197, 94, 0.1) !important;
-    color: #16a34a !important;
-    border: 1px solid rgba(34, 197, 94, 0.2) !important;
-}
-
-.badge.bg-danger.bg-opacity-10 {
-    background-color: rgba(239, 68, 68, 0.1) !important;
-    color: #dc2626 !important;
-    border: 1px solid rgba(239, 68, 68, 0.2) !important;
-}
-
-.badge.bg-info.bg-opacity-10 {
-    background-color: rgba(14, 165, 233, 0.1) !important;
-    color: #0ea5e9 !important;
-    border: 1px solid rgba(14, 165, 233, 0.2) !important;
-}
-
-.empty-state {
-    padding: 3rem 2rem;
-}
-
-.card.border-0.shadow-sm {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.card-header.bg-gradient-primary {
-    padding: 1.25rem 1.5rem;
-}
-
-/* Meal Type Cards */
-.meal-type-card {
+/* Season Pricing Cards */
+.season-price-card {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -627,38 +482,38 @@
     height: 100%;
 }
 
-.meal-type-card:hover {
+.season-price-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-.buffet-card .meal-type-header {
+.single-occupancy-card .season-price-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 1rem;
 }
 
-.setmenu-card .meal-type-header {
+.double-occupancy-card .season-price-header {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     padding: 1rem;
 }
 
-.meal-type-content {
+.season-price-content {
     padding: 1.25rem;
     background: white;
 }
 
-.meal-type-item {
+.season-price-item {
     display: flex;
     align-items: center;
     margin-bottom: 0.75rem;
     font-size: 0.9rem;
 }
 
-.meal-type-item:last-of-type {
+.season-price-item:last-of-type {
     margin-bottom: 1rem;
 }
 
-.meal-type-example {
+.season-price-example {
     background: #f8f9fa;
     padding: 0.75rem;
     border-radius: 8px;
@@ -695,7 +550,7 @@
 }
 
 /* Enhanced Animation */
-.meal-type-card {
+.season-price-card {
     animation: slideInUp 0.6s ease-out;
 }
 
@@ -708,68 +563,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .card-header.bg-gradient-primary {
-        padding: 1rem;
-    }
-    
-    .upload-card {
-        padding: 1rem !important;
-    }
-    
-    .badge {
-        font-size: 0.7rem;
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .meal-type-card {
-        margin-bottom: 1rem;
-    }
-    
-    .meal-type-content {
-        padding: 1rem;
-    }
-    
-    .meal-type-item {
-        font-size: 0.85rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .pro-tip-item {
-        font-size: 0.85rem;
-        margin-bottom: 0.4rem;
-    }
-}
-
-/* Animation for loading states */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.upload-row,
-.upload-card {
-    animation: fadeInUp 0.3s ease-out;
-}
-
-/* Status indicator improvements */
-.badge i {
-    font-size: 0.875em;
-}
-
-/* Table header icons */
-.table thead th i {
-    opacity: 0.7;
-    font-size: 0.9em;
 }
 
 /* Color Variables */
@@ -1025,15 +818,80 @@
     border-color: white;
 }
 
+/* Upload History Styles */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #696cff 0%, #5a67d8 100%);
+}
+
+.modern-table {
+    border: none;
+}
+
+.modern-table thead th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1rem 1.25rem;
+}
+
+.modern-table tbody tr {
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.modern-table tbody tr:hover {
+    background-color: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.upload-row td {
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.upload-card {
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.upload-card:hover {
+    background-color: #f8fafc;
+}
+
+.upload-card:last-child {
+    border-bottom: none !important;
+}
+
+.file-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f9ff;
+    border-radius: 12px;
+    border: 1px solid #e0f2fe;
+}
+
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+}
+
 /* Animations */
-@keyframes slideInLeft {
+@keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateX(-30px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 
@@ -1043,6 +901,17 @@
 
 .gradient-header {
     animation: slideInLeft 0.8s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 /* Responsive Design */
@@ -1070,23 +939,22 @@
         padding: 1.5rem;
     }
     
-    .instruction-section {
+    .season-price-card {
         margin-bottom: 1rem;
     }
     
-    .instruction-section-title {
-        font-size: 0.95rem;
-        margin-bottom: 0.75rem;
+    .season-price-content {
+        padding: 1rem;
     }
     
-    .instruction-item {
+    .season-price-item {
         font-size: 0.85rem;
-        padding: 0.4rem 0;
+        margin-bottom: 0.5rem;
     }
     
-    .btn {
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
+    .pro-tip-item {
+        font-size: 0.85rem;
+        margin-bottom: 0.4rem;
     }
 }
 
@@ -1108,28 +976,8 @@
     .instruction-box {
         padding: 1rem;
     }
-    
-    .instruction-section {
-        margin-bottom: 1rem;
-    }
-    
-    .instruction-section-title {
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .instruction-item {
-        font-size: 0.8rem;
-        padding: 0.3rem 0;
-        gap: 0.5rem;
-    }
-    
-    .instruction-item i {
-        font-size: 1rem;
-        width: 18px;
-    }
 }
 </style>
 
 <script src="{{ asset('js/bulk-upload.js') }}"></script>
-@endsection
+@endsection 
