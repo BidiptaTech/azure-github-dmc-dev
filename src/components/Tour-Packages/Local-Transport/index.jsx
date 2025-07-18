@@ -792,6 +792,12 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (setup already complete)`);
       return;
     }
+
+     // Skip if we've already initialized for this specific instance
+     if (hasInitializedBookings && lastInitializationKey === initializationKey) {
+      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already initialized for key: ${initializationKey})`);
+      return;
+    }
     
     // Hard stop - if we've already dispatched for this component instance
     if (hasDispatchedToRedux) {
@@ -812,7 +818,9 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     hasDispatchedToRedux,
     isInitialSetupComplete,
     dispatchInitializedBookingsToRedux,
-    allBookings
+    allBookings,
+    lastInitializationKey,
+    initializationKey
   ]);
 
   // Separate effect to dispatch original bookings to Redux - only once

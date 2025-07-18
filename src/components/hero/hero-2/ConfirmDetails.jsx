@@ -1296,6 +1296,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         port: selectedServices.includes("entryExitPort"),
         local_transfer: selectedServices.includes("localTour"),
         attraction: selectedServices.includes("attraction"),
+        packaged_attractions: selectedServices.includes("packagedAttractions"),
         restaurant: selectedServices.includes("restaurant"),
         guide: selectedServices.includes("tourGuide"),
         approx_price: approxPrice, // Add the calculated approximate price

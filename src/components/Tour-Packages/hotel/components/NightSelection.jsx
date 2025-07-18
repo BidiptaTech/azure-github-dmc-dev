@@ -3,6 +3,7 @@ import {
   Box, Typography, Grid, Chip, Checkbox, FormControlLabel, Divider, Alert, Button
 } from '@mui/material';
 import { CalendarToday, Hotel, Warning, Refresh, CheckCircle } from '@mui/icons-material';
+import moment from 'moment';
 
 /**
  * Night Selection component - Compact checkbox design with date range update handling
@@ -79,7 +80,10 @@ const NightSelection = ({
         nights: newSelectedIndices.size,
         selectedNightIndices: Array.from(newSelectedIndices),
         checkInDate: checkInDate,
-        checkOutDate: checkOutDate
+        checkOutDate: checkOutDate,
+        // Add individual hotel dates in DD/MM/YYYY format for Redux sync
+        hotelCheckIn: checkInDate ? moment(checkInDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null,
+        hotelCheckOut: checkOutDate ? moment(checkOutDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null
       };
       
       const updatedConfigurations = [...hotelConfigurations];
@@ -93,7 +97,10 @@ const NightSelection = ({
             nights: newSelectedIndices.size,
             selectedNightIndices: Array.from(newSelectedIndices),
             checkInDate: checkInDate,
-            checkOutDate: checkOutDate
+            checkOutDate: checkOutDate,
+            // Add individual hotel dates in DD/MM/YYYY format for Redux sync
+            hotelCheckIn: checkInDate ? moment(checkInDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null,
+            hotelCheckOut: checkOutDate ? moment(checkOutDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null
           };
         }
         return config;
@@ -188,7 +195,10 @@ const NightSelection = ({
             nights: newSelectedIndices.size,
             selectedNightIndices: Array.from(newSelectedIndices),
             checkInDate: checkInDate,
-            checkOutDate: checkOutDate
+            checkOutDate: checkOutDate,
+            // Add individual hotel dates in DD/MM/YYYY format for Redux sync
+            hotelCheckIn: checkInDate ? moment(checkInDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null,
+            hotelCheckOut: checkOutDate ? moment(checkOutDate, 'YYYY-MM-DD').format('DD/MM/YYYY') : null
           };
         }
         return config;

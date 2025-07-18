@@ -70,8 +70,18 @@ const useHotelData = (mealPlanOptions) => {
       initialGuests
     });
     
-    const nightsCount = searchCriteria?.checkIn && searchCriteria?.checkOut ? 
-      moment(searchCriteria.checkOut, 'DD/MM/YYYY').diff(moment(searchCriteria.checkIn, 'DD/MM/YYYY'), 'days') : 1;
+    // Calculate individual hotel booking dates
+    let hotelCheckIn, hotelCheckOut;
+    if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
+      hotelCheckIn = searchCriteria.checkIn;
+      hotelCheckOut = searchCriteria.checkOut;
+    } else {
+      // Default to today and tomorrow
+      hotelCheckIn = moment().format('DD/MM/YYYY');
+      hotelCheckOut = moment().add(1, 'day').format('DD/MM/YYYY');
+    }
+    
+    const nightsCount = moment(hotelCheckOut, 'DD/MM/YYYY').diff(moment(hotelCheckIn, 'DD/MM/YYYY'), 'days');
     
     // Create initial selected night indices
     const initialNightIndices = [];
@@ -92,12 +102,26 @@ const useHotelData = (mealPlanOptions) => {
       mealPlanId: 'self',
       nights: nightsCount,
       selectedNightIndices: initialNightIndices,
+      // Add individual hotel booking dates
+      hotelCheckIn: hotelCheckIn,
+      hotelCheckOut: hotelCheckOut,
       babyCot: false,
       occupancyType: 'single',
       adultDistribution: { male: 0, female: 0 },
       expanded: true,
       selectedGuests: initialGuests,
-      guestMealPlans: Array(initialGuests).fill('self')
+      guestMealPlans: Array(initialGuests).fill('self'),
+      customerDetails: {
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: ""
+      }
     };
     
     console.log("Creating initial hotel configuration:", initialConfig);
@@ -137,6 +161,19 @@ const useHotelData = (mealPlanOptions) => {
                 hotelData.rooms.forEach(room => {
                   if (room.beds && room.beds.length > 0) {
                     room.beds.forEach(bed => {
+                      // Extract customer details from hotel data
+                      const customerDetails = {
+                        fullName: hotelData.fullName || "",
+                        email: hotelData.email || "",
+                        phone: hotelData.phone || "",
+                        countryCode: hotelData.countryCode || "",
+                        address1: hotelData.address1 || "",
+                        address2: hotelData.address2 || "",
+                        state: hotelData.state || "",
+                        zip: hotelData.zip || "",
+                        specialRequests: hotelData.specialRequests || ""
+                      };
+                      
                       // Create configuration from room and bed data, including booking ID
                       const config = createConfigFromRoomAndBed(
                         hotelDetails, 
@@ -146,6 +183,10 @@ const useHotelData = (mealPlanOptions) => {
                         mealPlanOptions, 
                         bookingId
                       );
+                      
+                      // Add customer details to the configuration
+                      config.customerDetails = customerDetails;
+                      
                       allConfigurations.push(config);
                     });
                   }

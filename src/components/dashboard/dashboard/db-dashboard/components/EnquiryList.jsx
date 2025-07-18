@@ -43,6 +43,7 @@ import {
   Hotel as HotelIcon,
   LocalTaxi as LocalTaxiIcon,
   Attractions as AttractionsIcon,
+  Park as ParkIcon,
   Restaurant as RestaurantIcon,
   Person as PersonIcon,
   Close as CloseIcon,
@@ -51,10 +52,11 @@ import {
   Email as EmailIcon,
   DirectionsBoat as DirectionsBoatIcon,
 } from '@mui/icons-material';
+
 import dayjs from 'dayjs';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchEnquiries } from '@/slice/enquiries/enquiryListSlice';
-import { convertEnquiresToTourId } from '@/slice/enquiries/enquiryToTourSlice';
+import { convertEnquiresToTourId, resetConvertState } from '@/slice/enquiries/enquiryToTourSlice';
 import { unwrapResult } from '@reduxjs/toolkit';
 import { fetchLists } from '@/slice/common/TourlistSlice';
 import { useNavigate } from 'react-router-dom';
@@ -65,8 +67,10 @@ import {
   RenderRestaurantDetails,
   RenderGuideDetails,
   RenderLocalTransferDetails,
-  RenderPortDetails
+  RenderPortDetails,
+  RenderPackagedAttractionsDetails
 } from './renderServices';
+import { clearPackages, setPackageData } from "@/slice/tour-packages/tourPackageSlice";
 
 // Modal style
 const modalStyle = {
@@ -291,7 +295,7 @@ const EnquiryList = () => {
 
   // Helper to format date
   const formatDate = (dateString) => {
-    return dayjs(dateString).format("MMM DD, YYYY");
+    return dayjs(dateString).format("MMM DD, YYYY HH:mm");
   };
 
   const getServiceStatusChip = (status) => {
@@ -343,6 +347,9 @@ const EnquiryList = () => {
   const handleConvert = async (enquiry) => {
     const agentId = enquiry.agent_id;
     const enquiryId = enquiry.enquiry_id;
+    dispatch(setPackageData(null));
+        dispatch(clearPackages());
+        dispatch(resetConvertState());
 
     try {
       // Wait for conversion to complete
@@ -549,6 +556,34 @@ const EnquiryList = () => {
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
                 With Attractions
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2}>
+          <Card sx={{ 
+            bgcolor: alpha('#1976d2', 0.04), 
+            height: '100%',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+              bgcolor: alpha('#1976d2', 0.08),
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
+                <ParkIcon />
+
+                </Avatar>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
+                {stats.withPackagedAttractions}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
+                With Packaged Attractions
               </Typography>
             </CardContent>
           </Card>
@@ -915,6 +950,29 @@ const EnquiryList = () => {
                             <AttractionsIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title={enquiry.packaged_attractions ? "View Packaged Attractions Details" : "Packaged Attractions Not Selected"}>
+                          <IconButton 
+                            size="small" 
+                            color={enquiry.packaged_attractions ? "primary" : "default"}
+                            disabled={!enquiry.packaged_attractions}
+                            onClick={() =>
+                              enquiry.packaged_attractions &&
+                              handleServiceClick(enquiry, "packaged_attractions")
+                            }
+                            sx={{
+                              backgroundColor: enquiry.packaged_attractions
+                                ? alpha("#1976d2", 0.1)
+                                : "transparent",
+                              "&:hover": {
+                                backgroundColor: enquiry.packaged_attractions
+                                  ? alpha("#1976d2", 0.2)
+                                  : "transparent",
+                              },
+                            }}
+                          >
+                            <ParkIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip
                           title={
                             enquiry.restaurant
@@ -1068,6 +1126,10 @@ const EnquiryList = () => {
             {selectedEnquiry &&
               selectedService === "attraction" &&
               <RenderAttractionDetails details={selectedEnquiry.attraction_details} tabValue={tabValue} />}
+
+            {selectedEnquiry &&
+              selectedService === "packaged_attractions" &&
+              <RenderPackagedAttractionsDetails details={selectedEnquiry.packaged_attraction_details} tabValue={tabValue} />}
 
             {selectedEnquiry &&
               selectedService === "restaurant" &&
