@@ -73,7 +73,7 @@ export default function TourPackages() {
 
   return (
     <Box sx={{ bgcolor: '#f8fafc', minHeight: '102vh' }}>
-      <Container maxWidth="lg" sx={{ py: 2 }}>
+      <Container maxWidth="xl" sx={{ py: 2 , width: '96%' }}>
         {/* Compact Header */}
         <Box 
           sx={{ 
