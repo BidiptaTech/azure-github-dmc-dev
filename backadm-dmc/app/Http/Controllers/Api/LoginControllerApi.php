@@ -17,6 +17,7 @@ use League\ISO3166\ISO3166;
 use NumberFormatter;
 use App\Helpers\CountryHelper;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\CommonHelper;
 
 class LoginControllerApi extends Controller
 {
@@ -411,8 +412,17 @@ class LoginControllerApi extends Controller
         }
         
         // Update image if provided
-        if ($request->has('image') && !is_null($request->image)) {
-            $user->agent_image = $request->image;
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($user->agent_image) {
+                CommonHelper::deleteAzureImage($user->agent_image);
+            }
+            
+            // Upload new image using CommonHelper
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $user->agent_image = $pathData['master_value'];
+            }
         }
         
         $user->save();
