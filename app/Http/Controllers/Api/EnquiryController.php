@@ -110,7 +110,14 @@ class EnquiryController extends Controller
                     $dmc_id = $user->userId;
                     break;
 
-                case 33: // Sales Head
+                    case 33: 
+                    case 128: 
+                    case 129: 
+                    case 130: 
+                    case 134: 
+                    case 135: 
+                    case 136: 
+                    case 138: // Sales Head
                     $saleshead_dmc = User::where('userId', $user->userId)->first();
                     $dmc_users = $saleshead_dmc
                         ? User::where('userId', $saleshead_dmc->created_by)->first()
@@ -470,7 +477,7 @@ class EnquiryController extends Controller
 
         elseif($user->userId){
             $currentUser = null;
-            if(in_array($user->role_id, [33, 37, 38])){
+            if(in_array($user->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])){
                 $currentUser = User::where('userId', $user->userId)->first();
 
                 if (!$currentUser) {
@@ -485,7 +492,7 @@ class EnquiryController extends Controller
                 $role_id = $currentUser->role_id;
                 $agents = collect();
 
-                if($currentUser->role_id == 33){
+                if($currentUser->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
                     $sales_managers = User::where('role_id', 37)->where('created_by', $user->userId)->get();
                     $sales_managers_ids = $sales_managers->pluck('userId')->toArray();
 
@@ -773,7 +780,7 @@ class EnquiryController extends Controller
     {
         $user = auth()->user();
         $currentUser = null;
-        if(in_array($user?->role_id, [33, 37, 38])){
+        if(in_array($user?->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])){
             $currentUser = User::where('userId', $user->userId)->first();
         }
         if (!$currentUser) {
@@ -788,7 +795,7 @@ class EnquiryController extends Controller
             $role_id = $currentUser->role_id;
             $agents = collect();
 
-            if($user->role_id == 33){
+            if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
                 $sales_managers = User::where('role_id', 37)->where('created_by', $user->userId)->get();
                 $sales_managers_ids = $sales_managers->pluck('userId')->toArray();
 

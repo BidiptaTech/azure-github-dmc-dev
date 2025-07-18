@@ -35,7 +35,14 @@ class ZoneController extends Controller
                     $dmc_id = $user->userId; // Assuming `userId` in agent or fallback to agent_id
                     $dmc_users = User::where('userId', $dmc_id)->first();
                     break;
-                case 33: // Sales Head
+                case 33: 
+                case 128: 
+                case 129: 
+                case 130: 
+                case 134: 
+                case 135: 
+                case 136: 
+                case 138: // Sales Head
                     $salesManagerId = $user->userId;
                         $saleshead_dmc = User::where('userId', $user->userId)->first(); // SH
                         if ( $saleshead_dmc) {
@@ -271,12 +278,12 @@ class ZoneController extends Controller
             $user = User::where('userId', $agent->userId)->first();
         }
 
-        if(in_array($user->role_id, [11,33, 37, 38])){
+        if(in_array($user->role_id, [11,33, 128, 129, 130, 134, 135, 136, 138, 37, 38])){
 
             if($user->role_id == 11){
                 $dmc_id = $user->userId;
             }
-            elseif($user->role_id == 33){
+            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
                 $sales_head = User::where('userId', $user->userId)->first();
                 $dmc_id = $sales_head->created_by;
             }

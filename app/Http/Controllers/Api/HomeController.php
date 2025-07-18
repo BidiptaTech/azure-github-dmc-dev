@@ -83,7 +83,14 @@ class HomeController extends Controller
                 case 11: // Agent is a DMC
                     $dmc_id = $salesManagerId; // Assuming `userId` in agent or fallback to agent_id
                     break;
-                case 33: // Sales Head
+                    case 33: 
+                    case 128: 
+                    case 129: 
+                    case 130: 
+                    case 134: 
+                    case 135: 
+                    case 136: 
+                    case 138: // Sales Head
                          $saleshead_dmc = User::where('userId', $salesManagerId)->first(); 
                         if ( $saleshead_dmc) {
                             $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
@@ -127,7 +134,7 @@ class HomeController extends Controller
         elseif(Auth::user()->userId){
             $currentUser = Auth::user();
             
-            if($currentUser->role_id == 33){
+            if($currentUser->role_id == 33 || $currentUser->role_id == 128 || $currentUser->role_id == 129 || $currentUser->role_id == 130 || $currentUser->role_id == 134 || $currentUser->role_id == 135 || $currentUser->role_id == 136 || $currentUser->role_id == 138){
                 $dmc_id = $currentUser->created_by;
             }
             elseif($currentUser->role_id == 37){
