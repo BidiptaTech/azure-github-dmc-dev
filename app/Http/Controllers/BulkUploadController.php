@@ -22,6 +22,7 @@ use App\Models\Country;
 use App\Models\City;
 use App\Models\User;
 use App\Models\UploadHistory;
+use App\Helpers\CommonHelper;
 use Carbon\Carbon;
 
 // PhpSpreadsheet classes are referenced via fully-qualified names within methods to avoid IDE autoload issues.
@@ -2664,6 +2665,17 @@ class BulkUploadController extends Controller
         fclose($temp);
         
         return $output;
+    }
+
+    // Helper method to generate CSV response
+    private function generateCsvResponse($data, $filename)
+    {
+        $content = $this->generateCsvContent($data);
+        
+        return Response::make($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     // Helper method to read CSV file
@@ -5486,6 +5498,921 @@ class BulkUploadController extends Controller
             return redirect()->back()
                 ->with('error', $message)
                 ->withErrors($validator);
+        }
+    }
+
+    // Hotel Beds Bulk Upload Methods
+    
+    /**
+     * Show hotel beds bulk upload page
+     */
+    public function hotelBeds($hotel_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role - only DMC users can access
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can access bed bulk upload.');
+        }
+        
+        // Get the hotel
+        $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->first();
+        if (!$hotel) {
+            abort(404, 'Hotel not found.');
+        }
+        
+        // Check if hotel belongs to this DMC
+        if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
+            abort(403, 'You can only upload beds for your own hotels.');
+        }
+        
+        // Get available bed types for this hotel
+        $bedTypes = \App\Models\BedMaster::where('hotel_id', $hotel_id)
+                                        ->where('is_active', 1)
+                                        ->get()
+                                        ->map(function($bed) {
+                                            // Calculate max occupancy
+                                            $bed->max_occupancy = ($bed->no_of_king_bed * 2)
+                                                                + ($bed->no_of_queen_bed * 2) 
+                                                                + ($bed->no_of_twin_bed * 2) 
+                                                                + ($bed->no_of_single_bed) 
+                                                                + ($bed->no_of_bunk_bed * 2);
+                                            return $bed;
+                                        });
+        
+        // Get available room categories for this hotel
+        $roomCategories = \App\Models\Room::where('hotel_id', $hotel_id)
+                                         ->where('base_room', '!=', 1)
+                                         ->get();
+        
+        // Get upload history for beds
+        $uploadHistory = $this->getUploadHistory('hotel_beds_' . $hotel_id);
+        
+        return view('bulk-upload.hotel-beds', compact('hotel', 'bedTypes', 'roomCategories', 'uploadHistory'));
+    }
+    
+    /**
+     * Download hotel bed template
+     */
+    public function downloadHotelBedTemplate($hotel_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can download bed templates.');
+        }
+        
+        // Get the hotel
+        $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->first();
+        if (!$hotel) {
+            abort(404, 'Hotel not found.');
+        }
+        
+        // Check if hotel belongs to this DMC
+        // if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
+        //     abort(403, 'You can only download templates for your own hotels.');
+        // }
+        
+        $headers = [
+            'Room Type*',
+            'Bed Type*', 
+            'No. of Rooms*',
+            'Adult Count*',
+            'Child Count',
+            'Extra Bed (Yes/No)*',
+            'Extra Bed Type',
+            'Extra Bed Price',
+            'Baby Cot (Yes/No)*',
+            'Baby Cot Price',
+            'Force Child (Yes/No)',
+            'Force Child Count',
+            'Status (Active/Inactive)*'
+        ];
+        
+        $data = [$headers];
+        
+        // Add sample data with available bed types and room categories
+        $bedTypes = \App\Models\BedMaster::where('hotel_id', $hotel_id)->where('is_active', 1)->first();
+        $roomCategory = \App\Models\Room::where('hotel_id', $hotel_id)->where('base_room', '!=', 1)->first();
+        
+        if ($bedTypes && $roomCategory) {
+            $data[] = [
+                $roomCategory->room_type, // Room Type
+                $bedTypes->name,          // Bed Type
+                1,                        // No. of Rooms
+                2,                        // Adult Count
+                1,                        // Child Count
+                'Yes',                    // Extra Bed
+                'Sofa Bed',              // Extra Bed Type
+                25.00,                   // Extra Bed Price
+                'Yes',                   // Baby Cot
+                15.00,                   // Baby Cot Price
+                'No',                    // Force Child
+                0,                       // Force Child Count
+                'Active'                 // Status
+            ];
+        }
+        
+        // Add empty rows for user data
+        $emptyRow = array_fill(0, count($headers), '');
+        for ($i = 0; $i < 10; $i++) {
+            $data[] = $emptyRow;
+        }
+        
+        $filename = 'hotel_beds_template_' . $hotel->name . '_' . date('Y-m-d') . '.csv';
+        
+        return $this->generateCsvResponse($data, $filename);
+    }
+    
+    /**
+     * Upload hotel beds
+     */
+    public function uploadHotelBeds(Request $request, $hotel_id)
+    {
+        $auth_user = Auth::user();
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+            ]);
+
+            $file = $request->file('file');
+            
+            // Check for DMC role
+            if (!$auth_user || $auth_user->role_id !== '11') {
+                return redirect()->back()->with('error', 'Access denied. Only DMC users can upload beds.');
+            }
+
+            // Get the hotel
+            $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->first();
+            if (!$hotel) {
+                return redirect()->back()->with('error', 'Hotel not found.');
+            }
+
+            // Check if hotel belongs to this DMC
+            // if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
+            //     return redirect()->back()->with('error', 'You can only upload beds for your own hotels.');
+            // }
+            
+            $csvData = $this->readCsvFile($file->getPathname());
+            
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'The uploaded file is empty or contains no valid data.');
+            }
+
+            // Check if CSV has header row
+            if (count($csvData) < 2) {
+                return redirect()->back()->with('error', 'The CSV file must contain at least a header row and one data row.');
+            }
+
+            // Validate CSV structure
+            $expectedColumns = 13; // Based on template
+            $headerRow = $csvData[0];
+            if (count($headerRow) < $expectedColumns) {
+                return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns, found " . count($headerRow) . ".");
+            }
+
+            // Remove header row
+            array_shift($csvData);
+            
+            // Filter out empty rows
+            $csvData = array_filter($csvData, function($row) {
+                $nonEmptyCells = array_filter($row, function($cell) {
+                    return !empty(trim($cell ?? ''));
+                });
+                return count($nonEmptyCells) > 0;
+            });
+            
+            $csvData = array_values($csvData);
+            
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'No valid data rows found in the CSV file.');
+            }
+
+            // Limit number of rows to prevent timeout
+            if (count($csvData) > 1000) {
+                return redirect()->back()->with('error', 'Maximum 1000 rows allowed per upload. Your file contains ' . count($csvData) . ' rows.');
+            }
+            
+            DB::beginTransaction();
+            
+            foreach ($csvData as $rowIndex => $row) {
+                $rowNumber = $rowIndex + 2; // +2 because we removed header and array is 0-indexed
+                
+                try {
+                    // Ensure row has enough columns
+                    if (count($row) < $expectedColumns) {
+                        $errors[] = "Row {$rowNumber}: Insufficient columns. Expected {$expectedColumns}, found " . count($row);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Map CSV columns to variables
+                    $roomTypeName = trim($row[0] ?? '');
+                    $bedTypeName = trim($row[1] ?? '');
+                    $noOfRooms = trim($row[2] ?? '');
+                    $adultCount = trim($row[3] ?? '');
+                    $childCount = trim($row[4] ?? '');
+                    $extraBed = trim($row[5] ?? '');
+                    $extraBedType = trim($row[6] ?? '');
+                    $extraBedPrice = trim($row[7] ?? '0');
+                    $babyCot = trim($row[8] ?? '');
+                    $babyCotPrice = trim($row[9] ?? '0');
+                    $forceChild = trim($row[10] ?? '0');
+                    $forceChildCount = trim($row[11] ?? '0');
+                    $status = trim($row[12] ?? '1');
+                    
+                    // Validate required fields
+                    $missingFields = [];
+                    if (empty($roomTypeName)) $missingFields[] = 'Room Type';
+                    if (empty($bedTypeName)) $missingFields[] = 'Bed Type';
+                    if (empty($noOfRooms)) $missingFields[] = 'No. of Rooms';
+                    if (empty($adultCount)) $missingFields[] = 'Adult Count';
+                    if (empty($extraBed)) $missingFields[] = 'Extra Bed';
+                    if (empty($babyCot)) $missingFields[] = 'Baby Cot';
+                    
+                    if (!empty($missingFields)) {
+                        $errors[] = "Row {$rowNumber}: Missing required fields: " . implode(', ', $missingFields);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate numeric fields
+                    $numericFields = [
+                        'No. of Rooms' => $noOfRooms,
+                        'Adult Count' => $adultCount,
+                        'Child Count' => $childCount,
+                        'Extra Bed Price' => $extraBedPrice,
+                        'Baby Cot Price' => $babyCotPrice,
+                        'Force Child Count' => $forceChildCount
+                    ];
+                    
+                    foreach ($numericFields as $fieldName => $value) {
+                        if (!empty($value) && !is_numeric($value)) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2;
+                        }
+                    }
+
+                    // Validate and convert text values to boolean/numeric
+                    $extraBedValue = strtolower($extraBed);
+                    if (!in_array($extraBedValue, ['yes', 'no', '1', '0'])) {
+                        $errors[] = "Row {$rowNumber}: Extra Bed must be 'Yes', 'No', '1', or '0'. Found: '{$extraBed}'";
+                        $errorCount++;
+                        continue;
+                    }
+                    $extraBedNumeric = ($extraBedValue === 'yes' || $extraBedValue === '1') ? '1' : '0';
+                    
+                    $babyCotValue = strtolower($babyCot);
+                    if (!in_array($babyCotValue, ['yes', 'no', '1', '0'])) {
+                        $errors[] = "Row {$rowNumber}: Baby Cot must be 'Yes', 'No', '1', or '0'. Found: '{$babyCot}'";
+                        $errorCount++;
+                        continue;
+                    }
+                    $babyCotNumeric = ($babyCotValue === 'yes' || $babyCotValue === '1') ? '1' : '0';
+                    
+                    $statusValue = strtolower($status);
+                    if (!in_array($statusValue, ['active', 'inactive', '1', '0'])) {
+                        $errors[] = "Row {$rowNumber}: Status must be 'Active', 'Inactive', '1', or '0'. Found: '{$status}'";
+                        $errorCount++;
+                        continue;
+                    }
+                    $statusNumeric = ($statusValue === 'active' || $statusValue === '1') ? '1' : '0';
+                    
+                    $forceChildValue = strtolower($forceChild);
+                    if (!in_array($forceChildValue, ['yes', 'no', '1', '0', ''])) {
+                        $errors[] = "Row {$rowNumber}: Force Child must be 'Yes', 'No', '1', '0', or empty. Found: '{$forceChild}'";
+                        $errorCount++;
+                        continue;
+                    }
+                    $forceChildNumeric = ($forceChildValue === 'yes' || $forceChildValue === '1') ? '1' : '0';
+
+                    // Find room category by name
+                    $roomCategory = \App\Models\Room::where('room_type', $roomTypeName)
+                                                  ->where('hotel_id', $hotel_id)
+                                                  ->first();
+                    if (!$roomCategory) {
+                        $errors[] = "Row {$rowNumber}: Room Type '{$roomTypeName}' not found for this hotel";
+                        $errorCount++;
+                        continue;
+                    }
+                    $roomCategoryId = $roomCategory->room_id;
+
+                    // Find bed type by name
+                    $bedType = \App\Models\BedMaster::where('name', $bedTypeName)
+                                                   ->where('hotel_id', $hotel_id)
+                                                   ->first();
+                    if (!$bedType) {
+                        $errors[] = "Row {$rowNumber}: Bed Type '{$bedTypeName}' not found for this hotel";
+                        $errorCount++;
+                        continue;
+                    }
+                    $bedTypeId = $bedType->bedId;
+
+                    // Check room availability
+                    $totalRoomsInCategory = $roomCategory->no_of_room;
+                    $usedRooms = \App\Models\Bed::where('room_id', $roomCategoryId)->sum('no_of_rooms');
+                    
+                    if ($totalRoomsInCategory < ($usedRooms + intval($noOfRooms))) {
+                        $availableRooms = $totalRoomsInCategory - $usedRooms;
+                        $errors[] = "Row {$rowNumber}: Not enough rooms available. Requested: {$noOfRooms}, Available: {$availableRooms}";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Calculate max occupancy from bed type
+                    $maxOccupancy = ($bedType->no_of_king_bed * 2)
+                                  + ($bedType->no_of_queen_bed * 2) 
+                                  + ($bedType->no_of_twin_bed * 2) 
+                                  + ($bedType->no_of_single_bed) 
+                                  + ($bedType->no_of_bunk_bed * 2);
+                    
+                    // Add extra bed to occupancy if selected
+                    if ($extraBedNumeric == '1') {
+                        $maxOccupancy += 1;
+                    }
+
+                    // Validate occupancy doesn't exceed max
+                    $totalOccupancy = intval($adultCount) + intval($childCount);
+                    if ($totalOccupancy > $maxOccupancy) {
+                        $errors[] = "Row {$rowNumber}: Total occupancy ({$totalOccupancy}) exceeds maximum for this bed type ({$maxOccupancy})";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate extra bed type if extra bed is selected
+                    if ($extraBedNumeric == '1' && empty($extraBedType)) {
+                        $errors[] = "Row {$rowNumber}: Extra Bed Type is required when Extra Bed is Yes";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate extra bed type value
+                    if ($extraBedNumeric == '1' && !in_array($extraBedType, $this->allowedExtraBedType)) {
+                        $errors[] = "Row {$rowNumber}: Invalid Extra Bed Type. Allowed: " . implode(', ', $this->allowedExtraBedType);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Generate unique bed ID using CommonHelper (following HotelController logic)
+                    $lastBed = \App\Models\Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
+                    $bedMaxId = $lastBed ? $lastBed->bed_id : 0;
+                    $bedId = \App\Helpers\CommonHelper::createId($bedMaxId);
+                    
+                    while (\App\Models\Bed::where('bed_id', $bedId)->exists()) {
+                        $bedId = \App\Helpers\CommonHelper::createId($bedId);
+                    }
+                    
+                    // Handle null values for extra bed and baby cot (following HotelController logic)
+                    if ($extraBedNumeric != '1') {
+                        $extraBedType = null;
+                        $extraBedPrice = 0;
+                    }
+                    if ($babyCotNumeric != '1') {
+                        $babyCotPrice = 0;
+                    }
+                    
+                    // Create bed record (following exact HotelController storebeds logic)
+                    $bed = new \App\Models\Bed();
+                    $bed->room_type = $bedType->name;
+                    $bed->bed_master_id = $bedTypeId;
+                    $bed->no_of_rooms = intval($noOfRooms);
+                    $bed->max_occupancy = $maxOccupancy;
+                    $bed->adult_count = intval($adultCount);
+                    $bed->child_count = intval($childCount);
+                    $bed->extra_bed = ($extraBedNumeric == '1') ? 1 : 0;
+                    $bed->extra_bed_type = $extraBedType;
+                    $bed->extra_bed_price = floatval($extraBedPrice);
+                    $bed->baby_cot = ($babyCotNumeric == '1') ? 1 : null;
+                    $bed->baby_cot_price = floatval($babyCotPrice);
+                    $bed->bed_id = $bedId;
+                    $bed->dmc_id = $auth_user->userId;
+                    $bed->room_id = $roomCategoryId;
+                    $bed->is_active = ($statusNumeric == '1') ? 1 : 0;
+                    $bed->force_child = ($forceChildNumeric == '1') ? 1 : 0;
+                    $bed->force_child_count = intval($forceChildCount);
+                    
+                    $bed->save();
+                    $successCount++;
+                    
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                    $errorCount++;
+                    Log::error("Hotel bed bulk upload error on row {$rowNumber}: " . $e->getMessage());
+                }
+            }
+            
+            // Commit transaction only if we have successes
+            if ($successCount > 0) {
+                DB::commit();
+                
+                // Update hotel completion status
+                \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->update(['is_complete' => 1]);
+            } else {
+                DB::rollback();
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            return redirect()->back()
+                ->withErrors($e->validator)
+                ->withInput();
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Hotel bed bulk upload failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Upload failed due to an unexpected error. Please check your file format and try again.');
+        }
+
+        // Save upload history
+        try {
+            UploadHistory::createRecord(
+                'hotel_beds_' . $hotel_id,
+                $file->getClientOriginalName(),
+                $file->getClientOriginalName(),
+                count($csvData ?? []),
+                $successCount,
+                $errorCount,
+                $errors,
+                $auth_user->userId
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to save upload history: ' . $e->getMessage());
+        }
+        
+        // Generate user-friendly messages
+        if ($successCount > 0 && $errorCount == 0) {
+            $message = "Success! {$successCount} beds uploaded successfully for {$hotel->name}.";
+            return redirect()->back()->with('success', $message);
+        } elseif ($successCount > 0 && $errorCount > 0) {
+            $message = "Partial success: {$successCount} beds uploaded successfully, {$errorCount} failed for {$hotel->name}.";
+            
+            $validator = Validator::make([], []);
+            foreach ($errors as $error) {
+                $validator->errors()->add('upload', $error);
+            }
+            
+            return redirect()->back()
+                ->with('success', $message)
+                ->withErrors($validator);
+        } else {
+            $message = "Upload failed: {$errorCount} errors occurred. No beds were uploaded.";
+            
+            $validator = Validator::make([], []);
+            foreach ($errors as $error) {
+                $validator->errors()->add('upload', $error);
+            }
+            
+            return redirect()->back()
+                ->with('error', $message)
+                ->withErrors($validator);
+        }
+    }
+    
+    /**
+     * Check if user has access to hotel (DMC check)
+     */
+    private function userHasAccessToHotel($hotel, $userId)
+    {
+        // Check if hotel belongs to this DMC
+        // Handle both JSON string and array formats
+        if (is_string($hotel->dmc_id)) {
+            $dmcIds = json_decode($hotel->dmc_id, true);
+            if (is_array($dmcIds)) {
+                return in_array($userId, $dmcIds);
+            } else {
+                return $hotel->dmc_id == $userId;
+            }
+        } elseif (is_array($hotel->dmc_id)) {
+            return in_array($userId, $hotel->dmc_id);
+        } else {
+            return $hotel->dmc_id == $userId;
+        }
+    }
+
+    // Hotel Season Bulk Upload Methods
+    public function hotelSeasons($hotel_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can upload seasons.');
+        }
+
+        // Get the hotel
+        $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->first();
+        if (!$hotel) {
+            abort(404, 'Hotel not found.');
+        }
+
+        // Check if hotel belongs to this DMC
+        if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
+            abort(403, 'You can only upload seasons for your own hotels.');
+        }
+
+        // Get upload history for seasons
+        $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'hotel_seasons')
+            ->where('uploaded_by', $auth_user->userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($history) {
+                $history->formatted_date = $history->created_at->format('M j, Y g:i A');
+                $history->relative_time = $history->created_at->diffForHumans();
+                $history->compact_date = $history->created_at->format('M j, Y');
+                return $history;
+            });
+
+        return view('bulk-upload.hotel-seasons', compact('hotel', 'uploadHistory'));
+    }
+
+    public function downloadHotelSeasonTemplate($hotel_id)
+    {
+        $auth_user = Auth::user();
+        
+        // Check for DMC role
+        if (!$auth_user || $auth_user->role_id !== '11') {
+            abort(403, 'Access denied. Only DMC users can download season templates.');
+        }
+        
+        // Get the hotel
+        $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->first();
+        if (!$hotel) {
+            abort(404, 'Hotel not found.');
+        }
+        
+        // Check if hotel belongs to this DMC
+        if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
+            abort(403, 'You can only download templates for your own hotels.');
+        }
+        
+        $headers = [
+            'Season Name*',
+            'Single Weekday Price*',
+            'Single Weekend Price*', 
+            'Double Weekday Price*',
+            'Double Weekend Price*',
+            'Start Date* (MM/DD/YYYY)',
+            'End Date* (MM/DD/YYYY)',
+            'Status (1=Active, 0=Inactive)*'
+        ];
+        
+        $data = [$headers];
+        
+        // Add sample data with correct MM/DD/YYYY format
+        // Using quotes around dates to prevent Excel auto-formatting
+        $data[] = [
+            'Summer Season 2025',
+            '150.00',
+            '200.00',
+            '250.00',
+            '300.00',
+            '"06/01/2025"',
+            '"08/31/2025"',
+            '1'
+        ];
+        
+        $data[] = [
+            'Winter Season 2025',
+            '120.00',
+            '160.00',
+            '200.00',
+            '240.00', 
+            '"12/01/2025"',
+            '"02/28/2026"',
+            '1'
+        ];
+        
+        // Add additional sample for current year dates
+        $currentYear = date('Y');
+        $nextYear = $currentYear + 1;
+        $data[] = [
+            'Spring Season ' . $currentYear,
+            '180.00',
+            '220.00',
+            '280.00',
+            '320.00',
+            '"03/01/' . $currentYear . '"',
+            '"05/31/' . $currentYear . '"',
+            '1'
+        ];
+        
+        // Add template row for user input with format examples
+        $data[] = [
+            'Your Season Name Here',
+            '100.00',
+            '150.00',
+            '200.00',
+            '250.00',
+            '"01/01/2025"',
+            '"03/31/2025"',
+            '1'
+        ];
+        
+        // Add instruction row (will be filtered out during upload)
+        $data[] = [
+            '=== DELETE THIS ROW BEFORE UPLOAD ===',
+            'Enter prices as numbers only',
+            'No currency symbols',
+            'All fields required',
+            'Except this column',
+            'Use MM/DD/YYYY format',
+            'With forward slashes /',
+            '1 or 0'
+        ];
+
+        return $this->generateCsvResponse($data, 'hotel_seasons_template_' . $hotel_id . '.csv');
+    }
+
+    public function uploadHotelSeasons(Request $request, $hotel_id)
+    {
+        $auth_user = Auth::user();
+        $successCount = 0;
+        $errorCount = 0;
+        $errors = [];
+        
+        try {
+            // Enhanced validation
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240',
+            ], [
+                'file.required' => 'Please select a file to upload.',
+                'file.mimes' => 'Only CSV and TXT files are allowed.',
+                'file.max' => 'File size should not exceed 10MB.'
+            ]);
+
+            $file = $request->file('file');
+            
+            // Check for DMC role
+            if (!$auth_user || $auth_user->role_id !== '11') {
+                return redirect()->back()->with('error', 'Access denied. Only DMC users can upload seasons.');
+            }
+
+            // Get the hotel
+            $hotel = \App\Models\Hotel::where('hotel_unique_id', $hotel_id)->first();
+            if (!$hotel) {
+                return redirect()->back()->with('error', 'Hotel not found.');
+            }
+
+            // Check if hotel belongs to this DMC
+            if (!$this->userHasAccessToHotel($hotel, $auth_user->userId)) {
+                return redirect()->back()->with('error', 'You can only upload seasons for your own hotels.');
+            }
+
+            // Check if file was uploaded successfully
+            if (!$file->isValid()) {
+                return redirect()->back()->with('error', 'File upload failed. Please try again.');
+            }
+
+            // Check file size
+            if ($file->getSize() == 0) {
+                return redirect()->back()->with('error', 'The uploaded file is empty.');
+            }
+            
+            // Read CSV file with enhanced error handling
+            try {
+                $csvData = $this->readCsvFile($file->getPathname());
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'Failed to read CSV file: ' . $e->getMessage());
+            }
+
+            if (empty($csvData)) {
+                return redirect()->back()->with('error', 'The uploaded file is empty or has invalid format.');
+            }
+
+            // Remove header row
+            $header = array_shift($csvData);
+            
+            // Check if we have the expected number of columns
+            $expectedColumns = 8;
+            if (count($header) < $expectedColumns) {
+                return redirect()->back()->with('error', 'Invalid file format. Expected ' . $expectedColumns . ' columns.');
+            }
+
+            // Validate row count
+            if (count($csvData) > 100) {
+                return redirect()->back()->with('error', 'Maximum 100 seasons allowed per upload. Your file contains ' . count($csvData) . ' seasons.');
+            }
+            
+            DB::beginTransaction();
+            
+            foreach ($csvData as $rowIndex => $row) {
+                $rowNumber = $rowIndex + 2; // +2 because we removed header and array is 0-indexed
+                
+                try {
+                    // Skip empty rows and instruction rows
+                    if (empty(array_filter($row)) || 
+                        (isset($row[0]) && strpos($row[0], '=== DELETE THIS ROW') !== false)) {
+                        continue;
+                    }
+                    
+                    // Ensure row has enough columns
+                    if (count($row) < $expectedColumns) {
+                        $errors[] = "Row {$rowNumber}: Insufficient columns. Expected {$expectedColumns}, found " . count($row);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Map CSV columns to variables
+                    $seasonName = trim($row[0] ?? '');
+                    $singleWeekdayPrice = trim($row[1] ?? '');
+                    $singleWeekendPrice = trim($row[2] ?? '');
+                    $doubleWeekdayPrice = trim($row[3] ?? '');
+                    $doubleWeekendPrice = trim($row[4] ?? '');
+                    $startDate = trim($row[5] ?? '');
+                    $endDate = trim($row[6] ?? '');
+                    $status = trim($row[7] ?? '1');
+                    
+                    // Validate required fields
+                    $missingFields = [];
+                    if (empty($seasonName)) $missingFields[] = 'Season Name';
+                    if (empty($singleWeekdayPrice)) $missingFields[] = 'Single Weekday Price';
+                    if (empty($singleWeekendPrice)) $missingFields[] = 'Single Weekend Price';
+                    if (empty($doubleWeekdayPrice)) $missingFields[] = 'Double Weekday Price';
+                    if (empty($doubleWeekendPrice)) $missingFields[] = 'Double Weekend Price';
+                    if (empty($startDate)) $missingFields[] = 'Start Date';
+                    if (empty($endDate)) $missingFields[] = 'End Date';
+                    
+                    if (!empty($missingFields)) {
+                        $errors[] = "Row {$rowNumber}: Missing required fields: " . implode(', ', $missingFields);
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate numeric fields
+                    $numericFields = [
+                        'Single Weekday Price' => $singleWeekdayPrice,
+                        'Single Weekend Price' => $singleWeekendPrice,
+                        'Double Weekday Price' => $doubleWeekdayPrice,
+                        'Double Weekend Price' => $doubleWeekendPrice
+                    ];
+                    
+                    foreach ($numericFields as $fieldName => $value) {
+                        if (!empty($value) && !is_numeric($value)) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2;
+                        }
+                        if (!empty($value) && is_numeric($value) && floatval($value) < 0) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be 0 or greater. Found: '{$value}'";
+                            $errorCount++;
+                            continue 2;
+                        }
+                    }
+
+                    // Validate and parse dates with multiple format support
+                    $startDateParsed = null;
+                    $endDateParsed = null;
+                    
+                    // First, clean the dates by removing quotes and handling format variations
+                    $cleanStartDate = trim(str_replace(['"', "'", '-'], ['', '', '/'], $startDate)); // Remove quotes and convert dashes
+                    $cleanEndDate = trim(str_replace(['"', "'", '-'], ['', '', '/'], $endDate)); // Remove quotes and convert dashes
+                    
+                    try {
+                        // Try parsing with MM/DD/YYYY format
+                        $startDateParsed = \Carbon\Carbon::createFromFormat('m/d/Y', $cleanStartDate);
+                        $endDateParsed = \Carbon\Carbon::createFromFormat('m/d/Y', $cleanEndDate);
+                        
+                        // Validate that the dates were parsed correctly
+                        if (!$startDateParsed || !$endDateParsed) {
+                            throw new \Exception('Date parsing failed');
+                        }
+                        
+                        // Additional validation - check if dates are reasonable
+                        if ($startDateParsed->year < 2020 || $startDateParsed->year > 2030 || 
+                            $endDateParsed->year < 2020 || $endDateParsed->year > 2030) {
+                            throw new \Exception('Date year out of reasonable range (2020-2030)');
+                        }
+                        
+                    } catch (\Exception $e) {
+                        $errors[] = "Row {$rowNumber}: Invalid date format. Use MM/DD/YYYY format for dates. Start Date: '{$startDate}' (cleaned: '{$cleanStartDate}'), End Date: '{$endDate}' (cleaned: '{$cleanEndDate}'). Accepted formats: MM/DD/YYYY or MM-DD-YYYY.";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate date logic
+                    if ($startDateParsed->gte($endDateParsed)) {
+                        $errors[] = "Row {$rowNumber}: Start date must be before end date.";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Check for overlapping seasons for this hotel and DMC
+                    $overlappingSeasons = \App\Models\Rate::where('hotel_id', $hotel_id)
+                        ->where('event_type', 'Season')
+                        ->where('dmc_id', $auth_user->userId)
+                        ->where(function ($query) use ($startDateParsed, $endDateParsed) {
+                            $query->whereBetween('start_date', [$startDateParsed, $endDateParsed])
+                                ->orWhereBetween('end_date', [$startDateParsed, $endDateParsed])
+                                ->orWhere(function ($query) use ($startDateParsed, $endDateParsed) {
+                                    $query->where('start_date', '<=', $startDateParsed)
+                                        ->where('end_date', '>=', $endDateParsed);
+                                });
+                        })
+                        ->exists();
+
+                    if ($overlappingSeasons) {
+                        $errors[] = "Row {$rowNumber}: Season dates overlap with existing season for this hotel.";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate status field
+                    if (!in_array($status, ['0', '1'])) {
+                        $errors[] = "Row {$rowNumber}: Status must be 0 (inactive) or 1 (active). Found: '{$status}'";
+                        $errorCount++;
+                        continue;
+                    }
+                    
+                    // Generate unique rate ID
+                    $lastRate = \App\Models\Rate::withTrashed()->orderBy('created_at', 'desc')->first();
+                    $rate_max_id = $lastRate->rate_id ?? 0;
+                    $rateId = \App\Helpers\CommonHelper::createId($rate_max_id);
+                    while (\App\Models\Rate::where('rate_id', $rateId)->exists()) {
+                        $rateId = \App\Helpers\CommonHelper::createId($rateId);
+                    }
+
+                    // Create season record
+                    $season = \App\Models\Rate::create([
+                        'rate_id' => $rateId,
+                        'event' => $seasonName,
+                        'event_type' => 'Season',
+                        'hotel_id' => $hotel_id,
+                        'price' => 0,
+                        'weekday_price' => floatval($singleWeekdayPrice),
+                        'weekend_price' => floatval($singleWeekendPrice),
+                        'double_weekday_price' => floatval($doubleWeekdayPrice),
+                        'double_weekend_price' => floatval($doubleWeekendPrice),
+                        'start_date' => $startDateParsed,
+                        'end_date' => $endDateParsed,
+                        'dmc_id' => $auth_user->userId,
+                        'is_active' => $status == '1' ? 1 : 0,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+
+                    if ($season) {
+                        $successCount++;
+                    } else {
+                        $errors[] = "Row {$rowNumber}: Failed to create season record.";
+                        $errorCount++;
+                    }
+
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+                    $errorCount++;
+                    continue;
+                }
+            }
+
+            // Determine overall status
+            $status = 'success';
+            if ($errorCount > 0 && $successCount === 0) {
+                $status = 'failed';
+            } elseif ($errorCount > 0) {
+                $status = 'partial';
+            }
+
+            // Store upload history
+            \App\Models\UploadHistory::create([
+                'upload_type' => 'hotel_seasons',
+                'file_name' => $file->getClientOriginalName(),
+                'original_file_name' => $file->getClientOriginalName(),
+                'total_records' => $successCount + $errorCount,
+                'success_count' => $successCount,
+                'error_count' => $errorCount,
+                'errors' => $errors,
+                'status' => $status,
+                'uploaded_by' => $auth_user->userId
+            ]);
+
+            DB::commit();
+
+            // Prepare response message
+            $message = "Upload completed! {$successCount} seasons uploaded successfully";
+            if ($errorCount > 0) {
+                $message .= ", {$errorCount} failed";
+            }
+            $message .= ".";
+
+            if ($errorCount > 0) {
+                return redirect()->route('seasons.bulk_upload_for_hotel', $hotel_id)
+                    ->with('warning', $message)
+                    ->with('upload_errors', $errors);
+            } else {
+                return redirect()->route('seasons.bulk_upload_for_hotel', $hotel_id)
+                    ->with('success', $message);
+            }
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Hotel seasons bulk upload failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
     }
 }

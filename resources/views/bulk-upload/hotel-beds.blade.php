@@ -12,25 +12,25 @@
                                 <div class="header-content">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="icon-wrapper me-3">
-                                            <i class="ri-restaurant-line"></i>
+                                            <i class="ri-hotel-bed-line"></i>
                                         </div>
                                         <div>
-                                            <h4 class="card-title mb-1 text-white">Bulk Upload Meals</h4>
-                                            <h6 class="text-white-50 mb-0">{{ $restaurant->name }}</h6>
+                                            <h4 class="card-title mb-1 text-white">Bulk Upload Beds</h4>
+                                            <h6 class="text-white-50 mb-0">{{ $hotel->name }}</h6>
                                         </div>
                                     </div>
                                     <p class="text-white-75 mb-0">
-                                        <i class="ri-store-2-line me-1"></i>{{ $restaurant->city ?? 'N/A' }}, {{ $restaurant->country ?? 'N/A' }}
+                                        <i class="ri-map-pin-line me-1"></i>{{ $hotel->city }}, {{ $hotel->country }}
                                     </p>
                                 </div>
                                 <div class="d-flex gap-2 flex-wrap">
-                                    <a href="{{ route('meals.download_template_for_restaurant', $restaurant->restaurant_id) }}" 
+                                    <a href="{{ route('beds.template_for_hotel', $hotel->hotel_unique_id) }}" 
                                        class="btn btn-light btn-sm shadow-sm">
                                         <i class="ri-download-cloud-2-line me-1"></i>Download Template
                                     </a>
-                                    <a href="{{ route('meals.restaurant_create', $restaurant->restaurant_id) }}" 
+                                    <a href="{{ route('hotels.beds', $hotel->hotel_unique_id) }}" 
                                        class="btn btn-outline-light btn-sm">
-                                        <i class="ri-arrow-left-line me-1"></i>Back to Meals
+                                        <i class="ri-arrow-left-line me-1"></i>Back to Beds
                                     </a>
                                 </div>
                             </div>
@@ -50,7 +50,7 @@
                             <div class="instruction-box mb-4">
                                 <div class="instruction-header">
                                     <i class="ri-information-line me-2"></i>
-                                    <strong>Meal Upload Instructions</strong>
+                                    <strong>Upload Instructions</strong>
                                 </div>
                                 <div class="instruction-content">
                                     <div class="row g-4">
@@ -65,7 +65,7 @@
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-edit-line text-primary"></i>
-                                                    <span>Fill in your meal data (required fields marked with *)</span>
+                                                    <span>Fill in your bed data (required fields marked with *)</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-file-text-line text-warning"></i>
@@ -80,177 +80,150 @@
                                         <div class="col-md-6">
                                             <div class="instruction-section">
                                                 <h6 class="instruction-section-title">
-                                                    <i class="ri-shield-check-line me-2"></i>Restaurant Availability
+                                                    <i class="ri-settings-3-line me-2"></i>Field Requirements
                                                 </h6>
                                                 <div class="instruction-item">
-                                                    <i class="ri-{{ $restaurant->breakfast_available ? 'check-circle-line text-success' : 'close-circle-line text-muted' }}"></i>
-                                                    <span class="{{ $restaurant->breakfast_available ? 'text-success' : 'text-muted' }}">
-                                                        <strong>Breakfast:</strong> {{ $restaurant->breakfast_available ? 'Available' : 'Not Available' }}
-                                                    </span>
+                                                    <i class="ri-checkbox-circle-line text-danger"></i>
+                                                    <span><strong>Required:</strong> Room Type, Bed Type, No. of Rooms, Adult Count, Extra Bed, Baby Cot, Status</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-{{ $restaurant->lunch_available ? 'check-circle-line text-success' : 'close-circle-line text-muted' }}"></i>
-                                                    <span class="{{ $restaurant->lunch_available ? 'text-success' : 'text-muted' }}">
-                                                        <strong>Lunch:</strong> {{ $restaurant->lunch_available ? 'Available' : 'Not Available' }}
-                                                    </span>
+                                                    <i class="ri-money-dollar-circle-line text-info"></i>
+                                                    <span>All price fields must be numeric and greater than or equal to 0</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-{{ $restaurant->dinner_available ? 'check-circle-line text-success' : 'close-circle-line text-muted' }}"></i>
-                                                    <span class="{{ $restaurant->dinner_available ? 'text-success' : 'text-muted' }}">
-                                                        <strong>Dinner:</strong> {{ $restaurant->dinner_available ? 'Available' : 'Not Available' }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Meal Type Structure Cards -->
-                                    <div class="row g-4 mt-3">
-                                        <div class="col-12">
-                                            <h6 class="instruction-section-title">
-                                                <i class="ri-restaurant-2-line me-2"></i>Meal Type Structure Overview
-                                            </h6>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="meal-type-card buffet-card">
-                                                <div class="meal-type-header">
-                                                    <i class="ri-restaurant-fill me-2"></i>
-                                                    <h6 class="mb-0 text-white">Buffet Meals</h6>
-                                                </div>
-                                                <div class="meal-type-content">
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-check-line text-success me-2"></i>
-                                                        <span><strong>Required:</strong> Adult Price & Child Price</span>
-                                                    </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-close-line text-danger me-2"></i>
-                                                        <span><strong>Leave Empty:</strong> Item Price & Item Type</span>
-                                                    </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-calculator-line text-info me-2"></i>
-                                                        <span>Both prices must be > 0</span>
-                                                    </div>
-                                                    <div class="meal-type-example">
-                                                        <small class="text-muted">
-                                                            <strong>Example:</strong> Continental Breakfast Buffet - Adult: $25.00, Child: $12.50
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="meal-type-card setmenu-card">
-                                                <div class="meal-type-header">
-                                                    <i class="ri-bowl-line me-2"></i>
-                                                    <h6 class="mb-0 text-white">Set Menu Meals</h6>
-                                                </div>
-                                                <div class="meal-type-content">
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-check-line text-success me-2"></i>
-                                                        <span><strong>Required:</strong> Item Price & Item Type</span>
-                                                    </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-close-line text-danger me-2"></i>
-                                                        <span><strong>Leave Empty:</strong> Adult Price & Child Price</span>
-                                                    </div>
-                                                    <div class="meal-type-item">
-                                                        <i class="ri-leaf-line text-success me-2"></i>
-                                                        <span>Type: Vegetarian or Non Vegetarian</span>
-                                                    </div>
-                                                    <div class="meal-type-example">
-                                                        <small class="text-muted">
-                                                            <strong>Example:</strong> Chicken Rice Set - Price: $18.50, Type: Non Vegetarian
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row g-4 mt-2">
-                                        <div class="col-md-6">
-                                            <div class="instruction-section">
-                                                <h6 class="instruction-section-title">
-                                                    <i class="ri-list-check-line me-2"></i>Valid Field Options
-                                                </h6>
-                                                <div class="instruction-item">
-                                                    <i class="ri-time-line text-primary"></i>
-                                                    <span><strong>Meal Type:</strong> Breakfast, Lunch, Dinner</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-goblet-line text-warning"></i>
-                                                    <span><strong>Beverage:</strong> Alcoholic, Non Alcoholic, No Beverage</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-restaurant-fill text-success"></i>
-                                                    <span><strong>Meals:</strong> Buffet, Set Menu</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-leaf-line text-success"></i>
-                                                    <span><strong>Item Type:</strong> Vegetarian, Non Vegetarian (Set Menu only)</span>
+                                                    <i class="ri-text-direction-line text-primary"></i>
+                                                    <span><strong>Text Values:</strong> Use exact Room Type and Bed Type names (not IDs)</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-toggle-line text-info"></i>
-                                                    <span><strong>Status:</strong> 1 = Active, 0 = Inactive</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="instruction-section">
-                                                <h6 class="instruction-section-title">
-                                                    <i class="ri-error-warning-line me-2"></i>Important Rules
-                                                </h6>
-                                                <div class="instruction-item">
-                                                    <i class="ri-restaurant-2-line text-danger"></i>
-                                                    <span>Can only upload meals for available meal times</span>
+                                                    <span><strong>Yes/No Fields:</strong> Extra Bed, Baby Cot, Force Child (Yes/No or 1/0)</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-text text-info"></i>
-                                                    <span>Use exact spelling for dropdown values (case-sensitive)</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-calculator-line text-primary"></i>
-                                                    <span>Enter prices as numbers without currency symbols</span>
-                                                </div>
-                                                <div class="instruction-item">
-                                                    <i class="ri-file-text-line text-warning"></i>
-                                                    <span>Item Description is required for all meals</span>
+                                                    <i class="ri-toggle-line text-info"></i>
+                                                    <span><strong>Status:</strong> Active/Inactive or 1/0</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div class="row mt-3">
+                                    <!-- Available Bed Types Section -->
+                                    <div class="row mt-4">
                                         <div class="col-12">
-                                            <div class="alert alert-info border-0 mb-0 pro-tips-alert">
-                                                <div class="d-flex align-items-start">
-                                                    <i class="ri-lightbulb-line me-2 mt-1 text-warning"></i>
-                                                    <div>
-                                                        <strong class="text-primary">Pro Tips:</strong> 
-                                                        <div class="pro-tips-content mt-2">
-                                                            <div class="row g-3">
-                                                                <div class="col-md-6">
-                                                                    <div class="pro-tip-item">
-                                                                        <i class="ri-check-double-line text-success me-2"></i>
-                                                                        <span>Double-check meal availability for your restaurant before uploading</span>
-                                                                    </div>
-                                                                    <div class="pro-tip-item">
-                                                                        <i class="ri-price-tag-3-line text-primary me-2"></i>
-                                                                        <span>For Buffet: Both Adult and Child prices are mandatory and must be > 0</span>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-6">
-                                                                    <div class="pro-tip-item">
-                                                                        <i class="ri-bowl-fill text-warning me-2"></i>
-                                                                        <span>For Set Menu: Specify Item Price and whether it's Vegetarian/Non Vegetarian</span>
-                                                                    </div>
-                                                                    <div class="pro-tip-item">
-                                                                        <i class="ri-save-line text-success me-2"></i>
-                                                                        <span>Save your file as CSV format before uploading for best compatibility</span>
-                                                                    </div>
+                                            <div class="instruction-section">
+                                                <h6 class="instruction-section-title">
+                                                    <i class="ri-hotel-bed-line me-2"></i>Available Bed Types for {{ $hotel->name }}
+                                                </h6>
+                                                @if($bedTypes->count() > 0)
+                                                    <div class="alert alert-info mb-3">
+                                                        <strong>CSV Format:</strong> Use the exact bed type names shown below in your CSV file.
+                                                    </div>
+                                                    <div class="row">
+                                                        @foreach($bedTypes as $bedType)
+                                                            <div class="col-md-6 mb-2">
+                                                                <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                                    <i class="ri-hotel-bed-line text-primary me-2"></i>
+                                                                    <span class="fw-medium">{{ $bedType->name }}</span>
+                                                                    <small class="text-muted ms-auto">(Max: {{ $bedType->max_occupancy }} guests)</small>
                                                                 </div>
                                                             </div>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <div class="alert alert-warning">
+                                                        <i class="ri-alert-line me-2"></i>
+                                                        No bed types are configured for this hotel. Please add bed types first before uploading beds.
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Available Room Categories Section -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="instruction-section">
+                                                <h6 class="instruction-section-title">
+                                                    <i class="ri-building-line me-2"></i>Available Room Categories for {{ $hotel->name }}
+                                                </h6>
+                                                @if($roomCategories->count() > 0)
+                                                    <div class="alert alert-info mb-3">
+                                                        <strong>CSV Format:</strong> Use the exact room type names shown below in your CSV file.
+                                                    </div>
+                                                    <div class="row">
+                                                        @foreach($roomCategories as $room)
+                                                            <div class="col-md-6 mb-2">
+                                                                <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                                    <i class="ri-building-line text-info me-2"></i>
+                                                                    <span class="fw-medium">{{ $room->room_type }}</span>
+                                                                    <small class="text-muted ms-auto">({{ $room->no_of_room }} rooms available)</small>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <div class="alert alert-warning">
+                                                        <i class="ri-alert-line me-2"></i>
+                                                        No room categories are configured for this hotel. Please add room categories first.
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Available Extra Bed Types Section -->
+                                    <div class="row mt-4">
+                                        <div class="col-12">
+                                            <div class="instruction-section">
+                                                <h6 class="instruction-section-title">
+                                                    <i class="ri-hotel-bed-line me-2"></i>Available Extra Bed Types
+                                                </h6>
+                                                <div class="alert alert-info mb-3">
+                                                    <strong>CSV Format:</strong> Use one of these exact extra bed type names when Extra Bed = Yes.
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                            <i class="ri-sofa-line text-success me-2"></i>
+                                                            <span class="fw-medium">Sofa Bed</span>
                                                         </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                            <i class="ri-hotel-bed-line text-success me-2"></i>
+                                                            <span class="fw-medium">Wall Bed</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                            <i class="ri-hotel-bed-line text-success me-2"></i>
+                                                            <span class="fw-medium">Futon</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                            <i class="ri-hotel-bed-line text-success me-2"></i>
+                                                            <span class="fw-medium">Rollaway Bed</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                            <i class="ri-hotel-bed-line text-success me-2"></i>
+                                                            <span class="fw-medium">Bunk Bed</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-info border-0 mb-0">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="ri-lightbulb-line me-2 mt-1"></i>
+                                                    <div>
+                                                        <strong>Pro Tips:</strong>
+                                                        <span class="ms-2">Use exact Room Type and Bed Type names from the lists above. Use Yes/No or 1/0 for boolean fields. Ensure total rooms don't exceed available rooms for each category. All required fields must be filled. Status must be Active/Inactive or 1/0.</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -261,7 +234,7 @@
 
                             <!-- Upload Form -->
                             <div class="upload-section">
-                                <form action="{{ route('meals.upload_for_restaurant', $restaurant->restaurant_id) }}" 
+                                <form action="{{ route('beds.upload_for_hotel', $hotel->hotel_unique_id) }}" 
                                       method="POST" 
                                       enctype="multipart/form-data" 
                                       class="upload-form">
@@ -289,7 +262,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <button type="submit" class="btn btn-primary w-100 upload-btn">
-                                                <i class="ri-upload-cloud-2-line me-2"></i>Upload Meals
+                                                <i class="ri-upload-cloud-2-line me-2"></i>Upload Beds
                                             </button>
                                         </div>
                                     </div>
@@ -324,7 +297,7 @@
                             <div class="d-flex align-items-center justify-content-between">
                                 <h5 class="card-title mb-0 text-white">
                                     <i class="ri-history-line me-2"></i>Recent Upload History
-                                    <small class="d-block text-white-50 fs-6 mt-1">{{ $restaurant->name }}</small>
+                                    <small class="d-block text-white-50 fs-6 mt-1">{{ $hotel->name }}</small>
                                 </h5>
                                 <span class="badge bg-light bg-opacity-20 text-white">
                                     {{ $uploadHistory ? $uploadHistory->count() : 0 }} uploads
@@ -467,7 +440,7 @@
                                             <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
                                         </div>
                                         <h6 class="text-muted mb-2">No Upload History</h6>
-                                        <p class="text-muted small mb-0">Upload history for <strong>{{ $restaurant->name }}</strong> will appear here once you start uploading meal files.</p>
+                                        <p class="text-muted small mb-0">Upload history for <strong>{{ $hotel->name }}</strong> will appear here once you start uploading bed files.</p>
                                     </div>
                                 </div>
                             @endif
@@ -479,28 +452,234 @@
     </div>
 
 <style>
-.dropzone-area {
-    border: 2px dashed #e0e0e0 !important;
+/* Include the same styles from attraction-tickets.blade.php */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --info-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --primary-color: #667eea;
+    --success-color: #28a745;
+    --info-color: #17a2b8;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-bg: #f8f9fa;
+    --border-color: #e9ecef;
+    --text-muted: #6c757d;
+    --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+    --border-radius: 0.75rem;
+    --border-radius-sm: 0.5rem;
+}
+
+.page-content {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.modern-card {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
     transition: all 0.3s ease;
-    cursor: pointer;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
 }
 
-.dropzone-area:hover,
-.dropzone-area.dragover {
-    border-color: #696cff !important;
-    background-color: #f8f9ff;
+.modern-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
-.dropzone-area.dragover {
-    transform: scale(1.02);
+.gradient-header {
+    background: var(--primary-gradient);
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
 }
 
-.btn-disabled {
-    pointer-events: none;
-    opacity: 0.6;
+.gradient-header .card-header {
+    background: transparent;
+    border: none;
+    padding: 2rem;
 }
 
-/* Modern Upload History Styles */
+.header-content .icon-wrapper {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.text-white-75 {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.instruction-box {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border-radius: var(--border-radius-sm);
+    padding: 1.5rem;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.instruction-header {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.instruction-section-title {
+    color: var(--primary-color);
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+.instruction-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.instruction-item i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.upload-section {
+    background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+    border-radius: var(--border-radius-sm);
+    padding: 2rem;
+    margin: 2rem 0;
+    border: 2px dashed rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+}
+
+.file-input-wrapper {
+    position: relative;
+}
+
+.modern-input {
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: 0.75rem 3rem 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.modern-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    transform: translateY(-1px);
+}
+
+.file-input-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1.2rem;
+}
+
+.upload-btn {
+    background: var(--primary-gradient);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.error-section .modern-alert {
+    border-radius: var(--border-radius-sm);
+    border: none;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-left: 4px solid var(--warning-color);
+}
+
+.alert-header {
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: #856404;
+}
+
+.error-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+    font-size: 0.9rem;
+}
+
+.error-item:last-child {
+    border-bottom: none;
+}
+
+.btn {
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-light {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline-light {
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    color: white;
+}
+
+.btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: white;
+}
+
 .bg-gradient-primary {
     background: linear-gradient(135deg, #696cff 0%, #5a67d8 100%);
 }
@@ -585,7 +764,11 @@
     color: white;
 }
 
-/* Soft colored badges for counts */
+.badge.bg-primary {
+    background-color: #696cff !important;
+    color: white;
+}
+
 .badge.bg-success.bg-opacity-10 {
     background-color: rgba(34, 197, 94, 0.1) !important;
     color: #16a34a !important;
@@ -618,133 +801,6 @@
     padding: 1.25rem 1.5rem;
 }
 
-/* Meal Type Cards */
-.meal-type-card {
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-    height: 100%;
-}
-
-.meal-type-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.buffet-card .meal-type-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 1rem;
-}
-
-.setmenu-card .meal-type-header {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    padding: 1rem;
-}
-
-.meal-type-content {
-    padding: 1.25rem;
-    background: white;
-}
-
-.meal-type-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    font-size: 0.9rem;
-}
-
-.meal-type-item:last-of-type {
-    margin-bottom: 1rem;
-}
-
-.meal-type-example {
-    background: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 8px;
-    border-left: 4px solid #e9ecef;
-}
-
-/* Pro Tips Enhanced Styling */
-.pro-tips-alert {
-    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-    border-left: 4px solid #2196f3;
-}
-
-.pro-tips-content {
-    margin-top: 0.75rem;
-}
-
-.pro-tip-item {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 0.5rem;
-    padding: 0.25rem 0;
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-.pro-tip-item:last-child {
-    margin-bottom: 0;
-}
-
-.pro-tip-item i {
-    margin-top: 0.1rem;
-    flex-shrink: 0;
-    width: 16px;
-}
-
-/* Enhanced Animation */
-.meal-type-card {
-    animation: slideInUp 0.6s ease-out;
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .card-header.bg-gradient-primary {
-        padding: 1rem;
-    }
-    
-    .upload-card {
-        padding: 1rem !important;
-    }
-    
-    .badge {
-        font-size: 0.7rem;
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .meal-type-card {
-        margin-bottom: 1rem;
-    }
-    
-    .meal-type-content {
-        padding: 1rem;
-    }
-    
-    .meal-type-item {
-        font-size: 0.85rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .pro-tip-item {
-        font-size: 0.85rem;
-        margin-bottom: 0.4rem;
-    }
-}
-
-/* Animation for loading states */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -761,291 +817,6 @@
     animation: fadeInUp 0.3s ease-out;
 }
 
-/* Status indicator improvements */
-.badge i {
-    font-size: 0.875em;
-}
-
-/* Table header icons */
-.table thead th i {
-    opacity: 0.7;
-    font-size: 0.9em;
-}
-
-/* Color Variables */
-:root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --info-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-    --primary-color: #667eea;
-    --success-color: #28a745;
-    --info-color: #17a2b8;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    --light-bg: #f8f9fa;
-    --border-color: #e9ecef;
-    --text-muted: #6c757d;
-    --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
-    --border-radius: 0.75rem;
-    --border-radius-sm: 0.5rem;
-}
-
-/* Base Styles */
-.page-content {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-    padding: 2rem 0;
-}
-
-/* Modern Card Styling */
-.modern-card {
-    border: none;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s ease;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-}
-
-.modern-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-/* Gradient Header */
-.gradient-header {
-    background: var(--primary-gradient);
-    border: none;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-md);
-    overflow: hidden;
-}
-
-.gradient-header .card-header {
-    background: transparent;
-    border: none;
-    padding: 2rem;
-}
-
-.header-content .icon-wrapper {
-    width: 60px;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: white;
-}
-
-.text-white-50 {
-    color: rgba(255, 255, 255, 0.7) !important;
-}
-
-.text-white-75 {
-    color: rgba(255, 255, 255, 0.85) !important;
-}
-
-/* Instruction Box */
-.instruction-box {
-    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-    border-radius: var(--border-radius-sm);
-    padding: 2rem;
-    border: 1px solid rgba(102, 126, 234, 0.1);
-}
-
-.instruction-header {
-    color: var(--primary-color);
-    font-size: 1.1rem;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-}
-
-.instruction-section {
-    margin-bottom: 1.5rem;
-}
-
-.instruction-section:last-child {
-    margin-bottom: 0;
-}
-
-.instruction-section-title {
-    color: var(--primary-color);
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    border-bottom: 2px solid rgba(102, 126, 234, 0.1);
-    padding-bottom: 0.5rem;
-}
-
-.instruction-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.5rem 0;
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-.instruction-item i {
-    font-size: 1.1rem;
-    width: 20px;
-    text-align: center;
-    margin-top: 0.1rem;
-    flex-shrink: 0;
-}
-
-.instruction-item strong {
-    color: var(--primary-color);
-}
-
-/* Upload Section */
-.upload-section {
-    background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
-    border-radius: var(--border-radius-sm);
-    padding: 2rem;
-    margin: 2rem 0;
-    border: 2px dashed rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
-}
-
-.upload-section:hover {
-    border-color: var(--primary-color);
-    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-}
-
-.file-input-wrapper {
-    position: relative;
-}
-
-.modern-input {
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius-sm);
-    padding: 0.75rem 3rem 0.75rem 1rem;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    background: white;
-}
-
-.modern-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    transform: translateY(-1px);
-}
-
-.file-input-icon {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 1.2rem;
-}
-
-.upload-btn {
-    background: var(--primary-gradient);
-    border: none;
-    border-radius: var(--border-radius-sm);
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
-}
-
-.upload-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-/* Error Section */
-.error-section .modern-alert {
-    border-radius: var(--border-radius-sm);
-    border: none;
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    border-left: 4px solid var(--warning-color);
-}
-
-.alert-header {
-    display: flex;
-    align-items: center;
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-    color: #856404;
-}
-
-.error-item {
-    display: flex;
-    align-items: flex-start;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
-    font-size: 0.9rem;
-}
-
-.error-item:last-child {
-    border-bottom: none;
-}
-
-/* Button Enhancements */
-.btn {
-    border-radius: var(--border-radius-sm);
-    font-weight: 500;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-}
-
-.btn-light {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.btn-outline-light {
-    border: 2px solid rgba(255, 255, 255, 0.7);
-    color: white;
-}
-
-.btn-outline-light:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: white;
-}
-
-/* Animations */
-@keyframes slideInLeft {
-    from {
-        opacity: 0;
-        transform: translateX(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.modern-card {
-    animation: fadeInUp 0.6s ease-out;
-}
-
-.gradient-header {
-    animation: slideInLeft 0.8s ease-out;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
     .page-content {
         padding: 1rem 0;
@@ -1067,21 +838,7 @@
     }
     
     .instruction-box {
-        padding: 1.5rem;
-    }
-    
-    .instruction-section {
-        margin-bottom: 1rem;
-    }
-    
-    .instruction-section-title {
-        font-size: 0.95rem;
-        margin-bottom: 0.75rem;
-    }
-    
-    .instruction-item {
-        font-size: 0.85rem;
-        padding: 0.4rem 0;
+        padding: 1rem;
     }
     
     .btn {
@@ -1104,32 +861,8 @@
         width: 100%;
         justify-content: center;
     }
-    
-    .instruction-box {
-        padding: 1rem;
-    }
-    
-    .instruction-section {
-        margin-bottom: 1rem;
-    }
-    
-    .instruction-section-title {
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .instruction-item {
-        font-size: 0.8rem;
-        padding: 0.3rem 0;
-        gap: 0.5rem;
-    }
-    
-    .instruction-item i {
-        font-size: 1rem;
-        width: 18px;
-    }
 }
 </style>
 
 <script src="{{ asset('js/bulk-upload.js') }}"></script>
-@endsection
+@endsection 
