@@ -12,25 +12,25 @@
                                 <div class="header-content">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="icon-wrapper me-3">
-                                            <i class="ri-ticket-2-line"></i>
+                                            <i class="ri-restaurant-line"></i>
                                         </div>
                                         <div>
-                                            <h4 class="card-title mb-1 text-white">Bulk Upload Tickets</h4>
-                                            <h6 class="text-white-50 mb-0">{{ $attraction->name }}</h6>
+                                            <h4 class="card-title mb-1 text-white">Bulk Upload Meals</h4>
+                                            <h6 class="text-white-50 mb-0">{{ $restaurant->name }}</h6>
                                         </div>
                                     </div>
                                     <p class="text-white-75 mb-0">
-                                        <i class="ri-map-pin-line me-1"></i>{{ $attraction->location }}, {{ $attraction->country }}
+                                        <i class="ri-store-2-line me-1"></i>{{ $restaurant->city ?? 'N/A' }}, {{ $restaurant->country ?? 'N/A' }}
                                     </p>
                                 </div>
                                 <div class="d-flex gap-2 flex-wrap">
-                                    <a href="{{ route('tickets.template_for_attraction', $attraction->attraction_id) }}" 
+                                    <a href="{{ route('meals.download_template_for_restaurant', $restaurant->restaurant_id) }}" 
                                        class="btn btn-light btn-sm shadow-sm">
                                         <i class="ri-download-cloud-2-line me-1"></i>Download Template
                                     </a>
-                                    <a href="{{ route('tickets.add_ticket', $attraction->attraction_id) }}" 
+                                    <a href="{{ route('meals.restaurant_create', $restaurant->restaurant_id) }}" 
                                        class="btn btn-outline-light btn-sm">
-                                        <i class="ri-arrow-left-line me-1"></i>Back to Tickets
+                                        <i class="ri-arrow-left-line me-1"></i>Back to Meals
                                     </a>
                                 </div>
                             </div>
@@ -65,7 +65,7 @@
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-edit-line text-primary"></i>
-                                                    <span>Fill in your ticket data (required fields marked with *)</span>
+                                                    <span>Fill in your meal data (required fields marked with *)</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-file-text-line text-warning"></i>
@@ -76,15 +76,6 @@
                                                     <span>Maximum 1000 rows per upload</span>
                                                 </div>
                                             </div>
-                                            {{-- <div class="instruction-section mt-4">
-                                                <h6 class="instruction-section-title">
-                                                    <i class="ri-list-check-line me-2"></i>Valid Options
-                                                </h6>
-                                                <div class="instruction-item">
-                                                    <i class="ri-ticket-2-line text-primary"></i>
-                                                    <span><strong>Status:</strong> 1 = Active, 0 = Inactive</span>
-                                                </div>
-                                            </div> --}}
                                         </div>
                                         <div class="col-md-6">
                                             <div class="instruction-section">
@@ -93,24 +84,56 @@
                                                 </h6>
                                                 <div class="instruction-item">
                                                     <i class="ri-checkbox-circle-line text-danger"></i>
-                                                    <span><strong>Required:</strong> Ticket Name, Child Price (local), Adult Price (local), Senior Citizen Price (local), Child Price (foreigner), Adult Price (foreigner), Senior Citizen Price (foreigner), Important Notes, Terms & Conditions, Status</span>
+                                                    <span><strong>Required:</strong> Meal Type, Beverage, Meals, Item Description</span>
                                                 </div>
                                                 <div class="instruction-item">
-                                                    <i class="ri-money-dollar-circle-line text-info"></i>
-                                                    <span>All price fields must be numeric and greater than 0</span>
+                                                    <i class="ri-restaurant-2-line text-info"></i>
+                                                    <span>For Buffet: Adult & Child Price required (must be > 0)</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-bowl-line text-info"></i>
+                                                    <span>For Set Menu: Item Price & Type required</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-toggle-line text-info"></i>
                                                     <span>Status: 1 = Active, 0 = Inactive</span>
                                                 </div>
                                             </div>
-                                            <div class="instruction-section mt-4">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-4 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="instruction-section">
+                                                <h6 class="instruction-section-title">
+                                                    <i class="ri-list-check-line me-2"></i>Valid Options
+                                                </h6>
+                                                <div class="instruction-item">
+                                                    <i class="ri-time-line text-primary"></i>
+                                                    <span><strong>Meal Type:</strong> Breakfast, Lunch, Dinner</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-goblet-line text-warning"></i>
+                                                    <span><strong>Beverage:</strong> Alcoholic, Non Alcoholic, No Beverage</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-restaurant-fill text-success"></i>
+                                                    <span><strong>Meals:</strong> Buffet, Set Menu</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-leaf-line text-success"></i>
+                                                    <span><strong>Item Type:</strong> Vegetarian, Non Vegetarian (Set Menu only)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="instruction-section">
                                                 <h6 class="instruction-section-title">
                                                     <i class="ri-shield-check-line me-2"></i>Best Practices
                                                 </h6>
                                                 <div class="instruction-item">
                                                     <i class="ri-text text-info"></i>
-                                                    <span>Use exact spelling for all values (case-sensitive)</span>
+                                                    <span>Use exact spelling for dropdown values (case-sensitive)</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-calculator-line text-primary"></i>
@@ -127,14 +150,15 @@
                                             </div>
                                         </div>
                                     </div>
+                                    
                                     <div class="row mt-3">
                                         <div class="col-12">
                                             <div class="alert alert-info border-0 mb-0">
                                                 <div class="d-flex align-items-start">
                                                     <i class="ri-lightbulb-line me-2 mt-1"></i>
                                                     <div>
-                                                        <strong>Pro Tips:</strong>
-                                                        <span class="ms-2">Double-check all required fields are filled. All price fields must be numeric and greater than 0. Status must be 1 (Active) or 0 (Inactive). Maximum 1000 rows per upload.</span>
+                                                        <strong>Pro Tips:</strong> 
+                                                        <span class="ms-2">Double-check your meal types match your restaurant's availability. For Buffet items, both Adult and Child prices must be greater than 0. For Set Menu items, specify whether the item is Vegetarian or Non Vegetarian.</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -145,7 +169,7 @@
 
                             <!-- Upload Form -->
                             <div class="upload-section">
-                                <form action="{{ route('tickets.upload_for_attraction', $attraction->attraction_id) }}" 
+                                <form action="{{ route('meals.upload_for_restaurant', $restaurant->restaurant_id) }}" 
                                       method="POST" 
                                       enctype="multipart/form-data" 
                                       class="upload-form">
@@ -173,188 +197,188 @@
                                         </div>
                                         <div class="col-md-4">
                                             <button type="submit" class="btn btn-primary w-100 upload-btn">
-                                                <i class="ri-upload-cloud-2-line me-2"></i>Upload Tickets
+                                                <i class="ri-upload-cloud-2-line me-2"></i>Upload Meals
                                             </button>
                                         </div>
                                     </div>
                                 </form>
                             </div>
 
-                                        <!-- Display Errors -->
-            @if($errors->any())
-                <div class="error-section mt-4">
-                    <div class="alert alert-warning modern-alert">
-                        <div class="alert-header">
-                            <i class="ri-error-warning-line me-2"></i>
-                            <strong>Upload Errors Detected</strong>
-                        </div>
-                        <div class="error-list">
-                            @foreach($errors->all() as $error)
-                                <div class="error-item">
-                                    <i class="ri-close-circle-line text-danger me-2"></i>
-                                    {{ $error }}
+                            <!-- Display Errors -->
+                            @if($errors->any())
+                                <div class="error-section mt-4">
+                                    <div class="alert alert-warning modern-alert">
+                                        <div class="alert-header">
+                                            <i class="ri-error-warning-line me-2"></i>
+                                            <strong>Upload Errors Detected</strong>
+                                        </div>
+                                        <div class="error-list">
+                                            @foreach($errors->all() as $error)
+                                                <div class="error-item">
+                                                    <i class="ri-close-circle-line text-danger me-2"></i>
+                                                    {{ $error }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
                                 </div>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-            @endif
+                            @endif
                         </div>
                     </div>
 
-        <!-- Recent Uploads - Modern UI -->
-        <div class="card border-0 shadow-sm mt-4">
-            <div class="card-header bg-gradient-primary text-white border-0">
-                <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="card-title mb-0 text-white">
-                        <i class="ri-history-line me-2"></i>Recent Upload History
-                        <small class="d-block text-white-50 fs-6 mt-1">{{ $attraction->name }}</small>
-                    </h5>
-                    <span class="badge bg-light bg-opacity-20 text-white">
-                        {{ $uploadHistory ? $uploadHistory->count() : 0 }} uploads
-                    </span>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                @if($uploadHistory && $uploadHistory->count() > 0)
-                    <!-- Desktop View -->
-                    <div class="table-responsive d-none d-lg-block">
-                        <table class="table table-hover mb-0 modern-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="border-0 py-3">
-                                        <i class="ri-calendar-line text-primary me-1"></i>Upload Time
-                                    </th>
-                                    <th class="border-0 py-3">
-                                        <i class="ri-file-text-line text-primary me-1"></i>File Details
-                                    </th>
-                                    <th class="border-0 py-3">
-                                        <i class="ri-database-line text-primary me-1"></i>Records
-                                    </th>
-                                    <th class="border-0 py-3">
-                                        <i class="ri-checkbox-circle-line text-primary me-1"></i>Results
-                                    </th>
-                                    <th class="border-0 py-3">
-                                        <i class="ri-shield-check-line text-primary me-1"></i>Status
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($uploadHistory as $history)
-                                    <tr class="upload-row">
-                                        <td class="py-3">
-                                            <div class="d-flex flex-column">
-                                                <span class="fw-medium text-dark">{{ $history->formatted_date }}</span>
-                                                <small class="text-muted">{{ $history->relative_time }}</small>
-                                            </div>
-                                        </td>
-                                        <td class="py-3">
-                                            <div class="d-flex align-items-center">
-                                                <div class="file-icon me-3">
-                                                    <i class="ri-file-excel-2-line text-success fs-4"></i>
+                    <!-- Recent Uploads - Modern UI -->
+                    <div class="card border-0 shadow-sm mt-4">
+                        <div class="card-header bg-gradient-primary text-white border-0">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <h5 class="card-title mb-0 text-white">
+                                    <i class="ri-history-line me-2"></i>Recent Upload History
+                                    <small class="d-block text-white-50 fs-6 mt-1">{{ $restaurant->name }}</small>
+                                </h5>
+                                <span class="badge bg-light bg-opacity-20 text-white">
+                                    {{ $uploadHistory ? $uploadHistory->count() : 0 }} uploads
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            @if($uploadHistory && $uploadHistory->count() > 0)
+                                <!-- Desktop View -->
+                                <div class="table-responsive d-none d-lg-block">
+                                    <table class="table table-hover mb-0 modern-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="border-0 py-3">
+                                                    <i class="ri-calendar-line text-primary me-1"></i>Upload Time
+                                                </th>
+                                                <th class="border-0 py-3">
+                                                    <i class="ri-file-text-line text-primary me-1"></i>File Details
+                                                </th>
+                                                <th class="border-0 py-3">
+                                                    <i class="ri-database-line text-primary me-1"></i>Records
+                                                </th>
+                                                <th class="border-0 py-3">
+                                                    <i class="ri-checkbox-circle-line text-primary me-1"></i>Results
+                                                </th>
+                                                <th class="border-0 py-3">
+                                                    <i class="ri-shield-check-line text-primary me-1"></i>Status
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($uploadHistory as $history)
+                                                <tr class="upload-row">
+                                                    <td class="py-3">
+                                                        <div class="d-flex flex-column">
+                                                            <span class="fw-medium text-dark">{{ $history->formatted_date }}</span>
+                                                            <small class="text-muted">{{ $history->relative_time }}</small>
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="file-icon me-3">
+                                                                <i class="ri-file-excel-2-line text-success fs-4"></i>
+                                                            </div>
+                                                            <div>
+                                                                <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
+                                                                <small class="text-muted">CSV File</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
+                                                                <i class="ri-database-2-line me-1"></i>{{ $history->total_records }} rows
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                                                <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
+                                                            </span>
+                                                            @if($history->error_count > 0)
+                                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+                                                                    <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        @if($history->status === 'success')
+                                                            <span class="badge bg-success px-3 py-2">
+                                                                <i class="ri-check-double-line me-1"></i>Completed
+                                                            </span>
+                                                        @elseif($history->status === 'partial')
+                                                            <span class="badge bg-warning px-3 py-2">
+                                                                <i class="ri-alert-line me-1"></i>Partial Success
+                                                            </span>
+                                                        @else
+                                                            <span class="badge bg-danger px-3 py-2">
+                                                                <i class="ri-close-circle-line me-1"></i>Failed
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Mobile/Tablet View -->
+                                <div class="d-lg-none">
+                                    @foreach($uploadHistory as $history)
+                                        <div class="upload-card border-bottom px-3 py-3">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="ri-file-excel-2-line text-success fs-4 me-2"></i>
+                                                    <div>
+                                                        <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
+                                                        <small class="text-muted">{{ $history->compact_date }}</small>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
-                                                    <small class="text-muted">CSV File</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-3">
-                                            <div class="d-flex align-items-center">
-                                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">
-                                                    <i class="ri-database-2-line me-1"></i>{{ $history->total_records }} rows
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td class="py-3">
-                                            <div class="d-flex flex-wrap gap-2">
-                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
-                                                    <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
-                                                </span>
-                                                @if($history->error_count > 0)
-                                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
-                                                        <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                @if($history->status === 'success')
+                                                    <span class="badge bg-success">
+                                                        <i class="ri-check-line me-1"></i>Success
+                                                    </span>
+                                                @elseif($history->status === 'partial')
+                                                    <span class="badge bg-warning">
+                                                        <i class="ri-alert-line me-1"></i>Partial
+                                                    </span>
+                                                @else
+                                                    <span class="badge bg-danger">
+                                                        <i class="ri-close-line me-1"></i>Failed
                                                     </span>
                                                 @endif
                                             </div>
-                                        </td>
-                                        <td class="py-3">
-                                            @if($history->status === 'success')
-                                                <span class="badge bg-success px-3 py-2">
-                                                    <i class="ri-check-double-line me-1"></i>Completed
-                                                </span>
-                                            @elseif($history->status === 'partial')
-                                                <span class="badge bg-warning px-3 py-2">
-                                                    <i class="ri-alert-line me-1"></i>Partial Success
-                                                </span>
-                                            @else
-                                                <span class="badge bg-danger px-3 py-2">
-                                                    <i class="ri-close-circle-line me-1"></i>Failed
-                                                </span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Mobile/Tablet View -->
-                    <div class="d-lg-none">
-                        @foreach($uploadHistory as $history)
-                            <div class="upload-card border-bottom px-3 py-3">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div class="d-flex align-items-center">
-                                        <i class="ri-file-excel-2-line text-success fs-4 me-2"></i>
-                                        <div>
-                                            <div class="fw-medium text-dark">{{ $history->original_file_name }}</div>
-                                            <small class="text-muted">{{ $history->compact_date }}</small>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="d-flex gap-2">
+                                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                                                        {{ $history->total_records }} rows
+                                                    </span>
+                                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                                                        {{ $history->success_count }} ✓
+                                                    </span>
+                                                    @if($history->error_count > 0)
+                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                                                            {{ $history->error_count }} ✗
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <small class="text-muted">{{ $history->relative_time }}</small>
+                                            </div>
                                         </div>
-                                    </div>
-                                    @if($history->status === 'success')
-                                        <span class="badge bg-success">
-                                            <i class="ri-check-line me-1"></i>Success
-                                        </span>
-                                    @elseif($history->status === 'partial')
-                                        <span class="badge bg-warning">
-                                            <i class="ri-alert-line me-1"></i>Partial
-                                        </span>
-                                    @else
-                                        <span class="badge bg-danger">
-                                            <i class="ri-close-line me-1"></i>Failed
-                                        </span>
-                                    @endif
+                                    @endforeach
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="d-flex gap-2">
-                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
-                                            {{ $history->total_records }} rows
-                                        </span>
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
-                                            {{ $history->success_count }} ✓
-                                        </span>
-                                        @if($history->error_count > 0)
-                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
-                                                {{ $history->error_count }} ✗
-                                            </span>
-                                        @endif
+                            @else
+                                <div class="text-center py-5">
+                                    <div class="empty-state">
+                                        <div class="mb-3">
+                                            <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
+                                        </div>
+                                        <h6 class="text-muted mb-2">No Upload History</h6>
+                                        <p class="text-muted small mb-0">Upload history for <strong>{{ $restaurant->name }}</strong> will appear here once you start uploading meal files.</p>
                                     </div>
-                                    <small class="text-muted">{{ $history->relative_time }}</small>
                                 </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="text-center py-5">
-                        <div class="empty-state">
-                            <div class="mb-3">
-                                <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
-                            </div>
-                            <h6 class="text-muted mb-2">No Upload History</h6>
-                            <p class="text-muted small mb-0">Upload history for <strong>{{ $attraction->name }}</strong> will appear here once you start uploading ticket files.</p>
-                        </div>
-                    </div>
-                @endif
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -630,30 +654,56 @@
 .instruction-box {
     background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
     border-radius: var(--border-radius-sm);
-    padding: 1.5rem;
+    padding: 2rem;
     border: 1px solid rgba(102, 126, 234, 0.1);
 }
 
 .instruction-header {
     color: var(--primary-color);
     font-size: 1.1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     display: flex;
     align-items: center;
 }
 
-.instruction-item {
+.instruction-section {
+    margin-bottom: 1.5rem;
+}
+
+.instruction-section:last-child {
+    margin-bottom: 0;
+}
+
+.instruction-section-title {
+    color: var(--primary-color);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+    padding-bottom: 0.5rem;
+}
+
+.instruction-item {
+    display: flex;
+    align-items: flex-start;
     gap: 0.75rem;
     padding: 0.5rem 0;
     font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 .instruction-item i {
     font-size: 1.1rem;
     width: 20px;
     text-align: center;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.instruction-item strong {
+    color: var(--primary-color);
 }
 
 /* Upload Section */
@@ -815,7 +865,21 @@
     }
     
     .instruction-box {
-        padding: 1rem;
+        padding: 1.5rem;
+    }
+    
+    .instruction-section {
+        margin-bottom: 1rem;
+    }
+    
+    .instruction-section-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .instruction-item {
+        font-size: 0.85rem;
+        padding: 0.4rem 0;
     }
     
     .btn {
@@ -838,8 +902,32 @@
         width: 100%;
         justify-content: center;
     }
+    
+    .instruction-box {
+        padding: 1rem;
+    }
+    
+    .instruction-section {
+        margin-bottom: 1rem;
+    }
+    
+    .instruction-section-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .instruction-item {
+        font-size: 0.8rem;
+        padding: 0.3rem 0;
+        gap: 0.5rem;
+    }
+    
+    .instruction-item i {
+        font-size: 1rem;
+        width: 18px;
+    }
 }
 </style>
 
 <script src="{{ asset('js/bulk-upload.js') }}"></script>
-@endsection 
+@endsection

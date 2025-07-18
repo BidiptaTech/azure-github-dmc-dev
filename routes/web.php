@@ -75,7 +75,26 @@ Route::group(['middleware' => ['auth', 'no.cache']], function () {
     
     // Updated dashboard routes to use the controller
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Custom Package Routes
     Route::get('/custom-packages/create', [CustomPackageController::class, 'create'])->name('custom-packages.create');
+    
+    // AJAX endpoints for dynamic functionality
+    Route::post('/custom-packages/hotel-pricing', [CustomPackageController::class, 'getHotelPricing'])->name('custom-packages.hotel-pricing');
+    Route::post('/custom-packages/activity-availability', [CustomPackageController::class, 'getActivityAvailability'])->name('custom-packages.activity-availability');
+    Route::post('/custom-packages/vehicle-pricing', [CustomPackageController::class, 'getVehiclePricing'])->name('custom-packages.vehicle-pricing');
+    Route::post('/custom-packages/location-suggestions', [CustomPackageController::class, 'getLocationSuggestions'])->name('custom-packages.location-suggestions');
+    Route::post('/custom-packages/calculate-totals', [CustomPackageController::class, 'calculateRealTimeTotals'])->name('custom-packages.calculate-totals');
+    Route::post('/custom-packages/add-hotel-service', [CustomPackageController::class, 'addHotelService'])->name('custom-packages.add-hotel-service');
+    Route::post('/custom-packages/markup-suggestions', [CustomPackageController::class, 'getMarkupSuggestions'])->name('custom-packages.markup-suggestions');
+    Route::post('/custom-packages/check-availability', [CustomPackageController::class, 'checkServiceAvailability'])->name('custom-packages.check-availability');
+    Route::post('/custom-packages/currency-rates', [CustomPackageController::class, 'getCurrencyRates'])->name('custom-packages.currency-rates');
+    Route::post('/custom-packages/calculate-pricing', [CustomPackageController::class, 'calculatePricing'])->name('custom-packages.calculate-pricing');
+    Route::post('/custom-packages/validate', [CustomPackageController::class, 'validateQuote'])->name('custom-packages.validate');
+    Route::post('/custom-packages/save-draft', [CustomPackageController::class, 'saveDraft'])->name('custom-packages.save-draft');
+    Route::post('/custom-packages/save', [CustomPackageController::class, 'saveQuote'])->name('custom-packages.save');
+    Route::post('/custom-packages/export-pdf', [CustomPackageController::class, 'exportToPDF'])->name('custom-packages.export-pdf');
+    Route::post('/custom-packages/send-email', [CustomPackageController::class, 'sendQuoteEmail'])->name('custom-packages.send-email');
+    
     Route::get('/dashboard/counts', [DashboardController::class, 'getCounts'])->name('dashboard.counts');
 
     // Add admin middleware to the hotels endpoint
@@ -301,7 +320,10 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::post('tickets/bulk_upload/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadAttractionTickets'])->name('tickets.upload_for_attraction');
         Route::get('tickets/template/{attraction_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadAttractionTicketTemplate'])->name('tickets.template_for_attraction');
 
-
+        // meals bulk upload routes (individual routes without bulk-upload prefix)
+        Route::get('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'restaurantMeals'])->name('meals.bulk_upload_for_restaurant');
+        Route::post('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurantMeals'])->name('meals.upload_for_restaurant');
+        Route::get('meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantMealTemplate'])->name('meals.download_template_for_restaurant');
 
         // reports
         Route::resource('report', ReportController::class);
@@ -463,6 +485,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             Route::get('/meals', [App\Http\Controllers\BulkUploadController::class, 'meals'])->name('meals');
             Route::post('/meals/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadMeals'])->name('meals.upload');
             Route::get('/meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadMealTemplate'])->name('meals.template');
+            
+            // Restaurant-specific meal bulk upload routes
+            Route::get('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'restaurantMeals'])->name('meals.bulk_upload_for_restaurant');
+            Route::post('meals/bulk_upload/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'uploadRestaurantMeals'])->name('meals.upload_for_restaurant');
+            Route::get('meals/template/{restaurant_id}', [App\Http\Controllers\BulkUploadController::class, 'downloadRestaurantMealTemplate'])->name('meals.download_template_for_restaurant');
         });
 
 

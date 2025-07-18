@@ -16,6 +16,8 @@ use App\Services\CurrencyService;
 use League\ISO3166\ISO3166;
 use NumberFormatter;
 use App\Helpers\CountryHelper;
+use Illuminate\Support\Facades\Validator;
+use App\Helpers\CommonHelper;
 
 class LoginControllerApi extends Controller
 {
@@ -106,7 +108,14 @@ class LoginControllerApi extends Controller
                     $dmc_id = $user->userId; // For DMC, the user itself is the DMC
                     $dmc_users = $user; // DMC is its own reference
                     break;
-                case 33: // Sales Head
+                    case 33: 
+                    case 128: 
+                    case 129: 
+                    case 130: 
+                    case 134: 
+                    case 135: 
+                    case 136: 
+                    case 138: // Sales Head
                     if ($userModel == 'User') {
                         // For SH, creator should be DMC
                         $dmc_users = User::where('userId', $creatorId)->first(); // DMC
@@ -324,7 +333,7 @@ class LoginControllerApi extends Controller
                 'usd_tax' => $usd_tax,
                 'sgd_tax' => $sgd_tax,
                 'agent_country_tax' => $agent_country_tax,
-                
+                'phone_no' => $user->phone,
                 'price_hide' => $dmc_users->price_hide ?? 0,
                 'user_role' => $userRole,
                 'zone_on' => $dmc_users->zone_on ?? 0,
@@ -345,6 +354,83 @@ class LoginControllerApi extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Successfully logged out.',
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Basic validation for optional fields
+        $validator = Validator::make($request->all(), [
+            'phone' => 'nullable',
+            'image' => 'nullable',
+            'old_password' => 'nullable',
+            'new_password' => 'nullable|min:6',
+            'confirm_password' => 'nullable|same:new_password',
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Validation error', 
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        // Handle password update only if old_password is provided
+        if ($request->has('old_password') && !is_null($request->old_password)) {
+            // Additional validation for password fields
+            $passwordValidator = Validator::make($request->all(), [
+                'new_password' => 'required|min:6',
+                'confirm_password' => 'required|same:new_password',
+            ]);
+            
+            if ($passwordValidator->fails()) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Password validation error', 
+                    'errors' => $passwordValidator->errors()
+                ], 422);
+            }
+            
+            // Check if old password is correct
+            if (!Hash::check($request->old_password, $user->password)) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Old password is incorrect'
+                ], 400);
+            }
+            
+            // Update password
+            $user->password = Hash::make($request->new_password);
+        }
+        
+        // Update phone if provided
+        if ($request->has('phone') && !is_null($request->phone)) {
+            $user->phone = $request->phone;
+        }
+        
+        // Update image if provided
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($user->agent_image) {
+                CommonHelper::deleteAzureImage($user->agent_image);
+            }
+            
+            // Upload new image using CommonHelper
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $user->agent_image = $pathData['master_value'];
+            }
+        }
+        
+        $user->save();
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'Profile updated successfully',
+            'data' => $user
         ]);
     }
 }

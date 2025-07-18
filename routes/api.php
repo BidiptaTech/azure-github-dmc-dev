@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+    Route::post('/update-profile', 'App\Http\Controllers\Api\LoginControllerApi@updateProfile');
     Route::get('/zone-lists', 'App\Http\Controllers\Api\ZoneController@zone_lists');
     Route::get('/enquiry_lists', 'App\Http\Controllers\Api\EnquiryController@enquiry_lists');
     Route::post('/create-enquiry', 'App\Http\Controllers\Api\EnquiryController@createEnquiry');

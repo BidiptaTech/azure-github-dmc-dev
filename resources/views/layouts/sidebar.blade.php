@@ -486,7 +486,7 @@
                     </a>
                 </li>
 
-                <li class="menu-item" style="height: 8px;"></li>
+                <!-- <li class="menu-item" style="height: 8px;"></li>
                 @if(in_array(auth()->user()->role_id, [2, 33]))
                 <li class="menu-item @if(Request::is('custom-packages*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
@@ -494,11 +494,7 @@
                         <div data-i18n="Custom Packages">Custom Packages</div>
                     </a>
                     <ul class="menu-sub">
-                        <!-- <li class="menu-item @if(Request::is('packages') || Request::is('package')) active @endif">
-                            <a href="{{ route('packages.index') }}" class="menu-link">
-                                <div data-i18n="Custom Package Management">Custom Package Management</div>
-                            </a>
-                        </li> -->
+                        
                         <li class="menu-item @if(Request::is('custom-packages/create')) active @endif">
                             <a href="{{ route('custom-packages.create') }}" class="menu-link">
                                 <div data-i18n="Create Custom Package">Create Custom Package</div>
@@ -506,9 +502,9 @@
                         </li>
                     </ul>
                 </li>
-                @endif
+                @endif -->
 
-                @if(in_array(auth()->user()->role_id, [1, 2, 11, 33, 12, 37, 38])) {{-- Dmc = 11, Sales Head(dmc) = 33, Sales Manager(dmc) = [12, 37], Asst. Sales Manager(dmc) = 38 --}}
+                @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {{-- Dmc = 11, Sales Head(dmc) = 33, Sales Manager(dmc) = [12, 37], Asst. Sales Manager(dmc) = 38 --}}
             {{-- @if(hasPermission('view enquiry')) --}}
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Enquiries">Enquiries</span>
@@ -575,7 +571,7 @@
                                 <div data-i18n="Create Package">Create Package</div>
                             </a>
                         </li>
-                        @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+                        @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
                         <!-- Show Booking -->
                         <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
                             <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
@@ -640,7 +636,7 @@
             <!-- End Booking List -->
 
             <!-- Predefined Packages Booking List -->
-            {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38]))
+            {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</span>
                 </li>
@@ -689,7 +685,7 @@
             <!-- End Reports -->
             
             <!-- Bulk Upload -->
-            @if(in_array(auth()->user()->role_id, [1, 2, 11, 19, 20, 33, 34, 35, 36, 37, 38]))
+            @if(in_array(auth()->user()->role_id, [1, 2, 11, 19, 20, 33, 128, 129, 130, 134, 135, 136, 138, 34, 35, 36, 37, 38]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Bulk Upload">Bulk Upload</span>
                 </li>
@@ -875,7 +871,11 @@
             <!-- End Zone -->
 
             <!-- Services Management for DMC -->
-            @if(Auth::user()->role_id == 11)
+            @php
+                $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120];
+            @endphp
+
+            @if(in_array(Auth::user()->role_id, $allowedRoles))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Services Management">Services Management</span>
                 </li>
@@ -887,25 +887,39 @@
                     </a>
                     <ul class="menu-sub">
                         <!-- DMC Hotels Selection -->
-                        <li class="menu-item @if(Request::is('services/hotels')) active @endif">
-                            <a href="{{ route('services.hotels') }}" class="menu-link">
-                                <div data-i18n="Select Hotels">Select Hotels</div>
-                            </a>
-                        </li>
-                        
+                        @php
+                            $allowedRoles = [11, 35, 77, 84];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                            <li class="menu-item @if(Request::is('services/hotels')) active @endif">
+                                <a href="{{ route('services.hotels') }}" class="menu-link">
+                                    <div data-i18n="Select Hotels">Select Hotels</div>
+                                </a>
+                            </li>
+                        @endif
                         <!-- DMC Attractions Selection -->
+                        @php
+                            $allowedRoles = [11, 35,74, 93];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/attractions')) active @endif">
                             <a href="{{ route('services.attractions') }}" class="menu-link">
-                                <div data-i18n="Select Attractions">Select Attractions</div>
-                            </a>
-                        </li>
+                                    <div data-i18n="Select Attractions">Select Attractions</div>
+                                </a>
+                            </li>
+                        @endif
                         
                         <!-- DMC Restaurants Selection -->
+                        @php
+                            $allowedRoles = [11, 35, 78, 120];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
                             <a href="{{ route('services.restaurants') }}" class="menu-link">
                                 <div data-i18n="Select Restaurants">Select Restaurants</div>
                             </a>
                         </li>
+                        @endif
                     </ul>
                 </li>
             @endif
@@ -914,7 +928,9 @@
             <!-- Booking -->
             {{-- @if(auth()->user()->role_id == 21||auth()->user()->role_id == 26 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 
             || auth()->user()->role_id == 125 || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 ||
-            auth()->user()->role_id == 4|| auth()->user()->role_id == 12|| auth()->user()->role_id == 28|| auth()->user()->role_id == 33|| auth()->user()->role_id == 37)
+            auth()->user()->role_id == 4|| auth()->user()->role_id == 12|| auth()->user()->role_id == 28|| auth()->user()->role_id == 33 || 
+            auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 ||
+             auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138 || auth()->user()->role_id == 37)
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Hotel Booking">Hotel Booking</span>
                 </li>
