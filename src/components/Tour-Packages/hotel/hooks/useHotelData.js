@@ -70,8 +70,18 @@ const useHotelData = (mealPlanOptions) => {
       initialGuests
     });
     
-    const nightsCount = searchCriteria?.checkIn && searchCriteria?.checkOut ? 
-      moment(searchCriteria.checkOut, 'DD/MM/YYYY').diff(moment(searchCriteria.checkIn, 'DD/MM/YYYY'), 'days') : 1;
+    // Calculate individual hotel booking dates
+    let hotelCheckIn, hotelCheckOut;
+    if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
+      hotelCheckIn = searchCriteria.checkIn;
+      hotelCheckOut = searchCriteria.checkOut;
+    } else {
+      // Default to today and tomorrow
+      hotelCheckIn = moment().format('DD/MM/YYYY');
+      hotelCheckOut = moment().add(1, 'day').format('DD/MM/YYYY');
+    }
+    
+    const nightsCount = moment(hotelCheckOut, 'DD/MM/YYYY').diff(moment(hotelCheckIn, 'DD/MM/YYYY'), 'days');
     
     // Create initial selected night indices
     const initialNightIndices = [];
@@ -92,6 +102,9 @@ const useHotelData = (mealPlanOptions) => {
       mealPlanId: 'self',
       nights: nightsCount,
       selectedNightIndices: initialNightIndices,
+      // Add individual hotel booking dates
+      hotelCheckIn: hotelCheckIn,
+      hotelCheckOut: hotelCheckOut,
       babyCot: false,
       occupancyType: 'single',
       adultDistribution: { male: 0, female: 0 },
