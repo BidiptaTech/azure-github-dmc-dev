@@ -164,6 +164,38 @@
                 <input type="hidden" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
                 <div id="restaurantDetailsContainer">
                     <div class="restaurant-form">
+                        
+                        <!-- DMC Selection for Admin Users -->
+                        @if((auth()->user()->role_id == 1 || auth()->user()->role_id == 20) && isset($availableDMCs) && count($availableDMCs) > 0)
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> <strong>Admin Mode:</strong> Select a DMC to create restaurant for.
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="dmcSelect" class="form-label"><strong>Choose DMC</strong>
+                                    <span style="color: red; font-weight: bold;">*</span>
+                                </label>
+                                <select id="dmcSelect" class="form-control" required>
+                                    <option value="">Select DMC</option>
+                                    @foreach($availableDMCs as $dmc)
+                                        <option value="{{ $dmc->userId }}" 
+                                            data-country="{{ $dmc->country }}"
+                                            {{ $userDMC && $userDMC->userId == $dmc->userId ? 'selected' : '' }}>
+                                            {{ $dmc->company_name }} ({{ $dmc->country }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3 d-flex align-items-end">
+                                <button type="button" id="changeDmcBtn" class="btn btn-primary">
+                                    <i class="fas fa-sync-alt"></i> Change DMC
+                                </button>
+                            </div>
+                        </div>
+                        @endif
+                        
                         <div class="row">
 
                         <!-- Hidden DMC ID -->
@@ -1620,6 +1652,74 @@ $(document).ready(function() {
 <!-- Access Control JavaScript Protection -->
 <script>
 $(document).ready(function() {
+    // DMC Selection for Admin Users
+    $('#dmcSelect').on('change', function() {
+        var selectedDmcId = $(this).val();
+        var selectedCountry = $(this).find(':selected').data('country');
+        
+        if (selectedDmcId && selectedCountry) {
+            // Update country field
+            $('#country').val(selectedCountry);
+            
+            // Update hidden DMC field
+            $('input[name="dmc"]').val(selectedDmcId);
+            
+            // Fetch cities for the selected country
+            fetchCitiesForCountry(selectedCountry);
+            
+            // Update button text
+            $('#changeDmcBtn').removeClass('btn-primary').addClass('btn-success')
+                .html('<i class="fas fa-check"></i> DMC Selected');
+        } else {
+            // Clear fields
+            $('#country').val('');
+            $('#citySelect').empty().append('<option value="">Select City</option>');
+            $('input[name="dmc"]').val('');
+            
+            // Reset button
+            $('#changeDmcBtn').removeClass('btn-success').addClass('btn-primary')
+                .html('<i class="fas fa-sync-alt"></i> Change DMC');
+        }
+    });
+    
+    // Function to fetch cities for selected country
+    function fetchCitiesForCountry(country) {
+        $('#citySelect').empty().append('<option value="">Loading cities...</option>');
+        
+        $.ajax({
+            url: "{{ route('fetch.cities_countries') }}",
+            type: "GET",
+            data: { country: country },
+            dataType: 'json',
+            success: function(response) {
+                $('#citySelect').empty().append('<option value="">Select City</option>');
+                
+                if (response.cities && response.cities.length > 0) {
+                    $.each(response.cities, function(key, city) {
+                        $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                    });
+                } else {
+                    $('#citySelect').append('<option value="">No cities found</option>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Error loading cities:", error);
+                $('#citySelect').empty().append('<option value="">Error loading cities</option>');
+            }
+        });
+    }
+    
+    $('#changeDmcBtn').on('click', function() {
+        var selectedDmcId = $('#dmcSelect').val();
+        if (selectedDmcId) {
+            var currentUrl = window.location.href.split('?')[0];
+            var newUrl = currentUrl + '?dmc_id=' + selectedDmcId;
+            window.location.href = newUrl;
+        } else {
+            alert('Please select a DMC first.');
+        }
+    });
+    
     var userRoleId = {{ auth()->user()->role_id }};
     
     // Check if user is unauthorized (not role_id 1 or 20)
