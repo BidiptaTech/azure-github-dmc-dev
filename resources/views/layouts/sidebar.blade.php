@@ -685,7 +685,7 @@
             <!-- End Reports -->
             
             <!-- Bulk Upload -->
-            @if(in_array(auth()->user()->role_id, [1, 2, 11, 19, 20, 33, 128, 129, 130, 134, 135, 136, 138, 34, 35, 36, 37, 38]))
+            @if(in_array(auth()->user()->role_id, [11, 20]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Bulk Upload">Bulk Upload</span>
                 </li>
@@ -696,19 +696,19 @@
                         <div data-i18n="Bulk Upload">Bulk Upload</div>
                     </a>
                     <ul class="menu-sub">
-                        <li class="menu-item @if(Request::is('bulk-upload/hotels')) active @endif">
+                        {{-- <li class="menu-item @if(Request::is('bulk-upload/hotels')) active @endif">
                             <a href="{{ route('bulk-upload.hotels') }}" class="menu-link">
                                 <div data-i18n="Hotels">Hotels</div>
+                            </a>
+                        </li> --}}
+                        <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
+                            <a href="{{ route('bulk-upload.guides') }}" class="menu-link">
+                                <div data-i18n="Guides">Guides</div>
                             </a>
                         </li>
                         <li class="menu-item @if(Request::is('bulk-upload/drivers')) active @endif">
                             <a href="{{ route('bulk-upload.drivers') }}" class="menu-link">
                                 <div data-i18n="Drivers">Drivers</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
-                            <a href="{{ route('bulk-upload.guides') }}" class="menu-link">
-                                <div data-i18n="Guides">Guides</div>
                             </a>
                         </li>
                         <li class="menu-item @if(Request::is('bulk-upload/vehicles')) active @endif">

@@ -238,7 +238,7 @@
                                 </div>
 
                                 <!-- Item File -->
-                                <div class="col-md-3 mb-3" id="item_file_container" style="display: none;">
+                                <div class="col-md-3 mb-3"  style="display: none;">
                                     <label for="item_file" class="form-label"><strong>Add Menu</strong></label>
                                     <input type="file" class="form-control" name="item_file">
                                     @error('item_file')
@@ -332,8 +332,7 @@
                             <tr>
                                 <th>No</th>
                                 <th>Restaurant Name</th>
-                                <th>Item Name</th>
-                                <th>Type</th>
+                                <th>Meal Type</th>
                                 <th>Item Description</th>
                                 <th>Status</th>
                                 @if(hasPermission('edit meal') || hasPermission('delete meal'))
@@ -352,13 +351,7 @@
                                             Unknown
                                         @endif
                                     </td>
-                                    <td class="category-name">
-                                        @if($meal->name)
-                                            {{ $meal->name }}
-                                        @else
-                                            {{ 'N/A' }}
-                                        @endif
-                                    </td>
+                                    
                                     <td>
                                         @if($meal->type == 1)
                                             Buffet
@@ -371,7 +364,15 @@
                                         @endif
                                     </td>
                                     <td>
-                                        {{$meal->item_description}}
+                                        @php
+                                            $lines = explode("\n", $meal->item_description);
+                                            $firstTwoLines = array_slice($lines, 0, 2);
+                                            $displayText = implode("\n", $firstTwoLines);
+                                            $hasMoreLines = count($lines) > 2;
+                                        @endphp
+                                        <span title="{{ $meal->item_description }}">
+                                            {{ $displayText }}@if($hasMoreLines)...@endif
+                                        </span>
                                     </td>
                                     <td>
                                         @if($meal->is_active == 1)

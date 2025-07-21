@@ -652,7 +652,7 @@ fieldset legend {
                             <th>Room Category</th>
                             <th>No of Rooms</th>
                             <th>Base Room Type</th>
-                            <th>Rooms Only</th>
+                            <th>Rooms Only Off</th>
 
                             <th>Single Weekdays Price</th>
                             <th>Single Weekend Price</th>
