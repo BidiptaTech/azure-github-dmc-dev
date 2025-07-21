@@ -1156,7 +1156,6 @@ class CommonHelper
             // Merge all data
             $viewData = array_merge($data, $companyData);
             $viewData['mail_settings'] = $mailSettings;
-            
             // Determine which template to use based on the type
             $template = 'mails.' . $type;
             if (!view()->exists($template)) {
@@ -1205,5 +1204,54 @@ class CommonHelper
             ]);
             return "Email sending failed: " . $e->getMessage();
         }
+    }
+
+    public static function getDmcId($auth_user){
+        if($auth_user->agent_id){
+            $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
+            $sales_manager_dmc = $agent->sales_manager_dmc;
+            $dmcId = null;
+            
+            if($agent->role_id == 11){
+                $dmcId = $sales_manager_dmc;
+            }
+            elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
+                $sales_head = User::where('userId', $sales_manager_dmc)->first();
+                $dmcId = $sales_head->created_by;
+            }
+            elseif($agent->role_id == 37){
+                $sales_manager = User::where('userId', $sales_manager_dmc)->first();
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                $dmcId = $sales_head->created_by;
+            }
+            elseif($agent->role_id == 38){
+                $assistant_sales_manager = User::where('userId', $sales_manager_dmc)->first();
+                $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                $dmcId = $sales_head->created_by;
+            }
+        }
+        elseif($auth_user->userId){
+            $user = User::where('userId', $auth_user->userId)->first();
+            if($user->role_id == 11){
+                return $user->created_by;
+            }
+            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+                $sales_head = User::where('userId', $user->userId)->first();
+                return $sales_head->created_by;
+            }
+            elseif($user->role_id == 37){
+                $sales_manager = User::where('userId', $user->userId)->first();
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                return $sales_head->created_by;
+            }
+            elseif($user->role_id == 38){
+                $assistant_sales_manager = User::where('userId', $user->userId)->first();
+                $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                return $sales_head->created_by;
+            }
+        }
+        return null;
     }
 }

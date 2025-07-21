@@ -1133,7 +1133,6 @@ class TourController extends Controller
                     elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
                         $sales_head = User::where('userId', $sales_manager_dmc)->first();
                         $dmcId = $sales_head->created_by;
-                        
                     }
                     elseif($agent->role_id == 37){
                         $sales_manager = User::where('userId', $sales_manager_dmc)->first();
