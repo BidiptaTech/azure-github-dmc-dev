@@ -117,7 +117,7 @@ class AgentController extends Controller
         // Traverse up the hierarchy to find master DMC based on user role
         if ($user->role_id == 11) { // DMC
             // Direct access to master_dmc_id
-            $masterDmc = User::find($user->master_dmc_id);
+            $masterDmc = User::where('userId', $user->master_dmc_id)->first();
         } 
         else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
             // Find parent DMC
@@ -126,7 +126,7 @@ class AgentController extends Controller
                             ->first();
             
             if ($parentDmc) {
-                $masterDmc = User::find($parentDmc->master_dmc_id);
+                $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
             }
         }
         else if ($user->role_id == 12 || $user->role_id == 37) { // Sales Manager
@@ -142,7 +142,7 @@ class AgentController extends Controller
                                 ->first();
                 
                 if ($parentDmc) {
-                    $masterDmc = User::find($parentDmc->master_dmc_id);
+                    $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                 }
             }
         }
@@ -165,7 +165,7 @@ class AgentController extends Controller
                                     ->first();
                     
                     if ($parentDmc) {
-                        $masterDmc = User::find($parentDmc->master_dmc_id);
+                        $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                     }
                 }
             }
@@ -175,7 +175,6 @@ class AgentController extends Controller
         if ($masterDmc) {
             $authUserCountries = explode(',', $masterDmc->country);
         }
-        //dd($authUserCountries);
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $sales_mg = User::where('role_id', 38)->get();
@@ -362,7 +361,7 @@ class AgentController extends Controller
         // Traverse up the hierarchy to find master DMC based on user role
         if ($user->role_id == 11) { // DMC
             // Direct access to master_dmc_id
-            $masterDmc = User::find($user->master_dmc_id);
+            $masterDmc = User::where('userId', $user->master_dmc_id)->first();
         } 
         else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
             // Find parent DMC
@@ -371,7 +370,7 @@ class AgentController extends Controller
                             ->first();
             
             if ($parentDmc) {
-                $masterDmc = User::find($parentDmc->master_dmc_id);
+                $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first(); 
             }
         }
         else if ($user->role_id == 12 || $user->role_id == 37) { // Sales Manager
@@ -387,7 +386,7 @@ class AgentController extends Controller
                                 ->first();
                 
                 if ($parentDmc) {
-                    $masterDmc = User::find($parentDmc->master_dmc_id);
+                    $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                 }
             }
         }
@@ -410,7 +409,7 @@ class AgentController extends Controller
                                     ->first();
                     
                     if ($parentDmc) {
-                        $masterDmc = User::find($parentDmc->master_dmc_id);
+                        $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                     }
                 }
             }
