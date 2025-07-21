@@ -329,9 +329,9 @@ class AgentController extends Controller
                 
                 $result = \App\Helpers\CommonHelper::sendEmail(
                     $agent->email, 
-                    'agent_update', 
-                    'Your Agent Account Has Been Updated', 
-                    'Welcome to our platform! Your agent account has been updated successfully.', 
+                    'agent_creation', 
+                    'Your Agent Account Has Been Created', 
+                    'Welcome to our platform! Your agent account has been created successfully.', 
                     $emailData
                 );
                 
