@@ -332,7 +332,7 @@
                             <tr>
                                 <th>No</th>
                                 <th>Restaurant Name</th>
-                                <th>Type</th>
+                                <th>Meal Type</th>
                                 <th>Item Description</th>
                                 <th>Status</th>
                                 @if(hasPermission('edit meal') || hasPermission('delete meal'))
@@ -364,7 +364,15 @@
                                         @endif
                                     </td>
                                     <td>
-                                        {{$meal->item_description}}
+                                        @php
+                                            $lines = explode("\n", $meal->item_description);
+                                            $firstTwoLines = array_slice($lines, 0, 2);
+                                            $displayText = implode("\n", $firstTwoLines);
+                                            $hasMoreLines = count($lines) > 2;
+                                        @endphp
+                                        <span title="{{ $meal->item_description }}">
+                                            {{ $displayText }}@if($hasMoreLines)...@endif
+                                        </span>
                                     </td>
                                     <td>
                                         @if($meal->is_active == 1)
