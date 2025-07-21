@@ -1541,9 +1541,13 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         size="small"
                         variant="outlined"
                       />
-                      {booking.price > 0 && (
+                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && (
                         <Chip
-                          label={`$${booking.price.toFixed(2)}`}
+                          label={`$${(
+                            !isNaN(Number(booking.price)) && Number(booking.price) > 0
+                              ? Number(booking.price)
+                              : Number(booking.totalPrice)
+                          ).toFixed(2)}`}
                           color="success"
                           size="small"
                           variant="outlined"
