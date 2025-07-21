@@ -587,6 +587,7 @@ class HotelController extends Controller
                 'double_price' => $double_base_price ?? 0,
                 'child_extraBed_person_count' => $filtered_count,
                 'bed_details' => $bed_data,
+                'rooms_only' => $room->rooms_only,
             ];
         }
         $hotelPolicy = $hotel->hotelPolicy->first();

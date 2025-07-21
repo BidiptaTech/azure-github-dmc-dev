@@ -122,7 +122,6 @@
     }
 </style>
 <!-- Start of the form -->
-@if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <!-- Navigation Pills for Restaurant and Meals -->
@@ -560,7 +559,6 @@
         </div>
     </div>
 </div>
-@endif
 <!-- End of the form -->
 
 <div class="content-wrapper">
