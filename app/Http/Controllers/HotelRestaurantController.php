@@ -248,7 +248,7 @@ class HotelRestaurantController extends Controller
     * Show the form for creating a new restaurant.
     * Date 06-11-2024
     */
-    public function create($id)
+    public function create($id, Request $request)
     {
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
         if (!$hotel) {
@@ -268,6 +268,7 @@ class HotelRestaurantController extends Controller
             // Use JSON query for PostgreSQL to check if dmc_id array contains the user ID
             $hotels = Hotel::whereJsonContains('dmc_id', $auth_user->userId)->get();
         }
+        
         // Handle dmc_id as array since it's cast as array in Hotel model
         $dmcIds = $hotel->getSelectedDmcIds();
         $currentUserDmcId = null;
@@ -276,8 +277,32 @@ class HotelRestaurantController extends Controller
         if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $currentUserDmcId = $auth_user->userId;
         } else {
-            // For admin users, use the first available DMC ID or find appropriate one
-            $currentUserDmcId = !empty($dmcIds) ? $dmcIds[0] : null;
+            // For admin users (role_id 1 and 20), handle DMC selection
+            if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+                // Check if DMC is selected via query parameter
+                if ($request->has('dmc_id') && !empty($request->dmc_id)) {
+                    $selectedDMC = User::where('userId', $request->dmc_id)->where('role_id', 11)->first();
+                    if ($selectedDMC) {
+                        $currentUserDmcId = $request->dmc_id;
+                    }
+                }
+                
+                // If no valid DMC selected, try hotel's associated DMCs
+                if (!$currentUserDmcId && !empty($dmcIds)) {
+                    $currentUserDmcId = $dmcIds[0];
+                }
+                
+                // If still no DMC, get any available DMC
+                if (!$currentUserDmcId) {
+                    $anyDMC = User::where('role_id', 11)->first();
+                    if ($anyDMC) {
+                        $currentUserDmcId = $anyDMC->userId;
+                    }
+                }
+            } else {
+                // For other users, use the first available DMC ID
+                $currentUserDmcId = !empty($dmcIds) ? $dmcIds[0] : null;
+            }
         }
         
         if (!$currentUserDmcId) {
@@ -288,16 +313,24 @@ class HotelRestaurantController extends Controller
         if (!$userDMC) {
             abort(404, 'DMC user not found.');
         }
+        
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
             $restaurants = Restaurant::where('owned_by', $hotel->hotel_unique_id)->get();
         }else{
             $restaurants = Restaurant::where('owned_by', $hotel->hotel_unique_id)->get();
         }
+        
+        // Get available DMCs for admin users to choose from
+        $availableDMCs = [];
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            $availableDMCs = User::where('role_id', 11)->get();
+        }
+        
         $authuser = auth()->user();
         $userCountry = $userDMC->country;
         $cities = City::where('country', $userCountry)->get();
 
-        return view('hotel.add-hotel-restaurant', compact('hotels', 'auth_user', 'cities', 'userCountry', 'hotel', 'userDMC', 'restaurants'));
+        return view('hotel.add-hotel-restaurant', compact('hotels', 'auth_user', 'cities', 'userCountry', 'hotel', 'userDMC', 'restaurants', 'availableDMCs'));
     }
 
     /*
