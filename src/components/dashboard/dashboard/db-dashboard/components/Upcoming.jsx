@@ -2528,42 +2528,44 @@ export default function Pending() {
                           </td>
                           <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
                             <Tooltip title={formatDateTooltip(list.check_in_time)} arrow placement="top">
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <i
-                                  className="icon-calendar"
-                                  style={{ fontSize: "18px", color: "#4CAF50" }}
-                                ></i>
-                                <span style={{ whiteSpace: "nowrap" }}>
-                                  {formatDate(list.check_in_time)}
-                                </span>
-                              </div>
+                                                          <div
+                              style={{
+                                backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#4CAF50",
+                                fontWeight: "600",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
+                            </div>
                             </Tooltip>
                           </td>
                           <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
                             <Tooltip title={formatDateTooltip(list.check_out_time)} arrow placement="top">
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <i
-                                  className="icon-calendar-2"
-                                  style={{ fontSize: "18px", color: "#F44336" }}
-                                ></i>
-                                <span style={{ whiteSpace: "nowrap" }}>
-                                  {formatDate(list.check_out_time)}
-                                </span>
-                              </div>
+                                                          <div
+                              style={{
+                                backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#F44336",
+                                fontWeight: "600",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
+                            </div>
                             </Tooltip>
                           </td>
                           <td
