@@ -196,6 +196,63 @@ const TooltipContent = ({ vehicle }) => {
   );
 };
 
+// Mode component with dropdown
+const Mode = ({ pricemode, setpricemode, vehicles }) => {
+  // Return null if no vehicle data is available
+  if (!vehicles) return null;
+
+  console.log("vehicles in Mode component:", vehicles);
+  
+  // Safely check which price modes are available in both possible data structures
+  const hasPrivatePrice = 
+    (vehicles.prices && vehicles.prices.privatePrice > 0) || 
+    (vehicles.private_price && parseFloat(vehicles.private_price) > 0);
+    
+  const hasSharablePrice = 
+    (vehicles.prices && vehicles.prices.sharablePrice > 0) || 
+    (vehicles.shared_price && parseFloat(vehicles.shared_price) > 0);
+  
+  console.log("hasPrivatePrice", hasPrivatePrice);
+  console.log("hasSharablePrice", hasSharablePrice);
+
+  // If no pricing options available, return null
+  if (!hasPrivatePrice && !hasSharablePrice) return null;
+  
+  // Set default mode on first render
+  useEffect(() => {
+    // If no mode is selected yet, set a default
+    if (!pricemode) {
+      if (hasPrivatePrice) {
+        setpricemode("Private");
+      } else if (hasSharablePrice) {
+        setpricemode("Sharable");
+      }
+    }
+  }, [vehicles, pricemode, setpricemode, hasPrivatePrice, hasSharablePrice]);
+  
+  return (
+    <Grid item xs={12} sm={6} md={3}>
+      <FormControl fullWidth>
+        <InputLabel id="price-mode-label">Price Mode</InputLabel>
+        <Select
+          labelId="price-mode-label"
+          id="price-mode-select"
+          value={pricemode || ''}
+          label="Price Mode"
+          onChange={(e) => setpricemode(e.target.value)}
+        >
+          {hasPrivatePrice && (
+            <MenuItem key="private" value="Private">Private</MenuItem>
+          )}
+          {hasSharablePrice && (
+            <MenuItem key="sharable" value="Sharable">Sharable</MenuItem>
+          )}
+        </Select>
+      </FormControl>
+    </Grid>
+  );
+};
+
 const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles = [], exitPorts, tourDates = [], date }) => {
   const dispatch = useDispatch();
   
@@ -252,57 +309,64 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           };
         }
         
+        // Normalize data types to handle inconsistencies
+        const normalizedExitData = {
+          ...exitData,
+          // Convert string numbers to actual numbers
+          adults: exitData.adults ? Number(exitData.adults) : 1,
+          children: exitData.children ? Number(exitData.children) : 0,
+          dmc_id: exitData.dmc_id ? String(exitData.dmc_id) : '',
+          vehicles_id: exitData.vehicles_id ? String(exitData.vehicles_id) : '',
+          totalPrice: exitData.totalPrice ? Number(exitData.totalPrice) : 0,
+          distance: exitData.distance ? Number(exitData.distance) : 0,
+          // Normalize type for case insensitivity
+          type: exitData.type ? exitData.type.toLowerCase() : 'private'
+        };
+        
         // Find the corresponding vehicle from the vehicles list
-        const matchingVehicle = vehicles.find(v => v.id === exitData.vehicles_id);
+        const matchingVehicle = vehicles.find(v => String(v.id) === String(normalizedExitData.vehicles_id));
         
         return {
-          id: exitData.id,
+          id: normalizedExitData.id || `exit-${Date.now()}-${index}`,
           vehicle: matchingVehicle || {
-            id: exitData.vehicles_id,
-            vehicle_name: exitData.vehicles_name,
-            vehicle_type: exitData.vehicle_type,
-            vehicle_model: exitData.vehicle_model,
-            model_year: exitData.model_year,
-            seating_capacity: exitData.seating_capacity,
-            image: exitData.image,
-            city: exitData.city,
-            country: exitData.country,
-            dmc_id: exitData.dmc_id
+            id: normalizedExitData.vehicles_id || '',
+            vehicle_name: normalizedExitData.vehicles_name || 'Unknown Vehicle',
+            vehicle_type: normalizedExitData.vehicle_type || '',
+            vehicle_model: normalizedExitData.vehicle_model || '',
+            model_year: normalizedExitData.model_year || '',
+            seating_capacity: normalizedExitData.seating_capacity || 1,
+            image: normalizedExitData.image || '',
+            city: normalizedExitData.city || '',
+            country: normalizedExitData.country || '',
+            dmc_id: normalizedExitData.dmc_id || ''
           },
           vehicleData: {
             // Map the price mode to expected structure
-            private_price: exitData.type === 'private' ? exitData.totalPrice : 0,
-            shared_price: exitData.type === 'shared' ? exitData.totalPrice : 0,
+            private_price: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
+            shared_price: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0,
             prices: {
-              privatePrice: exitData.type === 'private' ? exitData.totalPrice : 0,
-              sharablePrice: exitData.type === 'shared' ? exitData.totalPrice : 0
-            }
+              privatePrice: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
+              sharablePrice: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0
+            },
+            $distanceInKM: normalizedExitData.distance || null
           },
-          priceMode: exitData.type === 'shared' ? 'Sharable' : 'Private',
+          priceMode: normalizedExitData.type === 'shared' ? 'Sharable' : 'Private',
           isComplete: true, // Mark as complete since it's loaded data
-          adults: exitData.adults || 1,
-          children: exitData.children || 0,
-          mode: exitData.Mode || 'dmc',
-          dmcId: exitData.dmc_id,
-          exitpickup: exitData.exitpickup,
-          exitdropoff: exitData.exitdropoff,
-          bookingDate: exitData.bookingDate,
-          exitpickupdate: exitData.exitpickupdate,
-          entrytime: exitData.entrytime,
+          adults: normalizedExitData.adults || 1,
+          children: normalizedExitData.children || 0,
+          mode: normalizedExitData.Mode || 'dmc',
+          dmcId: normalizedExitData.dmc_id || '',
+          exitpickup: normalizedExitData.exitpickup || '',
+          exitdropoff: normalizedExitData.exitdropoff || '',
+          bookingDate: normalizedExitData.bookingDate || '',
+          exitpickupdate: normalizedExitData.exitpickupdate || '',
+          entrytime: normalizedExitData.entrytime || '',
           // Store original loaded data for reference, including booking_id
           originalData: {
-            ...exitData,
+            ...normalizedExitData,
             booking_id: exitPort.booking_id // Preserve booking_id from service level
           }
         };
-        
-        console.log(`Exit Vehicle - Initialized booking with booking_id: ${exitPort.booking_id}`, {
-          bookingId: booking.id,
-          serviceBookingId: exitPort.booking_id,
-          exitData: exitData
-        });
-        
-        return booking;
       });
     }
     
@@ -439,96 +503,108 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     if (completedBookings.length > 0) {
       console.log("Exit Vehicle - Dispatching initialized bookings to Redux:", completedBookings);
       
-          // Format bookings for Redux state
-    const bookingsForRedux = completedBookings.map(booking => {
-      const vehicle = booking.vehicle;
-      const vehicleData = booking.vehicleData;
-      const bookingAdultCount = booking.adults || adultCount;
-      const bookingChildCount = booking.children || childCount;
-      const totalGuests = bookingAdultCount + bookingChildCount;
-      
-      // Calculate price based on price mode
-      const price = booking.priceMode === "Sharable"
-        ? (vehicleData.prices && vehicleData.prices.sharablePrice 
-            ? vehicleData.prices.sharablePrice * totalGuests 
-            : (vehicleData.shared_price ? parseFloat(vehicleData.shared_price) * totalGuests : 0))
-        : (vehicleData.prices && vehicleData.prices.privatePrice 
-            ? vehicleData.prices.privatePrice 
-            : (vehicleData.private_price ? parseFloat(vehicleData.private_price) : 0));
-      
-      // Find any existing customer info in current services
-      const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
-      
-      // Check if this is a loaded booking or a new booking
-      const isLoadedBooking = booking.originalData !== undefined;
-      
-      // Get location and timing data based on booking type
-      const locationData = isLoadedBooking ? {
-        exitpickup: booking.originalData.exitpickup,
-        exitdropoff: booking.originalData.exitdropoff,
-        bookingDate: booking.originalData.exitpickupdate,
-        exitpickupdate: booking.originalData.exitpickupdate,
-        entrytime: booking.originalData.entrytime
-      } : {
-        exitpickup: exitPickup,
-        exitdropoff: exitDropoff,
-        bookingDate: pickupDate,
-        exitpickupdate: pickupDate,
-        entrytime: exitTime
-      };
-
-      // Create booking data in the same format as currently used
-      const bookingData = {
-        // Customer information fields (will be populated when available or default to empty strings)
-        fullName: customerInfoService?.fullName || "",
-        email: customerInfoService?.email || "",
-        phone: customerInfoService?.phone || "",
-        countryCode: customerInfoService?.countryCode || "",
-        address1: customerInfoService?.address1 || "",
-        address2: customerInfoService?.address2 || "",
-        state: customerInfoService?.state || "",
-        zip: customerInfoService?.zip || "",
-        specialRequests: customerInfoService?.specialRequests || "",
+      // Format bookings for Redux state
+      const bookingsForRedux = completedBookings.map(booking => {
+        const vehicleObj = booking.vehicle || {};
+        const vehicleDataObj = booking.vehicleData || {};
+        const bookingAdultCount = booking.adults || adultCount || 1;
+        const bookingChildCount = booking.children || childCount || 0;
+        const totalGuests = bookingAdultCount + bookingChildCount;
         
-        // Core booking details with correct location and timing data
-        id: booking.id,
-        vehicles_id: vehicle.id,
-        image: vehicle.image,
-        dmc_id: booking.dmcId,
-        vehicles_name: vehicle.vehicle_name,
-        Mode: booking.mode,
-        type: booking.priceMode === "Sharable" ? "shared" : "private",
-        ...locationData, // Use the correct location and timing data
-        PickupPlaceid: booking.PickupPlaceid || null,
-        DropoffPlaceid: booking.DropoffPlaceid || null,
-        adults: bookingAdultCount,
-        children: bookingChildCount,
-        totalPrice: Math.ceil(price),
-        Tax: vehicle.tax_percentage,
-        distance: vehicle.distance || vehicleData.$distanceInKM || booking.originalData?.distance || null,
-        Night_Start_Time: vehicle.night_start_time || vehicleData.Night_Start_Time || null,
-        Night_End_Time: vehicle.night_end_time || vehicleData.Night_End_Time || null,
-        city: vehicle.city,
-        country: vehicle.country,
-        vehicle_type: vehicle.vehicle_type,
-        vehicle_model: vehicle.vehicle_model,
-        model_year: vehicle.model_year,
-        seating_capacity: vehicle.seating_capacity
-      };
-      
-             const serviceData = {
-         type: "exit_port",
-         agent_id: agentId,
-         tour_id: tourId,
-         booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
-         data: [bookingData],
-         bookingType: "enquiry"
-       };
-       
-       console.log(`Exit Vehicle - Service data with booking_id: ${booking.originalData?.booking_id}`, serviceData);
-       
-       return serviceData;
-    });
+        // Calculate price based on price mode - with error handling
+        let price = 0;
+        try {
+          if (booking.priceMode === "Sharable") {
+            if (vehicleDataObj.prices && vehicleDataObj.prices.sharablePrice) {
+              price = Number(vehicleDataObj.prices.sharablePrice) * totalGuests;
+            } else if (vehicleDataObj.shared_price) {
+              price = parseFloat(vehicleDataObj.shared_price) * totalGuests;
+            }
+          } else {
+            if (vehicleDataObj.prices && vehicleDataObj.prices.privatePrice) {
+              price = Number(vehicleDataObj.prices.privatePrice);
+            } else if (vehicleDataObj.private_price) {
+              price = parseFloat(vehicleDataObj.private_price);
+            }
+          }
+        } catch (e) {
+          console.error("Error calculating price:", e);
+          price = 0;
+        }
+        
+        // Find any existing customer info in current services
+        const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
+        
+        // Check if this is a loaded booking or a new booking
+        const isLoadedBooking = booking.originalData !== undefined;
+        
+        // Get location and timing data based on booking type
+        const locationData = isLoadedBooking ? {
+          exitpickup: booking.originalData.exitpickup || '',
+          exitdropoff: booking.originalData.exitdropoff || '',
+          bookingDate: booking.originalData.exitpickupdate || '',
+          exitpickupdate: booking.originalData.exitpickupdate || '',
+          entrytime: booking.originalData.entrytime || ''
+        } : {
+          exitpickup: exitPickup || '',
+          exitdropoff: exitDropoff || '',
+          bookingDate: pickupDate || '',
+          exitpickupdate: pickupDate || '',
+          entrytime: exitTime || ''
+        };
+
+        // Create booking data in the same format as currently used
+        const bookingData = {
+          // Customer information fields (will be populated when available or default to empty strings)
+          fullName: customerInfoService?.fullName || "",
+          email: customerInfoService?.email || "",
+          phone: customerInfoService?.phone || "",
+          countryCode: customerInfoService?.countryCode || "",
+          address1: customerInfoService?.address1 || "",
+          address2: customerInfoService?.address2 || "",
+          state: customerInfoService?.state || "",
+          zip: customerInfoService?.zip || "",
+          specialRequests: customerInfoService?.specialRequests || "",
+          
+          // Core booking details with correct location and timing data
+          id: booking.id || `exit-${Date.now()}`,
+          vehicles_id: vehicleObj.id || '',
+          image: vehicleObj.image || '',
+          dmc_id: booking.dmcId || '',
+          vehicles_name: vehicleObj.vehicle_name || 'Unknown Vehicle',
+          Mode: booking.mode || 'dmc',
+          type: booking.priceMode === "Sharable" ? "Shared" : "Private",
+          ...locationData, // Use the correct location and timing data
+          PickupPlaceid: booking.PickupPlaceid || null,
+          DropoffPlaceid: booking.DropoffPlaceid || null,
+          adults: bookingAdultCount,
+          children: bookingChildCount,
+          totalPrice: Math.ceil(price),
+          Tax: vehicleObj.tax_percentage || 0,
+          distance: vehicleObj.distance || vehicleDataObj.$distanceInKM || booking.originalData?.distance || 0,
+          Night_Start_Time: vehicleObj.night_start_time || vehicleDataObj.Night_Start_Time || null,
+          Night_End_Time: vehicleObj.night_end_time || vehicleDataObj.Night_End_Time || null,
+          city: vehicleObj.city || '',
+          country: vehicleObj.country || '',
+          vehicle_type: vehicleObj.vehicle_type || '',
+          vehicle_model: vehicleObj.vehicle_model || '',
+          model_year: vehicleObj.model_year || '',
+          seating_capacity: vehicleObj.seating_capacity || 1
+        };
+
+        const serviceData = {
+          type: "exit_port",
+          agent_id: agentId || '',
+          tour_id: tourId || '',
+          booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
+          data: [bookingData],
+          bookingType: "enquiry"
+        };
+        
+        console.log(`Exit Vehicle - Service data with booking_id: ${booking.originalData?.booking_id}`, serviceData);
+        
+        return serviceData;
+      });
       
       // Remove any existing Exit Port services and add the new ones
       const filteredServices = existingServices.filter(service => service.type !== "exit_port");
@@ -605,40 +681,61 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           };
         }
         
+        // Normalize data types to handle inconsistencies
+        const normalizedExitData = {
+          ...exitData,
+          // Convert string numbers to actual numbers
+          adults: exitData.adults ? Number(exitData.adults) : 1,
+          children: exitData.children ? Number(exitData.children) : 0,
+          dmc_id: exitData.dmc_id ? String(exitData.dmc_id) : '',
+          vehicles_id: exitData.vehicles_id ? String(exitData.vehicles_id) : '',
+          totalPrice: exitData.totalPrice ? Number(exitData.totalPrice) : 0,
+          distance: exitData.distance ? Number(exitData.distance) : 0,
+          // Normalize type for case insensitivity
+          type: exitData.type ? exitData.type.toLowerCase() : 'private'
+        };
+        
         // Find the corresponding vehicle from the vehicles list
-        const matchingVehicle = vehicles.find(v => v.id === exitData.vehicles_id);
+        const matchingVehicle = vehicles.find(v => String(v.id) === String(normalizedExitData.vehicles_id));
         
         return {
-          id: exitData.id,
+          id: normalizedExitData.id || `exit-${Date.now()}-${index}`,
           vehicle: matchingVehicle || {
-            id: exitData.vehicles_id,
-            vehicle_name: exitData.vehicles_name,
-            vehicle_type: exitData.vehicle_type,
-            vehicle_model: exitData.vehicle_model,
-            model_year: exitData.model_year,
-            seating_capacity: exitData.seating_capacity,
-            image: exitData.image,
-            city: exitData.city,
-            country: exitData.country,
-            dmc_id: exitData.dmc_id
+            id: normalizedExitData.vehicles_id || '',
+            vehicle_name: normalizedExitData.vehicles_name || 'Unknown Vehicle',
+            vehicle_type: normalizedExitData.vehicle_type || '',
+            vehicle_model: normalizedExitData.vehicle_model || '',
+            model_year: normalizedExitData.model_year || '',
+            seating_capacity: normalizedExitData.seating_capacity || 1,
+            image: normalizedExitData.image || '',
+            city: normalizedExitData.city || '',
+            country: normalizedExitData.country || '',
+            dmc_id: normalizedExitData.dmc_id || ''
           },
           vehicleData: {
-            private_price: exitData.type === 'private' ? exitData.totalPrice : 0,
-            shared_price: exitData.type === 'shared' ? exitData.totalPrice : 0,
+            // Map the price mode to expected structure
+            private_price: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
+            shared_price: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0,
             prices: {
-              privatePrice: exitData.type === 'private' ? exitData.totalPrice : 0,
-              sharablePrice: exitData.type === 'shared' ? exitData.totalPrice : 0
+              privatePrice: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
+              sharablePrice: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0
             },
-            $distanceInKM: exitData.distance || null
+            $distanceInKM: normalizedExitData.distance || null
           },
-          priceMode: exitData.type === 'shared' ? 'Sharable' : 'Private',
-          isComplete: true,
-          adults: exitData.adults || 1,
-          children: exitData.children || 0,
-          mode: exitData.Mode || 'dmc',
-          dmcId: exitData.dmc_id,
+          priceMode: normalizedExitData.type === 'shared' ? 'Sharable' : 'Private',
+          isComplete: true, // Mark as complete since it's loaded data
+          adults: normalizedExitData.adults || 1,
+          children: normalizedExitData.children || 0,
+          mode: normalizedExitData.Mode || 'dmc',
+          dmcId: normalizedExitData.dmc_id || '',
+          exitpickup: normalizedExitData.exitpickup || '',
+          exitdropoff: normalizedExitData.exitdropoff || '',
+          bookingDate: normalizedExitData.bookingDate || '',
+          exitpickupdate: normalizedExitData.exitpickupdate || '',
+          entrytime: normalizedExitData.entrytime || '',
+          // Store original loaded data for reference, including booking_id
           originalData: {
-            ...exitData,
+            ...normalizedExitData,
             booking_id: exitPort.booking_id // Preserve booking_id from service level
           }
         };
@@ -654,7 +751,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       // Also store in Redux state in the same format
       dispatchInitializedBookingsToRedux(newBookings);
     }
-  }, [validExitPorts, vehicles]); // Simplified dependencies
+  }, [validExitPorts, vehicles, dispatchInitializedBookingsToRedux, adultCount, childCount]);
 
   // Update completion status when relevant data changes - simplified
   const completionCheckValues = React.useMemo(() => ({
@@ -747,12 +844,26 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       return;
     }
     
+    // Check if this booking is already in Redux state to prevent duplicates
+    if (!forceUpdate) {
+      const existingBooking = existingServices.find(service => 
+        service.type === "exit_port" && 
+        service.data && 
+        service.data.some(item => item.id === booking.id)
+      );
+      
+      if (existingBooking) {
+        console.log("Exit Vehicle - Booking already exists in Redux, skipping dispatch:", booking.id);
+        return;
+      }
+    }
+    
     console.log("Exit Vehicle - Directly dispatching booking to Redux:", booking);
     
-    const vehicle = booking.vehicle;
-    const vehicleData = booking.vehicleData;
-    const bookingAdultCount = booking.adults || adultCount;
-    const bookingChildCount = booking.children || childCount;
+    const vehicle = booking.vehicle || {};
+    const vehicleData = booking.vehicleData || {};
+    const bookingAdultCount = booking.adults || adultCount || 1;
+    const bookingChildCount = booking.children || childCount || 0;
     const totalGuests = bookingAdultCount + bookingChildCount;
     
     // Check if this is a loaded booking or a new booking
@@ -760,27 +871,39 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     
     // Get location and timing data based on booking type
     const locationData = isLoadedBooking ? {
-      exitpickup: booking.originalData.exitpickup,
-      exitdropoff: booking.originalData.exitdropoff,
-      bookingDate: booking.originalData.exitpickupdate,
-      exitpickupdate: booking.originalData.exitpickupdate,
-      entrytime: booking.originalData.entrytime
+      exitpickup: booking.originalData.exitpickup || '',
+      exitdropoff: booking.originalData.exitdropoff || '',
+      bookingDate: booking.originalData.exitpickupdate || '',
+      exitpickupdate: booking.originalData.exitpickupdate || '',
+      entrytime: booking.originalData.entrytime || ''
     } : {
-      exitpickup: exitPickup,
-      exitdropoff: exitDropoff,
-      bookingDate: pickupDate,
-      exitpickupdate: pickupDate,
-      entrytime: exitTime
+      exitpickup: exitPickup || '',
+      exitdropoff: exitDropoff || '',
+      bookingDate: pickupDate || '',
+      exitpickupdate: pickupDate || '',
+      entrytime: exitTime || ''
     };
     
-    // Calculate price based on price mode
-    const price = booking.priceMode === "Sharable"
-      ? (vehicleData.prices && vehicleData.prices.sharablePrice 
-          ? vehicleData.prices.sharablePrice * totalGuests 
-          : (vehicleData.shared_price ? parseFloat(vehicleData.shared_price) * totalGuests : 0))
-      : (vehicleData.prices && vehicleData.prices.privatePrice 
-          ? vehicleData.prices.privatePrice 
-          : (vehicleData.private_price ? parseFloat(vehicleData.private_price) : 0));
+    // Calculate price based on price mode - with error handling
+    let price = 0;
+    try {
+      if (booking.priceMode === "Sharable") {
+        if (vehicleData.prices && vehicleData.prices.sharablePrice) {
+          price = Number(vehicleData.prices.sharablePrice) * totalGuests;
+        } else if (vehicleData.shared_price) {
+          price = parseFloat(vehicleData.shared_price) * totalGuests;
+        }
+      } else {
+        if (vehicleData.prices && vehicleData.prices.privatePrice) {
+          price = Number(vehicleData.prices.privatePrice);
+        } else if (vehicleData.private_price) {
+          price = parseFloat(vehicleData.private_price);
+        }
+      }
+    } catch (e) {
+      console.error("Error calculating price:", e);
+      price = 0;
+    }
     
     // Find any existing customer info in current services
     const customerInfoService = existingServices.find(service => service.type === 'CustomerInfo');
@@ -799,31 +922,31 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       specialRequests: customerInfoService?.specialRequests || "",
       
       // Core booking details with correct location and timing data
-      vehicles_id: vehicle.id,
-      vehicles_name: vehicle.vehicle_name,
-      dmc_id: booking.dmcId,
-      Mode: booking.mode,
-      type: booking.priceMode === "Sharable" ? "shared" : "private",
-      image: vehicle.image,
+      vehicles_id: vehicle.id || '',
+      vehicles_name: vehicle.vehicle_name || 'Unknown Vehicle',
+      dmc_id: booking.dmcId || '',
+      Mode: booking.mode || 'dmc',
+      type: booking.priceMode === "Sharable" ? "Shared" : "Private",
+      image: vehicle.image || '',
       ...locationData, // Use the correct location and timing data
       PickupPlaceid: booking.PickupPlaceid || null,
       DropoffPlaceid: booking.DropoffPlaceid || null,
       adults: bookingAdultCount,
       children: bookingChildCount,
       totalPrice: Math.ceil(price),
-      Tax: vehicle.tax_percentage,
-      distance: vehicle.distance || vehicleData.$distanceInKM || booking.originalData?.distance || null,
+      Tax: vehicle.tax_percentage || 0,
+      distance: vehicle.distance || vehicleData.$distanceInKM || booking.originalData?.distance || 0,
       Night_Start_Time: vehicle.night_start_time || vehicleData.Night_Start_Time || null,
       Night_End_Time: vehicle.night_end_time || vehicleData.Night_End_Time || null,
-      city: vehicle.city,
-      country: vehicle.country,
+      city: vehicle.city || '',
+      country: vehicle.country || '',
       
       // Additional fields for tour package context
-      id: booking.id,
-      vehicle_type: vehicle.vehicle_type,
-      vehicle_model: vehicle.vehicle_model,
-      model_year: vehicle.model_year,
-      seating_capacity: vehicle.seating_capacity
+      id: booking.id || `exit-${Date.now()}`,
+      vehicle_type: vehicle.vehicle_type || '',
+      vehicle_model: vehicle.vehicle_model || '',
+      model_year: vehicle.model_year || '',
+      seating_capacity: vehicle.seating_capacity || 1
     };
     
     console.log("Exit Vehicle - Formatted booking data for Redux:", bookingData);
@@ -847,8 +970,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     // Create a new Exit Port entry for this vehicle
     const newExitPortService = {
       type: "exit_port",
-      agent_id: agentId,
-      tour_id: tourId,
+      agent_id: agentId || '',
+      tour_id: tourId || '',
       booking_id: booking.originalData?.booking_id, // Preserve booking_id from original data
       data: [bookingData],
       bookingType: "enquiry"
@@ -887,18 +1010,18 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   }, [bookingsVersion, existingServices, dispatchBookingToRedux]); // Watch for booking completion changes
   
   // Handle vehicle selection - optimized to prevent infinite loops
-  const handleVehicleSelect = React.useCallback((vehicle, bookingIndex) => {
-    if (!vehicle) return;
+  const handleVehicleSelect = React.useCallback((vehicleItem, bookingIndex) => {
+    if (!vehicleItem) return;
     
-    const hasDmcPrice = vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0;
-    const hasTravclicksPrice = vehicle.trav_private_price > 0 || vehicle.trav_sharable_price > 0;
+    const hasDmcPrice = vehicleItem.dmc_private_price > 0 || vehicleItem.dmc_sharable_price > 0;
+    const hasTravclicksPrice = vehicleItem.trav_private_price > 0 || vehicleItem.trav_sharable_price > 0;
     
     const mode = (hasDmcPrice && !hasTravclicksPrice) ? "dmc" : "travclicks";
-    const dmcId = (hasDmcPrice && !hasTravclicksPrice) ? vehicle.dmc_id : vehicle.travclicks_dmc_id;
+    const dmcId = (hasDmcPrice && !hasTravclicksPrice) ? vehicleItem.dmc_id : vehicleItem.travclicks_dmc_id;
     
     // Call parent's onVehicleChange first
     if (onVehicleChange) {
-      onVehicleChange(vehicle.id, mode, dmcId, vehicle.city, vehicle.country, bookingIndex);
+      onVehicleChange(vehicleItem.id, mode, dmcId, vehicleItem.city, vehicleItem.country, bookingIndex);
     }
     
     // Update bookings state with functional update pattern
@@ -906,7 +1029,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       const updatedBookings = [...prevBookings];
       updatedBookings[bookingIndex] = {
         ...updatedBookings[bookingIndex],
-        vehicle: vehicle,
+        vehicle: vehicleItem,
         mode: mode,
         dmcId: dmcId
       };
@@ -917,7 +1040,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     setIsLoading(true);
     setError(null);
     
-    dispatch(fetchVehicleDetails({ city: vehicle.city, country: vehicle.country, type: portZoneType }))
+    dispatch(fetchVehicleDetails({ city: vehicleItem.city, country: vehicleItem.country, type: portZoneType }))
       .unwrap()
       .then((data) => {
         setSeatingCapacity(data.seating_capacity || 0);
@@ -926,7 +1049,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
         setTimeout(() => {
           setBookings(prevBookings => {
             const updatedBookings = [...prevBookings];
-            if (updatedBookings[bookingIndex] && updatedBookings[bookingIndex].vehicle?.id === vehicle.id) {
+            if (updatedBookings[bookingIndex] && updatedBookings[bookingIndex].vehicle?.id === vehicleItem.id) {
               updatedBookings[bookingIndex] = {
                 ...updatedBookings[bookingIndex],
                 vehicleData: data
@@ -949,6 +1072,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     if (!value) return;
     
     setBookings(prevBookings => {
+      if (!prevBookings || !prevBookings[bookingIndex]) return prevBookings;
+      
       const updatedBookings = [...prevBookings];
       updatedBookings[bookingIndex] = {
         ...updatedBookings[bookingIndex],
@@ -1405,9 +1530,9 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
                       
                       {/* Use existing Passenger component with custom props for this booking */}
                       <Passenger 
-                        adultsMax={adultsMax} 
-                        childrenMax={childrenMax} 
-                        seatingCapacity={seatingCapacity}
+                        adultsMax={adultsMax || 1} 
+                        childrenMax={childrenMax || 0} 
+                        seatingCapacity={seatingCapacity || 1}
                         initialAdults={booking.adults || 1}
                         initialChildren={booking.children || 0}
                         onAdultChange={(count) => handleAdultChange(index, count)}
@@ -1427,11 +1552,11 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
                             >
                               {((booking.vehicleData.prices && booking.vehicleData.prices.privatePrice > 0) || 
                                 (booking.vehicleData.private_price && parseFloat(booking.vehicleData.private_price) > 0)) && (
-                                <MenuItem value="Private">Private</MenuItem>
+                                <MenuItem key="private" value="Private">Private</MenuItem>
                               )}
                               {((booking.vehicleData.prices && booking.vehicleData.prices.sharablePrice > 0) || 
                                 (booking.vehicleData.shared_price && parseFloat(booking.vehicleData.shared_price) > 0)) && (
-                                <MenuItem value="Sharable">Sharable</MenuItem>
+                                <MenuItem key="sharable" value="Sharable">Sharable</MenuItem>
                               )}
                             </Select>
                           </FormControl>
