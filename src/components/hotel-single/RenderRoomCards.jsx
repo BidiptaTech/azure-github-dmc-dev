@@ -216,7 +216,8 @@ const RenderRoomCards = ({
     { 
       title: "Room Only", 
       extraPrice: 0,
-      totalPrice: parseFloat(basePrice)
+      totalPrice: parseFloat(basePrice),
+      condition: data?.room_only === 1
     },
     { 
       title: "Room with Breakfast", 
@@ -275,7 +276,8 @@ const RenderRoomCards = ({
     { 
       title: "Room Only", 
       extraPrice: 0,
-      totalPrice: (personCount) => parseFloat(basePriceDouble) + getExtraBedPriceForPersonCount(personCount)
+      totalPrice: (personCount) => parseFloat(basePriceDouble) + getExtraBedPriceForPersonCount(personCount),
+      condition: data?.room_only === 1
     },
     { 
       title: "Room with Breakfast", 
