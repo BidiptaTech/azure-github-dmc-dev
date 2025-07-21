@@ -238,7 +238,7 @@
                                 </div>
 
                                 <!-- Item File -->
-                                <div class="col-md-3 mb-3" id="item_file_container" style="display: none;">
+                                <div class="col-md-3 mb-3"  style="display: none;">
                                     <label for="item_file" class="form-label"><strong>Add Menu</strong></label>
                                     <input type="file" class="form-control" name="item_file">
                                     @error('item_file')
@@ -332,7 +332,6 @@
                             <tr>
                                 <th>No</th>
                                 <th>Restaurant Name</th>
-                                <th>Item Name</th>
                                 <th>Type</th>
                                 <th>Item Description</th>
                                 <th>Status</th>
@@ -352,13 +351,7 @@
                                             Unknown
                                         @endif
                                     </td>
-                                    <td class="category-name">
-                                        @if($meal->name)
-                                            {{ $meal->name }}
-                                        @else
-                                            {{ 'N/A' }}
-                                        @endif
-                                    </td>
+                                    
                                     <td>
                                         @if($meal->type == 1)
                                             Buffet
