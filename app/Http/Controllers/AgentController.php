@@ -299,6 +299,47 @@ class AgentController extends Controller
         $agent->password = bcrypt($request->input('password'));
     
         if ($agent->save()) {
+            // Send email to the agent
+            try {
+                $dmc_id = CommonHelper::getDmcId(auth()->user());
+                $dmc_user = User::where('userId', $dmc_id)->first();
+
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->input('password'),
+                    'dmc_logo' => $dmc_user->logo ?? 'NA',
+                    'dmc_company' => $dmc_user->company_name ?? config('app.name'),
+                    'dmc_email' => $dmc_user->email ?? 'NA',
+                    'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'mail_settings' => (object)[
+                        'support_email' => $dmc_user->email ?? 'NA',
+                        'support_phone' => $dmc_user->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                $result = \App\Helpers\CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_update', 
+                    'Your Agent Account Has Been Updated', 
+                    'Welcome to our platform! Your agent account has been updated successfully.', 
+                    $emailData
+                );
+                
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
+            
             return redirect()->route('agents.index')->with('success', 'Agent details added successfully!');
         } else {
             return redirect()->route('agents.index')->with('error', 'Failed to add agent details.');
@@ -505,6 +546,45 @@ class AgentController extends Controller
         }
 
         if ($agent->save()) {
+            try {
+                $dmc_id = CommonHelper::getDmcId(auth()->user());
+                $dmc_user = User::where('userId', $dmc_id)->first();
+
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->input('password'),
+                    'dmc_logo' => $dmc_user->logo ?? 'NA',
+                    'dmc_company' => $dmc_user->company_name ?? config('app.name'),
+                    'dmc_email' => $dmc_user->email ?? 'NA',
+                    'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'mail_settings' => (object)[
+                        'support_email' => $dmc_user->email ?? 'NA',
+                        'support_phone' => $dmc_user->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                $result = \App\Helpers\CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_update', 
+                    'Your Agent Account Has Been Updated', 
+                    'Your agent account has been updated successfully!', 
+                    $emailData
+                );
+                
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
             return redirect()->route('agents.index')->with('success', 'Agent details updated successfully!');
         } else {
             return redirect()->route('agents.index')->with('error', 'Failed to update agent details.');

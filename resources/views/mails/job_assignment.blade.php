@@ -1,7 +1,7 @@
-@extends('layouts.layout')
-@section('title', 'Job Assignment')
-
-@section('content')
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Assignment</title>
     <style>
         /* Add Font Awesome for better icons */
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -619,7 +619,8 @@
             }
         }
     </style>
-
+</head>
+<body>
     <div class="email-container">
         <!-- Enhanced Email Header -->
         <div class="email-header">
@@ -821,4 +822,5 @@
             </p>
         </div>
     </div>
-@endsection
+</body>
+</html>

@@ -23,7 +23,8 @@ class MailController extends Controller
         'welcome_email' => 'Welcome Email',
         'job_assignment' => 'Job Assignment',
         'feedback_request' => 'Feedback Request',
-        'tour_itinerary' => 'Tour Itinerary'
+        'tour_itinerary' => 'Tour Itinerary',
+        'agent_creation' => 'Agent Creation'
     ];
 
     /**
@@ -31,96 +32,96 @@ class MailController extends Controller
      */
     public function index()
     {
-        $templates = EmailTemplate::orderBy('created_at', 'desc')->first();
+        //$templates = EmailTemplate::orderBy('created_at', 'desc')->first();
 
 
-        try {
-            // Prepare dynamic data for the booking confirmation email
-            $data = [
-                "booking_id" => "BK-" . rand(10000, 99999),
-                "customer_name" => "Mr. Bidipta Mitra",
-                "type" => "Hotel Booking",
-                "booking_date" => date('Y-m-d'),
-                "check_in_date" => date('Y-m-d', strtotime('+7 days')),
-                "check_out_date" => date('Y-m-d', strtotime('+10 days')),
-                "location" => "Paris, France",
-                "guests" => "2 Adults, 1 Child",
-                "reference_number" => "REF-" . rand(1000, 9999),
-                "total_price" => 1250.00,
-                "payment_status" => "Paid"
-            ];
+        // try {
+        //     // Prepare dynamic data for the booking confirmation email
+        //     $data = [
+        //         "booking_id" => "BK-" . rand(10000, 99999),
+        //         "customer_name" => "Mr. Bidipta Mitra",
+        //         "type" => "Hotel Booking",
+        //         "booking_date" => date('Y-m-d'),
+        //         "check_in_date" => date('Y-m-d', strtotime('+7 days')),
+        //         "check_out_date" => date('Y-m-d', strtotime('+10 days')),
+        //         "location" => "Paris, France",
+        //         "guests" => "2 Adults, 1 Child",
+        //         "reference_number" => "REF-" . rand(1000, 9999),
+        //         "total_price" => 1250.00,
+        //         "payment_status" => "Paid"
+        //     ];
             
-            // Get company settings for the email
-            $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
-            $nameSetting = \App\Helpers\CommonHelper::masterSettingsName('name');
+        //     // Get company settings for the email
+        //     $logoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
+        //     $nameSetting = \App\Helpers\CommonHelper::masterSettingsName('name');
             
-            // Add company info to the data array
-            $companyData = [
-                "company" => [
-                    "companyName" => $nameSetting['master_value'] ?? config('app.name'),
-                    "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
-                ]
-            ];
+        //     // Add company info to the data array
+        //     $companyData = [
+        //         "company" => [
+        //             "companyName" => $nameSetting['master_value'] ?? config('app.name'),
+        //             "logo" => $logoSetting['master_value'] ?? asset('images/logo.png')
+        //         ]
+        //     ];
             
-            // Add mail settings for the template
-            $mailSettings = (object)[
-                "support_email" => "support@yourdomain.com",
-                "support_phone" => "+1 (555) 123-4567",
-                "facebook_url" => "https://facebook.com/yourcompany",
-                "twitter_url" => "https://twitter.com/yourcompany",
-                "instagram_url" => "https://instagram.com/yourcompany",
-                "linkedin_url" => "https://linkedin.com/company/yourcompany"
-            ];
+        //     // Add mail settings for the template
+        //     $mailSettings = (object)[
+        //         "support_email" => "support@yourdomain.com",
+        //         "support_phone" => "+1 (555) 123-4567",
+        //         "facebook_url" => "https://facebook.com/yourcompany",
+        //         "twitter_url" => "https://twitter.com/yourcompany",
+        //         "instagram_url" => "https://instagram.com/yourcompany",
+        //         "linkedin_url" => "https://linkedin.com/company/yourcompany"
+        //     ];
             
-            // Merge all data
-            $viewData = array_merge($data, $companyData);
-            $viewData['mail_settings'] = $mailSettings;
+        //     // Merge all data
+        //     $viewData = array_merge($data, $companyData);
+        //     $viewData['mail_settings'] = $mailSettings;
             
-            // Render the email template
-            $html = view('mails.booking_confirmation', $viewData)->render();
+        //     // Render the email template
+        //     $html = view('mails.booking_confirmation', $viewData)->render();
             
-            // Extract the entire style tag content
-            preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
-            $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+        //     // Extract the entire style tag content
+        //     preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+        //     $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
             
-            // Extract the email-container div with all its contents
-            preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
-            if (!empty($matches[0])) {
-                $extractedHtml = $matches[0];
+        //     // Extract the email-container div with all its contents
+        //     preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
+        //     if (!empty($matches[0])) {
+        //         $extractedHtml = $matches[0];
                 
-                // Add minimal HTML structure with the extracted styles
-                $emailHtml = '<!DOCTYPE html><html><head><title>Booking Details</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+        //         // Add minimal HTML structure with the extracted styles
+        //         $emailHtml = '<!DOCTYPE html><html><head><title>Booking Details</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
                 
-                // Send just this part
-                try {
-                    Mail::to("bidipta.mitra@coactivesolutions.co.in")->send(new DmcMail($emailHtml, "Your Booking Details"));
-                    return "Email sent successfully! Check your inbox or spam folder.";
-                } catch (\Exception $e) {
-                    Log::error('Email sending failed: ' . $e->getMessage());
-                    return  $e;
-                }
-            } else {
-                // Handle case where the div is not found
-                Log::error("Email container div not found in email template");
-                return "Email template structure is invalid";
-            }
-            // Send the email
-            $recipientEmail = "bidipta.mitra@coactivesolutions.co.in";
-            $subject = "Your Booking Confirmation #" . $data['booking_id'];
+        //         // Send just this part
+        //         try {
+        //             Mail::to("bidipta.mitra@coactivesolutions.co.in")->send(new DmcMail($emailHtml, "Your Booking Details"));
+        //             return "Email sent successfully! Check your inbox or spam folder.";
+        //         } catch (\Exception $e) {
+        //             Log::error('Email sending failed: ' . $e->getMessage());
+        //             return  $e;
+        //         }
+        //     } else {
+        //         // Handle case where the div is not found
+        //         Log::error("Email container div not found in email template");
+        //         return "Email template structure is invalid";
+        //     }
+        //     // Send the email
+        //     $recipientEmail = "bidipta.mitra@coactivesolutions.co.in";
+        //     $subject = "Your Booking Confirmation #" . $data['booking_id'];
             
-            try {
-                Mail::to($recipientEmail)->send(new DmcMail($html, $subject));
-            } catch (\Exception $e) {
-                Log::error('Email sending failed: ' . $e->getMessage());
-                return  $e;
-            }
+        //     try {
+        //         Mail::to($recipientEmail)->send(new DmcMail($html, $subject));
+        //     } catch (\Exception $e) {
+        //         Log::error('Email sending failed: ' . $e->getMessage());
+        //         return  $e;
+        //     }
             
-        } catch (\Exception $e) {
-            Log::error('Email sending failed: ' . $e->getMessage());
-            return  $e;
-        }
+        // } catch (\Exception $e) {
+        //     Log::error('Email sending failed: ' . $e->getMessage());
+        //     return  $e;
+        // }
 
-        return "Email sent successfully! Check your inbox or spam folder.";
+        return view('mails.index');
     }
 
     public function syncTemplates()
@@ -334,7 +335,8 @@ class MailController extends Controller
             'welcome_email' => 'Welcome to ' . config('app.name'),
             'job_assignment' => 'New Job Assignment',
             'feedback_request' => 'We Value Your Feedback',
-            'tour_itinerary' => 'Your Tour Itinerary'
+            'tour_itinerary' => 'Your Tour Itinerary',
+            'agent_creation' => 'Your Agent Account Has Been Created'
         ];
 
         return $subjects[$type] ?? Str::title(str_replace('_', ' ', $type));
@@ -347,7 +349,7 @@ class MailController extends Controller
             'payment' => ['payment_confirmation'],
             'enquiry' => ['enquiry_response'],
             'welcome' => ['welcome_email'],
-            'job' => ['job_assignment'],
+            'job' => ['job_assignment', 'agent_creation'],
             'feedback' => ['feedback_request'],
             'tour' => ['tour_itinerary']
         ];
@@ -599,6 +601,63 @@ class MailController extends Controller
         ];
 
         return view('mails.enquiry_response', compact('enquiry'));
+    }
+    
+    public function agentCreation()
+    {
+        // Sample agent data
+        $data = [
+            'salutation' => 'Mr',
+            'name' => 'John Smith',
+            'company_name' => 'Global Travel Solutions',
+            'phone' => '+1 (555) 987-6543',
+            'email' => 'john.smith@example.com',
+            'country' => 'United States',
+            'city' => 'New York',
+            'password' => 'Password123!',
+            'company' => [
+                'companyName' => 'DMC Travel Agency',
+                'logo' => \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? asset('images/logo.png')
+            ],
+            'mail_settings' => (object)[
+                'support_email' => 'support@example.com',
+                'support_phone' => '+1 (555) 123-4567',
+                'facebook_url' => 'https://facebook.com/yourcompany',
+                'twitter_url' => 'https://twitter.com/yourcompany',
+                'instagram_url' => 'https://instagram.com/yourcompany',
+                'linkedin_url' => 'https://linkedin.com/company/yourcompany'
+            ]
+        ];
+
+        return view('mails.agent_creation', $data);
+    }
+
+    public function agentUpdate()
+    {
+        // Sample agent data
+        $data = [
+            'salutation' => 'Mr',
+            'name' => 'John Smith',
+            'company_name' => 'Global Travel Solutions',
+            'phone' => '+1 (555) 987-6543',
+            'email' => 'john.smith@example.com',
+            'country' => 'United States',
+            'city' => 'New York',
+            'password' => 'Password123!',
+            'company' => [
+                'companyName' => 'DMC Travel Agency',
+                'logo' => \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? asset('images/logo.png')
+            ],
+            'mail_settings' => (object)[
+                'support_email' => 'support@example.com',
+                'support_phone' => '+1 (555) 123-4567',
+                'facebook_url' => 'https://facebook.com/yourcompany',
+                'twitter_url' => 'https://twitter.com/yourcompany',
+                'instagram_url' => 'https://instagram.com/yourcompany',
+                'linkedin_url' => 'https://linkedin.com/company/yourcompany'
+            ]
+        ];
+        return view('mails.agent_update', $data);
     }
 
     /**

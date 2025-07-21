@@ -1585,7 +1585,7 @@
                         </li>
                         
                         <!-- Staff Emails -->
-                        <li class="menu-item @if(Request::is('mail/job-*')) open @endif">
+                        <li class="menu-item @if(Request::is('mail/job-*') || Request::is('mail/agent-*')) open @endif">
                             <a href="javascript:void(0);" class="menu-link menu-toggle">
                                 <div data-i18n="Staff Emails">Staff Emails</div>
                             </a>
@@ -1593,6 +1593,16 @@
                                 <li class="menu-item @if(Request::is('mail/job-assignment')) active @endif">
                                     <a href="{{ route('mail.job-assignment') }}" class="menu-link">
                                         <div data-i18n="Job Assignment">Job Assignment</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item @if(Request::is('mail/agent-creation')) active @endif">
+                                    <a href="{{ route('mail.agent-creation') }}" class="menu-link">
+                                        <div data-i18n="Agent Creation">Agent Creation</div>
+                                    </a>
+                                </li>
+                                <li class="menu-item @if(Request::is('mail/agent-update')) active @endif">
+                                    <a href="{{ route('mail.agent-update') }}" class="menu-link">
+                                        <div data-i18n="Agent Update">Agent Update</div>
                                     </a>
                                 </li>
                             </ul>

@@ -352,6 +352,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
             Route::get('job-assignment', [MailController::class, 'jobAssignment'])->name('job-assignment');
             Route::get('enquiry-response', [MailController::class, 'enquiryResponse'])->name('enquiry-response');
             Route::get('feedback-request', [MailController::class, 'feedbackRequest'])->name('feedback-request');
+            Route::get('agent-creation', [MailController::class, 'agentCreation'])->name('agent-creation');
+            Route::get('agent-update', [MailController::class, 'agentUpdate'])->name('agent-update');
             
             // Email sending
             Route::post('send-booking-confirmation', [MailController::class, 'sendBookingConfirmation'])->name('send-booking-confirmation');
