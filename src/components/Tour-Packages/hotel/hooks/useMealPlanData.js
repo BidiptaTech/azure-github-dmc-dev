@@ -68,16 +68,19 @@ const useMealPlanData = (roomType, bedType) => {
     });
     
     // Create meal plan options based on room data
-    const availableMealPlans = [
-      { 
+    const availableMealPlans = [];
+    
+    // Add "Room Only" option if room_only flag is set to 1
+    if (roomData?.room_only === 1) {
+      availableMealPlans.push({
         id: 'self',
         title: "Room Only", 
         description: 'No meals included',
         price: singlePrice, // For Room Only, price should be the single_price
         totalPrice: singlePrice,
         displayPrice: `$${singlePrice.toFixed(2)}`
-      }
-    ];
+      });
+    }
     
     // Add breakfast option if available
     if (breakfast) {
