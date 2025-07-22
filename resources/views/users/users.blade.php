@@ -43,9 +43,8 @@
             <tr>
               <th>No</th>
               <th>Company Name</th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>phone</th>
+              <th>User Details</th>
+              <th>Contact Information</th>
               <th>Country & City</th>
               
               @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
@@ -63,7 +62,7 @@
               @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <th>Email On</th>
               @endif
-              <th>Role</th>
+              {{-- <th>Role</th> --}}
               <th>User Type</th>
 
               @if(hasPermission('edit users') || hasPermission('delete users'))
@@ -79,9 +78,18 @@
               <tr>
                 <td>{{ ++$key }}</td>
                 <td>{{ $user->company_name ?? 'N/A' }}</td>
-                <td>{{ $user->name }}</td>
-                <td>{{ $user->email }}</td>
-                <td>{{ $user->phone }}</td>
+                <td>
+                  <div class="d-flex flex-column">
+                    <span class="fw-medium">{{ $user->name }}</span>
+                    <small class="text-muted">{{ $user->role->name ?? 'No Role' }}</small>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex flex-column">
+                    <span class="fw-medium">{{ $user->email }}</span>
+                    <small class="text-muted">{{ $user->phone }}</small>
+                  </div>
+                </td>
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="fas fa-map-marker-alt text-primary me-2"></i>
@@ -205,7 +213,7 @@
                 </td>
                 @endif
 
-                <td>{{ $user->role->name ?? 'No Role' }}
+                {{-- <td>{{ $user->role->name ?? 'No Role' }} --}}
                 </td>
                 <td>{{ $user->getUserTypeName() }}</td>
                 
