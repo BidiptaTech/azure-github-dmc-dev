@@ -270,8 +270,8 @@ const Index1 = () => {
       DropoffPlaceid: DropoffPlaceid,
       pickupdate: selectedDate,
       entrytime: entrytime,
-      adults: adults,
-      children: children,
+      adults: Number(adults),
+      children: Number(children),
       totalPrice: Math.ceil(Price), // ✅ Add price dynamically
       Tax: vehicles.tax_percentage,
       distance: vehicles.$distanceInKM,
@@ -279,7 +279,7 @@ const Index1 = () => {
       Night_End_Time: vehicles.night_end_time,
       city: vehicles.city,
       country: vehicles.country,
-      
+      seatingCapacity: seatingCapacity,
     };
 
     dispatch(setentrydata(details));
