@@ -79,6 +79,84 @@ const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
 const usdCurrencySymbol = useSelector((state) => state.auth.usdCurrencySymbol);
 const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
 
+// Early return if essential data is missing
+if (!data || !title || price === null || price === undefined || isNaN(price)) {
+  return (
+    <Paper
+      elevation={2}
+      sx={{
+        width: '100%',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        border: '2px dashed #E0E0E0',
+        backgroundColor: '#FAFAFA',
+      }}
+    >
+      <Box
+        sx={{
+          background: 'linear-gradient(135deg, #E0E0E0 0%, #BDBDBD 100%)',
+          padding: '10px 20px',
+          color: 'white',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "16px" }}>
+          {title || "Room Option"}
+        </Typography>
+      </Box>
+
+      <CardContent sx={{ padding: '20px !important' }}>
+        <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Incomplete Room Information
+          </Typography>
+          <Typography variant="body2">
+            Some room details are missing. Please contact support for assistance.
+          </Typography>
+        </Alert>
+      </CardContent>
+    </Paper>
+  );
+}
+
+// Check for missing essential bed data
+if (!data?.bed_details || !Array.isArray(data.bed_details) || data.bed_details.length === 0) {
+  return (
+    <Paper
+      elevation={2}
+      sx={{
+        width: '100%',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        border: '2px dashed #FFA726',
+        backgroundColor: '#FFF8E1',
+      }}
+    >
+      <Box
+        sx={{
+          background: 'linear-gradient(135deg, #FFA726 0%, #FF9800 100%)',
+          padding: '10px 20px',
+          color: 'white',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "16px" }}>
+          {title}
+        </Typography>
+      </Box>
+
+      <CardContent sx={{ padding: '20px !important' }}>
+        <Alert severity="info" sx={{ borderRadius: '8px' }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Bed Details Not Available
+          </Typography>
+          <Typography variant="body2">
+            Detailed bed information is not available for this room option. Please contact our booking team for more details.
+          </Typography>
+        </Alert>
+      </CardContent>
+    </Paper>
+  );
+}
+
 // Calculate prices with exchange rates
 const convertedPrice = price * exchangeRate;
 const usdPrice = price * usdExchangeRate;

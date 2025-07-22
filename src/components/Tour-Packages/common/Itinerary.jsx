@@ -48,6 +48,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import WarningIcon from '@mui/icons-material/Warning';
+import LocalActivityIcon from '@mui/icons-material/LocalActivity';
+import FlightIcon from '@mui/icons-material/Flight';
 import { BookPackageEnquiry, UpdateCustomBooking } from '../../../slice/tour-packages/tourPackageSlice';
 import { useNavigate } from 'react-router-dom';
 
@@ -69,7 +71,8 @@ export default function Itinerary({ onBookingSuccess }) {
   const { hotels } = useSelector((state) => state.hotels);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
-  
+  const enquiryDetail = useSelector(state => state.tourPackages.initialPackages?.EnquiryDetails);
+  console.log("enquiryDetaills", enquiryDetail);
   // Get all services from Redux store for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
   console.log("All Services for validation:", allServices);
@@ -499,6 +502,20 @@ export default function Itinerary({ onBookingSuccess }) {
     );
   }
 
+  // Helper function to check if sidebar should be shown
+  const shouldShowSidebar = () => {
+    return enquiryDetail?.hotel_on === true || 
+           enquiryDetail?.attraction_on === true || 
+           enquiryDetail?.restaurant_on === true || 
+           enquiryDetail?.guide_on === true || 
+           enquiryDetail?.localtransfer_on === true || 
+           enquiryDetail?.ports_on === true || 
+           enquiryDetail?.pickup_on === true || 
+           enquiryDetail?.entry_port_on === true || 
+           enquiryDetail?.exit_port_on === true || 
+           enquiryDetail?.packaged_attraction_on === true;
+  };
+
   // Function to handle booking
   const handleBookPackage = () => {
     dispatch(BookPackageEnquiry())
@@ -545,154 +562,157 @@ export default function Itinerary({ onBookingSuccess }) {
 
   return (
     <Box>
-      {/* Top Level Hotel Section */}
-      <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Box 
-            sx={{ 
-              bgcolor: 'primary.main', 
-              color: 'white', 
-              p: 0.8, 
-              borderRadius: '50%', 
-              mr: 1,
-              display: 'flex'
-            }}
-          >
-            <HotelIcon />
-          </Box>
-          <Typography variant="h5">Hotels</Typography>
-        </Box>
-        
-        {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Please add hotels details (if included in package) with services provided for each hotels and the selling cost price.
-        </Typography>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-            Tip: To speed up the process of adding multiple hotels, use
-          </Typography>
-          <Button size="small" variant="text" color="primary">Next Night</Button>
-          <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>or</Typography>
-          <Button size="small" variant="text" color="primary">Duplicate</Button>
-          <Typography variant="body2" color="text.secondary">actions.</Typography>
-        </Box> */}
-        
-        {/* Hotel Component */}
-        <HotelComponent hotels={categorizedServices.hotels} />
-
-      </Paper>
-
-      
-      
-      {/* Transports and Activities Section */}
-      <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Box 
-            sx={{ 
-              bgcolor: 'primary.main', 
-              color: 'white', 
-              p: 0.8, 
-              borderRadius: '50%', 
-              mr: 1,
-              display: 'flex'
-            }}
-          >
-            <DirectionsCarIcon />
-          </Box>
-          <Typography variant="h5">Transports and Other Services</Typography>
-        </Box>
-        
-        
-        {/* Day by Day Transportation and Activities */}
-        {dates.map((date, index) => (
-          <Box key={index} sx={{ mb: 4 }}>
-            {/* Day Header */}
-            <Box 
-              sx={{ 
-                bgcolor: 'primary.main', 
-                color: 'white', 
-                p: 1.5, 
-                borderRadius: 1,
-                mb: 2
-              }}
-            >
-              <Typography variant="h6">
-                Day {index + 1}, {date.format('Do MMMM')}, {date.format('dddd')}
-              </Typography>
-            </Box>
-
-            {/* First Day - Place Port Component at the beginning */}
-            {index === 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-                  {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
-                  <PickupDropComponent 
-                    portType={portType} 
-                    setPortType={() => setPortType("Entry Port")} 
-                    date={date}
-                    dayIndex={index}
-                    entryPorts={categorizedServices.entryPorts}
-                    tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                  />
-                </Paper>
+      <Grid container spacing={3}>
+        {/* Main content area - Grid 7 */}
+        <Grid item xs={12} md={shouldShowSidebar() ? 8 : 12}>
+          {/* Top Level Hotel Section */}
+          <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Box 
+                sx={{ 
+                  bgcolor: 'primary.main', 
+                  color: 'white', 
+                  p: 0.8, 
+                  borderRadius: '50%', 
+                  mr: 1,
+                  display: 'flex'
+                }}
+              >
+                <HotelIcon />
               </Box>
-            )}
-
-            {/* Attraction Component */}
-            <Box sx={{ mb: 2 }}>
-              <Paper elevation={1} sx={{ p: 0, borderLeft: '4px solid #f44336' }}>
-                
-                <AttractionComponent 
-                  date={date}
-                  dayIndex={index}
-                  attractionspack={categorizedServices.attractions}
-                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                />
-              </Paper>
+              <Typography variant="h5">Hotels</Typography>
             </Box>
+            
+            {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Please add hotels details (if included in package) with services provided for each hotels and the selling cost price.
+            </Typography>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                Tip: To speed up the process of adding multiple hotels, use
+              </Typography>
+              <Button size="small" variant="text" color="primary">Next Night</Button>
+              <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>or</Typography>
+              <Button size="small" variant="text" color="primary">Duplicate</Button>
+              <Typography variant="body2" color="text.secondary">actions.</Typography>
+            </Box> */}
+            
+            {/* Hotel Component */}
+            <HotelComponent hotels={categorizedServices.hotels} />
 
-            {/* Guide Component */}
-            <Box sx={{ mb: 2 }}>
-              <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
-                {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography> */}
-                <GuideComponent 
-                  date={date}
-                  dayIndex={index}
-                  guidespack={categorizedServices.guides}
-                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                />
-              </Paper>
+          </Paper>
+
+          
+          
+          {/* Transports and Activities Section */}
+          <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Box 
+                sx={{ 
+                  bgcolor: 'primary.main', 
+                  color: 'white', 
+                  p: 0.8, 
+                  borderRadius: '50%', 
+                  mr: 1,
+                  display: 'flex'
+                }}
+              >
+                <DirectionsCarIcon />
+              </Box>
+              <Typography variant="h5">Transports and Other Services</Typography>
             </Box>
+            
+            
+            {/* Day by Day Transportation and Activities */}
+            {dates.map((date, index) => (
+              <Box key={index} sx={{ mb: 4 }}>
+                {/* Day Header */}
+                <Box 
+                  sx={{ 
+                    bgcolor: 'primary.main', 
+                    color: 'white', 
+                    p: 1.5, 
+                    borderRadius: 1,
+                    mb: 2
+                  }}
+                >
+                  <Typography variant="h6">
+                    Day {index + 1}, {date.format('Do MMMM')}, {date.format('dddd')}
+                  </Typography>
+                </Box>
 
-            {/* Restaurant Component */}
-            <Box sx={{ mb: 2 }}>
-              <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #ff9800' }}>
-                <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Restaurant</Typography>
-                <RestaurantComponent 
-                  date={date}
-                  dayIndex={index}
-                  restaurantspack={categorizedServices.restaurants}
-                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                />
-              </Paper>
-            </Box>
+                {/* First Day - Place Port Component at the beginning */}
+                {index === 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
+                      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
+                      <PickupDropComponent 
+                        portType={portType} 
+                        setPortType={() => setPortType("Entry Port")} 
+                        date={date}
+                        dayIndex={index}
+                        entryPorts={categorizedServices.entryPorts}
+                        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                      />
+                    </Paper>
+                  </Box>
+                )}
 
-            {/* Transport Component */}
-            <Box sx={{ mb: 2 }}>
-              <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
-                <TransportComponent 
-                  dayIndex={index}
-                  date={date}
-                  PointToPoint={categorizedServices.travelPoints}
-                  Hourly={categorizedServices.travelHourly}
-                  LocalTransports={categorizedServices.localTransports}
-                  tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                />
-              </Paper>
-            </Box>
+                {/* Attraction Component */}
+                <Box sx={{ mb: 2 }}>
+                  <Paper elevation={1} sx={{ p: 0, borderLeft: '4px solid #f44336' }}>
+                    
+                    <AttractionComponent 
+                      date={date}
+                      dayIndex={index}
+                      attractionspack={categorizedServices.attractions}
+                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                    />
+                  </Paper>
+                </Box>
 
-            {/* Last Day - Place Port Component at the end */}
-            {index === dates.length - 1 && (
+                {/* Guide Component */}
+                <Box sx={{ mb: 2 }}>
+                  <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
+                    {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography> */}
+                    <GuideComponent 
+                      date={date}
+                      dayIndex={index}
+                      guidespack={categorizedServices.guides}
+                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                    />
+                  </Paper>
+                </Box>
+
+                {/* Restaurant Component */}
+                <Box sx={{ mb: 2 }}>
+                  <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #ff9800' }}>
+                    <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Restaurant</Typography>
+                    <RestaurantComponent 
+                      date={date}
+                      dayIndex={index}
+                      restaurantspack={categorizedServices.restaurants}
+                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                    />
+                  </Paper>
+                </Box>
+
+                {/* Transport Component */}
+                <Box sx={{ mb: 2 }}>
+                  <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
+                    <TransportComponent 
+                      dayIndex={index}
+                      date={date}
+                      PointToPoint={categorizedServices.travelPoints}
+                      Hourly={categorizedServices.travelHourly}
+                      LocalTransports={categorizedServices.localTransports}
+                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                    />
+                  </Paper>
+                </Box>
+
+                {/* Last Day - Place Port Component at the end */}
+                {index === dates.length - 1 && (
   <Box sx={{ mb: 2 }}>
     <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
       {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Departure</Typography> */}
@@ -707,230 +727,567 @@ export default function Itinerary({ onBookingSuccess }) {
     </Paper>
   </Box>
 )}
-            
-            {index < dates.length - 1 && <Divider sx={{ my: 3 }} />}
-          </Box>
-        ))}
-      </Paper>
-      
-      {/* Customer Information Section - Added just before Trip Summary */}
-      <SimpleCustomerInfo />
-      
-      {/* Summary section */}
-      <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
-        <Typography variant="h6" gutterBottom>Trip Summary</Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={8}>
-            <Typography variant="body1">
-              {dates.length} day{dates.length !== 1 ? 's' : ''} in {selectedCity}, {selectedCountry}
+                
+                {index < dates.length - 1 && <Divider sx={{ my: 3 }} />}
+              </Box>
+            ))}
+          </Paper>
+          
+          {/* Customer Information Section - Added just before Trip Summary */}
+          <SimpleCustomerInfo />
+          
+          {/* Summary section */}
+          <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
+            <Typography variant="h6" gutterBottom>Trip Summary</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={8}>
+                <Typography variant="body1">
+                  {dates.length} day{dates.length !== 1 ? 's' : ''} in {selectedCity}, {selectedCountry}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {searchCriteria.guests?.adults || 1} Adult{parseInt(searchCriteria.guests?.adults) !== 1 ? 's' : ''} •
+                  {searchCriteria.guests?.children > 0 ? ` ${searchCriteria.guests.children} Child${parseInt(searchCriteria.guests.children) !== 1 ? 'ren' : ''} •` : ''}
+                  {dates.length - 1} Night{dates.length - 1 !== 1 ? 's' : ''}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+                <Button 
+                  variant="outlined" 
+                  color="primary" 
+                  size="large"
+                  onClick={() => setSummaryModalOpen(true)}
+                >
+                  View Summary
+                </Button>
+                {/* <Button variant="contained" color="primary" size="large">
+                  Save Itinerary
+                </Button> */}
+              </Grid>
+            </Grid>
+          </Paper>
+          
+          {/* Book Package Button Section - Improved with Validation */}
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              mt: 4, 
+              p: 4, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              borderRadius: 2,
+              background: 'linear-gradient(to right, rgba(255,255,255,0.95), rgba(245,245,255,0.95))',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+              Ready to book this amazing package?
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {searchCriteria.guests?.adults || 1} Adult{parseInt(searchCriteria.guests?.adults) !== 1 ? 's' : ''} •
-              {searchCriteria.guests?.children > 0 ? ` ${searchCriteria.guests.children} Child${parseInt(searchCriteria.guests.children) !== 1 ? 'ren' : ''} •` : ''}
-              {dates.length - 1} Night{dates.length - 1 !== 1 ? 's' : ''}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+
+            {/* Show warning if no services are added */}
+            {(!allServices || allServices.length === 0) && (
+              <Alert 
+                severity="info" 
+                icon={<WarningIcon />}
+                sx={{ 
+                  mb: 3, 
+                  width: '100%', 
+                  maxWidth: 600,
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  No services have been added to your package yet
+                </Typography>
+                <Typography variant="body2">
+                  Please add hotels, attractions, restaurants, guides, or transportation services to your itinerary before booking.
+                </Typography>
+              </Alert>
+            )}
+
+            {/* Show validation warning if there are date issues */}
+            {allServices && allServices.length > 0 && !validateServiceDates.isValid && (
+              <Alert 
+                severity="warning" 
+                icon={<WarningIcon />}
+                sx={{ 
+                  mb: 3, 
+                  width: '100%', 
+                  maxWidth: 600,
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  {validateServiceDates.message}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  The following services need to be adjusted to fit within your tour dates 
+                  ({moment(searchCriteria.checkIn, searchCriteria.checkIn.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')} - {moment(searchCriteria.checkOut, searchCriteria.checkOut.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')}):
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+                  {validateServiceDates.invalidServices.map((service, index) => (
+                    <li key={index}>
+                      <Typography variant="caption" display="block">
+                        <strong>{service.name}</strong> ({service.type}) - {service.bookingDate}
+                        <br />
+                        <em>{service.reason}</em>
+                      </Typography>
+                    </li>
+                  ))}
+                </Box>
+              </Alert>
+            )}
+
+            {/* Show customer info warning if not valid */}
+            {allServices && allServices.length > 0 && validateServiceDates.isValid && !customerInfoValid && (
+              <Alert 
+                severity="warning" 
+                icon={<WarningIcon />}
+                sx={{ 
+                  mb: 3, 
+                  width: '100%', 
+                  maxWidth: 600,
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  Customer information required
+                </Typography>
+                <Typography variant="body2">
+                  Please complete all mandatory fields in the Customer Information section above to enable booking.
+                </Typography>
+              </Alert>
+            )}
+
             <Button 
-              variant="outlined" 
+              variant="contained" 
               color="primary" 
-              size="large"
-              onClick={() => setSummaryModalOpen(true)}
+              size="large" 
+              disabled={isButtonDisabled}
+              startIcon={loading ? null : <ShoppingCartIcon />}
+              onClick={packageData?.tour?.tour_id > 0 ? handleUpdatePackage : handleBookPackage}
+              sx={{
+                py: 1.5,
+                px: 4,
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                borderRadius: '50px',
+                background: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
+                  ? 'linear-gradient(45deg, #9e9e9e 30%, #bdbdbd 90%)'
+                  : 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
+                boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
+                  ? '0 4px 8px rgba(158, 158, 158, 0.3)'
+                  : '0 10px 20px rgba(53, 84, 209, 0.3)',
+                transition: 'all 0.3s ease',
+                textTransform: 'none',
+                '&:hover': {
+                  transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid) ? 'none' : 'translateY(-3px)',
+                  boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
+                    ? '0 4px 8px rgba(158, 158, 158, 0.3)'
+                    : '0 15px 30px rgba(53, 84, 209, 0.4)',
+                },
+                '&:disabled': {
+                  color: 'white',
+                  cursor: 'not-allowed'
+                },
+                minWidth: 200,
+              }}
             >
-              View Summary
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : !allServices || allServices.length === 0 ? (
+                'No Services Added'
+              ) : !validateServiceDates.isValid ? (
+                'Please Fix Service Dates'
+              ) : !customerInfoValid ? (
+                'Complete Customer Info'
+              ) : (
+                packageData?.tour?.tour_id > 0 ? 'Update Package Now' : 'Book Package Now'
+              )}
             </Button>
-            {/* <Button variant="contained" color="primary" size="large">
-              Save Itinerary
-            </Button> */}
-          </Grid>
+
+            {validateServiceDates.isValid && packageEnquiryId && (
+              <Typography variant="body1" sx={{ mt: 2, color: 'success.main', fontWeight: 500 }}>
+                Booking ID: {packageEnquiryId}
+              </Typography>
+            )}
+
+            {((!allServices || allServices.length === 0) || !validateServiceDates.isValid || !customerInfoValid) && (
+              <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary', textAlign: 'center', maxWidth: 400 }}>
+                {(!allServices || allServices.length === 0) 
+                  ? 'Add some services to your itinerary to enable booking.'
+                  : !validateServiceDates.isValid
+                  ? 'Please ensure all service booking dates fall within your tour period before proceeding with the booking.'
+                  : !customerInfoValid
+                  ? 'Complete all mandatory customer information fields to enable booking.'
+                  : ''
+                }
+              </Typography>
+            )}
+          </Paper>
+          
+          {/* Snackbar for notifications */}
+          <Snackbar 
+            open={openSnackbar} 
+            autoHideDuration={6000} 
+            onClose={handleCloseSnackbar}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <Alert 
+              onClose={handleCloseSnackbar} 
+              severity={snackbarSeverity} 
+              sx={{ 
+                width: '100%',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                borderRadius: 2
+              }}
+            >
+              {snackbarMessage}
+            </Alert>
+          </Snackbar>
+          
+          {/* Services Summary Modal */}
+          <ServicesSummaryModal 
+            open={summaryModalOpen} 
+            onClose={() => setSummaryModalOpen(false)} 
+          />
         </Grid>
-      </Paper>
-      
-      {/* Book Package Button Section - Improved with Validation */}
-      <Paper 
-        elevation={3} 
-        sx={{ 
-          mt: 4, 
-          p: 4, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          borderRadius: 2,
-          background: 'linear-gradient(to right, rgba(255,255,255,0.95), rgba(245,245,255,0.95))',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
-        }}
-      >
-        <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
-          Ready to book this amazing package?
-        </Typography>
-
-        {/* Show warning if no services are added */}
-        {(!allServices || allServices.length === 0) && (
-          <Alert 
-            severity="info" 
-            icon={<WarningIcon />}
-            sx={{ 
-              mb: 3, 
-              width: '100%', 
-              maxWidth: 600,
-              borderRadius: 2
-            }}
-          >
-            <Typography variant="body2" fontWeight={600} gutterBottom>
-              No services have been added to your package yet
-            </Typography>
-            <Typography variant="body2">
-              Please add hotels, attractions, restaurants, guides, or transportation services to your itinerary before booking.
-            </Typography>
-          </Alert>
+        
+        {/* Enquiry Details Sidebar - Grid 4 (only shown when enquiryDetail exists) */}
+        {shouldShowSidebar() && (
+          <Grid item xs={12} md={5} lg={4}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3, 
+                borderRadius: 2,
+                position: 'sticky',
+                top: '20px',
+                maxHeight: 'calc(100vh - 40px)',
+                overflowY: 'auto',
+                bgcolor: 'rgba(255, 255, 255, 0.98)',
+                borderLeft: '4px solid #3554D1'
+              }}
+            >
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  mb: 3, 
+                  pb: 1.5, 
+                  borderBottom: '2px solid #3554D1',
+                  fontWeight: 600,
+                  color: '#3554D1' 
+                }}
+              >
+                Enquiry for Services
+              </Typography>
+              
+              {/* Hotels */}
+              {enquiryDetail.hotel_on && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <HotelIcon sx={{ mr: 1, color: '#3554D1' }} />
+                    <Typography variant="h6">Hotels</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    {enquiryDetail.hotel?.map((hotel, index) => (
+                      <Grid item xs={12} key={index}>
+                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
+                          <Box sx={{ width: 100, height: 80 }}>
+                            <img 
+                              src={hotel.main_image} 
+                              alt={hotel.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
+                            />
+                          </Box>
+                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                            <Typography variant="subtitle1" fontWeight={500}>{hotel.name}</Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+              
+              {/* Attractions */}
+              {enquiryDetail.attraction_on && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <AttractionsIcon sx={{ mr: 1, color: '#f44336' }} />
+                    <Typography variant="h6">Attractions</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    {enquiryDetail.attraction?.map((attraction, index) => (
+                      <Grid item xs={12} sm={6} md={12} lg={6} key={index}>
+                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
+                          <Box sx={{ width: 80, height: 80 }}>
+                            <img 
+                              src={attraction.master_image} 
+                              alt={attraction.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
+                            />
+                          </Box>
+                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={500}>{attraction.name}</Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+              
+              {/* Packaged Attractions */}
+              {enquiryDetail.packaged_attraction_on && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <LocalActivityIcon sx={{ mr: 1, color: '#9c27b0' }} />
+                    <Typography variant="h6">Packaged Attractions</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    {enquiryDetail.packaged_attractions?.map((pkg, index) => {
+                      // Parse the image JSON if it's a string
+                      let imageUrl = null;
+                      if (pkg.image) {
+                        try {
+                          const parsedImages = JSON.parse(pkg.image);
+                          imageUrl = parsedImages[0]?.replace(/\\/g, '');
+                        } catch (e) {
+                          imageUrl = null;
+                        }
+                      }
+                      
+                      return (
+                        <Grid item xs={12} key={index}>
+                          <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
+                            <Box sx={{ width: 80, height: 80, bgcolor: imageUrl ? 'transparent' : '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                              {imageUrl ? (
+                                <img 
+                                  src={imageUrl} 
+                                  alt={pkg.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
+                                />
+                              ) : (
+                                <LocalActivityIcon sx={{ color: '#9c27b0', fontSize: 40 }} />
+                              )}
+                            </Box>
+                            <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                              <Typography variant="subtitle2" fontWeight={500}>{pkg.name}</Typography>
+                            </Box>
+                          </Card>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                </Box>
+              )}
+              
+              {/* Restaurants */}
+              {enquiryDetail.restaurant_on && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <RestaurantIcon sx={{ mr: 1, color: '#ff9800' }} />
+                    <Typography variant="h6">Restaurants</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    {enquiryDetail.restaurant?.map((restaurant, index) => (
+                      <Grid item xs={12} key={index}>
+                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
+                          <Box sx={{ width: 80, height: 80 }}>
+                            <img 
+                              src={restaurant.master_image} 
+                              alt={restaurant.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
+                            />
+                          </Box>
+                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={500}>{restaurant.name}</Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+              
+              {/* Guides */}
+              {enquiryDetail.guide_on && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <PersonIcon sx={{ mr: 1, color: '#2196f3' }} />
+                    <Typography variant="h6">Guides</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    {enquiryDetail.guide?.map((guide, index) => (
+                      <Grid item xs={6} md={12} lg={6} key={index}>
+                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
+                          <Box sx={{ width: 60, height: 60 }}>
+                            <img 
+                              src={guide.image} 
+                              alt={guide.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
+                            />
+                          </Box>
+                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={500}>{guide.name}</Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+              
+              {/* Drivers/Vehicles */}
+              {enquiryDetail.driver?.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <DirectionsCarIcon sx={{ mr: 1, color: '#4caf50' }} />
+                    <Typography variant="h6">Vehicles</Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    {enquiryDetail.driver?.map((vehicle, index) => (
+                      <Grid item xs={12} sm={6} md={12} lg={6} key={index}>
+                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
+                          <Box sx={{ width: 80, height: 80 }}>
+                            <img 
+                              src={vehicle.image} 
+                              alt={vehicle.vehicle_name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
+                            />
+                          </Box>
+                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={500}>{vehicle.vehicle_name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {vehicle.vehicle_type} • {vehicle.vehicle_model}
+                            </Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+              
+              {/* Ports */}
+              {(enquiryDetail.entry_port_on || enquiryDetail.exit_port_on) && enquiryDetail.ports?.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <FlightIcon sx={{ mr: 1, color: '#795548' }} />
+                    <Typography variant="h6">Ports</Typography>
+                  </Box>
+                  {enquiryDetail.ports?.map((port, index) => (
+                    <Card key={index} sx={{ mb: 2, borderRadius: 2, overflow: 'hidden' }}>
+                      <CardContent sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Chip 
+                            label={port.type === 'entry' ? 'Arrival' : 'Departure'} 
+                            color={port.type === 'entry' ? 'primary' : 'secondary'}
+                            size="small"
+                            sx={{ mr: 1 }}
+                          />
+                        </Box>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                          <strong>Port:</strong> {port.port_address}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Drop-off:</strong> {port.dropoff_name}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Box>
+              )}
+              
+              {/* Service Status Summary */}
+              <Box sx={{ mt: 4, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>Service Status</Typography>
+                <Grid container spacing={1}>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<HotelIcon />} 
+                      label="Hotels" 
+                      color={enquiryDetail.hotel_on ? "success" : "default"}
+                      variant={enquiryDetail.hotel_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<AttractionsIcon />} 
+                      label="Attractions" 
+                      color={enquiryDetail.attraction_on ? "success" : "default"}
+                      variant={enquiryDetail.attraction_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<RestaurantIcon />} 
+                      label="Restaurants" 
+                      color={enquiryDetail.restaurant_on ? "success" : "default"}
+                      variant={enquiryDetail.restaurant_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<PersonIcon />} 
+                      label="Guides" 
+                      color={enquiryDetail.guide_on ? "success" : "default"}
+                      variant={enquiryDetail.guide_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<DirectionsCarIcon />} 
+                      label="Transport" 
+                      color={enquiryDetail.pickup_on ? "success" : "default"}
+                      variant={enquiryDetail.pickup_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<LocalActivityIcon />} 
+                      label="Packages" 
+                      color={enquiryDetail.packaged_attraction_on ? "success" : "default"}
+                      variant={enquiryDetail.packaged_attraction_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<FlightIcon />} 
+                      label="Entry Port" 
+                      color={enquiryDetail.entry_port_on ? "success" : "default"}
+                      variant={enquiryDetail.entry_port_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Chip 
+                      icon={<FlightIcon />} 
+                      label="Exit Port" 
+                      color={enquiryDetail.exit_port_on ? "success" : "default"}
+                      variant={enquiryDetail.exit_port_on ? "filled" : "outlined"}
+                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
+            </Paper>
+          </Grid>
         )}
-
-        {/* Show validation warning if there are date issues */}
-        {allServices && allServices.length > 0 && !validateServiceDates.isValid && (
-          <Alert 
-            severity="warning" 
-            icon={<WarningIcon />}
-            sx={{ 
-              mb: 3, 
-              width: '100%', 
-              maxWidth: 600,
-              borderRadius: 2
-            }}
-          >
-            <Typography variant="body2" fontWeight={600} gutterBottom>
-              {validateServiceDates.message}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              The following services need to be adjusted to fit within your tour dates 
-              ({moment(searchCriteria.checkIn, searchCriteria.checkIn.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')} - {moment(searchCriteria.checkOut, searchCriteria.checkOut.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')}):
-            </Typography>
-            <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-              {validateServiceDates.invalidServices.map((service, index) => (
-                <li key={index}>
-                  <Typography variant="caption" display="block">
-                    <strong>{service.name}</strong> ({service.type}) - {service.bookingDate}
-                    <br />
-                    <em>{service.reason}</em>
-                  </Typography>
-                </li>
-              ))}
-            </Box>
-          </Alert>
-        )}
-
-        {/* Show customer info warning if not valid */}
-        {allServices && allServices.length > 0 && validateServiceDates.isValid && !customerInfoValid && (
-          <Alert 
-            severity="warning" 
-            icon={<WarningIcon />}
-            sx={{ 
-              mb: 3, 
-              width: '100%', 
-              maxWidth: 600,
-              borderRadius: 2
-            }}
-          >
-            <Typography variant="body2" fontWeight={600} gutterBottom>
-              Customer information required
-            </Typography>
-            <Typography variant="body2">
-              Please complete all mandatory fields in the Customer Information section above to enable booking.
-            </Typography>
-          </Alert>
-        )}
-
-        <Button 
-          variant="contained" 
-          color="primary" 
-          size="large" 
-          disabled={isButtonDisabled}
-          startIcon={loading ? null : <ShoppingCartIcon />}
-          onClick={packageData?.tour?.booking?.length > 0 ? handleUpdatePackage : handleBookPackage}
-          sx={{
-            py: 1.5,
-            px: 4,
-            fontSize: '1.1rem',
-            fontWeight: 600,
-            borderRadius: '50px',
-            background: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
-              ? 'linear-gradient(45deg, #9e9e9e 30%, #bdbdbd 90%)'
-              : 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
-            boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
-              ? '0 4px 8px rgba(158, 158, 158, 0.3)'
-              : '0 10px 20px rgba(53, 84, 209, 0.3)',
-            transition: 'all 0.3s ease',
-            textTransform: 'none',
-            '&:hover': {
-              transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid) ? 'none' : 'translateY(-3px)',
-              boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
-                ? '0 4px 8px rgba(158, 158, 158, 0.3)'
-                : '0 15px 30px rgba(53, 84, 209, 0.4)',
-            },
-            '&:disabled': {
-              color: 'white',
-              cursor: 'not-allowed'
-            },
-            minWidth: 200,
-          }}
-        >
-          {loading ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : !allServices || allServices.length === 0 ? (
-            'No Services Added'
-          ) : !validateServiceDates.isValid ? (
-            'Please Fix Service Dates'
-          ) : !customerInfoValid ? (
-            'Complete Customer Info'
-          ) : (
-            packageData?.tour?.tour_id > 0 ? 'Update Package Now' : 'Book Package Now'
-          )}
-        </Button>
-
-        {validateServiceDates.isValid && packageEnquiryId && (
-          <Typography variant="body1" sx={{ mt: 2, color: 'success.main', fontWeight: 500 }}>
-            Booking ID: {packageEnquiryId}
-          </Typography>
-        )}
-
-        {((!allServices || allServices.length === 0) || !validateServiceDates.isValid || !customerInfoValid) && (
-          <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary', textAlign: 'center', maxWidth: 400 }}>
-            {(!allServices || allServices.length === 0) 
-              ? 'Add some services to your itinerary to enable booking.'
-              : !validateServiceDates.isValid
-              ? 'Please ensure all service booking dates fall within your tour period before proceeding with the booking.'
-              : !customerInfoValid
-              ? 'Complete all mandatory customer information fields to enable booking.'
-              : ''
-            }
-          </Typography>
-        )}
-      </Paper>
-      
-      {/* Snackbar for notifications */}
-      <Snackbar 
-        open={openSnackbar} 
-        autoHideDuration={6000} 
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbarSeverity} 
-          sx={{ 
-            width: '100%',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            borderRadius: 2
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-      
-      {/* Services Summary Modal */}
-      <ServicesSummaryModal 
-        open={summaryModalOpen} 
-        onClose={() => setSummaryModalOpen(false)} 
-      />
+      </Grid>
     </Box>
   );
 } 

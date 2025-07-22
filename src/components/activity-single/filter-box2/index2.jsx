@@ -277,8 +277,8 @@ const Index2 = () => {
       DropoffPlaceid: DropoffPlaceid,
       exitpickupdate: exitselectedDate,
       entrytime: entryytime,
-      adults: adults,
-      children: children,
+      adults: Number(adults),
+      children: Number(children),
       totalPrice: Math.ceil(Price),
       Tax: vehicles.tax_percentage,
       distance: vehicles.$distanceInKM,
@@ -286,6 +286,7 @@ const Index2 = () => {
       Night_End_Time: vehicles.night_end_time,
       city: vehicles.city,
       country: vehicles.country,
+      seatingCapacity: seatingCapacity,
       // hours: hour,
       // totalPrice: totalPrice,
     };

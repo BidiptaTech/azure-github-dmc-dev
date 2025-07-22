@@ -9,7 +9,7 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut }) => {
+const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isDataFromEnquiryDetail}) => {
   const today = new DateObject(); // Current date
   const tomorrow = new DateObject().add(1, "day"); // Tomorrow's date
 
@@ -100,6 +100,7 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut }) => {
         zIndex={9999}
         portal={true}
         portalTarget={document.body}
+        disabled={isDataFromEnquiryDetail}
         // Prevent manual typing while still allowing calendar selection
       />
       <Snackbar

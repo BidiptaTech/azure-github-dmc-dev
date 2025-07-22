@@ -137,14 +137,36 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
     console.log('Initializing form sections from guidespack:', guidespack);
 
-    // Filter guides that match the current dayIndex for form sections
+    // Filter guides that match the current bookingDate for form sections
+    // If dayIndex is missing, use bookingDate for filtering
     const dayGuides = guidespack.filter(guideService => {
       const guideData = guideService.data?.[0];
-      return guideData && guideData.dayIndex === dayIndex;
+      
+      // If we have dayIndex, use it for filtering (backward compatibility)
+      if (guideData && guideData.dayIndex === dayIndex) {
+        return true;
+      }
+      
+      // If dayIndex is missing, filter by bookingDate
+      if (guideData && guideData.bookingDate) {
+        // Format dates for comparison
+        const guideDateFormatted = formatDateToString(guideData.bookingDate);
+        const currentDateFormatted = formatDateToString(date);
+        
+        console.log('Guide date comparison:', {
+          guideDate: guideDateFormatted,
+          currentDate: currentDateFormatted,
+          matches: guideDateFormatted === currentDateFormatted
+        });
+        
+        return guideDateFormatted === currentDateFormatted;
+      }
+      
+      return false;
     });
 
     if (dayGuides.length === 0) {
-      console.log(`No guides found for dayIndex ${dayIndex}`);
+      console.log(`No guides found for date ${bookingDate} or dayIndex ${dayIndex}`);
       return;
     }
 
@@ -161,8 +183,9 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       
       return {
         guide: guideData.guide_id,
-        pickUpTime: guideData.entrypickup || '',
-        pickUpTimeHour: guideData.entrytime || null,
+        guide_name: guideData.guide_name,
+        pickUpTime: guideData.entrytime || '',
+        pickUpTimeHour: guideData.hours|| null,
         hourlyPackage: guideData.hours || '',
         bookingDate: guideData.bookingDate || bookingDate,
         priceBreakdown: {
@@ -173,8 +196,8 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           dayHours: guideData.hours || 0
         },
         pax: {
-          Adults: guideData.adults || 1,
-          Children: guideData.children || 0
+          Adults: Number(guideData.adults) || 1,
+          Children: Number(guideData.children) || 0
         },
         // Store the original data for reference, including booking_id
         originalData: {
@@ -187,7 +210,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     console.log('Initialized guide form sections for current day:', newFormSections);
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [guidespack, dayIndex, bookingDate]);
+  }, [guidespack, dayIndex, bookingDate, date, formatDateToString]);
 
   // Function to dispatch ALL guides from guidespack to Redux state
   const dispatchAllGuidesToRedux = useCallback(() => {
@@ -220,6 +243,24 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
       console.log('Processing guide for Redux:', guideData);
       
+      // Determine dayIndex based on bookingDate if not provided
+      let guideDayIndex = guideData.dayIndex;
+      
+      // If dayIndex is missing but bookingDate is present, find the matching day
+      if (guideDayIndex === undefined && guideData.bookingDate) {
+        const guideBookingDate = formatDateToString(guideData.bookingDate);
+        // Find index of this date in tourDates
+        const dateIndex = tourDates.findIndex(date => formatDateToString(date) === guideBookingDate);
+        if (dateIndex !== -1) {
+          guideDayIndex = dateIndex;
+          console.log(`Mapped guide booking date ${guideBookingDate} to dayIndex ${guideDayIndex}`);
+        } else {
+          // Default to current dayIndex if date not found
+          guideDayIndex = dayIndex;
+          console.log(`Could not map guide booking date ${guideBookingDate} to any tour date, using current dayIndex ${dayIndex}`);
+        }
+      }
+      
       const processedGuideData = {
         id: guideData.id,
         guide_id: guideData.guide_id,
@@ -229,23 +270,23 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         Mode: guideData.Mode,
         entrypickup: guideData.entrypickup,
         entrytime: guideData.entrytime,
-        adults: guideData.adults,
-        children: guideData.children,
-        hours: guideData.hours,
-        basePrice: guideData.basePrice,
-        surcharge: guideData.surcharge,
-        totalPrice: guideData.totalPrice,
-        pickupdate: guideData.pickupdate,
+        adults: Number(guideData.adults) || 1,
+        children: Number(guideData.children) || 0,
+        hours: Number(guideData.hours) || 0,
+        basePrice: Number(guideData.basePrice) || 0,
+        surcharge: Number(guideData.surcharge) || 0,
+        totalPrice: Number(guideData.totalPrice) || 0,
+        pickupdate: guideData.pickupdate || guideData.bookingDate,
         bookingDate: guideData.bookingDate,
-        dayIndex: guideData.dayIndex,
+        dayIndex: guideDayIndex,
         Tax: guideData.Tax,
         Night_Start_Time: guideData.Night_Start_Time,
         Night_End_Time: guideData.Night_End_Time,
         city: guideData.city,
         country: guideData.country,
-        languages: guideData.languages,
+        languages: guideData.languages || [],
         experience: guideData.experience,
-        bookingType: guideData.bookingType || "enquiry"
+        bookingType: guideData.bookingType || "enquiry" // Use original bookingType if available
       };
 
       // Create service object with booking_id preserved
@@ -254,7 +295,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         agent_id: agentId,
         tour_id: tourId,
         data: [processedGuideData],
-        bookingType: "enquiry"  
+        bookingType: guideData.bookingType || "enquiry" // Use original bookingType if available
       };
 
       // Add booking_id if it exists in the original service
@@ -278,7 +319,10 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     
     // Update the last dispatch ref
     lastDispatchRef.current = dispatchKey;
-  }, [guidespack, agentId, tourId, dispatch]);
+    
+    // Set flag to indicate we've dispatched all guides
+    hasDispatchedAllGuidesRef.current = true;
+  }, [guidespack, agentId, tourId, dispatch, dayIndex, tourDates, formatDateToString]);
 
   // Reset refs when dayIndex changes
   useEffect(() => {
@@ -316,17 +360,26 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     }
   }, [guidespack, dispatchAllGuidesToRedux]);
 
+  // Log guidespack data when it changes
+  useEffect(() => {
+    if (guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
+      console.log('Received guidespack data:', guidespack);
+      console.log('Guides by type:', {
+        guideCount: guidespack.length,
+        bookingTypes: guidespack.map(g => g.bookingType).filter((v, i, a) => a.indexOf(v) === i),
+        hasBookingIds: guidespack.filter(g => g.booking_id).length
+      });
+      
+      // Reset the dispatch flag when guidespack changes
+      hasDispatchedAllGuidesRef.current = false;
+      hasInitializedRef.current = false;
+    }
+  }, [guidespack]);
+
   // Define helper functions at the beginning
   // Helper to check if a booking is out of current tour dates for the specific dayIndex
   const isBookingOutOfTourDates = (booking) => {
-    // Only validate if this booking belongs to the current dayIndex
-    const bookingDayIndex = booking.originalData?.dayIndex || dayIndex;
-    
-    // If the booking doesn't belong to this dayIndex, don't validate
-    if (bookingDayIndex !== dayIndex) {
-      return false;
-    }
-    
+    // Get booking date from the booking
     const bookingDate = booking.originalData?.bookingDate || booking.bookingDate;
     
     // Debug logging to check date formats
@@ -334,8 +387,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       bookingId: booking.originalData?.id || 'new-booking',
       bookingDate: bookingDate,
       tourDates: tourDates,
-      dayIndex: dayIndex,
-      bookingDayIndex: bookingDayIndex
+      dayIndex: dayIndex
     });
     
     // Handle edge cases
@@ -347,28 +399,19 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     // Normalize booking date to YYYY-MM-DD format
     let normalizedBookingDate;
     try {
-      if (typeof bookingDate === 'string') {
-        // If it's already in YYYY-MM-DD format
-        if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
-          normalizedBookingDate = bookingDate;
-        } else {
-          // Convert from other formats to YYYY-MM-DD
-          normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
-        }
-      } else {
-        // If it's a Date object
-        normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
-      }
+      normalizedBookingDate = formatDateToString(bookingDate);
     } catch (error) {
       console.error('Error normalizing booking date:', error);
       return false;
     }
     
     // Check if the normalized booking date exists in tourDates
-    const isDateValid = tourDates.includes(normalizedBookingDate);
+    const formattedTourDates = tourDates.map(date => formatDateToString(date));
+    const isDateValid = formattedTourDates.includes(normalizedBookingDate);
     
     console.log('Guide date validation result:', {
       normalizedBookingDate: normalizedBookingDate,
+      formattedTourDates: formattedTourDates,
       isDateValid: isDateValid,
       willShowError: !isDateValid
     });
@@ -500,8 +543,24 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       // If we have original data, use it as base and update with current form values
       if (section.originalData) {
         console.log('Using original data for guide booking:', section.originalData);
+        
+        // Get customer details from original data if available
+        const customerDetails = {
+          fullName: section.originalData.fullName || "",
+          email: section.originalData.email || "",
+          phone: section.originalData.phone || "",
+          countryCode: section.originalData.countryCode || "",
+          address1: section.originalData.address1 || "",
+          address2: section.originalData.address2 || "",
+          state: section.originalData.state || "",
+          zip: section.originalData.zip || "",
+          specialRequests: section.originalData.specialRequests || "",
+        };
+        
         const bookingData = {
           ...section.originalData,
+          // Include customer details
+          ...customerDetails,
           // Update with current form values
           guide_id: section.guide,
           entrypickup: section.pickUpTime,
@@ -548,6 +607,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       const selectedGuideDetails = getSelectedGuide(section.guide);
       
       const bookingData = {
+        // Customer information fields (will be populated when available)
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: "",
+        
+        // Core booking details
         id: bookingId,
         guide_id: section.guide,
         guide_name: summaryData.guideName,
@@ -656,8 +727,23 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     if (updatedSection.originalData) {
       console.log('Using original data for individual guide booking update:', updatedSection.originalData);
       
+      // Get customer details from original data if available
+      const customerDetails = {
+        fullName: updatedSection.originalData.fullName || "",
+        email: updatedSection.originalData.email || "",
+        phone: updatedSection.originalData.phone || "",
+        countryCode: updatedSection.originalData.countryCode || "",
+        address1: updatedSection.originalData.address1 || "",
+        address2: updatedSection.originalData.address2 || "",
+        state: updatedSection.originalData.state || "",
+        zip: updatedSection.originalData.zip || "",
+        specialRequests: updatedSection.originalData.specialRequests || "",
+      };
+      
       const bookingData = {
         ...updatedSection.originalData,
+        // Include customer details
+        ...customerDetails,
         // Update with current form values
         guide_id: updatedSection.guide,
         entrypickup: updatedSection.pickUpTime,
@@ -726,6 +812,18 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     const selectedGuideDetails = getSelectedGuide(updatedSection.guide);
 
     const bookingData = {
+      // Customer information fields (will be populated when available)
+      fullName: "",
+      email: "",
+      phone: "",
+      countryCode: "",
+      address1: "",
+      address2: "",
+      state: "",
+      zip: "",
+      specialRequests: "",
+      
+      // Core booking details
       id: updatedSection.originalData?.id || `guide-${Date.now()}-${sectionIndex}`,
       guide_id: updatedSection.guide,
       guide_name: summaryData.guideName,

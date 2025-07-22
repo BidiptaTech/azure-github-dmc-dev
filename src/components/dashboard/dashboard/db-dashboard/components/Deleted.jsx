@@ -1653,6 +1653,34 @@ export default function Pending() {
                         Payment Status
                       </div>
                     </th>
+                    <th
+                      style={{
+                        backgroundColor: "#f5f7fc",
+                        padding: "8px 12px",
+                        fontWeight: "600",
+                        color: "#3554D1",
+                        cursor: "pointer",
+                        transition: "background-color 0.3s ease",
+                        whiteSpace: "nowrap",
+                        width: "110px",
+                        minWidth: "110px",
+                        maxWidth: "110px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        <i className="icon-calendar" style={{ fontSize: "14px", color: "#3554D1" }}></i>
+                        Created
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1660,39 +1688,38 @@ export default function Pending() {
                   {status === "loading" ? (
                     Array.from(new Array(rowsPerPage)).map((_, index) => (
                       <tr key={index}>
-                        <td>
+                        <td style={{ padding: "12px 20px", minWidth: "80px", whiteSpace: "nowrap" }}>
+                          <Skeleton variant="text" width={80} />
+                        </td>
+                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                          <Skeleton variant="text" width={80} />
+                        </td>
+                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                          <Skeleton variant="text" width={80} />
+                        </td>
+                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                          <Skeleton variant="text" width={80} />
+                        </td>
+                        <td style={{ padding: "16px 10px", width: "80px", minWidth: "80px", maxWidth: "80px", textAlign: "center" }}>
+                          <Skeleton variant="text" width={60} />
+                        </td>
+                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
                           <Skeleton variant="text" width={100} />
                         </td>
-                        <td>
+                        <td style={{ padding: "16px 20px", width: "130px", minWidth: "130px", maxWidth: "130px" }}>
+                          <Skeleton variant="text" width={100} />
+                        </td>
+                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td>
+                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px" }}>
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
+                        <td style={{ padding: "8px 12px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
+                          <Skeleton variant="text" width={100} />
                         </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={60} />
-                        </td>
-                        <td>
-                          <Skeleton variant="text" width={120} />
-                        </td>
-                        <td>
-                          <Skeleton
-                            variant="rectangular"
-                            width={130}
-                            height={35}
-                          />
+                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap" }}>
+                          <Skeleton variant="text" width={100} />
                         </td>
                       </tr>
                     ))
@@ -1806,9 +1833,9 @@ export default function Pending() {
   <div
     style={{
       backgroundColor: "rgba(53, 84, 209, 0.1)",
-      padding: "8px 12px",
-      borderRadius: "16px",
-      fontSize: "14px",
+      padding: "6px 8px",
+      borderRadius: "12px",
+      fontSize: "11px",
       color: "#3554D1",
       fontWeight: "600",
       display: "inline-flex",
@@ -1845,19 +1872,20 @@ export default function Pending() {
                           >
                             <div
                               style={{
-                                display: "flex",
+                                backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#4CAF50",
+                                fontWeight: "600",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
                                 cursor: "pointer",
                               }}
                             >
-                              <i
-                                className="icon-calendar"
-                                style={{ fontSize: "18px", color: "#4CAF50" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_in_time)}
-                              </span>
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -1869,19 +1897,20 @@ export default function Pending() {
                           >
                             <div
                               style={{
-                                display: "flex",
+                                backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#F44336",
+                                fontWeight: "600",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
                                 cursor: "pointer",
                               }}
                             >
-                              <i
-                                className="icon-calendar-2"
-                                style={{ fontSize: "18px", color: "#F44336" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_out_time)}
-                              </span>
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -1973,9 +2002,9 @@ export default function Pending() {
                           </div>
                         </td>
                         <td style={{ padding: "16px 20px" }}>
-                        <div                            style={{                              display: "flex",                              alignItems: "center",                              gap: "8px",                              backgroundColor: getBackgroundColor(list.tour_status),
-                              padding: "6px 12px",
-                              borderRadius: "20px",
+                        <div                            style={{                              display: "flex",                              alignItems: "center",                              gap: "6px",                              backgroundColor: getBackgroundColor(list.tour_status),
+                              padding: "4px 8px",
+                              borderRadius: "16px",
                             }}
                           >
                             <i
@@ -1997,10 +2026,12 @@ export default function Pending() {
                                 //   return "icon-close";
                                 return "icon-info-circle";
                               })()}
-                              style={{                                fontSize: "18px",                                color: getTextColor(list.tour_status),
+                              style={{                                fontSize: "14px",                                color: getTextColor(list.tour_status),
                               }}
                             ></i>
-                            <span                              style={{                                fontWeight: "600",                                color: getTextColor(list.tour_status),                              }}                            >                              {list.tour_status || "Pending"}
+                            <span                              style={{                                fontWeight: "600",                                color: getTextColor(list.tour_status),
+                                fontSize: "11px",
+                              }}                            >                              {list.tour_status || "Pending"}
                             </span>
                           </div>
                         </td>
@@ -2189,12 +2220,17 @@ export default function Pending() {
                             </div>
                           </Tooltip>
                         </td>
+                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+  <span style={{ fontSize: "11px" }}>
+    {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
+  </span>
+</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan="12"
+                        colSpan="13"
                         style={{ textAlign: "center", padding: "40px 20px" }}
                       >
                         <div

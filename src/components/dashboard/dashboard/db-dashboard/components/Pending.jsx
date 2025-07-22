@@ -2037,12 +2037,15 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         transition: "background-color 0.3s ease",
+                        width: "120px",
+                        minWidth: "120px",
+                        maxWidth: "120px",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = "#e6eafb";
@@ -2063,6 +2066,7 @@ export default function Pending() {
                           gap: "6px",
                           fontSize: "13px",
                           fontWeight: "600",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         <i
@@ -2078,12 +2082,15 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         transition: "background-color 0.3s ease",
+                        width: "100px",
+                        minWidth: "100px",
+                        maxWidth: "100px",
                       }}
                       onClick={() => handleColumnSort("id")}
                       onMouseEnter={(e) =>
@@ -2135,11 +2142,14 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
+                        width: "90px",
+                        minWidth: "90px",
+                        maxWidth: "90px",
                       }}
                       onClick={() => handleColumnSort("startDate")}
                       onMouseEnter={(e) => {
@@ -2195,11 +2205,14 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
+                        width: "90px",
+                        minWidth: "90px",
+                        maxWidth: "90px",
                       }}
                       onClick={() => handleColumnSort("endDate")}
                       onMouseEnter={(e) => {
@@ -2255,14 +2268,14 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 10px",
+                        padding: "6px 8px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
-                        width: "80px", // Set a fixed narrow width for Pax column
-                        minWidth: "80px",
-                        maxWidth: "80px",
+                        width: "60px",
+                        minWidth: "60px",
+                        maxWidth: "60px",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -2321,11 +2334,14 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
+                        width: "150px",
+                        minWidth: "150px",
+                        maxWidth: "150px",
                       }}
                       onClick={() => handleColumnSort("destination")}
                       onMouseEnter={(e) => {
@@ -2362,12 +2378,15 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
                         whiteSpace: "nowrap",
+                        width: "130px",
+                        minWidth: "130px",
+                        maxWidth: "130px",
                       }}
                       // onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -2404,11 +2423,14 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
+                        width: "120px",
+                        minWidth: "120px",
+                        maxWidth: "120px",
                       }}
                       onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -2445,12 +2467,15 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
                         whiteSpace: "nowrap",
+                        width: "110px",
+                        minWidth: "110px",
+                        maxWidth: "110px",
                       }}
                       // onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -2487,12 +2512,15 @@ export default function Pending() {
                     <th
                       style={{
                         backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
+                        padding: "8px 12px",
                         fontWeight: "600",
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
                         whiteSpace: "nowrap",
+                        width: "120px",
+                        minWidth: "120px",
+                        maxWidth: "120px",
                       }}
                       // onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -2524,6 +2552,34 @@ export default function Pending() {
                           }}
                         ></i>
                         Payment Status
+                      </div>
+                    </th>
+                    <th
+                      style={{
+                        backgroundColor: "#f5f7fc",
+                        padding: "8px 12px",
+                        fontWeight: "600",
+                        color: "#3554D1",
+                        cursor: "pointer",
+                        transition: "background-color 0.3s ease",
+                        whiteSpace: "nowrap",
+                        width: "110px",
+                        minWidth: "110px",
+                        maxWidth: "110px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        <i className="icon-calendar" style={{ fontSize: "14px", color: "#3554D1" }}></i>
+                        Created
                       </div>
                     </th>
                   </tr>
@@ -2567,6 +2623,9 @@ export default function Pending() {
                             height={35}
                           />
                         </td>
+                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap" }}>
+                          <Skeleton variant="text" width={100} />
+                        </td>
                       </tr>
                     ))
                   ) : paginatedLists.length > 0 ? (
@@ -2582,8 +2641,9 @@ export default function Pending() {
                       >
                         <td
                           style={{
-                            padding: "12px 20px",
-                            minWidth: "150px",
+                            padding: "8px 12px",
+                            minWidth: "120px",
+                            maxWidth: "120px",
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -2694,13 +2754,13 @@ export default function Pending() {
                             </Tooltip>
                           </div>
                         </td>
-                        <td style={{ padding: "16px 20px" }}>
+                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
                           <div
                             style={{
                               backgroundColor: "rgba(53, 84, 209, 0.1)",
-                              padding: "8px 12px",
-                              borderRadius: "16px",
-                              fontSize: "14px",
+                              padding: "6px 8px",
+                              borderRadius: "12px",
+                              fontSize: "11px",
                               color: "#3554D1",
                               fontWeight: "600",
                               display: "inline-flex",
@@ -2730,7 +2790,7 @@ export default function Pending() {
                           </div>
                         </td>
 
-                        <td style={{ padding: "16px 20px" }}>
+                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
                           <Tooltip 
                             title={formatDateTooltip(list.check_in_time)}
                             arrow
@@ -2738,23 +2798,24 @@ export default function Pending() {
                           >
                             <div
                               style={{
-                                display: "flex",
+                                backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#4CAF50",
+                                fontWeight: "600",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
                                 cursor: "pointer",
                               }}
                             >
-                              <i
-                                className="icon-calendar"
-                                style={{ fontSize: "18px", color: "#4CAF50" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_in_time)}
-                              </span>
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
-                        <td style={{ padding: "16px 20px" }}>
+                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
                           <Tooltip 
                             title={formatDateTooltip(list.check_out_time)}
                             arrow
@@ -2762,19 +2823,20 @@ export default function Pending() {
                           >
                             <div
                               style={{
-                                display: "flex",
+                                backgroundColor: "rgba(244, 67, 54, 0.1)",
+                                padding: "6px 8px",
+                                borderRadius: "12px",
+                                fontSize: "15px",
+                                color: "#F44336",
+                                fontWeight: "600",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                gap: "8px",
+                                justifyContent: "center",
+                                whiteSpace: "nowrap",
                                 cursor: "pointer",
                               }}
                             >
-                              <i
-                                className="icon-calendar-2"
-                                style={{ fontSize: "18px", color: "#F44336" }}
-                              ></i>
-                              <span style={{ whiteSpace: "nowrap" }}>
-                                {formatDate(list.check_out_time)}
-                              </span>
+                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -2782,9 +2844,9 @@ export default function Pending() {
                           style={{
                             padding: "16px 10px",
                             whiteSpace: "nowrap",
-                            width: "80px",
-                            minWidth: "80px",
-                            maxWidth: "80px",
+                            width: "60px",
+                            minWidth: "60px",
+                            maxWidth: "60px",
                             textAlign: "center",
                           }}
                         >
@@ -2819,7 +2881,7 @@ export default function Pending() {
                           </div>
                         </td>
 
-                        <td style={{ padding: "16px 20px" }}>
+                        <td style={{ padding: "16px 20px", width: "150px", minWidth: "150px", maxWidth: "150px" }}>
                           <div
                             style={{
                               display: "flex",
@@ -2835,6 +2897,7 @@ export default function Pending() {
                               style={{
                                 fontWeight: "500",
                                 color: "#4CAF50",
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {list.destination
@@ -2862,7 +2925,7 @@ export default function Pending() {
                             </span>
                           </div>
                         </td>
-                        <td style={{ padding: "16px 20px" }}>
+                        <td style={{ padding: "16px 20px", width: "130px", minWidth: "130px", maxWidth: "130px" }}>
                           <div
                             style={{
                               display: "flex",
@@ -2874,20 +2937,22 @@ export default function Pending() {
                               className="icon-customer"
                               style={{ fontSize: "18px", color: "#F44336" }}
                             ></i>
-                            <span>{list.customer_name || "N/A"}</span>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {list.customer_name || "N/A"}
+                            </span>
                           </div>
                         </td>
-                        <td style={{ padding: "16px 20px" }}>
+                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
                           <div
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: "8px",
+                              gap: "6px",
                               backgroundColor: getBackgroundColor(
                                 list.tour_status
                               ),
-                              padding: "6px 12px",
-                              borderRadius: "20px",
+                              padding: "4px 8px",
+                              borderRadius: "16px",
                             }}
                           >
                             <i
@@ -2910,7 +2975,7 @@ export default function Pending() {
                                 return "icon-info-circle";
                               })()}
                               style={{
-                                fontSize: "18px",
+                                fontSize: "14px",
                                 color: getTextColor(list.tour_status),
                               }}
                             ></i>
@@ -2918,6 +2983,8 @@ export default function Pending() {
                               style={{
                                 fontWeight: "600",
                                 color: getTextColor(list.tour_status),
+                                fontSize: "11px",
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {" "}
@@ -2928,6 +2995,9 @@ export default function Pending() {
                         <td
                           style={{
                             padding: "8px 12px",
+                            width: "110px",
+                            minWidth: "110px",
+                            maxWidth: "110px",
                           }}
                         >
                           <Tooltip 
@@ -2996,7 +3066,7 @@ export default function Pending() {
                           </Tooltip>
                         </td>
 
-                        <td style={{ padding: "8px 12px" }}>
+                        <td style={{ padding: "8px 12px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
                           <Tooltip 
                             title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
                             arrow
@@ -3109,6 +3179,11 @@ export default function Pending() {
                               </div>
                             </div>
                           </Tooltip>
+                        </td>
+                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                          <span style={{ fontSize: "11px" }}>
+                            {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
+                          </span>
                         </td>
                       </tr>
                     ))

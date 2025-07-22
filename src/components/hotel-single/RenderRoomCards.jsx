@@ -1,9 +1,12 @@
 import React from "react";
-import { Box, Typography, Paper } from "@mui/material";
+import { Box, Typography, Paper, Card, CardContent, Alert, Chip } from "@mui/material";
 import { IoPersonSharp } from "react-icons/io5";
 import RoomCard from "./RoomCard";
 import RenderRoomCardsSkeleton from "./RenderRoomCardsSkeleton";
 import { useSelector } from "react-redux";
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import HotelIcon from '@mui/icons-material/Hotel';
+import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 
 const RenderRoomCards = ({
   data,
@@ -48,12 +51,173 @@ const RenderRoomCards = ({
 
   const basePrice = data?.single_price;
   
-  if (!basePrice) return null;
+  // Check if essential data is missing
+  if (!data) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Alert 
+          severity="warning" 
+          sx={{ 
+            borderRadius: '12px',
+            '& .MuiAlert-message': {
+              width: '100%'
+            }
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Room Data Not Available
+          </Typography>
+          <Typography variant="body2">
+            Room information is currently unavailable. Please try refreshing the page or contact support.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
+  // Check if price data is missing
+  if (!basePrice) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Card 
+          elevation={2} 
+          sx={{ 
+            borderRadius: '12px',
+            border: '2px dashed #FFA726',
+            backgroundColor: '#FFF8E1',
+            transition: 'all 0.3s ease',
+          }}
+        >
+          <CardContent sx={{ 
+            p: 3, 
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2
+          }}>
+            <Box sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 167, 38, 0.2)',
+              mb: 1
+            }}>
+              <InfoOutlinedIcon 
+                sx={{ 
+                  fontSize: 30,
+                  color: '#FFA726'
+                }} 
+              />
+            </Box>
+            
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 'bold',
+                color: '#F57C00',
+                mb: 1
+              }}
+            >
+              Pricing Information Unavailable
+            </Typography>
+            
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ 
+                maxWidth: 350,
+                lineHeight: 1.6
+              }}
+            >
+              Room pricing details are not available at this time. Please contact our booking team for current rates and availability.
+            </Typography>
+            
+            <Box sx={{ 
+              display: 'flex',
+              gap: 1,
+              mt: 2,
+              flexWrap: 'wrap',
+              justifyContent: 'center'
+            }}>
+              <Chip 
+                icon={<HotelIcon />}
+                label="Room Available"
+                color="primary"
+                variant="outlined"
+                size="small"
+              />
+              <Chip 
+                icon={<ContactSupportIcon />}
+                label="Contact for Pricing"
+                color="warning"
+                variant="outlined"
+                size="small"
+              />
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
+
+  // Check if bed or occupancy data is missing
+  if (!bed || !maxOccupancy || maxOccupancy <= 0) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Alert 
+          severity="info" 
+          sx={{ 
+            borderRadius: '12px',
+            '& .MuiAlert-message': {
+              width: '100%'
+            }
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Bed Configuration Not Available
+          </Typography>
+          <Typography variant="body2">
+            Detailed bed and occupancy information is not available for this room. Please contact us for more details.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
+  // Check if pax (passenger count) is invalid
+  if (!pax || pax <= 0) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            borderRadius: '12px',
+            '& .MuiAlert-message': {
+              width: '100%'
+            }
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Invalid Occupancy Count
+          </Typography>
+          <Typography variant="body2">
+            Please specify a valid number of guests to see available room options.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
   const mealOptions = [
     { 
       title: "Room Only", 
       extraPrice: 0,
-      totalPrice: parseFloat(basePrice)
+      totalPrice: parseFloat(basePrice),
+      condition: data?.room_only === 1
     },
     { 
       title: "Room with Breakfast", 
@@ -102,8 +266,6 @@ const RenderRoomCards = ({
   const basePriceDouble = data?.double_price || basePrice*2;
   const extraBedPrice = data?.bed_details?.[0]?.extra_bed_price || 0;
 
-  if (!basePriceDouble) return null;
-
   const getExtraBedPriceForPersonCount = (personCount) => {
     if (personCount <= 2) return 0;
     // Add extra bed price for additional persons (3rd person = 1 extra bed, 4th person = 2 extra beds, etc.)
@@ -114,7 +276,8 @@ const RenderRoomCards = ({
     { 
       title: "Room Only", 
       extraPrice: 0,
-      totalPrice: (personCount) => parseFloat(basePriceDouble) + getExtraBedPriceForPersonCount(personCount)
+      totalPrice: (personCount) => parseFloat(basePriceDouble) + getExtraBedPriceForPersonCount(personCount),
+      condition: data?.room_only === 1
     },
     { 
       title: "Room with Breakfast", 
@@ -160,9 +323,35 @@ const RenderRoomCards = ({
     },
   ];
 
+  const maxAvailableOccupancy = Math.min(bed?.max_occupancy, pax);
+
+  // Check if no room options are available
+  if (maxAvailableOccupancy <= 0) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Alert 
+          severity="warning" 
+          sx={{ 
+            borderRadius: '12px',
+            '& .MuiAlert-message': {
+              width: '100%'
+            }
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+            No Available Options
+          </Typography>
+          <Typography variant="body2">
+            This room cannot accommodate your group size. Please try a different room type or contact support for assistance.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ width: '100%' }}>
-      {Array.from({ length: Math.min(bed?.max_occupancy, pax) || 0 }).map((_, personIndex) => {
+      {Array.from({ length: maxAvailableOccupancy }).map((_, personIndex) => {
         const personCount = personIndex + 1;
 
         return (

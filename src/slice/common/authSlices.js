@@ -137,6 +137,9 @@ const getInitialState = () => {
   const agentId = Cookies.get("AgentId") || null;
   const Username = Cookies.get("Username") || null;
   const Email = Cookies.get("Email") || null;
+  const profilePicture = Cookies.get("profilePicture") || null;
+  const phoneNo = Cookies.get("phoneNo") || null;
+  const agent_address = Cookies.get("agent_address") || null;
   const exchangeRate = Cookies.get("exchangeRate") || null;
   const currencyCode = Cookies.get("currencyCode") || null;
   const currencySymbol = Cookies.get("currencySymbol") || null;
@@ -177,6 +180,9 @@ const getInitialState = () => {
     logoutError: null,
     Username,
     Email,
+    profilePicture,
+    phoneNo,
+    agent_address,
     exchangeRate,
     currencyCode,
     currencySymbol,
@@ -221,6 +227,9 @@ export const loginUser = createAsyncThunk(
           agent_id: agentId,
           name: Username,
           email: Email,
+          profile_picture: profilePicture,
+          phone_no: phoneNo,
+          agent_address: agent_address,
           dmc_name: DmcName,
           current_exchange_rate: exchangeRate,
           current_currency_code: currencyCode,
@@ -272,6 +281,36 @@ export const loginUser = createAsyncThunk(
           secure: true,
           sameSite: "Strict",
         });
+        
+        // Store profile picture in cookies
+        if (profilePicture) {
+          // Clean up the profile picture path (remove escaped slashes)
+          const cleanProfilePicture = profilePicture.replace(/\\/g, '');
+          Cookies.set("profilePicture", cleanProfilePicture, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
+        // Store phone number in cookies
+        if (phoneNo) {
+          Cookies.set("phoneNo", phoneNo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
+        // Store agent address in cookies
+        if (agent_address) {
+          Cookies.set("agent_address", agent_address, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
         Cookies.set("exchangeRate", exchangeRate, {
           expires: expiryDate,
           secure: true,
@@ -402,6 +441,9 @@ export const loginUser = createAsyncThunk(
           agentId,
           Username,
           Email,
+          profilePicture,
+          phoneNo,
+          agent_address,
           DmcName,
           exchangeRate,
           currencyCode,
@@ -471,12 +513,60 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    updateProfileData: (state, action) => {
+      const { phone, image, agent_address } = action.payload;
+      console.log('updateProfileData called with:', { phone, image, agent_address });
+      console.log('Current state.profilePicture:', state.profilePicture);
+      
+      if (phone) {
+        console.log('Updating phone number from', state.phoneNo, 'to', phone);
+        state.phoneNo = phone;
+        // Update cookie
+        const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        Cookies.set("phoneNo", phone, {
+          expires: expiryDate,
+          secure: true,
+          sameSite: "Strict",
+        });
+      }
+      if (image) {
+        const cleanImage = image.replace(/\\/g, '');
+        console.log('Updating profile picture from', state.profilePicture, 'to', cleanImage);
+        state.profilePicture = cleanImage;
+        // Update cookie
+        const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        Cookies.set("profilePicture", cleanImage, {
+          expires: expiryDate,
+          secure: true,
+          sameSite: "Strict",
+        });
+        console.log('Profile picture updated in state:', state.profilePicture);
+      }
+      if (agent_address !== undefined) {
+        console.log('Updating agent address from', state.agent_address, 'to', agent_address);
+        state.agent_address = agent_address;
+        // Update cookie
+        const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        if (agent_address) {
+          Cookies.set("agent_address", agent_address, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        } else {
+          Cookies.remove("agent_address");
+        }
+      }
+    },
     logout: (state) => {
       state.isAuthenticated = false;
       state.agentId = null;
       state.tourId = null;
       state.Username = null; // Reset Username
       state.Email = null; // Reset Email
+      state.profilePicture = null; // Reset profile picture
+      state.phoneNo = null; // Reset phone number
+      state.agent_address = null; // Reset agent address
       state.exchangeRate = null; // Reset exchangeRate
       state.currencyCode = null; // Reset currencyCode
       state.currencySymbol = null; // Reset currencySymbol
@@ -486,6 +576,9 @@ const authSlice = createSlice({
       Cookies.remove("AgentId");
       Cookies.remove("Username");
       Cookies.remove("Email");
+      Cookies.remove("profilePicture");
+      Cookies.remove("phoneNo");
+      Cookies.remove("agent_address");
       Cookies.remove("exchangeRate");
       Cookies.remove("currencyCode");
       Cookies.remove("currencySymbol");
@@ -509,6 +602,18 @@ const authSlice = createSlice({
     },
     setEmail: (state, action) => {
       state.Email = action.payload;
+    },
+    setProfilePicture: (state, action) => {
+      state.profilePicture = action.payload;
+      if (action.payload) {
+        Cookies.set("profilePicture", action.payload, {
+          expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          secure: true,
+          sameSite: "Strict",
+        });
+      } else {
+        Cookies.remove("profilePicture");
+      }
     },
     setExchangeRate: (state, action) => {
       state.exchangeRate = action.payload;
@@ -574,6 +679,9 @@ const authSlice = createSlice({
         state.agentId = action.payload.agentId;
         state.Username = action.payload.Username;
         state.Email = action.payload.Email;
+        state.profilePicture = action.payload.profilePicture;
+        state.phoneNo = action.payload.phoneNo;
+        state.agent_address = action.payload.agent_address;
         state.DmcName = action.payload.DmcName;
         state.exchangeRate = action.payload.exchangeRate;
         state.currencyCode = action.payload.currencyCode;
@@ -631,8 +739,10 @@ const authSlice = createSlice({
 export const {
   logout,
   setTourIdd,
+  updateProfileData,
   setUsername,
   setEmail,
+  setProfilePicture,
   setExchangeRate,
   setCurrencyCode,
   setCurrencySymbol,

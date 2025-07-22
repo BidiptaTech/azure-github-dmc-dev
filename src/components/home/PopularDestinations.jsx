@@ -34,7 +34,7 @@ const PopularDestinations = () => {
     {
       id: 1,
       name: "Bangkok",
-      image: "/img/destinations/1/1.png",
+      image: "/Images/landingpage/destination/Bali/1.jpg",
       price: "From $599",
       rating: 4.8,
       reviews: 2847,
@@ -44,7 +44,7 @@ const PopularDestinations = () => {
     {
       id: 2,
       name: "Tokyo",
-      image: "/img/destinations/1/2.png",
+      image: "/Images/landingpage/destination/Bali/2.jpg",
       price: "From $899",
       rating: 4.9,
       reviews: 3291,
@@ -54,7 +54,7 @@ const PopularDestinations = () => {
     {
       id: 3,
       name: "Kashmir",
-      image: "/img/destinations/1/3.png",
+      image: "/Images/landingpage/destination/Bali/3.jpg",
       price: "From $1200",
       rating: 4.7,
       reviews: 1956,
@@ -64,7 +64,7 @@ const PopularDestinations = () => {
     {
       id: 4,
       name: "Indonesia",
-      image: "/img/destinations/1/4.png",
+      image: "/Images/landingpage/destination/Bali/5.jpg",
       price: "From $1500",
       rating: 4.8,
       reviews: 2134,
@@ -74,7 +74,7 @@ const PopularDestinations = () => {
     {
       id: 5,
       name: "Paris",
-      image: "/img/destinations/1/5.png",
+      image: "/Images/landingpage/destination/Vietnam/1.jpg",
       price: "From $1100",
       rating: 4.6,
       reviews: 2847,
@@ -84,7 +84,7 @@ const PopularDestinations = () => {
     {
       id: 6,
       name: "Rome",
-      image: "/img/destinations/1/1.png",
+      image: "/Images/landingpage/destination/Vietnam/2.jpg",
       price: "From $950",
       rating: 4.5,
       reviews: 1923,
@@ -94,7 +94,7 @@ const PopularDestinations = () => {
     {
       id: 7,
       name: "Cairo",
-      image: "/img/destinations/1/2.png",
+      image: "/Images/landingpage/destination/Vietnam/3.jpg",
       price: "From $750",
       rating: 4.4,
       reviews: 1456,
@@ -104,7 +104,7 @@ const PopularDestinations = () => {
     {
       id: 8,
       name: "Cape Town",
-      image: "/img/destinations/1/3.png",
+      image: "/Images/landingpage/destination/Vietnam/4.jpg",
       price: "From $850",
       rating: 4.7,
       reviews: 2134,
@@ -114,7 +114,7 @@ const PopularDestinations = () => {
     {
       id: 9,
       name: "Buenos Aires",
-      image: "/img/destinations/1/4.png",
+      image: "/Images/landingpage/destination/Vietnam/5.jpg",
       price: "From $700",
       rating: 4.3,
       reviews: 1678,
@@ -124,7 +124,7 @@ const PopularDestinations = () => {
     {
       id: 10,
       name: "Sydney",
-      image: "/img/destinations/1/5.png",
+      image: "/Images/landingpage/destination/Vietnam/6.jpg",
       price: "From $1300",
       rating: 4.8,
       reviews: 2945,
@@ -332,12 +332,12 @@ const PopularDestinations = () => {
                     <Box
                       sx={{
                         textAlign: 'center',
-                        opacity: 0,
+                        opacity: 1,
                         transition: 'opacity 0.3s ease',
                         mt: 2,
-                        '&:hover': {
-                          opacity: 1
-                        }
+                        // '&:hover': {
+                        //   opacity: 0.5
+                        // }
                       }}
                     >
                       <Typography

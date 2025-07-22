@@ -120,27 +120,43 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     console.log('Initializing form sections from attractionspack:', attractionspack);
 
-    // Filter attractions that match the current dayIndex for form sections
+    // Filter attractions based on bookingDate instead of dayIndex
     const dayAttractions = attractionspack.filter(attractionService => {
       const attractionData = attractionService.data?.[0];
-      return attractionData && attractionData.dayIndex === dayIndex;
+      // Include all attractions if bookingDate matches or is not specified
+      if (!attractionData) return false;
+      
+      const attractionBookingDate = attractionData.bookingDate || '';
+      // If no booking date specified, include it
+      if (!attractionBookingDate) return true;
+      
+      // If date is provided, check if it matches
+      if (date && date._isAMomentObject) {
+        return attractionBookingDate === date.format('YYYY-MM-DD');
+      }
+      
+      // Otherwise, include all attractions
+      return true;
     });
 
     if (dayAttractions.length === 0) {
-      console.log(`No attractions found for dayIndex ${dayIndex}`);
+      console.log(`No attractions found for date ${bookingDate}`);
       return;
     }
 
     // Convert attraction data to form sections for current day
     const newFormSections = dayAttractions.map((attractionService, index) => {
-      const attractionData = attractionService.data[0];
+      const originalAttractionData = attractionService.data[0];
+      
+      // Create a copy of the data instead of modifying the original
+      const attractionData = { ...originalAttractionData };
       
       return {
         attraction: attractionData.AttractionId,
         pax: {
-          Adults: attractionData.adultCount || 0,
-          Children: attractionData.childCount || 0,
-          Seniors: attractionData.seniorCount || 0
+          Adults: Number(attractionData.adultCount) || 0,
+          Children: Number(attractionData.childCount) || 0,
+          Seniors: Number(attractionData.seniorCount) || 0
         },
         timeSlot: attractionData.visitTime || '',
         ticketType: attractionData.ticketId || '',
@@ -151,7 +167,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         originalData: {
           ...attractionData,
           booking_id: attractionService.booking_id, // Preserve booking_id from service level
-          type: attractionService.type || 'attraction' // Preserve service type
+          type: attractionService.type || 'attraction', // Preserve service type
+          dayIndex: dayIndex // Set dayIndex in the copy, not the original
         }
       };
     });
@@ -163,7 +180,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     });
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [attractionspack, dayIndex, bookingDate]);
+  }, [attractionspack, dayIndex, bookingDate, date]);
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {
@@ -189,42 +206,48 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     // Create new attraction service entries for ALL attractions, preserving booking_id
     const newAttractionServices = attractionspack.map(attractionService => {
-      const attractionData = attractionService.data[0];
+      const originalAttractionData = attractionService.data[0];
       
-      if (!attractionData) {
+      if (!originalAttractionData) {
         console.log('No attraction data found in service:', attractionService);
         return null;
       }
 
-      console.log('Processing attraction for Redux:', attractionData);
-      console.log('Service type:', attractionService.type, 'Package type:', attractionData.package_type);
+      console.log('Processing attraction for Redux:', originalAttractionData);
+      console.log('Service type:', attractionService.type, 'Package type:', originalAttractionData.package_type);
       
+      // Create a copy of the data instead of modifying the original
       const processedAttractionData = {
-        id: attractionData.id,
-        AttractionId: attractionData.AttractionId,
-        AttractionName: attractionData.AttractionName,
-        location: attractionData.location,
-        city: attractionData.city,
-        country: attractionData.country,
-        visitTime: attractionData.visitTime,
-        ticketId: attractionData.ticketId,
-        ticketName: attractionData.ticketName,
-        adultCount: attractionData.adultCount,
-        childCount: attractionData.childCount,
-        seniorCount: attractionData.seniorCount,
-        ticket_details: attractionData.ticket_details,
-        nri: attractionData.nri,
-        totalPrice: attractionData.totalPrice,
-        image: attractionData.image,
-        mode: attractionData.mode,
-        dmc_id: attractionData.dmc_id,
-        bookingDate: attractionData.bookingDate,
-        dayIndex: attractionData.dayIndex,
-        bookingType: attractionData.bookingType || "enquiry",
+        id: originalAttractionData.id || `attraction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        AttractionId: originalAttractionData.AttractionId,
+        AttractionName: originalAttractionData.AttractionName,
+        location: originalAttractionData.location || originalAttractionData.city || '',
+        city: originalAttractionData.city || '',
+        country: originalAttractionData.country || '',
+        visitTime: originalAttractionData.visitTime || '',
+        ticketId: originalAttractionData.ticketId,
+        ticketName: originalAttractionData.ticketName,
+        adultCount: Number(originalAttractionData.adultCount) || 0,
+        childCount: Number(originalAttractionData.childCount) || 0,
+        seniorCount: Number(originalAttractionData.seniorCount) || 0,
+        ticket_details: originalAttractionData.ticket_details || {
+          adult_price: 0,
+          child_price: 0,
+          senior_price: 0,
+          description: ''
+        },
+        nri: originalAttractionData.nri || 'residential',
+        totalPrice: Number(originalAttractionData.totalPrice) || Number(originalAttractionData.price) || 0,
+        image: originalAttractionData.image || '',
+        mode: originalAttractionData.mode || 'dmc',
+        dmc_id: originalAttractionData.dmc_id || '',
+        bookingDate: originalAttractionData.bookingDate || bookingDate,
+        dayIndex: dayIndex, // Always use current dayIndex
+        bookingType: originalAttractionData.bookingType || "enquiry",
         // Include package-related fields if they exist
-        package_type: attractionData.package_type || (attractionService.type === "attraction_package" ? 1 : 0),
-        package_attraction_id: attractionData.package_attraction_id || null,
-        ...(attractionData.package_details && { package_details: attractionData.package_details })
+        package_type: originalAttractionData.package_type || (attractionService.type === "attraction_package" ? 1 : 0),
+        package_attraction_id: originalAttractionData.package_attraction_id || null,
+        ...(originalAttractionData.package_details && { package_details: originalAttractionData.package_details })
       };
 
       // Determine if this is a package booking (check service type first, then data properties)
@@ -237,7 +260,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         type: isPackageBooking ? "attraction_package" : "attraction",
         agent_id: agentId,
         tour_id: tourId,
-        data: [processedAttractionData]
+        data: [processedAttractionData],
+        bookingType: attractionService.bookingType || "enquiry"
       };
 
       // Add booking_id if it exists in the original service
@@ -265,7 +289,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     
     // Update the last dispatch ref
     lastDispatchRef.current = dispatchKey;
-  }, [attractionspack, agentId, tourId, dispatch]);
+    hasDispatchedAllAttractionsRef.current = true;
+  }, [attractionspack, agentId, tourId, dispatch, dayIndex, bookingDate]);
 
   // Reset refs when dayIndex changes
   useEffect(() => {
@@ -302,6 +327,20 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       hasDispatchedAllAttractionsRef.current = true;
     }
   }, [attractionspack, dispatchAllAttractionsToRedux]);
+
+  // Log attractionspack data when it changes
+  useEffect(() => {
+    if (attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
+      console.log('Received attractionspack data:', attractionspack);
+      console.log('Attractions by type:', {
+        attractions: attractionspack.filter(s => s.type === 'attraction').length,
+        packages: attractionspack.filter(s => s.type === 'attraction_package').length
+      });
+      
+      // Reset the dispatch flag when attractionspack changes
+      hasDispatchedAllAttractionsRef.current = false;
+    }
+  }, [attractionspack]);
 
   useEffect(() => {
     console.log('AttractionComponent - Received props:', { date, dayIndex, bookingDate });
@@ -426,7 +465,24 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     if (updatedSection.originalData) {
       console.log('Using original data for individual booking update:', updatedSection.originalData);
       
+      // Get customer details from original data if available
+      const customerDetails = {
+        fullName: updatedSection.originalData.fullName || "",
+        email: updatedSection.originalData.email || "",
+        phone: updatedSection.originalData.phone || "",
+        countryCode: updatedSection.originalData.countryCode || "",
+        address1: updatedSection.originalData.address1 || "",
+        address2: updatedSection.originalData.address2 || "",
+        state: updatedSection.originalData.state || "",
+        zip: updatedSection.originalData.zip || "",
+        specialRequests: updatedSection.originalData.specialRequests || "",
+      };
+      
       const bookingData = {
+        // Include customer details
+        ...customerDetails,
+        
+        // Core booking details
         id: updatedSection.originalData.id,
         AttractionId: updatedSection.originalData.AttractionId,
         AttractionName: updatedSection.originalData.AttractionName,
@@ -507,6 +563,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     const totalPrice = adultTotal + childTotal + seniorTotal;
 
     const bookingData = {
+      // Customer information fields (will be populated when available)
+      fullName: "",
+      email: "",
+      phone: "",
+      countryCode: "",
+      address1: "",
+      address2: "",
+      state: "",
+      zip: "",
+      specialRequests: "",
+      
+      // Core booking details
       id: updatedSection.originalData?.id || `attraction-${Date.now()}-${sectionIndex}`,
       AttractionId: updatedSection.attraction,
       AttractionName: summaryData.attraction,
@@ -729,40 +797,47 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // If we have original data, use it directly
     if (booking.originalData) {
       console.log('Using original data for booking summary:', booking.originalData);
+      
+      // Determine if this is a package booking
+      const isPackageBooking = 
+        booking.originalData.package_type === 1 || 
+        booking.type === 'attraction_package' ||
+        (typeof booking.originalData.ticketId === 'string' && booking.originalData.ticketId?.startsWith('pkg_'));
+      
       return {
-        attraction: booking.originalData.AttractionName,
-        location: booking.originalData.location,
-        country: booking.originalData.country,
-        city: booking.originalData.city,
-        image: booking.originalData.image,
-        description: 'Description from original booking',
+        attraction: booking.originalData.AttractionName || 'Unknown Attraction',
+        location: booking.originalData.location || booking.originalData.city || '',
+        country: booking.originalData.country || '',
+        city: booking.originalData.city || '',
+        image: booking.originalData.image || '',
+        description: booking.originalData.description || 'Description from original booking',
         pax: {
-          Adults: booking.originalData.adultCount,
-          Children: booking.originalData.childCount,
-          Seniors: booking.originalData.seniorCount
+          Adults: Number(booking.originalData.adultCount) || 0,
+          Children: Number(booking.originalData.childCount) || 0,
+          Seniors: Number(booking.originalData.seniorCount) || 0
         },
-        timeSlot: booking.originalData.visitTime,
-        ticketType: booking.originalData.ticketName,
+        timeSlot: booking.originalData.visitTime || '',
+        ticketType: booking.originalData.ticketName || '',
         ticketDescription: booking.originalData.ticket_details?.description || 'No description available',
-        adultPrice: booking.originalData.ticket_details?.adult_price || 0,
-        childPrice: booking.originalData.ticket_details?.child_price || 0,
-        seniorPrice: booking.originalData.ticket_details?.senior_price || 0,
-        openingHours: 'Opening hours from original booking',
-        terms: 'Terms from original booking',
-        remarks: 'Remarks from original booking',
-        mode: booking.originalData.mode,
-        address: 'Address from original booking',
-        category: 'Category from original booking',
-        duration: 'Duration from original booking',
-        cancellation_policy: 'Cancellation policy from original booking',
-        inclusions: 'Inclusions from original booking',
-        exclusions: 'Exclusions from original booking',
-        tax_percentage: booking.originalData.ticket_details?.tax_percentage,
-        tax_amount: booking.originalData.ticket_details?.tax_amount,
-        currency: 'SGD',
+        adultPrice: Number(booking.originalData.ticket_details?.adult_price) || 0,
+        childPrice: Number(booking.originalData.ticket_details?.child_price) || 0,
+        seniorPrice: Number(booking.originalData.ticket_details?.senior_price) || 0,
+        openingHours: booking.originalData.openingHours || 'Opening hours from original booking',
+        terms: booking.originalData.terms || 'Terms from original booking',
+        remarks: booking.originalData.remarks || 'Remarks from original booking',
+        mode: booking.originalData.mode || 'dmc',
+        address: booking.originalData.address || 'Address from original booking',
+        category: booking.originalData.category || 'Category from original booking',
+        duration: booking.originalData.duration || 'Duration from original booking',
+        cancellation_policy: booking.originalData.cancellation_policy || 'Cancellation policy from original booking',
+        inclusions: booking.originalData.inclusions || 'Inclusions from original booking',
+        exclusions: booking.originalData.exclusions || 'Exclusions from original booking',
+        tax_percentage: booking.originalData.ticket_details?.tax_percentage || 0,
+        tax_amount: booking.originalData.ticket_details?.tax_amount || 0,
+        currency: booking.originalData.currency || 'SGD',
         priceType: booking.originalData.nri || 'residential',
         booking_id: booking.originalData.booking_id, // Preserve booking_id
-        type: booking.originalData.type || 'attraction',
+        type: isPackageBooking ? 'attraction_package' : 'attraction',
         packageAttractions: booking.originalData.package_details?.package_attractions || null,
         packageDescription: booking.originalData.package_details?.package_description || null,
         packageDetails: booking.originalData.package_details || null, // Add full package details
@@ -915,7 +990,25 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       // If we have original data, use it directly
       if (section.originalData) {
         console.log('Using original data for booking:', section.originalData);
+        
+        // Get customer details from original data if available
+        const customerDetails = {
+          fullName: section.originalData.fullName || "",
+          email: section.originalData.email || "",
+          phone: section.originalData.phone || "",
+          countryCode: section.originalData.countryCode || "",
+          address1: section.originalData.address1 || "",
+          address2: section.originalData.address2 || "",
+          state: section.originalData.state || "",
+          zip: section.originalData.zip || "",
+          specialRequests: section.originalData.specialRequests || "",
+        };
+        
         return {
+          // Include customer details
+          ...customerDetails,
+          
+          // Core booking details
           id: section.originalData.id,
           AttractionId: section.originalData.AttractionId,
           AttractionName: section.originalData.AttractionName,
@@ -953,6 +1046,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       const totalPrice = adultTotal + childTotal + seniorTotal;
       
       return {
+        // Customer information fields (will be populated when available)
+        fullName: "",
+        email: "",
+        phone: "",
+        countryCode: "",
+        address1: "",
+        address2: "",
+        state: "",
+        zip: "",
+        specialRequests: "",
+        
+        // Core booking details
         id: section.originalData?.id || `attraction-${Date.now()}-${index}`,
         AttractionId: section.attraction,
         AttractionName: summaryData.attraction,

@@ -15,16 +15,13 @@ import MobileMenu from "../MobileMenu";
 const Header1 = () => {
   const [navbar, setNavbar] = useState(false);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const userRole = useSelector((state) => state.auth.userRole);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
 
-  const handleLogout = async () => {
-    dispatch(resetPackages());
-    const result = await dispatch(logoutUser());
-    if (logoutUser.fulfilled.match(result)) {
-      navigate("/login");
-    }
+  const handleLogout = () => {
+    dispatch(logoutUser());
   };
 
   const changeBackground = () => {
@@ -42,6 +39,8 @@ const Header1 = () => {
     };
   }, []);
 
+
+
   return (
     <>
       <header className={`header bg-dark-3 ${navbar ? "is-sticky" : ""}`} style={{ padding: "5px 0" }}>
@@ -49,21 +48,47 @@ const Header1 = () => {
           <div className="row justify-between items-center" style={{ position: "relative" }}>
             <div className="col-auto" style={{ width: "85%", marginRight: "auto" }}>
               <div className="d-flex items-center">
-                <Link to="/" className="header-logo mr-25">
+                <Link to="/dashboard/db-dashboard" className="header-logo mr-25">
                   <div
                     style={{
                       display: "inline-block",
-                      borderRadius: "12px",
-                      padding: "4px",
+                      borderRadius: "8px",
+                      padding: "6px 10px",
+                      background: "rgba(255, 255, 255, 0.95)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      transition: "all 0.3s ease",
+                      cursor: "pointer",
+                      position: "relative",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
                     }}
                   >
                     <img
-                      src={dmcLogo}
+                      src={dmcLogo}  
                       alt="logo icon"
                       style={{
-                        width: "75px",
-                        height: "42px",
-                        borderRadius: "10px",
+                        width: "120px",
+                        height: "auto",
+                        maxHeight: "35px",
+                        borderRadius: "4px",
+                        transition: "all 0.3s ease",
+                        display: "block",
+                      }}
+                      onLoad={(e) => {
+                        e.target.style.opacity = "0";
+                        setTimeout(() => {
+                          e.target.style.transition = "opacity 0.3s ease";
+                          e.target.style.opacity = "1";
+                        }, 100);
                       }}
                     />
                   </div>
@@ -84,7 +109,7 @@ const Header1 = () => {
             <div className="col-auto" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)" }}>
               <div className="d-flex items-center">
                 {/* Logout button positioned to the far right */}
-                {isAuthenticated && (
+                {isAuthenticated && userRole !== "Agent" && (
                   <div className="d-flex items-center mr-15">
                     <Link
                       onClick={handleLogout}

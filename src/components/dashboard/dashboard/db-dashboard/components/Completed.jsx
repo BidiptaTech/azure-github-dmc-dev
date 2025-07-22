@@ -588,6 +588,31 @@ export default function Pending() {
                         color: "#3554D1",
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        <i className="icon-calendar" style={{ fontSize: "14px", color: "#3554D1" }}></i>
+                        Created
+                      </div>
+                    </th>
+                    <th
+                      style={{
+                        backgroundColor: "#f5f7fc",
+                        padding: "14px 20px",
+                        fontWeight: "600",
+                        color: "#3554D1",
+                        cursor: "pointer",
+                        transition: "background-color 0.3s ease",
                       }}
                       onClick={() => handleColumnSort("startDate")}
                       onMouseEnter={(e) => {
@@ -952,6 +977,9 @@ export default function Pending() {
                           >
                             {list.display_id}
                           </span>
+                        </td>
+                        <td style={{ padding: "16px 20px", whiteSpace: "nowrap" }}>
+                          {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
                         </td>
                         <td style={{ padding: "16px 20px" }}>
                           <div
