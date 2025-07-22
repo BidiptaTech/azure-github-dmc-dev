@@ -4,8 +4,8 @@ import { BASE_URL } from '@/services/api';
 import Cookies from 'js-cookie';
 
 // Async thunk for updating profile
-// Expected fields: old_password, new_password, confirm_password, image, phone_no
-// API fields: old_password, new_password, confirm_password, image, phone
+// Expected fields: old_password, new_password, confirm_password, image, phone_no, agent_address
+// API fields: old_password, new_password, confirm_password, image, phone, agent_address
 export const updateProfile = createAsyncThunk(
   'profile/updateProfile',
   async (profileData, { rejectWithValue }) => {
@@ -20,6 +20,7 @@ export const updateProfile = createAsyncThunk(
         formData.append('image', profileData.image);
       }
       if (profileData.phone_no) formData.append('phone', profileData.phone_no);
+      if (profileData.agent_address) formData.append('agent_address', profileData.agent_address);
       
       // Debug: Log what's being sent to the API
       console.log('FormData contents:');
