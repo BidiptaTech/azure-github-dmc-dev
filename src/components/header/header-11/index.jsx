@@ -39,6 +39,8 @@ const Header1 = () => {
     };
   }, []);
 
+
+
   return (
     <>
       <header className={`header bg-dark-3 ${navbar ? "is-sticky" : ""}`} style={{ padding: "5px 0" }}>
@@ -50,17 +52,43 @@ const Header1 = () => {
                   <div
                     style={{
                       display: "inline-block",
-                      borderRadius: "12px",
-                      padding: "4px",
+                      borderRadius: "8px",
+                      padding: "6px 10px",
+                      background: "rgba(255, 255, 255, 0.95)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      transition: "all 0.3s ease",
+                      cursor: "pointer",
+                      position: "relative",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
                     }}
                   >
                     <img
-                      src={dmcLogo}
+                      src={dmcLogo}  
                       alt="logo icon"
                       style={{
-                        width: "75px",
-                        height: "42px",
-                        borderRadius: "10px",
+                        width: "120px",
+                        height: "auto",
+                        maxHeight: "35px",
+                        borderRadius: "4px",
+                        transition: "all 0.3s ease",
+                        display: "block",
+                      }}
+                      onLoad={(e) => {
+                        e.target.style.opacity = "0";
+                        setTimeout(() => {
+                          e.target.style.transition = "opacity 0.3s ease";
+                          e.target.style.opacity = "1";
+                        }, 100);
                       }}
                     />
                   </div>
