@@ -1,6 +1,25 @@
 @extends('layouts.layout')
 @section('title', 'BookingList')
 @extends('layouts.datatablecss')
+
+@php
+    /**
+     * Status System Documentation:
+     * 1 = Complete   - Service/booking is completed successfully
+     * 2 = Pending    - Service/booking is awaiting processing (default)
+     * 3 = Confirm    - Service/booking is confirmed but not yet complete
+     * 4 = Cancelled  - Service/booking has been cancelled
+     */
+    
+    // Status configuration array for consistent status display
+    $statusConfig = [
+        1 => ['label' => 'Complete', 'color' => 'success', 'icon' => 'fas fa-check-circle'],
+        2 => ['label' => 'Pending', 'color' => 'warning', 'icon' => 'fas fa-clock'],
+        3 => ['label' => 'Confirm', 'color' => 'info', 'icon' => 'fas fa-check'],
+        4 => ['label' => 'Cancelled', 'color' => 'danger', 'icon' => 'fas fa-ban']
+    ];
+@endphp
+
 @section('content')
 <style>
     /* Styles for the modal content */
@@ -199,6 +218,35 @@
         transform: none !important;
         box-shadow: none !important;
     }
+    
+    /* Status Badge Styles */
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+    .badge.bg-info {
+        background-color: #17a2b8 !important;
+    }
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    
+    /* Status badge hover effects */
+    .badge:hover {
+        transform: scale(1.05);
+        transition: transform 0.2s ease;
+    }
+    
+    /* Status badge specific styling for better visibility */
+    .service-item .badge {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.025em;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -380,6 +428,28 @@
                                         <span class="badge bg-info">
                                             {{ array_sum(array_map(function($type) { return count($type['services']); }, $tour['types'])) }} Services
                                         </span>
+                                        @php
+                                            // Calculate status summary for this tour
+                                            $statusCounts = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
+                                            foreach($tour['types'] as $typeGroup) {
+                                                foreach($typeGroup['services'] as $service) {
+                                                    $status = $service->status ?? 2;
+                                                    if(isset($statusCounts[$status])) {
+                                                        $statusCounts[$status]++;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Find the most common status for the tour summary
+                                            $dominantStatus = array_search(max($statusCounts), $statusCounts);
+                                            $dominantStatusInfo = $statusConfig[$dominantStatus] ?? $statusConfig[2];
+                                        @endphp
+                                        
+                                        <!-- Status Summary Badge -->
+                                        <span class="badge bg-{{ $dominantStatusInfo['color'] }}" title="Complete: {{ $statusCounts[1] }}, Pending: {{ $statusCounts[2] }}, Confirm: {{ $statusCounts[3] }}, Cancelled: {{ $statusCounts[4] }}">
+                                            <i class="{{ $dominantStatusInfo['icon'] }} me-1"></i>{{ $dominantStatusInfo['label'] }}
+                                        </span>
+                                        
                                         <span class="badge bg-danger">SGD {{ number_format($overall_price, 2) }}</span>
                                         <span class="mt-1">
 
@@ -597,10 +667,19 @@
                                                                         </div>
                                                                         
                                                                         <div class="d-flex flex-wrap gap-2 mt-2">
+                                                                            @php
+                                                                                $currentStatus = $service->status ?? 2; // Default to pending if no status
+                                                                                $statusInfo = $statusConfig[$currentStatus] ?? $statusConfig[2];
+                                                                            @endphp
+                                                                            
+                                                                            <!-- Status Badge -->
+                                                                            <span class="badge bg-{{ $statusInfo['color'] }} me-2">
+                                                                                <i class="{{ $statusInfo['icon'] }} me-1"></i>
+                                                                                {{ $statusInfo['label'] }}
+                                                                            </span>
+                                                                            
                                                                             @if(isset($service->status) && $service->status == 4)
-                                                                                <span class="btn btn-sm btn-outline-secondary disabled">
-                                                                                    <i class="fas fa-ban me-1"></i> Cancelled
-                                                                                </span>
+                                                                                <!-- Cancelled service - show disabled buttons -->
                                                                             @else
                                                                                 <button type="button" class="btn btn-sm btn-outline-primary view-details" 
                                                                                         data-id="{{ $service->id }}"

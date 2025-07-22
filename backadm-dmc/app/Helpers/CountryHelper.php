@@ -40,6 +40,7 @@ class CountryHelper
             ["name" => "Chile", "country_code" => "56", "currency" => "CLP"],
             ["name" => "China", "country_code" => "86", "currency" => "CNY"],
             ["name" => "Colombia", "country_code" => "57", "currency" => "COP"],
+            ["name" => "Cambodia", "country_code" => "855", "currency" => "KHR"],
             ["name" => "Costa Rica", "country_code" => "506", "currency" => "CRC"],
             ["name" => "Croatia", "country_code" => "385", "currency" => "HRK"],
             ["name" => "Cuba", "country_code" => "53", "currency" => "CUP"],
