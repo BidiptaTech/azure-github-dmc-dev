@@ -203,6 +203,7 @@ class AgentController extends Controller
             // 'country' => 'required|string|max:255',
             'user_country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
+            'agent_address' => 'required|string',
             'code' => 'required|string|max:255',    // 👈 change here
             'id_card' => 'required|string|max:255',
             'card_number' => 'required|string|max:255',
@@ -252,6 +253,7 @@ class AgentController extends Controller
                 // 'country' => is_array($request->input('country')) ?? implode(',', $request->input('country')),
                 'user_country' => $request->input('user_country'),
                 'city' => $request->input('city'),
+                'agent_address' => $request->input('agent_address'),
                 'code' => $request->input('code'),  
                 'country' => is_array($request->input('country')) 
                                                 ? implode(',', $request->input('country')) 
@@ -289,6 +291,7 @@ class AgentController extends Controller
         // $agent->country = $request->input('country');
         $agent->user_country = $request->input('user_country');
         $agent->city = $request->input('city');
+        $agent->agent_address = $request->input('agent_address');
         $agent->code = $request->input('code');
         $agent->country = implode(',', $request->input('country', []));
         $agent->id_cards = $request->input('id_card');
@@ -498,6 +501,7 @@ class AgentController extends Controller
                 // NEW FIELDS
                 'user_country' => 'required|string|max:255',
                 'city' => 'required|string|max:255',
+                'agent_address' => 'required|string',
                 'code' => 'required|string|max:255',
                 // EXISTING FIELDS
                 'country' => 'required|array',
@@ -512,7 +516,7 @@ class AgentController extends Controller
             // dd($validated); // Debugging: Show validated data
         
         } catch (\Illuminate\Validation\ValidationException $e) {
-            dd($e->errors()); // Debugging: Show validation errors
+            return redirect()->route('agents.index')->with('error', 'Validation error: ' . $e->getMessage()); // Debugging: Show validation errors
         }
         
 
@@ -534,6 +538,7 @@ class AgentController extends Controller
         // NEW FIELDS
         $agent->user_country = $validated['user_country'];
         $agent->city = $validated['city'];
+        $agent->agent_address = $validated['agent_address'];
         $agent->code = $validated['code'];
         // EXISTING FIELDS
         $agent->country = implode(',', $validated['country']);

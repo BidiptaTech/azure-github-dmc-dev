@@ -128,6 +128,14 @@
                         </div>
                     </div>
 
+                    <div class="col-md-3 mb-3">
+                        <label for="agent_address" class="form-label"><strong>Agent Address</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control @error('agent_address') is-invalid @enderror" name="agent_address" value="{{ old('agent_address') }}" placeholder="Enter Address">
+                        @error('agent_address')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="col-md-3 mb-4">
                         <label for="country" class="form-label"><strong>Service Country</strong><span class="text-danger">*</span></label>
                         <select class="form-control select2" id="country" name="country[]" multiple required>

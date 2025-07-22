@@ -315,6 +315,7 @@ class LoginControllerApi extends Controller
                 'agent_company_name' => $user->company_name,
                 'name' => $user->name,
                 'email' => $user->email,
+                'agent_address' => $user->agent_address,
                 'profile_picture' => $user->agent_image ?? '',
                 'logo' => $master_dmc->logo ?? '', 
                 'dmc_name' => $dmc->company_name ?? '', 
@@ -409,6 +410,10 @@ class LoginControllerApi extends Controller
         // Update phone if provided
         if ($request->has('phone') && !is_null($request->phone)) {
             $user->phone = $request->phone;
+        }
+        
+        if ($request->has('agent_address') && !is_null($request->agent_address)) {
+            $user->agent_address = $request->agent_address;
         }
         
         // Update image if provided
