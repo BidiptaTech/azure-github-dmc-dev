@@ -682,6 +682,10 @@
                                                                                             $firstItem = $serviceData[0];
                                                                                             if (isset($firstItem['bookingDate'])) {
                                                                                                 $bookingDate = $firstItem['bookingDate'];
+                                                                                                // Handle array of dates (take the last/end date)
+                                                                                                if (is_array($bookingDate)) {
+                                                                                                    $bookingDate = end($bookingDate);
+                                                                                                }
                                                                                                 if (\Carbon\Carbon::parse($bookingDate)->lt(\Carbon\Carbon::now())) {
                                                                                                     $isExpired = true;
                                                                                                 }
@@ -690,6 +694,10 @@
                                                                                         // If it's a single booking item
                                                                                         elseif (isset($serviceData['bookingDate'])) {
                                                                                             $bookingDate = $serviceData['bookingDate'];
+                                                                                            // Handle array of dates (take the last/end date)
+                                                                                            if (is_array($bookingDate)) {
+                                                                                                $bookingDate = end($bookingDate);
+                                                                                            }
                                                                                             if (\Carbon\Carbon::parse($bookingDate)->lt(\Carbon\Carbon::now())) {
                                                                                                 $isExpired = true;
                                                                                             }
