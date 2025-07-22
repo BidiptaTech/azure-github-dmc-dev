@@ -46,10 +46,6 @@
               <th>User Details</th>
               <th>Contact Information</th>
               <th>Country & City</th>
-              
-              @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <th>Travclicks On</th>
-              @endif
 
               @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <th>Zone On</th>
@@ -81,15 +77,19 @@
                 <td>
                   <div class="d-flex flex-column">
                     <span class="fw-medium">{{ $user->name }}</span>
-                    <small class="text-muted">{{ $user->role->name ?? 'No Role' }}</small>
+                    <span class="badge bg-secondary mt-1">{{ $user->role->name ?? 'No Role' }}</span>
                   </div>
                 </td>
+                
                 <td>
-                  <div class="d-flex flex-column">
+                  <div class="d-flex flex-column user-contact">
                     <span class="fw-medium">{{ $user->email }}</span>
-                    <small class="text-muted">{{ $user->phone }}</small>
+                    @if($user->phone)
+                      <span class="text-muted fw-medium mt-1 text-decoration-underline text-primary">📞 {{ $user->phone }}</span>
+                    @endif
                   </div>
                 </td>
+
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="fas fa-map-marker-alt text-primary me-2"></i>
@@ -100,34 +100,6 @@
                         </div>
                     </div>
                 </td>
-                
-                @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <td>
-                  @if($user->role_id == 11)
-                    @if(auth::user()->role_id == 10)
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="travclicks_on" value="0">
-                        <input {{$user->travclicks_on == 1 ? 'checked' : ''}} 
-                            class="form-check-input travclicks-toggle" 
-                            data-user-id="{{ $user->userId }}"
-                            type="checkbox" 
-                            id="travclicks_on_{{ $user->userId }}"
-                            value="1" 
-                            style="width: 35px; height: 20px;">
-                    </div>
-                    @else
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="travclicks_on" value="0">
-                        <input {{$user->travclicks_on == 1 ? 'checked' : ''}} class="form-check-input" name="travclicks_on" type="checkbox" id="travclicks_on"
-                            value="1" style="width: 35px; height: 20px;" disabled>
-                    </div>
-                    @endif
-                  
-                  @else
-                  --
-                  @endif
-                </td>
-                @endif
 
                 @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <td>
