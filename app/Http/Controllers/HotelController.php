@@ -1712,45 +1712,62 @@ class HotelController extends Controller
     */
     public function updateroom(Request $request)
     {
-        $request->validate([
-            'no_of_room' => 'nullable|integer',
-            'single_weekday_price' => 'nullable|numeric',
-            'single_weekend_price' => 'nullable|numeric',
-            'double_weekday_price' => 'nullable|numeric',
-            'double_weekend_price' => 'nullable|numeric',
-            'children_price' => 'nullable|numeric|min:0',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
-        ]);
+        try {
+            $request->validate([
+                'no_of_room' => 'nullable|integer',
+                'total_no_of_room' => 'nullable|integer',
+                'single_weekday_price' => 'nullable|numeric',
+                'single_weekend_price' => 'nullable|numeric',
+                'double_weekday_price' => 'nullable|numeric',
+                'double_weekend_price' => 'nullable|numeric',
+                'children_price' => 'nullable|numeric|min:0',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
 
-        $auth_user = Auth::user();
-        $originalRoom = Room::where('room_id', $request->room_id)->first();
+            $auth_user = Auth::user();
+            $originalRoom = Room::where('room_id', $request->room_id)->first();
 
-        if (!$originalRoom) {
-            return redirect()->back()->withErrors('Room not found or invalid room ID.');
-        }
-
-        // Check if user is admin (role_id 1 or 20)
-        if (in_array($auth_user->role_id, [1, 20])) {
-            // Admin: Update the original room
-            $this->updateExistingRoom($request, $originalRoom);
-        } else {
-            // DMC/Other users: Check if they already have a room for this hotel and room type
-            $dmcRoom = Room::where('hotel_id', $request->hotel_id)
-                          ->where('room_type', $originalRoom->room_type)
-                          ->where('created_by', $auth_user->userId)
-                          ->where('dmc_base_room', 0) // DMC specific room, not admin base room
-                          ->first();
-
-            if ($dmcRoom) {
-                // Update their existing DMC room
-                $this->updateExistingRoom($request, $dmcRoom);
-            } else {
-                // Create new DMC room based on the original room
-                $this->createDmcRoom($request, $originalRoom, $auth_user);
+            if (!$originalRoom) {
+                return redirect()->back()->withErrors('Room not found or invalid room ID.');
             }
-        }
 
-        return redirect()->route('hotels.createroom', ['id' => $request->hotel_id])->with('success', 'Room updated successfully.');
+            \Log::info("Room update started", [
+                'room_id' => $request->room_id,
+                'user_role' => $auth_user->role_id,
+                'hotel_id' => $request->hotel_id
+            ]);
+
+            // Check if user is admin (role_id 1 or 20)
+            if (in_array($auth_user->role_id, [1, 20])) {
+                // Admin: Update the original room
+                \Log::info("Admin updating original room");
+                $this->updateExistingRoom($request, $originalRoom);
+            } else {
+                // DMC/Other users: Check if they already have a room for this hotel and room type
+                $dmcRoom = Room::where('hotel_id', $request->hotel_id)
+                              ->where('room_type', $originalRoom->room_type)
+                              ->where('created_by', $auth_user->userId)
+                              ->where('dmc_base_room', 0) // DMC specific room, not admin base room
+                              ->first();
+
+                if ($dmcRoom) {
+                    // Update their existing DMC room
+                    \Log::info("DMC updating existing room", ['dmc_room_id' => $dmcRoom->room_id]);
+                    $this->updateExistingRoom($request, $dmcRoom);
+                } else {
+                    // Create new DMC room based on the original room
+                    \Log::info("DMC creating new room");
+                    $this->createDmcRoom($request, $originalRoom, $auth_user);
+                }
+            }
+
+            \Log::info("Room update completed successfully");
+            return redirect()->route('hotels.createroom', ['id' => $request->hotel_id])->with('success', 'Room updated successfully.');
+            
+        } catch (\Exception $e) {
+            \Log::error("Room update failed", ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Failed to update room: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -1848,8 +1865,21 @@ class HotelController extends Controller
             }
         }
 
+        // Debug the data being updated
+        \Log::info("Updating room data", [
+            'room_id' => $room->room_id,
+            'no_of_room' => $request->total_no_of_room,
+            'weekday_price' => $finalWeekdayPrice,
+            'weekend_price' => $finalWeekendPrice,
+            'double_weekday_price' => $finalDoubleWeekdayPrice,
+            'double_weekend_price' => $finalDoubleWeekendPrice,
+            'children_price' => $request->children_price,
+            'dimension' => $request->dimension,
+        ]);
+
         // Update room data
-        $room->update([
+        $updateResult = $room->update([
+            'room_type' => $request->room_type,
             'no_of_room' => $request->total_no_of_room,
             'weekday_price' => $finalWeekdayPrice,
             'weekend_price' => $finalWeekendPrice,
@@ -1870,6 +1900,8 @@ class HotelController extends Controller
             'master_image' => $master_image,
             'images' => json_encode($img_path)
         ]);
+        
+        \Log::info("Room update result", ['success' => $updateResult]);
     }
 
     /**
@@ -2030,26 +2062,26 @@ class HotelController extends Controller
         $auth_user = Auth::user();
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
         $rooms = Room::where('hotel_id', $id)
-             ->get();
+        ->get();
         
         // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::where('role_id', 11)
-                           ->where('user_type', 2)
-                           ->select('userId', 'name', 'company_name')
-                           ->orderBy('company_name', 'asc')
-                           ->get();
+            ->where('user_type', 2)
+            ->select('userId', 'name', 'company_name')
+            ->orderBy('company_name', 'asc')
+            ->get();
         }
         
         // Fetch beds data based on user role
         if ($auth_user->role_id == 1) {
             // Admin: Show all beds for this hotel
             $bedsData = Bed::with(['room', 'user'])
-                          ->whereHas('room', function ($query) use ($id) {
-                              $query->where('hotel_id', $id);
-                          })
-                          ->get();
+            ->whereHas('room', function ($query) use ($id) {
+                $query->where('hotel_id', $id);
+            })
+            ->get();
             
             // Add DMC information to each bed
             $bedsData = $bedsData->map(function ($bed) {
@@ -2253,7 +2285,6 @@ class HotelController extends Controller
             $bedmaster_det = BedMaster::where('bedId',$request->input('bed_type'))->first();
            $nameOfBedType =  $bedmaster_det->name;
         }
-
         // $nameOfBedType = 'Unknown';
 
         // if($request->input('bed_type')){

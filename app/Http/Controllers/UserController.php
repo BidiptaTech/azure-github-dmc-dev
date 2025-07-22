@@ -1936,13 +1936,50 @@ class UserController extends Controller
     */
     public function update(Request $request, $id)
     {
-        $this->validate($request, [
+        // Get current user role for conditional validation
+        $currentUser = User::where('userId', $id)->first();
+        $userRole = $currentUser->role_id;
+        
+        // Base validation rules
+        $validationRules = [
             'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
             'yourname' => 'required|max:255',
-            'phone' => 'required|max:15|unique:users,phone,' . $id . ',userId', 
-            'email' => 'required|email|unique:users,email,' . $id . ',userId',
+            'phone' => 'required', 
+            'email' => 'required|email', // Remove unique validation since email is read-only
             'password' => 'nullable|min:8',
-        ]);
+            'user_country' => 'required',
+            'city' => 'required',
+            'address' => 'required',
+            'code' => 'required', // country_code
+        ];
+        
+        // Add conditional validation rules based on role
+        if ($userRole == 10 || $userRole == 19) {
+            // Master DMC - require country_names array and company_name
+            $validationRules['country_names'] = 'required|array|min:1';
+            $validationRules['company_name'] = 'required|string|max:255';
+            // Optional logo validation
+            if ($request->hasFile('master_logo')) {
+                $validationRules['master_logo'] = 'image|mimes:jpeg,png,jpg,gif|max:2048';
+            }
+        } elseif ($userRole == 11 || $userRole == 20) {
+            // DMC - require master_dmc and company_name
+            // Only require master_dmc if user doesn't already have one (for new DMC users)
+            if (!$currentUser->master_dmc_id) {
+                $validationRules['master_dmc'] = 'required|exists:users,userId';
+            }
+            $validationRules['company_name'] = 'required|string|max:255';
+            // Only require country_name if it's being sent (created by Master DMC)
+            if ($request->has('country_name')) {
+                $validationRules['country_name'] = 'required|string';
+            }
+            // Optional logo validation
+            if ($request->hasFile('master_logo')) {
+                $validationRules['master_logo'] = 'image|mimes:jpeg,png,jpg,gif|max:2048';
+            }
+        }
+        
+        $this->validate($request, $validationRules);
 
         $user = User::where('userId', $id)->first();
         $authUserType = $this->auth_user->user_type;
@@ -2019,9 +2056,11 @@ class UserController extends Controller
             'country_code' => (string) $request->code,
             'phone' => (string) $request->phone,
             'city' => $request->city,
+            'user_country' => $request->user_country,
             'address' => $request->address,
             'email' => $request->email,
             'logo' => $masterImage,
+            'company_name' => $request->company_name ?? $user->company_name,
             'dmc_sales_manager' => (int) $dmc_sales_manager,
             'assistant_manager_id' => (int) ($request->assistant_manager ?? $user->assistant_manager_id),
             'sales_manager_admin' => (int) $salemg_admin,
@@ -2034,6 +2073,13 @@ class UserController extends Controller
             $user->syncRoles([$role->name]);
         }
 
+        // Add debug information to session for testing
+        session()->flash('debug', [
+            'user_id' => $user->userId,
+            'role_id' => $user->role_id,
+            'updated_fields' => array_keys($user->getDirty())
+        ]);
+        
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully');
     }
@@ -2275,6 +2321,38 @@ class UserController extends Controller
                                 ->where('role_id', 4) // Adjust this based on your role system
                                 ->get(['id', 'name']);
         return response()->json(['assistant_managers' => $assistantManagers]);
+    }
+
+    /*
+    * Get countries by master DMC.
+    * Date 2024
+    */
+    public function getCountriesByMasterDmc(Request $request)
+    {
+        $masterDmcId = $request->master_dmc_id;
+        $masterDmc = User::where('userId', $masterDmcId)->first();
+        
+        if ($masterDmc && $masterDmc->country) {
+            $countries = explode(',', $masterDmc->country);
+            $countryObjects = Country::whereIn('name', $countries)->get(['name']);
+            return response()->json(['countries' => $countryObjects]);
+        }
+        
+        return response()->json(['countries' => []]);
+    }
+
+    /*
+    * Get sales managers by master DMC.
+    * Date 2024
+    */
+    public function getSalesManagersByMasterDmc(Request $request)
+    {
+        $masterDmcId = $request->master_dmc_id;
+        $salesManagers = User::where('role_id', 3)
+                            ->where('master_dmc_id', $masterDmcId)
+                            ->get(['userId', 'name']);
+        
+        return response()->json(['sales_managers' => $salesManagers]);
     }
 
     public function updateTravclicks(Request $request)

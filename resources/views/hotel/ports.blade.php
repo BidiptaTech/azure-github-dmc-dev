@@ -681,9 +681,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add km fields next to the existing miles fields
     function addKmFieldsToExistingRows() {
-        // Constants for conversion
-        const MILES_TO_KM = 1.60934;
-        const KM_TO_MILES = 0.621371;
+        // Constants for conversion - make them global
+        window.MILES_TO_KM = 1.60934;
+        window.KM_TO_MILES = 0.621371;
         
         // Process entry section
         document.querySelectorAll('input[name="distanceentry[]"]').forEach((milesInput, index) => {
@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
             kmContainer.innerHTML = `
                 <label for="distance_km_${index}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
                 <input type="text" id="distance_km_${index}" name="distanceentry_km[]" class="form-control" 
-                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * MILES_TO_KM).toFixed(2) : ''}" 
+                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * window.MILES_TO_KM).toFixed(2) : ''}" 
                     oninput="validateDistance(this)" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                 <small class="validation-message" id="distance_km_${index}-validation-message"></small>
             `;
@@ -713,7 +713,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add conversion event listeners
             milesInput.addEventListener('input', function() {
                 if (this.value && !isNaN(parseFloat(this.value))) {
-                    kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                    // Trigger validation on km field
+                    if (typeof validateDistance === 'function') {
+                        validateDistance(kmInput);
+                    }
                 } else {
                     kmInput.value = '';
                 }
@@ -721,10 +725,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             kmInput.addEventListener('input', function() {
                 if (this.value && !isNaN(parseFloat(this.value))) {
-                    milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
-                    // Trigger validation
-                    const event = new Event('input');
-                    milesInput.dispatchEvent(event);
+                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
+                    // Trigger validation on miles field
+                    if (typeof validateDistance === 'function') {
+                        validateDistance(milesInput);
+                    }
                 } else {
                     milesInput.value = '';
                 }
@@ -745,7 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
             kmContainer.innerHTML = `
                 <label for="exit_distance_km_${index}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
                 <input type="text" id="exit_distance_km_${index}" name="exit_distance_km[]" class="form-control" 
-                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * MILES_TO_KM).toFixed(2) : ''}" 
+                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * window.MILES_TO_KM).toFixed(2) : ''}" 
                     oninput="validateDistance(this)" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                 <small class="validation-message" id="exit_distance_km_${index}-validation-message"></small>
             `;
@@ -759,7 +764,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add conversion event listeners
             milesInput.addEventListener('input', function() {
                 if (this.value && !isNaN(parseFloat(this.value))) {
-                    kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                    // Trigger validation on km field
+                    if (typeof validateDistance === 'function') {
+                        validateDistance(kmInput);
+                    }
                 } else {
                     kmInput.value = '';
                 }
@@ -767,10 +776,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             kmInput.addEventListener('input', function() {
                 if (this.value && !isNaN(parseFloat(this.value))) {
-                    milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
-                    // Trigger validation
-                    const event = new Event('input');
-                    milesInput.dispatchEvent(event);
+                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
+                    // Trigger validation on miles field
+                    if (typeof validateDistance === 'function') {
+                        validateDistance(milesInput);
+                    }
                 } else {
                     milesInput.value = '';
                 }
@@ -791,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
             kmContainer.innerHTML = `
                 <label for="others_distance_km_${index}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
                 <input type="text" id="others_distance_km_${index}" name="others_distance_km[]" class="form-control" 
-                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * MILES_TO_KM).toFixed(2) : ''}" 
+                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * window.MILES_TO_KM).toFixed(2) : ''}" 
                     oninput="validateDistance(this)" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                 <small class="validation-message" id="others_distance_km_${index}-validation-message"></small>
             `;
@@ -805,7 +815,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add conversion event listeners
             milesInput.addEventListener('input', function() {
                 if (this.value && !isNaN(parseFloat(this.value))) {
-                    kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                    // Trigger validation on km field
+                    if (typeof validateDistance === 'function') {
+                        validateDistance(kmInput);
+                    }
                 } else {
                     kmInput.value = '';
                 }
@@ -813,10 +827,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             kmInput.addEventListener('input', function() {
                 if (this.value && !isNaN(parseFloat(this.value))) {
-                    milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
-                    // Trigger validation
-                    const event = new Event('input');
-                    milesInput.dispatchEvent(event);
+                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
+                    // Trigger validation on miles field
+                    if (typeof validateDistance === 'function') {
+                        validateDistance(milesInput);
+                    }
                 } else {
                     milesInput.value = '';
                 }
@@ -826,9 +841,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update "Add More" buttons to include km fields in new rows
     function updateAddMoreButtons() {
-        // Constants for conversion
-        const MILES_TO_KM = 1.60934;
-        const KM_TO_MILES = 0.621371;
+        // Constants for conversion - make them global
+        window.MILES_TO_KM = 1.60934;
+        window.KM_TO_MILES = 0.621371;
         
         // Update entry add more button
         const entryAddMoreBtn = document.getElementById('entry-locations-add-more');
@@ -890,7 +905,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Add conversion event listeners
                         milesInput.addEventListener('input', function() {
                             if (this.value && !isNaN(parseFloat(this.value))) {
-                                kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                                kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                                // Trigger validation on km field
+                                if (typeof validateDistance === 'function') {
+                                    validateDistance(kmInput);
+                                }
                             } else {
                                 kmInput.value = '';
                             }
@@ -898,9 +917,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         kmInput.addEventListener('input', function() {
                             if (this.value && !isNaN(parseFloat(this.value))) {
-                                milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
-                                // Trigger validation
-                                validateDistance(milesInput);
+                                milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
+                                // Trigger validation on miles field
+                                if (typeof validateDistance === 'function') {
+                                    validateDistance(milesInput);
+                                }
                             } else {
                                 milesInput.value = '';
                             }
@@ -970,7 +991,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Add conversion event listeners
                         milesInput.addEventListener('input', function() {
                             if (this.value && !isNaN(parseFloat(this.value))) {
-                                kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                                kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                                // Trigger validation on km field
+                                if (typeof validateDistance === 'function') {
+                                    validateDistance(kmInput);
+                                }
                             } else {
                                 kmInput.value = '';
                             }
@@ -978,9 +1003,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         kmInput.addEventListener('input', function() {
                             if (this.value && !isNaN(parseFloat(this.value))) {
-                                milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
-                                // Trigger validation
-                                validateDistance(milesInput);
+                                milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
+                                // Trigger validation on miles field
+                                if (typeof validateDistance === 'function') {
+                                    validateDistance(milesInput);
+                                }
                             } else {
                                 milesInput.value = '';
                             }
@@ -1050,7 +1077,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Add conversion event listeners
                         milesInput.addEventListener('input', function() {
                             if (this.value && !isNaN(parseFloat(this.value))) {
-                                kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                                kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                                // Trigger validation on km field
+                                if (typeof validateDistance === 'function') {
+                                    validateDistance(kmInput);
+                                }
                             } else {
                                 kmInput.value = '';
                             }
@@ -1058,9 +1089,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         kmInput.addEventListener('input', function() {
                             if (this.value && !isNaN(parseFloat(this.value))) {
-                                milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
+                                milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
                                 // Trigger validation on miles field
-                                validateDistance(milesInput);
+                                if (typeof validateDistance === 'function') {
+                                    validateDistance(milesInput);
+                                }
                             } else {
                                 milesInput.value = '';
                             }
@@ -1531,7 +1564,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Add conversion event listeners
                             milesInput.addEventListener('input', function() {
                                 if (this.value && !isNaN(parseFloat(this.value))) {
-                                    kmInput.value = (parseFloat(this.value) * MILES_TO_KM).toFixed(2);
+                                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
+                                    // Trigger validation on km field
+                                    if (typeof validateDistance === 'function') {
+                                        validateDistance(kmInput);
+                                    }
                                 } else {
                                     kmInput.value = '';
                                 }
@@ -1539,9 +1576,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             kmInput.addEventListener('input', function() {
                                 if (this.value && !isNaN(parseFloat(this.value))) {
-                                    milesInput.value = (parseFloat(this.value) * KM_TO_MILES).toFixed(2);
+                                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
                                     // Trigger validation on miles field
-                                    validateDistance(milesInput);
+                                    if (typeof validateDistance === 'function') {
+                                        validateDistance(milesInput);
+                                    }
                                 } else {
                                     milesInput.value = '';
                                 }
