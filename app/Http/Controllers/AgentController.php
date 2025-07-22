@@ -117,7 +117,7 @@ class AgentController extends Controller
         // Traverse up the hierarchy to find master DMC based on user role
         if ($user->role_id == 11) { // DMC
             // Direct access to master_dmc_id
-            $masterDmc = User::find($user->master_dmc_id);
+            $masterDmc = User::where('userId', $user->master_dmc_id)->first();
         } 
         else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
             // Find parent DMC
@@ -126,7 +126,7 @@ class AgentController extends Controller
                             ->first();
             
             if ($parentDmc) {
-                $masterDmc = User::find($parentDmc->master_dmc_id);
+                $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
             }
         }
         else if ($user->role_id == 12 || $user->role_id == 37) { // Sales Manager
@@ -142,7 +142,7 @@ class AgentController extends Controller
                                 ->first();
                 
                 if ($parentDmc) {
-                    $masterDmc = User::find($parentDmc->master_dmc_id);
+                    $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                 }
             }
         }
@@ -165,7 +165,7 @@ class AgentController extends Controller
                                     ->first();
                     
                     if ($parentDmc) {
-                        $masterDmc = User::find($parentDmc->master_dmc_id);
+                        $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                     }
                 }
             }
@@ -175,7 +175,6 @@ class AgentController extends Controller
         if ($masterDmc) {
             $authUserCountries = explode(',', $masterDmc->country);
         }
-        //dd($authUserCountries);
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $sales_mg = User::where('role_id', 38)->get();
@@ -299,6 +298,47 @@ class AgentController extends Controller
         $agent->password = bcrypt($request->input('password'));
     
         if ($agent->save()) {
+            // Send email to the agent
+            try {
+                $dmc_id = CommonHelper::getDmcId(auth()->user());
+                $dmc_user = User::where('userId', $dmc_id)->first();
+
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->input('password'),
+                    'dmc_logo' => $dmc_user->logo ?? 'NA',
+                    'dmc_company' => $dmc_user->company_name ?? config('app.name'),
+                    'dmc_email' => $dmc_user->email ?? 'NA',
+                    'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'mail_settings' => (object)[
+                        'support_email' => $dmc_user->email ?? 'NA',
+                        'support_phone' => $dmc_user->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                $result = \App\Helpers\CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_creation', 
+                    'Your Agent Account Has Been Created', 
+                    'Welcome to our platform! Your agent account has been created successfully.', 
+                    $emailData
+                );
+                
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
+            
             return redirect()->route('agents.index')->with('success', 'Agent details added successfully!');
         } else {
             return redirect()->route('agents.index')->with('error', 'Failed to add agent details.');
@@ -321,7 +361,7 @@ class AgentController extends Controller
         // Traverse up the hierarchy to find master DMC based on user role
         if ($user->role_id == 11) { // DMC
             // Direct access to master_dmc_id
-            $masterDmc = User::find($user->master_dmc_id);
+            $masterDmc = User::where('userId', $user->master_dmc_id)->first();
         } 
         else if ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
             // Find parent DMC
@@ -330,7 +370,7 @@ class AgentController extends Controller
                             ->first();
             
             if ($parentDmc) {
-                $masterDmc = User::find($parentDmc->master_dmc_id);
+                $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first(); 
             }
         }
         else if ($user->role_id == 12 || $user->role_id == 37) { // Sales Manager
@@ -346,7 +386,7 @@ class AgentController extends Controller
                                 ->first();
                 
                 if ($parentDmc) {
-                    $masterDmc = User::find($parentDmc->master_dmc_id);
+                    $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                 }
             }
         }
@@ -369,7 +409,7 @@ class AgentController extends Controller
                                     ->first();
                     
                     if ($parentDmc) {
-                        $masterDmc = User::find($parentDmc->master_dmc_id);
+                        $masterDmc = User::where('userId', $parentDmc->master_dmc_id)->first();
                     }
                 }
             }
@@ -505,6 +545,45 @@ class AgentController extends Controller
         }
 
         if ($agent->save()) {
+            try {
+                $dmc_id = CommonHelper::getDmcId(auth()->user());
+                $dmc_user = User::where('userId', $dmc_id)->first();
+
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->input('password'),
+                    'dmc_logo' => $dmc_user->logo ?? 'NA',
+                    'dmc_company' => $dmc_user->company_name ?? config('app.name'),
+                    'dmc_email' => $dmc_user->email ?? 'NA',
+                    'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'mail_settings' => (object)[
+                        'support_email' => $dmc_user->email ?? 'NA',
+                        'support_phone' => $dmc_user->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                $result = \App\Helpers\CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_update', 
+                    'Your Agent Account Has Been Updated', 
+                    'Your agent account has been updated successfully!', 
+                    $emailData
+                );
+                
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
             return redirect()->route('agents.index')->with('success', 'Agent details updated successfully!');
         } else {
             return redirect()->route('agents.index')->with('error', 'Failed to update agent details.');

@@ -577,9 +577,24 @@ class GuideController extends Controller
 
     public function fetchCitiesCountries(Request $request)
     {
-        $dmcId = $request->dmc_id;
-        $dmc = User::where('userId', $dmcId)->first();
-        $country = $dmc->country;
+        $country = null;
+        
+        // Check if country is passed directly
+        if ($request->has('country') && !empty($request->country)) {
+            $country = $request->country;
+        }
+        // Otherwise, get country from DMC ID (existing functionality)
+        elseif ($request->has('dmc_id') && !empty($request->dmc_id)) {
+            $dmcId = $request->dmc_id;
+            $dmc = User::where('userId', $dmcId)->first();
+            if ($dmc) {
+                $country = $dmc->country;
+            }
+        }
+        
+        if (!$country) {
+            return response()->json(['error' => 'Country not found'], 400);
+        }
 
         $cities = City::where('country', $country)->get();
         return response()->json(['cities' => $cities, 'country' => $country]);
