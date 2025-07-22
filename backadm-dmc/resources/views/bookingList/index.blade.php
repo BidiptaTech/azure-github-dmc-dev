@@ -669,14 +669,66 @@
                                                                         <div class="d-flex flex-wrap gap-2 mt-2">
                                                                             @php
                                                                                 $currentStatus = $service->status ?? 2; // Default to pending if no status
-                                                                                $statusInfo = $statusConfig[$currentStatus] ?? $statusConfig[2];
+                                                                                $isExpired = false;
+                                                                                
+                                                                                // Check if booking is expired
+                                                                                if (!in_array($service->status ?? 2, [1, 4])) {
+                                                                                    $serviceData = $service->data_decoded ?? [];
+                                                                                    
+                                                                                    // Check if serviceData is an array of items or single item
+                                                                                    if (is_array($serviceData)) {
+                                                                                        // If it's an array of booking items, check the first one
+                                                                                        if (isset($serviceData[0]) && is_array($serviceData[0])) {
+                                                                                            $firstItem = $serviceData[0];
+                                                                                            if (isset($firstItem['bookingDate'])) {
+                                                                                                $bookingDate = $firstItem['bookingDate'];
+                                                                                                if (\Carbon\Carbon::parse($bookingDate)->lt(\Carbon\Carbon::now())) {
+                                                                                                    $isExpired = true;
+                                                                                                }
+                                                                                            }
+                                                                                        } 
+                                                                                        // If it's a single booking item
+                                                                                        elseif (isset($serviceData['bookingDate'])) {
+                                                                                            $bookingDate = $serviceData['bookingDate'];
+                                                                                            if (\Carbon\Carbon::parse($bookingDate)->lt(\Carbon\Carbon::now())) {
+                                                                                                $isExpired = true;
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                                
+                                                                                // Set status info based on expiration
+                                                                                if ($isExpired) {
+                                                                                    $statusInfo = ['label' => 'Expired', 'color' => 'danger', 'icon' => 'fas fa-calendar-times'];
+                                                                                } else {
+                                                                                    $statusInfo = $statusConfig[$currentStatus] ?? $statusConfig[2];
+                                                                                }
                                                                             @endphp
                                                                             
-                                                                            <!-- Status Badge -->
+                                                                            <!-- Status Badge (shows Expired if date passed, otherwise normal status) -->
                                                                             <span class="badge bg-{{ $statusInfo['color'] }} me-2">
                                                                                 <i class="{{ $statusInfo['icon'] }} me-1"></i>
                                                                                 {{ $statusInfo['label'] }}
                                                                             </span>
+                                                                            
+                                                                            @php
+                                                                                // Debug: Show booking date for testing
+                                                                                $debugBookingDate = '';
+                                                                                $serviceData = $service->data_decoded ?? [];
+                                                                                if (is_array($serviceData)) {
+                                                                                    if (isset($serviceData[0]) && is_array($serviceData[0]) && isset($serviceData[0]['bookingDate'])) {
+                                                                                        $debugBookingDate = $serviceData[0]['bookingDate'];
+                                                                                    } elseif (isset($serviceData['bookingDate'])) {
+                                                                                        $debugBookingDate = $serviceData['bookingDate'];
+                                                                                    }
+                                                                                }
+                                                                            @endphp
+                                                                            
+                                                                            @if($debugBookingDate)
+                                                                            <span class="badge bg-info me-2" style="font-size: 0.7rem;">
+                                                                                📅 {{ $debugBookingDate }}
+                                                                            </span>
+                                                                            @endif
                                                                             
                                                                             @if(isset($service->status) && $service->status == 4)
                                                                                 <!-- Cancelled service - show disabled buttons -->
