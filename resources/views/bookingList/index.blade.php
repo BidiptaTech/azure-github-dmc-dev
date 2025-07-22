@@ -729,6 +729,11 @@
                                                                                     } elseif (isset($serviceData['bookingDate'])) {
                                                                                         $debugBookingDate = $serviceData['bookingDate'];
                                                                                     }
+                                                                                    
+                                                                                    // Handle array dates for display
+                                                                                    if (is_array($debugBookingDate)) {
+                                                                                        $debugBookingDate = implode(' to ', $debugBookingDate);
+                                                                                    }
                                                                                 }
                                                                             @endphp
                                                                             
