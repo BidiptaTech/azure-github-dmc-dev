@@ -113,7 +113,8 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>Email Address</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="email" name="email" value="{{ $agent->email }}" required oninput="validateEmail(this)">
+                        <input type="text" class="form-control" id="email" name="email" value="{{ $agent->email }}" required oninput="validateEmail(this)" readonly>
+                        <small class="text-muted">This field is read-only and cannot be edited</small>
                         <small class="validation-message text-danger" id="email-validation-message"></small>
                     </div>
                     
@@ -165,6 +166,14 @@
                         </div>
                     </div>
 
+                    <div class="col-md-3 mb-3">
+                        <label for="agent_address" class="form-label"><strong>Agent Address</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control @error('agent_address') is-invalid @enderror" name="agent_address" value="{{ $agent->agent_address }}" placeholder="Enter Address">
+                        @error('agent_address')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="col-md-2 mb-3">
                         <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
                                 style="color: red; font-weight: bold;">*</span></label>
@@ -205,14 +214,22 @@
                     
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>Service Country</strong><span class="text-danger">*</span></label>
-                        <select class="form-control select2" id="country" name="country[]" multiple="multiple" required>
-                            @foreach($authUserCountries as $countryName)
-                                <option value="{{ trim($countryName) }}" 
-                                    {{ in_array(trim($countryName), $agentCountries) ? 'selected' : '' }}>
-                                    {{ $countryName }}
-                                </option>
+                        @if(auth()->user()->role_id == 1)
+                            <input type="text" class="form-control" value="{{ $agent->country }}" readonly>
+                            <small class="text-muted">This field can only be edited by the agent's DMC hierarchy</small>
+                            @foreach($agentCountries as $countryName)
+                                <input type="hidden" name="country[]" value="{{ trim($countryName) }}">
                             @endforeach
-                        </select>
+                        @else
+                            <select class="form-control select2" id="country" name="country[]" multiple="multiple" required>
+                                @foreach($authUserCountries as $countryName)
+                                    <option value="{{ trim($countryName) }}" 
+                                        {{ in_array(trim($countryName), $agentCountries) ? 'selected' : '' }}>
+                                        {{ $countryName }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @endif
                         @error('country')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -220,12 +237,18 @@
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>
-                        <select class="form-control select2" id="id_card" name="id_card">
-                            <option value="">Select ID Card Type...</option>
-                            @foreach($card as $cardType)
-                                <option value="{{ $cardType->card_type }}" {{ $agent->id_cards == $cardType->card_type ? 'selected' : '' }}>{{ $cardType->card_type }}</option>
-                            @endforeach
-                        </select>
+                        @if(auth()->user()->role_id == 1)
+                            <input type="text" class="form-control" value="{{ $agent->id_cards }}" readonly>
+                            <small class="text-muted">This field can only be edited by the agent's DMC hierarchy</small>
+                            <input type="hidden" name="id_card" value="{{ $agent->id_cards }}">
+                        @else
+                            <select class="form-control select2" id="id_card" name="id_card">
+                                <option value="">Select ID Card Type...</option>
+                                @foreach($card as $cardType)
+                                    <option value="{{ $cardType->card_type }}" {{ $agent->id_cards == $cardType->card_type ? 'selected' : '' }}>{{ $cardType->card_type }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                         @error('id_card')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
