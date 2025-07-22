@@ -44,6 +44,7 @@ import {
   Phone,
   Badge as BadgeIcon,
   Check,
+  LocationOn,
   ZoomIn,
   ZoomOut,
   RotateLeft,
@@ -124,6 +125,8 @@ const DashboardLayout = () => {
   const [passwordChangeMode, setPasswordChangeMode] = useState(false);
   const [phoneEditMode, setPhoneEditMode] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [addressEditMode, setAddressEditMode] = useState(false);
+  const [addressInput, setAddressInput] = useState('');
   const [selectedProfileImage, setSelectedProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [showImageAdjustment, setShowImageAdjustment] = useState(false);
@@ -156,6 +159,7 @@ const DashboardLayout = () => {
   const handleViewProfile = () => {
     setProfileModalOpen(true);
     setPhoneNumber(phoneNo || ''); // Initialize with existing phone number or empty
+    setAddressInput(agent_address || ''); // Initialize with existing address or empty
     handleProfileClose();
   };
   
@@ -164,6 +168,8 @@ const DashboardLayout = () => {
     setPasswordChangeMode(false);
     setPhoneEditMode(false);
     setPhoneNumber('');
+    setAddressEditMode(false);
+    setAddressInput('');
     setSelectedProfileImage(null);
     setPreviewImage(null);
     setShowImageAdjustment(false);
@@ -223,6 +229,19 @@ const DashboardLayout = () => {
     }));
     
     setPhoneEditMode(false);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!addressInput.trim()) {
+      alert('Please enter a valid address!');
+      return;
+    }
+
+    await dispatch(updateProfile({
+      agent_address: addressInput
+    }));
+    
+    setAddressEditMode(false);
   };
   
   const handleCameraIconClick = () => {
@@ -380,7 +399,7 @@ const DashboardLayout = () => {
   };
   
   // Get user data from Redux state
-  const { userRole, Username, Email, profilePicture, phoneNo, agentId } = useSelector((state) => state.auth);
+  const { userRole, Username, Email, profilePicture, phoneNo, agentId, agent_address } = useSelector((state) => state.auth);
   const { loading: profileLoading, success: profileSuccess, error: profileError, data: profileData } = useSelector((state) => state.profile);
 
       useEffect(()=>{
@@ -406,6 +425,10 @@ const DashboardLayout = () => {
           if (profileData.data.phone) {
             updateData.phone = profileData.data.phone;
             setPhoneNumber(profileData.data.phone); // Update local state too
+          }
+          if (profileData.data.agent_address) {
+            updateData.agent_address = profileData.data.agent_address;
+            setAddressInput(profileData.data.agent_address); // Update local state too
           }
           if (profileData.data.agent_image) updateData.image = profileData.data.agent_image;
           
@@ -1281,6 +1304,64 @@ const DashboardLayout = () => {
                              }}
                              variant="outlined"
                              fullWidth
+                             sx={{
+                               "& .MuiOutlinedInput-root": {
+                                 borderRadius: "10px",
+                               }
+                             }}
+                           />
+                           
+                           <TextField
+                             label="Address"
+                             value={addressEditMode ? addressInput : (agent_address || "Not provided")}
+                             onChange={(e) => setAddressInput(e.target.value)}
+                             InputProps={{
+                               startAdornment: (
+                                 <InputAdornment position="start">
+                                   <LocationOn sx={{ color: "primary.main" }} />
+                                 </InputAdornment>
+                               ),
+                               endAdornment: (
+                                 <InputAdornment position="end">
+                                   {addressEditMode ? (
+                                     <Stack direction="row" spacing={1}>
+                                       <IconButton
+                                         size="small"
+                                         onClick={handleSaveAddress}
+                                         disabled={profileLoading || !addressInput.trim()}
+                                         sx={{ color: "success.main" }}
+                                       >
+                                         <Check />
+                                       </IconButton>
+                                       <IconButton
+                                         size="small"
+                                         onClick={() => {
+                                           setAddressEditMode(false);
+                                           setAddressInput('');
+                                         }}
+                                         sx={{ color: "error.main" }}
+                                       >
+                                         <Close />
+                                       </IconButton>
+                                     </Stack>
+                                   ) : (
+                                     <IconButton
+                                       size="small"
+                                       onClick={() => setAddressEditMode(true)}
+                                       sx={{ color: "primary.main" }}
+                                     >
+                                       <EditOutlined />
+                                     </IconButton>
+                                   )}
+                                 </InputAdornment>
+                               ),
+                               readOnly: !addressEditMode,
+                             }}
+                             variant="outlined"
+                             fullWidth
+                             placeholder={addressEditMode ? "Enter your address" : ""}
+                             multiline
+                             rows={addressEditMode ? 2 : 1}
                              sx={{
                                "& .MuiOutlinedInput-root": {
                                  borderRadius: "10px",

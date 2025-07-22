@@ -139,6 +139,7 @@ const getInitialState = () => {
   const Email = Cookies.get("Email") || null;
   const profilePicture = Cookies.get("profilePicture") || null;
   const phoneNo = Cookies.get("phoneNo") || null;
+  const agent_address = Cookies.get("agent_address") || null;
   const exchangeRate = Cookies.get("exchangeRate") || null;
   const currencyCode = Cookies.get("currencyCode") || null;
   const currencySymbol = Cookies.get("currencySymbol") || null;
@@ -181,6 +182,7 @@ const getInitialState = () => {
     Email,
     profilePicture,
     phoneNo,
+    agent_address,
     exchangeRate,
     currencyCode,
     currencySymbol,
@@ -227,6 +229,7 @@ export const loginUser = createAsyncThunk(
           email: Email,
           profile_picture: profilePicture,
           phone_no: phoneNo,
+          agent_address: agent_address,
           dmc_name: DmcName,
           current_exchange_rate: exchangeRate,
           current_currency_code: currencyCode,
@@ -293,6 +296,15 @@ export const loginUser = createAsyncThunk(
         // Store phone number in cookies
         if (phoneNo) {
           Cookies.set("phoneNo", phoneNo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
+        // Store agent address in cookies
+        if (agent_address) {
+          Cookies.set("agent_address", agent_address, {
             expires: expiryDate,
             secure: true,
             sameSite: "Strict",
@@ -431,6 +443,7 @@ export const loginUser = createAsyncThunk(
           Email,
           profilePicture,
           phoneNo,
+          agent_address,
           DmcName,
           exchangeRate,
           currencyCode,
@@ -501,8 +514,8 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     updateProfileData: (state, action) => {
-      const { phone, image } = action.payload;
-      console.log('updateProfileData called with:', { phone, image });
+      const { phone, image, agent_address } = action.payload;
+      console.log('updateProfileData called with:', { phone, image, agent_address });
       console.log('Current state.profilePicture:', state.profilePicture);
       
       if (phone) {
@@ -529,6 +542,21 @@ const authSlice = createSlice({
         });
         console.log('Profile picture updated in state:', state.profilePicture);
       }
+      if (agent_address !== undefined) {
+        console.log('Updating agent address from', state.agent_address, 'to', agent_address);
+        state.agent_address = agent_address;
+        // Update cookie
+        const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        if (agent_address) {
+          Cookies.set("agent_address", agent_address, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        } else {
+          Cookies.remove("agent_address");
+        }
+      }
     },
     logout: (state) => {
       state.isAuthenticated = false;
@@ -538,6 +566,7 @@ const authSlice = createSlice({
       state.Email = null; // Reset Email
       state.profilePicture = null; // Reset profile picture
       state.phoneNo = null; // Reset phone number
+      state.agent_address = null; // Reset agent address
       state.exchangeRate = null; // Reset exchangeRate
       state.currencyCode = null; // Reset currencyCode
       state.currencySymbol = null; // Reset currencySymbol
@@ -549,6 +578,7 @@ const authSlice = createSlice({
       Cookies.remove("Email");
       Cookies.remove("profilePicture");
       Cookies.remove("phoneNo");
+      Cookies.remove("agent_address");
       Cookies.remove("exchangeRate");
       Cookies.remove("currencyCode");
       Cookies.remove("currencySymbol");
@@ -651,6 +681,7 @@ const authSlice = createSlice({
         state.Email = action.payload.Email;
         state.profilePicture = action.payload.profilePicture;
         state.phoneNo = action.payload.phoneNo;
+        state.agent_address = action.payload.agent_address;
         state.DmcName = action.payload.DmcName;
         state.exchangeRate = action.payload.exchangeRate;
         state.currencyCode = action.payload.currencyCode;
