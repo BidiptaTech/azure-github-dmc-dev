@@ -554,6 +554,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
         Route::get('/get-assistant-manager/{country}', [UserController::class, 'getAssistantManagers']);
+        Route::post('/admin/get-countries-by-master-dmc', [UserController::class, 'getCountriesByMasterDmc']);
+        Route::post('/admin/get-sales-managers-by-master-dmc', [UserController::class, 'getSalesManagersByMasterDmc']);
 
         Route::resource('roles', RoleController::class);  
         Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType']);
