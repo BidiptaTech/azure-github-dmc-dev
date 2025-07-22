@@ -355,6 +355,7 @@ const tourPackageSlice = createSlice({
     // Clear search results
     clearPackages: (state) => {
       state.packages = [];
+      state.initialPackages = [];
       state.error = null;
     },
     

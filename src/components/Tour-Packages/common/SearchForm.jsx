@@ -1476,7 +1476,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
                     // Show readonly input when agent comes from packageData
                     <input
                       type="text"
-                      value={`${selectedAgentName} (ID: ${selectedAgent})`}
+                      value={`${selectedAgentName}`}
                       readOnly
                       style={{
                         width: '100%',
