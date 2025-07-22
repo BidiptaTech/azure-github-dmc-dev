@@ -205,7 +205,7 @@
                     <div class="col-md-4 mb-3">
                         <label for="password" class="form-label"><strong>Password</strong><span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <input type="password" id="password" class="form-control @error('password') is-invalid @enderror" name="password" placeholder="Choose Password" required oninput="validatePassword(this)">
+                            <input type="password" id="password" class="form-control @error('password') is-invalid @enderror" name="password" placeholder="Choose Password" required>
                             <button class="btn btn-outline-secondary" type="button" id="togglePassword">
                                 <i class="fa fa-eye-slash" id="toggleIcon"></i>
                             </button>
