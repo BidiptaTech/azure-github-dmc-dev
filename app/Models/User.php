@@ -81,10 +81,10 @@ class User extends Authenticatable
     /*
     * Return relationship to Master DMC user.
     */
-    // public function masterDmc()
-    // {
-    //     return $this->belongsTo(User::class, 'master_dmc_id', 'userId');
-    // }
+    public function masterDmc()
+    {
+        return $this->belongsTo(User::class, 'master_dmc_id', 'userId');
+    }
 
     /*
     * Return All Country Codes for Phone Number.

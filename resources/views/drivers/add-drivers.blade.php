@@ -44,7 +44,7 @@
                         <div class="row">
                             <!-- First row - 4 columns -->
                             <div class="row mb-3">
-                            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 62 || auth()->user()->role_id == 46 || auth()->user()->role_id == 109 || auth()->user()->role_id == 110)
+                            @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 23, 25, 62, 46, 109, 110]))
                                 <!-- Select DMC Name -->
                                 <div class="mb-3 col-md-3" id="dmc-container">
                                     <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
@@ -557,8 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Assuming you have a way to get the user's role ID
         var userRoleId = {{ auth()->user()->role_id }}; // Adjust this line based on your authentication method
 
-        // Check if the user role is one of the specified IDs
-        if ([1, 2, 3, 4].includes(userRoleId)) {
+        // Check if the user role is one of the specified IDs that should see DMC dropdown
+        if ([1, 2, 3, 4, 23, 25, 62, 46, 109, 110].includes(userRoleId)) {
             $('#dmc-container').show(); // Show the DMC select box
             $('#dmc').prop('required', true); // Set DMC as required
         } else {
@@ -972,152 +972,180 @@ $(document).ready(function() {
 </script> -->
 
 <script>
-        $(document).ready(function() {
-        // Get the user's role ID
-        var userRoleId = {{ auth()->user()->role_id }};
+$(document).ready(function() {
+    // Get the user's role ID
+    var userRoleId = {{ auth()->user()->role_id }};
+    
+    // Get the current user's country if they are a DMC
+    var userCountry = "{{ auth()->user()->role_id == 11 ? auth()->user()->country : '' }}";
+    var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
+    
+    // Initialize Select2 for city
+    $('#citySelect').select2({
+        placeholder: "Search and Select a City",
+        allowClear: true,
+        tags: true,
+        width: '100%'
+    });
+    
+    // Function to load cities for DMC
+    function loadCitiesForDmc(dmcId) {
+        if (dmcId) {
+            // Show loading state
+            $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+            
+            console.log("Loading cities for DMC ID:", dmcId);
+            
+            $.ajax({
+                url: "{{ route('fetch.cities_countries') }}",
+                type: "GET",
+                data: { dmc_id: dmcId },
+                dataType: 'json',
+                success: function(response) {
+                    console.log("DMC Response received:", response);
+                    
+                    // Clear loading state
+                    $('#citySelect').empty();
+                    
+                    // Add default option
+                    $('#citySelect').append('<option value="">Select or type a city</option>');
+                    
+                    // Add cities from response
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function(key, city) {
+                            $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                    }
+                    
+                    // Set the country value
+                    if (response.country) {
+                        $('#country').val(response.country);
+                    }
+
+                    // Trigger change to refresh Select2
+                    $('#citySelect').trigger('change');
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error loading cities for DMC:", error);
+                    console.log("XHR Status:", xhr.status);
+                    console.log("Response:", xhr.responseText);
+                    
+                    $('#citySelect').empty();
+                    $('#citySelect').append('<option value="">Error loading cities</option>');
+                    $('#citySelect').trigger('change');
+                }
+            });
+        }
+    }
+    
+    // Function to load cities by country name
+    function loadCitiesByCountry(countryName) {
+        if (!countryName) return;
         
-        // Get the current user's country if they are a DMC
-        var userCountry = "{{ auth()->user()->role_id == 11 ? auth()->user()->country : '' }}";
-        var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
+        // Show loading state
+        $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
         
-        // // Initialize Select2 for city
-        $('#citySelect').select2({
-            placeholder: "Search and Select a City",
-            allowClear: true,
-            tags: true,
-            width: '100%'
+        $.ajax({
+            url: "{{ route('get.cities.by.country') }}",
+            type: "GET",
+            data: { country: countryName },
+            dataType: 'json',
+            success: function(response) {
+                console.log("Cities loaded for country:", response);
+                
+                // Clear loading state
+                $('#citySelect').empty();
+                
+                // Add default option
+                $('#citySelect').append('<option value="">Select City</option>');
+                
+                // Add cities from response
+                if (response.cities && response.cities.length > 0) {
+                    $.each(response.cities, function(key, city) {
+                        $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                    });
+                }
+                
+                // Trigger change to refresh Select2
+                $('#citySelect').trigger('change');
+            },
+            error: function(xhr, status, error) {
+                console.error("Error loading cities:", error);
+                $('#citySelect').empty();
+                $('#citySelect').append('<option value="">Error loading cities</option>');
+                $('#citySelect').trigger('change');
+            }
+        });
+    }
+    
+    // Role-based initialization
+    if (userRoleId == 11) {
+        // DMC user - hide DMC selector and auto-populate
+        $('#dmc-container').hide();
+        $('#dmc').prop('required', false);
+        
+        // Auto-fill the country field with the DMC's country
+        $('#country').val(userCountry);
+        
+        // Load cities for this DMC
+        if (dmcId) {
+            loadCitiesForDmc(dmcId);
+        }
+    } 
+    else if ([1, 2, 3, 4, 23, 25, 62, 46, 109, 110].includes(userRoleId)) {
+        // Admin roles - show DMC dropdown and handle DMC selection
+        $('#dmc-container').show();
+        $('#dmc').prop('required', true);
+        
+        // When DMC is changed (for admin users)
+        $('#dmc').change(function() {
+            var selectedDmcId = $(this).val();
+            if (selectedDmcId) {
+                loadCitiesForDmc(selectedDmcId);
+            } else {
+                // Clear city select and country
+                $('#citySelect').empty().append('<option value="">Select a DMC first</option>').trigger('change');
+                $('#country').val('');
+            }
         });
         
-        // For role_id 1 and 20, handle country selection
-        if (userRoleId == 1 || userRoleId == 20) {
-            $('#country').change(function() {
-                var selectedCountry = $(this).val();
-                if (selectedCountry) {
-                    // Show loading state
-                    $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
-                    
-                    $.ajax({
-                        url: "/get-cities-name-country",
-                        type: "GET",
-                        data: { country: selectedCountry },
-                        dataType: 'json',
-                        success: function(response) {
-                            console.log("Cities loaded for country:", response);
-                            
-                            // Clear loading state
-                            $('#citySelect').empty();
-                            
-                            // Add default option
-                            $('#citySelect').append('<option value="">Select City</option>');
-                            
-                            // Add cities from response
-                            if (response && response.length > 0) {
-                                $.each(response, function(key, city) {
-                                    $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
-                                });
-                            }
-                            
-                            // Trigger change to refresh Select2
-                            $('#citySelect').trigger('change');
-                        },
-                        error: function(xhr, status, error) {
-                            console.error("Error loading cities:", error);
-                            $('#citySelect').empty();
-                            $('#citySelect').append('<option value="">Error loading cities</option>');
-                            $('#citySelect').trigger('change');
-                        }
-                    });
-                } else {
-                    $('#citySelect').empty().append('<option value="">Select Country First</option>').trigger('change');
-                }
-            });
-        }
-        // Check if the user role is DMC (role_id = 11)
-        else if (userRoleId == 11) {
-            // Hide the DMC select box
-            $('#dmc-container').hide();
-            $('#dmc').prop('required', false);
-            
-            // Auto-fill the country field with the DMC's country
-            $('#country').val(userCountry);
-            
-            // Load cities for this DMC
-            loadCitiesForDmc(dmcId);
-        } 
-        // Check if the user role is admin or similar roles
-        else if ([1, 2, 3, 4].includes(userRoleId)) {
-            $('#dmc-container').show();
-            $('#dmc').prop('required', true);
-            
-            // When DMC is changed (for admin users)
-            $('#dmc').change(function() {
-                var dmcId = $(this).val();
-                if (dmcId) {
-                    loadCitiesForDmc(dmcId);
-                } else {
-                    // Clear city select and country
-                    $('#citySelect').empty().append('<option value="">Select a DMC first</option>').trigger('change');
-                    $('#country').val('');
-                }
-            });
-        } 
-        // For other roles
-        else {
-            $('#dmc-container').hide();
-            $('#dmc').prop('required', false);
-        }
-        
-        // Function to load cities for DMC
-        function loadCitiesForDmc(dmcId) {
-            if (dmcId) {
-                // Show loading state
-                $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
-                
-                // Add a debug statement
-                console.log("Loading cities for DMC ID:", dmcId);
-                
-                $.ajax({
-                    url: "{{ route('fetch.cities_countries') }}",
-                    type: "GET",
-                    data: { dmc_id: dmcId },
-                    dataType: 'json',
-                    success: function(response) {
-                        console.log("Response received:", response);
-                        
-                        // Clear loading state
-                        $('#citySelect').empty();
-                        
-                        // Add default option
-                        $('#citySelect').append('<option value="">Select or type a city</option>');
-                        
-                        // Add cities from response
-                        if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
-                            });
-                        }
-                        
-                        // Set the country value
-                        if (response.country) {
-                            $('#country').val(response.country);
-                        }
-
-                        // Trigger change to refresh Select2
-                        $('#citySelect').trigger('change');
-                    },
-                    error: function(xhr, status, error) {
-                        console.error("Error loading cities:", error);
-                        console.log("XHR Status:", xhr.status);
-                        console.log("Response:", xhr.responseText);
-                        
-                        $('#citySelect').empty();
-                        $('#citySelect').append('<option value="">Error loading cities</option>');
-                        $('#citySelect').trigger('change');
-                    }
-                });
+        // Also handle direct country changes for these roles
+        $('#country').change(function() {
+            var selectedCountry = $(this).val();
+            if (selectedCountry) {
+                loadCitiesByCountry(selectedCountry);
+            } else {
+                $('#citySelect').empty().append('<option value="">Select Country First</option>').trigger('change');
             }
+        });
+    } 
+    else if ([35, 76, 111, 130, 132, 133, 135, 136, 137, 138].includes(userRoleId)) {
+        // Other roles with specific DMC relationships
+        $('#dmc-container').hide();
+        $('#dmc').prop('required', false);
+        
+        // These roles should auto-populate their country and cities
+        if (userCountry) {
+            $('#country').val(userCountry);
+            loadCitiesByCountry(userCountry);
         }
-    });
+    }
+    else {
+        // Default case for other roles
+        $('#dmc-container').hide();
+        $('#dmc').prop('required', false);
+        
+        // Handle country changes if country dropdown is available
+        $('#country').change(function() {
+            var selectedCountry = $(this).val();
+            if (selectedCountry) {
+                loadCitiesByCountry(selectedCountry);
+            } else {
+                $('#citySelect').empty().append('<option value="">Select Country First</option>').trigger('change');
+            }
+        });
+    }
+});
 </script>
 
 @endsection

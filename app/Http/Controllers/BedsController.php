@@ -119,8 +119,12 @@ class BedsController extends Controller
             'bed_type' => 'required|string|max:255', 
         ]);
 
+        // Get the old name before updating
+        $oldBedName = $bed->name;
+        $newBedName = $validatedData['bed_type'];
+        // Update the bed master record
         $bed->update([
-            'name' => $validatedData['bed_type'],
+            'name' => $newBedName,
             'no_of_king_bed' => $request->king_beds ?? 0,
             'no_of_queen_bed' => $request->queen_beds ?? 0,
             'no_of_twin_bed' => $request->twin_beds ?? 0,
@@ -129,6 +133,13 @@ class BedsController extends Controller
             'no_of_single_bed' => $request->single_bed ?? 0,
             'is_active' => $request->bed_status == 1 ? 1 : 0,
         ]);
+
+        // Update room_type in beds table if the name has changed
+        if ($oldBedName !== $newBedName) {
+            \App\Models\Bed::where('bed_master_id', $bedId)
+                ->update(['room_type' => $newBedName]);
+        }
+
         return redirect()->route('beds.create', $bed->hotel_id)->with('success', 'Bed information updated successfully.');
     }
 
