@@ -498,6 +498,12 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   
   // Function to dispatch initialized bookings to Redux state
   const dispatchInitializedBookingsToRedux = (bookings) => {
+    // Skip if we've already dispatched the original exit ports
+    if (hasDispatchedAllExitPortsRef.current) {
+      console.log("Exit Vehicle - Skipping dispatchInitializedBookingsToRedux because original data was already dispatched");
+      return;
+    }
+    
     const completedBookings = bookings.filter(booking => booking.isComplete);
     
     if (completedBookings.length > 0) {
@@ -507,8 +513,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       const bookingsForRedux = completedBookings.map(booking => {
         const vehicleObj = booking.vehicle || {};
         const vehicleDataObj = booking.vehicleData || {};
-        const bookingAdultCount = booking.adults || adultCount || 1;
-        const bookingChildCount = booking.children || childCount || 0;
+        const bookingAdultCount = booking.adults ? Number(booking.adults) : (adultCount ? Number(adultCount) : 1);
+        const bookingChildCount = booking.children ? Number(booking.children) : (childCount ? Number(childCount) : 0);
         const totalGuests = bookingAdultCount + bookingChildCount;
         
         // Calculate price based on price mode - with error handling
@@ -623,7 +629,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       if (updatedBookings[bookingIndex]) {
         updatedBookings[bookingIndex] = {
           ...updatedBookings[bookingIndex],
-          [type]: count
+          [type]: Number(count) // Ensure count is stored as a number
         };
       }
       
@@ -834,8 +840,16 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     }
   }, [bookingsStringified, checkBookingCompletion]);
 
-  // Add a function to directly dispatch a specific booking to Redux - moved before usage
+  
+
+  // Add a function to directly dispatch a specific booking to Redux
   const dispatchBookingToRedux = React.useCallback((bookingIndex, forceUpdate = false) => {
+    // Skip if we've already dispatched the original exit ports and not forcing update
+    if (hasDispatchedAllExitPortsRef.current && !forceUpdate) {
+      console.log("Exit Vehicle - Skipping dispatchBookingToRedux because original data was already dispatched");
+      return;
+    }
+    
     const bookings = getBookings();
     const booking = bookings[bookingIndex];
     
@@ -862,8 +876,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     
     const vehicle = booking.vehicle || {};
     const vehicleData = booking.vehicleData || {};
-    const bookingAdultCount = booking.adults || adultCount || 1;
-    const bookingChildCount = booking.children || childCount || 0;
+    const bookingAdultCount = booking.adults ? Number(booking.adults) : (adultCount ? Number(adultCount) : 1);
+    const bookingChildCount = booking.children ? Number(booking.children) : (childCount ? Number(childCount) : 0);
     const totalGuests = bookingAdultCount + bookingChildCount;
     
     // Check if this is a loaded booking or a new booking
@@ -1216,8 +1230,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     
     const vehicle = booking.vehicle;
     const vehicleData = booking.vehicleData;
-    const bookingAdultCount = booking.adults || adultCount;
-    const bookingChildCount = booking.children || childCount;
+    const bookingAdultCount = booking.adults ? Number(booking.adults) : (adultCount ? Number(adultCount) : 1);
+    const bookingChildCount = booking.children ? Number(booking.children) : (childCount ? Number(childCount) : 0);
     const totalGuests = bookingAdultCount + bookingChildCount;
     
     // Check if this is a loaded booking or a new booking
@@ -1532,9 +1546,9 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
                       <Passenger 
                         adultsMax={adultsMax || 1} 
                         childrenMax={childrenMax || 0} 
-                        seatingCapacity={seatingCapacity || 1}
-                        initialAdults={booking.adults || 1}
-                        initialChildren={booking.children || 0}
+                        seatingCapacity={booking.vehicle?.seating_capacity || seatingCapacity || 1}
+                        initialAdults={Number(booking.adults) || 1}
+                        initialChildren={Number(booking.children) || 0}
                         onAdultChange={(count) => handleAdultChange(index, count)}
                         onChildChange={(count) => handleChildChange(index, count)}
                       />

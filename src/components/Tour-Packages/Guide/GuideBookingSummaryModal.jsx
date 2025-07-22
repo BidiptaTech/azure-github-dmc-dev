@@ -197,23 +197,44 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
     if (!startTime || !hours) return '';
     
     const parseTime = (timeStr) => {
-      const [timePart, period] = timeStr.split(" ");
-      let [hour, minute] = timePart.split(":").map(num => parseInt(num, 10));
+      if (!timeStr) return { hour: 0, minute: 0 };
+      
+      const parts = timeStr.split(" ");
+      if (parts.length !== 2) return { hour: 0, minute: 0 };
+      
+      const [timePart, period] = parts;
+      if (!timePart || !period) return { hour: 0, minute: 0 };
+      
+      const timeComponents = timePart.split(":");
+      if (timeComponents.length !== 2) return { hour: 0, minute: 0 };
+      
+      let hour = parseInt(timeComponents[0], 10) || 0;
+      let minute = parseInt(timeComponents[1], 10) || 0;
+      
       if (period === "PM" && hour !== 12) hour += 12;
       else if (period === "AM" && hour === 12) hour = 0;
+      
       return { hour, minute };
     };
     
     const formatTime = (hour, minute) => {
+      if (hour === undefined || minute === undefined) return '';
+      
       const h = hour % 12 === 0 ? 12 : hour % 12;
       const period = hour >= 12 ? "PM" : "AM";
       return `${h.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
     };
     
-    const { hour, minute } = parseTime(startTime);
-    const newHour = (hour + parseInt(hours, 10)) % 24;
-    
-    return formatTime(newHour, minute);
+    try {
+      const { hour, minute } = parseTime(startTime);
+      const hoursToAdd = parseInt(hours, 10) || 0;
+      const newHour = (hour + hoursToAdd) % 24;
+      
+      return formatTime(newHour, minute);
+    } catch (error) {
+      console.error('Error calculating end time:', error);
+      return '';
+    }
   };
   
   const endTime = calculateEndTime(bookingData.pickUpTime, bookingData.hourlyPackage);

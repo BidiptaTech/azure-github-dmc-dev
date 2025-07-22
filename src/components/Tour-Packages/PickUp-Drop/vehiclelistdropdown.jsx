@@ -479,7 +479,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       if (updatedBookings[bookingIndex]) {
         updatedBookings[bookingIndex] = {
           ...updatedBookings[bookingIndex],
-          [type]: count
+          [type]: Number(count) // Ensure count is stored as a number
         };
       }
       
@@ -609,6 +609,12 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   
   // Function to dispatch initialized bookings to Redux state
   const dispatchInitializedBookingsToRedux = (bookings) => {
+    // Skip if we've already dispatched the original entry ports
+    if (hasDispatchedAllEntryPortsRef.current) {
+      console.log("Entry Vehicle - Skipping dispatchInitializedBookingsToRedux because original data was already dispatched");
+      return;
+    }
+    
     const completedBookings = bookings.filter(booking => booking.isComplete);
     
     if (completedBookings.length > 0) {
@@ -618,8 +624,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       const bookingsForRedux = completedBookings.map(booking => {
         const vehicleObj = booking.vehicle || {};
         const vehicleDataObj = booking.vehicleData || {};
-        const bookingAdultCount = booking.adults || adultCount || 1;
-        const bookingChildCount = booking.children || childCount || 0;
+        const bookingAdultCount = booking.adults ? Number(booking.adults) : (adultCount ? Number(adultCount) : 1);
+        const bookingChildCount = booking.children ? Number(booking.children) : (childCount ? Number(childCount) : 0);
         const totalGuests = bookingAdultCount + bookingChildCount;
         
         // Calculate price based on price mode - with error handling
@@ -752,9 +758,10 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           };
         }
         
-        // Normalize data types
+        // Normalize data types to handle inconsistencies
         const normalizedEntryData = {
           ...entryData,
+          // Convert string numbers to actual numbers
           adults: entryData.adults ? Number(entryData.adults) : 1,
           children: entryData.children ? Number(entryData.children) : 0,
           dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
@@ -926,6 +933,12 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
 
   // Add a function to directly dispatch a specific booking to Redux
   const dispatchBookingToRedux = React.useCallback((bookingIndex, forceUpdate = false) => {
+    // Skip if we've already dispatched the original entry ports and not forcing update
+    if (hasDispatchedAllEntryPortsRef.current && !forceUpdate) {
+      console.log("Entry Vehicle - Skipping dispatchBookingToRedux because original data was already dispatched");
+      return;
+    }
+    
     const bookings = getBookings();
     const booking = bookings[bookingIndex];
     
@@ -952,8 +965,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     
     const vehicle = booking.vehicle || {};
     const vehicleData = booking.vehicleData || {};
-    const bookingAdultCount = booking.adults || adultCount || 1;
-    const bookingChildCount = booking.children || childCount || 0;
+    const bookingAdultCount = booking.adults ? Number(booking.adults) : (adultCount ? Number(adultCount) : 1);
+    const bookingChildCount = booking.children ? Number(booking.children) : (childCount ? Number(childCount) : 0);
     const totalGuests = bookingAdultCount + bookingChildCount;
     
     // Check if this is a loaded booking or a new booking
@@ -1360,7 +1373,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       <Grid container spacing={3}>
         {bookings.map((booking, index) => {
           const completionStatus = booking.isComplete ? 3 : 
-            (booking.vehicle ? 1 : 0) + (booking.adults + booking.children > 0 ? 1 : 0) + 
+            (booking.vehicle ? 1 : 0) + (Number(booking.adults) + Number(booking.children) > 0 ? 1 : 0) + 
             (booking.priceMode ? 1 : 0);
           const outOfTourDates = isBookingOutOfTourDates(booking);
           
@@ -1549,9 +1562,9 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                       <Passenger 
                         adultsMax={adultsMax || 1} 
                         childrenMax={childrenMax || 0} 
-                        seatingCapacity={seatingCapacity || 1}
-                        initialAdults={booking.adults || 1}
-                        initialChildren={booking.children || 0}
+                        seatingCapacity={booking.vehicle?.seating_capacity || seatingCapacity || 1}
+                        initialAdults={Number(booking.adults) || 1}
+                        initialChildren={Number(booking.children) || 0}
                         onAdultChange={(count) => handleAdultChange(index, count)}
                         onChildChange={(count) => handleChildChange(index, count)}
                       />
