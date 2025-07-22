@@ -449,6 +449,7 @@ class BookingListController extends Controller
                 'orders.type',
                 'orders.data',
                 'orders.bookingType',
+                'orders.voucher_image',
                 'agents.name as agent_name'
             ])
             ->leftJoin('agents', 'orders.agent_id', '=', 'agents.agent_id')

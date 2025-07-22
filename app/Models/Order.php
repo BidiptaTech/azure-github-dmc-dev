@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Tour;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Carbon\Carbon;
 
 class Order extends Model
 {
@@ -20,5 +21,44 @@ class Order extends Model
     public function tour()
     {
         return $this->belongsTo(Tour::class, 'tour_id', 'tour_id');
+    }
+
+    /**
+     * Check if booking date has passed and status is not complete/confirmed
+     */
+    public function isExpiredAndNotConfirmed()
+    {
+        // If already complete (1) or cancelled (4), don't show as expired
+        if (in_array($this->status, [1, 4])) {
+            return false;
+        }
+
+        $data = is_string($this->data) ? json_decode($this->data, true) : $this->data;
+        
+        if (!$data) {
+            return false;
+        }
+
+        // Handle array of bookings
+        if (isset($data[0]) && is_array($data[0])) {
+            foreach ($data as $item) {
+                if (isset($item['bookingDate'])) {
+                    $bookingDate = $item['bookingDate'];
+                    if (Carbon::parse($bookingDate)->lt(Carbon::now())) {
+                        return true;
+                    }
+                }
+            }
+        } else {
+            // Single booking
+            if (isset($data['bookingDate'])) {
+                $bookingDate = $data['bookingDate'];
+                if (Carbon::parse($bookingDate)->lt(Carbon::now())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
