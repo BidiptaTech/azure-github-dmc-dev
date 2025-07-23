@@ -63,7 +63,7 @@ class TicketController extends Controller
         }
 
         // Generate a unique 8-digit ticket ID
-        $lastTicket = Ticket::orderBy('ticket_id', 'desc')->first();
+        $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
         $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
         
         // Ensure it's at least 8 digits
