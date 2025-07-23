@@ -367,9 +367,9 @@ class DriverController extends Controller
                             'dmc_private_price' => $privatePrice > 0 ? $basePrice + ($privatePrice*$distanceInKM) : 0,
                             'dmc_sharable_price' => $sharablePrice > 0 ? $basePrice + ($sharablePrice*$distanceInKM) : 0,
                             'dmc_id' => $dmc_dmc_id,
-                            'trav_private_price' => $trav_privatePrice > 0 ? $basePrice + ($trav_privatePrice*$distanceInKM) : 0,
-                            'trav_sharable_price' => $trav_sharablePrice > 0 ? $basePrice + ($trav_sharablePrice*$distanceInKM) : 0,
-                            'travclicks_dmc_id' => $travclicks_id,
+                            'trav_private_price' => 0,
+                            'trav_sharable_price' => 0,
+                            'travclicks_dmc_id' => 0,
                             'night_start_time' => $cityDetails->night_start_time,
                             'night_end_time' => $cityDetails->night_end_time,
                             'city' => $vehicle->city,
@@ -501,7 +501,7 @@ class DriverController extends Controller
                         $dmcSharablePrice = 0;
                         $dmc_dmc_id = 0;
                         // Fetch DMC Vehicle price
-                        if ($vehicle->dmc_id == $dmc_id) {
+                        if ($vehicle->dmc_id == $dmc_id){
                             $dmc_result = CommonHelper::calculateDmcModePricehotel(
                                 $private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
                             $dmcPrivatePrice = $dmc_result[0] ?? 0;
@@ -530,9 +530,9 @@ class DriverController extends Controller
                             'dmc_private_price' => $dmcPrivatePrice > 0 ? $basePrice + $dmcPrivatePrice : 0,
                             'dmc_sharable_price' => $dmcSharablePrice > 0 ? $basePrice + $dmcSharablePrice : 0,
                             'dmc_id' => $dmc_dmc_id,
-                            'trav_private_price' => $trav_privatePrice > 0 ? $basePrice + $trav_privatePrice : 0,
-                            'trav_sharable_price' => $trav_sharablePrice > 0 ? $basePrice + $trav_sharablePrice : 0,
-                            'travclicks_dmc_id' => $travclicks_id,
+                            'trav_private_price' => 0,
+                            'trav_sharable_price' => 0,
+                            'travclicks_dmc_id' => 0,
                             'night_start_time' => $cityDetails->night_start_time,
                             'night_end_time' => $cityDetails->night_end_time,
                             'city' => $vehicle->city,

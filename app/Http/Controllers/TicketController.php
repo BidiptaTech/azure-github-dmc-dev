@@ -63,7 +63,7 @@ class TicketController extends Controller
         }
 
         // Generate a unique 8-digit ticket ID
-        $lastTicket = Ticket::withTrashed()->orderBy('created_at', 'desc')->first();
+        $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
         $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
         
         // Ensure it's at least 8 digits
@@ -98,11 +98,15 @@ class TicketController extends Controller
     /**
      * Display the specified ticket.
      */
-    public function show(Ticket $ticket)
+    public function show($ticket_id)
     {
         // if (!hasPermission('view ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $ticket = Ticket::where('ticket_id', $ticket_id)->first();
+        if(!$ticket){
+            return redirect()->back()->with('error', 'Ticket not found.');
+        }
         
         return view('tickets.show-ticket', compact('ticket'));
     }
@@ -117,18 +121,22 @@ class TicketController extends Controller
     /**
      * Show the form for editing the specified ticket.
      */
-    public function edit(Ticket $ticket)
+    public function edit($ticket_id)
     {
         // if (!hasPermission('edit ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $ticket = Ticket::where('ticket_id', $ticket_id)->first();
+        if(!$ticket){
+            return redirect()->back()->with('error', 'Ticket not found.');
+        }
         return view('tickets.edit-ticket', compact('ticket'));
     }
 
     /**
      * Update the specified ticket in storage.
      */
-    public function update(Request $request, Ticket $ticket)
+    public function update(Request $request, $ticket_id)
     {
         // if (!hasPermission('edit ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
@@ -145,6 +153,10 @@ class TicketController extends Controller
             'senior_adult_price' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:0,1',
         ]);
+        $ticket = Ticket::where('ticket_id', $ticket_id)->first();
+        if(!$ticket){
+            return redirect()->back()->with('error', 'Ticket not found.');
+        }
 
         // Update ticket
         $ticket->name = $request->name;
@@ -168,12 +180,15 @@ class TicketController extends Controller
     /**
      * Remove the specified ticket from storage.
      */
-    public function destroy(Ticket $ticket)
+    public function destroy($ticket_id)
     {
         // if (!hasPermission('delete ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
-        
+        $ticket = Ticket::where('ticket_id', $ticket_id)->first();
+        if(!$ticket){
+            return redirect()->back()->with('error', 'Ticket not found.');
+        }
         $ticket->delete();
         
         return redirect()->route('tickets.add_ticket', $ticket->attraction_id)->with('success', 'Ticket deleted successfully.');
