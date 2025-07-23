@@ -13,7 +13,7 @@
                             <h4 class="card-title mb-0">Edit Ticket</h4>
                         </div>
                         <div class="card-body">
-                            <form action="{{ route('tickets.update', $ticket->id) }}" method="POST">
+                            <form action="{{ route('tickets.update', $ticket->ticket_id) }}" method="POST">
                                 @csrf
                                 @method('PUT')
                                 <div class="row">
