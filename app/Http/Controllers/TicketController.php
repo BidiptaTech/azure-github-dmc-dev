@@ -65,34 +65,50 @@ class TicketController extends Controller
         // Generate a unique 8-digit ticket ID
         $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
         $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+        $ticketMaxId = max($ticketMaxId, 10000000) + 1;
         
         // Ensure it's at least 8 digits
-        if ($ticketMaxId < 10000000) {
-            $ticketMaxId = 10000000;
-        } else {
-            $ticketMaxId = $ticketMaxId + 1;
-        }
-        
-        // Create a new ticket
-        $ticket = new Ticket();
-        $ticket->ticket_id = $ticketMaxId;
-        $ticket->name = $request->name;
-        $ticket->description = $request->description;
-        $ticket->remarks = $request->remarks;
-        $ticket->terms_conditions = $request->terms_conditions;
-        $ticket->child_price = $request->child_price;
-        $ticket->adult_price = $request->adult_price;
-        $ticket->senior_adult_price = $request->senior_adult_price;
-        $ticket->child_price_nri = $request->child_price_nri;
-        $ticket->adult_price_nri = $request->adult_price_nri;
-        $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
-        $ticket->status = $request->status ? 1 : 0;
-        $ticket->created_by = Auth::user()->userId ?? null;
-        $ticket->dmc_id = Auth::user()->userId ?? null;
-        $ticket->attraction_id = $attraction_id;
-        $ticket->save();
+        DB::beginTransaction();
 
-        return redirect()->route('tickets.add_ticket', $attraction_id)->with('success', 'Ticket created successfully.');
+        try{
+            do {
+                // Lock the latest ticket row to avoid race condition
+                $lastTicket = Ticket::withTrashed()
+                    ->orderBy('ticket_id', 'desc')
+                    ->lockForUpdate()
+                    ->first();
+
+                // Start from 10000000 if no ticket exists
+                $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+                $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+
+            } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
+            
+            // Create a new ticket
+            $ticket = new Ticket();
+            $ticket->ticket_id = $ticketMaxId;
+            $ticket->name = $request->name;
+            $ticket->description = $request->description;
+            $ticket->remarks = $request->remarks;
+            $ticket->terms_conditions = $request->terms_conditions;
+            $ticket->child_price = $request->child_price;
+            $ticket->adult_price = $request->adult_price;
+            $ticket->senior_adult_price = $request->senior_adult_price;
+            $ticket->child_price_nri = $request->child_price_nri;
+            $ticket->adult_price_nri = $request->adult_price_nri;
+            $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+            $ticket->status = $request->status ? 1 : 0;
+            $ticket->created_by = Auth::user()->userId ?? null;
+            $ticket->dmc_id = Auth::user()->userId ?? null;
+            $ticket->attraction_id = $attraction_id;
+            $ticket->save();
+
+            DB::commit();
+            return redirect()->route('tickets.add_ticket', $attraction_id)->with('success', 'Ticket created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to create ticket.');
+        }
     }
 
     /**
