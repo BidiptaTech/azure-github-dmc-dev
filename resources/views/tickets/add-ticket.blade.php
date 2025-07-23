@@ -223,7 +223,7 @@
                                 <td style="display: inline-block; white-space: nowrap;">
                                     <!-- View Button -->
                                     
-                                    <a href="{{ route('tickets.show', $ticket->id) }}" 
+                                    <a href="{{ route('tickets.show', $ticket->ticket_id) }}" 
                                     class="btn btn-info btn-sm rounded-circle" 
                                     style="width: 28px; height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 0 576 512" width="16px" fill="#ffffff">
@@ -234,7 +234,7 @@
 
                                     <!-- Edit Button -->
                                    
-                                    <a href="{{ route('tickets.edit', $ticket->id) }}" 
+                                    <a href="{{ route('tickets.edit', $ticket->ticket_id) }}" 
                                     class="btn btn-primary btn-sm rounded-circle" 
                                     style="width: 28px; height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
@@ -248,9 +248,9 @@
                                     <button type="button" 
                                             class="btn btn-danger btn-sm rounded-circle" 
                                             style="width: 28px; height: 28px; padding: 0;" 
-                                            data-toggle="modal" 
-                                            data-target="#deleteModal" 
-                                            onclick="setDeleteForm('{{ route('tickets.destroy', $ticket->id) }}')">
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteModal" 
+                                            onclick="setDeleteForm('{{ route('tickets.destroy', $ticket->ticket_id) }}')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
                                             <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                         </svg>
@@ -274,12 +274,13 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 Are you sure want to delete?
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <form id="deleteForm" action="" method="POST" style="display:inline">
                     @csrf
                     @method('DELETE')
@@ -321,5 +322,10 @@
             width: '100%'
         });
     });
+    
+    // Function to set the delete form action URL
+    function setDeleteForm(url) {
+        document.getElementById('deleteForm').action = url;
+    }
 </script>
 @endsection
