@@ -122,7 +122,9 @@
                                                         <div class="row g-3 mt-3">
                                                             @php
                                                                 $user = auth()->user();
-                                                                $activeHotels = $hotels->where('status', 1)->where('dmc_id', $user->userId);
+                                                                $activeHotels = $hotels->filter(function ($hotel) use ($user) {
+                                                                    return $hotel->status == 1 && in_array($user->userId, (array) $hotel->dmc_id);
+                                                                });
                                                             @endphp
                                                             @foreach($activeHotels as $hotel)
                                                                 @if($hotel->zone_id == $zone->zone_id || $hotel->zone_id == null)
@@ -164,7 +166,9 @@
                                                         <div class="row g-3 mt-3">
                                                             @php
                                                                 $user = auth()->user();
-                                                                $activeAttractions = $attractions->where('status', 1)->where('dmc_id', $user->userId);
+                                                                $activeAttractions = $attractions->filter(function ($attraction) use ($user) {
+                                                                    return $attraction->status == 1 && in_array($user->userId, (array) $attraction->dmc_id);
+                                                                });
                                                             @endphp
                                                             @foreach($activeAttractions as $attraction)
                                                                 @if($attraction->zone_id == $zone->zone_id || $attraction->zone_id == null)
@@ -206,7 +210,9 @@
                                                         <div class="row g-3 mt-3">
                                                             @php
                                                                 $user = auth()->user();
-                                                                $activeRestaurants = $restaurants->where('status', 1)->where('dmc_id', $user->userId);
+                                                                $activeRestaurants = $restaurants->filter(function ($restaurant) use ($user) {
+                                                                    return $restaurant->status == 1 && in_array($user->userId, (array) $restaurant->dmc_id);
+                                                                });
                                                             @endphp
                                                             @foreach($activeRestaurants as $restaurant)
                                                                 @if($restaurant->zone_id == $zone->zone_id || $restaurant->zone_id == null)
