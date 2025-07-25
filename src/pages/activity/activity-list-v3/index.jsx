@@ -82,6 +82,8 @@ const getRowBackgroundColor = (serviceType) => {
       return "rgba(33, 150, 243, 0.06)"; // Professional light blue
     case "Attraction":
       return "rgba(76, 175, 80, 0.06)"; // Professional light green
+    case "Attraction Package":
+      return "rgba(175, 76, 114, 0.06)"; // Professional light green
     case "Restaurant":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Entry Port":
@@ -108,6 +110,8 @@ const getRowBorderColor = (serviceType) => {
       return "#2196F3"; // Blue
     case "Attraction":
       return "#4CAF50"; // Green
+    case "Attraction Package":
+      return "#7E57C2"; // Green
     case "Restaurant":
       return "#F44336"; // Red
     case "Entry Port":
@@ -136,6 +140,13 @@ const getServiceTypeIcon = (serviceType) => {
       return (
         <ConfirmationNumberIcon
           className="text-green-1"
+          style={{ fontSize: 22 }}
+        />
+      );
+    case "Attraction Package":
+      return (
+        <ConfirmationNumberIcon
+          className="text-purple-1"
           style={{ fontSize: 22 }}
         />
       );
@@ -221,6 +232,8 @@ const ActivityListPage3 = () => {
         (viewDetails?.exit_port && viewDetails.exit_port.length > 0)) &&
       (!viewDetails?.hotel || viewDetails?.hotel?.length === 0) &&
       (!viewDetails?.attraction || viewDetails?.attraction?.length === 0) &&
+      (!viewDetails?.local_transport || viewDetails?.local_transport?.length === 0) &&
+      (!viewDetails?.attraction_package || viewDetails?.attraction_package?.length === 0) &&
       (!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0);
 
     // console.log("DEBUG - Simplified Button Check:", {
@@ -346,7 +359,19 @@ const ActivityListPage3 = () => {
         });
       });
     }
-
+    if (viewDetails.attraction_package) {
+      viewDetails.attraction_package.forEach((attraction_package) => {
+        const date = attraction_package.bookingDate;
+        if (!bookingsByDate[date]) bookingsByDate[date] = [];
+        bookingsByDate[date].push({
+          ...attraction_package,
+          serviceType: "Attraction Package",
+          serviceName: attraction_package.AttractionName || "Unknown Attraction Package",
+          serviceImage: attraction_package.service_details?.master_image || "",
+          price: attraction_package.totalPrice,
+        });
+      });
+    }
     // Process restaurant bookings
     if (viewDetails.restaurant) {
       viewDetails.restaurant.forEach((restaurant) => {
@@ -809,6 +834,35 @@ const ActivityListPage3 = () => {
                                     </div>
                                   </div>
                                 )}
+                                {booking.serviceType === "Attraction Package" && (
+                                  <div className="d-flex flex-column">
+                                    <div className="d-flex items-center mb-10">
+                                      <PersonIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Guests:
+                                      </span>
+                                      <span className="text-15">
+                                        Adults: {booking.adultCount}, Children:{" "}
+                                        {booking.childCount}
+                                      </span>
+                                    </div>
+                                    <div className="d-flex items-center">
+                                      <ConfirmationNumberIcon
+                                        className="text-green-1 mr-10"
+                                        style={{ fontSize: 20 }}
+                                      />
+                                      <span className="fw-500 mr-5">
+                                        Ticket:
+                                      </span>{" "}
+                                      <span className="text-15">
+                                        {booking.ticketName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
                                 {booking.serviceType === "Restaurant" && (
                                   <div className="d-flex flex-column">
                                     <div className="d-flex items-center mb-10">
@@ -1142,6 +1196,36 @@ const ActivityListPage3 = () => {
                                         })}
                                   </div>
                                 )}
+                                {booking.serviceType === "Attraction Package" && (
+                                 <div>
+                                 {booking.visitTime &&
+                                   booking.visitTime
+                                     .split("-")
+                                     .map((time, i) => {
+                                       // Convert 24hr format to AM/PM
+                                       const [hours, minutes] =
+                                         time.split(":");
+                                       const h = parseInt(hours, 10);
+                                       const ampm = h >= 12 ? "PM" : "AM";
+                                       const hour = h % 12 || 12; // Convert 0 to 12 for 12 AM
+                                       return (
+                                         <div
+                                           className="d-flex items-center mt-10"
+                                           key={i}
+                                         >
+                                           <AccessTimeIcon
+                                             className="text-green-1 mr-10"
+                                             style={{ fontSize: 20 }}
+                                           />
+                                           <span className="text-15">
+                                             {i === 0 ? "From: " : "To: "}
+                                             {hour}:{minutes} {ampm}
+                                           </span>
+                                         </div>
+                                       );
+                                     })}
+                               </div>
+                                )}
                                 {booking.serviceType === "Restaurant" && (
                                   <div className="d-flex items-center">
                                     <AccessTimeIcon
@@ -1240,6 +1324,7 @@ const ActivityListPage3 = () => {
                               <td className="px-20 py-15">
                                 {(booking.serviceType === "Hotel" ||
                                   booking.serviceType === "Attraction" ||
+                                  booking.serviceType === "Attraction Package" ||
                                   booking.serviceType === "Restaurant") && (
                                   <button
                                     className="button -md -dark-1 bg-blue-1 text-white d-flex items-center justify-center"
@@ -1257,6 +1342,14 @@ const ActivityListPage3 = () => {
                                           booking,
                                           booking.service_details.attraction_id,
                                           "attraction"
+                                        );
+                                      } else if (
+                                        booking.serviceType === "Attraction Package"
+                                      ) {
+                                        handleBookTransfer(
+                                          booking,
+                                          booking.package_attraction_id,
+                                          "attraction_package"
                                         );
                                       } else if (
                                         booking.serviceType === "Restaurant"
