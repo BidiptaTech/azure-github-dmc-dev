@@ -174,6 +174,32 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     const newFormSections = dayGuides.map((guideService, index) => {
       const guideData = guideService.data[0];
       
+      // Debug guide data
+      console.log(`Processing guide ${index + 1}:`, {
+        guideId: guideData?.guide_id,
+        guideName: guideData?.guide_name,
+        hasGuideId: !!guideData?.guide_id,
+        guideIdType: typeof guideData?.guide_id,
+        fullGuideData: guideData
+      });
+      
+      // Check if guide_id is missing or invalid
+      if (!guideData?.guide_id) {
+        console.warn(`Guide ${index + 1} has missing or invalid guide_id:`, guideData);
+        // Skip this guide or provide a fallback
+        return null;
+      }
+      
+      // Check if the guide exists in available guides
+      const availableGuide = guides.find(g => 
+        g.id === guideData.guide_id || 
+        String(g.id) === String(guideData.guide_id)
+      );
+      
+      if (!availableGuide) {
+        console.warn(`Guide with ID ${guideData.guide_id} not found in available guides list. Available guide IDs:`, guides.map(g => g.id));
+      }
+      
       console.log('Guide originalData image check:', {
         guideId: guideData.guide_id,
         guideName: guideData.guide_name,
@@ -205,12 +231,17 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           booking_id: guideService.booking_id // Preserve booking_id from service level
         }
       };
-    });
+    }).filter(section => section !== null); // Remove null entries
 
     console.log('Initialized guide form sections for current day:', newFormSections);
+    console.log('Form sections guide IDs:', newFormSections.map(section => ({
+      guide: section.guide,
+      guide_name: section.guide_name
+    })));
+    
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [guidespack, dayIndex, bookingDate, date, formatDateToString]);
+  }, [guidespack, dayIndex, bookingDate, date, formatDateToString, guides]);
 
   // Function to dispatch ALL guides from guidespack to Redux state
   const dispatchAllGuidesToRedux = useCallback(() => {
@@ -1056,6 +1087,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   };
 
   const handleInputChange = (sectionIndex, field, value) => {
+    console.log('GuideComponent - handleInputChange called:', {
+      sectionIndex: sectionIndex,
+      field: field,
+      value: value,
+      currentSectionGuide: formSections[sectionIndex]?.guide
+    });
+    
     const newFormSections = [...formSections];
     
     if (field === 'guide') {
@@ -1094,6 +1132,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
         bookingDate: bookingDate // Preserve booking date
       };
     }
+    
+    console.log('GuideComponent - Updated section:', {
+      sectionIndex: sectionIndex,
+      field: field,
+      newGuideValue: newFormSections[sectionIndex].guide,
+      fullSection: newFormSections[sectionIndex]
+    });
     
     setFormSections(newFormSections);
     
@@ -1230,6 +1275,16 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
+          
+          console.log(`Rendering section ${sectionIndex}:`, {
+            guideId: section.guide,
+            guideName: section.guide_name,
+            selectedGuideDetails: selectedGuideDetails ? {
+              id: selectedGuideDetails.id,
+              name: selectedGuideDetails.guide_name
+            } : 'Not found',
+            hasOriginalData: !!section.originalData
+          });
           
           return (
             <Grid item xs={12} key={sectionIndex}>
@@ -1453,6 +1508,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                             </Box>
                             <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
                               <GuideListing 
+                                
                                 value={section.guide}
                                 onChange={(field, value) => handleInputChange(sectionIndex, field, value)}
                                 disabled={status === 'loading'}

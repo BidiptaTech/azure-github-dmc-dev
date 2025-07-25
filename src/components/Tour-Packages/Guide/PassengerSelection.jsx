@@ -115,7 +115,7 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
   const initialAdults = searchParams?.adults || 1;
   const initialChildren = searchParams?.children || 0;
   const totalAllowed = initialAdults + initialChildren; // Total passengers allowed from search
-
+  console.log('PassengerSelection debug:', value);
   // Initialize guest counts with maximum values from search parameters
   const [guestCounts, setGuestCounts] = useState({
     Adults: value?.Adults !== undefined ? value.Adults : initialAdults,

@@ -244,20 +244,62 @@ const GuideListing = ({ value, onChange, disabled }) => {
   const guides = useSelector((state) => state.tourguide.Guides) || [];
   const searchParams = useSelector((state) => state.tourguide.searchParams);
   const prevGuideIdRef = useRef(null);
-
+  
+  console.log('GuideListing debug:', value);
+  console.log('GuideListing - Received value details:', {
+    value: value,
+    valueType: typeof value,
+    isNull: value === null,
+    isUndefined: value === undefined,
+    isEmpty: value === '',
+    availableGuides: guides.length,
+    guidesWithPricing: guides.filter(g => g.dmc_day_rate > 0 || g.travClicks_day_rate > 0).length
+  });
+  
   // Filter guides once
   const filteredGuides = useMemo(() => {
-    return guides.filter(guide => {
+    const filtered = guides.filter(guide => {
       const hasDmcPrice = guide.dmc_day_rate > 0;
       const hasTravclicksPrice = guide.travClicks_day_rate > 0;
       return hasDmcPrice || hasTravclicksPrice;
     });
+    
+    console.log('GuideListing - Filtered guides:', {
+      totalGuides: guides.length,
+      filteredCount: filtered.length,
+      filteredIds: filtered.map(g => g.id)
+    });
+    
+    return filtered;
   }, [guides]);
 
   // Find selected guide once
   const selectedGuide = useMemo(() => {
-    if (!value || !filteredGuides || filteredGuides.length === 0) return null;
-    return filteredGuides.find(g => g.id === value) || null;
+    if (!value || !filteredGuides || filteredGuides.length === 0) {
+      console.log('GuideListing - No selected guide because:', {
+        noValue: !value,
+        noFilteredGuides: !filteredGuides || filteredGuides.length === 0,
+        value: value,
+        filteredGuidesLength: filteredGuides?.length || 0
+      });
+      return null;
+    }
+    
+    // Try different ID matching approaches
+    const foundGuide = filteredGuides.find(g => g.id === value) || 
+                      filteredGuides.find(g => String(g.id) === String(value)) ||
+                      filteredGuides.find(g => parseInt(g.id, 10) === parseInt(value, 10));
+    
+    console.log('GuideListing - Guide lookup result:', {
+      searchingForId: value,
+      foundGuide: foundGuide ? {
+        id: foundGuide.id,
+        name: foundGuide.guide_name
+      } : null,
+      availableIds: filteredGuides.map(g => ({ id: g.id, name: g.guide_name }))
+    });
+    
+    return foundGuide || null;
   }, [filteredGuides, value]);
 
   // Handle guide selection - fix unnecessary dispatch calls
