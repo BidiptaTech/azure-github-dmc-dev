@@ -388,7 +388,7 @@ fieldset legend {
                                 class="text-danger">*</span></label>
                 <input type="text" class="form-control" name="total_no_of_room" id="total_rooms"
                     placeholder="Enter Number of Rooms" oninput="validateTotalRooms(this)">
-                        <small class="validation-message text-danger" id="total_rooms-validation-message"></small>
+                        <small class="validation-message text-danger" id="total_rooms-validation-message" required></small>
                         @error('total_no_of_room')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
