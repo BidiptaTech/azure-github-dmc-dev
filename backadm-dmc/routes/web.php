@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentController;
+use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\BedsController;
 use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
@@ -549,6 +550,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails']);
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
         Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
+
+        // Agency routes
+        Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
+        Route::resource('agencies', AgencyController::class);
+        Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);

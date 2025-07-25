@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'User Data')
+@section('title', 'Hotel Listing')
 @extends('layouts.datatablecss')
 
 @section('content')
