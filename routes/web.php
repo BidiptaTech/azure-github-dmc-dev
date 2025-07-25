@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentController;
+use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\BedsController;
 use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
@@ -131,8 +132,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
         // Exclude mobileapp routes
-        Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
-            ->where('routeName', '^(?!mobileapp).*$'); 
+       
 
         // Predefined Packages Routes
         // Country → City
@@ -559,6 +559,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
         Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
 
+        // Agency routes
+        Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
+        Route::resource('agencies', AgencyController::class);
+        Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
+
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
@@ -641,7 +646,8 @@ Route::get('/test-booking-email', function() {
     }
 });
 
-
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
+->where('routeName', '^(?!mobileapp).*$'); 
 
 
 
