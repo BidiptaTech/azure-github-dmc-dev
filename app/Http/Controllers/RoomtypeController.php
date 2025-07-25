@@ -162,7 +162,7 @@ public function updateBaseRoom(Request $request)
             'room_id' => 'required|exists:rooms,room_id',
             'base_room' => 'required|boolean',
         ]);
-        
+        $auth_user = Auth::user();
         $room = Room::where('room_id', $request->room_id)->first();
         
         if (!$room) {
@@ -174,6 +174,7 @@ public function updateBaseRoom(Request $request)
             // Find all rooms in the same hotel and set base_room to false
             Room::where('hotel_id', $room->hotel_id)
                 ->where('room_id', '!=', $room->room_id)
+                ->where('created_by', $auth_user->userId)
                 ->update(['base_room' => false]);
         }
         

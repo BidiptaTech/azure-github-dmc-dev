@@ -162,6 +162,94 @@ fieldset legend {
 .table .form-check.form-switch {
     margin: 0;
     padding-left: 2.5em;
+    position: relative; /* For tooltip positioning */
+}
+
+/* Custom Tooltip Styles */
+.tooltip {
+    position: absolute;
+    z-index: 1070;
+    display: block;
+    margin: 0;
+    font-family: var(--bs-font-sans-serif);
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: left;
+    text-decoration: none;
+    text-shadow: none;
+    text-transform: none;
+    letter-spacing: normal;
+    word-break: normal;
+    word-spacing: normal;
+    white-space: normal;
+    line-break: auto;
+    font-size: 0.875rem;
+    word-wrap: break-word;
+    opacity: 0;
+}
+
+.tooltip.show {
+    opacity: 1;
+}
+
+.tooltip-inner {
+    max-width: 200px;
+    padding: 0.25rem 0.5rem;
+    color: #fff;
+    text-align: center;
+    background-color: #dc3545;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Disabled toggle style */
+.form-check-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Delete button styles */
+.delete-room-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+.delete-room-btn:disabled:hover {
+    background-color: #dc3545 !important;
+    opacity: 0.5 !important;
+}
+
+/* Animation for delete modal */
+@keyframes shakeX {
+    from,
+    to {
+        transform: translate3d(0, 0, 0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translate3d(-10px, 0, 0);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translate3d(10px, 0, 0);
+    }
+}
+
+.animate__animated {
+    animation-duration: 1s;
+    animation-fill-mode: both;
+}
+
+.animate__shakeX {
+    animation-name: shakeX;
 }
 
 .table .form-check-input {
@@ -275,7 +363,7 @@ fieldset legend {
                     <div class="col-md-3 mb-3" id="room_type" style="display: none;">
                         <label for="room_type_input" class="form-label"><strong>Room Category</strong><span
                                 class="text-danger">*</span></label>
-                        <input id="room_type_input" name="room_type" class="form-control" placeholder="Enter Room Category">
+                        <input id="room_type_input" name="room_type" class="form-control" placeholder="Enter Room Category" required>
                         <div class="form-text">Enter name for this room variant (e.g. Deluxe, Premium)</div>
                         @error('room_type')
                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -532,10 +620,10 @@ fieldset legend {
                     
                     <!-- Supplementary Breakfast Toggle -->
                     <div class="col-md-3 mb-3">
-                        <label for="supplementary_breakfast" class="form-label"><strong>Supplementary Breakfast Included</strong></label>
+                        <label for="supplementary_breakfast" class="form-label"><strong>Complementary Breakfast Included</strong></label>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="supplementary_breakfast" id="supplementary_breakfast" value="1">
-                            <label class="form-check-label" for="supplementary_breakfast">Enable Supplementary Breakfast</label>
+                            <label class="form-check-label" for="supplementary_breakfast">Enable Complementary Breakfast</label>
                         </div>
                     </div>
                 </div>
@@ -700,9 +788,14 @@ fieldset legend {
                                                id="baseRoomToggle{{ $room->room_id }}" 
                                                data-room-id="{{ $room->room_id }}" 
                                                style="width: 2.00em !important;"
-                                               {{ $room->base_room ? 'checked' : '' }}>
+                                               {{ $room->base_room ? 'checked' : '' }}
+                                               {{ $room->created_by == $auth_user->userId ? '' : 'disabled' }}
+                                               {{ $room->created_by == $auth_user->userId ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
                                         <label class="form-check-label ms-2" for="baseRoomToggle{{ $room->room_id }}">
                                             {{ $room->base_room ? 'Yes' : 'No' }}
+                                            @if($room->created_by != $auth_user->userId)
+                                                <small class="text-muted ms-2">(Created by another user)</small>
+                                            @endif
                                         </label>
                                     </div>
                                 </td>
@@ -749,14 +842,21 @@ fieldset legend {
                                     <!-- Delete Button -->
                                     {{-- @if(hasPermission('delete room')) --}}
                                     <button type="button" 
-                                            class="btn btn-danger btn-sm rounded-circle" 
+                                            class="btn btn-danger btn-sm rounded-circle delete-room-btn" 
                                             style="width: 28px; height: 28px; padding: 0;" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#deleteModal" 
-                                            onclick="setDeleteForm('{{ env('APP_URL') }}/deleteroom/{{ $room->room_id }}')">
+                                            data-room-id="{{ $room->room_id }}"
+                                            data-created-by="{{ $room->created_by }}"
+                                            onclick="handleDeleteClick(this, '{{ env('APP_URL') }}/deleteroom/{{ $room->room_id }}')"
+                                            {{ $room->created_by == $auth_user->userId ? '' : 'disabled' }}
+                                            {{ $room->created_by == $auth_user->userId ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
                                             <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                         </svg>
+                                        @if($room->created_by != $auth_user->userId)
+                                            <span class="visually-hidden">(Cannot delete - created by another user)</span>
+                                        @endif
                                     </button>
                                     {{-- @endif --}}
                                     </div>
@@ -779,14 +879,20 @@ fieldset legend {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Are you sure you want to delete this room?
+                <div id="deleteModalDefaultContent">
+                    Are you sure you want to delete this room?
+                </div>
+                <div id="deleteModalErrorContent" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    You cannot delete this room as it was created by another user.
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="deleteForm" method="POST" action="">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <button type="submit" class="btn btn-danger" id="deleteConfirmButton">Delete</button>
                 </form>
             </div>
         </div>
@@ -1406,9 +1512,35 @@ $(document).ready(function() {
 });
 
 // Delete modal functionality
-function setDeleteForm(action) {
-    // Make sure the form is set to the correct route
-    console.log("Setting delete form action to: " + action);
+function handleDeleteClick(button, action) {
+    // Get the created_by value from the button's data attribute
+    const createdBy = $(button).data('created-by');
+    const authUserId = '{{ $auth_user->userId }}';
+    
+    // Reset modal to default state
+    $('#deleteModalDefaultContent').hide();
+    $('#deleteModalErrorContent').hide();
+    $('#deleteConfirmButton').prop('disabled', false);
+    
+    // Check if user has permission to delete
+    if (createdBy != authUserId) {
+        // Show error message in modal
+        $('#deleteModalErrorContent').show();
+        $('#deleteConfirmButton').prop('disabled', true);
+        
+        // Add shake animation to modal
+        $('.modal-content').addClass('animate__animated animate__shakeX');
+        setTimeout(() => {
+            $('.modal-content').removeClass('animate__animated animate__shakeX');
+        }, 1000);
+        
+        return;
+    }
+    
+    // Show default confirmation content
+    $('#deleteModalDefaultContent').show();
+    
+    // Set the form action
     document.getElementById('deleteForm').action = action;
     
     // Display the modal
@@ -1416,11 +1548,10 @@ function setDeleteForm(action) {
     if (typeof bootstrap !== 'undefined') {
         var bsModal = new bootstrap.Modal(deleteModal);
         bsModal.show();
-            } else {
-        // Fallback for Bootstrap 4
+    } else {
         $('#deleteModal').modal('show');
-            }
- }
+    }
+}
 </script>
 
 <script>
@@ -1642,6 +1773,22 @@ function setDeleteForm(action) {
     $(document).ready(function() {
     // Base Room Type Toggle Handler
     $('.toggle-base-room').on('change', function() {
+        // Check if the toggle is disabled
+        if ($(this).prop('disabled')) {
+            // Prevent the change and show a tooltip
+            $(this).prop('checked', !$(this).prop('checked')); // Revert the change
+            
+            // Create and show tooltip if it doesn't exist
+            if (!$(this).next('.tooltip').length) {
+                $('<div class="tooltip fade show" role="tooltip">' +
+                  '<div class="tooltip-inner bg-danger">' +
+                  'You can only modify rooms you created' +
+                  '</div></div>').insertAfter($(this))
+                  .delay(2000).fadeOut(function() { $(this).remove(); });
+            }
+            return false;
+        }
+
         const roomId = $(this).data('room-id');
         const isBaseRoom = $(this).prop('checked');
         const label = $(this).siblings('label');

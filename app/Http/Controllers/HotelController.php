@@ -2236,9 +2236,10 @@ class HotelController extends Controller
         // if (!hasPermission('edit bed')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $auth_user = Auth::user();
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         $beds = BedMaster::where('hotel_id', $hotelId)->get();
-        $rooms = Room::where('hotel_id',$hotelId)->get();
+        $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $auth_user->userId)->get();
         $hotelBed = Bed::with('room')->where('bed_id', $id)->first();
         $room = Room::where('room_id', $hotelBed->room_id)->first();
         return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room'));
