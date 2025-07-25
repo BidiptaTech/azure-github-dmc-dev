@@ -51,6 +51,8 @@ use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
 
+// Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -129,7 +131,13 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
+        // Exclude mobileapp routes
+       
+
         // Predefined Packages Routes
+        // Country → City
+        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
+
         // Country → City
         Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
 
@@ -565,7 +573,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
         Route::resource('roles', RoleController::class);  
         Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType']);
-        Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']);
+        
         Route::post('add-money/{id}', [UserController::class, 'add_money'])->name('add-money');
         // Route::post('/guide/approve-or-decline/{guideId}', [GuideController::class, 'approveOrDecline']);
         // Route::post('/driver/approve-or-decline/{driverId}', [DriverController::class, 'approveOrDecline']);
@@ -638,7 +646,8 @@ Route::get('/test-booking-email', function() {
     }
 });
 
-
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
+->where('routeName', '^(?!mobileapp).*$'); 
 
 
 
