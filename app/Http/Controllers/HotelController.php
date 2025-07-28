@@ -1478,15 +1478,15 @@ class HotelController extends Controller
             'is_active' => $request->season_status == 1 ? 1 : 0
         ]);
 
-        if ($rate->save()) {
-            LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
-            return redirect()->back()
-                ->with('success', 'Rates details saved successfully!');
-        } else {
-            LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
-            return redirect()->back()
-                ->with('error', 'An error occurred while saving the room details.');
-        }
+        // if ($rate->save()) {
+        //     LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
+        //     return redirect()->back()
+        //         ->with('success', 'Rates details saved successfully!');
+        // } else {
+        //     LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
+        //     return redirect()->back()
+        //         ->with('error', 'An error occurred while saving the room details.');
+        // }
     }
 
     /*
@@ -3292,6 +3292,18 @@ class HotelController extends Controller
                 'success' => false,
                 'message' => 'An error occurred while removing the hotel.'
             ], 500);
+        }
+    }
+
+    public function deleterate($id)
+    {
+        try {
+            $rate = \App\Models\Rate::where('rate_id', $id)->first();
+            $rate->delete();
+            
+            return redirect()->back()->with('success', 'Rate deleted successfully');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to delete rate');
         }
     }
 
