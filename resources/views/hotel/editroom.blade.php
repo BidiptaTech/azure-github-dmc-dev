@@ -45,7 +45,12 @@
                         <label for="base_room_type_input" class="form-label"><strong>Base Room
                                 Category</strong><span class="text-danger">*</span></label>
                         <input id="base_room_type_input" value="" name="base_room_type" class="form-control"
-                            placeholder="Enter Room Category"></input>
+                            placeholder="Enter Room Category"
+                            {{ !in_array($auth_user->role_id, [1, 20]) ? 'readonly' : '' }}
+                            style="{{ !in_array($auth_user->role_id, [1, 20]) ? 'background-color:#f8f9fa;cursor:not-allowed;' : '' }}">
+                        @if(!in_array($auth_user->role_id, [1, 20]))
+                            <small class="text-muted">(Only admin can modify room category)</small>
+                        @endif
                         @error('base_room_type')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -56,7 +61,12 @@
                         <label for="room_type" class="form-label"><strong>Room Category</strong><span
                                 class="text-danger">*</span></label>
                         <input value="" name="room_type" id="room_type_input" class="form-control"
-                            placeholder="Enter Room Category">
+                            placeholder="Enter Room Category"
+                            {{ !in_array($auth_user->role_id, [1, 20]) ? 'readonly' : '' }}
+                            style="{{ !in_array($auth_user->role_id, [1, 20]) ? 'background-color:#f8f9fa;cursor:not-allowed;' : '' }}">
+                        @if(!in_array($auth_user->role_id, [1, 20]))
+                            <small class="text-muted">(Only admin can modify room category)</small>
+                        @endif
                         @error('room_type')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -79,7 +89,7 @@
                                 class="text-danger">*</span></label>
                         <input value="{{$room->no_of_room}}" type="text" class="form-control" name="total_no_of_room"
                                id="total_rooms" placeholder="Enter Number of Rooms"
-                               oninput="validateTotalRooms(this)">
+                               oninput="validateTotalRooms(this)" required>
                         <small class="validation-message text-danger" id="total_rooms-validation-message"></small>
                         @error('base_no_of_room')
                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -89,7 +99,12 @@
                     <div class="mb-3 col-md-3" id="dimension">
                         <label for="dimension_input" class="form-label"><strong>Dimension</strong></label>
                         <input value="{{$room->dimension}}" type="number" name="dimension" id="dimension_input" class="form-control"
-                               placeholder="Enter Dimension">
+                               placeholder="Enter Dimension"
+                               {{ !in_array($auth_user->role_id, [1, 20]) ? 'readonly' : '' }}
+                               style="{{ !in_array($auth_user->role_id, [1, 20]) ? 'background-color:#f8f9fa;cursor:not-allowed;' : '' }}">
+                        @if(!in_array($auth_user->role_id, [1, 20]))
+                            <small class="text-muted">(Only admin can modify dimension)</small>
+                        @endif
                         <small class="validation-message text-danger" id="dimension_input-validation-message"></small>
                     </div>
 
@@ -299,16 +314,18 @@
                         
                         <!-- Supplementary Breakfast Toggle -->
                         <div class="col-md-3 mb-3">
-                            <label for="supplementary_breakfast" class="form-label"><strong>Supplementary Breakfast Included</strong></label>
+                            <label for="supplementary_breakfast" class="form-label"><strong>Complementary Breakfast Included</strong></label>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="supplementary_breakfast" 
                                        id="supplementary_breakfast" value="1" 
                                        {{ $room->breakfast_included ? 'checked' : '' }}>
-                                <label class="form-check-label" for="supplementary_breakfast">Enable Supplementary Breakfast</label>
+                                <label class="form-check-label" for="supplementary_breakfast">Enable Complementary Breakfast</label>
                             </div>
                         </div>
                     </div>
 
+                    @if(in_array($auth_user->role_id, [1, 20]))
+                    <!-- Image sections - Only visible to admin users -->
                     <div class="row col-md-12">
                         <!-- Master image -->
                         <div class="mt-3 mb-3 col-md-4">
@@ -338,8 +355,6 @@
                                 </div>
                             </div>
                             @endif
-
-
                         </div>
 
                         <!-- Additional Image drop -->
@@ -364,7 +379,6 @@
                                 @endphp
                                 @foreach($images as $img)
                                 <!-- Hidden input to hold existing image path -->
-
                                 <div class="existing-image-preview-wrapper position-relative">
                                     <input type="hidden" name="existing_images[]" value="{{ $img }}">
                                     <img src="{{ asset($img) }}" alt="Facility Image"
@@ -386,6 +400,15 @@
                                 style="max-width: 100%; overflow-x: auto; white-space: nowrap;"></div>
                         </div>
                     </div>
+                    @else
+                    <!-- Hidden image inputs for DMC users -->
+                    <input type="hidden" name="master_image" value="{{ $room->master_image }}">
+                    <input type="hidden" name="existing_images[]" value="{{ json_encode($room->images) }}">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Image management is only available for admin users.
+                    </div>
+                    @endif
                 </div>
 
                 <!-- Status -->
@@ -402,7 +425,6 @@
 
                 <!-- Submit Buttons -->
                 <div class="d-flex gap-3">
-                    <a href="{{ route('hotels.room', $room->room_id) }}" class="btn btn-secondary px-4">Previous</a>
                     <button type="submit" class="btn btn-primary px-4">Update</button>
                 </div>
             </form>
@@ -413,6 +435,29 @@
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Prevent modification of readonly fields for non-admin users
+    const isAdmin = {{ in_array($auth_user->role_id, [1, 20]) ? 'true' : 'false' }};
+    
+    if (!isAdmin) {
+        // Prevent any modification attempts on readonly fields
+        $('#base_room_type_input, #room_type_input, #dimension_input').on('keydown paste drop', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Show tooltip when trying to modify readonly fields
+        $('#base_room_type_input, #room_type_input, #dimension_input').on('click', function() {
+            const $this = $(this);
+            if (!$this.next('.tooltip').length) {
+                $('<div class="tooltip">Only admin can modify this field</div>')
+                    .insertAfter($this)
+                    .fadeIn()
+                    .delay(2000)
+                    .fadeOut(function() { $(this).remove(); });
+            }
+        });
+    }
+    
     // Get hotel data from server-rendered Blade variable
     const room = @json($room);
     const baseRoom = @json($baseRoom);

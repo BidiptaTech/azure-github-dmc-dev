@@ -176,7 +176,7 @@
                                     @foreach($results as $index => $row)
                                         <tr>
                                             <td style="text-align: center;">{{ $index + 1 }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($row->created_at)->format('d M Y, h:i A') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($row->created_at)->format('D, M Y') }}</td>
                                             <td>{{ $row->booking_id }}</td>
                                             <td>{{ $row->agent_name }}</td>
                                             <td>

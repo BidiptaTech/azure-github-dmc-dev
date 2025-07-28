@@ -14,7 +14,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => 'web',
+        'guard' => 'api',
         'passwords' => 'users',
     ],
 
@@ -43,7 +43,17 @@ return [
         'agent' => [ // for agents
         'driver' => 'session',
         'provider' => 'agents',
-    ],
+        ],
+        'api' => [
+            'driver' => 'sanctum',
+            'provider' => 'users',
+            'hash' => false,
+        ],
+        'agent-api' => [
+            'driver' => 'sanctum',
+            'provider' => 'agents',
+            'hash' => false,
+        ],
     ],
 
     /*

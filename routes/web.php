@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentController;
+use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\BedsController;
 use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
@@ -49,6 +50,8 @@ use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
+
+// Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
 /*
 |--------------------------------------------------------------------------
@@ -128,7 +131,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
+       
         // Predefined Packages Routes
+        // Country → City
+        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
+
         // Country → City
         Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
 
@@ -502,6 +509,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::post('storeEvents', [HotelController::class, 'storerates'])->name('storerates');
         Route::get('editevents/{id}/{hotel_id}', [HotelController::class, 'editrate'])->name('rates.edit');
         Route::post('updaterates', [HotelController::class, 'updaterates'])->name('rates.update');
+        Route::delete('deleterates/{id}', [HotelController::class, 'deleterate'])->name('rates.destroy');
 
         Route::get('/hotels/{hotel}/season', [HotelController::class, 'hotelseason'])->name('hotels.season');
         Route::post('storeseason', [HotelController::class, 'storeseason'])->name('storeseason');
@@ -550,6 +558,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
         Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
 
+        // Agency routes
+        Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
+        Route::resource('agencies', AgencyController::class);
+        Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
+
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
@@ -559,7 +572,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
         Route::resource('roles', RoleController::class);  
         Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType']);
-        Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']);
+        
         Route::post('add-money/{id}', [UserController::class, 'add_money'])->name('add-money');
         // Route::post('/guide/approve-or-decline/{guideId}', [GuideController::class, 'approveOrDecline']);
         // Route::post('/driver/approve-or-decline/{driverId}', [DriverController::class, 'approveOrDecline']);
@@ -589,7 +602,50 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
 // Package Routes
 
+// Add this route for testing booking confirmation email
+Route::get('/test-booking-email', function() {
+    try {
+        // Prepare dynamic data for the booking confirmation email
+        $data = [
+            "booking_id" => "BK-" . rand(10000, 99999),
+            "customer_name" => "John Doe",
+            "type" => "Hotel Booking",
+            "booking_date" => date('Y-m-d'),
+            "check_in_date" => date('Y-m-d', strtotime('+7 days')),
+            "check_out_date" => date('Y-m-d', strtotime('+10 days')),
+            "location" => "Paris, France",
+            "guests" => "2 Adults, 1 Child",
+            "reference_number" => "REF-" . rand(1000, 9999),
+            "total_price" => 1250.00,
+            "payment_status" => "Paid"
+        ];
+        
+        // Send email using CommonHelper
+        $email = "saurabh.coactive@gmail.com";
+        $type = "confirmation";
+        $subject = "Your Booking Confirmation #" . $data['booking_id'];
+        $body = "Thank you for your booking with us!";
+        
+        \App\Helpers\CommonHelper::sendEmail($email, $type, $subject, $body, $data);
+        
+        return [
+            'success' => true,
+            'message' => 'Booking confirmation email sent successfully!',
+            'booking_id' => $data['booking_id']
+        ];
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Email error: ' . $e->getMessage());
+        
+        return [
+            'success' => false,
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ];
+    }
+});
 
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
 
 
 
