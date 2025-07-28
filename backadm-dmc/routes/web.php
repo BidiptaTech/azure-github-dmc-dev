@@ -131,9 +131,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
-        // Exclude mobileapp routes
        
-
         // Predefined Packages Routes
         // Country → City
         Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
@@ -511,6 +509,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::post('storeEvents', [HotelController::class, 'storerates'])->name('storerates');
         Route::get('editevents/{id}/{hotel_id}', [HotelController::class, 'editrate'])->name('rates.edit');
         Route::post('updaterates', [HotelController::class, 'updaterates'])->name('rates.update');
+        Route::delete('deleterates/{id}', [HotelController::class, 'deleterate'])->name('rates.destroy');
 
         Route::get('/hotels/{hotel}/season', [HotelController::class, 'hotelseason'])->name('hotels.season');
         Route::post('storeseason', [HotelController::class, 'storeseason'])->name('storeseason');
@@ -646,8 +645,7 @@ Route::get('/test-booking-email', function() {
     }
 });
 
-Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
-->where('routeName', '^(?!mobileapp).*$'); 
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
 
 
 
