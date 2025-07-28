@@ -668,7 +668,7 @@
             <li class="menu-header mt-5">
                 <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
             </li>
-            <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger')) open active @endif">
+            <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
                     <div data-i18n="Reports">Reports</div>
@@ -683,6 +683,11 @@
                     <li class="menu-item @if(Request::is('reports/ledger')) active @endif">
                         <a href="{{ route('reports.ledger') }}" class="menu-link">
                             <div data-i18n="Ledger">Ledger</div>
+                        </a>
+                    </li>
+                    <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
+                        <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
+                            <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                         </a>
                     </li>
                 </ul>

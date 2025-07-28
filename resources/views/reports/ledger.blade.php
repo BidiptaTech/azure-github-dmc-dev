@@ -1,5 +1,10 @@
 @extends('layouts.layout')
 @extends('layouts.datatablecss')
+
+@php
+use Illuminate\Support\Facades\Auth;
+@endphp
+
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -14,7 +19,7 @@
                         <div>
                             <div class="fw-bold text-muted small">Total Transactions</div>
                             <div class="fs-5 fw-semibold">
-                                {{ count($results) }}
+                                {{ is_array($results) || is_countable($results) ? count($results) : 0 }}
                             </div>
                         </div>
                     </div>
@@ -29,7 +34,7 @@
                         <div>
                             <div class="fw-bold text-muted small">Total Agents</div>
                             <div class="fs-5 fw-semibold">
-                                {{ count(array_unique(array_column($results, 'agent_name'))) }}
+                                {{ is_array($results) ? count(array_unique(array_column($results, 'agent_name'))) : 0 }}
                             </div>
                         </div>
                     </div>
@@ -44,7 +49,7 @@
                         <div>
                             <div class="fw-bold text-muted small">Total Amount</div>
                             <div class="fs-5 fw-semibold">
-                                ₹{{ number_format(array_sum(array_column($results, 'amount')), 2) }}
+                                ₹{{ is_array($results) ? number_format(array_sum(array_column($results, 'amount')), 2) : '0.00' }}
                             </div>
                         </div>
                     </div>
@@ -77,72 +82,178 @@
 
         <div class="row mb-4">
             <div class="col-12">
-                <!-- Filter Card -->
+                <!-- Enhanced Filter Card -->
                 <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h6 class="mb-0 fw-bold">
+                            <i class="ri-filter-3-line me-2"></i>Advanced Filters & Currency Settings
+                        </h6>
+                    </div>
                     <div class="card-body">
-                        <form method="GET" action="{{ route('reports.ledger') }}" class="row g-3 align-items-end">
-                            <div class="col-md-2">
-                                <label for="start_date" class="form-label">Start Date</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="ri-calendar-line"></i></span>
-                                    <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="form-control" required aria-label="Start Date" autocomplete="off">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <label for="end_date" class="form-label">End Date</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="ri-calendar-line"></i></span>
-                                    <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="form-control" required aria-label="End Date" autocomplete="off">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="agent_id" class="form-label">Agent</label>
-                                @if(count($agentsForDropdown) > 0)
-                                    <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent">
-                                        <option value="">All Agents</option>
-                                        @foreach($agentsForDropdown as $agent)
-                                            <option value="{{ $agent->agent_id }}" {{ $agentId == $agent->agent_id ? 'selected' : '' }}>
-                                                {{ $agent->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <div class="form-control bg-light text-muted d-flex align-items-center" style="height: 48px;">
-                                        <i class="ri-user-forbid-line me-2"></i>
-                                        <span>No agents available</span>
+                        <form method="GET" action="{{ route('reports.ledger') }}" id="ledgerFilterForm">
+                            <!-- First Row: Date Range & Currency -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-2">
+                                    <label for="start_date" class="form-label fw-semibold">Start Date</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="ri-calendar-line"></i></span>
+                                        <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="form-control" required aria-label="Start Date" autocomplete="off">
                                     </div>
-                                    <input type="hidden" name="agent_id" value="">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="end_date" class="form-label fw-semibold">End Date</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="ri-calendar-line"></i></span>
+                                        <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="form-control" required aria-label="End Date" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="currency" class="form-label fw-semibold">Currency</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="ri-money-dollar-circle-line"></i></span>
+                                        <select name="currency" id="currency" class="form-select" aria-label="Currency">
+                                            <option value="SGD" {{ request('currency', 'SGD') == 'SGD' ? 'selected' : '' }}>SGD</option>
+                                            <option value="INR" {{ request('currency') == 'INR' ? 'selected' : '' }}>INR</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Exchange Rate</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-info text-white">
+                                            <i class="ri-exchange-line"></i>
+                                        </span>
+                                        <input type="text" class="form-control bg-light" id="exchangeRate" readonly value="1 SGD = 67.50 INR" placeholder="Loading...">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="view_type" class="form-label fw-semibold">View Type</label>
+                                    <select name="view_type" id="view_type" class="form-select" aria-label="View Type">
+                                        <option value="summary" {{ request('view_type', 'summary') == 'summary' ? 'selected' : '' }}>Summary View</option>
+                                        <option value="detailed" {{ request('view_type') == 'detailed' ? 'selected' : '' }}>Detailed View</option>
+                                        <option value="balance" {{ request('view_type') == 'balance' ? 'selected' : '' }}>Balance Sheet View</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Second Row: Hierarchy Selectors -->
+                            <div class="row g-3 mb-3">
+                                @if(Auth::user()->role_id == 1)
+                                    {{-- Show Master DMC dropdown for Admin only --}}
+                                    <div class="col-md-3">
+                                        <label for="master_dmc_id" class="form-label fw-semibold">Master DMC</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="ri-building-line"></i></span>
+                                            <select name="master_dmc_id" id="master_dmc_id" class="form-select" aria-label="Master DMC">
+                                                <option value="">All Master DMCs</option>
+                                                @if(isset($masterDmcsForDropdown) && $masterDmcsForDropdown->isNotEmpty())
+                                                    @foreach($masterDmcsForDropdown as $masterDmc)
+                                                        <option value="{{ $masterDmc->userId }}" {{ ($masterDmcId ?? request('master_dmc_id')) == $masterDmc->userId ? 'selected' : '' }}>
+                                                            {{ $masterDmc->name }}
+                                                        </option>
+                                                    @endforeach
+                                                @endif
+                                            </select>
+                                        </div>
+                                    </div>
                                 @endif
+                                
+                                @if(Auth::user()->role_id <= 10)
+                                    {{-- Show DMC dropdown for Admin and Master DMC --}}
+                                    <div class="col-md-3">
+                                        <label for="dmc_id" class="form-label fw-semibold">DMC</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="ri-store-line"></i></span>
+                                            <select name="dmc_id" id="dmc_id" class="form-select" aria-label="DMC">
+                                                @if(Auth::user()->role_id == 1)
+                                                    <option value="">All DMCs</option>
+                                                @else
+                                                    <option value="">Select DMC</option>
+                                                @endif
+                                                @if(isset($dmcsForDropdown) && $dmcsForDropdown->isNotEmpty())
+                                                    @foreach($dmcsForDropdown as $dmc)
+                                                        <option value="{{ $dmc->userId }}" data-master="{{ $dmc->master_dmc_id ?? '' }}" {{ ($dmcId ?? request('dmc_id')) == $dmc->userId ? 'selected' : '' }}>
+                                                            {{ $dmc->name }}
+                                                        </option>
+                                                    @endforeach
+                                                @endif
+                                            </select>
+                                        </div>
+                                    </div>
+                                @endif
+                                <div class="col-md-3">
+                                    <label for="agent_id" class="form-label fw-semibold">Agent</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                        @if(isset($agentsForDropdown) && $agentsForDropdown->count() > 0)
+                                            <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent">
+                                                <option value="">All Agents</option>
+                                                @foreach($agentsForDropdown as $agent)
+                                                    <option value="{{ $agent->agent_id }}" data-dmc="{{ $agent->root_dmc_id ?? $agent->sales_manager_dmc ?? '' }}" {{ $agentId == $agent->agent_id ? 'selected' : '' }}>
+                                                        {{ $agent->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <input type="text" class="form-control bg-light text-muted" value="No agents available" readonly>
+                                            <input type="hidden" name="agent_id" value="">
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="service_type" class="form-label fw-semibold">Service Type</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="ri-service-line"></i></span>
+                                        <select name="service_type" id="service_type" class="form-select" aria-label="Service Type">
+                                            <option value="">All Services</option>
+                                            <option value="hotel" {{ $serviceType == 'hotel' ? 'selected' : '' }}>Hotel</option>
+                                            <option value="attraction" {{ $serviceType == 'attraction' ? 'selected' : '' }}>Attraction</option>
+                                            <option value="guide" {{ $serviceType == 'guide' ? 'selected' : '' }}>Guide</option>
+                                            <option value="driver" {{ $serviceType == 'driver' ? 'selected' : '' }}>Driver</option>
+                                            <option value="entry_port" {{ $serviceType == 'entry_port' ? 'selected' : '' }}>Arrival</option>
+                                            <option value="exit_port" {{ $serviceType == 'exit_port' ? 'selected' : '' }}>Departure</option>
+                                            <option value="travel_point" {{ $serviceType == 'travel_point' ? 'selected' : '' }}>Travel Point</option>
+                                            <option value="travel_hourly" {{ $serviceType == 'travel_hourly' ? 'selected' : '' }}>Travel Hourly</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                <label for="service_type" class="form-label">Service Type</label>
-                                <select name="service_type" id="service_type" class="form-select" aria-label="Service Type">
-                                    <option value="">All Services</option>
-                                    <option value="hotel" {{ $serviceType == 'hotel' ? 'selected' : '' }}>Hotel</option>
-                                    <option value="attraction" {{ $serviceType == 'attraction' ? 'selected' : '' }}>Attraction</option>
-                                    <option value="guide" {{ $serviceType == 'guide' ? 'selected' : '' }}>Guide</option>
-                                    <option value="driver" {{ $serviceType == 'driver' ? 'selected' : '' }}>Driver</option>
-                                    <option value="entry_port" {{ $serviceType == 'entry_port' ? 'selected' : '' }}>Arrival</option>
-                                    <option value="exit_port" {{ $serviceType == 'exit_port' ? 'selected' : '' }}>Departure</option>
-                                    <option value="travel_point" {{ $serviceType == 'travel_point' ? 'selected' : '' }}>Travel Point</option>
-                                    <option value="travel_hourly" {{ $serviceType == 'travel_hourly' ? 'selected' : '' }}>Travel Hourly</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end gap-2">
-                                <button type="submit" class="btn btn-primary w-100"><i class="ri-filter-3-line me-1"></i>Filter</button>
-                                <!-- Export Dropdown Button -->
-                                <div class="dropdown w-100">
-                                    <button class="btn btn-warning btn-sm dropdown-toggle w-100" type="button" id="exportDropdown"
-                                        data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" data-bs-placement="top" title="Export Table Data">
-                                        <i class="fas fa-download"></i> Export
-                                    </button>
-                                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy" title="Copy to clipboard">Copy</a></li>
-                                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV" title="Export as CSV">CSV</a></li>
-                                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel" title="Export as Excel">Excel</a></li>
-                                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF" title="Export as PDF">PDF</a></li>
-                                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint" title="Print Table">Print</a></li>
-                                    </ul>
+
+                            <!-- Action Buttons -->
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                                            <i class="ri-search-line me-1"></i>Apply Filters
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="resetFilters()">
+                                            <i class="ri-refresh-line me-1"></i>Reset
+                                        </button>
+                                        <button type="button" class="btn btn-info" onclick="refreshExchangeRate()">
+                                            <i class="ri-refresh-line me-1"></i>Update Rate
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <!-- Export Dropdown Button -->
+                                    <div class="dropdown w-100">
+                                        <button class="btn btn-warning dropdown-toggle w-100" type="button" id="exportDropdown"
+                                            data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" data-bs-placement="top" title="Export Table Data">
+                                            <i class="ri-download-line me-1"></i>Export Data
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                                            <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">
+                                                <i class="ri-file-copy-line me-2"></i>Copy to Clipboard</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">
+                                                <i class="ri-file-text-line me-2"></i>Export as CSV</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">
+                                                <i class="ri-file-excel-line me-2"></i>Export as Excel</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">
+                                                <i class="ri-file-pdf-line me-2"></i>Export as PDF</a></li>
+                                            <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">
+                                                <i class="ri-printer-line me-2"></i>Print Table</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -161,67 +272,166 @@
                             <table class="datatables-basic table table-bordered table-striped align-middle" id="ledgerTable" style="width:100%">
                                 <thead class="table-light sticky-top">
                                     <tr>
-                                        <th style="width: 60px; text-align: center;">#</th>
-                                        <th>Date</th>
+                                        <th style="width: 50px; text-align: center;">#</th>
+                                        <th>Date & Time</th>
                                         <th>Booking ID</th>
                                         <th>Agent Name</th>
                                         <th>Service Type</th>
-                                        <th>Customer Name</th>
-                                        <th>Customer Email</th>
-                                        <th style="text-align: right;">Amount</th>
-                                        <th>Status</th>
+                                        <th>Customer Details</th>
+                                        <th>Opening Balance</th>
+                                        <th>Transaction Amount</th>
+                                        <th>Closing Balance</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="table-border-bottom-0">
-                                    @foreach($results as $index => $row)
+                                    @php 
+                                        $runningBalance = 0;
+                                        $selectedCurrency = request('currency', 'SGD');
+                                        $exchangeRate = 67.50; // Default SGD to INR rate
+                                    @endphp
+                                    @if(isset($results) && (is_array($results) || is_countable($results)))
+                                        @foreach($results as $index => $row)
+                                        @php
+                                            $openingBalance = $runningBalance;
+                                            $transactionAmount = $row->amount ?? 0;
+                                            $runningBalance += $transactionAmount;
+                                            $closingBalance = $runningBalance;
+                                            
+                                            // Currency conversion
+                                            if ($selectedCurrency == 'INR') {
+                                                $openingBalance *= $exchangeRate;
+                                                $transactionAmount *= $exchangeRate;
+                                                $closingBalance *= $exchangeRate;
+                                                $currencySymbol = '₹';
+                                            } else {
+                                                $currencySymbol = 'S$';
+                                            }
+                                        @endphp
                                         <tr>
-                                            <td style="text-align: center;">{{ $index + 1 }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($row->created_at)->format('d M Y, h:i A') }}</td>
-                                            <td>{{ $row->booking_id }}</td>
-                                            <td>{{ $row->agent_name }}</td>
+                                            <td style="text-align: center;">
+                                                <span class="badge bg-light text-dark">{{ $index + 1 }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-bold">{{ \Carbon\Carbon::parse($row->created_at)->format('d M Y') }}</span>
+                                                    <small class="text-muted">{{ \Carbon\Carbon::parse($row->created_at)->format('h:i A') }}</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info text-white">{{ $row->booking_id }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-semibold">{{ $row->agent_name }}</span>
+                                                    <small class="text-muted">ID: {{ $row->agent_id ?? 'N/A' }}</small>
+                                                </div>
+                                            </td>
                                             <td>
                                                 @if($row->service_type == 'entry_port')
-                                                    <span class="badge text-white bg-primary">Arrival</span>
+                                                    <span class="badge bg-success">Arrival</span>
                                                 @elseif($row->service_type == 'exit_port')
-                                                    <span class="badge text-white bg-primary">Departure</span>
+                                                    <span class="badge bg-warning">Departure</span>
                                                 @elseif($row->service_type == 'travel_point')
-                                                    <span class="badge text-white bg-primary">Travel Point</span>
+                                                    <span class="badge bg-info">Travel Point</span>
                                                 @elseif($row->service_type == 'travel_hourly')
-                                                    <span class="badge text-white bg-primary">Travel Hourly</span>
+                                                    <span class="badge bg-secondary">Travel Hourly</span>
                                                 @elseif($row->service_type == 'guide')
-                                                    <span class="badge text-white bg-primary">Guide</span>
+                                                    <span class="badge bg-primary">Guide</span>
                                                 @elseif($row->service_type == 'driver')
-                                                    <span class="badge text-white bg-primary">Driver</span>
+                                                    <span class="badge bg-dark">Driver</span>
                                                 @elseif($row->service_type == 'attraction')
-                                                    <span class="badge text-white bg-primary">Attraction</span>
+                                                    <span class="badge bg-danger">Attraction</span>
                                                 @elseif($row->service_type == 'hotel')
-                                                    <span class="badge text-white bg-primary">Hotel</span>
+                                                    <span class="badge bg-primary">Hotel</span>
                                                 @endif
-                                            </td>
-                                            <td>{{ $row->customer_name ?? 'N/A' }}</td>
-                                            <td>{{ $row->customer_email ?? 'N/A' }}</td>
-                                            <td style="text-align: right;">
-                                                <strong>₹{{ number_format($row->amount, 2) }}</strong>
                                             </td>
                                             <td>
-                                                @if($row->status == 1)
-                                                    <span class="badge bg-success">Active</span>
-                                                @else
-                                                    <span class="badge bg-danger">Inactive</span>
-                                                @endif
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-semibold">{{ $row->customer_name ?? 'N/A' }}</span>
+                                                    <small class="text-muted">{{ $row->customer_email ?? 'N/A' }}</small>
+                                                </div>
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <div class="d-flex flex-column align-items-end">
+                                                    <span class="fw-bold text-secondary">{{ $currencySymbol }}{{ number_format($openingBalance, 2) }}</span>
+                                                    @if($selectedCurrency == 'INR')
+                                                        <small class="text-muted">S${{ number_format($openingBalance / $exchangeRate, 2) }}</small>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <div class="d-flex flex-column align-items-end">
+                                                    <span class="fw-bold {{ $transactionAmount >= 0 ? 'text-success' : 'text-danger' }}">
+                                                        {{ $transactionAmount >= 0 ? '+' : '' }}{{ $currencySymbol }}{{ number_format($transactionAmount, 2) }}
+                                                    </span>
+                                                    @if($selectedCurrency == 'INR')
+                                                        <small class="text-muted">S${{ number_format($transactionAmount / $exchangeRate, 2) }}</small>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <div class="d-flex flex-column align-items-end">
+                                                    <span class="fw-bold text-primary">{{ $currencySymbol }}{{ number_format($closingBalance, 2) }}</span>
+                                                    @if($selectedCurrency == 'INR')
+                                                        <small class="text-muted">S${{ number_format($closingBalance / $exchangeRate, 2) }}</small>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                        <i class="ri-more-2-line"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item" href="#" onclick="viewTransactionDetails('{{ $row->id }}')">
+                                                            <i class="ri-eye-line me-2"></i>View Details
+                                                        </a></li>
+                                                        <li><a class="dropdown-item" href="#" onclick="viewBalanceHistory('{{ $row->agent_id }}')">
+                                                            <i class="ri-history-line me-2"></i>Balance History
+                                                        </a></li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><a class="dropdown-item" href="#" onclick="exportTransaction('{{ $row->id }}')">
+                                                            <i class="ri-download-line me-2"></i>Export
+                                                        </a></li>
+                                                    </ul>
+                                                </div>
                                             </td>
                                         </tr>
-                                    {{-- @empty
+                                        @endforeach
+                                    @endif
+                                    
+                                    @if(!isset($results) || empty($results) || count($results) == 0)
                                         <tr>
-                                            <td colspan="9" class="text-center py-5">
+                                            <td colspan="10" class="text-center py-5">
                                                 <div class="d-flex flex-column align-items-center">
                                                     <i class="ri-file-list-3-line text-muted" style="font-size: 48px;"></i>
                                                     <span class="fw-semibold text-muted mt-2">No ledger entries found for the selected period.</span>
+                                                    <small class="text-muted">Try adjusting your filters or date range.</small>
                                                 </div>
                                             </td>
-                                        </tr> --}}
-                                    @endforeach
+                                        </tr>
+                                    @endif
                                 </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="6" class="text-end fw-bold">Total:</th>
+                                        <th class="text-end fw-bold">
+                                            @php
+                                                $totalAmount = isset($results) ? collect($results)->sum('amount') : 0;
+                                                if ($selectedCurrency == 'INR') {
+                                                    $totalAmount *= $exchangeRate;
+                                                    $currencySymbol = '₹';
+                                                } else {
+                                                    $currencySymbol = 'S$';
+                                                }
+                                            @endphp
+                                            {{ $currencySymbol }}{{ number_format($totalAmount, 2) }}
+                                        </th>
+                                        <th class="text-end fw-bold">{{ $currencySymbol }}{{ number_format((isset($runningBalance) ? $runningBalance : 0) * ($selectedCurrency == 'INR' ? $exchangeRate : 1), 2) }}</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -230,6 +440,63 @@
         </div>
     </div>
 </div>
+
+<!-- Transaction Details Modal -->
+<div class="modal fade" id="transactionDetailsModal" tabindex="-1" aria-labelledby="transactionDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transactionDetailsModalLabel">
+                    <i class="ri-eye-line me-2"></i>Transaction Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="transactionDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading transaction details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printTransactionDetails()">
+                    <i class="ri-printer-line me-1"></i>Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance History Modal -->
+<div class="modal fade" id="balanceHistoryModal" tabindex="-1" aria-labelledby="balanceHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="balanceHistoryModalLabel">
+                    <i class="ri-history-line me-2"></i>Balance History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="balanceHistoryContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading balance history...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-info" onclick="exportBalanceHistory()">
+                    <i class="ri-download-line me-1"></i>Export History
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -240,88 +507,758 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
-        // Initialize DataTable with export buttons
-        var table = $('.datatables-basic').DataTable({
-            responsive: true,
-            buttons: [
-                'copy',
-                'csv',
-                'excel',
-                'pdf',
-                'print'
-            ],
-            language: {
-                search: "_INPUT_",
-                searchPlaceholder: "Search...",
-            },
-            lengthMenu: [10, 25, 50, 100],
-            stripeClasses: ['table-light', 'table-white'],
-            order: [[1, 'desc']], // Sort by date descending
-        });
+        // Add small delay to ensure DOM is fully rendered
+        setTimeout(function() {
+            // Debug: Check table structure before initialization
+            console.log('Table rows:', $('#ledgerTable tbody tr').length);
+            console.log('Header columns:', $('#ledgerTable thead th').length);
+            console.log('Footer columns:', $('#ledgerTable tfoot th').length);
+            
+            // Debug: Check each row's column count
+            $('#ledgerTable tbody tr').each(function(index, row) {
+                console.log('Row ' + index + ' columns:', $(row).find('td').length);
+            });
+            
+            // Debug: Check if any rows have different column counts
+            var headerCols = $('#ledgerTable thead th').length;
+            var mismatchFound = false;
+            $('#ledgerTable tbody tr').each(function(index, row) {
+                var rowCols = $(row).find('td').length;
+                if (rowCols !== headerCols && rowCols > 0) {
+                    console.error('Column mismatch in row ' + index + ': expected ' + headerCols + ', found ' + rowCols);
+                    mismatchFound = true;
+                }
+            });
+            
+            if (!mismatchFound) {
+                console.log('No column count mismatches found in table structure');
+            }
+            
+            try {
+                // Initialize DataTable with export buttons
+                var table = $('.datatables-basic').DataTable({
+                    responsive: false, // Disable responsive to avoid column issues
+                    autoWidth: false,
+                    scrollX: true, // Add horizontal scroll instead of responsive
+                    columnDefs: [
+                        { width: "50px", targets: 0, className: "text-center" }, // # column
+                        { width: "120px", targets: 1 }, // Date & Time
+                        { width: "100px", targets: 2 }, // Booking ID
+                        { width: "150px", targets: 3 }, // Agent Name
+                        { width: "120px", targets: 4 }, // Service Type
+                        { width: "180px", targets: 5 }, // Customer Details
+                        { width: "120px", targets: 6, className: "text-end" }, // Opening Balance
+                        { width: "120px", targets: 7, className: "text-end" }, // Transaction Amount
+                        { width: "120px", targets: 8, className: "text-end" }, // Closing Balance
+                        { width: "100px", targets: 9, orderable: false, className: "text-center" } // Actions
+                    ],
+                    dom: 'Bfrtip', // Add buttons to DOM
+                    buttons: [
+                        'copy',
+                        'csv',
+                        'excel',
+                        'pdf',
+                        'print'
+                    ],
+                    language: {
+                        search: "_INPUT_",
+                        searchPlaceholder: "Search...",
+                        emptyTable: "No ledger entries found for the selected period.",
+                        zeroRecords: "No matching records found."
+                    },
+                    lengthMenu: [10, 25, 50, 100],
+                    pageLength: 25,
+                    order: [[1, 'desc']], // Sort by date descending
+                    processing: true,
+                    stateSave: false
+                });
 
-        // Custom export button functionality (for the dropdown)
-        $('#exportCopy').on('click', function() {
-            table.button('.buttons-copy').trigger();
-        });
+                // Custom export button functionality (for the dropdown)
+                $('#exportCopy').on('click', function() {
+                    table.button('.buttons-copy').trigger();
+                });
 
-        $('#exportCSV').on('click', function() {
-            table.button('.buttons-csv').trigger();
-        });
+                $('#exportCSV').on('click', function() {
+                    table.button('.buttons-csv').trigger();
+                });
 
-        $('#exportExcel').on('click', function() {
-            table.button('.buttons-excel').trigger();
-        });
+                $('#exportExcel').on('click', function() {
+                    table.button('.buttons-excel').trigger();
+                });
 
-        $('#exportPDF').on('click', function() {
-            table.button('.buttons-pdf').trigger();
-        });
+                $('#exportPDF').on('click', function() {
+                    table.button('.buttons-pdf').trigger();
+                });
 
-        $('#exportPrint').on('click', function() {
-            table.button('.buttons-print').trigger();
-        });
+                $('#exportPrint').on('click', function() {
+                    table.button('.buttons-print').trigger();
+                });
 
-        // Enable Bootstrap tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+                // Enable Bootstrap tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                
+            } catch (error) {
+                console.error('DataTables initialization error:', error);
+                console.log('Please check the table structure for column count mismatch');
+                
+                // Fallback: Initialize without complex features
+                try {
+                    var simpleTable = $('.datatables-basic').DataTable({
+                        responsive: false,
+                        paging: true,
+                        searching: true,
+                        ordering: true,
+                        info: true,
+                        autoWidth: false,
+                        scrollX: true,
+                        lengthMenu: [10, 25, 50, 100],
+                        pageLength: 25,
+                        order: [[1, 'desc']],
+                        language: {
+                            emptyTable: "No ledger entries found for the selected period.",
+                            zeroRecords: "No matching records found.",
+                            search: "_INPUT_",
+                            searchPlaceholder: "Search..."
+                        }
+                    });
+                    console.log('Simple DataTables initialization successful');
+                } catch (fallbackError) {
+                    console.error('Even simple DataTables initialization failed:', fallbackError);
+                    
+                    // Last resort: try without any options
+                    try {
+                        var basicTable = $('.datatables-basic').DataTable();
+                        console.log('Basic DataTables initialization successful');
+                    } catch (basicError) {
+                        console.error('All DataTables initialization attempts failed:', basicError);
+                    }
+                }
+            }
+        }, 100); // 100ms delay
     });
 </script>
 <!-- End DataTable JS -->
 <script>
-    // Enhanced date logic for 3-month range and end date restriction
+    // Enhanced functionality for the ledger
     document.addEventListener('DOMContentLoaded', function() {
         const startInput = document.getElementById('start_date');
         const endInput = document.getElementById('end_date');
+        const masterDmcSelect = document.getElementById('master_dmc_id');
+        const dmcSelect = document.getElementById('dmc_id');
+        const agentSelect = document.getElementById('agent_id');
+        const currencySelect = document.getElementById('currency');
 
+        // Date range logic
         function setEndDateLimits() {
             if (startInput.value) {
-                // Set min for end date to start date
                 endInput.min = startInput.value;
-                // Set max for end date to 3 months after start date
                 const start = new Date(startInput.value);
                 const maxEnd = new Date(start);
                 maxEnd.setMonth(maxEnd.getMonth() + 3);
-                // If the day overflows (e.g., Feb 30), JS auto-corrects to next month, so fix:
                 if (maxEnd.getDate() !== start.getDate()) {
-                    maxEnd.setDate(0); // last day of previous month
+                    maxEnd.setDate(0);
                 }
                 endInput.max = maxEnd.toISOString().split('T')[0];
-                // If end date is before start date, reset it
                 if (endInput.value < startInput.value) {
                     endInput.value = startInput.value;
                 }
-                // If end date is after max, reset it
                 if (endInput.value > endInput.max) {
                     endInput.value = endInput.max;
                 }
             }
         }
 
+        // Cascade filtering for Master DMC -> DMC -> Agent
+        function filterDmcsByMaster() {
+            const selectedMaster = masterDmcSelect.value;
+            const dmcOptions = dmcSelect.querySelectorAll('option');
+            
+            dmcOptions.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = 'block';
+                } else {
+                    const masterDmcId = option.getAttribute('data-master');
+                    option.style.display = (!selectedMaster || masterDmcId === selectedMaster) ? 'block' : 'none';
+                }
+            });
+            
+            // Reset DMC selection if current selection is not valid
+            if (selectedMaster && dmcSelect.value) {
+                const currentDmcOption = dmcSelect.querySelector(`option[value="${dmcSelect.value}"]`);
+                if (currentDmcOption && currentDmcOption.getAttribute('data-master') !== selectedMaster) {
+                    dmcSelect.value = '';
+                    filterAgentsByDmc();
+                }
+            }
+        }
+
+        function filterAgentsByDmc() {
+            const selectedDmc = dmcSelect.value;
+            const agentOptions = agentSelect.querySelectorAll('option');
+            
+            agentOptions.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = 'block';
+                } else {
+                    const dmcId = option.getAttribute('data-dmc');
+                    option.style.display = (!selectedDmc || dmcId === selectedDmc) ? 'block' : 'none';
+                }
+            });
+            
+            // Reset agent selection if current selection is not valid
+            if (selectedDmc && agentSelect.value) {
+                const currentAgentOption = agentSelect.querySelector(`option[value="${agentSelect.value}"]`);
+                if (currentAgentOption && currentAgentOption.getAttribute('data-dmc') !== selectedDmc) {
+                    agentSelect.value = '';
+                }
+            }
+        }
+
+        // Currency change handler
+        function updateExchangeRate() {
+            const currency = currencySelect.value;
+            const exchangeRateInput = document.getElementById('exchangeRate');
+            
+            if (currency === 'INR') {
+                exchangeRateInput.value = '1 SGD = 67.50 INR';
+            } else {
+                exchangeRateInput.value = '1 SGD = 1.00 SGD';
+            }
+        }
+
+        // Event listeners
         startInput.addEventListener('change', setEndDateLimits);
-        // On page load
+        masterDmcSelect.addEventListener('change', filterDmcsByMaster);
+        dmcSelect.addEventListener('change', filterAgentsByDmc);
+        currencySelect.addEventListener('change', updateExchangeRate);
+
+        // Initialize on page load
         setEndDateLimits();
+        filterDmcsByMaster();
+        filterAgentsByDmc();
+        updateExchangeRate();
     });
+
+    // Filter functions
+    function applyFilters() {
+        document.getElementById('ledgerFilterForm').submit();
+    }
+
+    function resetFilters() {
+        // Reset all form fields
+        document.getElementById('start_date').value = '';
+        document.getElementById('end_date').value = '';
+        document.getElementById('master_dmc_id').value = '';
+        document.getElementById('dmc_id').value = '';
+        document.getElementById('agent_id').value = '';
+        document.getElementById('service_type').value = '';
+        document.getElementById('currency').value = 'SGD';
+        document.getElementById('view_type').value = 'summary';
+        
+        // Reset filters and submit
+        setTimeout(() => {
+            document.getElementById('ledgerFilterForm').submit();
+        }, 100);
+    }
+
+    function refreshExchangeRate() {
+        // Simulate API call to get live exchange rate
+        const exchangeRateInput = document.getElementById('exchangeRate');
+        const currency = document.getElementById('currency').value;
+        
+        exchangeRateInput.value = 'Loading...';
+        
+        // Simulate API delay
+        setTimeout(() => {
+            if (currency === 'INR') {
+                // You can replace this with actual API call
+                const rate = (67.50 + Math.random() * 0.1).toFixed(2);
+                exchangeRateInput.value = `1 SGD = ${rate} INR`;
+            } else {
+                exchangeRateInput.value = '1 SGD = 1.00 SGD';
+            }
+        }, 1000);
+    }
+
+    // Transaction detail functions
+    function viewTransactionDetails(transactionId) {
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('transactionDetailsModal'));
+        modal.show();
+        
+        // Reset modal content to loading state
+        document.getElementById('transactionDetailsContent').innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading transaction details...</p>
+            </div>
+        `;
+        
+        // Fetch transaction details
+        fetch(`/reports/transaction-details/${transactionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayTransactionDetails(data.transaction);
+                } else {
+                    showError('transactionDetailsContent', 'Failed to load transaction details.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching transaction details:', error);
+                showError('transactionDetailsContent', 'Error loading transaction details.');
+            });
+    }
+
+    function viewBalanceHistory(agentId) {
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('balanceHistoryModal'));
+        // Store agent ID for export function
+        document.getElementById('balanceHistoryModal').setAttribute('data-agent-id', agentId);
+        modal.show();
+        
+        // Reset modal content to loading state
+        document.getElementById('balanceHistoryContent').innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading balance history...</p>
+            </div>
+        `;
+        
+        // Fetch balance history
+        fetch(`/reports/balance-history/${agentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayBalanceHistory(data.history, data.agent);
+                } else {
+                    showError('balanceHistoryContent', 'Failed to load balance history.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching balance history:', error);
+                showError('balanceHistoryContent', 'Error loading balance history.');
+            });
+    }
+
+    function exportTransaction(transactionId) {
+        // Show loading state
+        const button = event.target.closest('.dropdown-item');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="ri-loader-line me-2"></i>Exporting...';
+        button.disabled = true;
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = `/reports/export-transaction/${transactionId}`;
+        link.download = `transaction_${transactionId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Reset button state
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    }
+
+    // Helper functions
+    function displayTransactionDetails(transaction) {
+        const content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="ri-file-text-line me-2"></i>Transaction Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-semibold">Transaction ID:</td>
+                                    <td>${transaction.id}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Booking ID:</td>
+                                    <td><span class="badge bg-info">${transaction.booking_id}</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Service Type:</td>
+                                    <td><span class="badge bg-primary">${transaction.service_type}</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Amount:</td>
+                                    <td class="fw-bold text-success">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Date & Time:</td>
+                                    <td>${new Date(transaction.created_at).toLocaleString()}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Customer & Agent Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-semibold">Agent Name:</td>
+                                    <td>${transaction.agent_name || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Agent ID:</td>
+                                    <td>${transaction.agent_id || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Customer Name:</td>
+                                    <td>${transaction.customer_name || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Customer Email:</td>
+                                    <td>${transaction.customer_email || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-semibold">Status:</td>
+                                    <td>
+                                        <span class="badge ${transaction.status == 1 ? 'bg-success' : 'bg-danger'}">
+                                            ${transaction.status == 1 ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('transactionDetailsContent').innerHTML = content;
+    }
+
+    function displayBalanceHistory(history, agent) {
+        // Store the full history data globally for search and pagination
+        window.fullBalanceHistory = history;
+        window.currentAgent = agent;
+        window.currentPage = 1;
+        window.itemsPerPage = 10;
+        window.searchTerm = '';
+        
+        renderBalanceHistoryTable();
+    }
+
+    function renderBalanceHistoryTable() {
+        const history = window.fullBalanceHistory || [];
+        const agent = window.currentAgent || {};
+        const currentPage = window.currentPage || 1;
+        const itemsPerPage = window.itemsPerPage || 10;
+        const searchTerm = window.searchTerm || '';
+        
+        console.log('Rendering table with:', {
+            historyCount: history.length,
+            searchTerm: searchTerm,
+            currentPage: currentPage,
+            itemsPerPage: itemsPerPage
+        });
+        
+        // Filter data based on search term
+        let filteredHistory = history;
+        if (searchTerm) {
+            console.log('Applying search filter for term:', searchTerm);
+            filteredHistory = history.filter(item => {
+                const bookingId = (item.booking_id || '').toString().toLowerCase();
+                const serviceType = (item.service_type || '').toString().toLowerCase();
+                const dateStr = new Date(item.created_at).toLocaleDateString();
+                const searchLower = searchTerm.toLowerCase();
+                
+                const matches = bookingId.includes(searchLower) ||
+                               serviceType.includes(searchLower) ||
+                               dateStr.includes(searchLower);
+                
+                return matches;
+            });
+            console.log('Filtered results:', filteredHistory.length, 'items');
+        }
+        
+        // Calculate pagination
+        const totalItems = filteredHistory.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
+        
+        // Calculate running balance for the entire filtered history
+        let tableRows = '';
+        let runningBalance = 0;
+        
+        // First, calculate the running balance up to the start of current page
+        for (let i = 0; i < startIndex; i++) {
+            runningBalance += parseFloat(filteredHistory[i].amount || 0);
+        }
+        
+        // Now generate rows for current page
+        paginatedHistory.forEach((item, index) => {
+            const openingBalance = runningBalance;
+            const transactionAmount = parseFloat(item.amount || 0);
+            runningBalance += transactionAmount;
+            
+            tableRows += `
+                <tr>
+                    <td>${startIndex + index + 1}</td>
+                    <td>${new Date(item.created_at).toLocaleDateString()}</td>
+                    <td><span class="badge bg-info">${item.booking_id}</span></td>
+                    <td><span class="badge bg-primary">${item.service_type}</span></td>
+                    <td class="text-end">$${openingBalance.toFixed(2)}</td>
+                    <td class="text-end ${transactionAmount >= 0 ? 'text-success' : 'text-danger'}">
+                        ${transactionAmount >= 0 ? '+' : ''}$${transactionAmount.toFixed(2)}
+                    </td>
+                    <td class="text-end fw-bold">$${runningBalance.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        
+        // Calculate final balance for the entire history
+        let finalBalance = 0;
+        history.forEach(item => {
+            finalBalance += parseFloat(item.amount || 0);
+        });
+        
+        // Generate pagination controls
+        const paginationHtml = generatePaginationControls(currentPage, totalPages, totalItems);
+        
+        const content = `
+            <div class="mb-3">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="mb-0"><i class="ri-user-line me-2"></i>Agent: ${agent.name} (ID: ${agent.agent_id})</h6>
+                        <small class="text-muted">Final Balance: <span class="fw-bold text-primary">$${finalBalance.toFixed(2)}</span></small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search and Controls -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="ri-search-line"></i></span>
+                        <input type="text" id="balanceHistorySearch" class="form-control" placeholder="Search by booking ID, service type, or date..." value="${searchTerm}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="itemsPerPageSelect" class="form-select">
+                        <option value="5" ${itemsPerPage == 5 ? 'selected' : ''}>5 per page</option>
+                        <option value="10" ${itemsPerPage == 10 ? 'selected' : ''}>10 per page</option>
+                        <option value="25" ${itemsPerPage == 25 ? 'selected' : ''}>25 per page</option>
+                        <option value="50" ${itemsPerPage == 50 ? 'selected' : ''}>50 per page</option>
+                        <option value="100" ${itemsPerPage == 100 ? 'selected' : ''}>100 per page</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small">
+                        Showing ${startIndex + 1}-${Math.min(endIndex, totalItems)} of ${totalItems} entries
+                        ${searchTerm ? `(filtered from ${history.length} total)` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Booking ID</th>
+                            <th>Service Type</th>
+                            <th class="text-end">Opening Balance</th>
+                            <th class="text-end">Transaction Amount</th>
+                            <th class="text-end">Closing Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows || '<tr><td colspan="7" class="text-center text-muted py-4">No transactions found</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            ${paginationHtml}
+        `;
+        
+        document.getElementById('balanceHistoryContent').innerHTML = content;
+        
+        // Attach event listeners
+        attachBalanceHistoryEventListeners();
+    }
+
+    function generatePaginationControls(currentPage, totalPages, totalItems) {
+        if (totalPages <= 1) return '';
+        
+        let paginationHtml = '<nav aria-label="Balance history pagination"><ul class="pagination justify-content-center">';
+        
+        // Previous button
+        paginationHtml += `
+            <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changeBalanceHistoryPage(${currentPage - 1})" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+        `;
+        
+        // Page numbers
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        if (startPage > 1) {
+            paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="changeBalanceHistoryPage(1)">1</a></li>`;
+            if (startPage > 2) {
+                paginationHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changeBalanceHistoryPage(${i})">${i}</a>
+                </li>
+            `;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHtml += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="changeBalanceHistoryPage(${totalPages})">${totalPages}</a></li>`;
+        }
+        
+        // Next button
+        paginationHtml += `
+            <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changeBalanceHistoryPage(${currentPage + 1})" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        `;
+        
+        paginationHtml += '</ul></nav>';
+        
+        return paginationHtml;
+    }
+
+    function attachBalanceHistoryEventListeners() {
+        // Search input
+        const searchInput = document.getElementById('balanceHistorySearch');
+        if (searchInput) {
+            // Remove any existing event listeners
+            searchInput.removeEventListener('input', handleSearchInput);
+            searchInput.removeEventListener('keyup', handleSearchInput);
+            
+            // Add new event listeners
+            searchInput.addEventListener('input', handleSearchInput);
+            searchInput.addEventListener('keyup', handleSearchInput);
+            
+            console.log('Search input event listeners attached');
+        } else {
+            console.error('Search input not found');
+        }
+        
+        // Items per page select
+        const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
+        if (itemsPerPageSelect) {
+            itemsPerPageSelect.addEventListener('change', function() {
+                window.itemsPerPage = parseInt(this.value);
+                window.currentPage = 1; // Reset to first page when changing items per page
+                console.log('Items per page changed to:', window.itemsPerPage);
+                renderBalanceHistoryTable();
+            });
+        }
+    }
+    
+    function handleSearchInput(event) {
+        const searchValue = event.target.value;
+        console.log('Search input changed:', searchValue);
+        window.searchTerm = searchValue;
+        window.currentPage = 1; // Reset to first page when searching
+        renderBalanceHistoryTable();
+    }
+
+    function changeBalanceHistoryPage(page) {
+        const totalPages = Math.ceil((window.fullBalanceHistory || []).length / (window.itemsPerPage || 10));
+        if (page >= 1 && page <= totalPages) {
+            window.currentPage = page;
+            renderBalanceHistoryTable();
+        }
+        return false; // Prevent default link behavior
+    }
+
+    function showError(containerId, message) {
+        document.getElementById(containerId).innerHTML = `
+            <div class="text-center">
+                <i class="ri-error-warning-line text-danger" style="font-size: 48px;"></i>
+                <p class="mt-2 text-danger">${message}</p>
+                <button class="btn btn-outline-primary" onclick="location.reload()">
+                    <i class="ri-refresh-line me-1"></i>Retry
+                </button>
+            </div>
+        `;
+    }
+
+    function printTransactionDetails() {
+        const printContent = document.getElementById('transactionDetailsContent').innerHTML;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Transaction Details</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .card { border: 1px solid #ddd; margin-bottom: 20px; }
+                        .card-header { background: #f8f9fa; padding: 10px; font-weight: bold; }
+                        .card-body { padding: 15px; }
+                        .table { width: 100%; border-collapse: collapse; }
+                        .table td { padding: 8px; border-bottom: 1px solid #eee; }
+                        .fw-semibold { font-weight: 600; }
+                        .badge { padding: 4px 8px; border-radius: 4px; color: white; }
+                        .bg-primary { background-color: #0d6efd; }
+                        .bg-info { background-color: #0dcaf0; }
+                        .bg-success { background-color: #198754; }
+                        .text-success { color: #198754; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Transaction Details</h2>
+                    ${printContent}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    function exportBalanceHistory() {
+        const agentId = document.getElementById('balanceHistoryModal').getAttribute('data-agent-id');
+        if (agentId) {
+            const link = document.createElement('a');
+            link.href = `/reports/export-balance-history/${agentId}`;
+            link.download = `balance_history_${agentId}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
 </script>
 @endsection
 
@@ -342,6 +1279,141 @@
     }
     .badge {
         font-size: 0.75em;
+    }
+    
+    /* Enhanced Ledger Styles */
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .bg-purple {
+        background-color: #6f42c1;
+    }
+    
+    .card-header {
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+    }
+    
+    .form-label.fw-semibold {
+        color: #495057;
+        font-size: 0.9rem;
+    }
+    
+    .input-group-text {
+        background: #f8f9fa;
+        border-color: #dee2e6;
+        color: #6c757d;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+    }
+    
+    .btn-info {
+        background: #17a2b8;
+        border: none;
+    }
+    
+    .btn-warning {
+        background: #ffc107;
+        border: none;
+        color: #212529;
+    }
+    
+    .table thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.85rem;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.05);
+        transform: scale(1.01);
+        transition: all 0.3s ease;
+    }
+    
+    .table tfoot th {
+        background: #f8f9fa;
+        border-top: 2px solid #dee2e6;
+        font-weight: 700;
+    }
+    
+    .badge.bg-info {
+        background-color: #0dcaf0 !important;
+    }
+    
+    .badge.bg-light {
+        background-color: #f8f9fa !important;
+        color: #495057 !important;
+        border: 1px solid #dee2e6;
+    }
+    
+    /* Currency conversion styling */
+    .currency-display {
+        position: relative;
+    }
+    
+    .currency-display small {
+        opacity: 0.7;
+        font-size: 0.7rem;
+    }
+    
+    /* Loading animation */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .loading {
+        animation: pulse 1.5s infinite;
+    }
+    
+    /* Action buttons */
+    .dropdown-toggle::after {
+        margin-left: 0.5em;
+    }
+    
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .dropdown-item:hover {
+        background-color: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .d-flex.flex-column {
+            text-align: center !important;
+        }
+        
+        .card-header h6 {
+            font-size: 0.9rem;
+        }
     }
 </style>
 @endsection 

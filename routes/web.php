@@ -135,6 +135,13 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
         Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
         Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
+        Route::get('reports/balance-sheet', [FinanceReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+        
+        // AJAX routes for ledger functionality
+        Route::get('reports/transaction-details/{id}', [FinanceReportController::class, 'getTransactionDetails'])->name('reports.transaction-details');
+        Route::get('reports/balance-history/{agentId}', [FinanceReportController::class, 'getBalanceHistory'])->name('reports.balance-history');
+        Route::get('reports/export-transaction/{id}', [FinanceReportController::class, 'exportTransaction'])->name('reports.export-transaction');
+        Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
         
         Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry']);
         // City → Hotel
