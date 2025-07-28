@@ -574,7 +574,8 @@ class AgentController extends Controller
                         'twitter_url' => '#',
                         'instagram_url' => '#',
                         'linkedin_url' => '#'
-                    ]
+                    ],
+                    "message_type" => "updated",
                 ];
                 
                 $result = \App\Helpers\CommonHelper::sendEmail(
