@@ -1121,6 +1121,7 @@ class CommonHelper
                     "No_of_beds" => $orderData->No_of_beds ?? 0,
                     "dmc_logo" => $orderData->dmc_logo ?? null,
                     "hotel_name" => $orderData->hotel_name ?? null,
+                    "message_type" => $orderData->message_type ?? null,
                 ];
             }
 
