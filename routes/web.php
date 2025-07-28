@@ -589,49 +589,6 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
 // Package Routes
 
-// Add this route for testing booking confirmation email
-Route::get('/test-booking-email', function() {
-    try {
-        // Prepare dynamic data for the booking confirmation email
-        $data = [
-            "booking_id" => "BK-" . rand(10000, 99999),
-            "customer_name" => "John Doe",
-            "type" => "Hotel Booking",
-            "booking_date" => date('Y-m-d'),
-            "check_in_date" => date('Y-m-d', strtotime('+7 days')),
-            "check_out_date" => date('Y-m-d', strtotime('+10 days')),
-            "location" => "Paris, France",
-            "guests" => "2 Adults, 1 Child",
-            "reference_number" => "REF-" . rand(1000, 9999),
-            "total_price" => 1250.00,
-            "payment_status" => "Paid"
-        ];
-        
-        // Send email using CommonHelper
-        $email = "saurabh.coactive@gmail.com";
-        $type = "confirmation";
-        $subject = "Your Booking Confirmation #" . $data['booking_id'];
-        $body = "Thank you for your booking with us!";
-        
-        \App\Helpers\CommonHelper::sendEmail($email, $type, $subject, $body, $data);
-        
-        return [
-            'success' => true,
-            'message' => 'Booking confirmation email sent successfully!',
-            'booking_id' => $data['booking_id']
-        ];
-    } catch (\Exception $e) {
-        \Illuminate\Support\Facades\Log::error('Email error: ' . $e->getMessage());
-        
-        return [
-            'success' => false,
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ];
-    }
-});
-
 
 
 
