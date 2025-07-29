@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Http;
 */
 
 Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
+Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
 
 // Simple test route to debug routing issues
 Route::get('/debug-test', function () {
@@ -89,4 +90,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
         return $response->json();
     });
+
+    Route::get('/get-dmcs', 'App\Http\Controllers\Api\CountryController@getDmcs');
+    Route::get('/dmc-count', 'App\Http\Controllers\Api\CountryController@dmcCount');
 });

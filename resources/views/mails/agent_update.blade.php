@@ -600,7 +600,7 @@
         <h1 class="welcome-title">
             <i class="fas fa-user-plus"></i> Welcome, {{ $name ?? 'Agent' }}!
         </h1>
-        <p class="welcome-subtitle">Your account has been updated successfully</p>
+        <p class="welcome-subtitle">Your account has been {{ $message_type ?? 'updated' }} successfully</p>
         
     </div>
 
@@ -612,7 +612,7 @@
         </p>
         
         <p class="intro-text">
-            Welcome to {{ $company['companyName'] ?? config('app.name') }}! We're happy to inform you that your account has been updated successfully. Now you can access our platform and start managing your bookings and services using your new credentials.
+            Welcome to {{ $company['companyName'] ?? config('app.name') }}! We're happy to inform you that your account has been {{ $message_type ?? 'updated' }} successfully. Now you can access our platform and start managing your bookings and services using your new credentials.
         </p>
         
         <!-- Enhanced Account Summary Box -->
