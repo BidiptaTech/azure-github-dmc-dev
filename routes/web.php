@@ -71,7 +71,7 @@ Route::get('/clear', function () {
     Artisan::call('route:clear');
     return redirect()->route('dashboard');
 })->name('clear');
-Route::group(['middleware' => ['auth', 'no.cache']], function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
     });
@@ -557,12 +557,14 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails']);
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
         Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
+        Route::post('/update-agent-dmc', [AgentController::class, 'updateDmcId'])->name('agents.update-dmc');
 
         // Agency routes
         Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
         Route::resource('agencies', AgencyController::class);
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
+        Route::get('/search-agents', [App\Http\Controllers\AgentController::class, 'searchAgents'])->name('search-agents');
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
@@ -646,6 +648,7 @@ Route::get('/test-booking-email', function() {
 });
 
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
+
 
 
 

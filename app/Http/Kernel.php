@@ -68,9 +68,9 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'manager' => \App\Http\Middleware\ManagerMiddleware::class,
         'salesman' => \App\Http\Middleware\SalesmanMiddleware::class,
-        // 'mobileapp' => \App\Http\Middleware\AppAuthMiddleware::class,
         'impersonate' => \App\Http\Middleware\ImpersonateUser::class,
         'hierarchy' => \App\Http\Middleware\HierarchyMiddleware::class,
         'no.cache' => \App\Http\Middleware\NoCacheHeaders::class,
+        'auth.sanctum' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
     ];
 }
