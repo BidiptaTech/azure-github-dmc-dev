@@ -324,7 +324,7 @@ use Illuminate\Support\Facades\Auth;
                                             <td>
                                                 <div class="d-flex flex-column">
                                                     <span class="fw-semibold">{{ $row->agent_name }}</span>
-                                                    <small class="text-muted">ID: {{ $row->agent_id ?? 'N/A' }}</small>
+                                                    {{-- <small class="text-muted">ID: {{ $row->agent_id ?? 'N/A' }}</small> --}}
                                                 </div>
                                             </td>
                                             <td>
@@ -552,14 +552,6 @@ use Illuminate\Support\Facades\Auth;
                         { width: "120px", targets: 8, className: "text-end" }, // Closing Balance
                         { width: "100px", targets: 9, orderable: false, className: "text-center" } // Actions
                     ],
-                    dom: 'Bfrtip', // Add buttons to DOM
-                    buttons: [
-                        'copy',
-                        'csv',
-                        'excel',
-                        'pdf',
-                        'print'
-                    ],
                     language: {
                         search: "_INPUT_",
                         searchPlaceholder: "Search...",
@@ -567,7 +559,7 @@ use Illuminate\Support\Facades\Auth;
                         zeroRecords: "No matching records found."
                     },
                     lengthMenu: [10, 25, 50, 100],
-                    pageLength: 25,
+                    pageLength: 10,
                     order: [[1, 'desc']], // Sort by date descending
                     processing: true,
                     stateSave: false

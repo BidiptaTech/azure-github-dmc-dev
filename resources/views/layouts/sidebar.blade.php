@@ -560,22 +560,35 @@
                     <span class="menu-header-text" data-i18n="Packages">Packages</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('package*') || Request::is('predefined-package-booking-list')) open active @endif">
+                <li class="menu-item @if(Request::is('package*') || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-gift-line"></i>
-                        <div data-i18n="Packages">Predefined Packages</div>
+                        <div data-i18n="Packages">Packages</div>
                     </a>
                     <ul class="menu-sub">
                         <li class="menu-item @if(Request::is('packages') || Request::is('package')) active @endif">
                             <a href="{{ route('packages.index') }}" class="menu-link">
-                                <div data-i18n="Package Management">Package Management</div>
+                                <div data-i18n="Package Management">Predefined Package Management</div>
                             </a>
                         </li>
                         <li class="menu-item @if(Request::is('packages/create')) active @endif">
                             <a href="{{ route('packages.create') }}" class="menu-link">
-                                <div data-i18n="Create Package">Create Package</div>
+                                <div data-i18n="Create Package">Create Predefined Package</div>
                             </a>
                         </li>
+                        @if(in_array(auth()->user()->role_id, [11, 33]))
+                        <!-- Single Tour Package for DMCs -->
+                        <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+                            <a href="{{ route('single-tour-package.create') }}" class="menu-link">
+                                <div data-i18n="Create Single Tour Package">Create Single Tour Package</div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
+                            <a href="{{ route('single-tour-package.index') }}" class="menu-link">
+                                <div data-i18n="Single Tour Packages">Single Tour Packages</div>
+                            </a>
+                        </li>
+                        @endif
                         @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
                         <!-- Show Booking -->
                         <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
@@ -685,11 +698,11 @@
                             <div data-i18n="Ledger">Ledger</div>
                         </a>
                     </li>
-                    <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
+                    {{-- <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
                         <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
                             <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                         </a>
-                    </li>
+                    </li> --}}
                 </ul>
             </li>
             <!-- End Reports -->
