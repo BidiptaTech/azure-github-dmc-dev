@@ -2049,7 +2049,7 @@ class TourController extends Controller
                 }
                 else{
                     $flag = 0;
-                    return response()->json(['message' => 'Price missmatch occur!', 'actual price'=>$finalPrice, 'incoming Price'=>$totalPrice, '$markupAdultPrice'=>$markupAdultPrice, '$markupChildPrice'=>$markupChildPrice], 409);
+                    return response()->json(['message' => 'Price missmatch occur!', 'actual price'=>$finalPrice, 'incoming Price'=>$totalPrice, '$markupAdultPrice'=>$markupAdultPrice, '$markupChildPrice'=>$markupChildPrice, 'agent_dmc_id'=>$dmc_id, 'dmcIdIncoming'=>$dmcId ], 409);
                 }
             }
 
