@@ -1478,15 +1478,15 @@ class HotelController extends Controller
             'is_active' => $request->season_status == 1 ? 1 : 0
         ]);
 
-        if ($rate->save()) {
-            LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
-            return redirect()->back()
-                ->with('success', 'Rates details saved successfully!');
-        } else {
-            LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
-            return redirect()->back()
-                ->with('error', 'An error occurred while saving the room details.');
-        }
+        // if ($rate->save()) {
+        //     LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
+        //     return redirect()->back()
+        //         ->with('success', 'Rates details saved successfully!');
+        // } else {
+        //     LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
+        //     return redirect()->back()
+        //         ->with('error', 'An error occurred while saving the room details.');
+        // }
     }
 
     /*
@@ -2061,7 +2061,7 @@ class HotelController extends Controller
         // }
         $auth_user = Auth::user();
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
-        $rooms = Room::where('hotel_id', $id)
+        $rooms = Room::where('hotel_id', $id)->where('created_by', $auth_user->userId)
         ->get();
         
         // Get DMC users for admin dropdown (only for admin users)
@@ -2236,9 +2236,10 @@ class HotelController extends Controller
         // if (!hasPermission('edit bed')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $auth_user = Auth::user();
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         $beds = BedMaster::where('hotel_id', $hotelId)->get();
-        $rooms = Room::where('hotel_id',$hotelId)->get();
+        $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $auth_user->userId)->get();
         $hotelBed = Bed::with('room')->where('bed_id', $id)->first();
         $room = Room::where('room_id', $hotelBed->room_id)->first();
         return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room'));
@@ -3291,6 +3292,18 @@ class HotelController extends Controller
                 'success' => false,
                 'message' => 'An error occurred while removing the hotel.'
             ], 500);
+        }
+    }
+
+    public function deleterate($id)
+    {
+        try {
+            $rate = \App\Models\Rate::where('rate_id', $id)->first();
+            $rate->delete();
+            
+            return redirect()->back()->with('success', 'Rate deleted successfully');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to delete rate');
         }
     }
 

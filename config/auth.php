@@ -43,7 +43,17 @@ return [
         'agent' => [ // for agents
         'driver' => 'session',
         'provider' => 'agents',
-    ],
+        ],
+        'api' => [
+            'driver' => 'token',
+            'provider' => 'users',
+            'hash' => false,
+        ],
+        'agent-api' => [
+            'driver' => 'token',
+            'provider' => 'agents',
+            'hash' => false,
+        ],
     ],
 
     /*

@@ -20,6 +20,13 @@ class User extends Authenticatable
     use SoftDeletes;
 
     /**
+     * The primary key for the model.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'userId';
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>

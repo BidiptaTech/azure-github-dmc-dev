@@ -23,12 +23,6 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
     ];
 
-    protected $routeMiddleware = [
-        'impersonate' => \App\Http\Middleware\ImpersonateUser::class,
-        'hierarchy' => \App\Http\Middleware\HierarchyMiddleware::class,
-        'no.cache' => \App\Http\Middleware\NoCacheHeaders::class,
-    ];
-
     /**
      * The application's route middleware groups.
      *
@@ -74,5 +68,9 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'manager' => \App\Http\Middleware\ManagerMiddleware::class,
         'salesman' => \App\Http\Middleware\SalesmanMiddleware::class,
+        'impersonate' => \App\Http\Middleware\ImpersonateUser::class,
+        'hierarchy' => \App\Http\Middleware\HierarchyMiddleware::class,
+        'no.cache' => \App\Http\Middleware\NoCacheHeaders::class,
+        'auth.sanctum' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
     ];
 }

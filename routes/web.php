@@ -52,6 +52,8 @@ use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
 
+// Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -70,7 +72,7 @@ Route::get('/clear', function () {
     Artisan::call('route:clear');
     return redirect()->route('dashboard');
 })->name('clear');
-Route::group(['middleware' => ['auth', 'no.cache']], function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
     });
@@ -130,7 +132,11 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
+       
         // Predefined Packages Routes
+        // Country → City
+        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
+
         // Country → City
         Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
 
@@ -523,6 +529,7 @@ Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController:
         Route::post('storeEvents', [HotelController::class, 'storerates'])->name('storerates');
         Route::get('editevents/{id}/{hotel_id}', [HotelController::class, 'editrate'])->name('rates.edit');
         Route::post('updaterates', [HotelController::class, 'updaterates'])->name('rates.update');
+        Route::delete('deleterates/{id}', [HotelController::class, 'deleterate'])->name('rates.destroy');
 
         Route::get('/hotels/{hotel}/season', [HotelController::class, 'hotelseason'])->name('hotels.season');
         Route::post('storeseason', [HotelController::class, 'storeseason'])->name('storeseason');
@@ -570,12 +577,14 @@ Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController:
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails']);
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
         Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
+        Route::post('/update-agent-dmc', [AgentController::class, 'updateDmcId'])->name('agents.update-dmc');
 
         // Agency routes
         Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
         Route::resource('agencies', AgencyController::class);
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
+        Route::get('/search-agents', [App\Http\Controllers\AgentController::class, 'searchAgents'])->name('search-agents');
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
@@ -585,7 +594,7 @@ Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController:
 
         Route::resource('roles', RoleController::class);  
         Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType']);
-        Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']);
+        
         Route::post('add-money/{id}', [UserController::class, 'add_money'])->name('add-money');
         // Route::post('/guide/approve-or-decline/{guideId}', [GuideController::class, 'approveOrDecline']);
         // Route::post('/driver/approve-or-decline/{driverId}', [DriverController::class, 'approveOrDecline']);
@@ -658,6 +667,7 @@ Route::get('/test-booking-email', function() {
     }
 });
 
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
 
 
 

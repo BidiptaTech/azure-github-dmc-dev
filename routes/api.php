@@ -15,6 +15,15 @@ use Illuminate\Support\Facades\Http;
 */
 
 Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
+Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
+Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
+Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
+
+// Simple test route to debug routing issues
+Route::get('/debug-test', function () {
+    \Log::info('API DEBUG ROUTE HIT - API routes working');
+    return response()->json(['message' => 'API debug route working', 'time' => now()]);
+});
 
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/update-profile', 'App\Http\Controllers\Api\LoginControllerApi@updateProfile');
@@ -83,4 +92,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
         return $response->json();
     });
+
+    Route::get('/get-dmcs', 'App\Http\Controllers\Api\CountryController@getDmcs');
+    Route::get('/dmc-count', 'App\Http\Controllers\Api\CountryController@dmcCount');
 });

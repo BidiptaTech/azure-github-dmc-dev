@@ -1925,7 +1925,7 @@ class TourController extends Controller
                 $vehicle = null;
                 
                 $salesManagerId = $user->sales_manager_dmc;
-                $dmc_id = User::where('userId', $salesManagerId)->value('dmcId');
+                $dmc_id = 0;
                 $dmc = User::where('userId', $dmcId)->first();
                 
 
@@ -1945,55 +1945,56 @@ class TourController extends Controller
                         // Price without markup
                         $finalPriceWithoutMarkup += ($price * $quantity);
                         
-                        if ($mode == "dmc") {
-                            list($markupPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($price, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
+                        // if ($mode == "dmc") {
+                        //     list($markupPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($price, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
 
-                            $markupPrice = (float) $markupPrice; // Type cast markup price
-                        } elseif ($mode == "travclicks") {
-                            if (!$dmc) {
-                                return response()->json(['message' => 'Dmc not found!'], 409);
-                            }
+                        //     $markupPrice = (float) $markupPrice; // Type cast markup price
+                        // } elseif ($mode == "travclicks") {
+                        //     if (!$dmc) {
+                        //         return response()->json(['message' => 'Dmc not found!'], 409);
+                        //     }
                             
-                            $markup = (float) $dmc->markup_price;
-                            $markup_type = (int) $dmc->markup_type;
+                        //     $markup = (float) $dmc->markup_price;
+                        //     $markup_type = (int) $dmc->markup_type;
                     
-                            if ($markup_type == 0) {
-                                $markupPrice = $price + $markup;
-                            } elseif ($markup_type == 1) {
-                                $markupPrice = $price + ($price * ($markup / 100));
-                            }
-                        }
+                        //     if ($markup_type == 0) {
+                        //         $markupPrice = $price + $markup;
+                        //     } elseif ($markup_type == 1) {
+                        //         $markupPrice = $price + ($price * ($markup / 100));
+                        //     }
+                        // }
                     
                         $finalPrice = (float) $finalPrice; // Type cast finalPrice
-                        $finalPrice += ($markupPrice * $quantity);
+                        $finalPrice = $finalPriceWithoutMarkup;
                     } 
                 }
                 else if($mealSpecificType == "Set Menu"){
                     $quantity = (float) $mealsData[0]->quantity;
                     $meal_id = $mealsData[0]->meal_id;
-                    $mealPrice = Meal::where('meal_id', $meal_id)->value('price');                    if (!$mealPrice) {
+                    $mealPrice = Meal::where('meal_id', $meal_id)->value('price');                    
+                    if (!$mealPrice) {
                         return response()->json(['message' => 'Meal not found!'], 404);
                     }
-                    $finalPriceWithoutMarkup = $mealPrice * $quantity; 
-                    if($mode == 'dmc'){
-                        list($markupPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($mealPrice, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
-                    }
-                    elseif($mode == 'travclicks'){
-                        $dmc = User::where('userId', $dmcId)->first();
-                        if(!$dmc){
-                            return response()->json(['message' => 'Dmc not found!'], 409);
-                        }
-                        $markup = $dmc->markup_price;
-                        $markup_type = $dmc->markup_type;
-                        if($markup_type == 0){
-                            $markupPrice = $mealPrice + $markup;
+                    $finalPriceWithoutMarkup += $mealPrice * $quantity; 
+                    // if($mode == 'dmc'){
+                    //     list($markupPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($mealPrice, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
+                    // }
+                    // elseif($mode == 'travclicks'){
+                    //     $dmc = User::where('userId', $dmcId)->first();
+                    //     if(!$dmc){
+                    //         return response()->json(['message' => 'Dmc not found!'], 409);
+                    //     }
+                    //     $markup = $dmc->markup_price;
+                    //     $markup_type = $dmc->markup_type;
+                    //     if($markup_type == 0){
+                    //         $markupPrice = $mealPrice + $markup;
                             
-                        }
-                        elseif($markup_type == 1){
-                            $markupPrice = $mealPrice + ($mealPrice*($markup/100));
-                        }
-                    }
-                    $finalPrice = $markupPrice * $quantity;
+                    //     }
+                    //     elseif($markup_type == 1){
+                    //         $markupPrice = $mealPrice + ($mealPrice*($markup/100));
+                    //     }
+                    // }
+                    $finalPrice = $finalPriceWithoutMarkup;
                 }
                 else if($mealSpecificType == "Buffet"){
                     $adult_count = $order->adultCount;
@@ -2003,31 +2004,31 @@ class TourController extends Controller
                     if (!$meal) {
                         return response()->json(['message' => 'Meal not found!'], 404);
                     }
-                    $finalPriceWithoutMarkup = ($meal->adult_price * $adult_count) + ($meal->child_price * $child_count);
+                    $finalPriceWithoutMarkup += ($meal->adult_price * $adult_count) + ($meal->child_price * $child_count);
 
-                    if($mode == 'dmc'){
-                        list($markupAdultPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($meal->adult_price, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
-                        list($markupChildPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($meal->child_price, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
-                        // list($markupAdultPrice, $dmc_id) = CommonHelper::calculateDmcModePrice($meal->adult_price, $agent_id);
-                        // list($markupChildPrice, $dmc_id) = CommonHelper::calculateDmcModePrice($meal->child_price, $agent_id);
-                    }
-                    elseif($mode == 'travClicks' || $mode == 'travclicks'){
-                        $dmc = User::where('userId', $dmcId)->first();
-                        if(!$dmc){
-                            return response()->json(['message' => 'Dmc not found!'], 409);
-                        }
-                        $markup = $dmc->markup_price;
-                        $markup_type = $dmc->markup_type;
-                        if($markup_type == 0){
-                            $markupAdultPrice = $meal->adult_price + $markup;
-                            $markupChildPrice = $meal->child_price + $markup;
-                        }
-                        elseif($markup_type == 1){
-                            $markupAdultPrice = $meal->adult_price + ($meal->adult_price*($markup/100));
-                            $markupChildPrice = $meal->child_price + ($meal->child_price*($markup/100));
-                        }
-                    }
-                    $finalPrice = ($markupAdultPrice * $adult_count) + ($markupChildPrice * $child_count);
+                    // if($mode == 'dmc'){
+                    //     list($markupAdultPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($meal->adult_price, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
+                    //     list($markupChildPrice, $dmc_id) = CommonHelper::calculateDmcModePricehotel($meal->child_price, $dmcId, $restaurant->name ,$type = 'restaurant', $restaurant->city);
+                    //     // list($markupAdultPrice, $dmc_id) = CommonHelper::calculateDmcModePrice($meal->adult_price, $agent_id);
+                    //     // list($markupChildPrice, $dmc_id) = CommonHelper::calculateDmcModePrice($meal->child_price, $agent_id);
+                    // }
+                    // elseif($mode == 'travClicks' || $mode == 'travclicks'){
+                    //     $dmc = User::where('userId', $dmcId)->first();
+                    //     if(!$dmc){
+                    //         return response()->json(['message' => 'Dmc not found!'], 409);
+                    //     }
+                    //     $markup = $dmc->markup_price;
+                    //     $markup_type = $dmc->markup_type;
+                    //     if($markup_type == 0){
+                    //         $markupAdultPrice = $meal->adult_price + $markup;
+                    //         $markupChildPrice = $meal->child_price + $markup;
+                    //     }
+                    //     elseif($markup_type == 1){
+                    //         $markupAdultPrice = $meal->adult_price + ($meal->adult_price*($markup/100));
+                    //         $markupChildPrice = $meal->child_price + ($meal->child_price*($markup/100));
+                    //     }
+                    // }
+                    $finalPrice = $finalPriceWithoutMarkup;
                 }
 
                 // if (!empty($order->transport) && $order->transport->transport_type == 'private') {
@@ -2049,7 +2050,7 @@ class TourController extends Controller
                 }
                 else{
                     $flag = 0;
-                    return response()->json(['message' => 'Price missmatch occur!', 'actual price'=>$finalPrice, 'incoming Price'=>$totalPrice, '$markupAdultPrice'=>$markupAdultPrice, '$markupChildPrice'=>$markupChildPrice], 409);
+                    return response()->json(['message' => 'Price missmatch occur!', 'actual price'=>$finalPrice, 'incoming Price'=>$totalPrice, 'agent_dmc_id'=>$dmc_id, 'dmcIdIncoming'=>$dmcId, 'priceWithoutMarkup'=>$finalPriceWithoutMarkup, 'meal'=>$meal ?? null ], 409);
                 }
             }
 

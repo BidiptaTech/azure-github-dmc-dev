@@ -48,17 +48,18 @@
               <th>Country & City</th>
 
               @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <th>Zone On</th>
+                <th style="min-width: 140px;">
+                  <div class="text-center">
+                   
+                    <div class="d-flex justify-content-between mt-1" style="font-size: 10px;">
+                      <span class="fw-bold">Zone On</span>
+                      <span class="fw-bold">Price Hide</span>
+                      <span class="fw-bold">Email On</span>
+                    </div>
+                  </div>
+                </th>
               @endif
 
-              @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <th>Price Hide</th>
-              @endif
-
-              @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <th>Email On</th>
-              @endif
-              {{-- <th>Role</th> --}}
               <th>User Type</th>
 
               @if(hasPermission('edit users') || hasPermission('delete users'))
@@ -104,89 +105,89 @@
                 @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
                 <td>
                   @if($user->role_id == 11)
-                    @if(auth::user()->role_id == 10)
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="zone_on" value="0">
-                        <input {{$user->zone_on == 1 ? 'checked' : ''}} 
-                            class="form-check-input zone-toggle" 
-                            data-user-id="{{ $user->userId }}"
-                            type="checkbox" 
-                            id="zone_on_{{ $user->userId }}"
-                            value="1" 
-                            style="width: 35px; height: 20px;">
+                    <div class="d-flex justify-content-between align-items-center gap-2" style="min-width: 130px;">
+                      @if(auth::user()->role_id == 10)
+                        <!-- Zone On Toggle -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="zone_on" value="0">
+                            <input {{$user->zone_on == 1 ? 'checked' : ''}} 
+                                class="form-check-input zone-toggle" 
+                                data-user-id="{{ $user->userId }}"
+                                type="checkbox" 
+                                id="zone_on_{{ $user->userId }}"
+                                value="1" 
+                                style="width: 25px; height: 15px;">
+                        </div>
+                        
+                        <!-- Price Hide Toggle -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="price_hide" value="0">
+                            <input {{$user->price_hide == 1 ? 'checked' : ''}} 
+                                class="form-check-input price-hide_toggle" 
+                                data-user-id="{{ $user->userId }}"
+                                type="checkbox" 
+                                id="price_hide_{{ $user->userId }}"
+                                value="1" 
+                                style="width: 25px; height: 15px;">
+                        </div>
+                        
+                        <!-- Email On Toggle -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="email_on" value="0">
+                            <input {{$user->email_on == 1 ? 'checked' : ''}} 
+                                class="form-check-input email-toggle" 
+                                data-user-id="{{ $user->userId }}"
+                                type="checkbox" 
+                                id="email_on_{{ $user->userId }}"
+                                value="1" 
+                                style="width: 25px; height: 15px;">
+                        </div>
+                      @else
+                        <!-- Zone On Toggle (Disabled) -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="zone_on" value="0">
+                            <input {{$user->zone_on == 1 ? 'checked' : ''}} 
+                                class="form-check-input" 
+                                name="zone_on" 
+                                type="checkbox" 
+                                id="zone_on"
+                                value="1" 
+                                style="width: 25px; height: 15px;" 
+                                disabled>
+                        </div>
+                        
+                        <!-- Price Hide Toggle (Disabled) -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="price_hide" value="0">
+                            <input {{$user->price_hide == 1 ? 'checked' : ''}} 
+                                class="form-check-input" 
+                                name="price_hide" 
+                                type="checkbox" 
+                                id="price_hide"
+                                value="1" 
+                                style="width: 25px; height: 15px;" 
+                                disabled>
+                        </div>
+                        
+                        <!-- Email On Toggle (Disabled) -->
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="email_on" value="0">
+                            <input {{$user->email_on == 1 ? 'checked' : ''}} 
+                                class="form-check-input" 
+                                name="email_on" 
+                                type="checkbox" 
+                                id="email_on"
+                                value="1" 
+                                style="width: 25px; height: 15px;" 
+                                disabled>
+                        </div>
+                      @endif
                     </div>
-                    @else
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="zone_on" value="0">
-                        <input {{$user->zone_on == 1 ? 'checked' : ''}} class="form-check-input" name="zone_on" type="checkbox" id="zone_on"
-                            value="1" style="width: 35px; height: 20px;" disabled>
-                    </div>
-                    @endif
-                  
                   @else
-                  --
+                    <div class="text-center">--</div>
                   @endif
                 </td>
                 @endif
-
-                @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <td>
-                  @if($user->role_id == 11)
-                    @if(auth::user()->role_id == 10)
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="price_hide" value="0">
-                        <input {{$user->price_hide == 1 ? 'checked' : ''}} 
-                            class="form-check-input price-hide_toggle" 
-                            data-user-id="{{ $user->userId }}"
-                            type="checkbox" 
-                            id="price_hide_{{ $user->userId }}"
-                            value="1" 
-                            style="width: 35px; height: 20px;">
-                    </div>
-                    @else
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="price_hide" value="0">
-                        <input {{$user->price_hide == 1 ? 'checked' : ''}} class="form-check-input" name="price_hide" type="checkbox" id="price_hide"
-                            value="1" style="width: 35px; height: 20px;" disabled>
-                    </div>
-                    @endif
-                  
-                  @else
-                  --
-                  @endif
-                </td>
-                @endif
-
-                @if((auth::user()->role_id == 10 || auth::user()->role_id == 9 || auth::user()->role_id == 8 || auth::user()->role_id == 7 || auth::user()->role_id == 6 || auth::user()->role_id == 5 || auth::user()->role_id == 4 || auth::user()->role_id == 3 || auth::user()->role_id == 2 || auth::user()->role_id == 1))
-                <td>
-                  @if($user->role_id == 11)
-                    @if(auth::user()->role_id == 10)
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="email_on" value="0">
-                        <input {{$user->email_on == 1 ? 'checked' : ''}} 
-                            class="form-check-input email-toggle" 
-                            data-user-id="{{ $user->userId }}"
-                            type="checkbox" 
-                            id="email_on_{{ $user->userId }}"
-                            value="1" 
-                            style="width: 35px; height: 20px;">
-                    </div>
-                    @else
-                    <div class="col-md-2 form-check form-switch">
-                        <input type="hidden" name="email_on" value="0">
-                        <input {{$user->email_on == 1 ? 'checked' : ''}} class="form-check-input" name="email_on" type="checkbox" id="email_on"
-                            value="1" style="width: 35px; height: 20px;" disabled>
-                    </div>
-                    @endif
-                  
-                  @else
-                  --
-                  @endif
-                </td>
-                @endif
-
-                {{-- <td>{{ $user->role->name ?? 'No Role' }} --}}
-                </td>
                 <td>{{ $user->getUserTypeName() }}</td>
                 
                 
