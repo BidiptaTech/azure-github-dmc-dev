@@ -288,7 +288,6 @@ export default function Index2() {
             prices: {
               price: attractionBookings?.[0]?.data?.[0]?.totalPrice,
             },
-            dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "booking",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
             package_attraction_id:attractionDetails?.packages?.[0]?.package_attraction_id || null,
@@ -487,7 +486,6 @@ export default function Index2() {
             prices: {
               price: attractionBookings?.[0]?.data?.[0]?.totalPrice,
             },
-            dmc_id: attractionBookings?.[0]?.data?.[0]?.dmc_id || null,
             bookingType: "enquiry",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
             package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,

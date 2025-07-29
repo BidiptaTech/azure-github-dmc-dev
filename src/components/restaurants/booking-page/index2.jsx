@@ -135,7 +135,6 @@ export default function Index2() {
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
 
 
-
   const [showMoreIndex, setShowMoreIndex] = useState(null);
 
 const truncateToWords = (text, wordLimit) => {
@@ -321,9 +320,8 @@ const truncateToWords = (text, wordLimit) => {
             mealPrice: mealPrice,
             transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
             transportPrice: transportPrice,
-             priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-             dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
-             bookingType: "booking",
+                         priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
+            bookingType: "booking",
            },
          ],
          tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
@@ -428,9 +426,8 @@ const truncateToWords = (text, wordLimit) => {
              mealPrice: mealPrice,
              transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
              transportPrice: transportPrice,
-             priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-             dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
-             bookingType: "enquiry",
+                         priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
+            bookingType: "enquiry",
            },
          ],
          tour_id: parseInt(tourdetails?.tour_id, 10) || 0,

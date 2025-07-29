@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 import { setUserInfo, setBookingResponse } from "../common/customerInfo";
 import { setDateService } from "../common/dateServicesSlice";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
 
 // Async thunk to fetch attractions
 export const fetchAttractions = createAsyncThunk(
@@ -110,6 +111,21 @@ export const createBooking = createAsyncThunk(
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
 
+      // Get selected DMC ID from Redux state
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 AttractionsSlice - Selected DMC ID from Redux:', selectedDmcId);
+
+      // Add selected DMC ID to booking details
+      const updatedBookingDetails = {
+        ...bookingDetails,
+        data: bookingDetails.data.map(item => ({
+          ...item,
+          dmc_id: selectedDmcId // Use selected DMC ID from Redux store
+        }))
+      };
+
+      console.log('🚀 AttractionsSlice - Booking with DMC ID:', selectedDmcId);
+
       let AgentId;
       if (
         userRole === "Sales Head(DMC)" ||
@@ -123,7 +139,7 @@ export const createBooking = createAsyncThunk(
 
       const response = await axios.post(
         `${BASE_URL}/create-booking`,
-        bookingDetails,
+        updatedBookingDetails,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,

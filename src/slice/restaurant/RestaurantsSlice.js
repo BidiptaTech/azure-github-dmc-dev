@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
 
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
@@ -106,6 +107,21 @@ export const createBooking = createAsyncThunk(
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
 
+      // Get selected DMC ID from Redux state
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
+
+      // Add selected DMC ID to booking details
+      const updatedBookingDetails = {
+        ...bookingDetails,
+        data: bookingDetails.data.map(item => ({
+          ...item,
+          dmc_id: selectedDmcId // Use selected DMC ID from Redux store
+        }))
+      };
+
+      console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
+
       // Corrected conditional statement
       let AgentId;
       if (
@@ -120,7 +136,7 @@ export const createBooking = createAsyncThunk(
 
       const response = await axios.post(
         `${BASE_URL}/create-booking`,
-        bookingDetails,
+        updatedBookingDetails,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
