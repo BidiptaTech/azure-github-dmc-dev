@@ -50,8 +50,11 @@ const initialState = {
   error: null,
   selectedCountries: [],
   lastFetchedCountries: null,
-  dmcId: null, // Selected DMC ID
-  selectedDmcData: null, // Full selected DMC data
+  dmcId: null, // Selected DMC ID (single selection - for Book Tour)
+  selectedDmcData: null, // Full selected DMC data (single selection - for Book Tour)
+  // New fields for multiple DMC selection (for Book an Enquiry)
+  selectedDmcIds: [], // Array of selected DMC IDs (multiple selection)
+  selectedDmcsData: [], // Array of selected DMCs data (multiple selection)
 };
 
 // DMC slice
@@ -59,7 +62,7 @@ const dmcSlice = createSlice({
   name: 'dmc',
   initialState,
   reducers: {
-    // Set selected DMC ID
+    // Set selected DMC ID (single selection - for Book Tour)
     setSelectedDmcId: (state, action) => {
       const dmcId = action.payload.dmcId;
       console.log('🏪 Redux: Storing selected DMC ID:', dmcId === null ? 'null (dmcId was 0)' : dmcId);
@@ -71,7 +74,7 @@ const dmcSlice = createSlice({
       console.log('🏪 Redux: Updated state - dmcId:', state.dmcId);
     },
 
-    // Clear selected DMC
+    // Clear selected DMC (single selection - for Book Tour)
     clearSelectedDmc: (state) => {
       console.log('🗑️ Redux: Clearing DMC selection - setting dmcId to null');
       
@@ -79,6 +82,59 @@ const dmcSlice = createSlice({
       state.selectedDmcData = null;
       
       console.log('🗑️ Redux: DMC selection cleared - dmcId is now null');
+    },
+
+    // Set multiple selected DMC IDs (multiple selection - for Book an Enquiry)
+    setSelectedDmcIds: (state, action) => {
+      console.log('🏪 Redux: Storing selected DMC IDs (multiple):', action.payload.dmcIds);
+      console.log('🏪 Redux: Storing DMCs Data (multiple):', action.payload.dmcsData);
+      
+      state.selectedDmcIds = action.payload.dmcIds || [];
+      state.selectedDmcsData = action.payload.dmcsData || [];
+      
+      console.log('🏪 Redux: Updated state - selectedDmcIds:', state.selectedDmcIds);
+    },
+
+    // Add DMC to multiple selection (for Book an Enquiry)
+    addDmcToSelection: (state, action) => {
+      const { dmcId, dmcData } = action.payload;
+      console.log('➕ Redux: Adding DMC to selection - dmcId:', dmcId);
+      
+      // Check if DMC is already selected
+      if (!state.selectedDmcIds.includes(dmcId)) {
+        state.selectedDmcIds.push(dmcId);
+        state.selectedDmcsData.push(dmcData);
+        
+        console.log('➕ Redux: DMC added to selection - current selectedDmcIds:', state.selectedDmcIds);
+      } else {
+        console.log('⚠️ Redux: DMC already in selection:', dmcId);
+      }
+    },
+
+    // Remove DMC from multiple selection (for Book an Enquiry)
+    removeDmcFromSelection: (state, action) => {
+      const { dmcId } = action.payload;
+      console.log('➖ Redux: Removing DMC from selection - dmcId:', dmcId);
+      
+      const index = state.selectedDmcIds.indexOf(dmcId);
+      if (index > -1) {
+        state.selectedDmcIds.splice(index, 1);
+        state.selectedDmcsData.splice(index, 1);
+        
+        console.log('➖ Redux: DMC removed from selection - current selectedDmcIds:', state.selectedDmcIds);
+      } else {
+        console.log('⚠️ Redux: DMC not found in selection:', dmcId);
+      }
+    },
+
+    // Clear all selected DMCs (multiple selection - for Book an Enquiry)
+    clearSelectedDmcs: (state) => {
+      console.log('🗑️ Redux: Clearing all DMC selections (multiple)');
+      
+      state.selectedDmcIds = [];
+      state.selectedDmcsData = [];
+      
+      console.log('🗑️ Redux: All DMC selections cleared');
     },
 
     // Clear DMCs
@@ -131,6 +187,10 @@ const dmcSlice = createSlice({
 export const {
   setSelectedDmcId,
   clearSelectedDmc,
+  setSelectedDmcIds,
+  addDmcToSelection,
+  removeDmcFromSelection,
+  clearSelectedDmcs,
   clearDMCs,
   setSelectedCountries,
   clearError,
@@ -145,6 +205,9 @@ export const selectSelectedCountries = (state) => state.dmc.selectedCountries;
 export const selectLastFetchedCountries = (state) => state.dmc.lastFetchedCountries;
 export const selectDmcId = (state) => state.dmc.dmcId;
 export const selectSelectedDmcData = (state) => state.dmc.selectedDmcData;
+// New selectors for multiple DMC selection
+export const selectSelectedDmcIds = (state) => state.dmc.selectedDmcIds;
+export const selectSelectedDmcsData = (state) => state.dmc.selectedDmcsData;
 
 // Export reducer
 export default dmcSlice.reducer; 
