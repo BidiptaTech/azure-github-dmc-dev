@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Http;
 
 Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
+Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
+Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
 
 // Simple test route to debug routing issues
 Route::get('/debug-test', function () {

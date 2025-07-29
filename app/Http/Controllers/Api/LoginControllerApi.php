@@ -439,6 +439,138 @@ class LoginControllerApi extends Controller
         ]);
     }
 
+    public function sendOtpRegistration(Request $request)
+    {
+        // Validate incoming request
+        $validator = Validator::make($request->all(), [
+            'company_name' => 'required',
+            'salutation' => 'required',
+            'name' => 'required',
+            'email' => 'required|email|unique:agents',
+            'country' => 'required',
+            'user_country' => 'required',
+            'city' => 'required',
+            'agent_address' => 'required',
+            'code' => 'required',
+            'phone' => 'required',
+            'id_card' => 'required',
+            'card_number' => 'required',
+            'password' => 'required|min:8',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Generate 4-digit OTP
+        $otp = rand(1000, 9999);
+        
+        // Store registration data and OTP in cache for 10 minutes
+        $cacheKey = 'registration_' . $request->email;
+        $registrationData = $request->all();
+        $registrationData['otp'] = $otp;
+        
+        \Cache::put($cacheKey, $registrationData, now()->addMinutes(10));
+        
+        // Prepare email data
+        $emailData = [
+            'salutation' => $request->salutation,
+            'name' => $request->name,
+            'email' => $request->email,
+            'otp' => $otp,
+            'message_type' => 'otp',
+            'mail_settings' => (object)[
+                'support_email' => 'support@example.com',
+                'support_phone' => '+123456789',
+                'facebook_url' => '#',
+                'twitter_url' => '#',
+                'instagram_url' => '#',
+                'linkedin_url' => '#'
+            ]
+        ];
+        
+        // Send OTP via email
+        try {
+            $sendEmail = CommonHelper::sendEmail(
+                $request->email, 
+                'otp_verification', 
+                'Your OTP for Registration', 
+                'Your OTP code is: ' . $otp, 
+                $emailData
+            );
+            
+            return response()->json([
+                'success' => true, 
+                'message' => 'OTP sent successfully to your email',
+                'email' => $request->email,
+                'sendEmail' => $sendEmail
+            ]);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send OTP email: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send OTP. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function verifyOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'otp' => 'required|numeric|digits:4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        $email = $request->email;
+        $submittedOtp = $request->otp;
+        
+        // Get stored data from cache
+        $cacheKey = 'registration_' . $email;
+        $registrationData = \Cache::get($cacheKey);
+        
+        if (!$registrationData) {
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP expired or invalid email. Please request a new OTP.'
+            ], 400);
+        }
+        
+        // Verify OTP
+        if ($registrationData['otp'] != $submittedOtp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid OTP. Please try again.'
+            ], 400);
+        }
+        
+        // OTP is valid, now call registerAgent with the stored data
+        // Remove OTP from registration data
+        unset($registrationData['otp']);
+        
+        // Create a new request with the registration data
+        $registrationRequest = Request::create('/api/v1/register-agent', 'POST', $registrationData);
+        
+        // Handle file uploads if needed (would require additional logic)
+        
+        // Forward to registerAgent method
+        return $this->registerAgent($registrationRequest);
+    }
+
     public function registerAgent(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -667,5 +799,7 @@ class LoginControllerApi extends Controller
             ], 500);
         }
     }
+
+
 }
 
