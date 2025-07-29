@@ -209,6 +209,13 @@ class CountryController extends Controller
         if($user->role_id == 20){
             $dmc_count = $dmc_count - 1;
         }
-        return response()->json(['dmc_count' => $dmc_count]);
+        $dmc_id = null;
+        if($dmc_count == 1 && count($agentDmcIds) == 1){
+            $dmc_id = $agentDmcIds[0];
+        }
+        elseif($dmc_count == 1 && count($agentDmcIds) == 2){
+            $dmc_id = $agentDmcIds[1];
+        }
+        return response()->json(['dmc_count' => $dmc_count, 'dmc_id' => $dmc_id]);
     }
 }
