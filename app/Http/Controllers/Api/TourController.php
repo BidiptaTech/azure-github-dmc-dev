@@ -1925,7 +1925,7 @@ class TourController extends Controller
                 $vehicle = null;
                 
                 $salesManagerId = $user->sales_manager_dmc;
-                $dmc_id = User::where('userId', $salesManagerId)->value('dmcId');
+                $dmc_id = 0;
                 $dmc = User::where('userId', $dmcId)->first();
                 
 
