@@ -67,10 +67,15 @@ class CountryController extends Controller
     {
         $user = auth()->user();
         $agentCreatedBy = $user->sales_manager_dmc;
+        if(!$agentCreatedBy){
+            return response()->json(['error' => 'Agent not found'], 404);
+        }
         $createdByDmc = User::where('userId', $agentCreatedBy)->first();
+        if(!$createdByDmc){
+            return response()->json(['error' => 'Agent DMC not found'], 404);
+        }
         $agentDmcIds = $user->dmc_id;
         
-
         // Handle JSON array or comma-separated string
         if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
             // It's a JSON array, decode it
@@ -88,18 +93,23 @@ class CountryController extends Controller
         }
 
         if (count($agentDmcIds) > 1 && $createdByDmc->role_id != 20) {
-            $dmcs = User::whereIn('userId', $agentDmcIds)->get();
-        } 
+            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address')->whereIn('userId', $agentDmcIds);
+        }
         elseif (count($agentDmcIds) == 1 && $createdByDmc->role_id != 20) {
-            $dmcs = User::where('userId', $agentDmcIds[0])->first();
+            $dmcs = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address')->where('userId', $agentDmcIds[0] )->first();
+            if (!$dmcs) {
+                return response()->json(['error' => 'DMC not found'], 404);
+            }
+            return response()->json(['data' => $dmcs]);
         }
         elseif ($createdByDmc->role_id == 20) {
-            $dmcs = User::whereIn('role_id', [11, 20])->get();
+            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address')->where('role_id', 11);
         }
         else {
             return response()->json(['error' => 'DMC not found'], 404);
         }
 
+        // Apply country filter if provided
         if ($request->has('country')) {
             // Handle country as JSON string, array, or single string
             $countryParam = $request->country;
@@ -152,34 +162,53 @@ class CountryController extends Controller
                 ], 400);
             }
             
-            // Debug: Let's see what we're comparing
-            \Log::info('Country Debug', [
-                'originalCountryParam' => $countryParam,
-                'requestCountries' => $requestCountries,
-                'dmcsCountry' => $dmcs instanceof \Illuminate\Database\Eloquent\Collection ? $dmcs->pluck('country')->toArray() : $dmcs->country,
-                'dmcsData' => $dmcs instanceof \Illuminate\Database\Eloquent\Collection ? $dmcs->toArray() : $dmcs->toArray()
-            ]);
-            
-            // Filter DMCs by country
-            if ($dmcs instanceof \Illuminate\Database\Eloquent\Collection) {
-                $dmcs = $dmcs->whereIn('country', $requestCountries);
-            } else {
-                // If it's a single model, check if it matches the country
-                if (!in_array($dmcs->country, $requestCountries)) {
-                    return response()->json([
-                        'error' => 'DMC not found for specified country',
-                        'debug' => [
-                            'dmcCountry' => $dmcs->country,
-                            'requestCountries' => $requestCountries,
-                            'dmcData' => $dmcs->toArray()
-                        ]
-                    ], 404);
-                }
-            }
+            // Apply country filter to query
+            $dmcsQuery->whereIn('country', $requestCountries);
         }
+        
+        // Apply search if provided
+        if ($request->has('search')) {
+            $search = $request->search;
+            $dmcsQuery->where(function($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%");
+            });
+        }
+        
+        // Apply pagination
+        $perPage = $request->input('per_page', 10); // Default 10 items per page
+        $page = $request->input('page', 1);
+        
+        // Get paginated results
+        $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
+        
+        return response()->json($dmcs);
+    }
 
-        return response()->json([
-            'dmcs' => $dmcs
-        ]);
+    public function dmcCount(Request $request){
+        $user = auth()->user();
+        $agentCreatedBy = $user->sales_manager_dmc;
+        if(!$agentCreatedBy){
+            return response()->json(['error' => 'Agent not found'], 404);
+        }
+        
+        $agentDmcIds = $user->dmc_id;
+        
+        // Handle JSON array or comma-separated string
+        if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
+            // It's a JSON array, decode it
+            $agentDmcIds = json_decode($agentDmcIds, true);
+        } else if (is_string($agentDmcIds)) {
+            // It's a comma-separated string, explode it
+            $agentDmcIds = explode(',', $agentDmcIds);
+        }
+        
+        // Ensure all values are integers
+        $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+        
+        $dmc_count = count($agentDmcIds);
+        if($user->role_id == 20){
+            $dmc_count = $dmc_count - 1;
+        }
+        return response()->json(['dmc_count' => $dmc_count]);
     }
 }
