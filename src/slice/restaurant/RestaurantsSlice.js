@@ -65,18 +65,26 @@ export const fetchRestaurantsDetails = createAsyncThunk(
   "restaurants/fetchRestaurantsDetails",
   async (
     { restaurantId, price_mode, dmc_id },
-    { rejectWithValue, dispatch }
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      
+      // Use selected DMC ID from Redux if available, otherwise use the passed dmc_id
+      const finalDmcId = selectedDmcId || dmc_id;
+      
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode || "dmc";
-      console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id });
+      console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id: finalDmcId });
+      console.log('Selected DMC ID from Redux:', selectedDmcId);
       
       const response = await axios.get(
-        `${BASE_URL}/restaurant-details?restaurantId=${restaurantId}&mode=${mode}&dmc_id=${dmc_id}`,
+        `${BASE_URL}/restaurant-details?restaurantId=${restaurantId}&mode=${mode}&dmc_id=${finalDmcId}`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,

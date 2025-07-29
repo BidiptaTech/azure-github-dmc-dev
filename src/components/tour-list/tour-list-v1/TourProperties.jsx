@@ -328,15 +328,14 @@ const TourProperties = () => {
     // Ensure the booking mode is updated in Redux
     dispatch(setBookingMode(mode));
 
-    // Get the appropriate dmc_id based on the mode
-    const dmc_id = mode === "dmc" ? item.dmc_id : item.travclicks_dmc_id;
-    // console.log('dmc_id of attraction Listing', dmc_id);
+    // The slice will automatically use the selected DMC ID from Redux
+    // console.log('Selected mode:', mode);
 
     dispatch(
       fetchAttractionDetails({
         attractionId: item.id,
-        price_mode: { mode },
-        dmc_id: dmc_id,
+        price_mode: mode
+        // dmc_id will be automatically handled by the slice using Redux state
       })
     );
 
@@ -344,7 +343,7 @@ const TourProperties = () => {
       state: {
         attraction: item,
         mode,
-        dmc_id: dmc_id,
+        // dmc_id will be handled by the slice using Redux state
       },
     });
   };

@@ -73,15 +73,25 @@ export const fetchAttractionDetails = createAsyncThunk(
   "attractions/fetchAttractionDetails",
   async (
     { attractionId, price_mode, dmc_id },
-    { rejectWithValue, dispatch }
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      
+      // Use selected DMC ID from Redux if available, otherwise use the passed dmc_id
+      const finalDmcId = selectedDmcId || dmc_id;
+      
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode?.mode || "default_value";
-      const apiUrl = `${BASE_URL}/attraction-details?attractionId=${attractionId}&mode=${mode}&dmc_id=${dmc_id}`;
+      console.log('Fetching attraction details with params:', { attractionId, mode, dmc_id: finalDmcId });
+      console.log('Selected DMC ID from Redux:', selectedDmcId);
+      
+      const apiUrl = `${BASE_URL}/attraction-details?attractionId=${attractionId}&mode=${mode}&dmc_id=${finalDmcId}`;
 
       const response = await axios.get(apiUrl, {
         headers: {

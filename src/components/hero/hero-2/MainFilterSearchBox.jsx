@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import DateSearch from "../DateSearch";
 import GuestSearch from "./GuestSearch";
 import LocationSearch from "./LocationSearch";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   resetHotels,
   setId,
@@ -34,15 +34,18 @@ import { setSelectedCity } from "@/slice/common/commonSlice";
 import { fetchBookingid, setSearchLocation, setCheckIn, setCheckOut, setGuest } from "../../../slice/common/EnquirySlice";
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { store } from "../../../store/store";
+import { selectSelectedDmcIds } from "../../../slice/dmc/dmcSlice";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-const MainFilterSearchBox = ({ onNext }) => {
+const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const selectedDmcIds = useSelector(selectSelectedDmcIds);
   const [locationData, setLocationData] = useState(null);
   const [selectedDates, setSelectedDates] = useState([]);
   const [guestCounts, setGuestCounts] = useState({
@@ -161,7 +164,7 @@ const MainFilterSearchBox = ({ onNext }) => {
     setOpenSnackbar(false);
   };
 
-  const handleSearch = async (e) => {
+  const handleSearch = useCallback(async (e) => {
     e.preventDefault();
 
     if (!validateForm()) return;
@@ -348,10 +351,34 @@ const MainFilterSearchBox = ({ onNext }) => {
           const authToken = localStorage.getItem("token");
           console.log("Auth token available:", authToken ? "Yes" : "No");
           
-          dispatch(fetchEnquiryList({
+          // Get DMC IDs for multi-DMC enquiry flow
+          const dmcIds = getDMCIds();
+          const isMultiDMC = isMultiDMCFlow();
+
+          console.log("📋 Enquiry Flow Check:", {
+            isMultiDMC,
+            dmcIds,
+            navigationDMCs: location.state?.selectedDMCs,
+            reduxDMCIds: selectedDmcIds
+          });
+
+          // Fetch the enquiry list data for hotels and other services
+          const fetchParams = {
             country: country || locationData.country.name,
             city: city || locationData.city.name
-          }));
+          };
+
+          // Add DMC IDs if we're in multi-DMC flow
+          if (isMultiDMC && dmcIds && dmcIds.length > 0) {
+            fetchParams.dmcIds = dmcIds;
+            console.log("📋 Multi-DMC Enquiry: Including DMC IDs in fetchEnquiryList:", dmcIds);
+          } else {
+            console.log("📋 Standard Enquiry: No DMC IDs included");
+          }
+
+          console.log("📋 Final fetchEnquiryList params:", fetchParams);
+          
+          dispatch(fetchEnquiryList(fetchParams));
 
           dispatch(setType("enquiry"));
           dispatch(updateStepStatus({ key: "hotel", status: 2 })); // Update step status
@@ -369,6 +396,32 @@ const MainFilterSearchBox = ({ onNext }) => {
           setOpenSnackbar(true);
         });
     }, 300);
+  }, [validateForm, selectedDates, locationData, guestCounts, location.state, selectedDmcIds, dispatch, onNext]);
+
+  // Check if we're in a multi-DMC enquiry flow
+  const isMultiDMCFlow = () => {
+    // Check if we have DMCs from navigation state (from DMC selection modal)
+    const navigationDMCs = location.state?.selectedDMCs;
+    // Or check if we have DMCs in Redux state
+    const reduxDMCIds = selectedDmcIds;
+    
+    return (navigationDMCs && navigationDMCs.length > 0) || (reduxDMCIds && reduxDMCIds.length > 0);
+  };
+
+  // Get DMC IDs for API call
+  const getDMCIds = () => {
+    // Prioritize navigation state DMCs (fresh from selection)
+    const navigationDMCs = location.state?.selectedDMCs;
+    if (navigationDMCs && navigationDMCs.length > 0) {
+      return navigationDMCs.map(dmc => dmc.dmcId || dmc.id).filter(id => id !== null && id !== undefined);
+    }
+    
+    // Fallback to Redux state
+    if (selectedDmcIds && selectedDmcIds.length > 0) {
+      return selectedDmcIds.filter(id => id !== null && id !== undefined);
+    }
+    
+    return null;
   };
 
   return (

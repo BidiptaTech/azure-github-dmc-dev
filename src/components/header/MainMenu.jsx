@@ -1,22 +1,43 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaChartLine,
   FaCompass,
   FaEnvelopeOpenText,
   FaBoxOpen,
 } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import DMCSelectionModal from "../common/DMCSelectionModal";
 import SearchLocationModal from "../common/SearchLocationModal";
+import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
 
 const MainMenu = ({ style = "" }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { userRole } = useSelector((state) => state.auth);
+  
+  // State for Book Tour flow (single DMC selection)
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isDMCModalOpen, setIsDMCModalOpen] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState(null);
+  
+  // State for Book an Enquiry flow (multiple DMC selection)
+  const [isEnquirySearchModalOpen, setIsEnquirySearchModalOpen] = useState(false);
+  const [isEnquiryDMCModalOpen, setIsEnquiryDMCModalOpen] = useState(false);
+  const [enquirySearchCriteria, setEnquirySearchCriteria] = useState(null);
+
+  // Get DMC count and selected DMC from Redux state
+  const dmcCount = useSelector((state) => state.dmc.dmcCount);
+  const dmcCountLoading = useSelector((state) => state.dmc.dmcCountLoading);
+  const selectedDmcId = useSelector((state) => state.dmc.dmcId);
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
+
+  // Automatically fetch DMC count when component mounts
+  useEffect(() => {
+    console.log('🔄 MainMenu: Automatically fetching DMC count...');
+    dispatch(fetchDMCCount());
+  }, [dispatch]);
 
   const isManagerOrSalesHead =
     userRole === "Sales Head(DMC)" ||
@@ -33,9 +54,36 @@ const MainMenu = ({ style = "" }) => {
     marginRight: "25px",
   };
 
+  // === Book Tour Handlers (Single DMC Selection) ===
   const handleBookTourClick = (e) => {
     e.preventDefault();
-    setIsSearchModalOpen(true);
+    
+    console.log('🎯 Book Tour clicked - DMC Count:', dmcCount);
+    console.log('🎯 DMC Count Loading:', dmcCountLoading);
+    
+    // Wait for DMC count to load
+    if (dmcCountLoading) {
+      console.log('⏳ DMC count still loading - please wait...');
+      return;
+    }
+    
+    // Check if DMC count is 1 - if so, skip modal and go directly to booking
+    if (dmcCount && dmcCount.dmc_count === 1) {
+      console.log('✅ Only 1 DMC available - skipping modal, going directly to booking');
+      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
+      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
+      
+      // Navigate directly to the booking page without showing modal
+      navigate("/dashboard/db-dashboard/home_1", { 
+        state: { 
+          selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
+          searchCriteria: null 
+        } 
+      });
+    } else {
+      console.log('📋 Multiple DMCs available - opening search modal');
+      setIsSearchModalOpen(true);
+    }
   };
 
   const handleSearchSubmit = (searchData) => {
@@ -45,8 +93,8 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handleDMCSelect = (selectedDMC) => {
-    console.log('Selected DMC:', selectedDMC);
-    console.log('Search Criteria:', searchCriteria);
+    console.log('Selected DMC (Book Tour):', selectedDMC);
+    console.log('Search Criteria (Book Tour):', searchCriteria);
     // Navigate to the tour booking page with the selected DMC and search criteria
     navigate("/dashboard/db-dashboard/home_1", { 
       state: { 
@@ -63,6 +111,39 @@ const MainMenu = ({ style = "" }) => {
   const handleCloseDMCModal = () => {
     setIsDMCModalOpen(false);
     setSearchCriteria(null);
+  };
+
+  // === Book an Enquiry Handlers (Multiple DMC Selection) ===
+  const handleBookEnquiryClick = (e) => {
+    e.preventDefault();
+    setIsEnquirySearchModalOpen(true);
+  };
+
+  const handleEnquirySearchSubmit = (searchData) => {
+    setEnquirySearchCriteria(searchData);
+    setIsEnquirySearchModalOpen(false);
+    setIsEnquiryDMCModalOpen(true);
+  };
+
+  const handleEnquiryDMCSelect = (selectedDMCs) => {
+    console.log('Selected DMCs (Book Enquiry):', selectedDMCs);
+    console.log('Search Criteria (Book Enquiry):', enquirySearchCriteria);
+    // Navigate to the enquiry page with the selected DMCs and search criteria
+    navigate("/dashboard/db-dashboard/home_2", { 
+      state: { 
+        selectedDMCs,
+        searchCriteria: enquirySearchCriteria 
+      } 
+    });
+  };
+
+  const handleCloseEnquirySearchModal = () => {
+    setIsEnquirySearchModalOpen(false);
+  };
+
+  const handleCloseEnquiryDMCModal = () => {
+    setIsEnquiryDMCModalOpen(false);
+    setEnquirySearchCriteria(null);
   };
 
   return (
@@ -141,8 +222,9 @@ const MainMenu = ({ style = "" }) => {
               }`}
               style={menuItemStyle}
             >
-              <Link
-                to="/dashboard/db-dashboard/home_2"
+              <a
+                href="#"
+                onClick={handleBookEnquiryClick}
                 className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
                 style={{ flexDirection: "column", alignItems: "flex-start" }}
               >
@@ -161,7 +243,7 @@ const MainMenu = ({ style = "" }) => {
                 <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
                   Reach Out for Custom Requests
                 </div>
-              </Link>
+              </a>
             </li>
           )}
 
@@ -193,6 +275,7 @@ const MainMenu = ({ style = "" }) => {
         </ul>
       </nav>
 
+      {/* Book Tour Flow - Single DMC Selection */}
       <SearchLocationModal
         open={isSearchModalOpen}
         onClose={handleCloseSearchModal}
@@ -204,6 +287,22 @@ const MainMenu = ({ style = "" }) => {
         onClose={handleCloseDMCModal}
         onSelect={handleDMCSelect}
         searchCriteria={searchCriteria}
+        multiSelect={false}
+      />
+
+      {/* Book an Enquiry Flow - Multiple DMC Selection */}
+      <SearchLocationModal
+        open={isEnquirySearchModalOpen}
+        onClose={handleCloseEnquirySearchModal}
+        onSearch={handleEnquirySearchSubmit}
+      />
+
+      <DMCSelectionModal
+        open={isEnquiryDMCModalOpen}
+        onClose={handleCloseEnquiryDMCModal}
+        onSelect={handleEnquiryDMCSelect}
+        searchCriteria={enquirySearchCriteria}
+        multiSelect={true}
       />
     </>
   );
