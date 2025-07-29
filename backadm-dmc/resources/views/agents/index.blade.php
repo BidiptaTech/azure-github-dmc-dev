@@ -14,14 +14,9 @@
 
                 <div class="d-flex justify-content-between gap-3">
                     <!-- Add New User Button -->
-                    {{-- @if(hasPermission('create agents')) --}}
-                    @if(Auth::user()->role_id != 1)
                       <a href="{{ route('agents.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                           <i class="fas fa-plus"></i> Add New Agent
                       </a>
-                    @endif
-                    {{-- @endif --}}
-
                     <!-- Export Dropdown Button -->
                     <div class="dropdown">
                         <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"

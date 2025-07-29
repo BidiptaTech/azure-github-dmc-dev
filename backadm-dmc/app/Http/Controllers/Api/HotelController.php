@@ -85,12 +85,24 @@ class HotelController extends Controller
     public function index(Request $request)
     {
         $location = $request->input('location'); 
-        $cat_id = $request->input('category_id'); // Fixed
+        $cat_id = $request->input('category_id');
         $start = $request->input('start', 0);
         $limit = $request->input('limit', 9);
+        
+        // Handle both JSON string and array inputs for dmc_ids
+        $request_dmc_ids = $request->input('dmc_ids');
+        if (is_string($request_dmc_ids)) {
+            $request_dmc_ids = json_decode($request_dmc_ids, true) ?? [];
+        } elseif (!is_array($request_dmc_ids)) {
+            $request_dmc_ids = [];
+        }
 
         if (!$location) {
             return response()->json(['message' => 'City not found'], 404);
+        }
+
+        if (empty($request_dmc_ids)) {
+            return response()->json(['message' => 'DMC IDs are required'], 400);
         }
 
         $query = Hotel::with('category', 'rooms')
@@ -105,221 +117,109 @@ class HotelController extends Controller
             });
         }
 
-        if ($cat_id) { // Changed from `elseif` to `if`
+        if ($cat_id) {
             $query->where('cat_id', $cat_id);
         }
 
-        $hotels = $query->orderBy('id', 'desc')->skip($start)->take($limit)->get();
-        $groupedHotels = $hotels->groupBy('name');
-        $hotel_list = [];
+        $hotels = $query->orderBy('id', 'desc')->get();
+        
+        // Group hotels by name to handle duplicates
+        $hotelsByName = [];
+        
+        foreach ($hotels as $hotel) {
+            $hotel_dmc_ids = $hotel->dmc_id;
+            if (is_string($hotel_dmc_ids)) {
+                $hotel_dmc_ids = json_decode($hotel_dmc_ids, true) ?? [];
+            } elseif (!is_array($hotel_dmc_ids)) {
+                $hotel_dmc_ids = [];
+            }
 
-        if ($groupedHotels->isNotEmpty()) {
-            foreach ($groupedHotels as $name => $hotelCollection) {
-                $firstHotel = $hotelCollection->first();
-                if (!$firstHotel) continue;
+            $matching_dmc_ids = array_intersect($request_dmc_ids, $hotel_dmc_ids);
 
-                $city = $firstHotel->city ?? '';
-                $country = $firstHotel->country ?? '';
-                $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
-                $country_tax = $check_country->tax_percentage ?? 0;
+            if (empty($matching_dmc_ids)) {
+                continue;
+            }
 
-                $base_price = PHP_INT_MAX;
-                $base_room_price = 0;
-                $weekend_days = json_decode($firstHotel->weekend_days, true) ?? [];
-                $today = Carbon::now()->format('l');
+            $city = $hotel->city ?? '';
+            $country = $hotel->country ?? '';
+            $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
+            $country_tax = $check_country->tax_percentage ?? 0;
 
-                foreach ($hotelCollection as $hotel) {
-                    foreach ($hotel->rooms as $room) {
-                        $price = in_array($today, $weekend_days) ? $room->weekend_price : $room->weekday_price;
-                        $base_price = min($base_price, $price);
-                        
-                        // Find base room price (where base_room = 1)
-                        if ($room->base_room == 1) {
-                            $base_room_price = $room->weekday_price;
-                        }
-                    }
+            $base_price = PHP_INT_MAX;
+            $base_room_price = 0;
+            $weekend_days = json_decode($hotel->weekend_days, true) ?? [];
+            $today = Carbon::now()->format('l');
+
+            foreach ($hotel->rooms as $room) {
+                if (!in_array($room->created_by, $matching_dmc_ids)) {
+                    continue;
                 }
-                $base_price = ($base_price === PHP_INT_MAX) ? 0 : $base_price;
 
-                // Fetch agent details
-                $agent_id = Auth::user()->agent_id;
-                $agent = Agent::where('agent_id', $agent_id)->first();
+                $price = in_array($today, $weekend_days) ? $room->weekend_price : $room->weekday_price;
+                $base_price = min($base_price, $price);
                 
-                $dmc_id = null;
-                if ($agent) {
-                    $salesManagerId = $agent->sales_manager_dmc;
-                    switch ($agent->role_id) {
-                        case 11: // Agent is a DMC
-                            $dmc_id = $agent->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
-                            break;
-                            case 33: 
-                            case 128: 
-                            case 129: 
-                            case 130: 
-                            case 134: 
-                            case 135: 
-                            case 136: 
-                            case 138: // Sales Head
-                            $salesManagerId = $agent->sales_manager_dmc;
-                                $saleshead_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SH
-                                if ( $saleshead_dmc) {
-                                    $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                                    if ($dmc_users && $dmc_users->role_id == 11) {
-                                        $dmc_id = $dmc_users->userId;
-                                    }
-                                }
-                            break;
-                        case 12:
-                        case 37: // Sales Manager
-                            $salesManagerId = $agent->sales_manager_dmc;
-                            $salesmng_dmc= User::where('userId', $agent->sales_manager_dmc)->first(); // SM
-                            
-                            if ($salesmng_dmc) {
-                                $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                                if ( $saleshead_dmc) {
-                                    $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                                    if ($dmc_users && $dmc_users->role_id == 11) {
-                                        $dmc_id = $dmc_users->userId;
-                                    }
-                                }
-                            }
-                            break;
-                        case 38: // Assistant Manager
-                            $salesManagerId = $agent->sales_manager_dmc;
-                            $asmng_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SM
-                            if($asmng_dmc){
-                                $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-                            }
-                            if ($salesmng_dmc) {
-                                $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                                if ( $saleshead_dmc) {
-                                    $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                                    if ($dmc_users && $dmc_users->role_id == 11) {
-                                        $dmc_id = $dmc_users->userId;
-                                    }
-                                }
-                            }
-                            break;
-                    }
+                if ($room->base_room == 1) {
+                    $base_room_price = $room->weekday_price;
                 }
-                elseif(Auth::user()->userId){
-                    $currentUser = Auth::user();
-                    
-                    if($currentUser->role_id == 33 || $currentUser->role_id == 128 || $currentUser->role_id == 129 || $currentUser->role_id == 130 || $currentUser->role_id == 134 || $currentUser->role_id == 135 || $currentUser->role_id == 136 || $currentUser->role_id == 138){
-                        $dmc_id = $currentUser->created_by;
-                    }
-                    elseif($currentUser->role_id == 37){
-                        $sales_head_id = $currentUser->created_by;
-                        $sales_head = User::where('userId', $sales_head_id)->first();
-                        $dmc_id = $sales_head->created_by;
-                    }
-                    elseif($currentUser->role_id == 38){
-                        $sales_manager_id = $currentUser->created_by;
-                        $sales_manager = User::where('userId', $sales_manager_id)->first();
-                        $sales_head_id = $sales_manager->created_by;
-                        $sales_head = User::where('userId', $sales_head_id)->first();
-                        $dmc_id = $sales_head->created_by;
-                    }
-                }
-                if (!$dmc_id) {
-                    return response()->json(['message' => 'DMC Not Found!'], 400);
+            }
+            $base_price = ($base_price === PHP_INT_MAX) ? 0 : $base_price;
+
+            // Calculate prices for each matching DMC
+            foreach ($matching_dmc_ids as $current_dmc_id) {
+                $dmcResult = CommonHelper::calculateDmcModePricehotel(
+                    $base_price, $current_dmc_id, $hotel->name, 'hotel', $city
+                );
+                
+                $current_price = $dmcResult[0] ?? 0;
+                
+                // Skip if price is 0
+                if ($current_price == 0) {
+                    continue;
                 }
 
-                // Fetch DMC hotel price
-                $dmcHotels = $hotelCollection->filter(function ($hotel) use ($dmc_id) {
-                    return $this->isDmcIdMatch($hotel->dmc_id, $dmc_id);
-                });
-                $dmcHotel = $dmcHotels->first();
-                $dmc_price = 0;
+                // Calculate TravClicks price
+                $travResult = CommonHelper::calculateMinPricehotel(
+                    $base_price, $current_dmc_id, $hotel->name, 'hotel', $city
+                );
 
-                if ($dmcHotel) {
-                    $dmcResult = CommonHelper::calculateDmcModePricehotel(
-                        $base_price, $dmc_id, $name, 'hotel', $city
-                    );
-                    $dmc_price = $dmcResult[0] ?? 0;
-                    $dmc_id = $dmcResult[1] ?? null;
-                }
-                // Fetch TravClicks price
-                if($agent){
-                    $travResult = CommonHelper::calculateMinPricehotel(
-                        $base_price, $dmc_id, $name, 'hotel', $city
-                    );
-                }
-                $trav_price = $travResult[0] ?? 0;
-                $trav_dmc_id = $travResult[1] ?? null;
-
-                // Process availability dates
-                $dateRange = json_decode($request->query('date'), true) ?? [];
-                $closeDates = array_map('trim', explode(',', $firstHotel->close_dates ?? ''));
-                $closeDays = json_decode($firstHotel->close_days, true) ?? [];
-                $availabilityStatus = true;
-
-                foreach ($dateRange as $date) {
-                    $formattedDate = Carbon::parse($date)->format('Y-m-d');
-                    $dayOfWeek = Carbon::parse($date)->format('l');
-                    if ($formattedDate < Carbon::today()->format('Y-m-d') || in_array($formattedDate, $closeDates) || in_array($dayOfWeek, $closeDays)) {
-                        $availabilityStatus = false;
-                        break;
-                    }
-                }
-
-                // Replace with categorized implementation
-                $facility_ids = json_decode($firstHotel->facilities, true) ?? [];
-                $facilities = Facility::with('categories')->whereIn('facilityId', $facility_ids)->get();
-                $categorized_facilities = [];
-                foreach ($facilities as $facility) {
-                    $category_name = $facility->categories ? $facility->categories->name : 'Uncategorized';
-                    $category_id = $facility->categories ? $facility->categories->category_id : 0;
-                    
-                    if (!isset($categorized_facilities[$category_id])) {
-                        $categorized_facilities[$category_id] = [
-                            'category_name' => $category_name,
-                            'facilities' => []
-                        ];
-                    }
-                    
-                    $categorized_facilities[$category_id]['facilities'][] = $facility->name;
-                }
-
-                // Convert to array format for JSON response
-                $facilities_by_category = [];
-                foreach ($categorized_facilities as $cat) {
-                    $facilities_by_category[] = [
-                        'category' => $cat['category_name'],
-                        'facilities' => $cat['facilities']
-                    ];
-                }
-
-                // Add hotel data to list
-                $hotel_list[] = [
-                    'id' => $firstHotel->hotel_unique_id ?? null,
-                    'hotel_name' => $name,
-                    'category' => $firstHotel->category->name ?? '',
-                    'location' => $firstHotel->address ?? '',
-                    'dmc_price' => (int) $dmc_price,
-                    'dmc_tax_amount' => ((int) $dmc_price * ($country_tax ?? 0) / 100),
-                    'dmc_id' => $dmc_id,
-                    'travclicks_price' => $trav_price,
-                    'travclicks_tax_amount' => ((int)$trav_price * ($country_tax ?? 0) / 100),
-                    'travclicks_id' => $trav_dmc_id,
-                    'image' => $firstHotel->main_image ?? '',
-                    'site_image' => json_decode($firstHotel->images, true) ?? [],
-                    'room_image' => collect($hotelCollection->pluck('rooms'))
-                        ->flatten()
+                $hotelData = [
+                    'id' => $hotel->hotel_unique_id ?? null,
+                    'hotel_name' => $hotel->name,
+                    'category' => $hotel->category->name ?? '',
+                    'location' => $hotel->address ?? '',
+                    'dmc_price' => (int) $current_price,
+                    'dmc_tax_amount' => ((int) $current_price * ($country_tax ?? 0) / 100),
+                    'dmc_id' => $dmcResult[1] ?? $current_dmc_id,
+                    'travclicks_price' => $travResult[0] ?? 0,
+                    'travclicks_tax_amount' => ((int)($travResult[0] ?? 0) * ($country_tax ?? 0) / 100),
+                    'travclicks_id' => $travResult[1] ?? null,
+                    'image' => $hotel->main_image ?? '',
+                    'site_image' => json_decode($hotel->images, true) ?? [],
+                    'room_image' => collect($hotel->rooms)
                         ->pluck('images')
                         ->map(fn($img) => json_decode($img, true))
                         ->filter()
                         ->values()
                         ->all(),
-                    'cancellation' => $firstHotel->cancellation_type ?? '',
-                    'cancellation_charge' => json_decode($firstHotel->cancellation_data) ?? [],
-                    'facilities' => $facilities_by_category,
-                    'description' => strip_tags($firstHotel->description ?? ''),
-                    'status' => $firstHotel->status ?? 0,
+                    'cancellation' => $hotel->cancellation_type ?? '',
+                    'cancellation_charge' => json_decode($hotel->cancellation_data) ?? [],
+                    'facilities' => $this->getFacilitiesByCategory($hotel),
+                    'description' => strip_tags($hotel->description ?? ''),
+                    'status' => $hotel->status ?? 0,
                     'base_hotel_price' => $base_room_price,
                 ];
-            }
 
+                // Store hotel data with its price for comparison
+                if (!isset($hotelsByName[$hotel->name]) || $current_price < $hotelsByName[$hotel->name]['dmc_price']) {
+                    $hotelsByName[$hotel->name] = $hotelData;
+                }
+            }
+        }
+
+        // Convert to array and apply pagination
+        $hotel_list = array_values(array_slice($hotelsByName, $start, $limit));
+
+        if (!empty($hotel_list)) {
             return response()->json($hotel_list);
         }
 
@@ -421,22 +321,22 @@ class HotelController extends Controller
 
         // Apply DMC markup to breakfast price if applicable
         $users = User::where('userId', $dmcs_id)->first();
-        if ($users) {
-            $dmc = User::where('userId', $users->dmcId)->first();
-            if ($dmc) {
-                $bf_price += ($dmc->markup_type == 0) 
-                ? $dmc->markup_price 
-                : ($bf_price * $dmc->markup_price / 100);
+        $dmc = User::where('userId', $users->dmcId)->first();
+        // if ($users) {
+        //     if ($dmc) {
+        //         $bf_price += ($dmc->markup_type == 0) 
+        //         ? $dmc->markup_price 
+        //         : ($bf_price * $dmc->markup_price / 100);
 
-                $lunch_price += ($dmc->markup_type == 0) 
-                ? $dmc->markup_price 
-                : ($lunch_price * $dmc->markup_price / 100);
+        //         $lunch_price += ($dmc->markup_type == 0) 
+        //         ? $dmc->markup_price 
+        //         : ($lunch_price * $dmc->markup_price / 100);
 
-                $dinner_price += ($dmc->markup_type == 0) 
-                ? $dmc->markup_price 
-                : ($dinner_price * $dmc->markup_price / 100);
-            }
-        }
+        //         $dinner_price += ($dmc->markup_type == 0) 
+        //         ? $dmc->markup_price 
+        //         : ($dinner_price * $dmc->markup_price / 100);
+        //     }
+        // }
 
         // Separate array for breakfast price
         // $breakfast_data = [
@@ -716,5 +616,39 @@ class HotelController extends Controller
         }
         
         return in_array((int)$targetDmcId, $dmcIds);
+    }
+
+    /**
+     * Get facilities grouped by category
+     */
+    private function getFacilitiesByCategory($hotel)
+    {
+        $facility_ids = json_decode($hotel->facilities, true) ?? [];
+        $facilities = Facility::with('categories')->whereIn('facilityId', $facility_ids)->get();
+        
+        $categorized_facilities = [];
+        foreach ($facilities as $facility) {
+            $category_name = $facility->categories ? $facility->categories->name : 'Uncategorized';
+            $category_id = $facility->categories ? $facility->categories->category_id : 0;
+            
+            if (!isset($categorized_facilities[$category_id])) {
+                $categorized_facilities[$category_id] = [
+                    'category_name' => $category_name,
+                    'facilities' => []
+                ];
+            }
+            
+            $categorized_facilities[$category_id]['facilities'][] = $facility->name;
+        }
+
+        $facilities_by_category = [];
+        foreach ($categorized_facilities as $cat) {
+            $facilities_by_category[] = [
+                'category' => $cat['category_name'],
+                'facilities' => $cat['facilities']
+            ];
+        }
+
+        return $facilities_by_category;
     }
 }

@@ -1,8 +1,6 @@
 @extends('layouts.layout')
 @section('title', 'Add Agent')
 @section('content')
-
-
 <style>
    /* Adjust the height and padding of the multi-select container */
     .select2-container--default .select2-selection--multiple {
@@ -42,6 +40,61 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
+        @if(auth()->user()->role_id == 11)
+        <!-- Search Section - Only visible to DMC -->
+        <div class="card mb-4">
+            <h5 class="card-header">Search Existing Agent</h5>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <select class="form-control select2" id="search_country" name="search_country">
+                            <option value="">Select Country</option>
+                            @foreach($cityCountry as $c)
+                                <option value="{{ $c->name }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-control select2" id="search_city" name="search_city">
+                            <option value="">Select City</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" id="search_agent_name" placeholder="Agent Name">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control" id="search_agency_name" placeholder="Agency Name">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-primary w-100" id="searchAgentBtn">
+                            <i class="mdi mdi-magnify"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Results Table -->
+                <div class="mt-4" id="searchResults" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Agent Name</th>
+                                    <th>Agency Name</th>
+                                    <th>Country</th>
+                                    <th>City</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="searchResultsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <!-- Rest of your form -->
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Add New Agent
@@ -51,6 +104,7 @@
             </h5>
             <form action="{{ route('agents.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
                 @csrf
+                <input type="hidden" name="dmc_ids" id="dmc_ids" value="">
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <label for="company_name" class="form-label"><strong>Agency Company</strong><span class="text-danger">*</span></label>
@@ -284,7 +338,6 @@
     
     });
 </script>
-
 
 <script>
     function showValidationMessage(inputElement, isValid, message) {
@@ -635,4 +688,197 @@
         border-color: #e74c3c;
     }
 </style>
+
+<!-- DMC Search Scripts -->
+<script>
+$(document).ready(function() {
+    // Initialize all select2 dropdowns
+    $('.select2').select2();
+
+    // Handle country change for search
+    $('#search_country').on('change', function() {
+        const selectedCountry = $(this).val();
+        if (selectedCountry) {
+            $('#search_city').html('<option value="">Loading cities...</option>');
+            
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: selectedCountry },
+                success: function(response) {
+                    $('#search_city').html('<option value="">Select city...</option>');
+                    if (response.cities && response.cities.length > 0) {
+                        response.cities.forEach(function(city) {
+                            $('#search_city').append(`<option value="${city.name}">${city.name}</option>`);
+                        });
+                    }
+                    $('#search_city').trigger('change');
+                }
+            });
+        } else {
+            $('#search_city').html('<option value="">Search by City...</option>');
+            $('#search_city').trigger('change');
+        }
+    });
+
+    // Handle search
+    $('#searchAgentBtn').on('click', function() {
+        const searchData = {
+            country: $('#search_country').val(),
+            city: $('#search_city').val(),
+            agent_name: $('#search_agent_name').val(),
+            agency_name: $('#search_agency_name').val()
+        };
+
+        // Show loading state
+        $(this).prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i>');
+        $('#searchResults').hide();
+
+        $.ajax({
+            url: '/search-agents',
+            method: 'GET',
+            data: searchData,
+            success: function(response) {
+                if (!response.success) {
+                    const message = $('<div>')
+                        .addClass('alert alert-warning mt-2')
+                        .text(response.message || 'Access denied')
+                        .insertBefore($('#searchResults'))
+                        .delay(3000)
+                        .fadeOut(function() { $(this).remove(); });
+                    return;
+                }
+
+                if (response.agents.length > 0) {
+                    let html = '';
+                    response.agents.forEach(function(agent) {
+                        html += `
+                            <tr data-agent-id="${agent.agent_id}">
+                                <td>${agent.name || '-'}</td>
+                                <td>${agent.company_name || '-'}</td>
+                                <td>${agent.user_country || '-'}</td>
+                                <td>${agent.city || '-'}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary select-agent">
+                                        <i class="mdi mdi-check"></i> Select
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    $('#searchResultsBody').html(html);
+                } else {
+                    $('#searchResultsBody').html('<tr><td colspan="5" class="text-center">No agents found</td></tr>');
+                }
+                $('#searchResults').show();
+            },
+            error: function() {
+                $('#searchResultsBody').html('<tr><td colspan="5" class="text-center text-danger">Error occurred while searching</td></tr>');
+                $('#searchResults').show();
+            },
+            complete: function() {
+                // Reset button state
+                $('#searchAgentBtn').prop('disabled', false).html('<i class="mdi mdi-magnify"></i>');
+            }
+        });
+    });
+
+    // Handle clear search
+    $('#clearSearchBtn').on('click', function() {
+        $('#search_agent_name').val('');
+        $('#search_agency_name').val('');
+        $('#search_country').val('').trigger('change');
+        $('#search_city').val('').trigger('change');
+        $('#searchResults').hide();
+    });
+
+    // Add this at the top of your script section
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+
+    // Handle agent selection
+    $(document).on('click', '.select-agent', function() {
+        const $btn = $(this);
+        const $row = $btn.closest('tr');
+        const agentId = $row.data('agent-id');
+        
+        if (!agentId) {
+            console.error('No agent ID found');
+            return;
+        }
+        
+        // Disable button and show loading
+        $btn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i>');
+        
+        // First update the DMC ID
+        $.ajax({
+            url: "{{ route('agents.update-dmc') }}",
+            method: 'POST',
+            data: {
+                agent_id: agentId,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Fill form fields
+                    $('input[name="company_name"]').val($row.find('td:eq(1)').text().trim());
+                    $('input[name="name"]').val($row.find('td:eq(0)').text().trim());
+                    
+                    const country = $row.find('td:eq(2)').text().trim();
+                    const city = $row.find('td:eq(3)').text().trim();
+                    
+                    // Set country and wait for cities to load
+                    $('#user_country').val(country).trigger('change');
+                    
+                    // Wait for cities to load then set city
+                    setTimeout(function() {
+                        $('#city').val(city).trigger('change');
+                    }, 1000);
+                    
+                    // Remove the selected row with animation
+                    $row.fadeOut(400, function() {
+                        $(this).remove();
+                        // If no more rows, show "No agents found" message
+                        if ($('#searchResultsBody tr').length === 0) {
+                            $('#searchResultsBody').html('<tr><td colspan="5" class="text-center">No agents found</td></tr>');
+                        }
+                    });
+                    
+                    // Show success message
+                    const message = $('<div>')
+                        .addClass('alert alert-success alert-dismissible fade show mt-2')
+                        .html(`
+                            Agent selected successfully!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        `)
+                        .insertBefore($('#searchResults'))
+                        .delay(3000)
+                        .fadeOut(function() { $(this).remove(); });
+                }
+            },
+            error: function(xhr) {
+                console.error('Error:', xhr.responseJSON || xhr);
+                // Show error message
+                const errorMsg = xhr.responseJSON?.message || 'Failed to select agent';
+                const message = $('<div>')
+                    .addClass('alert alert-danger alert-dismissible fade show mt-2')
+                    .html(`
+                        ${errorMsg}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `)
+                    .insertBefore($('#searchResults'))
+                    .delay(3000)
+                    .fadeOut(function() { $(this).remove(); });
+            
+                // Reset button state
+                $btn.prop('disabled', false)
+                    .html('<i class="mdi mdi-check"></i> Select');
+            }
+        });
+    });
+});
+</script>
 @endsection
