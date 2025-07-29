@@ -807,7 +807,6 @@ class TourController extends Controller
                 }
                 else{
                     $price = $zone_price->private_price;
-                    $price = $price;
                 }
                 $price = ceil($price);
                 if($price == $totalPrice){
@@ -978,7 +977,7 @@ class TourController extends Controller
                 
             }
             $finalPrice = ceil($finalPrice);
-            if($totalPrice == $finalPrice){
+            if($totalPrice == $price){
                 $flag = 1;
             }
             else{
@@ -1442,7 +1441,7 @@ class TourController extends Controller
                 //         $priceWithoutCommission = $attraction->price_private + ($ticket->adult_price*$adultCount) + ($ticket->child_price*$childCount) + ($ticket->senior_adult_price*$seniorCount);
                 //     }
                 // }
-                if($totalPrice == $price){
+                if($totalPrice == $priceWithoutCommission){
                     $adminProfit = $totalPrice - $priceWithoutCommission;
                     $flag = 1;
                 }
@@ -1467,7 +1466,7 @@ class TourController extends Controller
                 $price = ($adultPrice*$adultCount)+($childPrice*$childCount)+($seniorPrice*$seniorCount);
                 $priceWithoutCommission = $price;
                 
-                if($totalPrice == $price){
+                if($totalPrice == $priceWithoutCommission){
                     $flag = 1;
                 }
                 else{
@@ -1641,7 +1640,7 @@ class TourController extends Controller
                 
                 $finalPrice = round($finalPrice, 2);
                 
-                if($finalPrice == $totalPrice){
+                if($finalPrice == $priceWithoutCommission){
                     $adminProfit = $finalPrice - $priceWithoutCommission;
                     $flag = 1;
                 }
@@ -1885,7 +1884,7 @@ class TourController extends Controller
                     'total_hours' => $selectedHours
                 ]);
                 
-                if($finalPrice == $totalHourlyPrice){
+                if($finalPrice == $travelHourlyPriceWithoutCommission){
                     $flag = 1;
                     $adminProfit = $finalPrice - $travelHourlyPriceWithoutCommission;
                 }
