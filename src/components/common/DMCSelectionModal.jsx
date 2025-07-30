@@ -211,12 +211,11 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
 
   // Use API data if available, otherwise fallback to hardcoded data
   const dmcOptions = useMemo(() => {
-    if (apiDMCs && typeof apiDMCs === 'object' && apiDMCs.dmcs) {
-      // Convert dmcs object to array and transform API data to match expected format
-      const dmcsArray = Object.values(apiDMCs.dmcs);
-      return dmcsArray.map((dmc, index) => ({
+    if (apiDMCs && apiDMCs.data && Array.isArray(apiDMCs.data)) {
+      // Use the new API response format with data array
+      return apiDMCs.data.map((dmc, index) => ({
         id: `dmc-${index}`, // Use index for UI identification
-        dmcId: (dmc.dmcId && dmc.dmcId !== 0) ? dmc.dmcId : null, // Actual dmcId - null if 0
+        dmcId: dmc.userId || null, // Use userId as dmcId
         name: dmc.company_name || `DMC ${index + 1}`,
         location: dmc.country || 'Unknown Location',
         logo: dmc.logo || '',
@@ -238,9 +237,8 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiId);
     
     console.log('📝 Radio button clicked - UI ID:', uiId);
-    console.log('📝 API dmcId field:', selectedDmcData?.originalData?.dmcId);
-    console.log('📝 Logic: dmcId === 0 → set to null, dmcId > 0 → use dmcId');
-    console.log('📝 Final dmcId to store:', selectedDmcData?.dmcId);
+    console.log('📝 API userId field:', selectedDmcData?.originalData?.userId);
+    console.log('📝 Using userId as dmcId:', selectedDmcData?.dmcId);
     console.log('📝 Selected DMC Data:', selectedDmcData);
     
     // Dispatch to Redux store with actual dmcId (can be null)
@@ -283,9 +281,8 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiIdString);
       
       console.log('🎯 DMC Card clicked - UI ID:', uiId);
-      console.log('🎯 API dmcId field:', selectedDmcData?.originalData?.dmcId);
-      console.log('🎯 Logic: dmcId === 0 → set to null, dmcId > 0 → use dmcId');
-      console.log('🎯 Final dmcId to store:', selectedDmcData?.dmcId);
+      console.log('🎯 API userId field:', selectedDmcData?.originalData?.userId);
+      console.log('🎯 Using userId as dmcId:', selectedDmcData?.dmcId);
       console.log('🎯 Selected DMC Data:', selectedDmcData);
       
       // Dispatch to Redux store with actual dmcId (can be null)

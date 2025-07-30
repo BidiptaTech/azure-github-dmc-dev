@@ -43,6 +43,41 @@ export const fetchDMCsByCountry = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching DMC count
+export const fetchDMCCount = createAsyncThunk(
+  'dmc/fetchDMCCount',
+  async (_, { rejectWithValue }) => {
+    try {
+      const authToken = Cookies.get("authToken");
+      const AgentId = Cookies.get("AgentId");
+
+      if (!authToken) {
+        throw new Error("No auth token found");
+      }
+
+      const headers = {
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      if (AgentId) {
+        headers["agent-id"] = AgentId;
+      }
+      
+      const response = await axios.get(`${BASE_URL}/dmc-count`, {
+        headers
+      });
+
+      console.log('DMC Count API Response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching DMC count:', error);
+      return rejectWithValue(
+        error.response?.data?.message || error.message || 'Failed to fetch DMC count'
+      );
+    }
+  }
+);
+
 // Initial state
 const initialState = {
   dmcs: [],
@@ -55,6 +90,10 @@ const initialState = {
   // New fields for multiple DMC selection (for Book an Enquiry)
   selectedDmcIds: [], // Array of selected DMC IDs (multiple selection)
   selectedDmcsData: [], // Array of selected DMCs data (multiple selection)
+  // DMC Count fields
+  dmcCount: null,
+  dmcCountLoading: false,
+  dmcCountError: null,
 };
 
 // DMC slice
@@ -92,7 +131,7 @@ const dmcSlice = createSlice({
       state.selectedDmcIds = action.payload.dmcIds || [];
       state.selectedDmcsData = action.payload.dmcsData || [];
       
-      console.log('🏪 Redux: Updated state - selectedDmcIds:', state.selectedDmcIds);
+      // console.log('🏪 Redux: Updated state - selectedDmcIds:', state.selectedDmcIds);
     },
 
     // Add DMC to multiple selection (for Book an Enquiry)
@@ -179,6 +218,40 @@ const dmcSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.dmcs = [];
+      })
+      // Fetch DMC count - pending
+      .addCase(fetchDMCCount.pending, (state) => {
+        state.dmcCountLoading = true;
+        state.dmcCountError = null;
+      })
+      // Fetch DMC count - fulfilled
+      .addCase(fetchDMCCount.fulfilled, (state, action) => {
+        state.dmcCountLoading = false;
+        state.dmcCount = action.payload;
+        state.dmcCountError = null;
+        
+        // If dmc_count is 1, automatically store the dmc_id
+        if (action.payload && action.payload.dmc_count === 1 && action.payload.dmc_id) {
+          console.log('🏪 Redux: Auto-storing DMC ID from count API:', action.payload.dmc_id);
+          state.dmcId = action.payload.dmc_id;
+          state.selectedDmcData = {
+            id: `dmc-auto-${action.payload.dmc_id}`,
+            dmcId: action.payload.dmc_id,
+            name: `DMC ${action.payload.dmc_id}`,
+            location: 'Auto-selected',
+            logo: '',
+            rating: 4.5,
+            description: 'Automatically selected DMC',
+            originalData: { dmcId: action.payload.dmc_id }
+          };
+          console.log('🏪 Redux: Auto-stored DMC ID:', state.dmcId);
+        }
+      })
+      // Fetch DMC count - rejected
+      .addCase(fetchDMCCount.rejected, (state, action) => {
+        state.dmcCountLoading = false;
+        state.dmcCountError = action.payload;
+        state.dmcCount = null;
       });
   },
 });
@@ -208,6 +281,10 @@ export const selectSelectedDmcData = (state) => state.dmc.selectedDmcData;
 // New selectors for multiple DMC selection
 export const selectSelectedDmcIds = (state) => state.dmc.selectedDmcIds;
 export const selectSelectedDmcsData = (state) => state.dmc.selectedDmcsData;
+// DMC Count selectors
+export const selectDmcCount = (state) => state.dmc.dmcCount;
+export const selectDmcCountLoading = (state) => state.dmc.dmcCountLoading;
+export const selectDmcCountError = (state) => state.dmc.dmcCountError;
 
 // Export reducer
 export default dmcSlice.reducer; 

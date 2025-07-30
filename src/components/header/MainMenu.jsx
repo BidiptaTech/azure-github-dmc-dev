@@ -1,18 +1,20 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaChartLine,
   FaCompass,
   FaEnvelopeOpenText,
   FaBoxOpen,
 } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import DMCSelectionModal from "../common/DMCSelectionModal";
 import SearchLocationModal from "../common/SearchLocationModal";
+import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
 
 const MainMenu = ({ style = "" }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { userRole } = useSelector((state) => state.auth);
   
   // State for Book Tour flow (single DMC selection)
@@ -24,6 +26,18 @@ const MainMenu = ({ style = "" }) => {
   const [isEnquirySearchModalOpen, setIsEnquirySearchModalOpen] = useState(false);
   const [isEnquiryDMCModalOpen, setIsEnquiryDMCModalOpen] = useState(false);
   const [enquirySearchCriteria, setEnquirySearchCriteria] = useState(null);
+
+  // Get DMC count and selected DMC from Redux state
+  const dmcCount = useSelector((state) => state.dmc.dmcCount);
+  const dmcCountLoading = useSelector((state) => state.dmc.dmcCountLoading);
+  const selectedDmcId = useSelector((state) => state.dmc.dmcId);
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
+
+  // Automatically fetch DMC count when component mounts
+  useEffect(() => {
+    console.log('🔄 MainMenu: Automatically fetching DMC count...');
+    dispatch(fetchDMCCount());
+  }, [dispatch]);
 
   const isManagerOrSalesHead =
     userRole === "Sales Head(DMC)" ||
@@ -43,7 +57,33 @@ const MainMenu = ({ style = "" }) => {
   // === Book Tour Handlers (Single DMC Selection) ===
   const handleBookTourClick = (e) => {
     e.preventDefault();
-    setIsSearchModalOpen(true);
+    
+    console.log('🎯 Book Tour clicked - DMC Count:', dmcCount);
+    console.log('🎯 DMC Count Loading:', dmcCountLoading);
+    
+    // Wait for DMC count to load
+    if (dmcCountLoading) {
+      console.log('⏳ DMC count still loading - please wait...');
+      return;
+    }
+    
+    // Check if DMC count is 1 - if so, skip modal and go directly to booking
+    if (dmcCount && dmcCount.dmc_count === 1) {
+      console.log('✅ Only 1 DMC available - skipping modal, going directly to booking');
+      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
+      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
+      
+      // Navigate directly to the booking page without showing modal
+      navigate("/dashboard/db-dashboard/home_1", { 
+        state: { 
+          selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
+          searchCriteria: null 
+        } 
+      });
+    } else {
+      console.log('📋 Multiple DMCs available - opening search modal');
+      setIsSearchModalOpen(true);
+    }
   };
 
   const handleSearchSubmit = (searchData) => {

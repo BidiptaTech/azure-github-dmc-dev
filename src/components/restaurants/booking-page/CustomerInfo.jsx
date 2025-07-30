@@ -291,7 +291,6 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
           transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
           transportPrice: transportPrice,
           priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-          dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
           bookingType: "booking"
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
@@ -435,7 +434,6 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
           transport: restaurantBookings?.[0]?.data?.[0]?.transport || null,
           transportPrice: transportPrice,
           priceTypes: restaurantBookings?.[0]?.data?.[0]?.priceTypes,
-          dmc_id: selectedRestaurant?.meals?.[0]?.dmc_id,
           bookingType: "enquiry",
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
