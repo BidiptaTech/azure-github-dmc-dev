@@ -10,6 +10,7 @@ import { setHourly, setPointToPoint } from "../localtour/Localslice";
 // import { setbookedGuide } from "../tourguide/guideslice";
 import { BASE_URL } from "@/services/api";
 import { setCity } from "./citySlice";
+import { selectDmcId } from "../dmc/dmcSlice";
 
 export const fetchBookingid = createAsyncThunk(
   "fetchBookingid",
@@ -39,6 +40,10 @@ export const fetchBookingid = createAsyncThunk(
         });
       }
 
+      // Get selected DMC ID from Redux state
+      const selectedDmcId = selectDmcId(getState());
+      console.log('🎯 BookingSlice - Creating tour with DMC ID:', selectedDmcId);
+
       // Prepare request body
       const requestBody = {
         destination: searchLocation
@@ -52,7 +57,8 @@ export const fetchBookingid = createAsyncThunk(
         male: maleCount,
         female: femaleCount,
         children_ages: guests.childrenAges.join(", "),
-        enquiry_id: null
+        enquiry_id: null,
+        dmc_id: selectedDmcId // Add DMC ID to request body
       };
 
       console.log("Request Body:", requestBody);

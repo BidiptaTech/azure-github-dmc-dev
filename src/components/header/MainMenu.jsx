@@ -27,6 +27,11 @@ const MainMenu = ({ style = "" }) => {
   const [isEnquiryDMCModalOpen, setIsEnquiryDMCModalOpen] = useState(false);
   const [enquirySearchCriteria, setEnquirySearchCriteria] = useState(null);
 
+  // State for Packages flow (single DMC selection - same as Book Tour)
+  const [isPackagesSearchModalOpen, setIsPackagesSearchModalOpen] = useState(false);
+  const [isPackagesDMCModalOpen, setIsPackagesDMCModalOpen] = useState(false);
+  const [packagesSearchCriteria, setPackagesSearchCriteria] = useState(null);
+
   // Get DMC count and selected DMC from Redux state
   const dmcCount = useSelector((state) => state.dmc.dmcCount);
   const dmcCountLoading = useSelector((state) => state.dmc.dmcCountLoading);
@@ -146,134 +151,207 @@ const MainMenu = ({ style = "" }) => {
     setEnquirySearchCriteria(null);
   };
 
+  // === Packages Handlers (Single DMC Selection - Same as Book Tour) ===
+  const handlePackagesClick = (e) => {
+    e.preventDefault();
+    
+    console.log('🎯 Packages clicked - DMC Count:', dmcCount);
+    console.log('🎯 DMC Count Loading:', dmcCountLoading);
+    console.log('🎯 User Role:', userRole);
+    
+    // Wait for DMC count to load
+    if (dmcCountLoading) {
+      console.log('⏳ DMC count still loading - please wait...');
+      return;
+    }
+    
+    // For non-Agent users, skip DMC selection and go directly to packages
+    if (userRole !== "Agent") {
+      console.log('✅ Non-Agent user - skipping DMC selection, going directly to packages');
+      navigate(packagesPath, { 
+        state: { 
+          selectedDMC: null,
+          searchCriteria: null 
+        } 
+      });
+      return;
+    }
+    
+    // For Agent users, check DMC count
+    if (dmcCount && dmcCount.dmc_count === 1) {
+      console.log('✅ Only 1 DMC available - skipping modal, going directly to packages');
+      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
+      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
+      
+      // Navigate directly to the packages page without showing modal
+      navigate(packagesPath, { 
+        state: { 
+          selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
+          searchCriteria: null 
+        } 
+      });
+    } else {
+      console.log('📋 Multiple DMCs available - opening search modal for packages');
+      setIsPackagesSearchModalOpen(true);
+    }
+  };
+
+  const handlePackagesSearchSubmit = (searchData) => {
+    setPackagesSearchCriteria(searchData);
+    setIsPackagesSearchModalOpen(false);
+    setIsPackagesDMCModalOpen(true);
+  };
+
+  const handlePackagesDMCSelect = (selectedDMC) => {
+    console.log('Selected DMC (Packages):', selectedDMC);
+    console.log('Search Criteria (Packages):', packagesSearchCriteria);
+    // Navigate to the packages page with the selected DMC and search criteria
+    navigate(packagesPath, { 
+      state: { 
+        selectedDMC,
+        searchCriteria: packagesSearchCriteria 
+      } 
+    });
+  };
+
+  const handleClosePackagesSearchModal = () => {
+    setIsPackagesSearchModalOpen(false);
+  };
+
+  const handleClosePackagesDMCModal = () => {
+    setIsPackagesDMCModalOpen(false);
+    setPackagesSearchCriteria(null);
+  };
+
   return (
     <>
-      <nav className="menu js-navList">
-        <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex" }}>
+    <nav className="menu js-navList">
+      <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex" }}>
+        <li
+          className={`menu-item ${
+            pathname === "/dashboard/db-dashboard" ? "current" : ""
+          }`}
+          style={menuItemStyle}
+        >
+          <Link
+            to="/dashboard/db-dashboard"
+            className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+            style={{ flexDirection: "column", alignItems: "flex-start" }}
+           
+          >
+            
+             
+                
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <FaChartLine className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+              <span
+                className={`fw-600 text-15 ${
+                  pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
+                }`}
+              >
+                Dashboard
+              </span>
+            </div>
+            <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+              Manage Your Experience
+            </div>
+           
+          </Link>
+        </li>
+
+        {!isManagerOrSalesHead && (
           <li
             className={`menu-item ${
-              pathname === "/dashboard/db-dashboard" ? "current" : ""
+              pathname === "/dashboard/db-dashboard/home_1" ? "current" : ""
             }`}
             style={menuItemStyle}
           >
-            <Link
-              to="/dashboard/db-dashboard"
-              className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-              style={{ flexDirection: "column", alignItems: "flex-start" }}
-             
-            >
-              
-               
-                  
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <FaChartLine className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-                <span
-                  className={`fw-600 text-15 ${
-                    pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
-                  }`}
-                >
-                  Dashboard
-                </span>
-              </div>
-              <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-                Manage Your Experience
-              </div>
-             
-            </Link>
-          </li>
-
-          {!isManagerOrSalesHead && (
-            <li
-              className={`menu-item ${
-                pathname === "/dashboard/db-dashboard/home_1" ? "current" : ""
-              }`}
-              style={menuItemStyle}
-            >
               <a
                 href="#"
                 onClick={handleBookTourClick}
-                className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-                style={{ flexDirection: "column", alignItems: "flex-start" }}
-               
-              >
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <FaCompass className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-                  <span
-                    className={`fw-600 text-15 ${
-                      pathname === "/dashboard/db-dashboard/home_1"
-                        ? "text-green-1"
-                        : ""
-                    }`}
-                  >
-                    Book Tour
-                  </span> 
-                </div>
-                <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-                  Discover Your Dream Destinations
-                </div>
-              </a>
-            </li>
-          )}
-
-          {!isManagerOrSalesHead && (
-            <li
-              className={`menu-item ${
-                pathname === "/dashboard/db-dashboard/home_2" ? "current" : ""
-              }`}
-              style={menuItemStyle}
+              className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+              style={{ flexDirection: "column", alignItems: "flex-start" }}
+             
             >
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <FaCompass className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+                <span
+                  className={`fw-600 text-15 ${
+                    pathname === "/dashboard/db-dashboard/home_1"
+                      ? "text-green-1"
+                      : ""
+                  }`}
+                >
+                  Book Tour
+                </span> 
+              </div>
+              <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+                Discover Your Dream Destinations
+              </div>
+              </a>
+          </li>
+        )}
+
+        {!isManagerOrSalesHead && (
+          <li
+            className={`menu-item ${
+              pathname === "/dashboard/db-dashboard/home_2" ? "current" : ""
+            }`}
+            style={menuItemStyle}
+          >
               <a
                 href="#"
                 onClick={handleBookEnquiryClick}
-                className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-                style={{ flexDirection: "column", alignItems: "flex-start" }}
-              >
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <FaEnvelopeOpenText className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-                  <span
-                    className={`fw-600 text-15 ${
-                      pathname === "/dashboard/db-dashboard/home_2"
-                        ? "text-green-1"
-                        : ""
-                    }`}
-                  >
-                    Book An Enquiry
-                  </span>
-                </div>
-                <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-                  Reach Out for Custom Requests
-                </div>
-              </a>
-            </li>
-          )}
-
-          <li
-            className={`menu-item ${
-              pathname === packagesPath ? "current" : ""
-            }`}
-          >
-            <Link
-              to={packagesPath}
               className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
               style={{ flexDirection: "column", alignItems: "flex-start" }}
             >
               <div style={{ display: "flex", alignItems: "center" }}>
-                <FaBoxOpen className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+                <FaEnvelopeOpenText className="text-22 text-green-1" style={{ marginRight: "8px" }} />
                 <span
                   className={`fw-600 text-15 ${
-                    pathname === packagesPath ? "text-green-1" : ""
+                    pathname === "/dashboard/db-dashboard/home_2"
+                      ? "text-green-1"
+                      : ""
                   }`}
                 >
-                  Packages
+                  Book An Enquiry
                 </span>
               </div>
               <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-                Custom Travel Bundles
+                Reach Out for Custom Requests
               </div>
-            </Link>
+              </a>
           </li>
-        </ul>
-      </nav>
+        )}
+
+        <li
+          className={`menu-item ${
+            pathname === packagesPath ? "current" : ""
+          }`}
+        >
+          <a
+            href="#"
+            onClick={handlePackagesClick}
+            className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+            style={{ flexDirection: "column", alignItems: "flex-start" }}
+          >
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <FaBoxOpen className="text-22 text-green-1" style={{ marginRight: "8px" }} />
+              <span
+                className={`fw-600 text-15 ${
+                  pathname === packagesPath ? "text-green-1" : ""
+                }`}
+              >
+                Packages
+              </span>
+            </div>
+            <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
+              Custom Travel Bundles
+            </div>
+          </a>
+        </li>
+      </ul>
+    </nav>
 
       {/* Book Tour Flow - Single DMC Selection */}
       <SearchLocationModal
@@ -303,6 +381,21 @@ const MainMenu = ({ style = "" }) => {
         onSelect={handleEnquiryDMCSelect}
         searchCriteria={enquirySearchCriteria}
         multiSelect={true}
+      />
+
+      {/* Packages Flow - Single DMC Selection (Same as Book Tour) */}
+      <SearchLocationModal
+        open={isPackagesSearchModalOpen}
+        onClose={handleClosePackagesSearchModal}
+        onSearch={handlePackagesSearchSubmit}
+      />
+
+      <DMCSelectionModal
+        open={isPackagesDMCModalOpen}
+        onClose={handleClosePackagesDMCModal}
+        onSelect={handlePackagesDMCSelect}
+        searchCriteria={packagesSearchCriteria}
+        multiSelect={false}
       />
     </>
   );

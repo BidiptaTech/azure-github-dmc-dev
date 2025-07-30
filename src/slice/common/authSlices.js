@@ -130,6 +130,7 @@ import Cookies from "js-cookie";
 
 import getUserCountry from "./getUserCountry";
 import { BASE_URL } from "@/services/api";
+import { clearSelectedDmc, setSelectedDmcId } from "../dmc/dmcSlice";
 
 // Function to get initial state from cookies
 const getInitialState = () => {
@@ -250,6 +251,7 @@ export const loginUser = createAsyncThunk(
           user_role: userRole, // Add user_role from API response
           user_country: user_country,
           zone_on: zone_on,
+          dmc_id: dmcId, // Add dmc_id from API response
         } = response.data.user;
 
         console.log("DMC Logo from response:", zone_on); // Log the logo URL
@@ -414,6 +416,16 @@ export const loginUser = createAsyncThunk(
           sameSite: "Strict",
         });
 
+        // Store dmcId in cookies for non-Agent users
+        if (dmcId && userRole !== "Agent") {
+          Cookies.set("dmcId", dmcId.toString(), {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+          console.log('🎯 Auth Slice: Stored DMC ID in cookies for non-Agent user:', dmcId);
+        }
+
         // Also store in localStorage as a fallback
         if (user_country) {
           localStorage.setItem("user_country", JSON.stringify(user_country));
@@ -462,6 +474,7 @@ export const loginUser = createAsyncThunk(
           userRole: userRole || "Agent",
           user_country,
           zone_on,
+          dmcId, // Add dmcId to return object
         };
       } else {
         return rejectWithValue(response.data.message || "Login failed");
@@ -572,6 +585,7 @@ const authSlice = createSlice({
       state.currencySymbol = null; // Reset currencySymbol
       state.DmcName = null;
       state.userRole = null; // Reset user role
+      state.dmcId = null; // Reset dmcId in auth state
       Cookies.remove("authToken");
       Cookies.remove("AgentId");
       Cookies.remove("Username");
@@ -590,8 +604,11 @@ const authSlice = createSlice({
       Cookies.remove("userRole"); // Remove user role cookie
       Cookies.remove("user_country");
       Cookies.remove("zone_on");
+      Cookies.remove("dmcId"); // Remove dmcId cookie on logout
       localStorage.removeItem("isAuthenticated");
       localStorage.removeItem("user_country");
+      localStorage.removeItem("selectedDmcId"); // Remove DMC ID from localStorage
+      localStorage.removeItem("selectedDmcData"); // Remove DMC data from localStorage
     },
     setTourIdd: (state, action) => {
       state.tourId = action.payload;
@@ -700,6 +717,13 @@ const authSlice = createSlice({
         state.user_country = action.payload.user_country;
         state.zone_on = action.payload.zone_on;
         state.DmcLogo = action.payload.DmcLogo;
+        state.dmcId = action.payload.dmcId; // Store dmcId in auth state
+        
+        // For non-Agent users, set DMC ID in DMC slice
+        if (action.payload.dmcId && action.payload.userRole !== "Agent") {
+          console.log('🎯 Auth Slice: Setting DMC ID in DMC slice for non-Agent user:', action.payload.dmcId);
+          // Note: We can't dispatch from here, so we'll handle this in the component that calls loginUser
+        }
         
         // Store user_country as JSON string
         if (action.payload.user_country) {

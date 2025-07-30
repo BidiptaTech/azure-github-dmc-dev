@@ -78,6 +78,54 @@ export const fetchDMCCount = createAsyncThunk(
   }
 );
 
+// Get initial DMC ID from localStorage if available (for Agent users only)
+const getInitialDmcId = () => {
+  try {
+    const userRole = Cookies.get("userRole");
+    // Only use localStorage for Agent users
+    if (userRole === "Agent") {
+      const storedDmcId = localStorage.getItem('selectedDmcId');
+      return storedDmcId ? parseInt(storedDmcId) : null;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error reading DMC ID from localStorage:', error);
+    return null;
+  }
+};
+
+// Get DMC ID from auth state for non-Agent users
+const getDmcIdFromAuth = () => {
+  try {
+    // Check if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      const userRole = Cookies.get("userRole");
+      const dmcId = Cookies.get("dmcId");
+      
+      // If user role is not "Agent" and dmcId exists, use it
+      if (userRole && userRole !== "Agent" && dmcId) {
+        console.log('🎯 DMC Slice: Found DMC ID from auth for non-Agent user:', dmcId);
+        return parseInt(dmcId);
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error reading DMC ID from auth:', error);
+    return null;
+  }
+};
+
+// Get initial DMC data from localStorage if available
+const getInitialDmcData = () => {
+  try {
+    const storedDmcData = localStorage.getItem('selectedDmcData');
+    return storedDmcData ? JSON.parse(storedDmcData) : null;
+  } catch (error) {
+    console.error('Error reading DMC data from localStorage:', error);
+    return null;
+  }
+};
+
 // Initial state
 const initialState = {
   dmcs: [],
@@ -85,8 +133,8 @@ const initialState = {
   error: null,
   selectedCountries: [],
   lastFetchedCountries: null,
-  dmcId: null, // Selected DMC ID (single selection - for Book Tour)
-  selectedDmcData: null, // Full selected DMC data (single selection - for Book Tour)
+  dmcId: getDmcIdFromAuth() || getInitialDmcId(), // Selected DMC ID (single selection - for Book Tour)
+  selectedDmcData: getInitialDmcData(), // Full selected DMC data (single selection - for Book Tour)
   // New fields for multiple DMC selection (for Book an Enquiry)
   selectedDmcIds: [], // Array of selected DMC IDs (multiple selection)
   selectedDmcsData: [], // Array of selected DMCs data (multiple selection)
@@ -110,6 +158,21 @@ const dmcSlice = createSlice({
       state.dmcId = dmcId;
       state.selectedDmcData = action.payload.dmcData || null;
       
+      // Store in localStorage for persistence
+      try {
+        if (dmcId !== null) {
+          localStorage.setItem('selectedDmcId', dmcId.toString());
+          localStorage.setItem('selectedDmcData', JSON.stringify(action.payload.dmcData || null));
+          console.log('💾 localStorage: Stored DMC ID:', dmcId);
+        } else {
+          localStorage.removeItem('selectedDmcId');
+          localStorage.removeItem('selectedDmcData');
+          console.log('🗑️ localStorage: Removed DMC ID');
+        }
+      } catch (error) {
+        console.error('Error storing DMC ID in localStorage:', error);
+      }
+      
       console.log('🏪 Redux: Updated state - dmcId:', state.dmcId);
     },
 
@@ -119,6 +182,15 @@ const dmcSlice = createSlice({
       
       state.dmcId = null;
       state.selectedDmcData = null;
+      
+      // Remove from localStorage
+      try {
+        localStorage.removeItem('selectedDmcId');
+        localStorage.removeItem('selectedDmcData');
+        console.log('🗑️ localStorage: Removed DMC ID');
+      } catch (error) {
+        console.error('Error removing DMC ID from localStorage:', error);
+      }
       
       console.log('🗑️ Redux: DMC selection cleared - dmcId is now null');
     },
@@ -244,6 +316,16 @@ const dmcSlice = createSlice({
             description: 'Automatically selected DMC',
             originalData: { dmcId: action.payload.dmc_id }
           };
+          
+          // Store in localStorage for persistence
+          try {
+            localStorage.setItem('selectedDmcId', action.payload.dmc_id.toString());
+            localStorage.setItem('selectedDmcData', JSON.stringify(state.selectedDmcData));
+            console.log('💾 localStorage: Auto-stored DMC ID:', action.payload.dmc_id);
+          } catch (error) {
+            console.error('Error storing auto-selected DMC ID in localStorage:', error);
+          }
+          
           console.log('🏪 Redux: Auto-stored DMC ID:', state.dmcId);
         }
       })
