@@ -255,25 +255,33 @@ const TourProperties = () => {
     // Set default mode based on priceMode and available prices
     const defaultModes = {};
     filtered.forEach((item) => {
+      let mode = "dmc"; // Default fallback
+      
       if (bookingType === "enquiry") {
         // For enquiry, always set to DMC mode if available
         if (item.dmc_adult_price > 0) {
-          defaultModes[item.id] = { mode: "dmc" };
-          // Update global booking mode when setting default mode
-          dispatch(setBookingMode("dmc"));
+          mode = "dmc";
         }
       } else {
-        // Your existing logic for setting default modes
+        // For normal booking, prioritize DMC if available, otherwise use travclicks
         if (item.dmc_adult_price > 0) {
-          defaultModes[item.id] = { mode: "dmc" };
-          dispatch(setBookingMode("dmc"));
+          mode = "dmc";
         } else if (item.travClicks_adult_price > 0) {
-          defaultModes[item.id] = { mode: "travclicks" };
-          dispatch(setBookingMode("travclicks"));
+          mode = "travclicks";
         }
       }
+      
+      // Always set a mode for each item
+      defaultModes[item.id] = { mode };
     });
+    
     setSelectedModes(defaultModes);
+    
+    // Set global booking mode based on the first item's mode
+    if (filtered.length > 0) {
+      const firstItemMode = defaultModes[filtered[0].id]?.mode || "dmc";
+      dispatch(setBookingMode(firstItemMode));
+    }
   }, [attractions, filters, bookingType, dispatch]); // Added dispatch to dependencies
 
   const getPrice = (item, mode, type) => {
@@ -318,33 +326,40 @@ const TourProperties = () => {
 
   const handleAttractionClick = (event, item) => {
     event.preventDefault();
-    const selectedMode = selectedModes[item.id]?.mode;
-
-    // If no mode is selected, default to DMC if available, otherwise use travclicks
-    const mode =
-      selectedMode || (item.dmc_adult_price > 0 ? "dmc" : "travclicks");
-    // console.log("Setting mode on attraction click:", mode);
-
+    
+    // Get the current mode from selectedModes with proper fallback logic
+    let currentMode = selectedModes[item.id]?.mode;
+    
+    // If no mode is set, determine based on available prices
+    if (!currentMode) {
+      if (bookingType === "enquiry") {
+        // For enquiry, always use DMC if available
+        currentMode = item.dmc_adult_price > 0 ? "dmc" : "dmc";
+      } else {
+        // For normal booking, prioritize DMC, fallback to travclicks
+        currentMode = item.dmc_adult_price > 0 ? "dmc" : "travclicks";
+      }
+    }
+    
     // Ensure the booking mode is updated in Redux
-    dispatch(setBookingMode(mode));
+    dispatch(setBookingMode(currentMode));
 
-    // Get the appropriate dmc_id based on the mode
-    const dmc_id = mode === "dmc" ? item.dmc_id : item.travclicks_dmc_id;
-    // console.log('dmc_id of attraction Listing', dmc_id);
+    // The slice will automatically use the selected DMC ID from Redux
+    console.log('Selected mode for attraction:', currentMode);
 
     dispatch(
       fetchAttractionDetails({
         attractionId: item.id,
-        price_mode: { mode },
-        dmc_id: dmc_id,
+        price_mode: currentMode
+        // dmc_id will be automatically handled by the slice using Redux state
       })
     );
 
     navigate(`/dashboard/db-dashboard/tour-single/${item.id}`, {
       state: {
         attraction: item,
-        mode,
-        dmc_id: dmc_id,
+        mode: currentMode,
+        // dmc_id will be handled by the slice using Redux state
       },
     });
   };

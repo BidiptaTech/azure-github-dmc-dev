@@ -6,6 +6,7 @@ import { setName, setEmail1, setAuthenticated, setAgentId } from "./loginSlice";
 import { loginUser } from "../../slice/common/authSlices";
 import { setUserRole } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
+import { setSelectedDmcId } from "../../slice/dmc/dmcSlice";
 import {
   Box,
   Card,
@@ -172,12 +173,31 @@ function Login() {
       const {
         agent_id: agentId,
         userRole,
+        dmcId,
       } = result.payload;
 
       dispatch(setAgentId(agentId));
       dispatch(setName(email.split("@")[0]));
       dispatch(setEmail1(email));
       dispatch(setAuthenticated(true));
+
+      // For non-Agent users, set DMC ID in DMC slice
+      if (dmcId && userRole !== "Agent") {
+        console.log('🎯 Login Component: Setting DMC ID in DMC slice for non-Agent user:', dmcId);
+        dispatch(setSelectedDmcId({
+          dmcId: dmcId,
+          dmcData: {
+            id: `dmc-auth-${dmcId}`,
+            dmcId: dmcId,
+            name: `DMC ${dmcId}`,
+            location: 'Auth-selected',
+            logo: '',
+            rating: 4.5,
+            description: 'DMC from authentication',
+            originalData: { dmcId: dmcId }
+          }
+        }));
+      }
 
       // Trigger door animation
       setShowDoorAnimation(true);

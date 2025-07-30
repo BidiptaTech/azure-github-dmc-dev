@@ -366,17 +366,14 @@ const TourProperties = () => {
     // Add this line to update the bookingMode in Redux
     dispatch(setBookingMode(currentMode));
     
-    // Always use dmc_id = 15 when mode is travclicks
-    const dmc_id = currentMode === "travclicks" ? 15 : item.dmc_id;
-    
+    // The slice will automatically use the selected DMC ID from Redux
     // console.log('Selected mode:', currentMode);
-    // console.log('Selected dmc_id:', dmc_id);
 
     dispatch(
       fetchRestaurantsDetails({ 
         restaurantId: item.id, 
-        price_mode: currentMode, 
-        dmc_id: dmc_id 
+        price_mode: currentMode
+        // dmc_id will be automatically handled by the slice using Redux state
       })
     );
     

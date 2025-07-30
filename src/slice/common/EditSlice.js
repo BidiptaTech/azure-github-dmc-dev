@@ -6,6 +6,7 @@ import { setAttractionService } from "../attractions/attractionSlice";
 import { setRestaurantsService } from "../restaurant/RestaurantsSlice";
 import { setDateService } from "../common/dateServicesSlice";
 import { setCity } from "./citySlice";
+import { setSelectedDmcId } from "../dmc/dmcSlice";
 import {
   setEntryport,
   setExitport,
@@ -143,6 +144,26 @@ export const fetchEditid = createAsyncThunk(
       dispatch(setHourly(data.service?.travel_hourly || []));
       dispatch(setZone(data.service?.local_transport || []));
       dispatch(setbookedGuide(data.service?.guide || []));
+
+      // Handle DMC ID from response
+      if (data?.dmc_id) {
+        console.log('🎯 EditSlice: Setting DMC ID from edit tour response:', data.dmc_id);
+        dispatch(setSelectedDmcId({
+          dmcId: data.dmc_id,
+          dmcData: {
+            id: `dmc-edit-${data.dmc_id}`,
+            dmcId: data.dmc_id,
+            name: `DMC ${data.dmc_id}`,
+            location: 'Edit-selected',
+            logo: '',
+            rating: 4.5,
+            description: 'DMC from edit tour response',
+            originalData: { dmcId: data.dmc_id }
+          }
+        }));
+      } else if (data?.dmc_id === null) {
+        console.log('🎯 EditSlice: DMC ID is null in edit tour response');
+      }
 
       // Return data for unwrap()
       return response.data;
