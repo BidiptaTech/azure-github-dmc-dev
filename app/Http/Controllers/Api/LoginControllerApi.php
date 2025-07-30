@@ -93,10 +93,8 @@ class LoginControllerApi extends Controller
             return response()->json(['error' => 'This email is  not registered.'], 401);
         }
 
-        if($user->role_id == 20){
-            if($user->status == 2){
-                return response()->json(['error' => 'Your account is not verified.'], 401);
-            }
+        if($user->role_id == 20 && $user->status == 2){
+            return response()->json(['error' => 'Your account is not verified.'], 401);
         }
         if (!$user || !Hash::check($password, $user->password)) {
             return response()->json(['error' => 'Invalid credentials.'], 401);
@@ -310,7 +308,9 @@ class LoginControllerApi extends Controller
         }
 
         $countryInfo = Country::where('name', $country)->first();
-
+        if($dmc_id){
+            $dmc_company_name = $dmc->company_name;
+        }
         $agent_country_tax = $countryInfo->tax_percentage ?? 0;
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
@@ -344,6 +344,8 @@ class LoginControllerApi extends Controller
                 'phone_no' => $user->phone,
                 'price_hide' => $dmc_users->price_hide ?? 0,
                 'user_role' => $userRole,
+                'dmc_id' => $dmc_id ?? '',
+                'dmc_company_name' => $dmc_company_name ?? '',
                 'zone_on' => $dmc_users->zone_on ?? 0,
             ],
         ]);
@@ -572,6 +574,22 @@ class LoginControllerApi extends Controller
         // Check if request is coming from OTP verification
         $fromOtpVerification = $request->has('from_otp_verification') && $request->from_otp_verification === true;
         
+        // First check if email exists in agents table (including soft deleted records)
+        $existingAgent = Agent::withTrashed()
+            ->where('email', $request->email)
+            ->first();
+
+        if ($existingAgent) {
+            // Clean up any OTP verifications for this email
+            \DB::table('otp_verifications')->where('email', $request->email)->delete();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'This email is already registered with us. Please use a different email address.',
+                'is_deleted' => $existingAgent->trashed()
+            ], 422);
+        }
+        
         // Define validation rules
         $validationRules = [
             'company_name' => 'required',
@@ -632,172 +650,97 @@ class LoginControllerApi extends Controller
                 ->where('role_id', 20)
                 ->first();
                 
-            if (!$virtualDmc) {
-                throw new \Exception('Virtual DMC not found');
-            }
+                if (!$virtualDmc) {
+                    throw new \Exception('Virtual DMC not found');
+                }
             
-            // Check if agent is soft deleted - with a lock to prevent race conditions
-            $deletedAgent = Agent::withTrashed()
-                ->where('email', $request->email)
+            // Generate unique agent ID with a safer approach
+            $lastAgent = Agent::withTrashed()
+                ->orderBy('agent_id', 'desc')
                 ->lockForUpdate()
                 ->first();
             
-            if ($deletedAgent && $deletedAgent->trashed()) {
-                // Restore and update
-                $deletedAgent->restore();
-                $deletedAgent->fill([
-                    'salutation' => $request->salutation,
-                    'name' => $request->name,
-                    'company_name' => $request->company_name,
-                    'phone' => $request->phone,
-                    'email' => $request->email,
-                    'user_country' => $request->user_country,
-                    'city' => $request->city,
-                    'agent_address' => $request->agent_address,
-                    'code' => $request->code,
-                    'country' => is_array($request->country) ? implode(',', $request->country) : $request->country,
-                    'id_cards' => $request->id_card ?? $deletedAgent->id_cards,
-                    'id_number' => $request->card_number ?? $deletedAgent->id_number,
-                    'image' => $idProofImage ?? $deletedAgent->image,
-                    'agent_image' => $agentImage ?? $deletedAgent->agent_image,
-                    'password' => bcrypt($request->password),
-                    'sales_manager_dmc' => $virtualDmc->userId,
-                    'role_id' => 20,
-                ]);
-                
-                $deletedAgent->save();
-                
-                // Commit the transaction
-                \DB::commit();
-                
-                // Send email notification
-                try {
-                    $emailData = [
-                        'salutation' => $deletedAgent->salutation,
-                        'name' => $deletedAgent->name,
-                        'email' => $deletedAgent->email,
-                        'phone' => $deletedAgent->phone,
-                        'company_name' => $deletedAgent->company_name,
-                        'country' => $deletedAgent->user_country,
-                        'city' => $deletedAgent->city,
-                        'password' => $request->password,
-                        'dmc_logo' => $virtualDmc->logo ?? 'NA',
-                        'dmc_company' => $virtualDmc->company_name ?? config('app.name'),
-                        'dmc_email' => $virtualDmc->email ?? 'NA',
-                        'dmc_phone' => $virtualDmc->phone ?? 'NA',
-                        'message_type' => 'registered',
-                        'mail_settings' => (object)[
-                            'support_email' => $virtualDmc->email ?? 'NA',
-                            'support_phone' => $virtualDmc->phone ?? 'NA',
-                            'facebook_url' => '#',
-                            'twitter_url' => '#',
-                            'instagram_url' => '#',
-                            'linkedin_url' => '#'
-                        ]
-                    ];
-                    
-                    CommonHelper::sendEmail(
-                        $deletedAgent->email, 
-                        'agent_update', 
-                        'Your Agent Account Has Been Restored', 
-                        'Welcome back! Your agent account has been restored successfully.', 
-                        $emailData
-                    );
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Failed to send agent restoration email: ' . $e->getMessage());
-                    // Continue with the process even if email fails
-                }
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Agent restored and updated successfully',
-                    'data' => $deletedAgent
-                ], 200);
-            } else {
-                // Generate unique agent ID with a safer approach
-                $lastAgent = Agent::withTrashed()
-                    ->orderBy('agent_id', 'desc')
-                    ->lockForUpdate()
-                    ->first();
-                
-                $agent_max_id = $lastAgent->agent_id ?? 1;
+            $agent_max_id = $lastAgent->agent_id ?? 1;
+            $agentId = CommonHelper::createId($agent_max_id);
+            
+            // Double-check with a lock to ensure uniqueness
+            while (Agent::where('agent_id', $agentId)->exists()) {
+                $agent_max_id++;
                 $agentId = CommonHelper::createId($agent_max_id);
-                
-                // Double-check with a lock to ensure uniqueness
-                while (Agent::where('agent_id', $agentId)->exists()) {
-                    $agent_max_id++;
-                    $agentId = CommonHelper::createId($agent_max_id);
-                }
-                
-                $agent = new Agent();
-                $agent->agent_id = $agentId;
-                $agent->salutation = $request->salutation;
-                $agent->name = $request->name;
-                $agent->company_name = $request->company_name;
-                $agent->phone = $request->phone;
-                $agent->email = $request->email;
-                $agent->user_country = $request->user_country;
-                $agent->city = $request->city;
-                $agent->agent_address = $request->agent_address;
-                $agent->code = $request->code;
-                $agent->country = is_array($request->country) ? implode(',', $request->country) : $request->country;
-                $agent->id_cards = $request->id_card;
-                $agent->id_number = $request->card_number;
-                $agent->image = $idProofImage;
-                $agent->agent_image = $agentImage;
-                $agent->password = bcrypt($request->password);
-                $agent->sales_manager_dmc = $virtualDmc->userId;
-                $agent->role_id = 20;
-                $agent->status = 2;
-                
-                $agent->save();
-                
-                // Commit the transaction
-                \DB::commit();
-                // Send email notification
-                try {
-                    $emailData = [
-                        'salutation' => $agent->salutation,
-                        'name' => $agent->name,
-                        'email' => $agent->email,
-                        'phone' => $agent->phone,
-                        'company_name' => $agent->company_name,
-                        'country' => $agent->user_country,
-                        'city' => $agent->city,
-                        'password' => $request->password,
-                        'dmc_logo' => $virtualDmc->logo ?? 'NA',
-                        'dmc_company' => $virtualDmc->company_name ?? config('app.name'),
-                        'dmc_email' => $virtualDmc->email ?? 'NA',
-                        'dmc_phone' => $virtualDmc->phone ?? 'NA',
-                        'message_type' => 'registered',
-                        'mail_settings' => (object)[
-                            'support_email' => $virtualDmc->email ?? 'NA',
-                            'support_phone' => $virtualDmc->phone ?? 'NA',
-                            'facebook_url' => '#',
-                            'twitter_url' => '#',
-                            'instagram_url' => '#',
-                            'linkedin_url' => '#'
-                        ]
-                    ];
-                    
-                    CommonHelper::sendEmail(
-                        $agent->email, 
-                        'agent_update', 
-                        'Your Agent Account Has Been Created', 
-                        'Welcome to our platform! Your agent account has been created successfully.', 
-                        $emailData
-                    );
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
-                    // Continue with the process even if email fails
-                }
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Agent registered successfully',
-                    'data' => $agent
-                ], 201);
             }
+            
+            $agent = new Agent();
+            $agent->agent_id = $agentId;
+            $agent->salutation = $request->salutation;
+            $agent->name = $request->name;
+            $agent->company_name = $request->company_name;
+            $agent->phone = $request->phone;
+            $agent->email = $request->email;
+            $agent->user_country = $request->user_country;
+            $agent->city = $request->city;
+            $agent->agent_address = $request->agent_address;
+            $agent->code = $request->code;
+            $agent->country = is_array($request->country) ? implode(',', $request->country) : $request->country;
+            $agent->id_cards = $request->id_card;
+            $agent->id_number = $request->card_number;
+            $agent->image = $idProofImage;
+            $agent->agent_image = $agentImage;
+            $agent->password = bcrypt($request->password);
+            $agent->sales_manager_dmc = $virtualDmc->userId;
+            $agent->role_id = 20;
+            
+            $agent->save();
+            
+            // Clean up any OTP verifications for this email
+            \DB::table('otp_verifications')->where('email', $request->email)->delete();
+            
+            // Commit the transaction
+            \DB::commit();
+            
+            // Send email notification
+            try {
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->password,
+                    'dmc_logo' => $virtualDmc->logo ?? 'NA',
+                    'dmc_company' => $virtualDmc->company_name ?? config('app.name'),
+                    'dmc_email' => $virtualDmc->email ?? 'NA',
+                    'dmc_phone' => $virtualDmc->phone ?? 'NA',
+                    'message_type' => 'registered',
+                    'mail_settings' => (object)[
+                        'support_email' => $virtualDmc->email ?? 'NA',
+                        'support_phone' => $virtualDmc->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_update', 
+                    'Your Agent Account Has Been Created', 
+                    'Welcome to our platform! Your agent account has been created successfully.', 
+                    $emailData
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Agent registered successfully',
+                'data' => $agent
+            ], 201);
+            
         } catch (\Exception $e) {
             // Rollback the transaction in case of error
             \DB::rollBack();

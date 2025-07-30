@@ -96,12 +96,22 @@ class TourController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "Pending";
             $tour->city = $request->city;
+            $tour->dmc_id = $request->dmc_id;
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->save();
             $tour->refresh();
             if($formEnquiry){
                 $formEnquiry->unique_tour_id = $tour->unique_tour_id;
                 $formEnquiry->save();
+
+                // Cancel other related enquiries if this is part of a multi-enquiry
+                if ($formEnquiry->multi_enq_id) {
+                    EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                        ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                        ->update([
+                            'status' => 'cancelled',
+                        ]);
+                }
             }
 
             $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
@@ -395,6 +405,7 @@ class TourController extends Controller
                     'service' => $service,
                     'cities' => $cities,
                     'bookingType' => $booking_type,
+                    'dmc_id' => $tour->dmc_id,
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -533,7 +544,9 @@ class TourController extends Controller
             if($enquiry_form){
                 $order_from = "By Sales Person";
             }
-
+            if($tour->dmc_id){
+                $dmc_company_name = User::where('userId', $tour->dmc_id)->first()->company_name;
+            }
             $tour_list[] = [
                 'id' => $tour->tour_id,
                 'unique_tour_id' => $tour->unique_tour_id,
@@ -556,6 +569,8 @@ class TourController extends Controller
                 'finalAmount' => $settlementAmount,
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
+                'dmc_id' => $tour->dmc_id, 
+                'dmc_company_name' => $dmc_company_name ?? '',
                 'order_from' => $order_from,
                 'created_at' => $tour->created_at->format('Y-m-d H:i:s'),
             ];
@@ -2471,7 +2486,7 @@ class TourController extends Controller
     * Tour Details.
     * Date 25-02-2024
     */
-  public function tourDetails(Request $request)
+    public function tourDetails(Request $request)
     {
         $unique_tour_id = $request->tour_id;
         $tour = Tour::where('tour_id', $unique_tour_id)->first();
