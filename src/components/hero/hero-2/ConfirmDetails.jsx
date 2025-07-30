@@ -1263,433 +1263,433 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
 
   // Update the submitDirectly function to use the new attraction and restaurant specific fields when handling drop-off and pickup locations.
 
-  const submitDirectly = async () => {
-    console.log("Attempting direct submission without thunk");
-    setSubmitting(true);
-    setSubmitError(null);
+  // const submitDirectly = async () => {
+  //   console.log("Attempting direct submission without thunk");
+  //   setSubmitting(true);
+  //   setSubmitError(null);
     
-    const submissionId = localEnquiryId || enquiryId;
+  //   const submissionId = localEnquiryId || enquiryId;
     
-    if (!submissionId) {
-      setSubmitError("No enquiry ID found. Please go back and start the booking process again.");
-      setSubmitting(false);
-      return;
-    }
+  //   if (!submissionId) {
+  //     setSubmitError("No enquiry ID found. Please go back and start the booking process again.");
+  //     setSubmitting(false);
+  //     return;
+  //   }
     
-    try {
-      const authToken = Cookies.get("authToken");
-      const AgentId = Cookies.get("AgentId");
+  //   try {
+  //     const authToken = Cookies.get("authToken");
+  //     const AgentId = Cookies.get("AgentId");
       
-      if (!authToken) {
-        setSubmitError("Authorization token is missing. Please log in again.");
-        setSubmitting(false);
-        return;
-      }
+  //     if (!authToken) {
+  //       setSubmitError("Authorization token is missing. Please log in again.");
+  //       setSubmitting(false);
+  //       return;
+  //     }
       
-      // Calculate approximate price using the main calculation function
-      const approxPrice = calculateApproximatePrice();
+  //     // Calculate approximate price using the main calculation function
+  //     const approxPrice = calculateApproximatePrice();
       
-      // Format data according to API requirements
-      const requestBody = {
-        enquiry_id: submissionId,
-        hotel: selectedServices.includes("hotel"),
-        port: selectedServices.includes("entryExitPort"),
-        local_transfer: selectedServices.includes("localTour"),
-        attraction: selectedServices.includes("attraction"),
-        packaged_attractions: selectedServices.includes("packagedAttractions"),
-        restaurant: selectedServices.includes("restaurant"),
-        guide: selectedServices.includes("tourGuide"),
-        approx_price: approxPrice, // Add the calculated approximate price
-      };
+  //     // Format data according to API requirements
+  //     const requestBody = {
+  //       enquiry_id: submissionId,
+  //       hotel: selectedServices.includes("hotel"),
+  //       port: selectedServices.includes("entryExitPort"),
+  //       local_transfer: selectedServices.includes("localTour"),
+  //       attraction: selectedServices.includes("attraction"),
+  //       packaged_attractions: selectedServices.includes("packagedAttractions"),
+  //       restaurant: selectedServices.includes("restaurant"),
+  //       guide: selectedServices.includes("tourGuide"),
+  //       approx_price: approxPrice, // Add the calculated approximate price
+  //     };
 
-      // Log key information about submission
-      console.log(`Direct submission - using enquiry_id: ${submissionId}`);
-      console.log(`Direct submission - selected services:`, selectedServices);
+  //     // Log key information about submission
+  //     console.log(`Direct submission - using enquiry_id: ${submissionId}`);
+  //     console.log(`Direct submission - selected services:`, selectedServices);
 
-      // Add hotel details if selected
-      if (requestBody.hotel && serviceDetails.hotel) {
-        // Check if we have hotel details under the undefined key and use those if available
-        const hotelDetails = serviceDetails["undefined"] && Object.keys(serviceDetails["undefined"]).length > 0 
-          ? serviceDetails["undefined"] 
-          : serviceDetails.hotel;
+  //     // Add hotel details if selected
+  //     if (requestBody.hotel && serviceDetails.hotel) {
+  //       // Check if we have hotel details under the undefined key and use those if available
+  //       const hotelDetails = serviceDetails["undefined"] && Object.keys(serviceDetails["undefined"]).length > 0 
+  //         ? serviceDetails["undefined"] 
+  //         : serviceDetails.hotel;
           
-        requestBody.hotel_ids = hotelDetails.preferredHotels?.map(hotel => 
-          hotel.hotel_unique_id || hotel.hotel_unique_id
-        ) || [];
-        requestBody.hotel_categories = hotelDetails.starCategory ? [hotelDetails.starCategory] : [];
-        requestBody.hotel_remarks = hotelDetails.remarks || "";
-        requestBody.hotel_compare = hotelDetails.compareHotels || "no";
+  //       requestBody.hotel_ids = hotelDetails.preferredHotels?.map(hotel => 
+  //         hotel.hotel_unique_id || hotel.hotel_unique_id
+  //       ) || [];
+  //       requestBody.hotel_categories = hotelDetails.starCategory ? [hotelDetails.starCategory] : [];
+  //       requestBody.hotel_remarks = hotelDetails.remarks || "";
+  //       requestBody.hotel_compare = hotelDetails.compareHotels || "no";
         
-        console.log("Direct submission - hotel details:", {
-          hotelDetails,
-          compareHotels: hotelDetails.compareHotels,
-          categories: requestBody.hotel_categories,
-          remarks: hotelDetails.remarks
-        });
-      }
+  //       console.log("Direct submission - hotel details:", {
+  //         hotelDetails,
+  //         compareHotels: hotelDetails.compareHotels,
+  //         categories: requestBody.hotel_categories,
+  //         remarks: hotelDetails.remarks
+  //       });
+  //     }
 
-      // Update car handling in submitDirectly
-      if (requestBody.port && serviceDetails.entryExitPort) {
-        const entryExitDetails = serviceDetails.entryExitPort;
+  //     // Update car handling in submitDirectly
+  //     if (requestBody.port && serviceDetails.entryExitPort) {
+  //       const entryExitDetails = serviceDetails.entryExitPort;
         
-        // Add entry/exit flags to know which services are enabled
-        requestBody.entry_port = entryExitDetails.showEntryPort !== false;
-        requestBody.exit_port = entryExitDetails.showExitPort === true;
+  //       // Add entry/exit flags to know which services are enabled
+  //       requestBody.entry_port = entryExitDetails.showEntryPort !== false;
+  //       requestBody.exit_port = entryExitDetails.showExitPort === true;
         
-        // Extract car IDs properly
-        let portIds = [];
-        if (entryExitDetails.preferredCars && entryExitDetails.preferredCars.length > 0) {
-          portIds = entryExitDetails.preferredCars.map(car => {
-            if (typeof car === 'string') return car;
-            return car.id || car.vehicle_id || '';
-          }).filter(id => id); // Remove empty values
-        }
+  //       // Extract car IDs properly
+  //       let portIds = [];
+  //       if (entryExitDetails.preferredCars && entryExitDetails.preferredCars.length > 0) {
+  //         portIds = entryExitDetails.preferredCars.map(car => {
+  //           if (typeof car === 'string') return car;
+  //           return car.id || car.vehicle_id || '';
+  //         }).filter(id => id); // Remove empty values
+  //       }
         
-        // Add car IDs to request body if available
-        if (portIds.length > 0) {
-          requestBody.port_ids = portIds;
-        }
+  //       // Add car IDs to request body if available
+  //       if (portIds.length > 0) {
+  //         requestBody.port_ids = portIds;
+  //       }
         
-        // Add car type
-        requestBody.port_transport_type = entryExitDetails.carType || "sharable";
+  //       // Add car type
+  //       requestBody.port_transport_type = entryExitDetails.carType || "sharable";
         
-        // Entry port data
-        if (requestBody.entry_port) {
-          // Set entry port address and ID if available
-          if (entryExitDetails.portAddress) {
-            requestBody.entry_port_address = typeof entryExitDetails.portAddress === 'string' 
-              ? entryExitDetails.portAddress 
-              : entryExitDetails.portAddress.port_name || entryExitDetails.portAddress.name || '';
+  //       // Entry port data
+  //       if (requestBody.entry_port) {
+  //         // Set entry port address and ID if available
+  //         if (entryExitDetails.portAddress) {
+  //           requestBody.entry_port_address = typeof entryExitDetails.portAddress === 'string' 
+  //             ? entryExitDetails.portAddress 
+  //             : entryExitDetails.portAddress.port_name || entryExitDetails.portAddress.name || '';
             
-            requestBody.entry_port_id = typeof entryExitDetails.portAddress === 'object' 
-              ? entryExitDetails.portAddress.port_id || entryExitDetails.portAddress.id || '' 
-              : '';
-          }
+  //           requestBody.entry_port_id = typeof entryExitDetails.portAddress === 'object' 
+  //             ? entryExitDetails.portAddress.port_id || entryExitDetails.portAddress.id || '' 
+  //             : '';
+  //         }
 
-          // Drop-off location type
-          requestBody.entry_dropoff_type = entryExitDetails.entryDropoffLocationType || "hotel";
+  //         // Drop-off location type
+  //         requestBody.entry_dropoff_type = entryExitDetails.entryDropoffLocationType || "hotel";
           
-          // Initialize only the generic location ID field
-          requestBody.entry_dropoff_location_id = '';
+  //         // Initialize only the generic location ID field
+  //         requestBody.entry_dropoff_location_id = '';
           
-          if (entryExitDetails.entryDropoffLocationType === "hotel" && entryExitDetails.hotelDropOff) {
-            requestBody.entry_dropoff_location_id = typeof entryExitDetails.hotelDropOff === 'object' 
-              ? entryExitDetails.hotelDropOff.hotel_unique_id || entryExitDetails.hotelDropOff.id || '' 
-              : '';
-          } else if (entryExitDetails.entryDropoffLocationType === "attraction") {
-            // Handle attraction type - use the specific attractionDropOff field if available
-            // First check if we have a dedicated attraction field, then fall back to destination
-            const attraction = entryExitDetails.attractionDropOff || entryExitDetails.destination || {};
+  //         if (entryExitDetails.entryDropoffLocationType === "hotel" && entryExitDetails.hotelDropOff) {
+  //           requestBody.entry_dropoff_location_id = typeof entryExitDetails.hotelDropOff === 'object' 
+  //             ? entryExitDetails.hotelDropOff.hotel_unique_id || entryExitDetails.hotelDropOff.id || '' 
+  //             : '';
+  //         } else if (entryExitDetails.entryDropoffLocationType === "attraction") {
+  //           // Handle attraction type - use the specific attractionDropOff field if available
+  //           // First check if we have a dedicated attraction field, then fall back to destination
+  //           const attraction = entryExitDetails.attractionDropOff || entryExitDetails.destination || {};
             
-            // Debug the attraction data to see what's available
-            console.log("Entry port attraction data (submitDirectly):", {
-              attractionDropOff: entryExitDetails.attractionDropOff,
-              destination: entryExitDetails.destination,
-              attractionType: typeof attraction,
-              attractionKeys: typeof attraction === 'object' ? Object.keys(attraction) : 'n/a',
-              attractionId: typeof attraction === 'object' ? 
-                (attraction.attraction_id || attraction.id || '') : 'n/a',
-              attractionName: typeof attraction === 'object' ? 
-                (attraction.name || attraction.attraction_name || '') : 'n/a',
-            });
+  //           // Debug the attraction data to see what's available
+  //           console.log("Entry port attraction data (submitDirectly):", {
+  //             attractionDropOff: entryExitDetails.attractionDropOff,
+  //             destination: entryExitDetails.destination,
+  //             attractionType: typeof attraction,
+  //             attractionKeys: typeof attraction === 'object' ? Object.keys(attraction) : 'n/a',
+  //             attractionId: typeof attraction === 'object' ? 
+  //               (attraction.attraction_id || attraction.id || '') : 'n/a',
+  //             attractionName: typeof attraction === 'object' ? 
+  //               (attraction.name || attraction.attraction_name || '') : 'n/a',
+  //           });
             
-            // UPDATED: Extract attraction ID, prioritizing attraction_id
-            let attractionId = '';
-            if (typeof attraction === 'object') {
-              // Try all possible ID fields, prioritizing attraction_id
-              attractionId = attraction.attraction_id || attraction.id || 
-                           attraction.attractionId || attraction.attraction_unique_id || '';
+  //           // UPDATED: Extract attraction ID, prioritizing attraction_id
+  //           let attractionId = '';
+  //           if (typeof attraction === 'object') {
+  //             // Try all possible ID fields, prioritizing attraction_id
+  //             attractionId = attraction.attraction_id || attraction.id || 
+  //                          attraction.attractionId || attraction.attraction_unique_id || '';
               
-              // If still empty and we have a numeric ID as a string property, use that
-              if (!attractionId && attraction.id && typeof attraction.id === 'string') {
-                const numericId = parseInt(attraction.id);
-                if (!isNaN(numericId)) {
-                  attractionId = numericId.toString();
-                }
-              }
-            } else if (typeof attraction === 'number') {
-              // If it's directly a number, convert to string
-              attractionId = attraction.toString();
-            } else if (typeof attraction === 'string' && !isNaN(parseInt(attraction))) {
-              // If it's a numeric string, use it directly
-              attractionId = attraction;
-            }
+  //             // If still empty and we have a numeric ID as a string property, use that
+  //             if (!attractionId && attraction.id && typeof attraction.id === 'string') {
+  //               const numericId = parseInt(attraction.id);
+  //               if (!isNaN(numericId)) {
+  //                 attractionId = numericId.toString();
+  //               }
+  //             }
+  //           } else if (typeof attraction === 'number') {
+  //             // If it's directly a number, convert to string
+  //             attractionId = attraction.toString();
+  //           } else if (typeof attraction === 'string' && !isNaN(parseInt(attraction))) {
+  //             // If it's a numeric string, use it directly
+  //             attractionId = attraction;
+  //           }
             
-            // Use our enhanced approach to get the ID - only set the generic location_id
-            requestBody.entry_dropoff_location_id = attractionId;
+  //           // Use our enhanced approach to get the ID - only set the generic location_id
+  //           requestBody.entry_dropoff_location_id = attractionId;
             
-            console.log("Direct submission - attraction dropoff:", {
-              id: attractionId
-            });
-          } else if (entryExitDetails.entryDropoffLocationType === "restaurant") {
-            // Handle restaurant type - use the specific restaurantDropOff field if available
-            // First check if we have a dedicated restaurant field, then fall back to destination
-            const restaurant = entryExitDetails.restaurantDropOff || entryExitDetails.destination || {};
+  //           console.log("Direct submission - attraction dropoff:", {
+  //             id: attractionId
+  //           });
+  //         } else if (entryExitDetails.entryDropoffLocationType === "restaurant") {
+  //           // Handle restaurant type - use the specific restaurantDropOff field if available
+  //           // First check if we have a dedicated restaurant field, then fall back to destination
+  //           const restaurant = entryExitDetails.restaurantDropOff || entryExitDetails.destination || {};
             
-            // UPDATED: Extract restaurant ID, prioritizing restaurant_id
-            let restaurantId = '';
-            if (typeof restaurant === 'object') {
-              // Try all possible ID fields, prioritizing restaurant_id
-              restaurantId = restaurant.restaurant_id || restaurant.id || '';
-            } else if (typeof restaurant === 'string' && !isNaN(parseInt(restaurant))) {
-              // If it's a numeric string, use it directly
-              restaurantId = restaurant;
-            }
+  //           // UPDATED: Extract restaurant ID, prioritizing restaurant_id
+  //           let restaurantId = '';
+  //           if (typeof restaurant === 'object') {
+  //             // Try all possible ID fields, prioritizing restaurant_id
+  //             restaurantId = restaurant.restaurant_id || restaurant.id || '';
+  //           } else if (typeof restaurant === 'string' && !isNaN(parseInt(restaurant))) {
+  //             // If it's a numeric string, use it directly
+  //             restaurantId = restaurant;
+  //           }
             
-            // Add only the generic location_id
-            requestBody.entry_dropoff_location_id = restaurantId;
+  //           // Add only the generic location_id
+  //           requestBody.entry_dropoff_location_id = restaurantId;
             
-            console.log("Direct submission - restaurant dropoff:", {
-              id: restaurantId
-            });
-          }
-        }
+  //           console.log("Direct submission - restaurant dropoff:", {
+  //             id: restaurantId
+  //           });
+  //         }
+  //       }
         
-        // Exit port data
-        if (requestBody.exit_port) {
-          // Only use the generic location ID field
-          requestBody.exit_pickup_location_id = '';
+  //       // Exit port data
+  //       if (requestBody.exit_port) {
+  //         // Only use the generic location ID field
+  //         requestBody.exit_pickup_location_id = '';
           
-          if (entryExitDetails.exitPickupLocationType === "hotel") {
-            // For exit port, we need to look for destination data
-            const exitPickupLocation = entryExitDetails.exitPickupLocation || 
-              (Array.isArray(entryExitDetails.destination) && entryExitDetails.destination.length > 0 ? 
-                entryExitDetails.destination[0] : entryExitDetails.destination) || {};
+  //         if (entryExitDetails.exitPickupLocationType === "hotel") {
+  //           // For exit port, we need to look for destination data
+  //           const exitPickupLocation = entryExitDetails.exitPickupLocation || 
+  //             (Array.isArray(entryExitDetails.destination) && entryExitDetails.destination.length > 0 ? 
+  //               entryExitDetails.destination[0] : entryExitDetails.destination) || {};
                 
-            requestBody.exit_pickup_location_id = typeof exitPickupLocation === 'object' 
-              ? exitPickupLocation.hotel_unique_id || exitPickupLocation.id || '' 
-              : (typeof exitPickupLocation === 'string' ? exitPickupLocation : '');
-          } else if (entryExitDetails.exitPickupLocationType === "attraction") {
-            // For exit port, we need to look for destination data - use the specific exitAttractionPickup field if available
-            const exitAttractionPickup = entryExitDetails.exitAttractionPickup || exitPickupLocation || 
-              (Array.isArray(entryExitDetails.destination) && entryExitDetails.destination.length > 0 ? 
-                entryExitDetails.destination[0] : entryExitDetails.destination) || {};
+  //           requestBody.exit_pickup_location_id = typeof exitPickupLocation === 'object' 
+  //             ? exitPickupLocation.hotel_unique_id || exitPickupLocation.id || '' 
+  //             : (typeof exitPickupLocation === 'string' ? exitPickupLocation : '');
+  //         } else if (entryExitDetails.exitPickupLocationType === "attraction") {
+  //           // For exit port, we need to look for destination data - use the specific exitAttractionPickup field if available
+  //           const exitAttractionPickup = entryExitDetails.exitAttractionPickup || exitPickupLocation || 
+  //             (Array.isArray(entryExitDetails.destination) && entryExitDetails.destination.length > 0 ? 
+  //               entryExitDetails.destination[0] : entryExitDetails.destination) || {};
             
-            // UPDATED: Extract attraction ID, prioritizing attraction_id
-            let attractionId = '';
-            if (typeof exitAttractionPickup === 'object') {
-              // Try all possible ID fields, prioritizing attraction_id
-              attractionId = exitAttractionPickup.attraction_id || exitAttractionPickup.id || '';
-            } else if (typeof exitAttractionPickup === 'string' && !isNaN(parseInt(exitAttractionPickup))) {
-              // If it's a numeric string, use it directly
-              attractionId = exitAttractionPickup;
-            }
+  //           // UPDATED: Extract attraction ID, prioritizing attraction_id
+  //           let attractionId = '';
+  //           if (typeof exitAttractionPickup === 'object') {
+  //             // Try all possible ID fields, prioritizing attraction_id
+  //             attractionId = exitAttractionPickup.attraction_id || exitAttractionPickup.id || '';
+  //           } else if (typeof exitAttractionPickup === 'string' && !isNaN(parseInt(exitAttractionPickup))) {
+  //             // If it's a numeric string, use it directly
+  //             attractionId = exitAttractionPickup;
+  //           }
             
-            // Add only the generic location_id
-            requestBody.exit_pickup_location_id = attractionId;
+  //           // Add only the generic location_id
+  //           requestBody.exit_pickup_location_id = attractionId;
             
-            console.log("Direct submission - exit attraction pickup:", {
-              id: attractionId
-            });
-          } else if (entryExitDetails.exitPickupLocationType === "restaurant") {
-            // For exit port, we need to look for destination data - use the specific exitRestaurantPickup field if available
-            const exitRestaurantPickup = entryExitDetails.exitRestaurantPickup || exitPickupLocation || 
-              (Array.isArray(entryExitDetails.destination) && entryExitDetails.destination.length > 0 ? 
-                entryExitDetails.destination[0] : entryExitDetails.destination) || {};
+  //           console.log("Direct submission - exit attraction pickup:", {
+  //             id: attractionId
+  //           });
+  //         } else if (entryExitDetails.exitPickupLocationType === "restaurant") {
+  //           // For exit port, we need to look for destination data - use the specific exitRestaurantPickup field if available
+  //           const exitRestaurantPickup = entryExitDetails.exitRestaurantPickup || exitPickupLocation || 
+  //             (Array.isArray(entryExitDetails.destination) && entryExitDetails.destination.length > 0 ? 
+  //               entryExitDetails.destination[0] : entryExitDetails.destination) || {};
             
-            // UPDATED: Extract restaurant ID, prioritizing restaurant_id
-            let restaurantId = '';
-            if (typeof exitRestaurantPickup === 'object') {
-              // Try all possible ID fields, prioritizing restaurant_id
-              restaurantId = exitRestaurantPickup.restaurant_id || exitRestaurantPickup.id || '';
-            } else if (typeof exitRestaurantPickup === 'string' && !isNaN(parseInt(exitRestaurantPickup))) {
-              // If it's a numeric string, use it directly
-              restaurantId = exitRestaurantPickup;
-            }
+  //           // UPDATED: Extract restaurant ID, prioritizing restaurant_id
+  //           let restaurantId = '';
+  //           if (typeof exitRestaurantPickup === 'object') {
+  //             // Try all possible ID fields, prioritizing restaurant_id
+  //             restaurantId = exitRestaurantPickup.restaurant_id || exitRestaurantPickup.id || '';
+  //           } else if (typeof exitRestaurantPickup === 'string' && !isNaN(parseInt(exitRestaurantPickup))) {
+  //             // If it's a numeric string, use it directly
+  //             restaurantId = exitRestaurantPickup;
+  //           }
             
-            // Add only the generic location_id
-            requestBody.exit_pickup_location_id = restaurantId;
+  //           // Add only the generic location_id
+  //           requestBody.exit_pickup_location_id = restaurantId;
             
-            console.log("Direct submission - exit restaurant pickup:", {
-              id: restaurantId
-            });
-          }
+  //           console.log("Direct submission - exit restaurant pickup:", {
+  //             id: restaurantId
+  //           });
+  //         }
           
-          // Port address for drop-off
-          if (entryExitDetails.exitPortAddress) {
-            requestBody.exit_port_address = typeof entryExitDetails.exitPortAddress === 'string' 
-              ? entryExitDetails.exitPortAddress 
-              : entryExitDetails.exitPortAddress.port_name || entryExitDetails.exitPortAddress.name || '';
+  //         // Port address for drop-off
+  //         if (entryExitDetails.exitPortAddress) {
+  //           requestBody.exit_port_address = typeof entryExitDetails.exitPortAddress === 'string' 
+  //             ? entryExitDetails.exitPortAddress 
+  //             : entryExitDetails.exitPortAddress.port_name || entryExitDetails.exitPortAddress.name || '';
               
-            requestBody.exit_port_id = typeof entryExitDetails.exitPortAddress === 'object' 
-              ? entryExitDetails.exitPortAddress.port_id || entryExitDetails.exitPortAddress.id || '' 
-              : '';
-          }
-        }
+  //           requestBody.exit_port_id = typeof entryExitDetails.exitPortAddress === 'object' 
+  //             ? entryExitDetails.exitPortAddress.port_id || entryExitDetails.exitPortAddress.id || '' 
+  //             : '';
+  //         }
+  //       }
         
-        // Add remarks
-        requestBody.port_remarks = entryExitDetails.remarks || "";
-      }
+  //       // Add remarks
+  //       requestBody.port_remarks = entryExitDetails.remarks || "";
+  //     }
 
-      // Handle local tour cars properly
-      if (requestBody.local_transfer && serviceDetails.localTour) {
-        const localTourDetails = serviceDetails.localTour;
+  //     // Handle local tour cars properly
+  //     if (requestBody.local_transfer && serviceDetails.localTour) {
+  //       const localTourDetails = serviceDetails.localTour;
         
-        // Extract car IDs properly
-        let carIds = [];
-        if (localTourDetails.preferredCars && localTourDetails.preferredCars.length > 0) {
-          carIds = localTourDetails.preferredCars.map(car => {
-            if (typeof car === 'string') return car;
-            return car.id || car.vehicle_id || '';
-          }).filter(id => id); // Remove empty values
-        }
+  //       // Extract car IDs properly
+  //       let carIds = [];
+  //       if (localTourDetails.preferredCars && localTourDetails.preferredCars.length > 0) {
+  //         carIds = localTourDetails.preferredCars.map(car => {
+  //           if (typeof car === 'string') return car;
+  //           return car.id || car.vehicle_id || '';
+  //         }).filter(id => id); // Remove empty values
+  //       }
         
-        // Add car IDs to request body if available
-        if (carIds.length > 0) {
-          requestBody.local_transport_vehicle_ids = carIds;
-        }
+  //       // Add car IDs to request body if available
+  //       if (carIds.length > 0) {
+  //         requestBody.local_transport_vehicle_ids = carIds;
+  //       }
         
-        requestBody.local_transfer_remarks = localTourDetails.remarks || "";
-      }
+  //       requestBody.local_transfer_remarks = localTourDetails.remarks || "";
+  //     }
 
-      // Add attraction details if selected
-      if (requestBody.attraction && serviceDetails.attraction) {
-        const attractionDetails = serviceDetails.attraction || {};
-        let attractionIds = [];
+  //     // Add attraction details if selected
+  //     if (requestBody.attraction && serviceDetails.attraction) {
+  //       const attractionDetails = serviceDetails.attraction || {};
+  //       let attractionIds = [];
         
-        // Handle both when selectedAttractions is an array and when it's a single object
-        if (Array.isArray(attractionDetails.selectedAttractions)) {
-          attractionIds = attractionDetails.selectedAttractions.map(attraction => 
-            attraction.id || attraction.attraction_id
-          ) || [];
-        } else if (attractionDetails.selectedAttractions) {
-          // Handle case when it's a single object
-          const attraction = attractionDetails.selectedAttractions;
-          if (attraction.id || attraction.attraction_id) {
-            attractionIds = [attraction.id || attraction.attraction_id];
-          }
-        }
+  //       // Handle both when selectedAttractions is an array and when it's a single object
+  //       if (Array.isArray(attractionDetails.selectedAttractions)) {
+  //         attractionIds = attractionDetails.selectedAttractions.map(attraction => 
+  //           attraction.id || attraction.attraction_id
+  //         ) || [];
+  //       } else if (attractionDetails.selectedAttractions) {
+  //         // Handle case when it's a single object
+  //         const attraction = attractionDetails.selectedAttractions;
+  //         if (attraction.id || attraction.attraction_id) {
+  //           attractionIds = [attraction.id || attraction.attraction_id];
+  //         }
+  //       }
         
-        requestBody.attraction_ids = attractionIds;
-        requestBody.attraction_remarks = attractionDetails.remarks || "";
-        requestBody.attraction_transport = attractionDetails.needTransport || false;
-        requestBody.attraction_transport_type = attractionDetails.carType || "sharable";
+  //       requestBody.attraction_ids = attractionIds;
+  //       requestBody.attraction_remarks = attractionDetails.remarks || "";
+  //       requestBody.attraction_transport = attractionDetails.needTransport || false;
+  //       requestBody.attraction_transport_type = attractionDetails.carType || "sharable";
         
-        console.log("Direct submission - attraction IDs:", attractionIds);
-        console.log("Direct submission - attraction transport:", attractionDetails.needTransport);
-        console.log("Direct submission - attraction car type:", attractionDetails.carType);
-      }
-      if (requestBody.packaged_attractions && serviceDetails.packagedAttractions) {
-        const packagedAttractionsDetails = serviceDetails.packagedAttractions || {};
-        let attractionIds = [];
+  //       console.log("Direct submission - attraction IDs:", attractionIds);
+  //       console.log("Direct submission - attraction transport:", attractionDetails.needTransport);
+  //       console.log("Direct submission - attraction car type:", attractionDetails.carType);
+  //     }
+  //     if (requestBody.packaged_attractions && serviceDetails.packagedAttractions) {
+  //       const packagedAttractionsDetails = serviceDetails.packagedAttractions || {};
+  //       let attractionIds = [];
         
-        // Handle both when selectedAttractions is an array and when it's a single object
-        if (Array.isArray(packagedAttractionsDetails.selectedPackagedAttractions)) {
-          attractionIds = packagedAttractionsDetails.selectedPackagedAttractions.map(attraction => 
-            attraction.id || attraction.attraction_id
-          ) || [];
-        } else if (packagedAttractionsDetails.selectedPackagedAttractions) {
-          // Handle case when it's a single object
-          const attraction = packagedAttractionsDetails.selectedPackagedAttractions;
-          if (attraction.id || attraction.attraction_id) {
-            attractionIds = [attraction.id || attraction.attraction_id];
-          }
-        }
+  //       // Handle both when selectedAttractions is an array and when it's a single object
+  //       if (Array.isArray(packagedAttractionsDetails.selectedPackagedAttractions)) {
+  //         attractionIds = packagedAttractionsDetails.selectedPackagedAttractions.map(attraction => 
+  //           attraction.id || attraction.attraction_id
+  //         ) || [];
+  //       } else if (packagedAttractionsDetails.selectedPackagedAttractions) {
+  //         // Handle case when it's a single object
+  //         const attraction = packagedAttractionsDetails.selectedPackagedAttractions;
+  //         if (attraction.id || attraction.attraction_id) {
+  //           attractionIds = [attraction.id || attraction.attraction_id];
+  //         }
+  //       }
         
-        requestBody.packaged_attraction_ids = attractionIds;
-        requestBody.attraction_remarks = packagedAttractionsDetails.remarks || "";
-        requestBody.attraction_transport = packagedAttractionsDetails.needTransport || false;
-        requestBody.attraction_transport_type = packagedAttractionsDetails.carType || "sharable";
+  //       requestBody.packaged_attraction_ids = attractionIds;
+  //       requestBody.attraction_remarks = packagedAttractionsDetails.remarks || "";
+  //       requestBody.attraction_transport = packagedAttractionsDetails.needTransport || false;
+  //       requestBody.attraction_transport_type = packagedAttractionsDetails.carType || "sharable";
         
-          console.log("Direct submission - packaged attraction IDs:", attractionIds);
-        console.log("Direct submission - packaged attraction transport:", packagedAttractionsDetails.needTransport);
-        console.log("Direct submission - packaged attraction car type:", packagedAttractionsDetails.carType);
-      }
+  //         console.log("Direct submission - packaged attraction IDs:", attractionIds);
+  //       console.log("Direct submission - packaged attraction transport:", packagedAttractionsDetails.needTransport);
+  //       console.log("Direct submission - packaged attraction car type:", packagedAttractionsDetails.carType);
+  //     }
 
-      // Add restaurant details if selected
-      if (requestBody.restaurant && serviceDetails.restaurant) {
-        const restaurantDetails = serviceDetails.restaurant || {};
-        let restaurantIds = [];
+  //     // Add restaurant details if selected
+  //     if (requestBody.restaurant && serviceDetails.restaurant) {
+  //       const restaurantDetails = serviceDetails.restaurant || {};
+  //       let restaurantIds = [];
         
-        // Handle both when selectedRestaurants is an array and when it's a single object
-        if (Array.isArray(restaurantDetails.selectedRestaurants)) {
-          restaurantIds = restaurantDetails.selectedRestaurants.map(restaurant => 
-            restaurant.id || restaurant.restaurant_id
-          ) || [];
-        } else if (restaurantDetails.selectedRestaurants) {
-          // Handle case when it's a single object
-          const restaurant = restaurantDetails.selectedRestaurants;
-          if (restaurant.id || restaurant.restaurant_id) {
-            restaurantIds = [restaurant.id || restaurant.restaurant_id];
-          }
-        }
+  //       // Handle both when selectedRestaurants is an array and when it's a single object
+  //       if (Array.isArray(restaurantDetails.selectedRestaurants)) {
+  //         restaurantIds = restaurantDetails.selectedRestaurants.map(restaurant => 
+  //           restaurant.id || restaurant.restaurant_id
+  //         ) || [];
+  //       } else if (restaurantDetails.selectedRestaurants) {
+  //         // Handle case when it's a single object
+  //         const restaurant = restaurantDetails.selectedRestaurants;
+  //         if (restaurant.id || restaurant.restaurant_id) {
+  //           restaurantIds = [restaurant.id || restaurant.restaurant_id];
+  //         }
+  //       }
         
-        requestBody.restaurant_ids = restaurantIds;
-        requestBody.restaurant_remarks = restaurantDetails.remarks || "";
-        requestBody.restaurant_transport = restaurantDetails.needTransport || false;
-        requestBody.restaurant_transport_type = restaurantDetails.carType || "sharable";
+  //       requestBody.restaurant_ids = restaurantIds;
+  //       requestBody.restaurant_remarks = restaurantDetails.remarks || "";
+  //       requestBody.restaurant_transport = restaurantDetails.needTransport || false;
+  //       requestBody.restaurant_transport_type = restaurantDetails.carType || "sharable";
         
-        console.log("Direct submission - restaurant IDs:", restaurantIds);
-        console.log("Direct submission - restaurant transport:", restaurantDetails.needTransport);
-        console.log("Direct submission - restaurant car type:", restaurantDetails.carType);
-      }
+  //       console.log("Direct submission - restaurant IDs:", restaurantIds);
+  //       console.log("Direct submission - restaurant transport:", restaurantDetails.needTransport);
+  //       console.log("Direct submission - restaurant car type:", restaurantDetails.carType);
+  //     }
 
-      // Add guide details if selected
-      if (requestBody.guide && serviceDetails.tourGuide) {
-        requestBody.guide_ids = serviceDetails.tourGuide.preferredGuides?.map(guide => 
-          guide.id || guide.guide_id
-        ) || [];
-        requestBody.guide_remarks = serviceDetails.tourGuide.specialRequirements || "";
-      }
+  //     // Add guide details if selected
+  //     if (requestBody.guide && serviceDetails.tourGuide) {
+  //       requestBody.guide_ids = serviceDetails.tourGuide.preferredGuides?.map(guide => 
+  //         guide.id || guide.guide_id
+  //       ) || [];
+  //       requestBody.guide_remarks = serviceDetails.tourGuide.specialRequirements || "";
+  //     }
       
-      console.log("Direct submission - payload:", requestBody);
+  //     console.log("Direct submission - payload:", requestBody);
       
-      // Right before the axios call in submitDirectly
-      console.log("Port-related submission data:", {
-        entry_port: requestBody.entry_port,
-        entry_port_address: requestBody.entry_port_address,
-        entry_port_id: requestBody.entry_port_id,
-        entry_dropoff_type: requestBody.entry_dropoff_type,
-        entry_dropoff_location_id: requestBody.entry_dropoff_location_id,
-        exit_port: requestBody.exit_port,
-        exit_port_address: requestBody.exit_port_address,
-        exit_port_id: requestBody.exit_port_id,
-        exit_pickup_type: requestBody.exit_pickup_type,
-        exit_pickup_location_id: requestBody.exit_pickup_location_id
-      });
+  //     // Right before the axios call in submitDirectly
+  //     console.log("Port-related submission data:", {
+  //       entry_port: requestBody.entry_port,
+  //       entry_port_address: requestBody.entry_port_address,
+  //       entry_port_id: requestBody.entry_port_id,
+  //       entry_dropoff_type: requestBody.entry_dropoff_type,
+  //       entry_dropoff_location_id: requestBody.entry_dropoff_location_id,
+  //       exit_port: requestBody.exit_port,
+  //       exit_port_address: requestBody.exit_port_address,
+  //       exit_port_id: requestBody.exit_port_id,
+  //       exit_pickup_type: requestBody.exit_pickup_type,
+  //       exit_pickup_location_id: requestBody.exit_pickup_location_id
+  //     });
       
-      const headers = {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      };
+  //     const headers = {
+  //       'Authorization': `Bearer ${authToken}`,
+  //       'Content-Type': 'application/json',
+  //     };
       
-      if (AgentId) {
-        headers['agent-id'] = AgentId;
-      }
+  //     if (AgentId) {
+  //       headers['agent-id'] = AgentId;
+  //     }
       
-      // Try to get the BASE_URL from imported module
-      let apiUrl = `${BASE_URL}/update-enquiry-form`;
+  //     // Try to get the BASE_URL from imported module
+  //     let apiUrl = `${BASE_URL}/update-enquiry-form`;
       
-      try {
-        const apiModule = await import("@/services/api");
-        if (apiModule && apiModule.BASE_URL) {
-          apiUrl = `${apiModule.BASE_URL}/update-enquiry-form`;
-        }
-      } catch (err) {
-        console.warn("Could not import API module, using hardcoded URL");
-      }
+  //     try {
+  //       const apiModule = await import("@/services/api");
+  //       if (apiModule && apiModule.BASE_URL) {
+  //         apiUrl = `${apiModule.BASE_URL}/update-enquiry-form`;
+  //       }
+  //     } catch (err) {
+  //       console.warn("Could not import API module, using hardcoded URL");
+  //     }
       
-      console.log("Direct submission - URL:", apiUrl);
-      console.log("Direct submission - headers:", headers);
+  //     console.log("Direct submission - URL:", apiUrl);
+  //     console.log("Direct submission - headers:", headers);
       
-      const response = await axios.post(apiUrl, requestBody, { headers });
+  //     const response = await axios.post(apiUrl, requestBody, { headers });
       
-      console.log("Direct submission - response:", response.data);
+  //     console.log("Direct submission - response:", response.data);
       
-      setSubmitSuccess(true);
+  //     setSubmitSuccess(true);
       
-      // Add timeout to show success message before taking next action
-      setTimeout(() => {
-        setSubmitSuccess(false);
-      }, 3000);
+  //     // Add timeout to show success message before taking next action
+  //     setTimeout(() => {
+  //       setSubmitSuccess(false);
+  //     }, 3000);
       
-    } catch (error) {
-      console.error("Direct submission - error:", error);
-      setSubmitError(`Direct submission failed: ${error.message}. ${error.response?.data?.message || ''}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Direct submission - error:", error);
+  //     setSubmitError(`Direct submission failed: ${error.message}. ${error.response?.data?.message || ''}`);
+  //   } finally {
+  //     setSubmitting(false);
+  //   }
+  // };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -1701,7 +1701,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       </Typography>
       
       {/* Display submission error if any */}
-      {submitError && (
+      {/* {submitError && (
         <>
           <Alert 
             severity="error" 
@@ -1729,7 +1729,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             </Button>
           </Box>
         </>
-      )}
+      )} */}
       
       {/* Trip details section */}
       <SectionPaper>
