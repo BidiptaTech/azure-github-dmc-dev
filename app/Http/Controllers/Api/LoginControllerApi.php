@@ -92,6 +92,10 @@ class LoginControllerApi extends Controller
         if(!$user){
             return response()->json(['error' => 'This email is  not registered.'], 401);
         }
+
+        if($user->role_id == 20 && $user->status == 2){
+            return response()->json(['error' => 'Your account is not verified.'], 401);
+        }
         if (!$user || !Hash::check($password, $user->password)) {
             return response()->json(['error' => 'Invalid credentials.'], 401);
         }

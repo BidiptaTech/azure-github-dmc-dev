@@ -27,6 +27,21 @@ class PackageController extends Controller
         $today = Carbon::today();
         $date = $request->query('date');
         $pax = $request->query('adults');
+        $dmcId = $request->query('dmc_id');
+
+        if(!$dmcId){
+            return response()->json(['message' => 'Dmc ID is required'], 400);
+        }
+        $dmc = User::select('userId', 'name', 'company_name', 'logo')->where('userId', $dmcId)->first();
+        if(!$dmc){
+            return response()->json(['message' => 'Dmc not found'], 404);
+        }
+        $dmc_data = [
+            'dmc_id' => $dmc->userId,
+            'dmc_name' => $dmc->name,
+            'dmc_company_name' => $dmc->company_name,
+            'dmc_logo' => $dmc->logo,
+        ];
 
         // Format the date properly for comparison with database date fields
         if (empty($date)) {
@@ -67,12 +82,7 @@ class PackageController extends Controller
             }
         }
 
-        $dmc_id = intval($this->getDmcIdForCurrentUser());
-        if (!$dmc_id) {
-            return response()->json(['message' => 'DMC Not Found!'], 400);
-        }
-
-        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmc_id)
+        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
             ->whereDate('start_date', '<=', $date)
             ->whereDate('expire_date', '>=', $date);
         if (!empty($city)) {
@@ -86,7 +96,10 @@ class PackageController extends Controller
         $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type', 'itinerary')->get();
         
         // Format the response
-        return response()->json($packages);
+        return response()->json([
+            'packages' => $packages,
+            'dmc_data' => $dmc_data,
+        ]);
     }
 
     private function getDmcIdForCurrentUser()
@@ -112,17 +125,17 @@ class PackageController extends Controller
                 case 135: 
                 case 136: 
                 case 138: // Sales Head
-                    return optional(User::find($agent->sales_manager_dmc))->created_by;
+                    return optional(User::where('userId', $agent->sales_manager_dmc)->first())->created_by;
 
-                case 12:
+                case 12:  
                 case 37: // Sales Manager
-                    $sm = User::find($agent->sales_manager_dmc);
-                    return optional($sm && $sm->created_by ? User::find($sm->created_by) : null)->created_by;
+                    $sm = User::where('userId', $agent->sales_manager_dmc)->first();
+                    return optional($sm && $sm->created_by ? User::where('userId', $sm->created_by)->first() : null)->created_by;
 
                 case 38: // Assistant Manager
-                    $am = User::find($agent->sales_manager_dmc);
-                    $sm = $am && $am->created_by ? User::find($am->created_by) : null;
-                    $sh = $sm && $sm->created_by ? User::find($sm->created_by) : null;
+                    $am = User::where('userId', $agent->sales_manager_dmc)->first();
+                    $sm = $am && $am->created_by ? User::where('userId', $am->created_by)->first() : null;
+                    $sh = $sm && $sm->created_by ? User::where('userId', $sm->created_by)->first() : null;
                     return optional($sh)->created_by;
             }
         }
@@ -140,11 +153,11 @@ class PackageController extends Controller
                 return $user->created_by;
 
             case 37: // SM
-                return optional(User::find($user->created_by))->created_by;
+                return optional(User::where('userId', $user->created_by)->first())->created_by;
 
             case 38: // AM
-                $sm = User::find($user->created_by);
-                $sh = $sm && $sm->created_by ? User::find($sm->created_by) : null;
+                $sm = User::where('userId', $user->created_by)->first();
+                $sh = $sm && $sm->created_by ? User::where('userId', $sm->created_by)->first() : null;
                 return optional($sh)->created_by;
         }
 
@@ -573,25 +586,42 @@ class PackageController extends Controller
                     }
                 }
                 else{
-                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
+                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id')
                         ->where('booked_by', $user->agent_id)
                         ->get();
                 }
             }
             else{
-                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info');
-                
+                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id');
                 // Only add the where clause if agent_id is not null
                 if ($agent_id !== null) {
-                    $booking = $booking->where('agent_id', $agent_id);
+                    $booking = $booking->where('agent_id', $agent_id)->get();
                 }
-                
-                $booking = $booking->get();
+                else{
+                    $booking = [];
+                }
+            }
+            if(count($booking) == 0){
+                return response()->json([
+                    'booking_lists' => [],
+                    'total_bookings' => 0
+                ]);
             }
             
             $data = [];
+            $dmc_data = [];
             foreach ($booking as $b) {
                 // Ensure the values are arrays, even if they come as strings
+                if($user->agent_id && $b->dmc_id){
+                    $dmc_id = $b->dmc_id;
+                    $dmc = User::select('userId', 'name', 'company_name', 'logo')->where('userId', $dmc_id)->first();
+                    $dmc_data = [
+                        'dmc_id' => $dmc->userId,
+                        'dmc_name' => $dmc->name,
+                        'dmc_company_name' => $dmc->company_name,
+                        'dmc_logo' => $dmc->logo,
+                    ];
+                }
                 $hotelIds = is_array($b->selected_hotels) ? $b->selected_hotels : (is_string($b->selected_hotels) ? json_decode($b->selected_hotels, true) : []);
                 $attractionIds = is_array($b->selected_attractions) ? $b->selected_attractions : (is_string($b->selected_attractions) ? json_decode($b->selected_attractions, true) : []);
                 $guideIds = is_array($b->selected_guides) ? $b->selected_guides : (is_string($b->selected_guides) ? json_decode($b->selected_guides, true) : []);
@@ -640,6 +670,7 @@ class PackageController extends Controller
                 $userInfo = is_array($b->user_info) ? $b->user_info : (is_string($b->user_info) ? json_decode($b->user_info, true) : []);
 
                 $data[] = [
+                    'dmc_data' => $dmc_data,
                     'booking_id' => $b->booking_id,
                     'package_id' => $b->package_id,
                     'booking_details' => $bookingDetails,
@@ -649,7 +680,8 @@ class PackageController extends Controller
                     'guides' => $guides,
                     'package' => $package,
                     'user_info' => $userInfo,
-                    'status' => $b->status
+                    'status' => $b->status,
+                    
                 ];
             }
             
