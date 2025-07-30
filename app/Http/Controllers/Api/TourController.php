@@ -102,6 +102,15 @@ class TourController extends Controller
             if($formEnquiry){
                 $formEnquiry->unique_tour_id = $tour->unique_tour_id;
                 $formEnquiry->save();
+
+                // Cancel other related enquiries if this is part of a multi-enquiry
+                if ($formEnquiry->multi_enq_id) {
+                    EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                        ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                        ->update([
+                            'status' => 'cancelled',
+                        ]);
+                }
             }
 
             $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
@@ -2471,7 +2480,7 @@ class TourController extends Controller
     * Tour Details.
     * Date 25-02-2024
     */
-  public function tourDetails(Request $request)
+    public function tourDetails(Request $request)
     {
         $unique_tour_id = $request->tour_id;
         $tour = Tour::where('tour_id', $unique_tour_id)->first();

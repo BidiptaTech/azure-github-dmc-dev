@@ -1,13 +1,11 @@
 <?php
 
 namespace App\Http\Controllers\Api;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\EnquiryForm;
 use Carbon\Carbon;
 use App\Helpers\CommonHelper;
-
 use App\Models\User;
 use App\Models\Hotel;
 use App\Models\Attraction;
@@ -809,77 +807,154 @@ class EnquiryController extends Controller
     public function agentLists(Request $request)
     {
         $user = auth()->user();
-        $currentUser = null;
-        if(in_array($user?->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])){
-            $currentUser = User::where('userId', $user->userId)->first();
-        }
-        if (!$currentUser) {
+        
+        // Check if user is a DMC role (Sales Head, Sales Manager, or Asst Sales Manager)
+        if (!in_array($user?->role_id, [33, 37, 38])) {
             return response()->json([
                 'success' => false,
-                'message' => 'User not found.',
-            ], 404);
-        }
-        $agents = collect();
-
-        if($currentUser){
-            $role_id = $currentUser->role_id;
-            $agents = collect();
-
-            if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
-                $sales_managers = User::where('role_id', 37)->where('created_by', $user->userId)->get();
-                $sales_managers_ids = $sales_managers->pluck('userId')->toArray();
-
-                // Ensure we have an array for whereIn
-                if (!empty($sales_managers_ids)) {
-                    $assisstant_manager = User::where('role_id', 38)
-                        ->whereIn('created_by', $sales_managers_ids)
-                        ->get();
-                } else {
-                    $assisstant_manager = collect();
-                }
-
-                $assisstant_manager_ids = $assisstant_manager->pluck('userId')->toArray();
-
-                $agents = Agent::where(function($query) use ($user, $sales_managers_ids, $assisstant_manager_ids) {
-                    $query->where('sales_manager_dmc', $user->userId);
-
-                    if (!empty($sales_managers_ids)) {
-                        $query->orWhereIn('sales_manager_dmc', $sales_managers_ids);
-                    }
-
-                    if (!empty($assisstant_manager_ids)) {
-                        $query->orWhereIn('sales_manager_dmc', $assisstant_manager_ids);
-                    }
-                })->get();
-            }
-            elseif($user->role_id == 37){
-                $assisstant_manager = User::where('role_id', 38)
-                    ->where('created_by', $user->userId)
-                    ->get();
-                $assisstant_manager_ids = $assisstant_manager->pluck('userId')->toArray();
-
-                $agents = Agent::where(function($query) use ($user, $assisstant_manager_ids) {
-                    $query->where('sales_manager_dmc', $user->userId);
-
-                    if (!empty($assisstant_manager_ids)) {
-                        $query->orWhereIn('sales_manager_dmc', $assisstant_manager_ids);
-                    }
-                })->get();
-            }
-            else{
-                $agents = Agent::where('sales_manager_dmc', $currentUser->userId)->get();
-            }
-        }
-        else{
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized or Agent ID missing.',
+                'message' => 'Unauthorized access. Only DMC roles can access this endpoint.',
             ], 401);
         }
 
+        $agents = collect();
+
+        switch ($user->role_id) {
+            case 33: // Sales Head
+                // Get all Sales Managers under this Sales Head
+                $sales_managers = User::where('role_id', 37)
+                    ->where('created_by', $user->userId)
+                    ->get();
+                $sales_managers_ids = $sales_managers->pluck('userId')->toArray();
+
+                // Get all Assistant Sales Managers under those Sales Managers
+                $asst_managers = User::where('role_id', 38)
+                    ->whereIn('created_by', $sales_managers_ids)
+                    ->get();
+                $asst_managers_ids = $asst_managers->pluck('userId')->toArray();
+
+                // Get parent DMC's ID (the DMC who created this Sales Head)
+                $dmc_id = User::where('userId', $user->created_by)
+                             ->where('role_id', 11)
+                             ->value('userId');
+
+                if ($dmc_id) {
+                    // Get all agents under Sales Head, Sales Managers and Assistant Managers
+                    // Also include agents that have the DMC's ID in their dmc_id field
+                    $agents = Agent::where(function($query) use ($user, $sales_managers_ids, $asst_managers_ids) {
+                        $query->where('sales_manager_dmc', $user->userId)
+                            ->orWhereIn('sales_manager_dmc', $sales_managers_ids)
+                            ->orWhereIn('sales_manager_dmc', $asst_managers_ids);
+                    })->orWhere(function($query) use ($dmc_id) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$dmc_id]),
+                            json_encode([$dmc_id]),
+                            "%{$dmc_id}%"
+                        ]);
+                    })->get();
+                }
+                break;
+
+            case 37: // Sales Manager
+                // Get all Assistant Sales Managers under this Sales Manager
+                $asst_managers = User::where('role_id', 38)
+                    ->where('created_by', $user->userId)
+                    ->get();
+                $asst_managers_ids = $asst_managers->pluck('userId')->toArray();
+
+                // Get parent DMC's ID by traversing up the hierarchy
+                $parentUser = User::where('userId', $user->created_by)->first();
+                while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                    $parentUser = User::where('userId', $parentUser->created_by)->first();
+                }
+
+                if ($parentUser && $parentUser->role_id == 11) {
+                    $dmc_id = $parentUser->userId;
+                    // Get all agents under Sales Manager and their Assistant Managers
+                    // Also include agents that have the DMC's ID in their dmc_id field
+                    $agents = Agent::where(function($query) use ($user, $asst_managers_ids) {
+                        $query->where('sales_manager_dmc', $user->userId)
+                            ->orWhereIn('sales_manager_dmc', $asst_managers_ids);
+                    })->orWhere(function($query) use ($dmc_id) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$dmc_id]),
+                            json_encode([$dmc_id]),
+                            "%{$dmc_id}%"
+                        ]);
+                    })->get();
+                }
+                break;
+
+            case 38: // Assistant Sales Manager
+                // Get parent DMC's ID by traversing up the hierarchy
+                $parentUser = User::where('userId', $user->created_by)->first();
+                while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                    $parentUser = User::where('userId', $parentUser->created_by)->first();
+                }
+
+                if ($parentUser && $parentUser->role_id == 11) {
+                    $dmc_id = $parentUser->userId;
+                    // Get agents directly under this Assistant Sales Manager
+                    // Also include agents that have the DMC's ID in their dmc_id field
+                    $agents = Agent::where(function($query) use ($user) {
+                        $query->where('sales_manager_dmc', $user->userId);
+                    })->orWhere(function($query) use ($dmc_id) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$dmc_id]),
+                            json_encode([$dmc_id]),
+                            "%{$dmc_id}%"
+                        ]);
+                    })->get();
+                }
+                break;
+        }
+
+        // For debugging
+        \Log::info('Agents Query', [
+            'role_id' => $user->role_id,
+            'user_id' => $user->userId,
+            'agent_count' => $agents->count(),
+            'agents' => $agents->pluck('dmc_id', 'agent_id')
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => 'Successful',
+            'message' => 'DMC agents retrieved successfully',
             'agents' => $agents,
         ]);
     }
