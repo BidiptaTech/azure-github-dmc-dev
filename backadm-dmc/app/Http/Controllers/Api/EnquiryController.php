@@ -493,8 +493,14 @@ class EnquiryController extends Controller
         $tour_enquiries_list = collect();
 
         if ($agent_id) {
-            $enquiries = EnquiryForm::where('agent_id', $agent_id)->whereNull('unique_tour_id')->get();
-            $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)->whereNotNull('unique_tour_id')->get();
+            $enquiries = EnquiryForm::where('agent_id', $agent_id)
+                ->whereNull('unique_tour_id')
+                ->where('status', null)
+                ->get();
+            $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
+                ->whereNotNull('unique_tour_id')
+                ->where('status', null)
+                ->get();
             if (!$enquiries) {
                 return response()->json([
                     'success' => false,
@@ -505,7 +511,7 @@ class EnquiryController extends Controller
 
         elseif($user->userId){
             $currentUser = null;
-            if(in_array($user->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])){
+            if(in_array($user->role_id, [33, 37, 38,])){
                 $currentUser = User::where('userId', $user->userId)->first();
 
                 if (!$currentUser) {
@@ -518,60 +524,67 @@ class EnquiryController extends Controller
 
             if($currentUser){
                 $role_id = $currentUser->role_id;
-                $agents = collect();
 
-                if($currentUser->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
-                    $sales_managers = User::where('role_id', 37)->where('created_by', $user->userId)->get();
-                    $sales_managers_ids = $sales_managers->pluck('userId')->toArray();
-
-                    // Ensure we have an array for whereIn
-                    if (!empty($sales_managers_ids)) {
-                        $assisstant_manager = User::where('role_id', 38)
-                            ->whereIn('created_by', $sales_managers_ids)
+                if($currentUser->role_id == 33){
+                    // For Sales Head, get DMC ID and filter enquiries by dmc_id
+                    $dmc_id = $currentUser->created_by;
+                    
+                    if ($dmc_id) {
+                        $enquiries = EnquiryForm::where('dmc_id', $dmc_id)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
                             ->get();
                     } else {
-                        $assisstant_manager = collect();
+                        $enquiries = collect();
                     }
-
-                    $assisstant_manager_ids = $assisstant_manager->pluck('userId')->toArray();
-
-                    $agents = Agent::where(function($query) use ($user, $sales_managers_ids, $assisstant_manager_ids) {
-                        $query->where('sales_manager_dmc', $user->userId);
-
-                        if (!empty($sales_managers_ids)) {
-                            $query->orWhereIn('sales_manager_dmc', $sales_managers_ids);
-                        }
-
-                        if (!empty($assisstant_manager_ids)) {
-                            $query->orWhereIn('sales_manager_dmc', $assisstant_manager_ids);
-                        }
-                    })->get();
                 }
                 elseif($user->role_id == 37){
-                    $assisstant_manager = User::where('role_id', 38)
-                        ->where('created_by', $user->userId)
-                        ->get();
-                    $assisstant_manager_ids = $assisstant_manager->pluck('userId')->toArray();
-
-                    $agents = Agent::where(function($query) use ($user, $assisstant_manager_ids) {
-                        $query->where('sales_manager_dmc', $user->userId);
-
-                        if (!empty($assisstant_manager_ids)) {
-                            $query->orWhereIn('sales_manager_dmc', $assisstant_manager_ids);
-                        }
-                    })->get();
+                    // For Sales Manager, get parent DMC ID and filter enquiries by dmc_id
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                        $enquiries = EnquiryForm::where('dmc_id', $dmc_id)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
+                            ->get();
+                    } else {
+                        $enquiries = collect();
+                    }
+                }
+                elseif($user->role_id == 38){
+                    // For Assistant Sales Manager, get parent DMC ID and filter enquiries by dmc_id
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                        $enquiries = EnquiryForm::where('dmc_id', $dmc_id)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
+                            ->get();
+                    } else {
+                        $enquiries = collect();
+                    }
                 }
                 else{
+                    // For other roles, use agent-based filtering
                     $agents = Agent::where('sales_manager_dmc', $currentUser->userId)->get();
-                }
+                    $agentIds = $agents->pluck('agent_id')->toArray();
 
-                $agentIds = $agents->pluck('agent_id')->toArray();
-
-                // Check if we have any agent IDs before using whereIn
-                if (empty($agentIds)) {
-                    $enquiries = collect(); // Return empty collection if no agents found
-                } else {
-                    $enquiries = EnquiryForm::whereIn('agent_id', $agentIds)->whereNull('unique_tour_id')->get();
+                    if (empty($agentIds)) {
+                        $enquiries = collect();
+                    } else {
+                        $enquiries = EnquiryForm::whereIn('agent_id', $agentIds)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
+                            ->get();
+                    }
                 }
             }
             else{
@@ -581,11 +594,17 @@ class EnquiryController extends Controller
                         'message' => 'Unauthorized or Agent ID missing.',
                     ], 401);
                 }
-                $enquiries = EnquiryForm::where('agent_id', $user->agent_id)->whereNull('unique_tour_id')->get();
+                $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->get();
             }
         }
         elseif($user->agent_id){
-            $enquiries = EnquiryForm::where('agent_id', $user->agent_id)->whereNull('unique_tour_id')->get();
+            $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
+                ->whereNull('unique_tour_id')
+                ->where('status', null)
+                ->get();
         }
         $hotelIds = [];
         $restaurantIds = [];
