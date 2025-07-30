@@ -1122,6 +1122,10 @@ class CommonHelper
                     "dmc_logo" => $orderData->dmc_logo ?? null,
                     "hotel_name" => $orderData->hotel_name ?? null,
                     "message_type" => $orderData->message_type ?? null,
+                    "otp" => $orderData->otp ?? null,
+                    "name" => $orderData->name ?? null,
+                    "salutation" => $orderData->salutation ?? null,
+                    "email" => $orderData->email ?? null,
                 ];
             }
 

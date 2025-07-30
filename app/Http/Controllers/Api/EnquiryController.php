@@ -699,6 +699,7 @@ class EnquiryController extends Controller
                 'entry_dropoff_location' => $entry_dropoff_location,
 
                 'exit_port' => $enquiry->exit_port,
+                'multi_enq_id' => $enquiry->multi_enq_id,
                 'created_at' => $enquiry->created_at->format('Y-m-d H:i:s'),
                 'approx_price' => $enquiry->approx_price,
                 'exit_port_address' => $enquiry->exit_port_address,

@@ -28,6 +28,7 @@ use App\Http\Controllers\TransportController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\PackageController;
+use App\Http\Controllers\SingleTourPackageController;
 use App\Http\Controllers\HotelCategoryController;
 use App\Http\Controllers\OperationalCountryController;
 use App\Http\Controllers\TourController;
@@ -141,6 +142,13 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
         Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
         Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
+        Route::get('reports/balance-sheet', [FinanceReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+        
+        // AJAX routes for ledger functionality
+        Route::get('reports/transaction-details/{id}', [FinanceReportController::class, 'getTransactionDetails'])->name('reports.transaction-details');
+        Route::get('reports/balance-history/{agentId}', [FinanceReportController::class, 'getBalanceHistory'])->name('reports.balance-history');
+        Route::get('reports/export-transaction/{id}', [FinanceReportController::class, 'exportTransaction'])->name('reports.export-transaction');
+        Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
         
         Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry']);
         // City → Hotel
@@ -153,13 +161,25 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         // City → Transport
         Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity']);
         Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
-        Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
-        Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
-        Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
-        Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
-        Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
-        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
+Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
+Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
+// Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
+Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
+Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
+Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
+
+// Single Tour Package Routes
+Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
+Route::get('/single-tour-package/create', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
+Route::post('/single-tour-package', [SingleTourPackageController::class, 'store'])->name('single-tour-package.store');
+Route::get('/single-tour-package/{id}', [SingleTourPackageController::class, 'show'])->name('single-tour-package.show');
+Route::get('/single-tour-package/{id}/edit', [SingleTourPackageController::class, 'edit'])->name('single-tour-package.edit');
+Route::put('/single-tour-package/{id}', [SingleTourPackageController::class, 'update'])->name('single-tour-package.update');
+Route::delete('/single-tour-package/{id}', [SingleTourPackageController::class, 'destroy'])->name('single-tour-package.destroy');
+
+// API routes for single tour packages (follow agent controller pattern)
+Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
         Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');

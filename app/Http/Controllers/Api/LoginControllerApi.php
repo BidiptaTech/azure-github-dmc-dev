@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use App\Models\User;
 use App\Models\Agent;
 use App\Models\Country;
+use App\Models\OtpVerification;
 use Auth;
 use Str;
 use App\Models\Setting;
@@ -48,22 +49,22 @@ class LoginControllerApi extends Controller
     
     public function login(Request $request)
     {
-        // function getCurrencySymbolByCode($currencyCode) {
-        //     $formatter = new NumberFormatter('en', NumberFormatter::CURRENCY);
+        function getCurrencySymbolByCode($currencyCode) {
+            $formatter = new NumberFormatter('en', NumberFormatter::CURRENCY);
             
-        //     try {
-        //         $symbol = $formatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
-        //         // Format 0 amount just to get the symbol from the currency code
-        //         $formatted = $formatter->formatCurrency(0, $currencyCode);
+            try {
+                $symbol = $formatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+                // Format 0 amount just to get the symbol from the currency code
+                $formatted = $formatter->formatCurrency(0, $currencyCode);
                 
-        //         // Extract the symbol from the formatted string
-        //         $symbol = preg_replace('/[0-9,. ]/', '', $formatted);
+                // Extract the symbol from the formatted string
+                $symbol = preg_replace('/[0-9,. ]/', '', $formatted);
                 
-        //         return $symbol ?: $currencyCode; // Fallback to currency code if symbol not found
-        //     } catch (\Exception $e) {
-        //         return $currencyCode; // Return code if formatter fails
-        //     }
-        // }
+                return $symbol ?: $currencyCode; // Fallback to currency code if symbol not found
+            } catch (\Exception $e) {
+                return $currencyCode; // Return code if formatter fails
+            }
+        }
         $request->validate([
             'email' => 'required|email',
             'password' => 'required|string|min:6',
@@ -244,69 +245,71 @@ class LoginControllerApi extends Controller
         $token = $user->createToken('react-login')->plainTextToken;
         $tokenId = explode('|', $token)[0];
         $hashToken = PersonalAccessToken::where('id',$tokenId)->latest()->first();
-        // try {
-        //     $countryName = $request->header('user-country');
+        try {
+            $countryName = $request->header('user-country');
     
-        //     if (!$countryName) {
-        //         return response()->json(['message' => 'Country header is missing'], 400);
-        //     }
-        //     $iso3166 = new ISO3166();
+            if (!$countryName) {
+                return response()->json(['message' => 'Country header is missing'], 400);
+            }
+            $iso3166 = new ISO3166();
     
-        //     // Search country by name
-        //     $country = collect($iso3166->all())->firstWhere('name', $countryName);
+            // Search country by name
+            $country = collect($iso3166->all())->firstWhere('name', $countryName);
     
-        //     if (!$country) {
-        //         $currencyCode = 'Country not found';
-        //     }
+            if (!$country) {
+                $currencyCode = 'Country not found';
+            }
 
-        //     $currencyCode = $country['currency'][0]; // Some countries have multiple currencies
-        //     $symbol = getCurrencySymbolByCode($currencyCode);
+            $currencyCode = $country['currency'][0]; // Some countries have multiple currencies
+            $symbol = getCurrencySymbolByCode($currencyCode);
             
-        // } catch (\Exception $e) {
-        //     $symbol = $e->getMessage();
-        // }
+        } catch (\Exception $e) {
+            $symbol = $e->getMessage();
+        }
 
-        // $setting = Setting::where('name', 'currency')->where('status', 1)->first();
-        // $country_wise_rate = $this->currencyService->getExchangeRate('SGD', $currencyCode);
+        $setting = Setting::where('name', 'currency')->where('status', 1)->first();
+        $country_wise_rate = $this->currencyService->getExchangeRate('SGD', $currencyCode);
 
-        // $inr_rate = $this->currencyService->getExchangeRate('SGD', 'INR');
-        // $usd_rate = $this->currencyService->getExchangeRate('SGD', 'USD');
+        $inr_rate = $this->currencyService->getExchangeRate('SGD', 'INR');
+        $usd_rate = $this->currencyService->getExchangeRate('SGD', 'USD');
         
-        // if ($country_wise_rate) {
-        //     $exchangeRate = $country_wise_rate;
-        // } else {
-        //     $exchangeRate= "Exchange rate unavailable";
-        // }
-        // $country = $country;
-        // $userCountry = $user->country;
-        // $userCountryData = [];
+        if ($country_wise_rate) {
+            $exchangeRate = $country_wise_rate;
+        } else {
+            $exchangeRate= "Exchange rate unavailable";
+        }
+        $country = $country;
+        $userCountry = $user->country;
+        $userCountryData = [];
 
-        // if ($userCountry) {
-        //     // Split by comma and trim whitespace
-        //     $countries = array_map('trim', explode(',', $userCountry));
+        if ($userCountry) {
+            // Split by comma and trim whitespace
+            $countries = array_map('trim', explode(',', $userCountry));
             
-        //     foreach ($countries as $countryName) {
-        //         $countryCode = CountryHelper::getCountryCode($countryName);
-        //         if ($countryCode) {
-        //             $countryInfos = Country::where('name', $countryName)->first();
-        //             $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
-        //             $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
-        //             $userCountryData[] = [
-        //                 'name' => $countryName,
-        //                 'code' => $countryCode,
-        //                 'country_code' => $countryInfos->country_code,
-        //                 'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
-        //                 'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
-        //             ];
-        //         }
-        //     }
-        // }
+            foreach ($countries as $countryName) {
+                $countryCode = CountryHelper::getCountryCode($countryName);
+                if ($countryCode) {
+                    $countryInfos = Country::where('name', $countryName)->first();
+                    $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
+                    $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
+                    $userCountryData[] = [
+                        'name' => $countryName,
+                        'code' => $countryCode,
+                        'country_code' => $countryInfos->country_code,
+                        'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
+                        'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
+                    ];
+                }
+            }
+        }
 
-        // $countryInfo = Country::where('name', $country)->first();
-
-        // $agent_country_tax = $countryInfo->tax_percentage ?? 0;
-        // $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
-        // $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
+        $countryInfo = Country::where('name', $country)->first();
+        if($dmc_id){
+            $dmc_company_name = $dmc->company_name;
+        }
+        $agent_country_tax = $countryInfo->tax_percentage ?? 0;
+        $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
+        $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
@@ -322,22 +325,24 @@ class LoginControllerApi extends Controller
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
                 'token' => $token,
-                // 'current_exchange_rate' => $exchangeRate,
-                // 'current_currency_code' => $currencyCode,
-                // 'current_currency_symbol' => $symbol,
-                // 'inr_exchange_rate' => $inr_rate,
-                // 'inr_currency_code' => 'INR',
-                // 'inr_currency_symbol' => '₹',
-                // 'usd_exchange_rate' => $usd_rate,
-                // 'usd_currency_code' => 'USD',
-                // 'usd_currency_symbol' => '$',
-                // 'usd_tax' => $usd_tax,
-                // 'sgd_tax' => $sgd_tax,
-                // 'agent_country_tax' => $agent_country_tax,
-                // 'phone_no' => $user->phone,
-                // 'price_hide' => $dmc_users->price_hide ?? 0,
-                // 'user_role' => $userRole,
-                // 'zone_on' => $dmc_users->zone_on ?? 0,
+                'current_exchange_rate' => $exchangeRate,
+                'current_currency_code' => $currencyCode,
+                'current_currency_symbol' => $symbol,
+                'inr_exchange_rate' => $inr_rate,
+                'inr_currency_code' => 'INR',
+                'inr_currency_symbol' => '₹',
+                'usd_exchange_rate' => $usd_rate,
+                'usd_currency_code' => 'USD',
+                'usd_currency_symbol' => '$',
+                'usd_tax' => $usd_tax,
+                'sgd_tax' => $sgd_tax,
+                'agent_country_tax' => $agent_country_tax,
+                'phone_no' => $user->phone,
+                'price_hide' => $dmc_users->price_hide ?? 0,
+                'user_role' => $userRole,
+                'dmc_id' => $dmc_id ?? '',
+                'dmc_company_name' => $dmc_company_name ?? '',
+                'zone_on' => $dmc_users->zone_on ?? 0,
             ],
         ]);
     }
@@ -439,9 +444,150 @@ class LoginControllerApi extends Controller
         ]);
     }
 
-    public function registerAgent(Request $request)
+    public function sendOtpRegistration(Request $request)
+    {
+        // Validate incoming request
+        $validator = Validator::make($request->all(), [
+            'company_name' => 'required',
+            'salutation' => 'required',
+            'name' => 'required',
+            'email' => 'required|email|unique:agents',
+            'country' => 'required',
+            'user_country' => 'required',
+            'city' => 'required',
+            'agent_address' => 'required',
+            'code' => 'required',
+            'phone' => 'required',
+            'id_card' => 'required',
+            'card_number' => 'required',
+            'password' => 'required|min:8',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Generate OTP and store data in database
+        $otpVerification = OtpVerification::generateFor(
+            $request->email, 
+            $request->all(), 
+            10 // expire after 10 minutes
+        );
+        
+        // Prepare email data
+        $emailData = [
+            'salutation' => $request->salutation,
+            'name' => $request->name,
+            'email' => $request->email,
+            'otp' => $otpVerification->otp,
+            'message_type' => 'otp',
+            'mail_settings' => (object)[
+                'support_email' => 'support@example.com',
+                'support_phone' => '+123456789',
+                'facebook_url' => '#',
+                'twitter_url' => '#',
+                'instagram_url' => '#',
+                'linkedin_url' => '#'
+            ]
+        ];
+        
+        // Send OTP via email
+        try {
+            $sendEmail = CommonHelper::sendEmail(
+                $request->email, 
+                'otp_verification', 
+                'Your OTP for Registration', 
+                'Your OTP code is: ' . $otpVerification->otp, 
+                $emailData
+            );
+            
+            return response()->json([
+                'success' => true, 
+                'message' => 'OTP sent successfully to your email',
+                'email' => $request->email
+            ]);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send OTP email: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send OTP. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function verifyOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'otp' => 'required|numeric|digits:4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        $email = $request->email;
+        $submittedOtp = $request->otp;
+        
+        // Verify OTP using our model
+        $verification = OtpVerification::verify($email, $submittedOtp);
+        
+        if (!$verification) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid OTP or OTP expired. Please request a new OTP.'
+            ], 400);
+        }
+        
+        // Get registration data from verification record
+        $registrationData = $verification->registration_data;
+        
+        // Create a new request with the registration data and include a flag for OTP verification
+        $registrationRequest = new Request($registrationData);
+        $registrationRequest->setMethod('POST');
+        $registrationRequest->headers->set('Content-Type', 'application/json');
+        
+        // Add a flag to indicate this request is coming from OTP verification
+        $registrationRequest->merge(['from_otp_verification' => true]);
+        
+        // Forward to registerAgent method
+        return $this->registerAgent($registrationRequest);
+    }
+
+    public function registerAgent(Request $request)
+    {
+        // Check if request is coming from OTP verification
+        $fromOtpVerification = $request->has('from_otp_verification') && $request->from_otp_verification === true;
+        
+        // First check if email exists in agents table (including soft deleted records)
+        $existingAgent = Agent::withTrashed()
+            ->where('email', $request->email)
+            ->first();
+
+        if ($existingAgent) {
+            // Clean up any OTP verifications for this email
+            \DB::table('otp_verifications')->where('email', $request->email)->delete();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'This email is already registered with us. Please use a different email address.',
+                'is_deleted' => $existingAgent->trashed()
+            ], 422);
+        }
+        
+        // Define validation rules
+        $validationRules = [
             'company_name' => 'required',
             'salutation' => 'required',
             'name' => 'required',
@@ -452,12 +598,22 @@ class LoginControllerApi extends Controller
             'agent_address' => 'required',
             'code' => 'required', // Country code
             'phone' => 'required',
-            'id_card' => 'required',
-            'card_number' => 'required',
-            'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-            'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
             'password' => 'required|min:8',
-        ]);
+        ];
+        
+        // Only require file uploads if not coming from OTP verification
+        if (!$fromOtpVerification) {
+            $validationRules['id_card'] = 'required';
+            $validationRules['card_number'] = 'required';
+            $validationRules['agent_image'] = 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif';
+            $validationRules['image'] = 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif';
+        } else {
+            // For OTP verification, make file fields optional
+            $validationRules['id_card'] = 'nullable';
+            $validationRules['card_number'] = 'nullable';
+        }
+        
+        $validator = Validator::make($request->all(), $validationRules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -490,172 +646,97 @@ class LoginControllerApi extends Controller
                 ->where('role_id', 20)
                 ->first();
                 
-            if (!$virtualDmc) {
-                throw new \Exception('Virtual DMC not found');
-            }
+                if (!$virtualDmc) {
+                    throw new \Exception('Virtual DMC not found');
+                }
             
-            // Check if agent is soft deleted - with a lock to prevent race conditions
-            $deletedAgent = Agent::withTrashed()
-                ->where('email', $request->email)
+            // Generate unique agent ID with a safer approach
+            $lastAgent = Agent::withTrashed()
+                ->orderBy('agent_id', 'desc')
                 ->lockForUpdate()
                 ->first();
             
-            if ($deletedAgent && $deletedAgent->trashed()) {
-                // Restore and update
-                $deletedAgent->restore();
-                $deletedAgent->fill([
-                    'salutation' => $request->salutation,
-                    'name' => $request->name,
-                    'company_name' => $request->company_name,
-                    'phone' => $request->phone,
-                    'email' => $request->email,
-                    'user_country' => $request->user_country,
-                    'city' => $request->city,
-                    'agent_address' => $request->agent_address,
-                    'code' => $request->code,
-                    'country' => is_array($request->country) ? implode(',', $request->country) : $request->country,
-                    'id_cards' => $request->id_card,
-                    'id_number' => $request->card_number,
-                    'image' => $idProofImage ?? $deletedAgent->image,
-                    'agent_image' => $agentImage ?? $deletedAgent->agent_image,
-                    'password' => bcrypt($request->password),
-                    'sales_manager_dmc' => $virtualDmc->userId,
-                    'role_id' => 20,
-                ]);
-                
-                $deletedAgent->save();
-                
-                // Commit the transaction
-                \DB::commit();
-                
-                // Send email notification
-                try {
-                    $emailData = [
-                        'salutation' => $deletedAgent->salutation,
-                        'name' => $deletedAgent->name,
-                        'email' => $deletedAgent->email,
-                        'phone' => $deletedAgent->phone,
-                        'company_name' => $deletedAgent->company_name,
-                        'country' => $deletedAgent->user_country,
-                        'city' => $deletedAgent->city,
-                        'password' => $request->password,
-                        'dmc_logo' => $virtualDmc->logo ?? 'NA',
-                        'dmc_company' => $virtualDmc->company_name ?? config('app.name'),
-                        'dmc_email' => $virtualDmc->email ?? 'NA',
-                        'dmc_phone' => $virtualDmc->phone ?? 'NA',
-                        'message_type' => 'registered',
-                        'mail_settings' => (object)[
-                            'support_email' => $virtualDmc->email ?? 'NA',
-                            'support_phone' => $virtualDmc->phone ?? 'NA',
-                            'facebook_url' => '#',
-                            'twitter_url' => '#',
-                            'instagram_url' => '#',
-                            'linkedin_url' => '#'
-                        ]
-                    ];
-                    
-                    CommonHelper::sendEmail(
-                        $deletedAgent->email, 
-                        'agent_update', 
-                        'Your Agent Account Has Been Restored', 
-                        'Welcome back! Your agent account has been restored successfully.', 
-                        $emailData
-                    );
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Failed to send agent restoration email: ' . $e->getMessage());
-                    // Continue with the process even if email fails
-                }
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Agent restored and updated successfully',
-                    'data' => $deletedAgent
-                ], 200);
-            } else {
-                // Generate unique agent ID with a safer approach
-                $lastAgent = Agent::withTrashed()
-                    ->orderBy('agent_id', 'desc')
-                    ->lockForUpdate()
-                    ->first();
-                
-                $agent_max_id = $lastAgent->agent_id ?? 1;
+            $agent_max_id = $lastAgent->agent_id ?? 1;
+            $agentId = CommonHelper::createId($agent_max_id);
+            
+            // Double-check with a lock to ensure uniqueness
+            while (Agent::where('agent_id', $agentId)->exists()) {
+                $agent_max_id++;
                 $agentId = CommonHelper::createId($agent_max_id);
-                
-                // Double-check with a lock to ensure uniqueness
-                while (Agent::where('agent_id', $agentId)->exists()) {
-                    $agent_max_id++;
-                    $agentId = CommonHelper::createId($agent_max_id);
-                }
-                
-                $agent = new Agent();
-                $agent->agent_id = $agentId;
-                $agent->salutation = $request->salutation;
-                $agent->name = $request->name;
-                $agent->company_name = $request->company_name;
-                $agent->phone = $request->phone;
-                $agent->email = $request->email;
-                $agent->user_country = $request->user_country;
-                $agent->city = $request->city;
-                $agent->agent_address = $request->agent_address;
-                $agent->code = $request->code;
-                $agent->country = is_array($request->country) ? implode(',', $request->country) : $request->country;
-                $agent->id_cards = $request->id_card;
-                $agent->id_number = $request->card_number;
-                $agent->image = $idProofImage;
-                $agent->agent_image = $agentImage;
-                $agent->password = bcrypt($request->password);
-                $agent->sales_manager_dmc = $virtualDmc->userId;
-                $agent->role_id = 20;
-                
-                $agent->save();
-                
-                // Commit the transaction
-                \DB::commit();
-                
-                // Send email notification
-                try {
-                    $emailData = [
-                        'salutation' => $agent->salutation,
-                        'name' => $agent->name,
-                        'email' => $agent->email,
-                        'phone' => $agent->phone,
-                        'company_name' => $agent->company_name,
-                        'country' => $agent->user_country,
-                        'city' => $agent->city,
-                        'password' => $request->password,
-                        'dmc_logo' => $virtualDmc->logo ?? 'NA',
-                        'dmc_company' => $virtualDmc->company_name ?? config('app.name'),
-                        'dmc_email' => $virtualDmc->email ?? 'NA',
-                        'dmc_phone' => $virtualDmc->phone ?? 'NA',
-                        'message_type' => 'registered',
-                        'mail_settings' => (object)[
-                            'support_email' => $virtualDmc->email ?? 'NA',
-                            'support_phone' => $virtualDmc->phone ?? 'NA',
-                            'facebook_url' => '#',
-                            'twitter_url' => '#',
-                            'instagram_url' => '#',
-                            'linkedin_url' => '#'
-                        ]
-                    ];
-                    
-                    CommonHelper::sendEmail(
-                        $agent->email, 
-                        'agent_update', 
-                        'Your Agent Account Has Been Created', 
-                        'Welcome to our platform! Your agent account has been created successfully.', 
-                        $emailData
-                    );
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
-                    // Continue with the process even if email fails
-                }
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Agent registered successfully',
-                    'data' => $agent
-                ], 201);
             }
+            
+            $agent = new Agent();
+            $agent->agent_id = $agentId;
+            $agent->salutation = $request->salutation;
+            $agent->name = $request->name;
+            $agent->company_name = $request->company_name;
+            $agent->phone = $request->phone;
+            $agent->email = $request->email;
+            $agent->user_country = $request->user_country;
+            $agent->city = $request->city;
+            $agent->agent_address = $request->agent_address;
+            $agent->code = $request->code;
+            $agent->country = is_array($request->country) ? implode(',', $request->country) : $request->country;
+            $agent->id_cards = $request->id_card;
+            $agent->id_number = $request->card_number;
+            $agent->image = $idProofImage;
+            $agent->agent_image = $agentImage;
+            $agent->password = bcrypt($request->password);
+            $agent->sales_manager_dmc = $virtualDmc->userId;
+            $agent->role_id = 20;
+            
+            $agent->save();
+            
+            // Clean up any OTP verifications for this email
+            \DB::table('otp_verifications')->where('email', $request->email)->delete();
+            
+            // Commit the transaction
+            \DB::commit();
+            
+            // Send email notification
+            try {
+                $emailData = [
+                    'salutation' => $agent->salutation,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone,
+                    'company_name' => $agent->company_name,
+                    'country' => $agent->user_country,
+                    'city' => $agent->city,
+                    'password' => $request->password,
+                    'dmc_logo' => $virtualDmc->logo ?? 'NA',
+                    'dmc_company' => $virtualDmc->company_name ?? config('app.name'),
+                    'dmc_email' => $virtualDmc->email ?? 'NA',
+                    'dmc_phone' => $virtualDmc->phone ?? 'NA',
+                    'message_type' => 'registered',
+                    'mail_settings' => (object)[
+                        'support_email' => $virtualDmc->email ?? 'NA',
+                        'support_phone' => $virtualDmc->phone ?? 'NA',
+                        'facebook_url' => '#',
+                        'twitter_url' => '#',
+                        'instagram_url' => '#',
+                        'linkedin_url' => '#'
+                    ]
+                ];
+                
+                CommonHelper::sendEmail(
+                    $agent->email, 
+                    'agent_update', 
+                    'Your Agent Account Has Been Created', 
+                    'Welcome to our platform! Your agent account has been created successfully.', 
+                    $emailData
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send agent creation email: ' . $e->getMessage());
+                // Continue with the process even if email fails
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Agent registered successfully',
+                'data' => $agent
+            ], 201);
+            
         } catch (\Exception $e) {
             // Rollback the transaction in case of error
             \DB::rollBack();
