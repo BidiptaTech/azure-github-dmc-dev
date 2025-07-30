@@ -131,7 +131,7 @@ const dmcSlice = createSlice({
       state.selectedDmcIds = action.payload.dmcIds || [];
       state.selectedDmcsData = action.payload.dmcsData || [];
       
-      console.log('🏪 Redux: Updated state - selectedDmcIds:', state.selectedDmcIds);
+      // console.log('🏪 Redux: Updated state - selectedDmcIds:', state.selectedDmcIds);
     },
 
     // Add DMC to multiple selection (for Book an Enquiry)
