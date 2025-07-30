@@ -306,7 +306,7 @@ class HomeController extends Controller
             $packages =  $this->formatPackagedAttractionResponse($packaged_attractions);
         }
 
-        $attraction = Attraction::where('attraction_id', $attractionId)->first();
+        $attraction = Attraction::where('attraction_id', intval($attractionId))->first();
         $country = $attraction->country;
         $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
         $country_tax = $check_country->tax_percentage ?? 0;
@@ -323,8 +323,13 @@ class HomeController extends Controller
         list($dmc_senior_price) = CommonHelper::CalculatePriceDetails($attraction->senior_adult_price, $get_dmc_id);
         list($dmc_shared_price) = CommonHelper::CalculatePriceDetails($attraction->price_shared, $get_dmc_id); 
         // Decode open_time and close_time from JSON
-        $open_times = json_decode($attraction->open_time, true) ?? [];
-        $close_times = json_decode($attraction->close_time, true) ?? [];
+        $open_times = json_decode($attraction->open_time, true);
+        $close_times = json_decode($attraction->close_time, true);
+
+        // Ensure we have arrays before proceeding
+        $open_times = is_array($open_times) ? $open_times : [$open_times];
+        $close_times = is_array($close_times) ? $close_times : [$close_times];
+
         // Merge open and close times into "open-close" format
         $time_slots = [];
         $count = min(count($open_times), count($close_times)); // Ensure we don't exceed array limits
