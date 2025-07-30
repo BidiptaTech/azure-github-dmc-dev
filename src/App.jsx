@@ -71,6 +71,8 @@ import CarSingleV1Dynamic from "./pages/car/car-single";
 import Contact from "./pages/others/contact";
 // import Destinations from "./pages/others/destinations";
 import Login from "./pages/login/Login";
+import Register from "./pages/Register";
+import OTPVerification from "./pages/Register/verify";
 import loginUser from "./slice/common/authSlices";
 
 import ProtectedRoute from "./ProtectedRoutes/ProtectedRoute";
@@ -150,6 +152,8 @@ function App() {
           {/* <Route path="/"> */}
           {/* <Route path="/" element={<Navigate to="/" replace />} /> */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify-otp" element={<OTPVerification />} />
           {/* <Route index element={<Home />} /> */}
 
           {/* <Route path="home_2" element={<Home_2 />} />

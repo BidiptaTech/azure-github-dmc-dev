@@ -187,10 +187,8 @@ export const fetchVehicleDetails = createAsyncThunk(
               type,
             }),
             ...(selectionType === "Exit Port" && {
-              pickup: JSON.stringify(PickupPlaceid1),
-              ...(DropoffPlaceid1 && {
-                dropoff: JSON.stringify(DropoffPlaceid1),
-              }),
+              from_zone_id: PickupPlaceid1,
+              to_zone_id: DropoffPlaceid1,
               vehicle_id: selectedVehicle1?.id, // ✅ Correct way to access id
               mode: selectedVehicle1?.mode, // ✅ Correct way to access mode
               dmc_id: selectedVehicle1?.dmcId, // ✅ Correct way to access dmcId
@@ -376,6 +374,8 @@ export const fetchZoneVehicles = createAsyncThunk(
       const {
         PickupPlaceid,
         DropoffPlaceid,
+        PickupPlaceid1,
+        DropoffPlaceid1,
         entrypickup,
         exitpickup,
         entrydropoff,
@@ -385,11 +385,39 @@ export const fetchZoneVehicles = createAsyncThunk(
         exittime,
         picktype,
         droptype,
-        selectedType,
+        selectionType,
       } = state.pickupDrop;
 
-      if (!PickupPlaceid) {
-        throw new Error("Pickup location is required");
+      // Debug logging
+      console.log("fetchZoneVehicles - Current state:", {
+        selectionType,
+        PickupPlaceid,
+        PickupPlaceid1,
+        entrypickup,
+        exitpickup,
+        entrydropoff,
+        exitdropoff,
+        pickupdate,
+        entrytime,
+        exittime,
+        picktype,
+        droptype
+      });
+
+      // Check for pickup location based on selection type
+      if (selectionType === "Entry Port") {
+        if (!PickupPlaceid) {
+          throw new Error("Pickup location is required");
+        }
+      } else if (selectionType === "Exit Port") {
+        if (!PickupPlaceid1) {
+          throw new Error("Pickup location is required");
+        }
+      } else {
+        // Fallback check for both if selectionType is not properly set
+        if (!PickupPlaceid && !PickupPlaceid1) {
+          throw new Error("Pickup location is required");
+        }
       }
 
       if (!droptype) {
@@ -404,7 +432,7 @@ export const fetchZoneVehicles = createAsyncThunk(
 
       // ✅ Build query parameters dynamically
       const params =
-        selectedType === "entry"
+        selectionType === "Entry Port"
           ? {
               pickupid: PickupPlaceid,
               dropoffid: DropoffPlaceid,
@@ -416,8 +444,8 @@ export const fetchZoneVehicles = createAsyncThunk(
               drop_type: droptype, // Set default to 'hotel' if droptype is missing
             }
           : {
-              pickupid: PickupPlaceid,
-              dropoffid: DropoffPlaceid,
+              pickupid: PickupPlaceid1,
+              dropoffid: DropoffPlaceid1,
               PickUpLocation: exitpickup,
               DropOffLocation: exitdropoff,
               time: exittime,

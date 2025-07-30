@@ -241,12 +241,16 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
           label="Price Mode"
           onChange={(e) => setpricemode(e.target.value)}
         >
-          {hasPrivatePrice && (
-            <MenuItem key="private" value="Private">Private</MenuItem>
-          )}
-          {hasSharablePrice && (
-            <MenuItem key="sharable" value="Sharable">Sharable</MenuItem>
-          )}
+           {[
+            hasPrivatePrice ? (
+              <MenuItem key="private" value="Private">Private</MenuItem>
+            ) : null
+          ].filter(Boolean)}
+          {[
+            hasSharablePrice ? (
+              <MenuItem key="sharable" value="Sharable">Sharable</MenuItem>
+            ) : null
+          ].filter(Boolean)}
         </Select>
       </FormControl>
     </Grid>
@@ -342,15 +346,15 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           },
           vehicleData: {
             // Map the price mode to expected structure
-            private_price: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
-            shared_price: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0,
+            private_price: normalizedExitData.type === 'private' || normalizedExitData.type === "Private" ? normalizedExitData.totalPrice : 0,
+            shared_price: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? normalizedExitData.totalPrice : 0,
             prices: {
-              privatePrice: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
-              sharablePrice: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0
+              privatePrice: normalizedExitData.type === 'private' || normalizedExitData.type === "Private" ? normalizedExitData.totalPrice : 0,
+              sharablePrice: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? normalizedExitData.totalPrice : 0
             },
             $distanceInKM: normalizedExitData.distance || null
           },
-          priceMode: normalizedExitData.type === 'shared' ? 'Sharable' : 'Private',
+          priceMode: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? 'Sharable' : 'Private',
           isComplete: true, // Mark as complete since it's loaded data
           adults: normalizedExitData.adults || 1,
           children: normalizedExitData.children || 0,
@@ -418,58 +422,58 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   const lastDispatchRef = useRef(null);
   
   // Function to dispatch ALL exit ports from exitPorts to Redux state - simplified
-  const dispatchAllExitPortsToRedux = useCallback(() => {
-    if (!validExitPorts || !Array.isArray(validExitPorts) || validExitPorts.length === 0) {
-      console.log('No exitPorts data to dispatch to Redux');
-      return;
-    }
+  // const dispatchAllExitPortsToRedux = useCallback(() => {
+  //   if (!validExitPorts || !Array.isArray(validExitPorts) || validExitPorts.length === 0) {
+  //     console.log('No exitPorts data to dispatch to Redux');
+  //     return;
+  //   }
 
-    // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(validExitPorts.map(service => service.data?.[0]?.id));
+  //   // Create a unique key for this dispatch to prevent duplicates
+  //   const dispatchKey = JSON.stringify(validExitPorts.map(service => service.data?.[0]?.id));
     
-    if (lastDispatchRef.current === dispatchKey) {
-      console.log('Skipping duplicate dispatch for all exit ports');
-      return;
-    }
+  //   if (lastDispatchRef.current === dispatchKey) {
+  //     console.log('Skipping duplicate dispatch for all exit ports');
+  //     return;
+  //   }
 
-    console.log('Dispatching ALL exit ports to Redux:', validExitPorts);
+  //   console.log('Dispatching ALL exit ports to Redux:', validExitPorts);
     
-    // Get current services from Redux store
-    const currentServices = [...(existingServices || [])];
+  //   // Get current services from Redux store
+  //   const currentServices = [...(existingServices || [])];
     
-    // Filter out existing exit_port services to avoid duplicates
-    const filteredServices = currentServices.filter(service => service.type !== "exit_port");
+  //   // Filter out existing exit_port services to avoid duplicates
+  //   const filteredServices = currentServices.filter(service => service.type !== "exit_port");
     
-    // Create new exit port service entries preserving booking_id
-    const exitPortServicesWithBookingId = validExitPorts.map(exitPortService => {
-      const serviceObject = { ...exitPortService };
-      if (exitPortService.booking_id) {
-        serviceObject.booking_id = exitPortService.booking_id;
-        console.log(`Exit Vehicle - Preserving booking_id: ${exitPortService.booking_id} for service:`, serviceObject);
-      } else {
-        console.log('Exit Vehicle - No booking_id found in exitPortService:', exitPortService);
-      }
-      return serviceObject;
-    });
+  //   // Create new exit port service entries preserving booking_id
+  //   const exitPortServicesWithBookingId = validExitPorts.map(exitPortService => {
+  //     const serviceObject = { ...exitPortService };
+  //     if (exitPortService.booking_id) {
+  //       serviceObject.booking_id = exitPortService.booking_id;
+  //       console.log(`Exit Vehicle - Preserving booking_id: ${exitPortService.booking_id} for service:`, serviceObject);
+  //     } else {
+  //       console.log('Exit Vehicle - No booking_id found in exitPortService:', exitPortService);
+  //     }
+  //     return serviceObject;
+  //   });
     
-    // Add all exit ports to the filtered services array
-    const finalServices = [...filteredServices, ...exitPortServicesWithBookingId];
+  //   // Add all exit ports to the filtered services array
+  //   const finalServices = [...filteredServices, ...exitPortServicesWithBookingId];
     
-    console.log('Exit Vehicle - Dispatching ALL exit ports to Redux:', finalServices);
-    dispatch(setAllServices(finalServices));
+  //   console.log('Exit Vehicle - Dispatching ALL exit ports to Redux:', finalServices);
+  //   dispatch(setAllServices(finalServices));
     
-    // Update the last dispatch ref
-    lastDispatchRef.current = dispatchKey;
-    hasDispatchedAllExitPortsRef.current = true;
-  }, [validExitPorts, dispatch]); // Removed existingServices dependency
+  //   // Update the last dispatch ref
+  //   lastDispatchRef.current = dispatchKey;
+  //   hasDispatchedAllExitPortsRef.current = true;
+  // }, [validExitPorts, dispatch]); // Removed existingServices dependency
   
-  // Dispatch ALL exit ports to Redux when validExitPorts is available (only once)
-  useEffect(() => {
-    if (!hasDispatchedAllExitPortsRef.current && validExitPorts && Array.isArray(validExitPorts) && validExitPorts.length > 0) {
-      console.log('Dispatching ALL exit ports from exitPorts to Redux on mount');
-      dispatchAllExitPortsToRedux();
-    }
-  }, [validExitPorts, dispatchAllExitPortsToRedux]);
+  // // Dispatch ALL exit ports to Redux when validExitPorts is available (only once)
+  // useEffect(() => {
+  //   if (!hasDispatchedAllExitPortsRef.current && validExitPorts && Array.isArray(validExitPorts) && validExitPorts.length > 0) {
+  //     console.log('Dispatching ALL exit ports from exitPorts to Redux on mount');
+  //     dispatchAllExitPortsToRedux();
+  //   }
+  // }, [validExitPorts, dispatchAllExitPortsToRedux]);
   
   // State to trigger re-renders when bookings change
   const [bookingsVersion, setBookingsVersion] = useState(0);
@@ -581,8 +585,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           Mode: booking.mode || 'dmc',
           type: booking.priceMode === "Sharable" ? "Shared" : "Private",
           ...locationData, // Use the correct location and timing data
-          PickupPlaceid: booking.PickupPlaceid || null,
-          DropoffPlaceid: booking.DropoffPlaceid || null,
+          PickupPlaceid: booking.PickupPlaceid1 || null,
+          DropoffPlaceid: booking.DropoffPlaceid1 || null,
           adults: bookingAdultCount,
           children: bookingChildCount,
           totalPrice: Math.ceil(price),
@@ -720,15 +724,15 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           },
           vehicleData: {
             // Map the price mode to expected structure
-            private_price: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
-            shared_price: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0,
+            private_price: normalizedExitData.type === 'private' || normalizedExitData.type === "Private" ? normalizedExitData.totalPrice : 0,
+            shared_price: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? normalizedExitData.totalPrice : 0,
             prices: {
-              privatePrice: normalizedExitData.type === 'private' ? normalizedExitData.totalPrice : 0,
-              sharablePrice: normalizedExitData.type === 'shared' ? normalizedExitData.totalPrice : 0
+              privatePrice: normalizedExitData.type === 'private' || normalizedExitData.type === "Private" ? normalizedExitData.totalPrice : 0,
+              sharablePrice: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? normalizedExitData.totalPrice : 0
             },
             $distanceInKM: normalizedExitData.distance || null
           },
-          priceMode: normalizedExitData.type === 'shared' ? 'Sharable' : 'Private',
+          priceMode: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? 'Sharable' : 'Private',
           isComplete: true, // Mark as complete since it's loaded data
           adults: normalizedExitData.adults || 1,
           children: normalizedExitData.children || 0,
@@ -943,8 +947,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       type: booking.priceMode === "Sharable" ? "Shared" : "Private",
       image: vehicle.image || '',
       ...locationData, // Use the correct location and timing data
-      PickupPlaceid: booking.PickupPlaceid || null,
-      DropoffPlaceid: booking.DropoffPlaceid || null,
+      PickupPlaceid: booking.PickupPlaceid1 || null,
+      DropoffPlaceid: booking.DropoffPlaceid1 || null,
       adults: bookingAdultCount,
       children: bookingChildCount,
       totalPrice: Math.ceil(price),
@@ -1564,14 +1568,18 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
                               label="Price Mode"
                               onChange={(e) => handlePriceModeSelect(e.target.value, index)}
                             >
-                              {((booking.vehicleData.prices && booking.vehicleData.prices.privatePrice > 0) || 
-                                (booking.vehicleData.private_price && parseFloat(booking.vehicleData.private_price) > 0)) && (
+                              {[
+                                (booking.vehicleData.prices && booking.vehicleData.prices.privatePrice > 0) || 
+                                (booking.vehicleData.private_price && parseFloat(booking.vehicleData.private_price) > 0) ? (
                                 <MenuItem key="private" value="Private">Private</MenuItem>
-                              )}
-                              {((booking.vehicleData.prices && booking.vehicleData.prices.sharablePrice > 0) || 
-                                (booking.vehicleData.shared_price && parseFloat(booking.vehicleData.shared_price) > 0)) && (
+                              ) : null
+                              ].filter(Boolean)}
+                              {[
+                                (booking.vehicleData.prices && booking.vehicleData.prices.sharablePrice > 0) || 
+                                (booking.vehicleData.shared_price && parseFloat(booking.vehicleData.shared_price) > 0) ? (
                                 <MenuItem key="sharable" value="Sharable">Sharable</MenuItem>
-                              )}
+                              ) : null
+                              ].filter(Boolean)}
                             </Select>
                           </FormControl>
                         </Grid>

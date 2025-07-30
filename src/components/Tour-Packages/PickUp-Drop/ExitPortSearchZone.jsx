@@ -38,6 +38,8 @@ import {
   setDroptype,
   fetchZoneVehicles,
   setPortZoneType,
+  setPickupPlaceid1,
+  setDropoffPlaceid1,
 } from "@/slice/port/pickupDropSlice";
 import PortCity from "./PortCity";
 import SearchBar from "./PortLocation2";
@@ -226,8 +228,8 @@ const ExitPortSearchZone = ({ Location, portType}) => {
     dispatch(setexittime(entryytime1));
     dispatch(setpickupdate(selectedDate1));
     dispatch(setSelectionType("Exit Port"));
-    dispatch(setPickupPlaceid(pickid));
-    dispatch(setDropoffPlaceid(dropid));
+    dispatch(setPickupPlaceid1(pickid));
+    dispatch(setDropoffPlaceid1(dropid));
     dispatch(setPicktype(pickdropType));
     dispatch(setDroptype("port"));
 
