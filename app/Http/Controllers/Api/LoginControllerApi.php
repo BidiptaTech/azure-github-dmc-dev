@@ -92,6 +92,12 @@ class LoginControllerApi extends Controller
         if(!$user){
             return response()->json(['error' => 'This email is  not registered.'], 401);
         }
+
+        if($user->role_id == 20){
+            if($user->status == 2){
+                return response()->json(['error' => 'Your account is not verified.'], 401);
+            }
+        }
         if (!$user || !Hash::check($password, $user->password)) {
             return response()->json(['error' => 'Invalid credentials.'], 401);
         }
@@ -742,6 +748,7 @@ class LoginControllerApi extends Controller
                 $agent->password = bcrypt($request->password);
                 $agent->sales_manager_dmc = $virtualDmc->userId;
                 $agent->role_id = 20;
+                $agent->status = 2;
                 
                 $agent->save();
                 

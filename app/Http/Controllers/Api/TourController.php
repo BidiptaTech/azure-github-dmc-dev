@@ -1333,7 +1333,7 @@ class TourController extends Controller
                 }
 
                 if($selection == "withoutTransport"){
-                    if($mode == "dmc"){
+                    
                         $dmc_adult_price = $adultPrice;
                         $dmc_child_price = $childPrice;
                         $dmc_senior_price = $seniorPrice;
@@ -1341,30 +1341,30 @@ class TourController extends Controller
                         $price = ($dmc_adult_price*$adultCount)+($dmc_child_price*$childCount)+($dmc_senior_price*$seniorCount);
 
                         $priceWithoutCommission = ($adultPrice*$adultCount) + ($childPrice*$childCount) + ($seniorPrice*$seniorCount);
-                    }
-                    elseif($mode == "travclicks"){
-                        $dmc = User::where('userId', $dmcId)->first();
-                        if(!$dmc){
-                            return response()->json(['message' => 'DMC not found!'], 409);
-                        }
-                        $markup = $dmc->markup_price;
-                        $markup_type = $dmc->markup_type;
+                    
+                    // elseif($mode == "travclicks"){
+                    //     $dmc = User::where('userId', $dmcId)->first();
+                    //     if(!$dmc){
+                    //         return response()->json(['message' => 'DMC not found!'], 409);
+                    //     }
+                    //     $markup = $dmc->markup_price;
+                    //     $markup_type = $dmc->markup_type;
                         
-                        //child price
-                        if($markup_type == 1){
-                            $markupAdultPrice = $adultPrice; //+ ($adultPrice*($markup/100));
-                            $markupChildPrice = $childPrice; //+ ($childPrice*($markup/100));
-                            $markupSeniorPrice = $seniorPrice; //+ ($seniorPrice*($markup/100));
-                        }
-                        elseif($markup_type == 0){
-                            $markupAdultPrice = $adultPrice;
-                            $markupChildPrice = $childPrice;
-                            $markupSeniorPrice = $seniorPrice;
-                        }
-                        $price = ($adultCount*$markupAdultPrice) + ($childCount*$markupChildPrice) + ($seniorCount*$markupSeniorPrice);
+                    //     //child price
+                    //     if($markup_type == 1){
+                    //         $markupAdultPrice = $adultPrice; //+ ($adultPrice*($markup/100));
+                    //         $markupChildPrice = $childPrice; //+ ($childPrice*($markup/100));
+                    //         $markupSeniorPrice = $seniorPrice; //+ ($seniorPrice*($markup/100));
+                    //     }
+                    //     elseif($markup_type == 0){
+                    //         $markupAdultPrice = $adultPrice;
+                    //         $markupChildPrice = $childPrice;
+                    //         $markupSeniorPrice = $seniorPrice;
+                    //     }
+                    //     $price = ($adultCount*$markupAdultPrice) + ($childCount*$markupChildPrice) + ($seniorCount*$markupSeniorPrice);
                         
-                        $priceWithoutCommission = ($adultPrice*$adultCount) + ($childPrice*$childCount) + ($seniorPrice*$seniorCount);
-                    }
+                    //     $priceWithoutCommission = ($adultPrice*$adultCount) + ($childPrice*$childCount) + ($seniorPrice*$seniorCount);
+                    // }
                 }
                 // else if($selection == "withShare"){
                 //     if($mode == "dmc"){
