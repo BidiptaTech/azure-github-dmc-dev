@@ -55,6 +55,7 @@ import EnquiryList from "./components/EnquiryList";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
 import { logoutUser, updateProfileData } from "@/slice/common/authSlices";
 import { updateProfile, resetProfileState } from "@/slice/common/profileSlice";
+import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import { BASE_URL } from "@/services/api";
 import PreDefinePackages from "./PreDefine-Packages";
 import { 
@@ -395,6 +396,7 @@ const DashboardLayout = () => {
   
   const handleLogout = () => {
     dispatch(logoutUser());
+    dispatch(clearSelectedDmc()); // Clear DMC selection on logout
     handleProfileClose();
   };
   

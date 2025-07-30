@@ -6,6 +6,7 @@ import Cookies from 'js-cookie';
 import { BASE_URL } from '../../services/api';
 // Import store as named export
 import { store } from '../../store/store';
+import { selectDmcId } from '../dmc/dmcSlice';
 
 // Create an axios instance with default configuration
 const api = axios.create({
@@ -107,9 +108,22 @@ const packageAPI = {
 // Async thunk for fetching packages
 export const fetchPackages = createAsyncThunk(
   'prePackages/fetchPackages',
-  async (searchParams, { rejectWithValue }) => {
+  async (searchParams, { rejectWithValue, getState }) => {
     try {
-      const response = await packageAPI.fetchPackages(searchParams);
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 PrePackagesSlice - Fetching packages with DMC ID:', selectedDmcId);
+
+      // Add DMC ID to search parameters if available
+      const updatedSearchParams = {
+        ...searchParams,
+        ...(selectedDmcId && { dmc_id: selectedDmcId })
+      };
+
+      console.log('🎯 PrePackagesSlice - Updated search params:', updatedSearchParams);
+
+      const response = await packageAPI.fetchPackages(updatedSearchParams);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -128,12 +142,23 @@ export const fetchPackageDetails = createAsyncThunk(
       const state = getState();
       const searchParams = state.prePackages.searchParams;
       
-      // Fetch the package details
-      const response = await packageAPI.fetchPackageDetails({ 
+      // Get selected DMC ID from Redux state
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 PrePackagesSlice - Fetching package details with DMC ID:', selectedDmcId);
+      
+      // Prepare parameters for package details API
+      const params = { 
         package_id: packageId,
         // Include arrival_date if available from searchParams
-        ...(searchParams?.arrival_date && { arrival_date: searchParams.arrival_date })
-      });
+        ...(searchParams?.arrival_date && { arrival_date: searchParams.arrival_date }),
+        // Add DMC ID if available
+        ...(selectedDmcId && { dmc_id: selectedDmcId })
+      };
+      
+      console.log('🎯 PrePackagesSlice - Package details params:', params);
+      
+      // Fetch the package details
+      const response = await packageAPI.fetchPackageDetails(params);
       
       // Merge the arrival_date from searchParams into the response data if available
       const packageDetails = response.data;
@@ -156,9 +181,22 @@ export const fetchPackageDetails = createAsyncThunk(
 // Async thunk for booking a package
 export const bookPackage = createAsyncThunk(
   'prePackages/bookPackage',
-  async (bookingData, { rejectWithValue }) => {
+  async (bookingData, { rejectWithValue, getState }) => {
     try {
-      const response = await packageAPI.packageBooking(bookingData);
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 PrePackagesSlice - Booking package with DMC ID:', selectedDmcId);
+
+      // Add DMC ID to booking data if available
+      const updatedBookingData = {
+        ...bookingData,
+        ...(selectedDmcId && { dmc_id: selectedDmcId })
+      };
+
+      console.log('🎯 PrePackagesSlice - Updated booking data:', updatedBookingData);
+
+      const response = await packageAPI.packageBooking(updatedBookingData);
       return response.data;
     } catch (error) {
       return rejectWithValue(
