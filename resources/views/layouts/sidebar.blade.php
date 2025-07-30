@@ -576,7 +576,7 @@
                                 <div data-i18n="Create Package">Create Predefined Package</div>
                             </a>
                         </li>
-                        @if(in_array(auth()->user()->role_id, [11, 33]))
+                        @if(in_array(auth()->user()->role_id, [33]))
                         <!-- Single Tour Package for DMCs -->
                         <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
                             <a href="{{ route('single-tour-package.create') }}" class="menu-link">
