@@ -308,7 +308,8 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
         .then((data) => {
           console.log("Enquiry response:", data);
           // EnquirySlice response should have enquiry_id instead of tour_id
-          const id = data?.enquiry_id || data?.data?.enquiry_id || data?.tour_id || data?.data?.tour_id;
+          const id = data?.multi_enq_id 
+          
           const country = data?.country || data?.data?.country;
           const city = data?.city || data?.data?.city;
 

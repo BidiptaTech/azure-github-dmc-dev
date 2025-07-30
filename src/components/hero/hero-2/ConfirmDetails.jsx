@@ -158,21 +158,26 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   const serviceDetails = useSelector((state) => state.enquiry.serviceDetails || {});
   const selectedServices = useSelector((state) => state.enquiry.selectedServices || Object.keys(bookingOptions || {}).filter(key => bookingOptions[key]));
   
-  // Update how we get the ID - prioritizing enquiryId over tourId
+  // Update how we get the ID - prioritizing multiEnqId for multi-DMC enquiries, then enquiryId over tourId
   const enquiryId = useSelector((state) => {
     // Try several places in state where the enquiry ID might be stored
-    return state.enquiry.enquiryId || 
+    // Prefer multi_enq_id for multi-DMC enquiries
+    return state.enquiry.multiEnqId ||
+           state.enquiry.enquiryId || 
            state.enquiry.id || 
-           (state.enquiry.bookings && state.enquiry.bookings.length > 0 ? state.enquiry.bookings[0].enquiryId : null) ||
+           (state.enquiry.bookings && state.enquiry.bookings.length > 0 ? 
+             (state.enquiry.bookings[0].multiEnqId || state.enquiry.bookings[0].enquiryId) : null) ||
            state.enquiry.tourId;
   });
   
+  const isMultiEnquiry = useSelector((state) => !!state.enquiry.multiEnqId);
   const enquiryStatus = useSelector((state) => state.enquiry.status);
   
   // Log all state values on component mount
   useEffect(() => {
     console.log("Component mounted with state:", {
       enquiryId,
+      isMultiEnquiry,
       selectedServices,
       serviceDetails,
       enquiryStatus
@@ -1149,6 +1154,12 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     
     // Use the local enquiryId if available, otherwise use the one from Redux
     const submissionId = localEnquiryId || enquiryId;
+    
+    console.log("Submitting enquiry:", {
+      submissionId,
+      isMultiEnquiry,
+      selectedServices
+    });
     
     if (!submissionId) {
       console.error("No enquiryId found - cannot submit form");

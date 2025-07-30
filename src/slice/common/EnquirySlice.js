@@ -16,6 +16,9 @@ export const fetchBookingid = createAsyncThunk(
   async (optionalParams, { getState, rejectWithValue, dispatch }) => {
     const state = getState();
     const enquiryState = state.enquiry;
+    // Get selected DMC IDs from dmcSlice
+    const dmcState = state.dmc;
+    const selectedDmcIds = dmcState?.selectedDmcIds || [];
 
     try {
       const authToken = Cookies.get("authToken");
@@ -31,18 +34,7 @@ export const fetchBookingid = createAsyncThunk(
       // Log the searchLocation object to debug
       // console.log("SearchLocation data before request:", searchLocation);
       // console.log("Guests data before request:", guests);
-      // console.log("Guest data type checks:", {
-      //   adults: typeof guests.adults, 
-      //   adultsValue: guests.adults,
-      //   children: typeof guests.children,
-      //   childrenValue: guests.children,
-      //   infant: typeof guests.infant,
-      //   infantValue: guests.infant,
-      //   maleCount: typeof maleCount,
-      //   maleCountValue: maleCount,
-      //   femaleCount: typeof femaleCount,
-      //   femaleCountValue: femaleCount
-      // });
+      // console.log("Selected DMC IDs before request:", selectedDmcIds);
 
       // Prepare request body with explicit country and city
       const requestBody = {
@@ -56,10 +48,12 @@ export const fetchBookingid = createAsyncThunk(
         male: parseInt(maleCount) || 0,
         female: parseInt(femaleCount) || 0,
         children_ages: guests.childrenAges?.length > 0 ? guests.childrenAges.join(", ") : "",
+        // Add selected DMC IDs to the request
+        dmc_ids: selectedDmcIds.length > 0 ? selectedDmcIds : [],
       };
 
       // Log the final request body for debugging
-      // console.log("Final API request payload:", requestBody);
+      console.log("Final API request payload with DMC IDs:", requestBody);
       // console.log("SearchLocation type:", typeof searchLocation);
       // console.log("SearchLocation keys:", searchLocation ? Object.keys(searchLocation) : 'null');
 
@@ -175,7 +169,20 @@ export const submitEnquiryForm = createAsyncThunk(
     const { hotels = [], attractions = [], restaurants = [], guides = [], vehicles = [] } = enquiryListState;
     
     // If no ID is provided, try to get it from the state
-    const idToUse = enquiryId || enquiryState.enquiryId || enquiryState.id || enquiryState.tourId;
+    // Prefer multi_enq_id for multi-DMC enquiries, fallback to individual enquiry_id
+    const multiEnqId = enquiryState.multiEnqId;
+    const individualEnqId = enquiryId || enquiryState.enquiryId || enquiryState.id || enquiryState.tourId;
+    
+    const idToUse = multiEnqId || individualEnqId;
+    const isMultiEnquiry = !!multiEnqId;
+    
+    console.log("ID selection logic:", {
+      providedEnquiryId: enquiryId,
+      stateMultiEnqId: multiEnqId,
+      stateIndividualEnqId: individualEnqId,
+      finalIdToUse: idToUse,
+      isMultiEnquiry: isMultiEnquiry
+    });
     
     // console.log("Final enquiry_id to use:", idToUse);
     // console.log("Current state in thunk:", { 
@@ -221,7 +228,6 @@ export const submitEnquiryForm = createAsyncThunk(
 
       // Format data according to API requirements
       const requestBody = {
-        enquiry_id: idToUse,
         hotel: selectedServices.includes("hotel"),
         port: selectedServices.includes("entryExitPort"),
         local_transfer: selectedServices.includes("localTour"),
@@ -231,6 +237,15 @@ export const submitEnquiryForm = createAsyncThunk(
         guide: selectedServices.includes("tourGuide"),
         approx_price: approxPrice, // Add the calculated approximate price
       };
+
+      // Add the appropriate ID field based on enquiry type
+      if (isMultiEnquiry) {
+        requestBody.enquiry_id = idToUse;
+        console.log("Using multi_enq_id:", idToUse);
+      } else {
+        requestBody.enquiry_id = idToUse;
+        console.log("Using enquiry_id:", idToUse);
+      }
 
       // Add hotel details if selected
       if (requestBody.hotel) {
@@ -650,6 +665,7 @@ const EnquirySlice = createSlice({
     },
     tourId: null,
     enquiryId: null, // Add a dedicated field for enquiryId
+    multiEnqId: null, // Add field for multi-enquiry ID
     id: null,
     bookings: [],
     dateService: [],
@@ -796,8 +812,12 @@ const EnquirySlice = createSlice({
         state.tourId = action.payload?.tour_id || null;
         state.enquiryId = data.enquiry_id || null;
         state.id = data.enquiry_id || action.payload?.tour_id || null;
+        
+        // Store multi_enq_id if it exists (for multi-DMC enquiries)
+        state.multiEnqId = action.payload?.multi_enq_id || null;
 
         console.log("Stored enquiry_id in state:", state.enquiryId);
+        console.log("Stored multi_enq_id in state:", state.multiEnqId);
 
         // Log the city from the API response
         const city = data.city || action.payload?.city;
@@ -808,6 +828,7 @@ const EnquirySlice = createSlice({
         const newBooking = {
           tourId: action.payload?.tour_id,
           enquiryId: data.enquiry_id,
+          multiEnqId: action.payload?.multi_enq_id,
           checkIn: state.checkIn,
           checkOut: state.checkOut,
           pax: state.guests.adults + state.guests.children,
