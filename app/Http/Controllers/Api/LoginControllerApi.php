@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use App\Models\User;
 use App\Models\Agent;
 use App\Models\Country;
+use App\Models\OtpVerification;
 use Auth;
 use Str;
 use App\Models\Setting;
@@ -466,22 +467,19 @@ class LoginControllerApi extends Controller
             ], 422);
         }
 
-        // Generate 4-digit OTP
-        $otp = rand(1000, 9999);
-        
-        // Store registration data and OTP in cache for 10 minutes
-        $cacheKey = 'registration_' . $request->email;
-        $registrationData = $request->all();
-        $registrationData['otp'] = $otp;
-        
-        \Cache::put($cacheKey, $registrationData, now()->addMinutes(10));
+        // Generate OTP and store data in database
+        $otpVerification = OtpVerification::generateFor(
+            $request->email, 
+            $request->all(), 
+            10 // expire after 10 minutes
+        );
         
         // Prepare email data
         $emailData = [
             'salutation' => $request->salutation,
             'name' => $request->name,
             'email' => $request->email,
-            'otp' => $otp,
+            'otp' => $otpVerification->otp,
             'message_type' => 'otp',
             'mail_settings' => (object)[
                 'support_email' => 'support@example.com',
@@ -499,15 +497,14 @@ class LoginControllerApi extends Controller
                 $request->email, 
                 'otp_verification', 
                 'Your OTP for Registration', 
-                'Your OTP code is: ' . $otp, 
+                'Your OTP code is: ' . $otpVerification->otp, 
                 $emailData
             );
             
             return response()->json([
                 'success' => true, 
                 'message' => 'OTP sent successfully to your email',
-                'email' => $request->email,
-                'sendEmail' => $sendEmail
+                'email' => $request->email
             ]);
             
         } catch (\Exception $e) {
@@ -539,33 +536,26 @@ class LoginControllerApi extends Controller
         $email = $request->email;
         $submittedOtp = $request->otp;
         
-        // Get stored data from cache
-        $cacheKey = 'registration_' . $email;
-        $registrationData = \Cache::get($cacheKey);
+        // Verify OTP using our model
+        $verification = OtpVerification::verify($email, $submittedOtp);
         
-        if (!$registrationData) {
+        if (!$verification) {
             return response()->json([
                 'success' => false,
-                'message' => 'OTP expired or invalid email. Please request a new OTP.'
+                'message' => 'Invalid OTP or OTP expired. Please request a new OTP.'
             ], 400);
         }
         
-        // Verify OTP
-        if ($registrationData['otp'] != $submittedOtp) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid OTP. Please try again.'
-            ], 400);
-        }
+        // Get registration data from verification record
+        $registrationData = $verification->registration_data;
         
-        // OTP is valid, now call registerAgent with the stored data
-        // Remove OTP from registration data
-        unset($registrationData['otp']);
+        // Create a new request with the registration data and include a flag for OTP verification
+        $registrationRequest = new Request($registrationData);
+        $registrationRequest->setMethod('POST');
+        $registrationRequest->headers->set('Content-Type', 'application/json');
         
-        // Create a new request with the registration data
-        $registrationRequest = Request::create('/api/v1/register-agent', 'POST', $registrationData);
-        
-        // Handle file uploads if needed (would require additional logic)
+        // Add a flag to indicate this request is coming from OTP verification
+        $registrationRequest->merge(['from_otp_verification' => true]);
         
         // Forward to registerAgent method
         return $this->registerAgent($registrationRequest);
@@ -573,7 +563,11 @@ class LoginControllerApi extends Controller
 
     public function registerAgent(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        // Check if request is coming from OTP verification
+        $fromOtpVerification = $request->has('from_otp_verification') && $request->from_otp_verification === true;
+        
+        // Define validation rules
+        $validationRules = [
             'company_name' => 'required',
             'salutation' => 'required',
             'name' => 'required',
@@ -584,12 +578,22 @@ class LoginControllerApi extends Controller
             'agent_address' => 'required',
             'code' => 'required', // Country code
             'phone' => 'required',
-            'id_card' => 'required',
-            'card_number' => 'required',
-            'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-            'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
             'password' => 'required|min:8',
-        ]);
+        ];
+        
+        // Only require file uploads if not coming from OTP verification
+        if (!$fromOtpVerification) {
+            $validationRules['id_card'] = 'required';
+            $validationRules['card_number'] = 'required';
+            $validationRules['agent_image'] = 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif';
+            $validationRules['image'] = 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif';
+        } else {
+            // For OTP verification, make file fields optional
+            $validationRules['id_card'] = 'nullable';
+            $validationRules['card_number'] = 'nullable';
+        }
+        
+        $validator = Validator::make($request->all(), $validationRules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -646,8 +650,8 @@ class LoginControllerApi extends Controller
                     'agent_address' => $request->agent_address,
                     'code' => $request->code,
                     'country' => is_array($request->country) ? implode(',', $request->country) : $request->country,
-                    'id_cards' => $request->id_card,
-                    'id_number' => $request->card_number,
+                    'id_cards' => $request->id_card ?? $deletedAgent->id_cards,
+                    'id_number' => $request->card_number ?? $deletedAgent->id_number,
                     'image' => $idProofImage ?? $deletedAgent->image,
                     'agent_image' => $agentImage ?? $deletedAgent->agent_image,
                     'password' => bcrypt($request->password),
@@ -743,7 +747,6 @@ class LoginControllerApi extends Controller
                 
                 // Commit the transaction
                 \DB::commit();
-                
                 // Send email notification
                 try {
                     $emailData = [
@@ -799,7 +802,5 @@ class LoginControllerApi extends Controller
             ], 500);
         }
     }
-
-
 }
 
