@@ -234,6 +234,12 @@ const ServicesSummaryModal = ({ open, onClose }) => {
       title: 'Hourly Transport',
       bgColor: 'rgba(255, 87, 34, 0.1)'
     },
+    local_transfer: {
+      icon: <DirectionsCarIcon />,
+      color: '#2196f3',
+      title: 'Local Transfer',
+      bgColor: 'rgba(33, 150, 243, 0.1)'
+    },
     entry_port: {
       icon: <AirportShuttleIcon />,
       color: '#9c27b0',
@@ -903,7 +909,15 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                               case 'travel_hourly':
                                 return {
                                   name: `${serviceData?.vehicles_name || 'Vehicle'} - Hourly Transport`,
-                                  location: serviceData?.entrypickup || 'Pickup location not specified',
+                                  location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`|| 'Pickup location not specified',
+                                  time: `${serviceData?.entrytime || 'N/A'} | Duration: ${serviceData?.selectedHours || 0} hours`,
+                                  extra: `${serviceData?.type || 'Private'} Vehicle | Adults: ${serviceData?.adults || 0}`,
+                                  price: serviceData?.totalPrice
+                                };
+                              case 'local_transport':
+                                return {
+                                  name: `${serviceData?.vehicles_name || 'Vehicle'} - Local Transfer`,
+                                  location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`,
                                   time: `${serviceData?.entrytime || 'N/A'} | Duration: ${serviceData?.selectedHours || 0} hours`,
                                   extra: `${serviceData?.type || 'Private'} Vehicle | Adults: ${serviceData?.adults || 0}`,
                                   price: serviceData?.totalPrice
