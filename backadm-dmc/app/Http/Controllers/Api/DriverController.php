@@ -80,6 +80,7 @@ class DriverController extends Controller
     //Vehicles Listing
     public function vehicleListing(Request $request)
     {
+        
         $agent_id = $request->header('agent-id');
         if(!$agent_id){
             return response()->json(['error' => 'Agent Id not found.'], 404);
@@ -90,9 +91,9 @@ class DriverController extends Controller
         $date = $request->query('date');
         $rawTime = trim($request->input('time'), " \t\n\r\0\x0B\"'"); // removes extra whitespace and quotes
         $time = Carbon::createFromFormat('h:i A', $rawTime)->format('H:i:s');
-
+        $dmcId = $request->dmc_id;
         $agentId = auth()->user()->agent_id;
-            
+        
 
             $agent = Agent::where('agent_id', $agentId)->first();
             
@@ -155,31 +156,31 @@ class DriverController extends Controller
             }
             elseif(Auth::user()->userId){
                 $currentUser = Auth::user();
-                
                 if($currentUser->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138)
                 {
-                    $dmc_id = $currentUser->created_by;
+                    $dmcId = $currentUser->created_by;
                 }
                 elseif($currentUser->role_id == 37){
                     $sales_head_id = $currentUser->created_by;
                     $sales_head = User::where('userId', $sales_head_id)->first();
-                    $dmc_id = $sales_head->created_by;
+                    $dmcId = $sales_head->created_by;
                 }
                 elseif($currentUser->role_id == 38){
                     $sales_manager_id = $currentUser->created_by;
                     $sales_manager = User::where('userId', $sales_manager_id)->first();
                     $sales_head_id = $sales_manager->created_by;
                     $sales_head = User::where('userId', $sales_head_id)->first();
-                    $dmc_id = $sales_head->created_by;
+                    $dmcId = $sales_head->created_by;
                 }
             }
-            if (!$dmc_id) {
+            if (!$dmcId) {
                 return response()->json(['message' => 'DMC Not Found!'], 400);
             }
             $start = $request->input('start', 0);
             $limit = $request->input('limit', 9);
-
+            
             if($pickup && $dropoff){
+                
                 $url = "https://maps.googleapis.com/maps/api/directions/json?origin={$pickup['lat']},{$pickup['lng']}&destination={$dropoff['lat']},{$dropoff['lng']}&key=" . $apiKey;
                     $curl = curl_init($url);
                     curl_setopt($curl, CURLOPT_HEADER, false);
@@ -240,7 +241,6 @@ class DriverController extends Controller
                                     $matchedCity = $component['long_name'];
                                 }
                             }
-                            
                         }
                     }
                     
@@ -250,6 +250,8 @@ class DriverController extends Controller
                     if (!$matchedCity) {
                         $matchedCity = "Unknown City";
                     }
+                    
+                   
         
                     if ($distanceInKM <= 10) {
                         $dayColumn = 'cost_per_km_below_10';
@@ -277,13 +279,13 @@ class DriverController extends Controller
                         ->where('country', $country)
                         ->get();
                     
-                    $dmcIds = $dmcs->pluck('userId'); // Get list of DMC user IDs
-                    $vehicles_row = Vehicle::whereIn('dmc_id', $dmcIds)
-                        ->where('city', $matchedCity)
+                    $vehicles_row = Vehicle::where('city', $matchedCity)
                         ->whereNotNull('driver_id')
+                        ->where('dmc_id', $dmcId)
                         ->skip($start)
                         ->take($limit)
                         ->get();
+                    
                     if (!$vehicles_row) {
                         return response()->json(['error' => 'Not Getting vehicles for this city'], 404);
                     }
@@ -329,13 +331,13 @@ class DriverController extends Controller
                         $sharablePrice = 0;
                         $dmc_dmc_id = 0;
                         
-                        if ($vehicle->dmc_id == $dmc_id) {
+                        if ($vehicle->dmc_id == $dmcId) {
                             $dmc_result = CommonHelper::calculateDmcModePricehotel(
-                            $private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
+                            $private_price, $dmcId, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
                             $privatePrice = $dmc_result[0] ?? 0;
 
                             $sharable_price = CommonHelper::calculateDmcModePricehotel(
-                            $sharable_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$matchedCity);
+                            $sharable_price, $dmcId, $vehicle->vehicle_name, 'vehicle',$matchedCity);
                             $sharablePrice = $sharable_price[0] ?? 0;
                             $dmc_dmc_id = $sharable_price[1] ?? 0;
                         }
@@ -381,6 +383,7 @@ class DriverController extends Controller
             }
         //If only pickup lat long is found
         else if($pickup && !$dropoff){
+            
             $url = $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$pickup['lat']},{$pickup['lng']}&key={$apiKey}";
             $curl = curl_init($url);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -453,17 +456,17 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)
                 ->where('country', $country)
                 ->get();
-            $dmcIds = $dmcs->pluck('userId'); // Get list of DMC user IDs
-            $vehicles_row = Vehicle::whereIn('dmc_id', $dmcIds)
-                ->where('city', $matchedCity)
+            $vehicles_row = Vehicle::where('city', $matchedCity)
                 ->whereNotNull('driver_id')
+                ->where('dmc_id', $dmcId)
                 ->skip($start)
                 ->take($limit)
                 ->get();
+            
             if (!$vehicles_row) {
                 return response()->json(['error' => 'Not Getting vehicles for this city'], 404);
             }
-                if (!$dmc_id || $dmc_id == 0) {
+                if (!$dmcId || $dmcId == 0) {
                     return response()->json(['error' => 'DMC not found for Sales Manager'], 404);
                 }
                 $vehicleList = [];
