@@ -6,6 +6,7 @@ use App\Http\Controllers\BedsController;
 use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
@@ -180,6 +181,11 @@ Route::delete('/single-tour-package/{id}', [SingleTourPackageController::class, 
 
 // API routes for single tour packages (follow agent controller pattern)
 Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
+Route::get('/fetch-attractions-by-dmc', [SingleTourPackageController::class, 'fetchAttractions'])->name('fetch-attractions-by-dmc');
+Route::get('/fetch-tickets-by-attraction', [SingleTourPackageController::class, 'fetchTickets'])->name('fetch-tickets-by-attraction');
+Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuides'])->name('fetch-guides-by-dmc');
+Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurants'])->name('fetch-restaurants-by-dmc');
+Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
         Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');

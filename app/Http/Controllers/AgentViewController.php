@@ -16,18 +16,18 @@ class AgentViewController extends Controller
      */
     public function index(Request $request)
     {
-        // Query OTP verifications table instead of agents
+        // Query agents with status 2 (pending verification)
         $search = $request->input('search');
-        $query = OtpVerification::where('is_verified', true);
+        $query = Agent::where('status', 2);
         
         // Apply search filter if present
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->whereJsonContains('registration_data->name', $search)
-                  ->orWhereJsonContains('registration_data->email', $search)
-                  ->orWhereJsonContains('registration_data->company_name', $search)
-                  ->orWhereJsonContains('registration_data->user_country', $search)
-                  ->orWhereJsonContains('registration_data->city', $search);
+                $q->where('company_name', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('user_country', 'like', "%{$search}%")
+                  ->orWhere('city', 'like', "%{$search}%");
             });
         }
         
@@ -42,15 +42,28 @@ class AgentViewController extends Controller
      */
     public function show($id)
     {
-        $verification = OtpVerification::findOrFail($id);
+        // Find the agent with the given id and status 2
+        $verification = Agent::where('id', $id)
+                        ->where('status', 2)
+                        ->firstOrFail();
         
-        if (!$verification->is_verified) {
-            return redirect()->route('registered-agents.index')
-                ->with('error', 'Registration verification not found.');
-        }
-
-        // Get the agent data from the registration_data JSON field
-        $agentData = $verification->registration_data;
+        // For compatibility with existing view, create an agentData array with the agent fields
+        $agentData = [
+            'company_name' => $verification->company_name,
+            'salutation' => $verification->salutation,
+            'name' => $verification->name,
+            'email' => $verification->email,
+            'user_country' => $verification->user_country,
+            'city' => $verification->city,
+            'agent_address' => $verification->agent_address,
+            'code' => $verification->code,
+            'phone' => $verification->phone,
+            'id_card' => $verification->id_card,
+            'card_number' => $verification->card_number,
+            'country' => is_string($verification->country) ? [$verification->country] : json_decode($verification->country, true),
+            'image' => $verification->image,
+            'agent_image' => $verification->agent_image
+        ];
         
         return view('agent-view.show', compact('verification', 'agentData'));
     }
@@ -67,16 +80,16 @@ class AgentViewController extends Controller
                 'email' => 'required|email'
             ]);
             
-            // Find the OTP verification record
-            $verification = OtpVerification::findOrFail($request->id);
-            
-            // Find the agent by email
-            $agent = Agent::where('email', $request->email)->first();
+            // Find the agent by id and email
+            $agent = Agent::where('id', $request->id)
+                       ->where('email', $request->email)
+                       ->where('status', 2)
+                       ->first();
             
             if (!$agent) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Agent not found with this email address.'
+                    'message' => 'Agent not found or already verified.'
                 ], 404);
             }
             
@@ -86,7 +99,7 @@ class AgentViewController extends Controller
             
             // Log the action
             Log::info('Agent verified', [
-                'agent_id' => $agent->agent_id,
+                'agent_id' => $agent->id,
                 'email' => $agent->email,
                 'verified_by' => Auth::id() ?? 'System'
             ]);
@@ -95,9 +108,9 @@ class AgentViewController extends Controller
                 'success' => true,
                 'message' => 'Agent has been successfully verified.',
                 'agent' => [
-                    'id' => $agent->agent_id,
+                    'id' => $agent->id,
                     'email' => $agent->email,
-                    'status' => $agent->is_active
+                    'status' => $agent->status
                 ]
             ]);
             

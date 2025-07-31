@@ -28,11 +28,11 @@ class AgentController extends Controller
         switch ($user->role_id) {
             case 1: // Admin
             case 20: // Virtual DMC
-                $agents = Agent::get();
+                $agents = Agent::where('status', 1)->get();
                 break;
 
             case 11: // DMC
-                $agents = Agent::where(function($query) use ($user) {
+                $agents = Agent::where('status', 1)->where(function($query) use ($user) {
                     $query->whereRaw("CASE 
                         WHEN dmc_id IS NOT NULL 
                         THEN (
@@ -58,7 +58,7 @@ class AgentController extends Controller
                              ->where('role_id', 11)
                              ->value('userId');
                 if ($dmc_id) {
-                    $agents = Agent::where(function($query) use ($dmc_id) {
+                    $agents = Agent::where('status', 1)->where(function($query) use ($dmc_id) {
                         $query->whereRaw("CASE 
                             WHEN dmc_id IS NOT NULL 
                             THEN (
@@ -89,7 +89,7 @@ class AgentController extends Controller
 
                 if ($parentUser && $parentUser->role_id == 11) {
                     $dmc_id = $parentUser->userId;
-                    $agents = Agent::where(function($query) use ($dmc_id) {
+                    $agents = Agent::where('status', 1)->where(function($query) use ($dmc_id) {
                         $query->whereRaw("CASE 
                             WHEN dmc_id IS NOT NULL 
                             THEN (
@@ -225,6 +225,7 @@ class AgentController extends Controller
             'image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
             'agent_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
             'password' => 'required|min:8',
+            
         ]);
 
         $validator->after(function ($validator) use ($request) {
@@ -352,7 +353,7 @@ class AgentController extends Controller
         $agent->password = bcrypt($request->input('password'));
         $agent->created_by = auth()->user()->userId;
         $agent->dmc_id = json_encode([$dmc_id]); // Store as JSON array
-
+        $agent->status = 1;
         if ($agent->save()) {
             // Send email to the agent
             try {
