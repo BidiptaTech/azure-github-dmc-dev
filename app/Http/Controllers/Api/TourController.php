@@ -2385,13 +2385,12 @@ class TourController extends Controller
                                 'status' => 'cancelled',
                             ]);
                         
-                        // Soft delete other tours with same multi_enq_id (except current tour)
-                        Tour::where('multi_enq_id', $formEnquiry->multi_enq_id)
-                            ->where('tour_id', '!=', $tour_id)
-                            ->delete(); // This will soft delete since Tour model uses SoftDeletes trait
                     }
+                    Tour::where('multi_enq_id', $tour->multi_enq_id)
+                            ->where('tour_id', '!=', $tour_id)
+                            ->update(['deleted_at' => now()]);
+                            
                     return response()->json([
-                        
                         'success' => true,
                         'message' => 'Booking accepted successfully.'
                     ], 200);
