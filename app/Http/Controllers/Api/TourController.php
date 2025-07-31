@@ -81,6 +81,7 @@ class TourController extends Controller
                                     //   ->where('agent_id', $agent_id)
                                     //   ->whereNull('unique_tour_id')
                                       ->first();
+            $multi_enq_id = $formEnquiry->multi_enq_id ?? '';
             }
             $tour = new Tour();
             $tour->destination = $validatedData['destination'];
@@ -97,7 +98,7 @@ class TourController extends Controller
             $tour->tour_status = "Pending";
             $tour->city = $request->city;
             $tour->dmc_id = $request->dmc_id;
-            $tour->multi_enq_id = $request->multi_enq_id;
+            $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->save();
             $tour->refresh();

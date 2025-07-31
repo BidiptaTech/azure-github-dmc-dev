@@ -916,7 +916,7 @@ class EnquiryController extends Controller
                     // Get all agents under Sales Manager and their Assistant Managers
                     // Also include agents that have the DMC's ID in their dmc_id field
                     $agents = Agent::where(function($query) use ($user, $asst_managers_ids) {
-                        $query->where('sales_manager_dmc', $user->userId)
+                        $query->where('sales_manager_dmc', $user->userId)->where('status', 1)
                             ->orWhereIn('sales_manager_dmc', $asst_managers_ids);
                     })->orWhere(function($query) use ($dmc_id) {
                         $query->whereRaw("CASE 
