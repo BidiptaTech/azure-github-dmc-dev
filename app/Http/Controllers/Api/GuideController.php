@@ -26,6 +26,7 @@ class GuideController extends Controller
         $country = trim($country, '()');
     
         $agentId = auth()->user()->agent_id;
+        $dmcId = $request->dmc_id;
 
         if (!$city || !$country) {
             return response()->json(['message' => 'City or Country is missing'], 400);
@@ -41,6 +42,7 @@ class GuideController extends Controller
             ->where('country', $country)
             ->where('status', 1)
             ->where('city', $city)
+            ->where('dmc_id', $dmcId)
             ->get();
 
          // Filter out guides that are not available on the requested date
