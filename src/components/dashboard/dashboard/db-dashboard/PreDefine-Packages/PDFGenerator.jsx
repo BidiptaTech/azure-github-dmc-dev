@@ -223,6 +223,12 @@ const extractBookingData = () => {
     guests = `${bookingData.pax} person(s)`;
   }
 
+  // Extract DMC information
+  const dmcInfo = {
+    companyName: bookingData.dmc_data?.dmc_company_name || 'N/A',
+    logo: bookingData.dmc_data?.dmc_logo || null
+  };
+
   // Extract itinerary data
   const itinerary = [];
   const itineraryData = bookingDetails?.itinerary || [];
@@ -315,6 +321,7 @@ const extractBookingData = () => {
     endDate,
     paymentAmount,
     guests,
+    dmcInfo,
     itinerary
   };
 
@@ -539,6 +546,22 @@ const createCustomPDFHTML = (bookingData) => {
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; max-width: 850px; margin: 0 auto; background: white; line-height: 1.5;">
+      
+              <!-- DMC Branding Header -->
+        ${bookingData.dmcInfo.companyName ? `
+          <div style="background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); padding: 20px 32px; border-bottom: 2px solid #fde68a;">
+            <div style="display: flex; align-items: center; justify-content: center; position: relative;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                ${bookingData.dmcInfo.logo ? `<img src="${bookingData.dmcInfo.logo}" alt="DMC Logo" style="width: 100px; height: 80px; object-fit: contain; position: relative; top: 15px;" />` : ''}
+                <div>
+                  <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #92400e;">${bookingData.dmcInfo.companyName}</h3>
+                  <p style="margin: 0; font-size: 12px; color: #a16207; text-transform: uppercase; letter-spacing: 1px;">Destination Management Company</p>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+        ` : ''}
       
       <!-- Header Section -->
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 32px; position: relative; overflow: hidden;">

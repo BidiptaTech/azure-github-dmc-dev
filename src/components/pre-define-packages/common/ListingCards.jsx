@@ -615,6 +615,12 @@ const ListingCards = ({ hasSearched = false }) => {
   const loaderRef = useRef(null); // Reference for the loader element
   const itemsPerPage = 15;
 
+  // Debug logging
+  console.log('🎯 ListingCards - Redux state:', { packages, loading, error, searchParams });
+  console.log('🎯 ListingCards - packages type:', typeof packages);
+  console.log('🎯 ListingCards - packages length:', packages?.length);
+  console.log('🎯 ListingCards - packages data:', packages);
+
   // Reset everything when packages change
   useEffect(() => {
     if (packages && packages.length > 0) {

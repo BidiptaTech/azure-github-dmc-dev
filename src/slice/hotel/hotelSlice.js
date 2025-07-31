@@ -8,6 +8,9 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { BASE_URL } from "@/services/api";
 import { useSelector } from "react-redux";
 
+// Selector to get DMC ID from dmc slice
+const selectDmcId = (state) => state.dmc?.dmcId;
+
 // Async thunk for fetching hotels
 export const fetchHotels = createAsyncThunk(
   "hotels/fetchHotels",
@@ -15,6 +18,9 @@ export const fetchHotels = createAsyncThunk(
     try {
       const state = getState();
      const { location, ucheckIn, ucheckOut, guests } = state.hotels.searchState;
+     const selectedDmcId = selectDmcId(state);
+     console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
+     
     //  console.log( state.hotels.searchState,"hotel details>>>>>");
      
     //  console.log(ucheckIn,"start date");
@@ -48,7 +54,8 @@ export const fetchHotels = createAsyncThunk(
             limit,
             adults,
             children,
-            infant
+            infant,
+            dmc_id: selectedDmcId // Add DMC ID to params
                 // Added guests
           },
         
@@ -73,6 +80,9 @@ export const hottelBookingDataSubmit = createAsyncThunk(
   async (params, { getState, dispatch, rejectWithValue }) => {
     try {
       const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
+      
       const authToken = Cookies.get("authToken");
       let { submitHotels, id, type } = state.hotels;
       // Get agent information from state instead of using hooks
@@ -117,6 +127,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
         bookingType: bookingType,
         agent_id: AgentId,
         tour_id: id,
+        dmc_id: selectedDmcId, // Add DMC ID to booking request
       };
 
       // If this is an enquiry, add the enquiry data to the root level of formData
