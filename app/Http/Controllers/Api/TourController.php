@@ -2232,6 +2232,7 @@ class TourController extends Controller
             ], 400);
         }
         $currentEnquiry = Enquiry::where('status', 1)->where('tour_id', $tour_id)->first();
+        $tour = Tour::where('tour_id', $tour_id)->first();
         $user = auth()->user();
         $salesManagerId = $user->sales_manager_dmc;
 
@@ -2306,7 +2307,7 @@ class TourController extends Controller
                 $enquiry = Enquiry::create([
                     'tour_id' => $tour_id, 
                     'status' => 1,
-                    'dmcId' => $currentEnquiry->dmc_id,
+                    'dmcId' => $tour->dmc_id,
                     'enquiry_id' => $enquiryId,
                     'sender_id' => $userId,
                     'sender_type' => 'agent',
