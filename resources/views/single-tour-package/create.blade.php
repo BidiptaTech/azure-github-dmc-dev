@@ -78,114 +78,11 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="guestDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <div class="guest-selector-main">
+                                        <button class="btn btn-outline-secondary w-100 text-start" type="button" id="mainGuestSelectorBtn">
                                             <span id="guestSummary">4 adults (2 male, 2 female) - 0 children - 0 infants</span>
+                                            <i class="ri-edit-line float-end mt-1"></i>
                                         </button>
-                                        <div class="dropdown-menu p-4" style="min-width: 380px;" aria-labelledby="guestDropdown">
-                                            <!-- Guest Summary Header -->
-                                            <div class="mb-3 text-center">
-                                                <div class="d-flex align-items-center justify-content-center mb-2">
-                                                    <i class="ri-team-line me-2 text-primary"></i>
-                                                    <span class="fw-bold text-uppercase text-muted" style="font-size: 0.8rem; letter-spacing: 1px;">GUESTS</span>
-                                                </div>
-                                                <div id="guestDetailSummary" class="fw-semibold text-dark">
-                                                    4 adults (2 male, 2 female) - 0 children - 0 infants
-                                                </div>
-                                            </div>
-
-                                            <!-- Adults Section -->
-                                            <div class="guest-section mb-4">
-                                                <div class="section-header d-flex justify-content-between align-items-center mb-3">
-                                                    <h6 class="mb-0 fw-bold">Adults</h6>
-                                                    <div class="d-flex align-items-center">
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-minus" data-target="adults-auto">
-                                                            <i class="ri-subtract-line"></i>
-                                                        </button>
-                                                        <span class="mx-3 fw-bold fs-5" id="adults-count" style="min-width: 30px; text-align: center;">4</span>
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-plus" data-target="adults-auto">
-                                                            <i class="ri-add-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Male -->
-                                                <div class="guest-item d-flex justify-content-between align-items-center mb-2">
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="guest-icon me-3">
-                                                            <i class="ri-user-3-line text-primary"></i>
-                                                        </div>
-                                                        <span class="guest-label">Male</span>
-                                                    </div>
-                                                    <div class="d-flex align-items-center">
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-minus" data-target="male">
-                                                            <i class="ri-subtract-line"></i>
-                                                        </button>
-                                                        <span class="mx-3 fw-bold" id="male-count" style="min-width: 30px; text-align: center;">2</span>
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-plus" data-target="male">
-                                                            <i class="ri-add-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Female -->
-                                                <div class="guest-item d-flex justify-content-between align-items-center">
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="guest-icon me-3">
-                                                            <i class="ri-user-4-line" style="color: #e91e63;"></i>
-                                                        </div>
-                                                        <span class="guest-label">Female</span>
-                                                    </div>
-                                                    <div class="d-flex align-items-center">
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-minus" data-target="female">
-                                                            <i class="ri-subtract-line"></i>
-                                                        </button>
-                                                        <span class="mx-3 fw-bold" id="female-count" style="min-width: 30px; text-align: center;">2</span>
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-plus" data-target="female">
-                                                            <i class="ri-add-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Children Section -->
-                                            <div class="guest-section mb-4">
-                                                <div class="section-header d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <h6 class="mb-0 fw-bold">Children</h6>
-                                                        <small class="text-muted">Ages 1 - 17</small>
-                                                    </div>
-                                                    <div class="d-flex align-items-center">
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-minus" data-target="children">
-                                                            <i class="ri-subtract-line"></i>
-                                                        </button>
-                                                        <span class="mx-3 fw-bold" id="children-count" style="min-width: 30px; text-align: center;">0</span>
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-plus" data-target="children">
-                                                            <i class="ri-add-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Infants Section -->
-                                            <div class="guest-section">
-                                                <div class="section-header d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <h6 class="mb-0 fw-bold">Infants</h6>
-                                                        <small class="text-muted">Younger than 1 year old</small>
-                                                    </div>
-                                                    <div class="d-flex align-items-center">
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-minus" data-target="infants">
-                                                            <i class="ri-subtract-line"></i>
-                                                        </button>
-                                                        <span class="mx-3 fw-bold" id="infants-count" style="min-width: 30px; text-align: center;">0</span>
-                                                        <button type="button" class="btn btn-sm btn-light guest-btn-plus" data-target="infants">
-                                                            <i class="ri-add-line"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                     <!-- Hidden Fields -->
                                     <input type="hidden" name="adults" id="adults" value="4">
@@ -447,6 +344,65 @@
 
 <!-- Bootstrap 5 JS (for dropdown functionality) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Ensure Bootstrap is properly loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add a direct test button for the modal
+        const testButton = document.createElement('button');
+        testButton.textContent = 'Test Modal';
+        testButton.className = 'btn btn-sm btn-warning position-fixed';
+        testButton.style.bottom = '20px';
+        testButton.style.right = '20px';
+        testButton.style.zIndex = '9999';
+        testButton.onclick = function() {
+            const modalElement = document.getElementById('mainGuestSelectorModal');
+            if (modalElement) {
+                try {
+                    // Try different methods to open the modal
+                    console.log('Trying to open modal...');
+                    
+                    // Method 1: Bootstrap 5 way
+                    try {
+                        const bsModal = new bootstrap.Modal(modalElement);
+                        bsModal.show();
+                        console.log('Modal opened with Bootstrap 5 method');
+                        return;
+                    } catch (e) {
+                        console.error('Bootstrap 5 method failed:', e);
+                    }
+                    
+                    // Method 2: Direct attribute setting
+                    modalElement.classList.add('show');
+                    modalElement.style.display = 'block';
+                    document.body.classList.add('modal-open');
+                    console.log('Modal opened with direct DOM manipulation');
+                    
+                } catch (error) {
+                    console.error('All methods to open modal failed:', error);
+                    alert('Failed to open modal. See console for details.');
+                }
+            } else {
+                console.error('Modal element not found!');
+                alert('Modal element not found!');
+            }
+        };
+        document.body.appendChild(testButton);
+        
+        // Check if Bootstrap is properly loaded
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap JS is not loaded properly!');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger position-fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = '<strong>Error:</strong> Bootstrap JS is not loaded properly!';
+            document.body.appendChild(alertDiv);
+        } else {
+            console.log('Bootstrap version:', bootstrap.Modal.VERSION);
+        }
+    });
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -623,13 +579,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 let maxValue = 10;
                 
                 if (action === 'increase' && currentValue < maxValue) {
-                    currentValue++;
-                } else if (action === 'decrease' && currentValue > minValue) {
-                    currentValue--;
-                }
-                
-                countElement.textContent = currentValue;
-                hiddenInput.value = currentValue;
+                currentValue++;
+            } else if (action === 'decrease' && currentValue > minValue) {
+                currentValue--;
+            }
+            
+            countElement.textContent = currentValue;
+            hiddenInput.value = currentValue;
             }
             
             updateGuestSummary();
@@ -935,29 +891,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification(data.message + ' Tour ID: ' + data.display_id, 'success');
                 
                 // Set tour dates for hotel section
-                tourStartDate = startDate;
-                tourEndDate = endDate;
+        tourStartDate = startDate;
+        tourEndDate = endDate;
                 
                 // Store tour info globally
                 window.currentTourId = data.tour_id;
                 window.currentDisplayId = data.display_id;
-                
-                // Show hotel selection section
-                document.getElementById('hotelSection').style.display = 'block';
-                
-                // Show transport section with day-wise itinerary
-                document.getElementById('transportSection').style.display = 'block';
-                
-                // Generate daily services based on tour dates
-                generateDailyServices();
-                
-                // Scroll to hotel section
-                document.getElementById('hotelSection').scrollIntoView({ 
-                    behavior: 'smooth' 
-                });
-                
-                // Load hotels for the selected city
-                loadHotelsForCity(city);
+        
+        // Show hotel selection section
+        document.getElementById('hotelSection').style.display = 'block';
+        
+        // Show transport section with day-wise itinerary
+        document.getElementById('transportSection').style.display = 'block';
+        
+        // Generate daily services based on tour dates
+        generateDailyServices();
+        
+        // Scroll to hotel section
+        document.getElementById('hotelSection').scrollIntoView({ 
+            behavior: 'smooth' 
+        });
+        
+        // Load hotels for the selected city
+        loadHotelsForCity(city);
                 
                 // Disable the create button since tour is created
                 createButton.innerHTML = '<i class="ri-check-line me-1"></i>Tour Created (' + data.display_id + ')';
@@ -999,8 +955,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
         
         placeholderHotels.forEach(hotel => {
-            hotelSelect.innerHTML += `<option value="${hotel.id}">${hotel.name}</option>`;
-        });
+                    hotelSelect.innerHTML += `<option value="${hotel.id}">${hotel.name}</option>`;
+                });
         
         // TODO: Implement actual hotel API endpoint
         // fetch(`/api/hotels-by-city?city=${encodeURIComponent(cityName)}`)
@@ -1391,20 +1347,20 @@ document.addEventListener('DOMContentLoaded', function() {
                           
                           <div class="attractions-container" id="day${day}_attractions_container">
                               <div class="card border-danger shadow-sm attraction-item mb-3" data-attraction-index="1">
-                                  <div class="card-header bg-danger text-white">
-                                      <div class="d-flex align-items-center">
-                                          <span class="service-icon me-3">
-                                              <i class="ri-ticket-line fs-4"></i>
-                                          </span>
-                                          <div>
-                                              <h6 class="mb-0 fw-bold">Attraction Booking #1</h6>
-                                              <small class="opacity-75">Select your preferred attractions</small>
-                                          </div>
-                                          <span class="badge bg-warning ms-auto">
-                                              <i class="ri-edit-line me-1"></i>Configure
-                                          </span>
+                              <div class="card-header bg-danger text-white">
+                                  <div class="d-flex align-items-center">
+                                      <span class="service-icon me-3">
+                                          <i class="ri-ticket-line fs-4"></i>
+                                      </span>
+                                      <div>
+                                          <h6 class="mb-0 fw-bold">Attraction Booking #1</h6>
+                                          <small class="opacity-75">Select your preferred attractions</small>
                                       </div>
+                                      <span class="badge bg-warning ms-auto">
+                                          <i class="ri-edit-line me-1"></i>Configure
+                                      </span>
                                   </div>
+                              </div>
                               <div class="card-body bg-white">
                                  
                                  <div class="row g-3">
@@ -1414,28 +1370,28 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Search Attraction</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Select Guests</label>
-                                         <div class="guest-selector">
-                                             <div class="guest-display p-2 border rounded bg-light">
-                                                 <div class="d-flex align-items-center justify-content-between">
-                                                     <div class="guest-info">
-                                                         <span id="day${day}_attraction_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male), 0 children -0 infants
-                                                         </span>
-                                                     </div>
-                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')">
-                                                         <i class="ri-edit-line"></i>
-                                                     </button>
-                                                 </div>
-                                                 <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">4</span>
-                                                     <span class="badge bg-success">0</span>
-                                                     <span class="badge bg-warning text-dark">0</span>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
+                                                                         <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Select Guests</label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display p-2 border rounded bg-light">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div class="guest-info">
+                                                        <span id="day${day}_attraction_1_guest_summary" class="text-muted small">
+                                                            1 adults (1 male, 0 female), 0 children -0 infants
+                                                        </span>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')">
+                                                        <i class="ri-edit-line"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="guest-badges mt-1">
+                                                    <span class="badge bg-primary">4</span>
+                                                    <span class="badge bg-success">0</span>
+                                                    <span class="badge bg-warning text-dark">0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Time Slot</label>
                                          <select class="form-select" name="day${day}_attraction_1_time" id="day${day}_attraction_1_time">
@@ -1455,11 +1411,11 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addMoreAttractions(${day})">
-                                  <i class="ri-add-line me-1"></i>Add Another Attraction
-                              </button>
-                          </div>
-                      </div>
+                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="addMoreAttractions(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Another Attraction
+                                          </button>
+                             </div>
+                         </div>
                      </div>
                      
                                            <!-- Tour Guide Services -->
@@ -1475,20 +1431,20 @@ document.addEventListener('DOMContentLoaded', function() {
                           
                           <div class="guides-container" id="day${day}_guides_container">
                               <div class="card border-info shadow-sm guide-item mb-3" data-guide-index="1">
-                                  <div class="card-header bg-info text-white">
-                                      <div class="d-flex align-items-center">
-                                          <span class="service-icon me-3">
-                                              <i class="ri-user-star-line fs-4"></i>
-                                          </span>
-                                          <div>
-                                              <h6 class="mb-0 fw-bold">Tour Guide Booking #1</h6>
-                                              <small class="opacity-75">Professional guide services</small>
-                                          </div>
-                                          <span class="badge bg-warning ms-auto">
-                                              <i class="ri-edit-line me-1"></i>Configure
-                                          </span>
+                              <div class="card-header bg-info text-white">
+                                  <div class="d-flex align-items-center">
+                                      <span class="service-icon me-3">
+                                          <i class="ri-user-star-line fs-4"></i>
+                                      </span>
+                                      <div>
+                                          <h6 class="mb-0 fw-bold">Tour Guide Booking #1</h6>
+                                          <small class="opacity-75">Professional guide services</small>
                                       </div>
+                                      <span class="badge bg-warning ms-auto">
+                                          <i class="ri-edit-line me-1"></i>Configure
+                                      </span>
                                   </div>
+                              </div>
                               <div class="card-body bg-white">
                                  
                                  <div class="row g-3">
@@ -1505,7 +1461,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <div class="d-flex align-items-center justify-content-between">
                                                      <div class="guest-info">
                                                          <span id="day${day}_guide_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male), 0 children -0 infants
+                                                             1 adults (1 male, 0 female), 0 children -0 infants
                                                          </span>
                                                      </div>
                                                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')">
@@ -1548,11 +1504,11 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                              <button type="button" class="btn btn-sm btn-outline-info" onclick="addMoreGuides(${day})">
-                                  <i class="ri-add-line me-1"></i>Add Another Guide
-                              </button>
-                          </div>
-                      </div>
+                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="addMoreGuides(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Another Guide
+                                          </button>
+                             </div>
+                         </div>
                      </div>
                      
                      <!-- Restaurant Services -->
@@ -1560,8 +1516,8 @@ document.addEventListener('DOMContentLoaded', function() {
                          <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-success">
                              <div>
                                  <h6 class="text-success mb-1 fw-bold">
-                                     <i class="ri-restaurant-line me-2"></i>Book Restaurant Services
-                                 </h6>
+                                 <i class="ri-restaurant-line me-2"></i>Book Restaurant Services
+                             </h6>
                                  <small class="text-muted">Select restaurants and configure your dining experience</small>
                              </div>
                          </div>
@@ -1576,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <div>
                                              <h6 class="mb-0 fw-bold">Restaurant Booking #1</h6>
                                              <small class="opacity-75">Select your dining experience</small>
-                                         </div>
+                                 </div>
                                          <span class="badge bg-warning ms-auto">
                                              <i class="ri-edit-line me-1"></i>Configure
                                          </span>
@@ -1598,7 +1554,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <div class="d-flex align-items-center justify-content-between">
                                                      <div class="guest-info">
                                                          <span id="day${day}_restaurant_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male), 0 children -0 infants
+                                                             1 adults (1 male, 0 female), 0 children -0 infants
                                                          </span>
                                                      </div>
                                                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_1')">
@@ -1613,32 +1569,39 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3">
+                                     <div class="col-md-2">
                                          <label class="form-label fw-semibold">Meal Type</label>
                                          <select class="form-select" name="day${day}_meal_type_1" id="day${day}_meal_type_1">
                                              <option value="">Select Meal Type</option>
                                          </select>
                                          <small class="text-muted">Available meal types with timings</small>
                                      </div>
-                                     <div class="col-md-3">
+                                     <div class="col-md-2">
                                          <label class="form-label fw-semibold">Select Dish</label>
                                          <select class="form-select" name="day${day}_dish_1" id="day${day}_dish_1">
                                              <option value="">Select Dish</option>
                                          </select>
                                          <small class="text-muted">Buffet or Set Menu options</small>
                                      </div>
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">Time Slot</label>
+                                         <select class="form-select" name="day${day}_time_slot_1" id="day${day}_time_slot_1">
+                                             <option value="">Select Time Slot</option>
+                                         </select>
+                                         <small class="text-muted">Available time slots</small>
+                                     </div>
                                  </div>
                                  
                                  </div>
-                              </div>
-                          </div>
-                          
-                          <div class="mt-3 text-center">
+                                     </div>
+                                 </div>
+                                 
+                                 <div class="mt-3 text-center">
                               <button type="button" class="btn btn-sm btn-outline-success" onclick="addMoreRestaurants(${day})">
                                   <i class="ri-add-line me-1"></i>Add Another Restaurant
-                              </button>
-                          </div>
-                      </div>
+                                     </button>
+                             </div>
+                         </div>
                      </div>
                      
                      <!-- Transport Services -->
@@ -1723,8 +1686,8 @@ document.addEventListener('DOMContentLoaded', function() {
          
          container.innerHTML = servicesHTML;
          
-                 // Initialize guest summaries for all services
-        initializeServiceGuestSummaries();
+         // Initialize guest summaries for all services
+         initializeServiceGuestSummaries();
         
         // Load attractions for all attraction dropdowns
         loadAttractionsForAllDays();
@@ -1842,7 +1805,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading tickets:', error);
                 ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
             });
-    }
+     }
      
      function initializeServiceGuestSummaries() {
          // Get current guest values from main form
@@ -1899,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', function() {
          // Future implementation: Add dynamic form for attractions
      };
      
-         window.addMoreAttractions = function(day) {
+     window.addMoreAttractions = function(day) {
         const container = document.getElementById(`day${day}_attractions_container`);
         const existingAttractions = container.querySelectorAll('.attraction-item');
         const newIndex = existingAttractions.length + 1;
@@ -1937,7 +1900,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="guest-info">
                                             <span id="day${day}_attraction_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male), 0 children -0 infants
+                                                1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_${newIndex}')">
@@ -1975,6 +1938,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const newSelect = document.getElementById(`day${day}_attraction_${newIndex}`);
         if (newSelect) {
             loadAttractionsDropdown(newSelect);
+        }
+        
+        // Update guest summary for the new attraction with current main guest selection
+        const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+        const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+        const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+        const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+        
+        const summaryElement = document.getElementById(`day${day}_attraction_${newIndex}_guest_summary`);
+        if (summaryElement) {
+            const adults = mainMale + mainFemale;
+            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children -${mainInfants} infants`;
         }
         
         showNotification(`Attraction Booking #${newIndex} added for Day ${day}`, 'success');
@@ -2092,7 +2067,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
             }
             
-            optionsHTML += `<option value="${mealType.type}" data-meal-period="${mealPeriod}">${icon}${mealType.label}${timing}</option>`;
+            optionsHTML += `<option value="${mealType.type}" data-meal-period="${mealPeriod}" data-open-time="${mealType.open_time}" data-close-time="${mealType.close_time}">${icon}${mealType.label}${timing}</option>`;
         });
         
         mealTypeSelect.innerHTML = optionsHTML;
@@ -2111,12 +2086,87 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (restaurantId && mealPeriod) {
                 loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
+                populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
             } else if (restaurantId) {
                 loadDishesForRestaurant(day, restaurantId, index);
             }
         }
         
         console.log('Updated meal type dropdown with', mealTypes.length, 'options');
+    }
+    
+    // Populate time slots with 30-minute intervals
+    function populateTimeSlots(day, index, openTime, closeTime) {
+        const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+        if (!timeSlotSelect || !openTime || !closeTime) return;
+        
+        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        
+        // Parse open and close times
+        const startTime = parseTime(openTime);
+        const endTime = parseTime(closeTime);
+        
+        if (!startTime || !endTime) return;
+        
+        // Generate 30-minute intervals
+        let currentTime = new Date(startTime);
+        
+        while (currentTime <= endTime) {
+            const timeValue = formatTime24(currentTime);
+            const timeDisplay = formatTime12(currentTime);
+            
+            const option = document.createElement('option');
+            option.value = timeValue;
+            option.textContent = timeDisplay;
+            timeSlotSelect.appendChild(option);
+            
+            // Add 30 minutes
+            currentTime.setMinutes(currentTime.getMinutes() + 30);
+        }
+    }
+    
+    // Parse time string (handles various formats)
+    function parseTime(timeStr) {
+        if (!timeStr) return null;
+        
+        try {
+            // Handle "HH:MM AM/PM" format
+            if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                const today = new Date();
+                const [time, period] = timeStr.split(' ');
+                const [hours, minutes] = time.split(':');
+                let hour = parseInt(hours);
+                
+                if (period === 'PM' && hour !== 12) hour += 12;
+                if (period === 'AM' && hour === 12) hour = 0;
+                
+                today.setHours(hour, parseInt(minutes) || 0, 0, 0);
+                return today;
+            }
+            
+            // Handle "HH:MM" 24-hour format
+            const [hours, minutes] = timeStr.split(':');
+            const today = new Date();
+            today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
+            return today;
+        } catch (e) {
+            console.error('Error parsing time:', timeStr, e);
+            return null;
+        }
+    }
+    
+    // Format time to 24-hour format
+    function formatTime24(date) {
+        return date.toTimeString().substring(0, 5); // "HH:MM"
+    }
+    
+    // Format time to 12-hour format
+    function formatTime12(date) {
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
     }
     
     // Open dish selection modal
@@ -2134,11 +2184,25 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Modal data:', {dishType, mealId, mealName, price, adultPrice, childPrice, mealType});
         
         // Update modal title
-        document.getElementById('dishSelectionModalLabel').textContent = `Select ${dishType}`;
+        const modalLabel = document.getElementById('dishSelectionModalLabel');
+        if (modalLabel) {
+            modalLabel.textContent = `Select ${dishType}`;
+        } else {
+            console.error('Modal label not found!');
+        }
         
         // Get guest counts from the main form
-        const adultCount = parseInt(document.getElementById('maleCount').textContent) + parseInt(document.getElementById('femaleCount').textContent);
-        const childCount = parseInt(document.getElementById('childrenCount').textContent);
+        const maleCountEl = document.getElementById('male-count');
+        const femaleCountEl = document.getElementById('female-count');
+        const childrenCountEl = document.getElementById('children-count');
+        
+        console.log('Guest count elements:', {maleCountEl, femaleCountEl, childrenCountEl});
+        
+        const adultCount = (maleCountEl ? parseInt(maleCountEl.textContent) || 0 : 0) + 
+                          (femaleCountEl ? parseInt(femaleCountEl.textContent) || 0 : 0);
+        const childCount = childrenCountEl ? parseInt(childrenCountEl.textContent) || 0 : 0;
+        
+        console.log('Guest counts calculated:', {adultCount, childCount});
         
         if (mealType === 1) { // Buffet
             setupBuffetModal(mealName, adultPrice, childPrice, adultCount, childCount);
@@ -2209,10 +2273,34 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        document.getElementById('dishModalContent').innerHTML = content;
-        document.getElementById('modalTotalPrice').textContent = `$${totalPrice.toFixed(2)}`;
-        document.getElementById('modalGuestInfo').textContent = `${adultCount} Adults${childCount > 0 ? `, ${childCount} Children` : ''}`;
-        document.getElementById('confirmDishSelection').disabled = false;
+        const modalContent = document.getElementById('dishModalContent');
+        const modalTotalPrice = document.getElementById('modalTotalPrice');
+        const modalGuestInfo = document.getElementById('modalGuestInfo');
+        const confirmButton = document.getElementById('confirmDishSelection');
+        
+        if (modalContent) {
+            modalContent.innerHTML = content;
+        } else {
+            console.error('Modal content element not found!');
+        }
+        
+        if (modalTotalPrice) {
+            modalTotalPrice.textContent = `$${totalPrice.toFixed(2)}`;
+        } else {
+            console.error('Modal total price element not found!');
+        }
+        
+        if (modalGuestInfo) {
+            modalGuestInfo.textContent = `${adultCount} Adults${childCount > 0 ? `, ${childCount} Children` : ''}`;
+        } else {
+            console.error('Modal guest info element not found!');
+        }
+        
+        if (confirmButton) {
+            confirmButton.disabled = false;
+        } else {
+            console.error('Confirm button not found!');
+        }
     }
     
     // Setup Set Menu Modal
@@ -2221,9 +2309,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function updateSetMenuPrice() {
             const totalPrice = unitPrice * quantity;
-            document.getElementById('modalTotalPrice').textContent = `$${totalPrice.toFixed(2)}`;
-            document.getElementById('modalGuestInfo').textContent = `Quantity: ${quantity}`;
-            document.getElementById('confirmDishSelection').disabled = quantity === 0;
+            const modalTotalPrice = document.getElementById('modalTotalPrice');
+            const modalGuestInfo = document.getElementById('modalGuestInfo');
+            const confirmButton = document.getElementById('confirmDishSelection');
+            
+            if (modalTotalPrice) {
+                modalTotalPrice.textContent = `$${totalPrice.toFixed(2)}`;
+            }
+            if (modalGuestInfo) {
+                modalGuestInfo.textContent = `Quantity: ${quantity}`;
+            }
+            if (confirmButton) {
+                confirmButton.disabled = quantity === 0;
+            }
         }
         
         const content = `
@@ -2248,8 +2346,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        document.getElementById('dishModalContent').innerHTML = content;
-        updateSetMenuPrice();
+        const modalContent = document.getElementById('dishModalContent');
+        if (modalContent) {
+            modalContent.innerHTML = content;
+            updateSetMenuPrice();
+        } else {
+            console.error('Modal content element not found for Set Menu!');
+        }
         
         // Add event listeners for quantity buttons
         document.getElementById('decreaseQty').addEventListener('click', function() {
@@ -2274,6 +2377,438 @@ document.addEventListener('DOMContentLoaded', function() {
         window.currentDishSelection.quantity = quantity;
     }
     
+    // Simplified modal function
+    window.showDishSelectionModal = function(meal, day, index) {
+        console.log('Showing modal for meal:', meal);
+        
+                 // Get guest counts from the service-specific selection, not main form
+         const serviceGuestSummary = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+         let adultCount = 1;
+         let childCount = 0;
+         
+         if (serviceGuestSummary) {
+             const summaryText = serviceGuestSummary.textContent;
+             // Parse text like "3 adults (1 male), 0 children -0 infants"
+             const adultMatch = summaryText.match(/(\d+)\s+adults/);
+             const childMatch = summaryText.match(/(\d+)\s+children/);
+             
+             adultCount = adultMatch ? parseInt(adultMatch[1]) : 1;
+             childCount = childMatch ? parseInt(childMatch[1]) : 0;
+         } else {
+             // Fallback to main form if service selection not found
+             const maleCountEl = document.getElementById('male-count');
+             const femaleCountEl = document.getElementById('female-count');
+             const childrenCountEl = document.getElementById('children-count');
+             
+             adultCount = (maleCountEl ? parseInt(maleCountEl.textContent) || 0 : 0) + 
+                         (femaleCountEl ? parseInt(femaleCountEl.textContent) || 0 : 0);
+             childCount = childrenCountEl ? parseInt(childrenCountEl.textContent) || 0 : 0;
+         }
+        
+        let modalHTML = '';
+        let totalPrice = 0;
+        
+        if (meal.type == 1) { // Buffet
+            const adultPrice = parseFloat(meal.adult_price) || 0;
+            const childPrice = parseFloat(meal.child_price) || 0;
+            totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+            
+            modalHTML = `
+                <div class="modal fade" id="tempDishModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Select ${meal.display_name}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="card border-light">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <input type="radio" class="form-check-input me-3" checked disabled>
+                                            <div>
+                                                <h6 class="mb-1">${meal.name}</h6>
+                                                <small class="text-muted">
+                                                    Adult: $${adultPrice.toFixed(2)} × ${adultCount} = $${(adultPrice * adultCount).toFixed(2)}
+                                                    ${childCount > 0 ? `<br>Child: $${childPrice.toFixed(2)} × ${childCount} = $${(childPrice * childCount).toFixed(2)}` : ''}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-shopping-cart text-success me-2"></i>
+                                            <span class="fw-bold">Total Price:</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 text-end">
+                                        <span class="h4 text-success">$${totalPrice.toFixed(2)}</span>
+                                        <br>
+                                        <small class="text-muted">${adultCount} Adults${childCount > 0 ? `, ${childCount} Children` : ''}</small>
+                                    </div>
+                                </div>
+                            </div>
+                                                         <div class="modal-footer">
+                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
+                                 <button type="button" class="btn btn-success" id="confirmBtn" onclick="confirmDishSelection(${meal.meal_id}, '${meal.display_name}', ${day}, ${index}, ${totalPrice.toFixed(2)})" ${totalPrice > 0 ? '' : 'disabled'}>
+                                     <i class="fas fa-check me-2"></i>CONFIRM SELECTION
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             `;
+         } else if (meal.type == 2) { // Set Menu
+            const unitPrice = parseFloat(meal.price) || 0;
+            totalPrice = unitPrice;
+            
+            modalHTML = `
+                <div class="modal fade" id="tempDishModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Select ${meal.display_name}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="card border-light">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <input type="radio" class="form-check-input me-3" checked disabled>
+                                                <div>
+                                                    <h6 class="mb-1">${meal.name}</h6>
+                                                    <small class="text-muted">$${unitPrice.toFixed(2)}</small>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(-1)">-</button>
+                                                <span class="mx-3 fw-bold" id="quantityDisplay">1</span>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(1)">+</button>
+                                                <span class="ms-3 text-success fw-bold" id="priceDisplay">= $${unitPrice.toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-shopping-cart text-success me-2"></i>
+                                            <span class="fw-bold">Total Price:</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 text-end">
+                                        <span class="h4 text-success" id="totalPriceDisplay">$${totalPrice.toFixed(2)}</span>
+                                        <br>
+                                        <small class="text-muted" id="quantityInfo">Quantity: 1</small>
+                                    </div>
+                                </div>
+                            </div>
+                                                         <div class="modal-footer">
+                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
+                                 <button type="button" class="btn btn-success" id="confirmBtn" onclick="confirmDishSelection(${meal.meal_id}, '${meal.display_name}', ${day}, ${index}, ${unitPrice.toFixed(2)})" disabled>
+                                     <i class="fas fa-check me-2"></i>CONFIRM SELECTION
+                                 </button>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Remove any existing temp modal
+        const existingModal = document.getElementById('tempDishModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('tempDishModal'));
+        modal.show();
+        
+        // Store current selection data
+        window.currentDishData = {
+            meal: meal,
+            day: day,
+            index: index,
+            quantity: 1,
+            unitPrice: parseFloat(meal.price) || 0
+        };
+    };
+    
+         // Quantity update function for Set Menu
+     window.updateQuantity = function(change) {
+         const currentData = window.currentDishData;
+         if (!currentData) return;
+         
+         currentData.quantity = Math.max(0, currentData.quantity + change);
+         
+         const quantityDisplay = document.getElementById('quantityDisplay');
+         const priceDisplay = document.getElementById('priceDisplay');
+         const totalPriceDisplay = document.getElementById('totalPriceDisplay');
+         const quantityInfo = document.getElementById('quantityInfo');
+         const confirmBtn = document.getElementById('confirmBtn');
+         
+         const totalPrice = currentData.unitPrice * currentData.quantity;
+         
+         if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
+         if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
+         if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+         if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
+         
+         // Enable/disable confirm button based on quantity
+         if (confirmBtn) {
+             confirmBtn.disabled = currentData.quantity === 0;
+             // Update onclick with current total price
+             confirmBtn.setAttribute('onclick', `confirmDishSelection(${currentData.meal.meal_id}, '${currentData.meal.display_name}', ${currentData.day}, ${currentData.index}, ${totalPrice.toFixed(2)})`);
+         }
+     };
+    
+         // Confirm selection function
+     window.confirmDishSelection = function(mealId, dishName, day, index, totalPrice) {
+         console.log('Dish confirmed:', dishName, 'Price:', totalPrice);
+         
+         // Mark the selected dish button as selected and show price
+         const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
+         if (dishContainer) {
+             dishContainer.querySelectorAll('.dish-option-btn').forEach(btn => {
+                 btn.classList.remove('selected');
+                 if (btn.dataset.mealId == mealId) {
+                     btn.classList.add('selected');
+                     // Update button text to show price
+                     const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
+                     btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
+                 }
+             });
+         }
+         
+         // Close modal
+         const modal = bootstrap.Modal.getInstance(document.getElementById('tempDishModal'));
+         if (modal) modal.hide();
+         
+         // Remove temp modal
+         const tempModal = document.getElementById('tempDishModal');
+         if (tempModal) tempModal.remove();
+     };
+    
+    // Main guest selection modal functions
+    window.openMainGuestSelector = function() {
+        console.log('Opening main guest selector modal');
+        
+        try {
+            // Initialize modal with current values
+            const maleInput = document.getElementById('male');
+            const femaleInput = document.getElementById('female');
+            const childrenInput = document.getElementById('children');
+            const infantsInput = document.getElementById('infants');
+            
+            const male = maleInput ? parseInt(maleInput.value) || 0 : 2;
+            const female = femaleInput ? parseInt(femaleInput.value) || 0 : 2;
+            const children = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
+            const infants = infantsInput ? parseInt(infantsInput.value) || 0 : 0;
+            
+            console.log('Current values:', {male, female, children, infants});
+            
+            // Update modal elements with null checks
+            const mainModalMale = document.getElementById('mainModalMale');
+            const mainModalFemale = document.getElementById('mainModalFemale');
+            const mainModalChildren = document.getElementById('mainModalChildren');
+            const mainModalInfants = document.getElementById('mainModalInfants');
+            
+            if (mainModalMale) mainModalMale.textContent = male;
+            if (mainModalFemale) mainModalFemale.textContent = female;
+            if (mainModalChildren) mainModalChildren.textContent = children;
+            if (mainModalInfants) mainModalInfants.textContent = infants;
+            
+            updateMainModalSummary();
+            
+            const modalElement = document.getElementById('mainGuestSelectorModal');
+            if (modalElement) {
+                try {
+                    // Try to get existing modal instance first
+                    let modal = bootstrap.Modal.getInstance(modalElement);
+                    if (!modal) {
+                        // Create new modal if one doesn't exist
+                        modal = new bootstrap.Modal(modalElement);
+                    }
+                    modal.show();
+                } catch (modalError) {
+                    console.error('Error showing modal:', modalError);
+                    // Fallback to jQuery if available
+                    if (typeof $ !== 'undefined') {
+                        $(modalElement).modal('show');
+                    }
+                }
+            } else {
+                console.error('Modal element not found!');
+            }
+        } catch (error) {
+            console.error('Error opening main guest selector:', error);
+        }
+    };
+    
+    window.updateMainGuest = function(type, change) {
+        const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
+        if (!element) return;
+        
+        const currentValue = parseInt(element.textContent) || 0;
+        let newValue = Math.max(0, currentValue + change);
+        
+        // Validation rules
+        if (type === 'male' || type === 'female') {
+            // Ensure at least 1 adult total
+            const maleCount = type === 'male' ? newValue : parseInt(document.getElementById('mainModalMale').textContent) || 0;
+            const femaleCount = type === 'female' ? newValue : parseInt(document.getElementById('mainModalFemale').textContent) || 0;
+            
+            if (maleCount + femaleCount < 1) {
+                return; // Don't allow 0 adults
+            }
+        }
+        
+        element.textContent = newValue;
+        updateMainModalSummary();
+    };
+    
+    function updateMainModalSummary() {
+        try {
+            const maleEl = document.getElementById('mainModalMale');
+            const femaleEl = document.getElementById('mainModalFemale');
+            const childrenEl = document.getElementById('mainModalChildren');
+            const infantsEl = document.getElementById('mainModalInfants');
+            
+            const male = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
+            const female = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
+            const children = childrenEl ? parseInt(childrenEl.textContent) || 0 : 0;
+            const infants = infantsEl ? parseInt(infantsEl.textContent) || 0 : 0;
+            
+            const adults = male + female;
+            const total = adults + children + infants;
+            
+            // Update summary displays with null checks
+            const totalGuestsEl = document.getElementById('mainModalTotalGuests');
+            const summaryEl = document.getElementById('mainModalSummary');
+            const guestInfoEl = document.getElementById('mainModalGuestInfo');
+            
+            if (totalGuestsEl) totalGuestsEl.textContent = `${total} guests`;
+            if (summaryEl) summaryEl.textContent = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
+            if (guestInfoEl) guestInfoEl.textContent = `Adults: ${adults} (${male}M + ${female}F), Children: ${children}, Infants: ${infants}`;
+            
+            console.log('Updated summary:', {male, female, children, infants, adults, total});
+        } catch (error) {
+            console.error('Error updating modal summary:', error);
+        }
+    }
+    
+    window.applyMainGuestSelection = function() {
+        const male = parseInt(document.getElementById('mainModalMale').textContent) || 0;
+        const female = parseInt(document.getElementById('mainModalFemale').textContent) || 0;
+        const children = parseInt(document.getElementById('mainModalChildren').textContent) || 0;
+        const infants = parseInt(document.getElementById('mainModalInfants').textContent) || 0;
+        
+        const adults = male + female;
+        
+        // Update hidden form fields
+        document.getElementById('adults').value = adults;
+        document.getElementById('male').value = male;
+        document.getElementById('female').value = female;
+        document.getElementById('children').value = children;
+        document.getElementById('infants').value = infants;
+        
+        // Update display elements
+        document.getElementById('male-count').textContent = male;
+        document.getElementById('female-count').textContent = female;
+        document.getElementById('children-count').textContent = children;
+        document.getElementById('infants-count').textContent = infants;
+        
+        // Update main summary
+        const summaryText = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
+        document.getElementById('guestSummary').textContent = summaryText;
+        
+        // Update all service guest summaries
+        updateAllServiceGuestSummaries(male, female, children, infants);
+        
+        // Close modal
+        try {
+            const modalElement = document.getElementById('mainGuestSelectorModal');
+            if (modalElement) {
+                // Try to get existing modal instance first
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // If no instance found, try jQuery fallback
+                    if (typeof $ !== 'undefined') {
+                        $(modalElement).modal('hide');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error closing modal:', error);
+        }
+        
+        console.log('Applied guest selection:', {male, female, children, infants, adults});
+    };
+
+    // Function to update all service guest summaries
+    function updateAllServiceGuestSummaries(male, female, children, infants) {
+        const adults = male + female;
+        const summaryText = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
+        
+        console.log('Updating all service guest summaries:', summaryText);
+        
+        // Find all guest summary elements across all service sections
+        const guestSummaryElements = document.querySelectorAll('[id$="_guest_summary"]');
+        
+        guestSummaryElements.forEach(function(element) {
+            element.textContent = summaryText;
+            console.log('Updated guest summary for:', element.id);
+        });
+        
+        // Also update any badge displays (the colored badges showing numbers)
+        const badgeContainers = document.querySelectorAll('.guest-badges');
+        badgeContainers.forEach(function(container) {
+            const badges = container.querySelectorAll('.badge');
+            if (badges.length >= 3) {
+                badges[0].textContent = adults; // Primary badge (adults)
+                badges[1].textContent = children; // Success badge (children)
+                badges[2].textContent = infants; // Warning badge (infants)
+            }
+        });
+        
+        console.log('Updated all service guest summaries and badges');
+    }
+
+    // Test main guest modal
+    window.testMainModal = function() {
+        console.log('Testing main guest modal...');
+        const modalElement = document.getElementById('mainGuestSelectorModal');
+        if (modalElement) {
+            console.log('Modal found, showing...');
+            try {
+                // Try to get existing modal instance first
+                let modal = bootstrap.Modal.getInstance(modalElement);
+                if (!modal) {
+                    // Create new modal if one doesn't exist
+                    modal = new bootstrap.Modal(modalElement);
+                }
+                modal.show();
+            } catch (error) {
+                console.error('Error showing modal:', error);
+                // Fallback to jQuery if available
+                if (typeof $ !== 'undefined') {
+                    $(modalElement).modal('show');
+                }
+            }
+        } else {
+            console.error('Main guest modal element not found!');
+        }
+    };
+
     // Test function to check if modal works
     window.testModal = function() {
         console.log('Testing modal...');
@@ -2373,14 +2908,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Add backup onclick attribute
                         dishButton.setAttribute('onclick', `openDishModal(${day}, ${index}, this)`);
                         
-                        // Add click event to open modal
+                        // Add click event to open modal directly
                         dishButton.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             console.log('Dish button clicked:', meal.display_name);
-                            console.log('Button datasets:', this.dataset);
-                            console.log('Calling openDishModal with day:', day, 'index:', index);
-                            openDishModal(day, index, this);
+                            
+                            // Directly show modal with content
+                            showDishSelectionModal(meal, day, index);
                         });
                         
                         dishContainer.appendChild(dishButton);
@@ -2448,7 +2983,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="guest-info">
                                             <span id="day${day}_restaurant_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male), 0 children -0 infants
+                                                1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_${newIndex}')">
@@ -2463,19 +2998,26 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </div>
-                                                 <div class="col-md-3">
+                                                 <div class="col-md-2">
                              <label class="form-label fw-semibold">Meal Type</label>
                              <select class="form-select" name="day${day}_meal_type_${newIndex}" id="day${day}_meal_type_${newIndex}">
                                  <option value="">Select Meal Type</option>
                              </select>
                              <small class="text-muted">Available meal types with timings</small>
                          </div>
-                         <div class="col-md-3">
+                         <div class="col-md-2">
                              <label class="form-label fw-semibold">Select Dish</label>
                              <select class="form-select" name="day${day}_dish_${newIndex}" id="day${day}_dish_${newIndex}">
                                  <option value="">Select Dish</option>
                              </select>
                              <small class="text-muted">Buffet or Set Menu options</small>
+                         </div>
+                         <div class="col-md-2">
+                             <label class="form-label fw-semibold">Time Slot</label>
+                             <select class="form-select" name="day${day}_time_slot_${newIndex}" id="day${day}_time_slot_${newIndex}">
+                                 <option value="">Select Time Slot</option>
+                             </select>
+                             <small class="text-muted">Available time slots</small>
                          </div>
                     </div>
                 </div>
@@ -2488,6 +3030,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const newSelect = document.getElementById(`day${day}_restaurant_${newIndex}`);
         if (newSelect) {
             loadRestaurantsDropdown(newSelect);
+        }
+        
+        // Update guest summary for the new restaurant with current main guest selection
+        const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+        const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+        const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+        const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+        
+        const summaryElement = document.getElementById(`day${day}_restaurant_${newIndex}_guest_summary`);
+        if (summaryElement) {
+            const adults = mainMale + mainFemale;
+            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children -${mainInfants} infants`;
         }
         
         showNotification(`Restaurant Booking #${newIndex} added for Day ${day}`, 'success');
@@ -2841,7 +3395,7 @@ document.addEventListener('DOMContentLoaded', function() {
          // Future implementation: Add dynamic form for tour guides
      };
      
-         window.addMoreGuides = function(day) {
+     window.addMoreGuides = function(day) {
         const container = document.getElementById(`day${day}_guides_container`);
         const existingGuides = container.querySelectorAll('.guide-item');
         const newIndex = existingGuides.length + 1;
@@ -2879,7 +3433,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="guest-info">
                                             <span id="day${day}_guide_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male), 0 children -0 infants
+                                                1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')">
@@ -2928,6 +3482,18 @@ document.addEventListener('DOMContentLoaded', function() {
             loadGuidesDropdown(newSelect);
         }
         
+        // Update guest summary for the new guide with current main guest selection
+        const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+        const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+        const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+        const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+        
+        const summaryElement = document.getElementById(`day${day}_guide_${newIndex}_guest_summary`);
+        if (summaryElement) {
+            const adults = mainMale + mainFemale;
+            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children -${mainInfants} infants`;
+        }
+        
         showNotification(`Tour Guide Booking #${newIndex} added for Day ${day}`, 'success');
     };
     
@@ -2935,7 +3501,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const guideItem = button.closest('.guide-item');
         guideItem.remove();
         showNotification(`Tour Guide Booking #${index} removed from Day ${day}`, 'info');
-    };
+     };
      
      window.addRestaurantService = function(day) {
          showNotification(`Restaurant service added for Day ${day}`, 'success');
@@ -2950,19 +3516,21 @@ document.addEventListener('DOMContentLoaded', function() {
      };
      
      // Guest selector functionality
-     window.openGuestSelector = function(serviceId) {
-         const modal = document.getElementById('guestSelectorModal');
-         if (modal) {
-             modal.setAttribute('data-service-id', serviceId);
-             const modalInstance = new bootstrap.Modal(modal);
-             modalInstance.show();
-         } else {
-             // Create modal if it doesn't exist
-             createGuestSelectorModal(serviceId);
-         }
-     };
+         window.openGuestSelector = function(serviceId) {
+        const modal = document.getElementById('guestSelectorModal');
+        if (modal) {
+            modal.setAttribute('data-service-id', serviceId);
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+        } else {
+            // Create modal if it doesn't exist
+            createGuestSelectorModal(serviceId);
+        }
+    };
+
+
      
-         function createGuestSelectorModal(serviceId) {
+     function createGuestSelectorModal(serviceId) {
         // Get limits from main form
         const maxMale = parseInt(document.getElementById('male').value) || 0;
         const maxFemale = parseInt(document.getElementById('female').value) || 0;
@@ -2970,17 +3538,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxInfants = parseInt(document.getElementById('infants').value) || 0;
         const maxAdults = maxMale + maxFemale;
         
-        const modalHTML = `
-            <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title" id="guestSelectorModalLabel">
-                                <i class="ri-group-line me-2"></i>Select Guests for Service
-                            </h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
+         const modalHTML = `
+             <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel" aria-hidden="true">
+                 <div class="modal-dialog modal-lg">
+                     <div class="modal-content">
+                         <div class="modal-header bg-primary text-white">
+                             <h5 class="modal-title" id="guestSelectorModalLabel">
+                                 <i class="ri-group-line me-2"></i>Select Guests for Service
+                             </h5>
+                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                         </div>
+                         <div class="modal-body">
                             <!-- Service Limits Notice -->
                             <div class="alert alert-info mb-4">
                                 <div class="row">
@@ -2997,106 +3565,106 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                             
-                            <div class="row g-4">
-                                <!-- Adults Section -->
-                                <div class="col-md-6">
-                                    <div class="card border-primary">
-                                        <div class="card-header bg-primary text-white">
+                             <div class="row g-4">
+                                 <!-- Adults Section -->
+                                 <div class="col-md-6">
+                                     <div class="card border-primary">
+                                         <div class="card-header bg-primary text-white">
                                             <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults (Max: ${maxAdults})</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <!-- Male -->
-                                            <div class="guest-counter mb-3">
-                                                <label class="form-label fw-semibold text-primary">
+                                         </div>
+                                         <div class="card-body">
+                                             <!-- Male -->
+                                             <div class="guest-counter mb-3">
+                                                 <label class="form-label fw-semibold text-primary">
                                                     <i class="ri-user-3-line me-1"></i>Male (Max: ${maxMale})
-                                                </label>
-                                                <div class="d-flex align-items-center">
+                                                 </label>
+                                                 <div class="d-flex align-items-center">
                                                     <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-subtract-line"></i>
-                                                    </button>
-                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
+                                                         <i class="ri-subtract-line"></i>
+                                                     </button>
+                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
                                                     <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-add-line"></i>
-                                                    </button>
-                                                </div>
+                                                         <i class="ri-add-line"></i>
+                                                     </button>
+                                                 </div>
                                                 ${maxMale === 0 ? '<small class="text-muted">No male adults selected in main form</small>' : ''}
-                                            </div>
-                                            <!-- Female -->
-                                            <div class="guest-counter">
-                                                <label class="form-label fw-semibold text-danger">
+                                             </div>
+                                             <!-- Female -->
+                                             <div class="guest-counter">
+                                                 <label class="form-label fw-semibold text-danger">
                                                     <i class="ri-user-4-line me-1"></i>Female (Max: ${maxFemale})
-                                                </label>
-                                                <div class="d-flex align-items-center">
+                                                 </label>
+                                                 <div class="d-flex align-items-center">
                                                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-subtract-line"></i>
-                                                    </button>
-                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
+                                                         <i class="ri-subtract-line"></i>
+                                                     </button>
+                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
                                                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-add-line"></i>
-                                                    </button>
-                                                </div>
+                                                         <i class="ri-add-line"></i>
+                                                     </button>
+                                                 </div>
                                                 ${maxFemale === 0 ? '<small class="text-muted">No female adults selected in main form</small>' : ''}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Children & Infants Section -->
-                                <div class="col-md-6">
-                                    <div class="card border-success">
-                                        <div class="card-header bg-success text-white">
-                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <!-- Children -->
-                                            <div class="guest-counter mb-3">
-                                                <label class="form-label fw-semibold text-success">
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Children & Infants Section -->
+                                 <div class="col-md-6">
+                                     <div class="card border-success">
+                                         <div class="card-header bg-success text-white">
+                                             <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
+                                         </div>
+                                         <div class="card-body">
+                                             <!-- Children -->
+                                             <div class="guest-counter mb-3">
+                                                 <label class="form-label fw-semibold text-success">
                                                     <i class="ri-user-smile-line me-1"></i>Children (Max: ${maxChildren})
-                                                    <small class="text-muted">(Ages 1-17)</small>
-                                                </label>
-                                                <div class="d-flex align-items-center">
+                                                     <small class="text-muted">(Ages 1-17)</small>
+                                                 </label>
+                                                 <div class="d-flex align-items-center">
                                                     <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-subtract-line"></i>
-                                                    </button>
-                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
+                                                         <i class="ri-subtract-line"></i>
+                                                     </button>
+                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
                                                     <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-add-line"></i>
-                                                    </button>
-                                                </div>
+                                                         <i class="ri-add-line"></i>
+                                                     </button>
+                                                 </div>
                                                 ${maxChildren === 0 ? '<small class="text-muted">No children selected in main form</small>' : ''}
-                                            </div>
-                                            <!-- Infants -->
-                                            <div class="guest-counter">
-                                                <label class="form-label fw-semibold text-warning">
+                                             </div>
+                                             <!-- Infants -->
+                                             <div class="guest-counter">
+                                                 <label class="form-label fw-semibold text-warning">
                                                     <i class="ri-user-heart-line me-1"></i>Infants (Max: ${maxInfants})
-                                                    <small class="text-muted">(Under 1 year)</small>
-                                                </label>
-                                                <div class="d-flex align-items-center">
+                                                     <small class="text-muted">(Under 1 year)</small>
+                                                 </label>
+                                                 <div class="d-flex align-items-center">
                                                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-subtract-line"></i>
-                                                    </button>
-                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
+                                                         <i class="ri-subtract-line"></i>
+                                                     </button>
+                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
                                                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''}>
-                                                        <i class="ri-add-line"></i>
-                                                    </button>
-                                                </div>
+                                                         <i class="ri-add-line"></i>
+                                                     </button>
+                                                 </div>
                                                 ${maxInfants === 0 ? '<small class="text-muted">No infants selected in main form</small>' : ''}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
-                                <i class="ri-check-line me-1"></i>Apply Selection
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="modal-footer">
+                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                             <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
+                                 <i class="ri-check-line me-1"></i>Apply Selection
+                             </button>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+         `;
          
          document.body.insertAdjacentHTML('beforeend', modalHTML);
          
@@ -3124,9 +3692,9 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('serviceModalInfants').textContent = infants;
      }
      
-         window.updateServiceGuest = function(type, change) {
-        const element = document.getElementById('serviceModal' + type.charAt(0).toUpperCase() + type.slice(1));
-        const currentValue = parseInt(element.textContent) || 0;
+     window.updateServiceGuest = function(type, change) {
+         const element = document.getElementById('serviceModal' + type.charAt(0).toUpperCase() + type.slice(1));
+         const currentValue = parseInt(element.textContent) || 0;
         
         // Get maximum allowed from main form
         let maxAllowed = 0;
@@ -3144,8 +3712,22 @@ document.addEventListener('DOMContentLoaded', function() {
         let newValue = currentValue + change;
         newValue = Math.max(0, Math.min(maxAllowed, newValue));
         
-        element.textContent = newValue;
-    };
+        // For adults, ensure at least 1 adult is selected in total
+        if ((type === 'male' || type === 'female') && change < 0) {
+            const maleEl = document.getElementById('serviceModalMale');
+            const femaleEl = document.getElementById('serviceModalFemale');
+            const maleCount = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
+            const femaleCount = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
+            
+            const totalAdults = (type === 'male' ? newValue : maleCount) + (type === 'female' ? newValue : femaleCount);
+            
+            if (totalAdults < 1) {
+                return; // Don't allow reducing to 0 adults
+            }
+        }
+        
+         element.textContent = newValue;
+     };
      
      window.applyGuestSelection = function() {
          const serviceId = document.getElementById('guestSelectorModal').getAttribute('data-service-id');
@@ -3205,8 +3787,8 @@ document.addEventListener('DOMContentLoaded', function() {
          }, 3000);
      }
 
-         // Initialize
-    updateGuestSummary();
+     // Initialize
+     updateGuestSummary();
     updateAdultsCount();
  });
 </script>
@@ -3614,14 +4196,7 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 8px;
 }
 
-/* Guest count styling */
-.guest-section span[id$='-count'] {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #333;
-}
-
-/* Adults total count styling */
+/* Guest selector styling */
 #adults-count {
     font-size: 1.1rem;
     color: #007bff;
@@ -3677,7 +4252,7 @@ document.addEventListener('DOMContentLoaded', function() {
             background-color: #0d6efd;
             color: white;
             border-color: #0d6efd;
-        }
+}
 </style>
 
 <!-- Dish Selection Modal -->
@@ -3714,6 +4289,330 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     </div>
+
+<!-- Main Guest Selection Modal -->
+<div class="modal fade" id="mainGuestSelectorModal" tabindex="-1" aria-labelledby="mainGuestSelectorModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="mainGuestSelectorModalLabel">
+                        <i class="ri-group-line me-2"></i>Select Guests for Tour
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Available Guests Info -->
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        <strong>Available Guests (Based on main selection):</strong>
+                        <br>
+                        <span id="mainModalGuestInfo">Adults: 4 (2M + 2F), Children: 0, Infants: 0</span>
+                    </div>
+
+                    <div class="row">
+                        <!-- Adults Section -->
+                        <div class="col-md-6">
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">
+                                        <i class="ri-user-line me-2"></i>Adults (Max: 4)
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Male -->
+                                    <div class="guest-item d-flex justify-content-between align-items-center mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-user-3-line text-primary me-3 fs-5"></i>
+                                            <span class="fw-semibold">Male</span>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateMainGuest('male', -1)">
+                                                <i class="ri-subtract-line"></i>
+                                            </button>
+                                            <span class="mx-3 fw-bold fs-5" id="mainModalMale" style="min-width: 30px; text-align: center;">2</span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateMainGuest('male', 1)">
+                                                <i class="ri-add-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Female -->
+                                    <div class="guest-item d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-user-4-line me-3 fs-5" style="color: #e91e63;"></i>
+                                            <span class="fw-semibold">Female</span>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateMainGuest('female', -1)">
+                                                <i class="ri-subtract-line"></i>
+                                            </button>
+                                            <span class="mx-3 fw-bold fs-5" id="mainModalFemale" style="min-width: 30px; text-align: center;">2</span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateMainGuest('female', 1)">
+                                                <i class="ri-add-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Children & Infants Section -->
+                        <div class="col-md-6">
+                            <div class="card border-success h-100">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">
+                                        <i class="ri-team-line me-2"></i>Children & Infants
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Children -->
+                                    <div class="guest-item d-flex justify-content-between align-items-center mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-user-smile-line text-success me-3 fs-5"></i>
+                                            <div>
+                                                <span class="fw-semibold d-block">Children</span>
+                                                <small class="text-muted">Ages 1-17</small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="updateMainGuest('children', -1)">
+                                                <i class="ri-subtract-line"></i>
+                                            </button>
+                                            <span class="mx-3 fw-bold fs-5" id="mainModalChildren" style="min-width: 30px; text-align: center;">0</span>
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="updateMainGuest('children', 1)">
+                                                <i class="ri-add-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Infants -->
+                                    <div class="guest-item d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-user-baby-line text-warning me-3 fs-5"></i>
+                                            <div>
+                                                <span class="fw-semibold d-block">Infants</span>
+                                                <small class="text-muted">Under 1 year</small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateMainGuest('infants', -1)">
+                                                <i class="ri-subtract-line"></i>
+                                            </button>
+                                            <span class="mx-3 fw-bold fs-5" id="mainModalInfants" style="min-width: 30px; text-align: center;">0</span>
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateMainGuest('infants', 1)">
+                                                <i class="ri-add-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Summary -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark">Total Guests:</span>
+                            <span class="fw-bold text-primary fs-5" id="mainModalTotalGuests">4 guests</span>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted" id="mainModalSummary">4 adults (2 male, 2 female) - 0 children - 0 infants</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="applyMainGuestSelection()">
+                        <i class="ri-check-line me-1"></i>Apply Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Simple Test Modal -->
+<div class="modal fade" id="testSimpleModal" tabindex="-1" aria-labelledby="testSimpleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testSimpleModalLabel">Test Modal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>This is a simple test modal to verify Bootstrap modal functionality.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize modals when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all modals on the page
+        const allModals = document.querySelectorAll('.modal');
+        console.log('Found', allModals.length, 'modals on the page');
+        
+        // Pre-initialize all modals to ensure they're ready
+        allModals.forEach(modalEl => {
+            try {
+                new bootstrap.Modal(modalEl);
+                console.log('Pre-initialized modal:', modalEl.id);
+            } catch (e) {
+                console.error('Failed to pre-initialize modal:', modalEl.id, e);
+            }
+        });
+        
+        // Ensure the main guest selector modal is properly set up
+        const mainGuestModal = document.getElementById('mainGuestSelectorModal');
+        if (mainGuestModal) {
+            console.log('Found main guest modal, setting up...');
+            
+            // Initialize modal values
+            const maleInput = document.getElementById('male');
+            const femaleInput = document.getElementById('female');
+            const childrenInput = document.getElementById('children');
+            const infantsInput = document.getElementById('infants');
+            
+            const male = maleInput ? parseInt(maleInput.value) || 0 : 2;
+            const female = femaleInput ? parseInt(femaleInput.value) || 0 : 2;
+            const children = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
+            const infants = infantsInput ? parseInt(infantsInput.value) || 0 : 0;
+            
+            // Update modal elements with null checks
+            const mainModalMale = document.getElementById('mainModalMale');
+            const mainModalFemale = document.getElementById('mainModalFemale');
+            const mainModalChildren = document.getElementById('mainModalChildren');
+            const mainModalInfants = document.getElementById('mainModalInfants');
+            
+            if (mainModalMale) mainModalMale.textContent = male;
+            if (mainModalFemale) mainModalFemale.textContent = female;
+            if (mainModalChildren) mainModalChildren.textContent = children;
+            if (mainModalInfants) mainModalInfants.textContent = infants;
+            
+            // Update summary
+            const totalGuestsEl = document.getElementById('mainModalTotalGuests');
+            const summaryEl = document.getElementById('mainModalSummary');
+            const adults = male + female;
+            const total = adults + children + infants;
+            
+            if (totalGuestsEl) totalGuestsEl.textContent = `${total} guests`;
+            if (summaryEl) summaryEl.textContent = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
+        }
+        // Add event listener for the main guest selector button
+        const mainGuestBtn = document.getElementById('mainGuestSelectorBtn');
+        if (mainGuestBtn) {
+            mainGuestBtn.addEventListener('click', function() {
+                const modalElement = document.getElementById('mainGuestSelectorModal');
+                if (modalElement) {
+                    try {
+                        console.log('Opening main guest modal from button click...');
+                        
+                        // Method 1: Use data-bs-* attributes
+                        modalElement.setAttribute('data-bs-toggle', 'modal');
+                        modalElement.setAttribute('data-bs-target', '#mainGuestSelectorModal');
+                        
+                        // Method 2: Try Bootstrap 5 way with pre-initialized modal
+                        try {
+                            // Get existing instance if available
+                            let bsModal = bootstrap.Modal.getInstance(modalElement);
+                            if (!bsModal) {
+                                // Create new instance if needed
+                                bsModal = new bootstrap.Modal(modalElement, {
+                                    backdrop: 'static',
+                                    keyboard: false
+                                });
+                            }
+                            bsModal.show();
+                            console.log('Main guest modal opened with Bootstrap 5 method');
+                            return;
+                        } catch (e) {
+                            console.error('Bootstrap 5 method failed for main guest modal:', e);
+                        }
+                        
+                        // Method 3: jQuery fallback
+                        if (typeof $ !== 'undefined') {
+                            try {
+                                $(modalElement).modal('show');
+                                console.log('Main guest modal opened with jQuery');
+                                return;
+                            } catch (e) {
+                                console.error('jQuery method failed for main guest modal:', e);
+                            }
+                        }
+                        
+                        // Method 4: Direct DOM manipulation as last resort
+                        modalElement.classList.add('show');
+                        modalElement.style.display = 'block';
+                        modalElement.setAttribute('aria-modal', 'true');
+                        modalElement.setAttribute('role', 'dialog');
+                        modalElement.removeAttribute('aria-hidden');
+                        document.body.classList.add('modal-open');
+                        
+                        // Add backdrop
+                        const backdrop = document.createElement('div');
+                        backdrop.className = 'modal-backdrop fade show';
+                        document.body.appendChild(backdrop);
+                        
+                        console.log('Main guest modal opened with direct DOM manipulation');
+                        
+                    } catch (error) {
+                        console.error('All methods to open main guest modal failed:', error);
+                        alert('Failed to open main guest modal. See console for details.');
+                    }
+                } else {
+                    console.error('Main guest modal element not found!');
+                    alert('Main guest modal element not found!');
+                }
+            });
+        } else {
+            console.error('Main guest selector button not found!');
+        }
+        const simpleTestButton = document.createElement('button');
+        simpleTestButton.textContent = 'Test Simple Modal';
+        simpleTestButton.className = 'btn btn-sm btn-info position-fixed';
+        simpleTestButton.style.bottom = '60px';
+        simpleTestButton.style.right = '20px';
+        simpleTestButton.style.zIndex = '9999';
+        simpleTestButton.onclick = function() {
+            const modalElement = document.getElementById('testSimpleModal');
+            if (modalElement) {
+                try {
+                    const bsModal = new bootstrap.Modal(modalElement);
+                    bsModal.show();
+                } catch (error) {
+                    console.error('Failed to open simple modal:', error);
+                    alert('Failed to open simple modal. See console for details.');
+                }
+            }
+        };
+        document.body.appendChild(simpleTestButton);
+    });
+    
+    // Initialize attraction guest selectors when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all attraction guest selectors with values from main tour selection
+        const mainMaleInput = document.getElementById('male');
+        const mainFemaleInput = document.getElementById('female');
+        const mainChildrenInput = document.getElementById('children');
+        const mainInfantsInput = document.getElementById('infants');
+        
+        const mainMale = mainMaleInput ? parseInt(mainMaleInput.value) || 0 : 2;
+        const mainFemale = mainFemaleInput ? parseInt(mainFemaleInput.value) || 0 : 2;
+        const mainChildren = mainChildrenInput ? parseInt(mainChildrenInput.value) || 0 : 0;
+        const mainInfants = mainInfantsInput ? parseInt(mainInfantsInput.value) || 0 : 0;
+        
+        const maxAdults = mainMale + mainFemale;
+        const maxChildren = mainChildren + mainInfants;
+        
+        console.log('Guest selectors initialized with limits:', {maxAdults, maxChildren});
+        
+        // Initialize guest summaries for all service sections
+        updateAllServiceGuestSummaries(mainMale, mainFemale, mainChildren, mainInfants);
+    });
+</script>
 
 @endsection 
