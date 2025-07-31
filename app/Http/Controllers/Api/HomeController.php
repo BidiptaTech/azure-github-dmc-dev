@@ -28,6 +28,7 @@ class HomeController extends Controller
         $city = trim($parts[0]);
         $country = trim($parts[1] ?? '');
         $country = trim($country, '()');
+        $dmcId = $request->dmc_id;
 
         $agentId = auth()->user()->agent_id;
         
@@ -135,23 +136,23 @@ class HomeController extends Controller
             $currentUser = Auth::user();
             
             if($currentUser->role_id == 33 || $currentUser->role_id == 128 || $currentUser->role_id == 129 || $currentUser->role_id == 130 || $currentUser->role_id == 134 || $currentUser->role_id == 135 || $currentUser->role_id == 136 || $currentUser->role_id == 138){
-                $dmc_id = $currentUser->created_by;
+                $dmcId = $currentUser->created_by;
             }
             elseif($currentUser->role_id == 37){
                 $sales_head_id = $currentUser->created_by;
                 $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
             elseif($currentUser->role_id == 38){
                 $sales_manager_id = $currentUser->created_by;
                 $sales_manager = User::where('userId', $sales_manager_id)->first();
                 $sales_head_id = $sales_manager->created_by;
                 $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
         }
         
-        if (!$dmc_id) {
+        if (!$dmcId) {
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
 
@@ -192,19 +193,22 @@ class HomeController extends Controller
             // Check if the current DMC has access to this attraction
             $hasAccess = false;
             foreach ($attractionCollection as $attraction) {
-                if ($attraction->hasSelectedByDmc($dmc_id)) {
+                if ($attraction->hasSelectedByDmc($dmcId)) {
                     $hasAccess = true;
                     break;
                 }
             }
 
+            $lowestAdultPrice = 0;
+            $lowestChildPrice = 0;
+            $lowestSeniorAdultPrice = 0;
+            
             if ($hasAccess) {
                 // Get tickets for this attraction from the DMC
                 $tickets = Ticket::where('attraction_id', $firstAttraction->attraction_id)
-                    ->where('dmc_id', $dmc_id)
+                    ->where('dmc_id', $dmcId)
                     ->where('status', 1)
                     ->get();
-
                 if ($tickets->isNotEmpty()) {
                     // Use ticket prices from the specific DMC
                     $lowestChildPrice = $tickets->min('child_price') ?? 0;
@@ -223,6 +227,7 @@ class HomeController extends Controller
                 // Get all tickets for this attraction regardless of DMC
                 $allTickets = Ticket::where('attraction_id', $firstAttraction->attraction_id)
                     ->where('status', 1)
+                    ->where('dmc_id', $dmcId)
                     ->get();
 
                 if ($allTickets->isNotEmpty()) {
@@ -255,9 +260,9 @@ class HomeController extends Controller
             $attractionList[] = [
                 'id' => $firstAttraction->attraction_id,
                 'attraction_name' => $name,
-                'dmc_adult_price' => round((float)$dmc_adult_price, 2),
-                'dmc_senior_price' => round((float)$dmc_senior_price, 2),
-                'dmc_child_price' => round((float)$dmc_child_price, 2),
+                'dmc_adult_price' => $lowestAdultPrice,
+                'dmc_senior_price' => $lowestSeniorAdultPrice,
+                'dmc_child_price' => $lowestChildPrice,
                 'dmc_id' => $dmc_dmc_id ?? 0,
                 'dmc_user_name' => User::where('userId', $dmc_dmc_id)->value('name') ?? '',
                 'travClicks_adult_price' => round((float)$travClicks_adult_price, 2),
@@ -301,7 +306,7 @@ class HomeController extends Controller
             $packages =  $this->formatPackagedAttractionResponse($packaged_attractions);
         }
 
-        $attraction = Attraction::where('attraction_id', $attractionId)->first();
+        $attraction = Attraction::where('attraction_id', intval($attractionId))->first();
         $country = $attraction->country;
         $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
         $country_tax = $check_country->tax_percentage ?? 0;
@@ -318,8 +323,13 @@ class HomeController extends Controller
         list($dmc_senior_price) = CommonHelper::CalculatePriceDetails($attraction->senior_adult_price, $get_dmc_id);
         list($dmc_shared_price) = CommonHelper::CalculatePriceDetails($attraction->price_shared, $get_dmc_id); 
         // Decode open_time and close_time from JSON
-        $open_times = json_decode($attraction->open_time, true) ?? [];
-        $close_times = json_decode($attraction->close_time, true) ?? [];
+        $open_times = json_decode($attraction->open_time, true);
+        $close_times = json_decode($attraction->close_time, true);
+
+        // Ensure we have arrays before proceeding
+        $open_times = is_array($open_times) ? $open_times : [$open_times];
+        $close_times = is_array($close_times) ? $close_times : [$close_times];
+
         // Merge open and close times into "open-close" format
         $time_slots = [];
         $count = min(count($open_times), count($close_times)); // Ensure we don't exceed array limits

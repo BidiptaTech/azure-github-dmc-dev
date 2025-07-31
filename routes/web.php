@@ -615,7 +615,10 @@ Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'f
         Route::get('/view-voucher-image/{booking_id}/{tour_id}', [RestaurantController::class, 'viewVoucherImage'])->name('view.voucher.image');
         Route::resource('restaurant', RestaurantController::class);
 
-        
+        // Agent View routes
+        Route::get('/registered-agents', [App\Http\Controllers\AgentViewController::class, 'index'])->name('registered-agents.index');
+        Route::get('/registered-agents/{agent_id}', [App\Http\Controllers\AgentViewController::class, 'show'])->name('registered-agents.show');
+        Route::post('/registered-agents/verify', [App\Http\Controllers\AgentViewController::class, 'verifyAgent'])->name('registered-agents.verify');
     });
 
     //authentication check for manager (route can access admin & manager)
@@ -674,6 +677,8 @@ Route::get('/test-booking-email', function() {
 });
 
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
+
+
 
 
 

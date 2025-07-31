@@ -81,6 +81,7 @@ class TourController extends Controller
                                     //   ->where('agent_id', $agent_id)
                                     //   ->whereNull('unique_tour_id')
                                       ->first();
+            $multi_enq_id = $formEnquiry->multi_enq_id ?? '';
             }
             $tour = new Tour();
             $tour->destination = $validatedData['destination'];
@@ -96,12 +97,23 @@ class TourController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "Pending";
             $tour->city = $request->city;
+            $tour->dmc_id = $request->dmc_id;
+            $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->save();
             $tour->refresh();
             if($formEnquiry){
                 $formEnquiry->unique_tour_id = $tour->unique_tour_id;
                 $formEnquiry->save();
+
+                // Cancel other related enquiries if this is part of a multi-enquiry
+                // if ($formEnquiry->multi_enq_id) {
+                //     EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                //         ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                //         ->update([
+                //             'status' => 'cancelled',
+                //         ]);
+                // }
             }
 
             $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
@@ -395,6 +407,7 @@ class TourController extends Controller
                     'service' => $service,
                     'cities' => $cities,
                     'bookingType' => $booking_type,
+                    'dmc_id' => $tour->dmc_id,
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -533,7 +546,9 @@ class TourController extends Controller
             if($enquiry_form){
                 $order_from = "By Sales Person";
             }
-
+            if($tour->dmc_id){
+                $dmc_company_name = User::where('userId', $tour->dmc_id)->first()->company_name;
+            }
             $tour_list[] = [
                 'id' => $tour->tour_id,
                 'unique_tour_id' => $tour->unique_tour_id,
@@ -556,6 +571,8 @@ class TourController extends Controller
                 'finalAmount' => $settlementAmount,
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
+                'dmc_id' => $tour->dmc_id, 
+                'dmc_company_name' => $dmc_company_name ?? '',
                 'order_from' => $order_from,
                 'created_at' => $tour->created_at->format('Y-m-d H:i:s'),
             ];
@@ -807,7 +824,6 @@ class TourController extends Controller
                 }
                 else{
                     $price = $zone_price->private_price;
-                    $price = $price;
                 }
                 $price = ceil($price);
                 if($price == $totalPrice){
@@ -978,7 +994,7 @@ class TourController extends Controller
                 
             }
             $finalPrice = ceil($finalPrice);
-            if($totalPrice == $finalPrice){
+            if($totalPrice == $price){
                 $flag = 1;
             }
             else{
@@ -1334,7 +1350,7 @@ class TourController extends Controller
                 }
 
                 if($selection == "withoutTransport"){
-                    if($mode == "dmc"){
+                    
                         $dmc_adult_price = $adultPrice;
                         $dmc_child_price = $childPrice;
                         $dmc_senior_price = $seniorPrice;
@@ -1342,30 +1358,30 @@ class TourController extends Controller
                         $price = ($dmc_adult_price*$adultCount)+($dmc_child_price*$childCount)+($dmc_senior_price*$seniorCount);
 
                         $priceWithoutCommission = ($adultPrice*$adultCount) + ($childPrice*$childCount) + ($seniorPrice*$seniorCount);
-                    }
-                    elseif($mode == "travclicks"){
-                        $dmc = User::where('userId', $dmcId)->first();
-                        if(!$dmc){
-                            return response()->json(['message' => 'DMC not found!'], 409);
-                        }
-                        $markup = $dmc->markup_price;
-                        $markup_type = $dmc->markup_type;
+                    
+                    // elseif($mode == "travclicks"){
+                    //     $dmc = User::where('userId', $dmcId)->first();
+                    //     if(!$dmc){
+                    //         return response()->json(['message' => 'DMC not found!'], 409);
+                    //     }
+                    //     $markup = $dmc->markup_price;
+                    //     $markup_type = $dmc->markup_type;
                         
-                        //child price
-                        if($markup_type == 1){
-                            $markupAdultPrice = $adultPrice; //+ ($adultPrice*($markup/100));
-                            $markupChildPrice = $childPrice; //+ ($childPrice*($markup/100));
-                            $markupSeniorPrice = $seniorPrice; //+ ($seniorPrice*($markup/100));
-                        }
-                        elseif($markup_type == 0){
-                            $markupAdultPrice = $adultPrice;
-                            $markupChildPrice = $childPrice;
-                            $markupSeniorPrice = $seniorPrice;
-                        }
-                        $price = ($adultCount*$markupAdultPrice) + ($childCount*$markupChildPrice) + ($seniorCount*$markupSeniorPrice);
+                    //     //child price
+                    //     if($markup_type == 1){
+                    //         $markupAdultPrice = $adultPrice; //+ ($adultPrice*($markup/100));
+                    //         $markupChildPrice = $childPrice; //+ ($childPrice*($markup/100));
+                    //         $markupSeniorPrice = $seniorPrice; //+ ($seniorPrice*($markup/100));
+                    //     }
+                    //     elseif($markup_type == 0){
+                    //         $markupAdultPrice = $adultPrice;
+                    //         $markupChildPrice = $childPrice;
+                    //         $markupSeniorPrice = $seniorPrice;
+                    //     }
+                    //     $price = ($adultCount*$markupAdultPrice) + ($childCount*$markupChildPrice) + ($seniorCount*$markupSeniorPrice);
                         
-                        $priceWithoutCommission = ($adultPrice*$adultCount) + ($childPrice*$childCount) + ($seniorPrice*$seniorCount);
-                    }
+                    //     $priceWithoutCommission = ($adultPrice*$adultCount) + ($childPrice*$childCount) + ($seniorPrice*$seniorCount);
+                    // }
                 }
                 // else if($selection == "withShare"){
                 //     if($mode == "dmc"){
@@ -1442,7 +1458,7 @@ class TourController extends Controller
                 //         $priceWithoutCommission = $attraction->price_private + ($ticket->adult_price*$adultCount) + ($ticket->child_price*$childCount) + ($ticket->senior_adult_price*$seniorCount);
                 //     }
                 // }
-                if($totalPrice == $price){
+                if($totalPrice == $priceWithoutCommission){
                     $adminProfit = $totalPrice - $priceWithoutCommission;
                     $flag = 1;
                 }
@@ -1467,7 +1483,7 @@ class TourController extends Controller
                 $price = ($adultPrice*$adultCount)+($childPrice*$childCount)+($seniorPrice*$seniorCount);
                 $priceWithoutCommission = $price;
                 
-                if($totalPrice == $price){
+                if($totalPrice == $priceWithoutCommission){
                     $flag = 1;
                 }
                 else{
@@ -1641,7 +1657,7 @@ class TourController extends Controller
                 
                 $finalPrice = round($finalPrice, 2);
                 
-                if($finalPrice == $totalPrice){
+                if($finalPrice == $priceWithoutCommission){
                     $adminProfit = $finalPrice - $priceWithoutCommission;
                     $flag = 1;
                 }
@@ -1885,7 +1901,7 @@ class TourController extends Controller
                     'total_hours' => $selectedHours
                 ]);
                 
-                if($finalPrice == $totalHourlyPrice){
+                if($finalPrice == $travelHourlyPriceWithoutCommission){
                     $flag = 1;
                     $adminProfit = $finalPrice - $travelHourlyPriceWithoutCommission;
                 }
@@ -2216,66 +2232,67 @@ class TourController extends Controller
             ], 400);
         }
         $currentEnquiry = Enquiry::where('status', 1)->where('tour_id', $tour_id)->first();
+        $tour = Tour::where('tour_id', $tour_id)->first();
         $user = auth()->user();
         $salesManagerId = $user->sales_manager_dmc;
 
 
-        if ($user) {
-            switch ($user->role_id) {
-                case 11: // Agent is a DMC
-                    $dmc_id = $user->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
-                    $dmc_users = User::where('userId', $dmc_id)->first();
-                    break;
-                    case 33: 
-                    case 128: 
-                    case 129: 
-                    case 130: 
-                    case 134: 
-                    case 135: 
-                    case 136: 
-                    case 138: // Sales Head
-                    $salesManagerId = $user->sales_manager_dmc;
-                        $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    break;
-                case 12:
-                case 37: // Sales Manager
-                    $salesManagerId = $user->sales_manager_dmc;
-                    $salesmng_dmc= User::where('userId', $user->sales_manager_dmc)->first(); // SM
+        // if ($user) {
+        //     switch ($user->role_id) {
+        //         case 11: // Agent is a DMC
+        //             $dmc_id = $user->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
+        //             $dmc_users = User::where('userId', $dmc_id)->first();
+        //             break;
+        //             case 33: 
+        //             case 128: 
+        //             case 129: 
+        //             case 130: 
+        //             case 134: 
+        //             case 135: 
+        //             case 136: 
+        //             case 138: // Sales Head
+        //             $salesManagerId = $user->sales_manager_dmc;
+        //                 $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SH
+        //                 if ( $saleshead_dmc) {
+        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
+        //                     if ($dmc_users && $dmc_users->role_id == 11) {
+        //                         $dmc_id = $dmc_users->userId;
+        //                     }
+        //                 }
+        //             break;
+        //         case 12:
+        //         case 37: // Sales Manager
+        //             $salesManagerId = $user->sales_manager_dmc;
+        //             $salesmng_dmc= User::where('userId', $user->sales_manager_dmc)->first(); // SM
                     
-                    if ($salesmng_dmc) {
-                        $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-                case 38: // Assistant Manager
-                    $salesManagerId = $user->sales_manager_dmc;
-                    $asmng_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SM
-                    if($asmng_dmc){
-                        $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-                    }
-                    if ($salesmng_dmc) {
-                        $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-            }
-        }
+        //             if ($salesmng_dmc) {
+        //                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
+        //                 if ( $saleshead_dmc) {
+        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
+        //                     if ($dmc_users && $dmc_users->role_id == 11) {
+        //                         $dmc_id = $dmc_users->userId;
+        //                     }
+        //                 }
+        //             }
+        //             break;
+        //         case 38: // Assistant Manager
+        //             $salesManagerId = $user->sales_manager_dmc;
+        //             $asmng_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SM
+        //             if($asmng_dmc){
+        //                 $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
+        //             }
+        //             if ($salesmng_dmc) {
+        //                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
+        //                 if ( $saleshead_dmc) {
+        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
+        //                     if ($dmc_users && $dmc_users->role_id == 11) {
+        //                         $dmc_id = $dmc_users->userId;
+        //                     }
+        //                 }
+        //             }
+        //             break;
+        //     }
+        // }
         
         $userId = $user->agent_id;
         switch ($type) {
@@ -2290,7 +2307,7 @@ class TourController extends Controller
                 $enquiry = Enquiry::create([
                     'tour_id' => $tour_id, 
                     'status' => 1,
-                    'dmcId' => $dmc_id,
+                    'dmcId' => $tour->dmc_id,
                     'enquiry_id' => $enquiryId,
                     'sender_id' => $userId,
                     'sender_type' => 'agent',
@@ -2359,6 +2376,20 @@ class TourController extends Controller
                         ]);
                     }
 
+                    $formEnquiry = EnquiryForm::where('multi_enq_id', $currentEnquiry->multi_enq_id)->first();
+                    if ($formEnquiry->multi_enq_id) {
+                        // Cancel other enquiry forms with same multi_enq_id
+                        EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                            ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                            ->update([
+                                'status' => 'cancelled',
+                            ]);
+                        
+                        // Soft delete other tours with same multi_enq_id (except current tour)
+                        Tour::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                            ->where('tour_id', '!=', $tour_id)
+                            ->delete(); // This will soft delete since Tour model uses SoftDeletes trait
+                    }
                     return response()->json([
                         
                         'success' => true,
@@ -2472,7 +2503,7 @@ class TourController extends Controller
     * Tour Details.
     * Date 25-02-2024
     */
-  public function tourDetails(Request $request)
+    public function tourDetails(Request $request)
     {
         $unique_tour_id = $request->tour_id;
         $tour = Tour::where('tour_id', $unique_tour_id)->first();
