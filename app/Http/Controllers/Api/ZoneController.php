@@ -271,38 +271,41 @@ class ZoneController extends Controller
         $pickup_type = $request->pickup_type;
         $pickup_id = $request->pickupid;
         $agent      = auth()->user();
+        $dmcId = $request->dmc_id;
         if($agent->sales_manager_dmc){
-            $user = User::where('userId', $agent->sales_manager_dmc)->first();
+            if(!$dmcId){
+                return response()->json(['message' => 'DMC Id Not Found!'], 400);
+            }
+            $user = User::where('userId', $dmcId)->first();
         }
         else{
             $user = User::where('userId', $agent->userId)->first();
         }
 
-        if(in_array($user->role_id, [11,33, 128, 129, 130, 134, 135, 136, 138, 37, 38])){
-
+        if(in_array($user->role_id, [11,33, 128, 129, 130, 134, 135, 136, 138, 37, 38]) && $agent->userId){
             if($user->role_id == 11){
-                $dmc_id = $user->userId;
+                $dmcId = $user->userId;
             }
             elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
                 $sales_head = User::where('userId', $user->userId)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
             elseif($user->role_id == 37){
                 $sales_manager = User::where('userId', $user->userId)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
             elseif($user->role_id == 38){
                 $sales_manager = User::where('userId', $agent->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
 
             else{
-                $dmc_id = null;
+                $dmcId = null;
             }
         }
-        if(!$dmc_id){
+        if(!$dmcId){
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
 
@@ -324,24 +327,34 @@ class ZoneController extends Controller
             case 'hotel':
                 $pickup = Hotel::where('hotel_unique_id', $pickup_id)->first();
                 if(!$pickup){
-                    return response()->json(['message' => 'Hotel Not Found!'], 400);
+                    return response()->json(['message' => 'Pickup Hotel Not Found!'], 400);
                 }
                 $country = $pickup->country;
                 $from_zone_id = $pickup->zone_id ?? null;
                 break;
             case 'attraction':
                 $pickup = Attraction::where('attraction_id', $pickup_id)->first();
+                if(!$pickup){
+                    return response()->json(['message' => 'Pickup Attraction Not Found!'], 400);
+                }
                 $country = $pickup->country;
                 $from_zone_id = $pickup->zone_id ?? null;
                 break;
             case 'restaurant':
                 $pickup = Restaurant::where('restaurant_id', $pickup_id)->first();
+                
+                if(!$pickup){
+                    return response()->json(['message' => 'Pickup Restaurant Not Found!'], 400);
+                }
                 $country = $pickup->country;
                 $from_zone_id = $pickup->zone_id ?? null;
                 break;
             case 'port':
                 // port pickup uses zone id directly from pickup_id (assuming it's already a zone_id)
                 $pickup = Port::where('port_id', $pickup_id)->first();
+                if(!$pickup){
+                    return response()->json(['message' => 'Pickup Port Not Found!'], 400);
+                }
                 $country = $pickup->country;
                 $from_zone_id = $pickup_id;
                 break;
@@ -349,26 +362,38 @@ class ZoneController extends Controller
                 // return response()->json(['success' => false, 'message' => 'Invalid pickup type.']);
                 return response()->json($vehicleList);
         }
-
+        
         // Determine to_zone_id (drop)
         switch ($drop_type) {
             case 'hotel':
                 $drop = Hotel::where('hotel_unique_id', $drop_id)->first();
+                if(!$drop){
+                    return response()->json(['message' => 'Drop-off Hotel Not Found!'], 400);
+                }
                 $country = $drop->country;
                 $to_zone_id = $drop->zone_id ?? null;
                 break;
             case 'attraction':
                 $drop = Attraction::where('attraction_id', $drop_id)->first();
+                if(!$drop){
+                    return response()->json(['message' => 'Drop-off Attraction Not Found!'], 400);
+                }
                 $country = $drop->country;
                 $to_zone_id = $drop->zone_id ?? null;
                 break;
             case 'restaurant':
                 $drop = Restaurant::where('restaurant_id', $drop_id)->first();
+                if(!$drop){
+                    return response()->json(['message' => 'Drop-off Restaurant Not Found!'], 400);
+                }
                 $country = $drop->country;
                 $to_zone_id = $drop->zone_id ?? null;
                 break;
             case 'port':
                 $drop = Port::where('port_id', $drop_id)->first();
+                if(!$drop){
+                    return response()->json(['message' => 'Drop-off Port Not Found!'], 400);
+                }
                 $country = $drop->country;
                 $to_zone_id = $drop_id;
                 break;
@@ -376,26 +401,29 @@ class ZoneController extends Controller
                 // return response()->json(['success' => false, 'message' => 'Invalid drop type.']);
                 return response()->json($vehicleList);
         }
+        
         if (!$from_zone_id || !$to_zone_id) {
-            // return response()->json([
-            //     'success' => false,
-            //     'message' => 'Zone information not found for pickup or drop.',
-            // ]);
-            return response()->json($vehicleList);
+            return response()->json([
+                'success' => false,
+                'message' => 'Zone information not found for pickup or drop.',
+            ]);
         }
 
         $vehicleIds = VehicleZoneMapping::where('from_zone_id', $from_zone_id)
         ->where('to_zone_id', $to_zone_id)
         ->pluck('vehicle_id')
         ->toArray();
+
         if(!$vehicleIds){
             $vehicleIds = VehicleZoneMapping::where('from_zone_id', $to_zone_id)
                 ->where('to_zone_id', $from_zone_id)
                 ->pluck('vehicle_id')
                 ->toArray();
         }
-
-        $vehicles = Vehicle::whereIn('vehicle_id', $vehicleIds)->where('dmc_id', $dmc_id)->get();
+        if(!$vehicleIds){
+            return response()->json(['message' => 'No vehicles found!'], 400);
+        }
+        $vehicles = Vehicle::whereIn('vehicle_id', $vehicleIds)->where('dmc_id', $dmcId)->get();
         $vehicleList = [];
 
         foreach ($vehicles as $vehicle) {

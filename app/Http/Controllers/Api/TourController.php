@@ -994,7 +994,7 @@ class TourController extends Controller
                 
             }
             $finalPrice = ceil($finalPrice);
-            if($totalPrice == $price){
+            if($totalPrice == $finalPrice){
                 $flag = 1;
             }
             else{
