@@ -465,6 +465,8 @@ class LoginControllerApi extends Controller
             'id_card' => 'required',
             'card_number' => 'required',
             'password' => 'required|min:8',
+            'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+            'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
         ]);
 
         if ($validator->fails()) {
@@ -474,11 +476,31 @@ class LoginControllerApi extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+        
+        // Get all registration data
+        $registrationData = $request->all();
+        
+        // Process image files and generate Azure URLs
+        // Process ID proof image
+        if ($request->hasFile('image')) {
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $registrationData['image'] = $pathData['master_value'];
+            }
+        }
+        
+        // Process agent image
+        if ($request->hasFile('agent_image')) {
+            $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
+            if (!empty($pathData['master_value'])) {
+                $registrationData['agent_image'] = $pathData['master_value'];
+            }
+        }
 
-        // Generate OTP and store data in database
+        // Generate OTP and store data in database with processed image URLs
         $otpVerification = OtpVerification::generateFor(
             $request->email, 
-            $request->all(), 
+            $registrationData, 
             10 // expire after 10 minutes
         );
         
@@ -556,6 +578,17 @@ class LoginControllerApi extends Controller
         
         // Get registration data from verification record
         $registrationData = $verification->registration_data;
+        
+        // Handle JSON fields like dmc_id to ensure proper format
+        if (isset($registrationData['dmc_id'])) {
+            if (is_string($registrationData['dmc_id'])) {
+                // Attempt to decode if it's a JSON string
+                $decoded = json_decode($registrationData['dmc_id'], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $registrationData['dmc_id'] = $decoded;
+                }
+            }
+        }
         
         // Create a new request with the registration data and include a flag for OTP verification
         $registrationRequest = new Request($registrationData);
@@ -651,7 +684,7 @@ class LoginControllerApi extends Controller
                 ->first();
                 
                 if (!$virtualDmc) {
-                    throw new \Exception('Virtual DMC not found');
+                    throw new \Exception('Virtual DMC not found. Please contact to admin!');
                 }
             
             // Generate unique agent ID with a safer approach
@@ -688,6 +721,8 @@ class LoginControllerApi extends Controller
             $agent->password = bcrypt($request->password);
             $agent->sales_manager_dmc = $virtualDmc->userId;
             $agent->role_id = 20;
+            $agent->dmc_id = json_encode([$virtualDmc->userId]);
+            $agent->status = 2;
             
             $agent->save();
             
