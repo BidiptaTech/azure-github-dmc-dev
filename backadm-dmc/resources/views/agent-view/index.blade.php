@@ -151,22 +151,22 @@
               @forelse ($otpVerifications as $key => $verification)
                 <tr class="align-middle agent-row">
                   <td class="text-center fw-bold">{{ $otpVerifications->firstItem() + $key }}</td>
-                  <td class="fw-semibold">{{ $verification->registration_data['company_name'] ?? 'N/A' }}</td>
-                  <td>{{ $verification->registration_data['name'] ?? 'N/A' }}</td>
+                  <td class="fw-semibold">{{ $verification->company_name ?? 'N/A' }}</td>
+                  <td>{{ $verification->name ?? 'N/A' }}</td>
                   <td>
                     <span class="d-inline-block text-truncate" style="max-width: 150px;">
                       {{ $verification->email }}
                     </span>
                   </td>
-                  <td>+{{ $verification->registration_data['code'] ?? '' }} {{ $verification->registration_data['phone'] ?? 'N/A' }}</td>
+                  <td>+{{ $verification->code ?? '' }} {{ $verification->phone ?? 'N/A' }}</td>
                   <td>
                     <div class="d-flex align-items-center">
                       <div class="avatar avatar-xs bg-light-primary me-2 flex-shrink-0">
-                        <span class="avatar-initial rounded-circle">{{ substr($verification->registration_data['user_country'] ?? 'N/A', 0, 1) }}</span>
+                        <span class="avatar-initial rounded-circle">{{ substr($verification->user_country ?? 'N/A', 0, 1) }}</span>
                       </div>
                       <div class="text-truncate" style="max-width: 120px;">
-                        <span class="fw-medium text-primary d-block">{{ $verification->registration_data['user_country'] ?? 'N/A' }}</span>
-                        <small class="text-muted">{{ $verification->registration_data['city'] ?? 'N/A' }}</small>
+                        <span class="fw-medium text-primary d-block">{{ $verification->user_country ?? 'N/A' }}</span>
+                        <small class="text-muted">{{ $verification->city ?? 'N/A' }}</small>
                       </div>
                     </div>
                   </td>
@@ -229,6 +229,82 @@
     </div>
   </div>
 </div>
+
+<!-- Verification Confirmation Modal -->
+<div class="modal fade" id="verifyAgentModal" tabindex="-1" aria-labelledby="verifyAgentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="verifyAgentModalLabel">Verify Agent</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center mb-4">
+          <div class="avatar bg-light-primary p-3 mx-auto rounded-circle mb-3">
+            <i class="fas fa-user-check fa-2x text-primary"></i>
+          </div>
+          <h5>Confirm Agent Verification</h5>
+          <p class="text-muted">Are you sure you want to verify this agent? This will change their status to active.</p>
+        </div>
+        <div class="agent-info p-3 bg-light rounded">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="fw-bold">Agent:</span>
+            <span id="modal-agent-name"></span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="fw-bold">Email:</span>
+            <span id="modal-agent-email"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="confirmVerifyBtn">
+          <i class="fas fa-check me-2"></i> Verify Agent
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-body text-center p-4">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5 class="mb-0">Processing</h5>
+        <p class="text-muted mb-0">Please wait while we verify the agent...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="errorModalLabel">Verification Failed</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center mb-3">
+          <div class="avatar bg-light-danger p-3 mx-auto rounded-circle mb-3">
+            <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+          </div>
+          <h5>Error</h5>
+          <p class="text-muted error-message">An error occurred during verification.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -248,57 +324,97 @@
             $(this).removeClass('bg-light-hover');
         });
         
-        // Verify agent button click handler
+        // Variables to store the current button being clicked
+        var activeButton = null;
+        var agentId = null;
+        var agentEmail = null;
+        
+        // Initialize modals
+        var verifyModal = new bootstrap.Modal(document.getElementById('verifyAgentModal'));
+        var processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
+        var errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+        
+        // Verify agent button click handler - Open confirmation modal
         $('.verify-agent-btn').click(function() {
-            var button = $(this);
-            var id = button.data('id');
-            var email = button.data('email');
+            activeButton = $(this);
+            agentId = activeButton.data('id');
+            agentEmail = activeButton.data('email');
             
-            // Show confirmation modal
-            if (confirm('Are you sure you want to verify this agent?')) {
-                button.html('<i class="fas fa-spinner fa-spin"></i> Verifying...');
-                button.prop('disabled', true);
-                
-                // Make AJAX request to verify the agent
-                $.ajax({
-                    url: "{{ route('registered-agents.verify') }}",
-                    type: "POST",
-                    data: {
-                        id: id,
-                        email: email,
-                        _token: "{{ csrf_token() }}"
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            showToast(response.message);
-                            
-                            // Update the button to show verified state
-                            button.removeClass('btn-success').addClass('btn-secondary');
-                            button.html('<i class="fas fa-check-circle"></i> Verified');
-                            button.prop('disabled', true);
-                            
-                            // You could refresh the page or update the UI as needed
-                            // setTimeout(function() {
-                            //     window.location.reload();
-                            // }, 2000);
-                        } else {
-                            alert(response.message || 'Verification failed');
-                            button.html('<i class="fas fa-user-check"></i> Verify');
-                            button.prop('disabled', false);
-                        }
-                    },
-                    error: function(xhr) {
-                        console.error(xhr);
-                        var errorMessage = 'Verification failed';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        alert(errorMessage);
-                        button.html('<i class="fas fa-user-check"></i> Verify');
-                        button.prop('disabled', false);
+            // Get agent name from the row for display in the modal
+            var agentName = activeButton.closest('tr').find('td:eq(2)').text().trim();
+            
+            // Update modal with agent information
+            $('#modal-agent-name').text(agentName);
+            $('#modal-agent-email').text(agentEmail);
+            
+            // Show the confirmation modal
+            verifyModal.show();
+        });
+        
+        // Confirm verify button click handler
+        $('#confirmVerifyBtn').click(function() {
+            // Hide the confirmation modal and show the processing modal
+            verifyModal.hide();
+            processingModal.show();
+            
+            // Make AJAX request to verify the agent
+            $.ajax({
+                url: "{{ route('registered-agents.verify') }}",
+                type: "POST",
+                data: {
+                    id: agentId,
+                    email: agentEmail,
+                    _token: "{{ csrf_token() }}"
+                },
+                success: function(response) {
+                    // Hide processing modal
+                    processingModal.hide();
+                    
+                    if (response.success) {
+                        // Show success toast
+                        showToast(response.message);
+                        
+                        // Update the button to show verified state
+                        activeButton.removeClass('btn-success').addClass('btn-secondary');
+                        activeButton.html('<i class="fas fa-check-circle"></i> Verified');
+                        activeButton.prop('disabled', true);
+                        
+                        // Add a visual indicator that the row was updated
+                        activeButton.closest('tr').addClass('bg-light-success');
+                        
+                        // Refresh the page after 2 seconds to show updated data
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        // Show error modal
+                        $('.error-message').text(response.message || 'Verification failed');
+                        errorModal.show();
+                        
+                        // Reset the button
+                        activeButton.html('<i class="fas fa-user-check"></i> Verify');
+                        activeButton.prop('disabled', false);
                     }
-                });
-            }
+                },
+                error: function(xhr) {
+                    // Hide processing modal
+                    processingModal.hide();
+                    
+                    console.error(xhr);
+                    var errorMessage = 'Verification failed';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    
+                    // Show error modal
+                    $('.error-message').text(errorMessage);
+                    errorModal.show();
+                    
+                    // Reset the button
+                    activeButton.html('<i class="fas fa-user-check"></i> Verify');
+                    activeButton.prop('disabled', false);
+                }
+            });
         });
         
         // Simple table sorting
