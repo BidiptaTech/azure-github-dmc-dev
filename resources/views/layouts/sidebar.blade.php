@@ -1482,6 +1482,14 @@
                             </a>
                         </li>
                         @endif
+
+                        <!-- Registered Agents View -->
+                        <li class="menu-item @if(Request::is('registered-agents*')) active @endif">
+                            <a href="{{ route('registered-agents.index') }}" class="menu-link">
+                                <div data-i18n="Registered Agents">Registered Agents</div>
+                            </a>
+                        </li>
+                        
                         @if(hasPermission('view roles') && auth()->user()->user_type == 1)
                         <li class="menu-item @if(Request::is('roles')) active @endif">
                             <a href="{{ route('roles.index') }}" class="menu-link">

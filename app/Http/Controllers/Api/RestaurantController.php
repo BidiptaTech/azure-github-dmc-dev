@@ -27,6 +27,8 @@ class RestaurantController extends Controller
         $city = trim($parts[0]); // it gives "Kolkata"
         $country = trim($parts[1] ?? '');
         $country = trim($country, '()'); //it gives "India"
+        $dmcId = $request->dmc_id;
+        
 
         $agentId = auth()->user()->agent_id;
         
@@ -35,9 +37,13 @@ class RestaurantController extends Controller
         }
         
         $restaurants = Restaurant::where('is_active', 1)
-            ->where('country', $country)
-            ->where('city', $city)
-            ->get();
+    ->where('country', $country)
+    ->where('city', $city)
+    ->where(function ($query) use ($dmcId) {
+        $query->whereJsonContains('dmc_id', $dmcId)
+              ->orWhereJsonContains('dmc_id', (int)$dmcId);
+    })
+    ->get();
         
         if ($restaurants->isEmpty()) {
             return response()->json(['message' => 'No restaurants found for the selected city'], 404);
@@ -106,23 +112,23 @@ class RestaurantController extends Controller
             $currentUser = Auth::user();
             
             if($currentUser->role_id == 33 || $currentUser->role_id == 128 || $currentUser->role_id == 129 || $currentUser->role_id == 130 || $currentUser->role_id == 134 || $currentUser->role_id == 135 || $currentUser->role_id == 136 || $currentUser->role_id == 138){
-                $dmc_id = $currentUser->created_by;
+                $dmcId = $currentUser->created_by;
             }
             elseif($currentUser->role_id == 37){
                 $sales_head_id = $currentUser->created_by;
                 $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
             elseif($currentUser->role_id == 38){
                 $sales_manager_id = $currentUser->created_by;
                 $sales_manager = User::where('userId', $sales_manager_id)->first();
                 $sales_head_id = $sales_manager->created_by;
                 $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
+                $dmcId = $sales_head->created_by;
             }
         }
         
-        if (!$dmc_id) {
+        if (!$dmcId) {
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
 
@@ -133,26 +139,26 @@ class RestaurantController extends Controller
         $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
         $country_tax = $check_country->tax_percentage ?? 0;
         foreach ($restaurants as $restaurant) {
-            if (!$dmc_id) {
+            if (!$dmcId) {
                 return response()->json(['message' => 'Unable to fetch this restaurant details!'], 404);
             }
 
-            $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->get();
+            $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->where('dmc_id', $dmcId)->get();
 
             $minBreakfast = $meals->filter(fn($meal) => $meal->meal_period == 1)
-            ->map(fn($meal) => $meal->adult_price !== null ? $meal->adult_price : $meal->price)
-            ->filter(fn($price) => $price !== null)
-            ->min();
+                ->map(fn($meal) => $meal->adult_price !== null ? $meal->adult_price : $meal->price)
+                ->filter(fn($price) => $price !== null)
+                ->min();
 
-        $minLunch = $meals->filter(fn($meal) => $meal->meal_period == 2)
-            ->map(fn($meal) => $meal->adult_price !== null ? $meal->adult_price : $meal->price)
-            ->filter(fn($price) => $price !== null)
-            ->min();
+            $minLunch = $meals->filter(fn($meal) => $meal->meal_period == 2)
+                ->map(fn($meal) => $meal->adult_price !== null ? $meal->adult_price : $meal->price)
+                ->filter(fn($price) => $price !== null)
+                ->min();
 
-        $minDinner = $meals->filter(fn($meal) => $meal->meal_period == 3)
-            ->map(fn($meal) => $meal->adult_price !== null ? $meal->adult_price : $meal->price)
-            ->filter(fn($price) => $price !== null)
-            ->min();
+            $minDinner = $meals->filter(fn($meal) => $meal->meal_period == 3)
+                ->map(fn($meal) => $meal->adult_price !== null ? $meal->adult_price : $meal->price)
+                ->filter(fn($price) => $price !== null)
+                ->min();
             list($dmc_breakfast_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($minBreakfast, $dmc_id, $restaurant->name, 'restaurant', $restaurant->city);
             list($dmc_lunch_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($minLunch, $dmc_id, $restaurant->name, 'restaurant', $restaurant->city);
             
@@ -197,16 +203,16 @@ class RestaurantController extends Controller
                     'image' => $restaurant->master_image,
                     'site_images' => json_decode($restaurant->images, true) ?? [],
                     'closeDates' => $responseData,
-                    'dmc_id' => $dmc_dmc_id ?? '',
+                    'dmc_id' => $dmcId ?? '',
                     'travclicks_dmc_id' => $travclicks_dmc_id ?? '',
-                    'dmc_breakfast_price' => round((float)$dmc_breakfast_price, 2),
+                    'dmc_breakfast_price' => $minBreakfast,
                     'travClicks_breakfast_price' => round((float)$travClicks_breakfast_price, 2),
-                    'dmc_lunch_price' => round((float)$dmc_lunch_price, 2),
+                    'dmc_lunch_price' => $minLunch,
                     'travClicks_lunch_price' => round((float)$travClicks_lunch_price, 2),
-                    'dmc_dinner_price' => round((float)$dmc_dinner_price, 2),
+                    'dmc_dinner_price' => $minDinner,
                     'travClicks_dinner_price' => round((float)$travClicks_dinner_price, 2),
                     'tax_percentage' => $country_tax,
-                    'restaurant_base_price' => round((float)$dmc_breakfast_price, 2) ?? round((float)$travClicks_breakfast_price, 2),
+                    'restaurant_base_price' => $minBreakfast ?? $minLunch ?? $minDinner,
                 ];
             }
         }
