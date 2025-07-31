@@ -105,13 +105,13 @@ class TourController extends Controller
                 $formEnquiry->save();
 
                 // Cancel other related enquiries if this is part of a multi-enquiry
-                if ($formEnquiry->multi_enq_id) {
-                    EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
-                        ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
-                        ->update([
-                            'status' => 'cancelled',
-                        ]);
-                }
+                // if ($formEnquiry->multi_enq_id) {
+                //     EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                //         ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                //         ->update([
+                //             'status' => 'cancelled',
+                //         ]);
+                // }
             }
 
             $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
@@ -2373,6 +2373,14 @@ class TourController extends Controller
                         ]);
                     }
 
+                    $formEnquiry = EnquiryForm::where('multi_enq_id', $currentEnquiry->multi_enq_id)->first();
+                    if ($formEnquiry->multi_enq_id) {
+                        EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                            ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                            ->update([
+                                'status' => 'cancelled',
+                            ]);
+                    }
                     return response()->json([
                         
                         'success' => true,
