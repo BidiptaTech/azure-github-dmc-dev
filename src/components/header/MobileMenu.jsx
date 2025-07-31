@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser } from "@/slice/common/authSlices";
+import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import LogoutIcon from '@mui/icons-material/Logout';
 
 const MobileMenu = () => {
@@ -33,6 +34,7 @@ const MobileMenu = () => {
   const isManagerOrSalesHead = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)"|| userRole === "Assistant Manager (DMC)";
 
   const handleLogout = async () => {
+    dispatch(clearSelectedDmc()); // Clear DMC selection on logout
     const result = await dispatch(logoutUser());
     if (logoutUser.fulfilled.match(result)) {
       navigate("/login");

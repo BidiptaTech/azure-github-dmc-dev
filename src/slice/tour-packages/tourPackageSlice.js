@@ -36,6 +36,8 @@ export const fetchTourPackages = createAsyncThunk(
   "tourPackages/fetchTourPackages",
   async (searchParams, { rejectWithValue, getState }) => {
     const state = getState();
+    const dmcState = state.dmc;
+    const dmcId = dmcState?.dmcId;
     try {
       const authToken = Cookies.get("authToken");
       const AgentId = state.editing?.agentId;
@@ -62,7 +64,8 @@ export const fetchTourPackages = createAsyncThunk(
           male: guests.maleCount || 0,
           female: guests.femaleCount || 0,
           children_ages: guests.childrenAges ? guests.childrenAges.join(", ") : "",
-          enquiry_id: enq_id || null
+          enquiry_id: enq_id || null,
+          dmc_id: dmcId || null
         },
         {
           headers: {

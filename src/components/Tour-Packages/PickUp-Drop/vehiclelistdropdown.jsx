@@ -389,62 +389,62 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const lastDispatchRef = useRef(null);
   
   // Function to dispatch ALL entry ports from entryPorts to Redux state (similar to exit ports)
-  const dispatchAllEntryPortsToRedux = useCallback(() => {
-    if (!validEntryPorts || !Array.isArray(validEntryPorts) || validEntryPorts.length === 0) {
-      console.log('No entryPorts data to dispatch to Redux');
-      return;
-    }
+  // const dispatchAllEntryPortsToRedux = useCallback(() => {
+  //   if (!validEntryPorts || !Array.isArray(validEntryPorts) || validEntryPorts.length === 0) {
+  //     console.log('No entryPorts data to dispatch to Redux');
+  //     return;
+  //   }
 
-    // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(validEntryPorts.map(service => service.data?.[0]?.id));
+  //   // Create a unique key for this dispatch to prevent duplicates
+  //   const dispatchKey = JSON.stringify(validEntryPorts.map(service => service.data?.[0]?.id));
     
-    if (lastDispatchRef.current === dispatchKey) {
-      console.log('Skipping duplicate dispatch for all entry ports');
-      return;
-    }
+  //   if (lastDispatchRef.current === dispatchKey) {
+  //     console.log('Skipping duplicate dispatch for all entry ports');
+  //     return;
+  //   }
 
-    console.log('Dispatching ALL entry ports to Redux (immediate):', validEntryPorts);
+  //   console.log('Dispatching ALL entry ports to Redux (immediate):', validEntryPorts);
     
-    // Get current services from Redux store at the time of dispatch
-    const currentServices = [...(existingServices || [])];
+  //   // Get current services from Redux store at the time of dispatch
+  //   const currentServices = [...(existingServices || [])];
     
-    // Filter out existing entry_port services to avoid duplicates
-    const filteredServices = currentServices.filter(service => service.type !== "entry_port");
+  //   // Filter out existing entry_port services to avoid duplicates
+  //   const filteredServices = currentServices.filter(service => service.type !== "entry_port");
     
-    // Create new entry port service entries preserving booking_id
-    const entryPortServicesWithBookingId = validEntryPorts.map(entryPortService => {
-      // Create service object with booking_id preserved
-      const serviceObject = { ...entryPortService };
+  //   // Create new entry port service entries preserving booking_id
+  //   const entryPortServicesWithBookingId = validEntryPorts.map(entryPortService => {
+  //     // Create service object with booking_id preserved
+  //     const serviceObject = { ...entryPortService };
 
-      // Add booking_id if it exists in the original service
-      if (entryPortService.booking_id) {
-        serviceObject.booking_id = entryPortService.booking_id;
-        console.log(`Entry Vehicle - Preserving booking_id: ${entryPortService.booking_id} for service:`, serviceObject);
-      } else {
-        console.log('Entry Vehicle - No booking_id found in entryPortService:', entryPortService);
-      }
+  //     // Add booking_id if it exists in the original service
+  //     if (entryPortService.booking_id) {
+  //       serviceObject.booking_id = entryPortService.booking_id;
+  //       console.log(`Entry Vehicle - Preserving booking_id: ${entryPortService.booking_id} for service:`, serviceObject);
+  //     } else {
+  //       console.log('Entry Vehicle - No booking_id found in entryPortService:', entryPortService);
+  //     }
 
-      return serviceObject;
-    });
+  //     return serviceObject;
+  //   });
     
-    // Add all entry ports to the filtered services array
-    const finalServices = [...filteredServices, ...entryPortServicesWithBookingId];
+  //   // Add all entry ports to the filtered services array
+  //   const finalServices = [...filteredServices, ...entryPortServicesWithBookingId];
     
-    console.log('Entry Vehicle - Automatically dispatching ALL entry ports to Redux:', finalServices);
-    dispatch(setAllServices(finalServices));
+  //   console.log('Entry Vehicle - Automatically dispatching ALL entry ports to Redux:', finalServices);
+  //   dispatch(setAllServices(finalServices));
     
-    // Update the last dispatch ref
-    lastDispatchRef.current = dispatchKey;
-    hasDispatchedAllEntryPortsRef.current = true;
-  }, [validEntryPorts, dispatch]); // Removed existingServices dependency
+  //   // Update the last dispatch ref
+  //   lastDispatchRef.current = dispatchKey;
+  //   hasDispatchedAllEntryPortsRef.current = true;
+  // }, [validEntryPorts, dispatch]); // Removed existingServices dependency
   
-  // Dispatch ALL entry ports to Redux when validEntryPorts is available (only once)
-  useEffect(() => {
-    if (!hasDispatchedAllEntryPortsRef.current && validEntryPorts && Array.isArray(validEntryPorts) && validEntryPorts.length > 0) {
-      console.log('Dispatching ALL entry ports from entryPorts to Redux on mount');
-      dispatchAllEntryPortsToRedux();
-    }
-  }, [validEntryPorts, dispatchAllEntryPortsToRedux]);
+  // // Dispatch ALL entry ports to Redux when validEntryPorts is available (only once)
+  // useEffect(() => {
+  //   if (!hasDispatchedAllEntryPortsRef.current && validEntryPorts && Array.isArray(validEntryPorts) && validEntryPorts.length > 0) {
+  //     console.log('Dispatching ALL entry ports from entryPorts to Redux on mount');
+  //     dispatchAllEntryPortsToRedux();
+  //   }
+  // }, [validEntryPorts, dispatchAllEntryPortsToRedux]);
   
   // State to trigger re-renders when bookings change
   const [bookingsVersion, setBookingsVersion] = useState(0);

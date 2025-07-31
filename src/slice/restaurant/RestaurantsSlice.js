@@ -8,7 +8,7 @@ export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
   async (
     { city, date, adults, children, tour_id, fromMainSearch },
-    { rejectWithValue, dispatch }
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       // If the search is coming from MainFilterSearchBox, return empty array
@@ -27,6 +27,11 @@ export const fetchRestaurants = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 RestaurantsSlice - Fetching restaurants with DMC ID:', selectedDmcId);
+
       const queryParams = new URLSearchParams();
 
       if (city) queryParams.append("city", city);
@@ -40,6 +45,11 @@ export const fetchRestaurants = createAsyncThunk(
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
       if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Add DMC ID to query parameters if available
+      if (selectedDmcId) {
+        queryParams.append("dmc_id", selectedDmcId);
+      }
 
       // console.log('Query params:', queryParams.toString());
       const response = await axios.get(

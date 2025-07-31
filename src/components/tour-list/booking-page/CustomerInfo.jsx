@@ -361,7 +361,7 @@ const CustomerInfo = forwardRef((props, ref) => {
           })(),
           mode: attractionBookingMode?.prices?.mode || attractionDetails?.prices?.mode,
           totalPrice: attractionBookings?.[0]?.data?.[0]?.totalPrice,
-                      nri : attractionBookings?.[0]?.data?.[0]?.ticket_details?.nri || "residential",
+          nri : attractionBookings?.[0]?.data?.[0]?.ticket_details?.nri || "residential",
           bookingType: "booking",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
           package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,

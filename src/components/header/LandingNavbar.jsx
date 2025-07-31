@@ -178,6 +178,7 @@ const LandingNavbar = () => {
                 >
                   Login
                 </Button>
+                
                 {/* <Link 
                   component={RouterLink} 
                   to="/pages" 
@@ -235,24 +236,26 @@ const LandingNavbar = () => {
 
             {/* Get In Touch Button */}
             <Button
-              variant="contained"
-              endIcon={<Send />}
-              sx={{
-                bgcolor: '#f97316',
-                color: 'white',
-                borderRadius: '25px',
-                px: 3,
-                py: 1,
-                fontWeight: 600,
-                fontSize: '14px',
-                textTransform: 'none',
-                '&:hover': {
-                  bgcolor: '#e5630a'
-                }
-              }}
-            >
-              Get In Touch
-            </Button>
+                  component={RouterLink}
+                  to="/register"
+                  variant="contained"
+                  sx={{
+                    bgcolor: '#f97316',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    textTransform: 'none',
+                    px: 2.5,
+                    '&:hover': {
+                      backgroundColor: '#f97316',
+                      color: 'white',
+                      borderColor: '#f97316'
+                    }
+                  }}
+                >
+                  Register as an Agent
+                </Button>
           </Toolbar>
         </Container>
       </AppBar>

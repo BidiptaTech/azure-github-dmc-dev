@@ -8,6 +8,7 @@ import Cookies from "js-cookie";
 import { useDispatch, useSelector } from "react-redux";
 import { logout, logoutUser } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
+import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import LogoutIcon from '@mui/icons-material/Logout';
 
 import MobileMenu from "../MobileMenu";
@@ -22,6 +23,7 @@ const Header1 = () => {
 
   const handleLogout = () => {
     dispatch(logoutUser());
+    dispatch(clearSelectedDmc()); // Clear DMC selection on logout
   };
 
   const changeBackground = () => {

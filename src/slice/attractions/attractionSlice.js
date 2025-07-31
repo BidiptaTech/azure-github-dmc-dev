@@ -11,7 +11,7 @@ export const fetchAttractions = createAsyncThunk(
   "attractions/fetchAttractions",
   async (
     { city, date, adults, children, tour_id, selectedDate, fromMainSearch },
-    { rejectWithValue, dispatch }
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       // If the search is coming from MainFilterSearchBox, return empty array
@@ -21,6 +21,11 @@ export const fetchAttractions = createAsyncThunk(
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
+
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = selectDmcId(state);
+      console.log('🎯 AttractionsSlice - Fetching attractions with DMC ID:', selectedDmcId);
 
       const queryParams = new URLSearchParams();
 
@@ -44,6 +49,11 @@ export const fetchAttractions = createAsyncThunk(
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
       if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Add DMC ID to query parameters if available
+      if (selectedDmcId) {
+        queryParams.append("dmc_id", selectedDmcId);
+      }
 
       const response = await axios.get(
         `${BASE_URL}/attraction?${queryParams.toString()}`,
@@ -87,7 +97,7 @@ export const fetchAttractionDetails = createAsyncThunk(
       const finalDmcId = selectedDmcId || dmc_id;
       
       // Construct the API URL with the mode and dmc_id parameters
-      const mode = price_mode?.mode || "default_value";
+      const mode = price_mode || "default_value";
       console.log('Fetching attraction details with params:', { attractionId, mode, dmc_id: finalDmcId });
       console.log('Selected DMC ID from Redux:', selectedDmcId);
       
