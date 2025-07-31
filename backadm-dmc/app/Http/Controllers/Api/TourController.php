@@ -561,6 +561,7 @@ class TourController extends Controller
                 'infant' => $tour->infant,
                 'adult' => $tour->adult,
                 'status' => $tour->status,
+                'multi_enq_id' => $tour->multi_enq_id,
                 'editOff' => $edit_off,
                 'enquiry_status' => $enquiry_status,
                 'booking_type' => $booking_type,

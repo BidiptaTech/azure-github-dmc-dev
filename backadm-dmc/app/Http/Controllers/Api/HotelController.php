@@ -90,7 +90,7 @@ class HotelController extends Controller
         $limit = $request->input('limit', 9);
         
         // Handle both JSON string and array inputs for dmc_ids
-        $request_dmc_ids = $request->input('dmc_ids');
+        $request_dmc_ids = $request->input('dmc_id');
         if (is_string($request_dmc_ids)) {
             $request_dmc_ids = json_decode($request_dmc_ids, true) ?? [];
         } elseif (!is_array($request_dmc_ids)) {

@@ -528,7 +528,8 @@ class PackageController extends Controller
         $tour->agent_name = $agent_name;
         return response()->json([
             'tour' => $tour,
-            'customer_info' => $customer_info
+            'customer_info' => $customer_info,
+            'dmc_id' => $tour->dmc_id
         ]);
     }
 
