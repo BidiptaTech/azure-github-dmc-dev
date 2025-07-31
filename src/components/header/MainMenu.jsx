@@ -82,7 +82,7 @@ const MainMenu = ({ style = "" }) => {
       navigate("/dashboard/db-dashboard/home_1", { 
         state: { 
           selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
-          searchCriteria: null 
+          searchCriteria: null   
         } 
       });
     } else {
@@ -121,7 +121,28 @@ const MainMenu = ({ style = "" }) => {
   // === Book an Enquiry Handlers (Multiple DMC Selection) ===
   const handleBookEnquiryClick = (e) => {
     e.preventDefault();
-    setIsEnquirySearchModalOpen(true);
+    console.log('🎯 Book Enquiry clicked - DMC Count:', dmcCount);
+    console.log('🎯 DMC Count Loading:', dmcCountLoading);
+    console.log('🎯 User Role:', userRole);
+    if (dmcCountLoading) {  
+      console.log('⏳ DMC count still loading - please wait...');
+      return;
+    }
+
+      if(dmcCount && dmcCount.dmc_count === 1){ 
+      console.log('✅ Only 1 DMC available - skipping modal, going directly to enquiry');
+      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
+      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
+      navigate("/dashboard/db-dashboard/home_2", { 
+        state: { 
+          selectedDMCs: [selectedDmcData],
+          searchCriteria: null 
+        } 
+      });
+    }else{
+      setIsEnquirySearchModalOpen(true);
+    
+    }
   };
 
   const handleEnquirySearchSubmit = (searchData) => {
