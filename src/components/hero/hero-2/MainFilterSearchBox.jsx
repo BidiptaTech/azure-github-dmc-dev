@@ -43,9 +43,7 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 
 const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const location = useLocation();
-  const selectedDmcIds = useSelector(selectSelectedDmcIds);
   const [locationData, setLocationData] = useState(null);
   const [selectedDates, setSelectedDates] = useState([]);
   const [guestCounts, setGuestCounts] = useState({
@@ -331,12 +329,12 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           dispatch(setBookingType("enquiry")); // Set booking type to enquiry
 
           // Step 6: Create search query params
-          const searchParams = new URLSearchParams({
-            country: locationData.country.name,
-            city: locationData.city.name,
-            dates: [formattedCheckIn, formattedCheckOut].join(","),
-            guests: JSON.stringify(guestCounts),
-          });
+          // const searchParams = new URLSearchParams({
+          //   country: locationData.country.name,
+          //   city: locationData.city.name,
+          //   dates: [formattedCheckIn, formattedCheckOut].join(","),
+          //   guests: JSON.stringify(guestCounts),
+          // });
 
           // Fetch the enquiry list data for hotels and other services
           // console.log("Fetching enquiry list after successful create-enquiry:", { 
@@ -353,15 +351,15 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           console.log("Auth token available:", authToken ? "Yes" : "No");
           
           // Get DMC IDs for multi-DMC enquiry flow
-          const dmcIds = getDMCIds();
-          const isMultiDMC = isMultiDMCFlow();
+          // const dmcIds = getDMCIds();
+          // const isMultiDMC = isMultiDMCFlow();
 
-          console.log("📋 Enquiry Flow Check:", {
-            isMultiDMC,
-            dmcIds,
-            navigationDMCs: location.state?.selectedDMCs,
-            reduxDMCIds: selectedDmcIds
-          });
+          // console.log("📋 Enquiry Flow Check:", {
+          //   isMultiDMC,
+          //   dmcIds,
+          //   navigationDMCs: location.state?.selectedDMCs,
+          //   reduxDMCIds: selectedDmcIds
+          // });
 
           // Fetch the enquiry list data for hotels and other services
           const fetchParams = {
@@ -370,14 +368,14 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           };
 
           // Add DMC IDs if we're in multi-DMC flow
-          if (isMultiDMC && dmcIds && dmcIds.length > 0) {
-            fetchParams.dmcIds = dmcIds;
-            console.log("📋 Multi-DMC Enquiry: Including DMC IDs in fetchEnquiryList:", dmcIds);
-          } else {
-            console.log("📋 Standard Enquiry: No DMC IDs included");
-          }
+          // if (isMultiDMC && dmcIds && dmcIds.length > 0) {
+          //   fetchParams.dmcIds = dmcIds;
+          //   console.log("📋 Multi-DMC Enquiry: Including DMC IDs in fetchEnquiryList:", dmcIds);
+          // } else {
+          //   console.log("📋 Standard Enquiry: No DMC IDs included");
+          // }
 
-          console.log("📋 Final fetchEnquiryList params:", fetchParams);
+          // console.log("📋 Final fetchEnquiryList params:", fetchParams);
           
           dispatch(fetchEnquiryList(fetchParams));
 
@@ -397,33 +395,33 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           setOpenSnackbar(true);
         });
     }, 300);
-  }, [validateForm, selectedDates, locationData, guestCounts, location.state, selectedDmcIds, dispatch, onNext]);
+  }, [validateForm, selectedDates, locationData, guestCounts, location.state, dispatch, onNext]);
 
   // Check if we're in a multi-DMC enquiry flow
-  const isMultiDMCFlow = () => {
-    // Check if we have DMCs from navigation state (from DMC selection modal)
-    const navigationDMCs = location.state?.selectedDMCs;
-    // Or check if we have DMCs in Redux state
-    const reduxDMCIds = selectedDmcIds;
+  // const isMultiDMCFlow = () => {
+  //   // Check if we have DMCs from navigation state (from DMC selection modal)
+  //   const navigationDMCs = location.state?.selectedDMCs;
+  //   // Or check if we have DMCs in Redux state
+  //   const reduxDMCIds = selectedDmcIds;
     
-    return (navigationDMCs && navigationDMCs.length > 0) || (reduxDMCIds && reduxDMCIds.length > 0);
-  };
+  //   return (navigationDMCs && navigationDMCs.length > 0) || (reduxDMCIds && reduxDMCIds.length > 0);
+  // };
 
   // Get DMC IDs for API call
-  const getDMCIds = () => {
-    // Prioritize navigation state DMCs (fresh from selection)
-    const navigationDMCs = location.state?.selectedDMCs;
-    if (navigationDMCs && navigationDMCs.length > 0) {
-      return navigationDMCs.map(dmc => dmc.dmcId || dmc.id).filter(id => id !== null && id !== undefined);
-    }
+  // const getDMCIds = () => {
+  //   // Prioritize navigation state DMCs (fresh from selection)
+  //   const navigationDMCs = location.state?.selectedDMCs;
+  //   if (navigationDMCs && navigationDMCs.length > 0) {
+  //     return navigationDMCs.map(dmc => dmc.dmcId || dmc.id).filter(id => id !== null && id !== undefined);
+  //   }
     
-    // Fallback to Redux state
-    if (selectedDmcIds && selectedDmcIds.length > 0) {
-      return selectedDmcIds.filter(id => id !== null && id !== undefined);
-    }
+  //   // Fallback to Redux state
+  //   if (selectedDmcIds && selectedDmcIds.length > 0) {
+  //     return selectedDmcIds.filter(id => id !== null && id !== undefined);
+  //   }
     
-    return null;
-  };
+  //   return null;
+  // };
 
   return (
     <div className="js-tabs-content d-flex justify-center">
