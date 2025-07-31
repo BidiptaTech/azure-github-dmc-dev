@@ -22,6 +22,8 @@
 <!-- Icons -->
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/fonts/remixicon/remixicon.css' }}" />
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/fonts/flag-icons.css' }}" />
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
 <!-- Menu waves for no-customizer fix -->
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/node-waves/node-waves.css' }}" />
