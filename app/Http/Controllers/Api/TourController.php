@@ -2377,17 +2377,17 @@ class TourController extends Controller
                         ]);
                     }
 
-                    $formEnquiry = EnquiryForm::where('multi_enq_id', $tour->multi_enq_id)->first();
-                    if ($formEnquiry->multi_enq_id) {
+                    $formEnquiry = EnquiryForm::where('multi_enq_id', (string)$tour->multi_enq_id)->first();
+                    if ($formEnquiry && $formEnquiry->multi_enq_id) {
                         // Cancel other enquiry forms with same multi_enq_id
-                        EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                        EnquiryForm::where('multi_enq_id', (string)$formEnquiry->multi_enq_id)
                             ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
                             ->update([
                                 'status' => 'cancelled',
                             ]);
                         
                     }
-                    Tour::where('multi_enq_id', $tour->multi_enq_id)
+                    Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
                             ->where('tour_id', '!=', $tour_id)
                             ->update(['deleted_at' => now()]);
                             
