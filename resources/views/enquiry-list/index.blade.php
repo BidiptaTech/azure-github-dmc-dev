@@ -143,7 +143,7 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-semibold">
                                         <i class="fas fa-calendar-check text-success me-1"></i>
-                                        {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('l, F d, Y') }}
+                                        {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('D, F d, Y') }}
                                     </span>
                                     <span class="text-muted small">
                                         <i class="fas fa-clock me-1"></i>
@@ -161,7 +161,7 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-semibold">
                                         <i class="fas fa-calendar-minus text-danger me-1"></i>
-                                        {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('l, F d, Y') }}
+                                        {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('D, F d, Y') }}
                                     </span>
                                     <span class="text-muted small">
                                         <i class="fas fa-clock me-1"></i>
