@@ -52,7 +52,9 @@ import {
   removeDmcFromSelection,
   clearSelectedDmcs,
   selectSelectedDmcIds,
-  selectSelectedDmcsData
+  selectSelectedDmcsData,
+  selectSelectedDmcLogo,
+  selectSelectedDmcCompanyName
 } from '../../slice/dmc/dmcSlice';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -167,6 +169,10 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
   // Get multiple selection data from Redux (for multiSelect mode)
   const selectedDmcIds = useSelector(selectSelectedDmcIds);
   const selectedDmcsData = useSelector(selectSelectedDmcsData);
+  
+  // Get DMC logo and company name from Redux (for testing)
+  const selectedDmcLogo = useSelector(selectSelectedDmcLogo);
+  const selectedDmcCompanyName = useSelector(selectSelectedDmcCompanyName);
 
   // Use API data if available, otherwise return empty array
   const dmcOptions = useMemo(() => {
@@ -186,6 +192,16 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     }
     return []; // Return empty array instead of fallback data
   }, [apiDMCs]);
+
+  // Console logging for testing current state
+  React.useEffect(() => {
+    if (open) {
+      console.log('🔍 DMC Modal: Current Redux State:');
+      console.log('🔍 DMC Modal: Selected DMC Logo:', selectedDmcLogo);
+      console.log('🔍 DMC Modal: Selected DMC Company Name:', selectedDmcCompanyName);
+      console.log('🔍 DMC Modal: Available DMC Options:', dmcOptions);
+    }
+  }, [open, selectedDmcLogo, selectedDmcCompanyName, dmcOptions]);
 
   // Single selection handlers (for Book Tour)
   const handleSelectionChange = (event) => {

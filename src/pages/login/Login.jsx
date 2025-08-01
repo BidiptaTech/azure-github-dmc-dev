@@ -6,7 +6,7 @@ import { setName, setEmail1, setAuthenticated, setAgentId } from "./loginSlice";
 import { loginUser } from "../../slice/common/authSlices";
 import { setUserRole } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
-import { setSelectedDmcId } from "../../slice/dmc/dmcSlice";
+import { setSelectedDmcId, setDmcFromAuth } from "../../slice/dmc/dmcSlice";
 import {
   Box,
   Card,
@@ -174,6 +174,8 @@ function Login() {
         agent_id: agentId,
         userRole,
         dmcId,
+        dmcLogo,
+        dmcCompanyName,
       } = result.payload;
 
       dispatch(setAgentId(agentId));
@@ -181,20 +183,36 @@ function Login() {
       dispatch(setEmail1(email));
       dispatch(setAuthenticated(true));
 
-      // For non-Agent users, set DMC ID in DMC slice
+      // For non-Agent users, set DMC data in DMC slice
       if (dmcId && userRole !== "Agent") {
-        console.log('🎯 Login Component: Setting DMC ID in DMC slice for non-Agent user:', dmcId);
+        console.log('🎯 Login Component: Setting DMC data in DMC slice for non-Agent user');
+        console.log('🎯 Login Component: dmcId:', dmcId);
+        console.log('🎯 Login Component: dmcLogo:', dmcLogo);
+        console.log('🎯 Login Component: dmcCompanyName:', dmcCompanyName);
+        
+        // Dispatch the new action to set DMC data from auth
+        dispatch(setDmcFromAuth({
+          dmcId: dmcId,
+          dmcLogo: dmcLogo,
+          dmcCompanyName: dmcCompanyName
+        }));
+        
+        // Also dispatch the existing action for backward compatibility
         dispatch(setSelectedDmcId({
           dmcId: dmcId,
           dmcData: {
             id: `dmc-auth-${dmcId}`,
             dmcId: dmcId,
-            name: `DMC ${dmcId}`,
+            name: dmcCompanyName || `DMC ${dmcId}`,
             location: 'Auth-selected',
-            logo: '',
+            logo: dmcLogo || '',
             rating: 4.5,
             description: 'DMC from authentication',
-            originalData: { dmcId: dmcId }
+            originalData: { 
+              dmcId: dmcId,
+              logo: dmcLogo,
+              company_name: dmcCompanyName
+            }
           }
         }));
       }

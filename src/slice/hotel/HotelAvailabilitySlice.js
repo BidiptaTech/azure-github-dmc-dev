@@ -48,7 +48,7 @@ export const fetchRoomData = createAsyncThunk(
       }
 
       const response = await axios.get(
-        `${BASE_URL}/hotel-details?id=${id}&dmc-id=${priceModeId}&price-mode=${priceMode}&agent-id=${AgentId}&tour-id=${tour_id}`,
+        `${BASE_URL}/hotel-details?id=${id}&price-mode=${priceMode}&agent-id=${AgentId}&tour-id=${tour_id}`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
