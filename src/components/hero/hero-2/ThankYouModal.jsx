@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { 
   Box, 
   Typography, 
@@ -70,21 +71,24 @@ const ProgressWrapper = styled(Box)(({ theme }) => ({
 
 const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard', delay = 7 }) => {
   const [countdown, setCountdown] = useState(delay);
-  const [enquiryData, setEnquiryData] = useState(null);
+  
+  // Get enquiry data from Redux state only
+  const enquiryState = useSelector((state) => state.enquiry);
+  const { enquiryId, multiEnqId, tourId, id } = enquiryState;
   
   useEffect(() => {
+    console.log('ThankYouModal useEffect triggered:', { 
+      open, 
+      enquiryId, 
+      multiEnqId, 
+      tourId, 
+      id,
+      redirectUrl 
+    });
+    
     if (!open) return;
     
-    // Get enquiry data from localStorage
-    const enquiryDataString = localStorage.getItem('enquiryData');
-    if (enquiryDataString) {
-      try {
-        const parsedData = JSON.parse(enquiryDataString);
-        setEnquiryData(parsedData);
-      } catch (error) {
-        console.error('Error parsing enquiry data:', error);
-      }
-    }
+    console.log('ThankYouModal is opening with Redux state:', { enquiryId, multiEnqId, tourId, id });
     
     // Start countdown for auto-redirect
     const timer = setInterval(() => {
@@ -93,9 +97,6 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
           clearInterval(timer);
           // Redirect to dashboard
           window.location.href = redirectUrl;
-          // Clear localStorage when redirecting
-          localStorage.removeItem('enquirySubmitted');
-          localStorage.removeItem('enquiryData');
           return 0;
         }
         return prevCount - 1;
@@ -105,42 +106,50 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
     // Clean up timer on modal close or unmount
     return () => {
       clearInterval(timer);
-      // Also clear localStorage on component unmount
-      localStorage.removeItem('enquirySubmitted');
-      localStorage.removeItem('enquiryData');
     };
-  }, [open, redirectUrl]);
+  }, [open, redirectUrl, enquiryId, multiEnqId, tourId, id]);
   
   const handleCloseModal = () => {
-    // Clear localStorage on close
-    localStorage.removeItem('enquirySubmitted');
-    localStorage.removeItem('enquiryData');
-    
     if (onClose) onClose();
   };
   
   // Handle immediate redirect
   const handleRedirectNow = () => {
-    // Clear localStorage before redirect
-    localStorage.removeItem('enquirySubmitted');
-    localStorage.removeItem('enquiryData');
     window.location.href = redirectUrl;
   };
   
-  // Generate a reference ID from the enquiry data
+  // Generate a reference ID from Redux state only
   const getReferenceId = () => {
-    if (!enquiryData) return 'ENQ-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    console.log('getReferenceId called with Redux state:', { enquiryId, multiEnqId, tourId, id });
     
-    // Try to extract an ID from the data
-    const id = enquiryData.data?.enquiry_id || 
-               enquiryData.enquiry_id || 
-               enquiryData.id || 
-               enquiryData.order?.id;
-               
-    if (id) return `ENQ-${id}`;
+    // Priority 1: Use multi-enquiry ID (highest priority)
+    if (multiEnqId) {
+      console.log('Using multi-enquiry ID from Redux:', multiEnqId);
+      return `${multiEnqId}`;
+    }
     
-    // Generate a random ID if none is found
-    return 'ENQ-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    // Priority 2: Use enquiry ID
+    if (enquiryId) {
+      console.log('Using enquiry ID from Redux:', enquiryId);
+      return `ENQ-${enquiryId}`;
+    }
+    
+    // Priority 3: Use tour ID
+    if (tourId) {
+      console.log('Using tour ID from Redux:', tourId);
+      return `TOUR-${tourId}`;
+    }
+    
+    // Priority 4: Use fallback ID
+    if (id) {
+      console.log('Using fallback ID from Redux:', id);
+      return `ENQ-${id}`;
+    }
+    
+    // Priority 5: Generate a random ID if none is found
+    const randomId = 'ENQ-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    console.log('Generated random ID:', randomId);
+    return randomId;
   };
   
   const progress = (countdown / delay) * 100;
@@ -179,7 +188,7 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
             <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
               Booking Reference
             </Typography>
-            {/* <Chip
+            <Chip
               label={getReferenceId()}
               color="primary"
               sx={{ 
@@ -189,7 +198,7 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
                 boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
                 cursor: 'default'
               }}
-            /> */}
+            />
           </Box>
           
           <Grid container spacing={2} alignItems="center" justifyContent="center">

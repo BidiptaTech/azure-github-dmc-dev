@@ -21,9 +21,16 @@ export const fetchEnquiryList = createAsyncThunk(
   "enquiryList/fetchEnquiryList",
   async ({ country, city }, { rejectWithValue, getState }) => {
     try {
+      // Validate input parameters
+      if (!country || !city || country === 'undefined' || city === 'undefined') {
+        console.warn("Invalid country or city provided:", { country, city });
+        return rejectWithValue("Please provide valid country and city values");
+      }
+
       const state = getState();
       const dmcState = state.dmc;
       const selectedDmcIds = dmcState?.selectedDmcIds || [];
+      const selectedDmcId = dmcState?.dmcId || null;
       console.log("FETCH ENQUIRY LIST - Selected DMC IDs:", selectedDmcIds);
       
       // Get auth token
@@ -44,7 +51,7 @@ export const fetchEnquiryList = createAsyncThunk(
         params: {
           country,
           city,
-          dmc_ids: JSON.stringify(selectedDmcIds),
+          dmc_ids: selectedDmcIds.length > 0 ? JSON.stringify(selectedDmcIds) : JSON.stringify([selectedDmcId]),
         }
       });
 

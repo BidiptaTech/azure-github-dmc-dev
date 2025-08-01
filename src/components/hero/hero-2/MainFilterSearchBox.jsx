@@ -63,15 +63,11 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     setLocationData(location);
     
     // Clear previous enquiry list data
+    // Note: We're not fetching enquiry list here anymore
+    // It will be fetched only when the form is submitted
     dispatch(clearEnquiryList());
     
-    // Only fetch enquiry list if both country and city are selected
-    if (location?.country && location?.city) {
-      dispatch(fetchEnquiryList({
-        country: location.country.name,
-        city: location.city.name
-      }));
-    }
+    console.log("Location selected:", location);
   };
 
   const handleDateChange = (dates) => {
@@ -328,54 +324,53 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           dispatch(setTourId(id));
           dispatch(setBookingType("enquiry")); // Set booking type to enquiry
 
-          // Step 6: Create search query params
-          // const searchParams = new URLSearchParams({
-          //   country: locationData.country.name,
-          //   city: locationData.city.name,
-          //   dates: [formattedCheckIn, formattedCheckOut].join(","),
-          //   guests: JSON.stringify(guestCounts),
-          // });
-
-          // Fetch the enquiry list data for hotels and other services
-          // console.log("Fetching enquiry list after successful create-enquiry:", { 
-          //   country: country || locationData.country.name, 
-          //   city: city || locationData.city.name,
-          //   locationData: {
-          //     country: locationData.country,
-          //     city: locationData.city
-          //   }
-          // });
+   
           
           // Get the auth token to log
           const authToken = localStorage.getItem("token");
           console.log("Auth token available:", authToken ? "Yes" : "No");
           
-          // Get DMC IDs for multi-DMC enquiry flow
-          // const dmcIds = getDMCIds();
-          // const isMultiDMC = isMultiDMCFlow();
-
-          // console.log("📋 Enquiry Flow Check:", {
-          //   isMultiDMC,
-          //   dmcIds,
-          //   navigationDMCs: location.state?.selectedDMCs,
-          //   reduxDMCIds: selectedDmcIds
-          // });
+        
 
           // Fetch the enquiry list data for hotels and other services
+          // Use API response data if available, otherwise fall back to original locationData
           const fetchParams = {
-            country: country || locationData.country.name,
-            city: city || locationData.city.name
+            country: country || locationData.country,
+            city: city || locationData.city
           };
 
-          // Add DMC IDs if we're in multi-DMC flow
-          // if (isMultiDMC && dmcIds && dmcIds.length > 0) {
-          //   fetchParams.dmcIds = dmcIds;
-          //   console.log("📋 Multi-DMC Enquiry: Including DMC IDs in fetchEnquiryList:", dmcIds);
-          // } else {
-          //   console.log("📋 Standard Enquiry: No DMC IDs included");
-          // }
+          console.log("Fetching enquiry list with params:", fetchParams);
+          console.log("Data sources:", {
+            apiCountry: country,
+            apiCity: city,
+            locationDataCountry: locationData.country,
+            locationDataCity: locationData.city,
+            locationData: locationData
+          });
 
-          // console.log("📋 Final fetchEnquiryList params:", fetchParams);
+          // Validate fetchParams before making the API call
+          if (!fetchParams.country || !fetchParams.city) {
+            console.error("Invalid fetchParams:", fetchParams);
+            console.error("LocationData available:", !!locationData);
+            if (locationData) {
+              console.error("LocationData structure:", locationData);
+            }
+            setSnackbarMessage("Invalid location data. Please try again.");
+            setSnackbarSeverity("error");
+            setOpenSnackbar(true);
+            return;
+          }
+
+          // Ensure we have string values
+          if (typeof fetchParams.country !== 'string' || typeof fetchParams.city !== 'string') {
+            console.error("Country or city is not a string:", fetchParams);
+            setSnackbarMessage("Invalid location data format. Please try again.");
+            setSnackbarSeverity("error");
+            setOpenSnackbar(true);
+            return;
+          }
+
+        
           
           dispatch(fetchEnquiryList(fetchParams));
 
@@ -397,31 +392,6 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     }, 300);
   }, [validateForm, selectedDates, locationData, guestCounts, location.state, dispatch, onNext]);
 
-  // Check if we're in a multi-DMC enquiry flow
-  // const isMultiDMCFlow = () => {
-  //   // Check if we have DMCs from navigation state (from DMC selection modal)
-  //   const navigationDMCs = location.state?.selectedDMCs;
-  //   // Or check if we have DMCs in Redux state
-  //   const reduxDMCIds = selectedDmcIds;
-    
-  //   return (navigationDMCs && navigationDMCs.length > 0) || (reduxDMCIds && reduxDMCIds.length > 0);
-  // };
-
-  // Get DMC IDs for API call
-  // const getDMCIds = () => {
-  //   // Prioritize navigation state DMCs (fresh from selection)
-  //   const navigationDMCs = location.state?.selectedDMCs;
-  //   if (navigationDMCs && navigationDMCs.length > 0) {
-  //     return navigationDMCs.map(dmc => dmc.dmcId || dmc.id).filter(id => id !== null && id !== undefined);
-  //   }
-    
-  //   // Fallback to Redux state
-  //   if (selectedDmcIds && selectedDmcIds.length > 0) {
-  //     return selectedDmcIds.filter(id => id !== null && id !== undefined);
-  //   }
-    
-  //   return null;
-  // };
 
   return (
     <div className="js-tabs-content d-flex justify-center">

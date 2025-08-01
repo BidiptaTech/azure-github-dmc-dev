@@ -1,14 +1,17 @@
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { addCurrentTab } from "../../../features/hero/findPlaceSlice";
 import MainFilterSearchBox from "./MainFilterSearchBox";
 import BookingEnquiries from "./BookingEnquiries";
 import ConfirmDetails from "./ConfirmDetails";
 import ThankYouModal from "./ThankYouModal";
-import { useState, useEffect } from "react";
 import { Box } from "@mui/material";
 
 const Index = () => {
-  const { tabs, currentTab } = useSelector((state) => state.hero) || {};
+  // Get enquiry state from Redux
+  const enquiryState = useSelector((state) => state.enquiry);
+  const { enquiryId, multiEnqId, tourId, id } = enquiryState;
+  
   const dispatch = useDispatch();
   const [bookingOptions, setBookingOptions] = useState({
     hotel: false,
@@ -29,17 +32,41 @@ const Index = () => {
   // Check if we have a submitted enquiry in localStorage on component mount
   useEffect(() => {
     const enquirySubmitted = localStorage.getItem('enquirySubmitted');
+    const enquiryData = localStorage.getItem('enquiryData');
     
-    if (enquirySubmitted === 'true') {
-      setShowThankYouModal(true);
-      // Clear the flag when showing the modal to ensure it's a one-time display
-      localStorage.removeItem('enquirySubmitted');
+    console.log('Component mount - checking localStorage:', { enquirySubmitted, hasEnquiryData: !!enquiryData });
+    console.log('Current Redux enquiry state:', { enquiryId, multiEnqId, tourId, id });
+    
+    if (enquirySubmitted === 'true' && enquiryData) {
+      // Only show modal if we have both the flag and the actual enquiry data
+      try {
+        const parsedData = JSON.parse(enquiryData);
+        console.log('Found valid enquiry data, showing modal:', parsedData);
+        
+        // Additional check: ensure we have a valid enquiry ID in Redux state
+        const hasValidEnquiryId = multiEnqId || enquiryId || tourId || id;
+        if (hasValidEnquiryId) {
+          console.log('Valid enquiry ID found in Redux, showing modal');
+          setShowThankYouModal(true);
+        } else {
+          console.log('No valid enquiry ID in Redux state, not showing modal');
+        }
+        
+        // Clear the flag when showing the modal to ensure it's a one-time display
+        localStorage.removeItem('enquirySubmitted');
+      } catch (error) {
+        console.error('Error parsing enquiry data:', error);
+        // Clear invalid data
+        localStorage.removeItem('enquirySubmitted');
+        localStorage.removeItem('enquiryData');
+      }
     } else {
       // If we're returning to the enquiry page, make sure modal won't show
+      console.log('No valid enquiry data found, clearing localStorage');
       localStorage.removeItem('enquirySubmitted');
       localStorage.removeItem('enquiryData');
     }
-  }, []);
+  }, [enquiryId, multiEnqId, tourId, id]);
 
   // Navigation functions
   const goToSearch = () => {
@@ -76,7 +103,19 @@ const Index = () => {
     setCurrentPage("search");
     // Reset booking options when closing modal
     resetBookingOptions();
+    // Clear any remaining localStorage data
+    localStorage.removeItem('enquirySubmitted');
+    localStorage.removeItem('enquiryData');
   };
+
+  // Cleanup effect to clear localStorage when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up localStorage when component unmounts to prevent stale data
+      localStorage.removeItem('enquirySubmitted');
+      localStorage.removeItem('enquiryData');
+    };
+  }, []);
 
   // Render the current page based on state
   const renderCurrentPage = () => {

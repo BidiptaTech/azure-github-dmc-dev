@@ -135,7 +135,7 @@ const MainMenu = ({ style = "" }) => {
       console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
       navigate("/dashboard/db-dashboard/home_2", { 
         state: { 
-          selectedDMCs: [selectedDmcData],
+          selectedDMCs: [selectedDmcData] ||{ dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
           searchCriteria: null 
         } 
       });

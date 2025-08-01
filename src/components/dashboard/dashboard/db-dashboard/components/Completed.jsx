@@ -977,6 +977,22 @@ export default function Pending() {
                           >
                             {list.display_id}
                           </span>
+                          {list.multi_enq_id && (
+                            <div 
+                            style={{ 
+                             
+                            textAlign: "center",
+                            //backgroundColor: "#3554D1",
+                            //color: "#fff",
+                            color: "#3554D1",
+                            padding: "5px 10px",
+                            borderRadius: "50px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {list.multi_enq_id}
+                        </div>
+                        )}
                         </td>
                         <td style={{ padding: "16px 20px", whiteSpace: "nowrap" }}>
                           {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}

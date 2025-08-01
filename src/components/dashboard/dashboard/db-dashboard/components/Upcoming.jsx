@@ -2525,6 +2525,21 @@ export default function Pending() {
                             
                                 </span>
                               )}
+                              {list.multi_enq_id && (
+                                <div 
+                                style={{ 
+                                 
+                                textAlign: "center",
+                                backgroundColor: "#3554D1",
+                                color: "#fff",
+                                padding: "5px 10px",
+                                borderRadius: "50px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {list.multi_enq_id}
+                            </div>
+                            )}
                      
                             </div>
                           </td>

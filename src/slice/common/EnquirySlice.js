@@ -19,6 +19,7 @@ export const fetchBookingid = createAsyncThunk(
     // Get selected DMC IDs from dmcSlice
     const dmcState = state.dmc;
     const selectedDmcIds = dmcState?.selectedDmcIds || [];
+    const selectedDmcId = dmcState?.dmcId || null;
 
     try {
       const authToken = Cookies.get("authToken");
@@ -49,7 +50,7 @@ export const fetchBookingid = createAsyncThunk(
         female: parseInt(femaleCount) || 0,
         children_ages: guests.childrenAges?.length > 0 ? guests.childrenAges.join(", ") : "",
         // Add selected DMC IDs to the request
-        dmc_ids: selectedDmcIds.length > 0 ? selectedDmcIds : [],
+        dmc_ids: selectedDmcIds.length > 0 ? selectedDmcIds : [selectedDmcId],
       };
 
       // Log the final request body for debugging
@@ -582,10 +583,6 @@ export const submitEnquiryForm = createAsyncThunk(
         ) || [];
         requestBody.guide_remarks = serviceDetails.tourGuide.specialRequirements || "";
       }
-
-      console.log("Calculated approximate price:", approxPrice);
-      console.log("Final API request payload:", requestBody);
-      console.log("API endpoint:", `${BASE_URL}/update-enquiry-form`);
       
       const headers = {
         'Authorization': `Bearer ${authToken}`,
@@ -596,7 +593,7 @@ export const submitEnquiryForm = createAsyncThunk(
         headers['agent-id'] = AgentId;
       }
       
-      console.log("Request headers:", headers);
+    
 
       // Try two approaches - first with axios
       try {
