@@ -6,7 +6,7 @@ import { setAttractionService } from "../attractions/attractionSlice";
 import { setRestaurantsService } from "../restaurant/RestaurantsSlice";
 import { setDateService } from "../common/dateServicesSlice";
 import { setCity } from "./citySlice";
-import { setSelectedDmcId } from "../dmc/dmcSlice";
+import { setSelectedDmcId, setDmcFromAuth } from "../dmc/dmcSlice";
 import {
   setEntryport,
   setExitport,
@@ -145,24 +145,42 @@ export const fetchEditid = createAsyncThunk(
       dispatch(setZone(data.service?.local_transport || []));
       dispatch(setbookedGuide(data.service?.guide || []));
 
-      // Handle DMC ID from response
+      // Handle DMC ID, logo, and company name from response
       if (data?.dmc_id) {
-        console.log('🎯 EditSlice: Setting DMC ID from edit tour response:', data.dmc_id);
+        console.log('🎯 EditSlice: Setting DMC data from edit tour response');
+        console.log('🎯 EditSlice: dmc_id:', data.dmc_id);
+        console.log('🎯 EditSlice: dmc_logo:', data.dmc_logo);
+        console.log('🎯 EditSlice: dmc_company_name:', data.dmc_company_name);
+        
         dispatch(setSelectedDmcId({
           dmcId: data.dmc_id,
           dmcData: {
             id: `dmc-edit-${data.dmc_id}`,
             dmcId: data.dmc_id,
-            name: `DMC ${data.dmc_id}`,
+            name: data.dmc_company_name || `DMC ${data.dmc_id}`,
             location: 'Edit-selected',
-            logo: '',
+            logo: data.dmc_logo || '',
             rating: 4.5,
             description: 'DMC from edit tour response',
-            originalData: { dmcId: data.dmc_id }
+            originalData: { 
+              dmcId: data.dmc_id,
+              logo: data.dmc_logo,
+              company_name: data.dmc_company_name
+            }
           }
         }));
       } else if (data?.dmc_id === null) {
         console.log('🎯 EditSlice: DMC ID is null in edit tour response');
+      }
+      
+      // Alternative approach: Also dispatch setDmcFromAuth for direct DMC data storage
+      if (data?.dmc_id && (data?.dmc_logo || data?.dmc_company_name)) {
+        console.log('🎯 EditSlice: Also dispatching setDmcFromAuth for direct DMC data storage');
+        dispatch(setDmcFromAuth({
+          dmcId: data.dmc_id,
+          dmcLogo: data.dmc_logo || null,
+          dmcCompanyName: data.dmc_company_name || null
+        }));
       }
 
       // Return data for unwrap()
