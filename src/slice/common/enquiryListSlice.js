@@ -44,7 +44,7 @@ export const fetchEnquiryList = createAsyncThunk(
         params: {
           country,
           city,
-          dmc_ids: selectedDmcIds
+          dmc_ids: JSON.stringify(selectedDmcIds),
         }
       });
 

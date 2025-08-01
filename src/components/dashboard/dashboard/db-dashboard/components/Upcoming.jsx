@@ -2522,8 +2522,10 @@ export default function Pending() {
                                   }}
                                 >
                                   {list.order_from}
+                            
                                 </span>
                               )}
+                     
                             </div>
                           </td>
                           <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
