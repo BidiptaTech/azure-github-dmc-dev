@@ -638,7 +638,7 @@ const ActivityListPage3 = () => {
         <TourStatus />
       </div>
 
-      {showBookingTable && viewDetails ? (
+      {showBookingTable && (  viewDetails?.attraction?.length > 0 || viewDetails?.attraction_package?.length > 0 || viewDetails?.restaurant?.length > 0 || viewDetails?.hotel?.length > 0 || viewDetails?.guide?.length > 0 || viewDetails?.travel_point?.length > 0 || viewDetails?.travel_hourly?.length > 0 || viewDetails?.entry_port?.length > 0 || viewDetails?.exit_port?.length > 0) ? (
         <section className="layout-pt-md layout-pb-md">
           <div className="container-xxl">
             {/* Add debug panel */}

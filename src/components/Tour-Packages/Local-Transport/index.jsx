@@ -91,7 +91,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const exitPickupLocation = useSelector(state => state.localtour.exitpickup || '');
   const pickupTime = useSelector(state => state.localtour.entrytime || '');
   const pickupTime1 = useSelector(state => state.localtour.entrytime1 || '');
-  const pickupTimeZone = useSelector(state => state.localtour.entrytimezone || '');
+  const pickupTimeZone = useSelector(state => state.localtour.entrytime || '');
   const pickupDate = useSelector(state => state.localtour.pickdate || '');
   const exitPickupDate = useSelector(state => state.localtour.exitpickupdate || '');
 
@@ -1724,8 +1724,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                           <VehicleListDropdownZone
                             key={`local-transfer-${bookingIndex}`}
                             selectedVehicle={booking.vehicleId || null}
-                            onVehicleChange={(vehicleId, mode, dmcId, city, country) => 
-                              handleVehicleChange(bookingIndex, vehicleId, mode, dmcId, city, country)}
+                            onVehicleChange={(vehicleId, mode, dmcId, city, country, toZoneId, fromZoneId) => 
+                              handleVehicleChange(bookingIndex, vehicleId, mode, dmcId, city, country, toZoneId, fromZoneId)}
                             onPaxChange={(adults, children) => 
                               handlePaxChange(bookingIndex, adults, children)}
                             onPriceModeChange={(priceMode) => 

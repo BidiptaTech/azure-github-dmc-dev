@@ -3,6 +3,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { logoutUser } from "../common/authSlices";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
 import PickUpLocation from "@/components/hero/hero-8/PickUpLocation";
 import DropOffLocation from "@/components/hero/hero-8/DropOffLocation";
 // import { pick } from "lodash";
@@ -15,6 +16,7 @@ export const fetchVehicles = createAsyncThunk(
       const state = getState(); // ✅ Get Redux state
       const { PickupPlaceid, DropoffPlaceid, pickdate, entrytime } =
         state.localtour;
+      const selectedDmcId = selectDmcId(state);
 
       if (!PickupPlaceid) {
         throw new Error("Pickup location is required");
@@ -31,6 +33,7 @@ export const fetchVehicles = createAsyncThunk(
         pickup: JSON.stringify(PickupPlaceid),
         time: JSON.stringify(entrytime),
         date: travelDate, // ✅ Include formatted date
+        dmc_id: selectedDmcId,
       };
 
       if (DropoffPlaceid) {
@@ -82,7 +85,7 @@ export const fetchZoneVehicles = createAsyncThunk(
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
-
+      const selectedDmcId = selectDmcId(state);
       // ✅ Format pickdate as JSON { "0": "YYYY-MM-DD" }
       const travelDate = JSON.stringify({ 0: pickdate });
 
@@ -96,6 +99,7 @@ export const fetchZoneVehicles = createAsyncThunk(
         date: travelDate, // ✅ Include formatted date
         pickup_type: picktype,
         drop_type: droptype, // Set default to 'hotel' if droptype is missing
+        dmc_id: selectedDmcId,
       };
 
       console.log("Zone API parameters:", params);
@@ -136,7 +140,7 @@ export const fetchVehicleDetails = createAsyncThunk(
         picktype,
         droptype,
       } = state.localtour;
-
+      const selectedDmcId = selectDmcId(state);
       // ✅ Validate required fields
       // if (!PickupZoneid || !PickupPlaceid)
       //   throw new Error("Pickup location is required");
@@ -167,12 +171,12 @@ export const fetchVehicleDetails = createAsyncThunk(
               date: travelDate,
               time: JSON.stringify(entrytime),
               mode: selectedVehicle?.mode,
-              dmc_id: selectedVehicle?.dmcId,
+              dmc_id: selectedDmcId,
               pickup_type: picktype,
               drop_type: droptype,
               city,
               country,
-              type,
+              type
             }
           : {
               pickup: JSON.stringify(PickupPlaceid),
@@ -180,7 +184,7 @@ export const fetchVehicleDetails = createAsyncThunk(
               time: JSON.stringify(entrytime),
               vehicle_id: selectedVehicle?.id,
               mode: selectedVehicle?.mode,
-              dmc_id: selectedVehicle?.dmcId,
+              dmc_id: selectedDmcId,
               city,
               country,
               type,
@@ -262,7 +266,7 @@ export const Localtourslice = createAsyncThunk(
       // Corrected conditional statement
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
-
+      const selectedDmcId = selectDmcId(state);
       // Corrected conditional statement
       let AgentId;
       if (
@@ -311,7 +315,7 @@ export const Localtourslice = createAsyncThunk(
         // formData.append("agent_id", AgentId);
         // formData.append("tour_id", tourid);
         formData = {
-          data: details,
+          data: [...details, { dmc_id: selectedDmcId }],
           type: selectedType === "travelpointzone" ? type2 : type,
           agent_id: AgentId,
           tour_id: tourid,
@@ -342,7 +346,7 @@ export const Localtourslice = createAsyncThunk(
         // formData1.append("agent_id", AgentId);
         // formData1.append("tour_id", tourid);
         formData1 = {
-          data: details1,
+          data: [...details1, { dmc_id: selectedDmcId }],   
           type: type1,
           agent_id: AgentId,
           tour_id: tourid,
