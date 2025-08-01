@@ -583,11 +583,11 @@
                                 <div data-i18n="Create Single Tour Package">Create Single Tour Package</div>
                             </a>
                         </li>
-                        <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
+                        <!-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
                             <a href="{{ route('single-tour-package.index') }}" class="menu-link">
                                 <div data-i18n="Single Tour Packages">Single Tour Packages</div>
                             </a>
-                        </li>
+                        </li> -->
                         @endif
                         @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
                         <!-- Show Booking -->
