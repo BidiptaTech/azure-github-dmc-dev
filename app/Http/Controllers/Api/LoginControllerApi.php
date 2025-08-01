@@ -112,6 +112,7 @@ class LoginControllerApi extends Controller
                 case 11: // Agent is a DMC
                     $dmc_id = $user->userId; // For DMC, the user itself is the DMC
                     $dmc_users = $user; // DMC is its own reference
+                    $dmc_logo = $user->logo;
                     break;
                     case 33: 
                     case 128: 
@@ -126,6 +127,7 @@ class LoginControllerApi extends Controller
                         $dmc_users = User::where('userId', $creatorId)->first(); // DMC
                         if ($dmc_users && $dmc_users->role_id == 11) {
                             $dmc_id = $dmc_users->userId;
+                            $dmc_logo = $dmc_users->logo;
                         } else {
                             // If creator is not DMC, look for their creator
                             $superiorUser = User::where('userId', $creatorId)->first();
@@ -133,6 +135,7 @@ class LoginControllerApi extends Controller
                                 $dmc_users = User::where('userId', $superiorUser->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
+                                    $dmc_logo = $dmc_users->logo;
                                 }
                             }
                         }
@@ -143,6 +146,7 @@ class LoginControllerApi extends Controller
                             $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
+                                $dmc_logo = $dmc_users->logo;
                             }
                         }
                     }
@@ -157,6 +161,7 @@ class LoginControllerApi extends Controller
                             $dmc_users = User::where('userId', $saleshead->created_by)->first();
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
+                                $dmc_logo = $dmc_users->logo;
                             }
                         }
                     } else {
@@ -168,6 +173,7 @@ class LoginControllerApi extends Controller
                                 $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
+                                    $dmc_logo = $dmc_users->logo;
                                 }
                             }
                         }
@@ -185,6 +191,7 @@ class LoginControllerApi extends Controller
                                 $dmc_users = User::where('userId', $salesHead->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
+                                    $dmc_logo = $dmc_users->logo;
                                 }
                             }
                         }
@@ -198,6 +205,7 @@ class LoginControllerApi extends Controller
                                 if ($saleshead_dmc && $saleshead_dmc->role_id == 11) {
                                     $dmc_users = $saleshead_dmc;
                                     $dmc_id = $saleshead_dmc->userId;
+                                    $dmc_logo = $saleshead_dmc->logo;
                                 }
                             }
                         }
@@ -216,6 +224,7 @@ class LoginControllerApi extends Controller
                     if ($currentUser->role_id == 11) {
                         $dmc_users = $currentUser;
                         $dmc_id = $currentUser->userId;
+                        $dmc_logo = $currentUser->logo;
                         break;
                     }
                     $currentUser = User::where('userId', $currentUser->created_by)->first();
@@ -227,6 +236,7 @@ class LoginControllerApi extends Controller
                     $dmc_users = User::where('userId', $creatorId)->first();
                     if ($dmc_users && $dmc_users->role_id == 11) {
                         $dmc_id = $dmc_users->userId;
+                        $dmc_logo = $dmc_users->logo;
                     }
                 }
             }
@@ -236,6 +246,7 @@ class LoginControllerApi extends Controller
         if (!$dmc_id) {
             // Default fallback if $dmc_id is still not set
             $dmc_id = $user->userId ?? $user->agent_id ?? null;
+            $dmc_logo = $user->logo;
         }
         
         $dmc = User::where('userId', $dmc_id)->first(); //For Dmc Company Name
@@ -325,6 +336,7 @@ class LoginControllerApi extends Controller
                 'agent_address' => $user->agent_address,
                 'profile_picture' => $user->agent_image ?? '',
                 'logo' => $master_dmc->logo ?? '', 
+                'dmc_logo' => $dmc_logo ?? '',
                 'dmc_name' => $dmc->company_name ?? '', 
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
@@ -661,17 +673,17 @@ class LoginControllerApi extends Controller
         }
         
         // Uploads - these can be done outside the transaction
-        $idProofImage = null;
-        if ($request->hasFile('image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
-            $idProofImage = $pathData['master_value'] ?? null;
-        }
-        
-        $agentImage = null;
-        if ($request->hasFile('agent_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
-            $agentImage = $pathData['master_value'] ?? null;
-        }
+        // $idProofImage = null;
+        // if ($request->hasFile('image')) {
+        //     $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+        //     $idProofImage = $pathData['master_value'] ?? null;
+        // }
+            
+        //     $agentImage = null;
+        //     if ($request->hasFile('agent_image')) {
+        //         $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
+        //         $agentImage = $pathData['master_value'] ?? null;
+        //     }
         $virtualDmc = User::select('userId')->where('role_id', 20)->first();
 
         try {
@@ -716,8 +728,8 @@ class LoginControllerApi extends Controller
             $agent->country = is_array($request->country) ? implode(',', $request->country) : $request->country;
             $agent->id_cards = $request->id_card;
             $agent->id_number = $request->card_number;
-            $agent->image = $idProofImage;
-            $agent->agent_image = $agentImage;
+            $agent->image = $request->image;
+            $agent->agent_image = $request->agent_image;
             $agent->password = bcrypt($request->password);
             $agent->sales_manager_dmc = $virtualDmc->userId;
             $agent->role_id = 20;

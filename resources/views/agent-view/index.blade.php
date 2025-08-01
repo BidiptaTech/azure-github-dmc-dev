@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'Verified Agent Registrations')
+@section('title', 'Verify Agent Registrations')
 
 @section('content')
 <div class="content-wrapper">

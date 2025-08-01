@@ -84,9 +84,9 @@ class EnquiryController extends Controller
                     }
                     break;
             }
+        }else{
+            $enquiries = Enquiry::with(['display'])->where('status', 1)->orderBy('created_at', 'desc')->get();
         }
-        $enquiries = Enquiry::with(['display'])->where('status', 1)->orderBy('created_at', 'desc')->get();
-        // dd($enquiries);
         return view('enquiry.enquiry',compact('enquiries','currentUser', ));
     }
 
