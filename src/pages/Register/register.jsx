@@ -595,6 +595,7 @@ const RegistrationForm = () => {
         });
         
                   try {
+                    console.log("transformedDatafinal", transformedData);
            
            const responseOTP = await dispatch(sendOTPSlice(transformedData)).unwrap();
            if (responseOTP.success) {

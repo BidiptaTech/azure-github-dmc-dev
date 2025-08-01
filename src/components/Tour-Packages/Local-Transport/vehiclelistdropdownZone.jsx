@@ -269,7 +269,7 @@ const VehicleListDropdownZone = ({
     to_zone_id: '',
     from_zone_id: ''
   });
-  
+  console.log("Datazone", data);
   // Define totalGuests for price calculation
   const totalGuests = adults + children;
   
@@ -292,43 +292,54 @@ const VehicleListDropdownZone = ({
     const mode = "dmc";
     const dmcId = vehicle.dmc_id;
   
-    // Get zone information from the vehicle or set default values
-    // For Local Transfer, we need to ensure zone IDs are always set
-    const zoneId = vehicle.to_zone_id || vehicle.zone_id || '1'; // Default to zone 1 if not set
-    const fromZoneId = vehicle.from_zone_id || '1'; // Default to zone 1 if not set
-    
-    // Create a complete data structure with all required fields
-    const vehicleData = {
-      ...vehicle,
-      private_price: parseFloat(vehicle.private_price || 0),
-      shared_price: parseFloat(vehicle.shared_price || 0),
-      // Add prices object for compatibility with other components
-      prices: {
-        privatePrice: parseFloat(vehicle.private_price || 0),
-        sharablePrice: parseFloat(vehicle.shared_price || 0)
-      },
-      to_zone_id: zoneId,
-      from_zone_id: fromZoneId,
-      zone_id: zoneId
-    };
-    
-    // Pass zone information to parent component directly
-    onVehicleChange(vehicle.id, mode, dmcId, vehicle.city, vehicle.country, zoneId, fromZoneId);
-    
-    // Store zone information in local state
-    setVehicleZoneData({
-      to_zone_id: zoneId,
-      from_zone_id: fromZoneId
-    });
+    // Don't store any initial data - wait for API response like in vehiclelistdropdown
+    // Just call parent with basic info initially
+    onVehicleChange(vehicle.id, mode, dmcId, vehicle.city, vehicle.country);
 
     // Reset states
+    setData(null);
     setError(null);
     setIsLoading(true);
 
-    // Set the vehicle data directly since we already have all the information
-    setSeatingCapacity(vehicle.seating_capacity || 0);
-    setData(vehicleData);
-    setIsLoading(false);
+    setTimeout(() => {
+      dispatch(fetchVehicleDetails({ city: vehicle.city, country: vehicle.country, type: portZoneType }))
+      .unwrap() // Unwrap the promise to handle the payload directly
+      .then((data) => {
+        console.log("data", data);
+        setSeatingCapacity(data.seating_capacity || 0);
+        
+        // Create data structure with prices object - same format as vehiclelistdropdown
+        const formattedData = {
+          ...data,
+          prices: {
+            privatePrice: parseFloat(data.private_price || 0),
+            sharablePrice: parseFloat(data.shared_price || 0)
+          }
+        };
+        
+        setData(formattedData);
+        
+        // Extract zone IDs from the API response data and update vehicleZoneData
+        if (data && (data.to_zone_id || data.from_zone_id)) {
+          const updatedZoneData = {
+            to_zone_id: data.to_zone_id || '',
+            from_zone_id: data.from_zone_id || ''
+          };
+          
+          setVehicleZoneData(updatedZoneData);
+          
+          // Update parent component with the correct zone IDs from API response
+          onVehicleChange(vehicle.id, "dmc", vehicle.dmc_id, vehicle.city, vehicle.country, data.to_zone_id, data.from_zone_id);
+        }
+        
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching vehicle details:", err);
+        setError(err.message || "Failed to load vehicle details");
+        setIsLoading(false);
+      });
+    }, 300); // 300ms delay
   };
 
   const [pricemode, setpricemode] = useState(preloadedBooking?.priceMode || ""); // Set from preloaded data or default
@@ -340,11 +351,11 @@ const VehicleListDropdownZone = ({
     }
   }, [pricemode]); // Removed onPriceModeChange to prevent loops
   
-  // Calculate price based on the data structure
-  const Price = data 
+  // Calculate price based on the data structure - same format as vehiclelistdropdown
+  const Price = data && data.prices 
     ? (pricemode === "Sharable"
-      ? parseFloat(data.shared_price || 0) * totalGuests
-      : parseFloat(data.private_price || 0))
+      ? data.prices.sharablePrice * totalGuests
+      : data.prices.privatePrice)
     : 0;
     
   // Force a minimum price if we have vehicle data but price is 0
