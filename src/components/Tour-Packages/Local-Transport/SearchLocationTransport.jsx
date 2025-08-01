@@ -293,6 +293,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
             case 'entryytimezone':
               if (value !== reduxEntryTimeZone) {
                 dispatch(setentrytime(value));
+                
               }
               break;
             case 'droptype':
