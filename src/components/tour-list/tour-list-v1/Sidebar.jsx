@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setFilters, selectFilters, selectFilteredAttractions } from "../../../slice/attractions/attractionSlice"; // Adjust the import path
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import { Slider, Avatar } from "@mui/material"; // Import Material-UI components
 
 const Sidebar = () => {
@@ -14,8 +15,9 @@ const Sidebar = () => {
   // console.log('First attraction:', attractions?.[0]);
   // console.log('DMC user name from first attraction:', attractions?.[0]?.dmc_user_name);
   
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   
   // Get currency information from Redux store
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -128,7 +130,7 @@ const Sidebar = () => {
                   {dmcLogo && (
                     <Avatar
                       src={dmcLogo}
-                      alt={`${dmcName} Logo`}
+                      alt={`${dmcCompanyName} Logo`}
                       sx={{ 
                         width: 24,
                         height: 24,
@@ -136,7 +138,7 @@ const Sidebar = () => {
                       }}
                     />
                   )}
-                  {dmcName}'s Mode
+                  {dmcCompanyName}'s Mode
                 </div>
               </div>
             </div>

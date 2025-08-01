@@ -206,7 +206,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <ConfirmationNumber fontSize="small" />
-                    Booking ID
+                    Booking ID / DMC
                   </Box>
                 </TableSortLabel>
               </TableCell>
@@ -339,10 +339,38 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#2c3e50' }}>
                       {row.bookingId}
                     </Typography>
+                    {row.dmc_data && row.dmc_data.dmc_company_name && (
+                      <Tooltip 
+                        title={row.dmc_data.dmc_company_name}
+                        placement="top"
+                        arrow
+                      >
+                        <Chip
+                          label={row.dmc_data.dmc_company_name}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            height: '20px',
+                            fontSize: '0.7rem',
+                            fontStyle: 'italic',
+                            color: '#7f8c8d',
+                            borderColor: '#bdc3c7',
+                            backgroundColor: 'rgba(189, 195, 199, 0.1)',
+                            '& .MuiChip-label': {
+                              px: 1,
+                              maxWidth: '180px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }
+                          }}
+                        />
+                      </Tooltip>
+                    )}
                   </Box>
                 </TableCell>
                 <TableCell>

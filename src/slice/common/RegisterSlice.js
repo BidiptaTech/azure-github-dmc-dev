@@ -84,15 +84,45 @@ export const registerSlice = createAsyncThunk(
 export const sendOTPSlice = createAsyncThunk(
     'register/sendOTP',
     async (sendOTPData, { rejectWithValue }) => {
-        try {
-            const response = await axios.post(`${BASE_URL}/send-otp`, sendOTPData);
-            return response.data;
-        } catch (error) {
-            console.error('Send OTP API Error:', error);
-            return rejectWithValue(error.response?.data || error.message);
+      try {
+        console.log("sendOTPData", sendOTPData);
+  
+        // Convert data to FormData
+        const formData = new FormData();
+        for (const key in sendOTPData) {
+          const value = sendOTPData[key];
+  
+          // Handle arrays (like 'country') properly
+          if (Array.isArray(value)) {
+            value.forEach((item, index) => {
+              formData.append(`${key}[${index}]`, item);
+            });
+          }
+          // Handle File objects
+          else if (value instanceof File) {
+            formData.append(key, value);
+          }
+          // All other values
+          else {
+            formData.append(key, value);
+          }
         }
+  
+        // Send as multipart/form-data
+        const response = await axios.post(`${BASE_URL}/send-otp`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+  
+        return response.data;
+      } catch (error) {
+        console.error('Send OTP API Error:', error);
+        return rejectWithValue(error.response?.data || error.message);
+      }
     }
-)
+  );
+  
 
 export const verifyOTPSlice = createAsyncThunk(
     'register/verifyOTP',

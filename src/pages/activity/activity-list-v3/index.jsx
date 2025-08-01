@@ -229,10 +229,10 @@ const ActivityListPage3 = () => {
         (viewDetails?.guide && viewDetails.guide.length > 0) ||
         (viewDetails?.travel_hourly && viewDetails.travel_hourly.length > 0) ||
         (viewDetails?.entry_port && viewDetails.entry_port.length > 0) ||
-        (viewDetails?.exit_port && viewDetails.exit_port.length > 0)) &&
+        (viewDetails?.exit_port && viewDetails.exit_port.length > 0) ||
+        (viewDetails?.local_transport && viewDetails.local_transport.length > 0)) &&
       (!viewDetails?.hotel || viewDetails?.hotel?.length === 0) &&
       (!viewDetails?.attraction || viewDetails?.attraction?.length === 0) &&
-      (!viewDetails?.local_transport || viewDetails?.local_transport?.length === 0) &&
       (!viewDetails?.attraction_package || viewDetails?.attraction_package?.length === 0) &&
       (!viewDetails?.restaurant || viewDetails?.restaurant?.length === 0);
 
@@ -638,7 +638,7 @@ const ActivityListPage3 = () => {
         <TourStatus />
       </div>
 
-      {showBookingTable && viewDetails ? (
+      {showBookingTable && (  viewDetails?.attraction?.length > 0 || viewDetails?.attraction_package?.length > 0 || viewDetails?.restaurant?.length > 0 || viewDetails?.hotel?.length > 0 || viewDetails?.guide?.length > 0 || viewDetails?.travel_point?.length > 0 || viewDetails?.travel_hourly?.length > 0 || viewDetails?.entry_port?.length > 0 || viewDetails?.exit_port?.length > 0) ? (
         <section className="layout-pt-md layout-pb-md">
           <div className="container-xxl">
             {/* Add debug panel */}

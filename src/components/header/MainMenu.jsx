@@ -82,7 +82,7 @@ const MainMenu = ({ style = "" }) => {
       navigate("/dashboard/db-dashboard/home_1", { 
         state: { 
           selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
-          searchCriteria: null   
+          searchCriteria: null 
         } 
       });
     } else {

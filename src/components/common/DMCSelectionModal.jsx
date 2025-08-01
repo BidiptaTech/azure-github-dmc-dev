@@ -24,7 +24,6 @@ import {
   TextField,
   InputAdornment,
   CircularProgress,
-  Checkbox,
   Badge
 } from '@mui/material';
 import {
@@ -36,6 +35,10 @@ import {
   CheckCircle as CheckIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
+  Info as InfoIcon,
+  Warning as WarningIcon,
+  EmojiEvents as TrophyIcon,
+  Verified as VerifiedIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { 
@@ -49,7 +52,9 @@ import {
   removeDmcFromSelection,
   clearSelectedDmcs,
   selectSelectedDmcIds,
-  selectSelectedDmcsData
+  selectSelectedDmcsData,
+  selectSelectedDmcLogo,
+  selectSelectedDmcCompanyName
 } from '../../slice/dmc/dmcSlice';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -148,51 +153,7 @@ const FilterBox = styled(Paper)(({ theme }) => ({
   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
 }));
 
-// Fallback DMC options in case API data is not available
-const fallbackDMCOptions = [
-  {
-    id: 'dmc1',
-    name: 'Premium Travel DMC',
-    location: 'Dubai, UAE',
-    rating: 4.8,
-    description: 'Specializing in premium travel experiences with personalized service',
-  },
-  {
-    id: 'dmc2',
-    name: 'Global Explorer DMC',
-    location: 'Singapore',
-    rating: 4.6,
-    description: 'Your trusted partner for comprehensive travel solutions',
-  },
-  {
-    id: 'dmc3',
-    name: 'Adventure Seekers DMC',
-    location: 'Thailand',
-    rating: 4.9,
-    description: 'Creating unforgettable adventure experiences in exotic locations',
-  },
-  {
-    id: 'dmc4',
-    name: 'Heritage Tours DMC',
-    location: 'India',
-    rating: 4.7,
-    description: 'Discover rich cultural heritage with authentic local experiences',
-  },
-  {
-    id: 'dmc5',
-    name: 'Alpine Adventures DMC',
-    location: 'Switzerland',
-    rating: 4.9,
-    description: 'Experience breathtaking mountain adventures in the Swiss Alps',
-  },
-  {
-    id: 'dmc6',
-    name: 'Tropical Paradise DMC',
-    location: 'Maldives',
-    rating: 4.8,
-    description: 'Ultimate tropical getaway with pristine beaches and luxury resorts',
-  },
-];
+// Remove the fallbackDMCOptions array completely
 
 const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelect = false }) => {
   const [selectedDMC, setSelectedDMC] = useState(''); // For single selection
@@ -208,8 +169,12 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
   // Get multiple selection data from Redux (for multiSelect mode)
   const selectedDmcIds = useSelector(selectSelectedDmcIds);
   const selectedDmcsData = useSelector(selectSelectedDmcsData);
+  
+  // Get DMC logo and company name from Redux (for testing)
+  const selectedDmcLogo = useSelector(selectSelectedDmcLogo);
+  const selectedDmcCompanyName = useSelector(selectSelectedDmcCompanyName);
 
-  // Use API data if available, otherwise fallback to hardcoded data
+  // Use API data if available, otherwise return empty array
   const dmcOptions = useMemo(() => {
     if (apiDMCs && apiDMCs.data && Array.isArray(apiDMCs.data)) {
       // Use the new API response format with data array
@@ -219,14 +184,24 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
         name: dmc.company_name || `DMC ${index + 1}`,
         location: dmc.country || 'Unknown Location',
         logo: dmc.logo || '',
-        rating: 4.5, // Default rating since not provided in API
+       
         description: 'Professional destination management services',
         // Keep original API data for Redux storage
         originalData: dmc,
       }));
     }
-    return fallbackDMCOptions;
+    return []; // Return empty array instead of fallback data
   }, [apiDMCs]);
+
+  // Console logging for testing current state
+  React.useEffect(() => {
+    if (open) {
+      console.log('🔍 DMC Modal: Current Redux State:');
+      console.log('🔍 DMC Modal: Selected DMC Logo:', selectedDmcLogo);
+      console.log('🔍 DMC Modal: Selected DMC Company Name:', selectedDmcCompanyName);
+      console.log('🔍 DMC Modal: Available DMC Options:', dmcOptions);
+    }
+  }, [open, selectedDmcLogo, selectedDmcCompanyName, dmcOptions]);
 
   // Single selection handlers (for Book Tour)
   const handleSelectionChange = (event) => {
@@ -295,19 +270,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     }
   };
 
-  // Multiple selection checkbox handler
-  const handleCheckboxChange = (event, dmcData) => {
-    const isChecked = event.target.checked;
-    const dmcId = dmcData.dmcId;
-    
-    console.log('☑️ Checkbox changed - dmcId:', dmcId, 'checked:', isChecked);
-    
-    if (isChecked) {
-      dispatch(addDmcToSelection({ dmcId, dmcData }));
-    } else {
-      dispatch(removeDmcFromSelection({ dmcId }));
-    }
-  };
+
 
   const handleFilterChange = (event) => {
     setFilterText(event.target.value);
@@ -406,7 +369,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
               <LocationIcon sx={{ mr: 2, fontSize: 24 }} />
               <Typography variant="h6" fontWeight="600">
                 Available DMCs in: <Chip label={getLocationText()} sx={{ ml: 1, fontWeight: 'bold', backgroundColor: '#1976d2', color: 'white' }} />
-                {multiSelect && selectedDmcIds.length > 0 && (
+                {/* {multiSelect && selectedDmcIds.length > 0 && (
                   <Badge 
                     badgeContent={selectedDmcIds.length} 
                     color="success" 
@@ -421,7 +384,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                       }} 
                     />
                   </Badge>
-                )}
+                )} */}
               </Typography>
             </Box>
           </StyledAlert>
@@ -523,8 +486,8 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                   {dmc.logo ? (
                                     <Box
                                       sx={{
-                                        width: 28,
-                                        height: 28,
+                                        width: 32,
+                                        height: 32,
                                         borderRadius: '50%',
                                         overflow: 'hidden',
                                         border: isDMCSelected(dmc) ? '2px solid #667eea' : '2px solid #90a4ae',
@@ -532,6 +495,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         backgroundColor: 'white',
+                                        position: 'relative',
                                       }}
                                     >
                                       <img
@@ -552,44 +516,48 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                         sx={{
                                           display: 'none',
                                           bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                          width: 24,
-                                          height: 24,
+                                          width: 28,
+                                          height: 28,
                                           background: isDMCSelected(dmc) 
                                             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                             : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                         }}
                                       >
-                                        <BusinessIcon sx={{ fontSize: 12 }} />
+                                        <BusinessIcon sx={{ fontSize: 14 }} />
                                       </Avatar>
                                     </Box>
                                   ) : (
-                                    <Avatar
-                                      sx={{
-                                        bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                        width: 28,
-                                        height: 28,
-                                        background: isDMCSelected(dmc) 
-                                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                                          : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
+                                    <Box sx={{ position: 'relative' }}>
+                                      <Avatar
+                                        sx={{
+                                          bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
+                                          width: 32,
+                                          height: 32,
+                                          background: isDMCSelected(dmc) 
+                                            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                            : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
+                                        }}
+                                      >
+                                        <BusinessIcon sx={{ fontSize: 16 }} />
+                                      </Avatar>
+                                    </Box>
+                                  )}
+                                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                    <Typography 
+                                      variant="subtitle2" 
+                                      fontWeight="700" 
+                                      color={isDMCSelected(dmc) ? '#667eea' : '#333'}
+                                      sx={{ 
+                                        fontSize: '0.8rem',
+                                        lineHeight: 1.2,
+                                        textAlign: 'left',
+                                        wordWrap: 'break-word',
                                       }}
                                     >
-                                      <BusinessIcon sx={{ fontSize: 14 }} />
-                                    </Avatar>
-                                  )}
-                                  <Typography 
-                                    variant="subtitle2" 
-                                    fontWeight="700" 
-                                    color={isDMCSelected(dmc) ? '#667eea' : '#333'}
-                                    sx={{ 
-                                      fontSize: '0.8rem',
-                                      lineHeight: 1.2,
-                                      textAlign: 'left',
-                                      flex: 1,
-                                      wordWrap: 'break-word',
-                                    }}
-                                  >
-                                    {dmc.name}
-                                  </Typography>
+                                      {dmc.name}
+                                    </Typography>
+                                   
+                                  </Box>
                                 </Box>
                                 
                                 {/* Location Section - Under the logo and name */}
@@ -599,18 +567,22 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                     label={dmc.location}
                                     size="small"
                                     sx={{
-                                      backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e3f2fd',
-                                      color: isDMCSelected(dmc) ? 'white' : '#1976d2',
+                                      backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e8f5e8',
+                                      color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
                                       fontSize: '0.68rem',
-                                      fontWeight: 500,
-                                      height: '20px',
+                                      fontWeight: 600,
+                                      height: '22px',
+                                      border: isDMCSelected(dmc) ? 'none' : '1px solid #4caf50',
                                       '& .MuiChip-icon': {
-                                        color: isDMCSelected(dmc) ? 'white' : '#1976d2',
+                                        color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
                                         fontSize: 12,
                                       },
                                       '& .MuiChip-label': {
                                         px: 1,
                                         fontSize: '0.68rem',
+                                      },
+                                      '&:hover': {
+                                        backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#c8e6c9',
                                       },
                                     }}
                                   />
@@ -632,29 +604,11 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                     ))}
                   </Grid>
                 </RadioGroup>
-              ) : (
-                // Multi-select mode with checkboxes
-                <Grid container spacing={3}>
-                  {filteredDMCs.map((dmc) => (
-                    <Grid item xs={12} sm={6} md={4} lg={2} xl={1.5} key={dmc.id}>
-                      <Box position="relative">
-                        {/* Checkbox for multi-select */}
-                        <Checkbox
-                          checked={isDMCSelected(dmc)}
-                          onChange={(e) => handleCheckboxChange(e, dmc)}
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            left: 8,
-                            zIndex: 10,
-                            backgroundColor: 'white',
-                            borderRadius: '4px',
-                            '&.Mui-checked': {
-                              color: '#667eea',
-                            },
-                          }}
-                        />
-                        
+                              ) : (
+                  // Multi-select mode without checkboxes - just card clicks
+                  <Grid container spacing={3}>
+                    {filteredDMCs.map((dmc) => (
+                      <Grid item xs={12} sm={6} md={4} lg={2} xl={1.5} key={dmc.id}>
                         <DMCCard 
                           selected={isDMCSelected(dmc)} 
                           elevation={isDMCSelected(dmc) ? 8 : 2}
@@ -672,8 +626,8 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                               {dmc.logo ? (
                                 <Box
                                   sx={{
-                                    width: 28,
-                                    height: 28,
+                                    width: 32,
+                                    height: 32,
                                     borderRadius: '50%',
                                     overflow: 'hidden',
                                     border: isDMCSelected(dmc) ? '2px solid #667eea' : '2px solid #90a4ae',
@@ -681,6 +635,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     backgroundColor: 'white',
+                                    position: 'relative',
                                   }}
                                 >
                                   <img
@@ -701,44 +656,48 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                     sx={{
                                       display: 'none',
                                       bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                      width: 24,
-                                      height: 24,
+                                      width: 28,
+                                      height: 28,
                                       background: isDMCSelected(dmc) 
                                         ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                         : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                     }}
                                   >
-                                    <BusinessIcon sx={{ fontSize: 12 }} />
+                                    <BusinessIcon sx={{ fontSize: 14 }} />
                                   </Avatar>
                                 </Box>
                               ) : (
-                                <Avatar
-                                  sx={{
-                                    bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                    width: 28,
-                                    height: 28,
-                                    background: isDMCSelected(dmc) 
-                                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                                      : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
+                                <Box sx={{ position: 'relative' }}>
+                                  <Avatar
+                                    sx={{
+                                      bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
+                                      width: 32,
+                                      height: 32,
+                                      background: isDMCSelected(dmc) 
+                                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                        : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
+                                    }}
+                                  >
+                                    <BusinessIcon sx={{ fontSize: 16 }} />
+                                  </Avatar>
+                                </Box>
+                              )}
+                              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Typography 
+                                  variant="subtitle2" 
+                                  fontWeight="700" 
+                                  color={isDMCSelected(dmc) ? '#667eea' : '#333'}
+                                  sx={{ 
+                                    fontSize: '0.8rem',
+                                    lineHeight: 1.2,
+                                    textAlign: 'left',
+                                    wordWrap: 'break-word',
                                   }}
                                 >
-                                  <BusinessIcon sx={{ fontSize: 14 }} />
-                                </Avatar>
-                              )}
-                              <Typography 
-                                variant="subtitle2" 
-                                fontWeight="700" 
-                                color={isDMCSelected(dmc) ? '#667eea' : '#333'}
-                                sx={{ 
-                                  fontSize: '0.8rem',
-                                  lineHeight: 1.2,
-                                  textAlign: 'left',
-                                  flex: 1,
-                                  wordWrap: 'break-word',
-                                }}
-                              >
-                                {dmc.name}
-                              </Typography>
+                                  {dmc.name}
+                                </Typography>
+                               
+                              </Box>
                             </Box>
                             
                             {/* Location Section - Under the logo and name */}
@@ -748,40 +707,130 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                 label={dmc.location}
                                 size="small"
                                 sx={{
-                                  backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e3f2fd',
-                                  color: isDMCSelected(dmc) ? 'white' : '#1976d2',
+                                  backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e8f5e8',
+                                  color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
                                   fontSize: '0.68rem',
-                                  fontWeight: 500,
-                                  height: '20px',
+                                  fontWeight: 600,
+                                  height: '22px',
+                                  border: isDMCSelected(dmc) ? 'none' : '1px solid #4caf50',
                                   '& .MuiChip-icon': {
-                                    color: isDMCSelected(dmc) ? 'white' : '#1976d2',
+                                    color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
                                     fontSize: 12,
                                   },
                                   '& .MuiChip-label': {
                                     px: 1,
                                     fontSize: '0.68rem',
                                   },
+                                  '&:hover': {
+                                    backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#c8e6c9',
+                                  },
                                 }}
                               />
                             </Box>
                           </CardContent>
                         </DMCCard>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
             </FormControl>
 
             {filteredDMCs.length === 0 && !dmcLoading && (
-              <Box textAlign="center" py={4}>
-                <SearchIcon sx={{ fontSize: 48, color: '#e0e0e0', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No DMCs Found
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Try adjusting your search criteria
-                </Typography>
+              <Box textAlign="center" py={6}>
+                {dmcOptions.length === 0 ? (
+                  // No DMCs available from API
+                  <Box>
+                    <Box
+                      sx={{
+                        width: 120,
+                        height: 120,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #f3f4ff 0%, #e8eaf6 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 24px',
+                        border: '3px solid #667eea',
+                      }}
+                    >
+                      <InfoIcon sx={{ fontSize: 48, color: '#667eea' }} />
+                    </Box>
+                    <Typography variant="h5" color="#333" fontWeight="600" gutterBottom>
+                      No DMCs Available
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                      Currently, there are no destination management companies available in this region. 
+                      Please try a different location or contact our support team for assistance.
+                    </Typography>
+                    <Box display="flex" gap={2} justifyContent="center" flexWrap="wrap">
+                      <Chip
+                        icon={<LocationIcon />}
+                        label="Try Different Location"
+                        variant="outlined"
+                        sx={{
+                          borderColor: '#667eea',
+                          color: '#667eea',
+                          '&:hover': {
+                            backgroundColor: 'rgba(102, 126, 234, 0.04)',
+                          },
+                        }}
+                      />
+                      <Chip
+                        icon={<TravelIcon />}
+                        label="Contact Support"
+                        variant="outlined"
+                        sx={{
+                          borderColor: '#667eea',
+                          color: '#667eea',
+                          '&:hover': {
+                            backgroundColor: 'rgba(102, 126, 234, 0.04)',
+                          },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                ) : (
+                  // DMCs exist but none match the filter
+                  <Box>
+                    <Box
+                      sx={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 24px',
+                        border: '3px solid #ff9800',
+                      }}
+                    >
+                      <SearchIcon sx={{ fontSize: 40, color: '#ff9800' }} />
+                    </Box>
+                    <Typography variant="h5" color="#333" fontWeight="600" gutterBottom>
+                      No Matching DMCs
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                      No DMCs match your current search criteria. Try adjusting your search terms or browse all available DMCs.
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setFilterText('')}
+                      sx={{
+                        borderColor: '#667eea',
+                        color: '#667eea',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        '&:hover': {
+                          borderColor: '#5a67d8',
+                          backgroundColor: 'rgba(102, 126, 234, 0.04)',
+                        },
+                      }}
+                    >
+                      Clear Search
+                    </Button>
+                  </Box>
+                )}
               </Box>
             )}
           </>

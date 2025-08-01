@@ -96,6 +96,7 @@ import { setSelectedCity } from "@/slice/common/commonSlice";
 import { clearAttractions } from "@/slice/attractions/attractionSlice";
 import { clearRestaurants } from "@/slice/restaurant/RestaurantsSlice";
 import { UpdateCustomPackage, clearAllServices } from "@/slice/tour-packages/tourPackageSlice";
+import { setSelectedDmcId } from "@/slice/dmc/dmcSlice";
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
@@ -794,6 +795,7 @@ export default function Pending() {
     .then((response) => {
       navigate("/dashboard/tour-packages");
       console.log("Full Response Data:", response);
+      dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
     })
     .catch((error) => {
       console.error("Error fetching booking:", error);

@@ -6,7 +6,7 @@ import { setName, setEmail1, setAuthenticated, setAgentId } from "./loginSlice";
 import { loginUser } from "../../slice/common/authSlices";
 import { setUserRole } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
-import { setSelectedDmcId } from "../../slice/dmc/dmcSlice";
+import { setSelectedDmcId, setDmcFromAuth } from "../../slice/dmc/dmcSlice";
 import {
   Box,
   Card,
@@ -46,6 +46,8 @@ import {
   Security,
   Speed,
   Support,
+  PersonAdd,
+  ArrowForward,
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
 
@@ -174,6 +176,8 @@ function Login() {
         agent_id: agentId,
         userRole,
         dmcId,
+        dmcLogo,
+        dmcCompanyName,
       } = result.payload;
 
       dispatch(setAgentId(agentId));
@@ -181,20 +185,36 @@ function Login() {
       dispatch(setEmail1(email));
       dispatch(setAuthenticated(true));
 
-      // For non-Agent users, set DMC ID in DMC slice
+      // For non-Agent users, set DMC data in DMC slice
       if (dmcId && userRole !== "Agent") {
-        console.log('🎯 Login Component: Setting DMC ID in DMC slice for non-Agent user:', dmcId);
+        console.log('🎯 Login Component: Setting DMC data in DMC slice for non-Agent user');
+        console.log('🎯 Login Component: dmcId:', dmcId);
+        console.log('🎯 Login Component: dmcLogo:', dmcLogo);
+        console.log('🎯 Login Component: dmcCompanyName:', dmcCompanyName);
+        
+        // Dispatch the new action to set DMC data from auth
+        dispatch(setDmcFromAuth({
+          dmcId: dmcId,
+          dmcLogo: dmcLogo,
+          dmcCompanyName: dmcCompanyName
+        }));
+        
+        // Also dispatch the existing action for backward compatibility
         dispatch(setSelectedDmcId({
           dmcId: dmcId,
           dmcData: {
             id: `dmc-auth-${dmcId}`,
             dmcId: dmcId,
-            name: `DMC ${dmcId}`,
+            name: dmcCompanyName || `DMC ${dmcId}`,
             location: 'Auth-selected',
-            logo: '',
+            logo: dmcLogo || '',
             rating: 4.5,
             description: 'DMC from authentication',
-            originalData: { dmcId: dmcId }
+            originalData: { 
+              dmcId: dmcId,
+              logo: dmcLogo,
+              company_name: dmcCompanyName
+            }
           }
         }));
       }
@@ -607,6 +627,59 @@ function Login() {
                           >
                         {isLoading || loginStatus === "loading" ? "Signing In..." : "Sign In"}
                       </Button>
+                    </Fade>
+
+                    {/* Sign Up Section */}
+                    <Fade in timeout={1800}>
+                      <Box sx={{ textAlign: "center", mt: 2 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: "#666",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <PersonAdd sx={{ fontSize: 16, color: "#667eea" }} />
+                          Don't have an account?
+                        </Typography>
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={() => navigate("/register")}
+                          sx={{
+                            color: "#667eea",
+                            fontWeight: 600,
+                            textTransform: "none",
+                            fontSize: "0.9rem",
+                            p: 1,
+                            borderRadius: 2,
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              background: "rgba(102, 126, 234, 0.1)",
+                              transform: "translateY(-1px)",
+                              color: "#5a6fd8",
+                            },
+                            "&:active": {
+                              transform: "translateY(0)",
+                            },
+                          }}
+                          endIcon={
+                            <ArrowForward sx={{ 
+                              fontSize: 16,
+                              transition: "transform 0.3s ease",
+                              "&:hover": {
+                                transform: "translateX(2px)",
+                              }
+                            }} />
+                          }
+                        >
+                          Sign Up
+                        </Button>
+                      </Box>
                     </Fade>
 
                     {loginError && (

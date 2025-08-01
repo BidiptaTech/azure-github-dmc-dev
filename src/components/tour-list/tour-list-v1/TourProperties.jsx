@@ -22,6 +22,7 @@ import {
   Avatar,
 } from "@mui/material";
 import { setBookingMode } from "../../../slice/common/commonSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const getOpeningTimes = (item) => {
   const times = [];
@@ -112,8 +113,9 @@ const skeletonStyles = `
 const TourProperties = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || "DMC";
   const filters = useSelector(selectFilters);
   const attractions = useSelector(selectFilteredAttractions);
   const bookingType = useSelector((state) => state.common.bookingType);
@@ -581,27 +583,27 @@ const TourProperties = () => {
                                           overflow: "hidden",
                                         }}
                                       >
-                                        {dmcLogo && (
-                                          <Avatar
-                                            src={dmcLogo}
-                                            alt={`${dmcName} Logo`}
+                                                                                  {dmcLogo && (
+                                            <Avatar
+                                              src={dmcLogo}
+                                              alt={`${dmcCompanyName} Logo`}
+                                              sx={{
+                                                width: 16,
+                                                height: 16,
+                                                marginRight: "4px",
+                                                flexShrink: 0,
+                                              }}
+                                            />
+                                          )}
+                                          <Typography
                                             sx={{
-                                              width: 16,
-                                              height: 16,
-                                              marginRight: "4px",
-                                              flexShrink: 0,
+                                              whiteSpace: "nowrap",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
                                             }}
-                                          />
-                                        )}
-                                        <Typography
-                                          sx={{
-                                            whiteSpace: "nowrap",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                          }}
-                                        >
-                                          {`${dmcName}'s Mode`}
-                                        </Typography>
+                                          >
+                                            {`${dmcCompanyName}'s Mode`}
+                                          </Typography>
                                       </Box>
                                     </Box>
 
@@ -845,7 +847,7 @@ const TourProperties = () => {
                                           {dmcLogo && (
                                             <Avatar
                                               src={dmcLogo}
-                                              alt={`${dmcName} Logo`}
+                                              alt={`${dmcCompanyName} Logo`}
                                               sx={{
                                                 width: 16,
                                                 height: 16,
@@ -861,7 +863,7 @@ const TourProperties = () => {
                                               textOverflow: "ellipsis",
                                             }}
                                           >
-                                            {`${dmcName}'s Mode`}
+                                            {`${dmcCompanyName}'s Mode`}
                                           </Typography>
                                         </Box>
                                       </Box>

@@ -72,7 +72,7 @@ const transformParams = (params) => {
 
   const transformed = {};
   const hyphenParams = [
-    { from: "dmc_id", to: "dmc-id" },
+    { from: "dmc_id", to: "dmc_id" },
     { from: "price_mode", to: "price-mode" },
     { from: "agent_id", to: "agent-id" },
     { from: "tour_id", to: "tour-id" },
@@ -114,6 +114,8 @@ export const fetchPackages = createAsyncThunk(
       const state = getState();
       const selectedDmcId = selectDmcId(state);
       console.log('🎯 PrePackagesSlice - Fetching packages with DMC ID:', selectedDmcId);
+      console.log('🎯 PrePackagesSlice - Full Redux state:', state);
+      console.log('🎯 PrePackagesSlice - DMC state:', state.dmc);
 
       // Add DMC ID to search parameters if available
       const updatedSearchParams = {
@@ -124,8 +126,11 @@ export const fetchPackages = createAsyncThunk(
       console.log('🎯 PrePackagesSlice - Updated search params:', updatedSearchParams);
 
       const response = await packageAPI.fetchPackages(updatedSearchParams);
+      console.log('🎯 PrePackagesSlice - API response:', response);
+      console.log('🎯 PrePackagesSlice - API response data:', response.data);
       return response.data;
     } catch (error) {
+      console.error('🎯 PrePackagesSlice - API error:', error);
       return rejectWithValue(
         error.response?.data?.message || 'Failed to fetch packages'
       );
@@ -302,7 +307,31 @@ const prePackagesSlice = createSlice({
       })
       .addCase(fetchPackages.fulfilled, (state, action) => {
         state.loading = false;
-        state.packages = action.payload;
+        console.log('🎯 PrePackagesSlice - API response payload:', action.payload);
+        console.log('🎯 PrePackagesSlice - API response type:', typeof action.payload);
+        
+        // Handle different response formats
+        if (action.payload && typeof action.payload === 'object') {
+          if (Array.isArray(action.payload)) {
+            // Direct array of packages
+            state.packages = action.payload;
+            console.log('🎯 PrePackagesSlice - Setting packages as direct array:', action.payload.length);
+          } else if (action.payload.packages && Array.isArray(action.payload.packages)) {
+            // Object with packages property
+            state.packages = action.payload.packages;
+            console.log('🎯 PrePackagesSlice - Setting packages from packages property:', action.payload.packages.length);
+          } else if (action.payload.data && Array.isArray(action.payload.data)) {
+            // Object with data property
+            state.packages = action.payload.data;
+            console.log('🎯 PrePackagesSlice - Setting packages from data property:', action.payload.data.length);
+          } else {
+            console.log('🎯 PrePackagesSlice - Unknown response format, setting empty array');
+            state.packages = [];
+          }
+        } else {
+          console.log('🎯 PrePackagesSlice - No valid payload, setting empty array');
+          state.packages = [];
+        }
       })
       .addCase(fetchPackages.rejected, (state, action) => {
         state.loading = false;

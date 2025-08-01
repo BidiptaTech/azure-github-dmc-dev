@@ -40,7 +40,8 @@ import {
   Upload as UploadIcon,
   Lock as LockIcon,
   Public as PublicIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  ArrowBack
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
@@ -595,6 +596,7 @@ const RegistrationForm = () => {
         });
         
                   try {
+                    console.log("transformedDatafinal", transformedData);
            
            const responseOTP = await dispatch(sendOTPSlice(transformedData)).unwrap();
            if (responseOTP.success) {
@@ -717,6 +719,26 @@ const RegistrationForm = () => {
         }}
       >
         <InnerPaper>
+          {/* Back Button */}
+          <Box sx={{ position: 'absolute', top: 20, left: 20 }}>
+            <IconButton
+              onClick={() => navigate('/')}
+              sx={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateX(-3px)',
+                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                },
+              }}
+            >
+              <ArrowBack />
+            </IconButton>
+          </Box>
+
           <Box sx={{ textAlign: 'center', mb: 4 }}>
             <Avatar
               sx={{
