@@ -3,6 +3,23 @@
 @extends('layouts.datatablecss')
 
 @section('content')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  .badge {
+        font-size: 0.75rem;
+        padding: 0.4em 0.6em;
+        border-radius: 0.5rem;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;  
+        display: inline-block;
+        vertical-align: middle;
+        margin-bottom: 0.5em;
+        cursor: default;
+    }
+</style>
 <div class="content-wrapper">
   <div class="container-xxl flex-grow-1 container-p-y">
     <div class="card">
@@ -39,6 +56,7 @@
           <thead>
             <tr>
               <th>No</th>
+              <th>DMC Company</th>
               <th>Agency Company</th>
               <th>Name</th>
               <th>Email</th>
@@ -52,8 +70,70 @@
           </thead>
           <tbody>
             @foreach ($agents as $key => $agent)
+
+              @php
+                $dmcIds = is_array($agent->dmc_id) ? $agent->dmc_id : json_decode($agent->dmc_id, true);
+
+                $agent->dmc_companies = [];
+            
+                if (is_array($dmcIds)) {
+                    $agent->dmc_companies = App\Models\User::whereIn('userId', $dmcIds)
+                        ->pluck('company_name')
+                        ->filter()
+                        ->values()
+                        ->toArray();
+                }
+              @endphp
               <tr>
                 <td>{{ ++$key }}</td>
+                <td>
+                  @php
+                      $dmcCompanies = $agent->dmc_companies ?? [];
+                      $firstDmc = $dmcCompanies[0] ?? null;
+                      $extraDmcs = array_slice($dmcCompanies, 1);
+                      $moreCount = count($extraDmcs);
+                      $modalId = 'dmcModal' . $loop->index;
+                  @endphp
+              
+                  @if ($firstDmc)
+                      <span class="badge bg-primary text-white me-1">
+                          {{ \Illuminate\Support\Str::limit($firstDmc, 20) }}
+                      </span>
+              
+                      @if ($moreCount > 0)
+                          <button type="button"
+                                  class="btn btn-sm btn-outline-secondary"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#{{ $modalId }}">
+                              +{{ $moreCount }} More
+                          </button>
+              
+                          <!-- Modal for DMC List -->
+                          <div class="modal fade" id="{{ $modalId }}" tabindex="-1" aria-labelledby="{{ $modalId }}Label" aria-hidden="true">
+                              <div class="modal-dialog modal-dialog-centered">
+                                  <div class="modal-content">
+                                      <div class="modal-header">
+                                          <h5 class="modal-title" id="{{ $modalId }}Label">DMC Companies</h5>
+                                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                      </div>
+                                      <div class="modal-body">
+                                          <ul class="list-group">
+                                              @foreach ($dmcCompanies as $company)
+                                                  <li class="list-group-item">{{ $company }}</li>
+                                              @endforeach
+                                          </ul>
+                                      </div>
+                                      <div class="modal-footer">
+                                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      @endif
+                  @else
+                      <span class="text-muted">No DMC assigned</span>
+                  @endif
+                </td>                                               
                 <td>{{ $agent->company_name ?? 'N/A' }}</td>
                 <td>{{ $agent->name }}</td>
                 <td>{{ $agent->email }}</td>
