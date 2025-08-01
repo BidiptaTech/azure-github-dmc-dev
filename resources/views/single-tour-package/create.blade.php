@@ -1,5 +1,4 @@
 @extends('layouts.layout')
-
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -78,16 +77,31 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
-                                    <div class="guest-selector-main">
-                                        <button class="btn btn-outline-secondary w-100 text-start" type="button" id="mainGuestSelectorBtn">
-                                            <span id="guestSummary">4 adults (2 male, 2 female) - 0 children - 0 infants</span>
-                                            <i class="ri-edit-line float-end mt-1"></i>
+                                    <div class="guest-selector">
+                                        <div class="guest-display p-2 border rounded bg-light">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <div class="guest-info">
+                                                    <span id="mainGuestSummary" class="text-muted small">
+                                                        1 adults (0 male, 0 female), 0 children - 0 infants
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()">
+                                                    <i class="ri-edit-line"></i>
                                         </button>
                                     </div>
+                                            <div class="guest-badges mt-1">
+                                                <span class="badge bg-primary">1</span>
+                                                <span class="badge bg-success">0</span>
+                                                <span class="badge bg-warning text-dark">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    
                                     <!-- Hidden Fields -->
-                                    <input type="hidden" name="adults" id="adults" value="4">
-                                    <input type="hidden" name="male" id="male" value="2">
-                                    <input type="hidden" name="female" id="female" value="2">
+                                    <input type="hidden" name="adults" id="adults" value="1">
+                                    <input type="hidden" name="male" id="male" value="0">
+                                    <input type="hidden" name="female" id="female" value="0">
                                     <input type="hidden" name="children" id="children" value="0">
                                     <input type="hidden" name="infants" id="infants" value="0">
                                 </div>
@@ -136,10 +150,13 @@
                             <!-- Hotel Selection Controls -->
                             <div class="row mb-3">
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Select Hotel</label>
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-hotel-line me-1"></i>Select Hotel
+                                    </label>
                                     <select class="form-select" id="hotelSelect">
-                                        <option value="">Search hotels</option>
+                                        <option value="">Select a city first to load hotels</option>
                                     </select>
+                                    <small class="text-muted" id="hotelLoadingStatus"></small>
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">Room Type</label>
@@ -345,59 +362,229 @@
 <!-- Bootstrap 5 JS (for dropdown functionality) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // Guest Dropdown Functions - Define them globally first
+
+    
+    // Main Guest Selector - Uses the same modal pattern as attraction booking
+    window.openMainGuestSelector = function() {
+        console.log('openMainGuestSelector called');
+        
+        // Get current values from hidden inputs
+        const male = parseInt(document.getElementById('male').value) || 0;
+        const female = parseInt(document.getElementById('female').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const infants = parseInt(document.getElementById('infants').value) || 0;
+        const adults = male + female;
+        
+        console.log('Current guest values:', {adults, male, female, children, infants});
+        
+        // Create modal if it doesn't exist
+        if (!document.getElementById('mainGuestSelectorModal')) {
+            createMainGuestSelectorModal();
+        }
+        
+        // Set modal values
+        document.getElementById('mainModalMale').textContent = male;
+        document.getElementById('mainModalFemale').textContent = female;
+        document.getElementById('mainModalChildren').textContent = children;
+        document.getElementById('mainModalInfants').textContent = infants;
+        
+        // Show modal
+        const modal = document.getElementById('mainGuestSelectorModal');
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+    };
+    
+    function createMainGuestSelectorModal() {
+        const modalHTML = `
+            <div class="modal fade" id="mainGuestSelectorModal" tabindex="-1" aria-labelledby="mainGuestSelectorModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="mainGuestSelectorModalLabel">
+                                <i class="ri-group-line me-2"></i>Select Tour Guests
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-4">
+                                <!-- Adults Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Male -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-primary">
+                                                    <i class="ri-user-3-line me-1"></i>Male
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateMainGuest('male', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalMale">0</span>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateMainGuest('male', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <!-- Female -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-danger">
+                                                    <i class="ri-user-4-line me-1"></i>Female
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateMainGuest('female', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalFemale">0</span>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateMainGuest('female', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Children & Infants Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Children -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-success">
+                                                    <i class="ri-user-smile-line me-1"></i>Children
+                                                    <small class="text-muted">(Ages 1-17)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateMainGuest('children', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalChildren">0</span>
+                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateMainGuest('children', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <!-- Infants -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-warning">
+                                                    <i class="ri-user-heart-line me-1"></i>Infants
+                                                    <small class="text-muted">(Under 1 year)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateMainGuest('infants', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalInfants">0</span>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateMainGuest('infants', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applyMainGuestSelection()">
+                                <i class="ri-check-line me-1"></i>Apply Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    window.updateMainGuest = function(type, change) {
+        const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
+        const currentValue = parseInt(element.textContent) || 0;
+        let newValue = Math.max(0, currentValue + change);
+        
+        // For adults, ensure at least 1 adult is selected in total
+        if ((type === 'male' || type === 'female') && change < 0) {
+            const maleEl = document.getElementById('mainModalMale');
+            const femaleEl = document.getElementById('mainModalFemale');
+            const maleCount = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
+            const femaleCount = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
+            
+            const totalAdults = (type === 'male' ? newValue : maleCount) + (type === 'female' ? newValue : femaleCount);
+            
+            if (totalAdults < 1) {
+                return; // Don't allow reducing to 0 adults
+            }
+        }
+        
+        element.textContent = newValue;
+    };
+    
+    window.applyMainGuestSelection = function() {
+        console.log('applyMainGuestSelection called');
+        
+        const male = parseInt(document.getElementById('mainModalMale').textContent) || 0;
+        const female = parseInt(document.getElementById('mainModalFemale').textContent) || 0;
+        const children = parseInt(document.getElementById('mainModalChildren').textContent) || 0;
+        const infants = parseInt(document.getElementById('mainModalInfants').textContent) || 0;
+        const adults = male + female;
+        
+        console.log('Modal values:', {adults, male, female, children, infants});
+        
+        // Update hidden inputs
+        const adultsInput = document.getElementById('adults');
+        const maleInput = document.getElementById('male');
+        const femaleInput = document.getElementById('female');
+        const childrenInput = document.getElementById('children');
+        const infantsInput = document.getElementById('infants');
+        
+        if (adultsInput) adultsInput.value = adults;
+        if (maleInput) maleInput.value = male;
+        if (femaleInput) femaleInput.value = female;
+        if (childrenInput) childrenInput.value = children;
+        if (infantsInput) infantsInput.value = infants;
+        
+        // Update summary display
+        const guestSummary = document.getElementById('mainGuestSummary');
+        console.log('Guest summary element:', guestSummary);
+        
+        if (guestSummary) {
+            guestSummary.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
+            console.log('Updated guest summary text');
+        }
+        
+        // Update badges
+        const badgeContainer = guestSummary.closest('.guest-display').querySelector('.guest-badges');
+        if (badgeContainer) {
+            const badges = badgeContainer.querySelectorAll('.badge');
+            if (badges.length >= 3) {
+                badges[0].textContent = adults; // Total adults
+                badges[1].textContent = children; // Children
+                badges[2].textContent = infants; // Infants
+            }
+        }
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
+        modal.hide();
+        
+        console.log('applyMainGuestSelection completed successfully');
+    };
+
     // Ensure Bootstrap is properly loaded
     document.addEventListener('DOMContentLoaded', function() {
-        // Add a direct test button for the modal
-        const testButton = document.createElement('button');
-        testButton.textContent = 'Test Modal';
-        testButton.className = 'btn btn-sm btn-warning position-fixed';
-        testButton.style.bottom = '20px';
-        testButton.style.right = '20px';
-        testButton.style.zIndex = '9999';
-        testButton.onclick = function() {
-            const modalElement = document.getElementById('mainGuestSelectorModal');
-            if (modalElement) {
-                try {
-                    // Try different methods to open the modal
-                    console.log('Trying to open modal...');
-                    
-                    // Method 1: Bootstrap 5 way
-                    try {
-                        const bsModal = new bootstrap.Modal(modalElement);
-                        bsModal.show();
-                        console.log('Modal opened with Bootstrap 5 method');
-                        return;
-                    } catch (e) {
-                        console.error('Bootstrap 5 method failed:', e);
-                    }
-                    
-                    // Method 2: Direct attribute setting
-                    modalElement.classList.add('show');
-                    modalElement.style.display = 'block';
-                    document.body.classList.add('modal-open');
-                    console.log('Modal opened with direct DOM manipulation');
-                    
-                } catch (error) {
-                    console.error('All methods to open modal failed:', error);
-                    alert('Failed to open modal. See console for details.');
-                }
-            } else {
-                console.error('Modal element not found!');
-                alert('Modal element not found!');
-            }
-        };
-        document.body.appendChild(testButton);
-        
         // Check if Bootstrap is properly loaded
         if (typeof bootstrap === 'undefined') {
             console.error('Bootstrap JS is not loaded properly!');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-danger position-fixed';
-            alertDiv.style.top = '20px';
-            alertDiv.style.right = '20px';
-            alertDiv.style.zIndex = '9999';
-            alertDiv.innerHTML = '<strong>Error:</strong> Bootstrap JS is not loaded properly!';
-            document.body.appendChild(alertDiv);
         } else {
             console.log('Bootstrap version:', bootstrap.Modal.VERSION);
         }
@@ -469,6 +656,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedOption && selectedOption.dataset.id) {
             document.getElementById('city_id').value = selectedOption.dataset.id;
         }
+        
+        // Load hotels for the selected city
+        const selectedCity = this.value;
+        if (selectedCity) {
+            loadHotelsForCity(selectedCity);
+        } else {
+            // Clear hotel selection if no city is selected
+            const hotelSelect = document.getElementById('hotelSelect');
+            const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+            hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
+            hotelLoadingStatus.innerHTML = '';
+        }
     });
 
          // Wait for all dependencies to load
@@ -516,108 +715,42 @@ document.addEventListener('DOMContentLoaded', function() {
          });
      });
 
-            // Guest Counter Functionality
-        const updateGuestCounter = (target, action) => {
-            if (target === 'adults-auto') {
-                // Handle auto adults counter (increases both male and female equally)
-                const maleCount = parseInt(document.getElementById('male-count').textContent);
-                const femaleCount = parseInt(document.getElementById('female-count').textContent);
-                const currentTotal = maleCount + femaleCount;
-                
-                if (action === 'increase' && currentTotal < 20) {
-                    // Add 1 to male or female alternately to keep balance
-                    if (maleCount <= femaleCount) {
-                        updateGuestCounter('male', 'increase');
-                    } else {
-                        updateGuestCounter('female', 'increase');
-                    }
-                } else if (action === 'decrease' && currentTotal > 1) {
-                    // Remove 1 from male or female alternately
-                    if (maleCount >= femaleCount && maleCount > 0) {
-                        updateGuestCounter('male', 'decrease');
-                    } else if (femaleCount > 0) {
-                        updateGuestCounter('female', 'decrease');
-                    }
-                }
-                return;
-            }
-            
-            const countElement = document.getElementById(target + '-count');
-            const hiddenInput = document.getElementById(target);
-            let currentValue = parseInt(countElement.textContent);
-            
-            if (target === 'male' || target === 'female') {
-                // Handle individual male/female counters
-                let minValue = 0;
-                let maxValue = 20;
-                
-                // Ensure at least 1 total adult
-                const maleCount = parseInt(document.getElementById('male-count').textContent);
-                const femaleCount = parseInt(document.getElementById('female-count').textContent);
-                const totalAdults = maleCount + femaleCount;
-                
-                if (action === 'decrease' && totalAdults <= 1) {
-                    // Don't allow decreasing if it would result in 0 total adults
-                    return;
-                }
-                
-                if (action === 'increase' && currentValue < maxValue) {
-                    currentValue++;
-                } else if (action === 'decrease' && currentValue > minValue) {
-                    currentValue--;
-                }
-                
-                countElement.textContent = currentValue;
-                hiddenInput.value = currentValue;
-                
-                // Update total adults count
-                updateAdultsCount();
-                
-            } else {
-                // Handle children and infants
-                let minValue = 0;
-                let maxValue = 10;
-                
-                if (action === 'increase' && currentValue < maxValue) {
-                currentValue++;
-            } else if (action === 'decrease' && currentValue > minValue) {
-                currentValue--;
-            }
-            
-            countElement.textContent = currentValue;
-            hiddenInput.value = currentValue;
-            }
-            
-            updateGuestSummary();
-        };
+
 
         // Update total adults count and hidden field
         const updateAdultsCount = () => {
-            const maleCount = parseInt(document.getElementById('male-count').textContent);
-            const femaleCount = parseInt(document.getElementById('female-count').textContent);
-            const totalAdults = maleCount + femaleCount;
+            const maleInput = document.getElementById('male');
+            const femaleInput = document.getElementById('female');
+            const adultsInput = document.getElementById('adults');
             
-            document.getElementById('adults-count').textContent = totalAdults;
-            document.getElementById('adults').value = totalAdults;
+            if (maleInput && femaleInput && adultsInput) {
+                const maleCount = parseInt(maleInput.value) || 0;
+                const femaleCount = parseInt(femaleInput.value) || 0;
+                const totalAdults = maleCount + femaleCount;
+                
+                adultsInput.value = totalAdults;
+            }
         };
 
         const updateGuestSummary = () => {
-            const male = parseInt(document.getElementById('male').value);
-            const female = parseInt(document.getElementById('female').value);
-            const children = parseInt(document.getElementById('children').value);
-            const infants = parseInt(document.getElementById('infants').value);
+            const male = parseInt(document.getElementById('male').value) || 0;
+            const female = parseInt(document.getElementById('female').value) || 0;
+            const children = parseInt(document.getElementById('children').value) || 0;
+            const infants = parseInt(document.getElementById('infants').value) || 0;
             
             // Calculate total adults
             const totalAdults = male + female;
-            document.getElementById('adults').value = totalAdults;
+            const adultsInput = document.getElementById('adults');
+            if (adultsInput) {
+                adultsInput.value = totalAdults;
+            }
             
             // Main summary text for button
+            const guestSummary = document.getElementById('guestSummary');
+            if (guestSummary) {
             let summaryText = `${totalAdults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-            document.getElementById('guestSummary').textContent = summaryText;
-            
-            // Detailed summary in dropdown
-            let detailSummary = `${totalAdults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-            document.getElementById('guestDetailSummary').textContent = detailSummary;
+                guestSummary.textContent = summaryText;
+            }
         };
 
     // Prevent dropdown from closing when clicking inside
@@ -628,22 +761,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Attach guest counter events
-    document.querySelectorAll('.guest-btn-plus').forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.stopPropagation(); // Prevent dropdown from closing
-            const target = this.dataset.target;
-            updateGuestCounter(target, 'increase');
-        });
-    });
 
-    document.querySelectorAll('.guest-btn-minus').forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.stopPropagation(); // Prevent dropdown from closing
-            const target = this.dataset.target;
-            updateGuestCounter(target, 'decrease');
-        });
-    });
 
          // Generate night selection based on date range
      function generateNightSelection() {
@@ -921,6 +1039,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 createButton.classList.add('btn-success');
                 createButton.disabled = true;
                 
+                // Disable main configuration fields after successful tour creation
+                disableMainConfigurationFields();
+                
             } else {
                 // Reset button state
                 createButton.innerHTML = originalText;
@@ -941,38 +1062,157 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('Failed to create tour package. Please try again.', 'error');
         });
     };
+    
+    // Function to disable main configuration fields after tour creation
+    function disableMainConfigurationFields() {
+        console.log('Disabling main configuration fields after tour creation');
+        
+        // Disable country selection
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect) {
+            countrySelect.disabled = true;
+            countrySelect.style.backgroundColor = '#f8f9fa';
+            countrySelect.style.cursor = 'not-allowed';
+            countrySelect.style.opacity = '0.7';
+        }
+        
+        // Disable city selection
+        const citySelect = document.getElementById('city');
+        if (citySelect) {
+            citySelect.disabled = true;
+            citySelect.style.backgroundColor = '#f8f9fa';
+            citySelect.style.cursor = 'not-allowed';
+            citySelect.style.opacity = '0.7';
+        }
+        
+        // Disable travel dates
+        const travelDates = document.getElementById('travel_dates');
+        if (travelDates) {
+            travelDates.disabled = true;
+            travelDates.style.backgroundColor = '#f8f9fa';
+            travelDates.style.cursor = 'not-allowed';
+            travelDates.style.opacity = '0.7';
+        }
+        
+        // Disable agent selection
+        const agentSelect = document.getElementById('agent_id');
+        if (agentSelect) {
+            agentSelect.disabled = true;
+            agentSelect.style.backgroundColor = '#f8f9fa';
+            agentSelect.style.cursor = 'not-allowed';
+            agentSelect.style.opacity = '0.7';
+        }
+        
+        // Disable guest selector
+        const guestEditButton = document.querySelector('.guest-display .btn-outline-primary');
+        if (guestEditButton) {
+            guestEditButton.disabled = true;
+            guestEditButton.classList.remove('btn-outline-primary');
+            guestEditButton.classList.add('btn-outline-secondary');
+            guestEditButton.innerHTML = '<i class="ri-lock-line"></i>';
+            guestEditButton.style.cursor = 'not-allowed';
+            guestEditButton.style.opacity = '0.7';
+            guestEditButton.onclick = null; // Remove click handler
+        }
+        
+        // Add readonly styling to guest display
+        const guestDisplay = document.querySelector('.guest-display');
+        if (guestDisplay) {
+            guestDisplay.classList.add('disabled');
+        }
+        
+        // Add visual indicator
+        addConfigurationLockedAlert();
+        
+        console.log('Main configuration fields disabled successfully');
+    }
+    
+    // Function to add configuration locked alert
+    function addConfigurationLockedAlert() {
+        const mainFormCard = document.querySelector('.card-body');
+        if (mainFormCard) {
+            // Create lock indicator
+            const lockAlert = document.createElement('div');
+            lockAlert.className = 'alert alert-warning alert-dismissible fade show mt-3';
+            lockAlert.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-lock-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Configuration Locked!</strong>
+                        <br>
+                        <small>The core tour configuration (Country, City, Dates, Guests, Agent) is now locked to maintain data integrity. You can still modify hotels, attractions, guides, and other services.</small>
+                    </div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Insert after the form row
+            const formRow = mainFormCard.querySelector('.row');
+            if (formRow) {
+                formRow.parentNode.insertBefore(lockAlert, formRow.nextSibling);
+            }
+        }
+    }
 
     // Load hotels for city
     function loadHotelsForCity(cityName) {
         const hotelSelect = document.getElementById('hotelSelect');
-        hotelSelect.innerHTML = '<option value="">Search hotels in ' + cityName + '</option>';
+        const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
         
-        // For now, show placeholder options until hotel API is implemented
-        const placeholderHotels = [
-            { id: 1, name: 'Hotel Example 1 - ' + cityName },
-            { id: 2, name: 'Hotel Example 2 - ' + cityName },
-            { id: 3, name: 'Hotel Example 3 - ' + cityName }
-        ];
+        // Show loading state
+        hotelSelect.innerHTML = '<option value="">Loading hotels in ' + cityName + '...</option>';
+        hotelSelect.disabled = true;
+        hotelLoadingStatus.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Loading hotels...';
+        hotelLoadingStatus.style.color = '#0d6efd';
         
-        placeholderHotels.forEach(hotel => {
-                    hotelSelect.innerHTML += `<option value="${hotel.id}">${hotel.name}</option>`;
+        // Fetch hotels from API
+        fetch(`/hotel-city/${encodeURIComponent(cityName)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                hotelSelect.disabled = false;
+                
+                if (data && data.length > 0) {
+                    data.forEach(hotel => {
+                        hotelSelect.innerHTML += `<option value="${hotel.hotel_unique_id}">${hotel.name}</option>`;
+                    });
+                    hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${data.length} hotels found in ${cityName}`;
+                    hotelLoadingStatus.style.color = '#198754';
+                    console.log(`Loaded ${data.length} hotels for ${cityName}`);
+                } else {
+                    hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
+                    hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
+                    hotelLoadingStatus.style.color = '#fd7e14';
+                    console.log(`No hotels found for ${cityName}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading hotels:', error);
+                hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
+                hotelLoadingStatus.innerHTML = '<i class="ri-error-warning-line me-1 text-danger"></i>Error loading hotels';
+                hotelLoadingStatus.style.color = '#dc3545';
+                
+                // Fallback to placeholder hotels for development
+                const placeholderHotels = [
+                    { hotel_unique_id: 1, name: 'Hotel Example 1 - ' + cityName },
+                    { hotel_unique_id: 2, name: 'Hotel Example 2 - ' + cityName },
+                    { hotel_unique_id: 3, name: 'Hotel Example 3 - ' + cityName }
+                ];
+                
+                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                placeholderHotels.forEach(hotel => {
+                    hotelSelect.innerHTML += `<option value="${hotel.hotel_unique_id}">${hotel.name}</option>`;
                 });
-        
-        // TODO: Implement actual hotel API endpoint
-        // fetch(`/api/hotels-by-city?city=${encodeURIComponent(cityName)}`)
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         hotelSelect.innerHTML = '<option value="">Search hotels</option>';
-        //         if (data.hotels && data.hotels.length > 0) {
-        //             data.hotels.forEach(hotel => {
-        //                 hotelSelect.innerHTML += `<option value="${hotel.id}">${hotel.name}</option>`;
-        //             });
-        //         }
-        //     })
-        //     .catch(error => {
-        //         console.error('Error loading hotels:', error);
-        //         hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
-        //     });
+                
+                hotelSelect.disabled = false;
+                hotelLoadingStatus.innerHTML = '<i class="ri-information-line me-1 text-info"></i>Using demo hotels (API error)';
+                hotelLoadingStatus.style.color = '#0dcaf0';
+            });
     }
 
          // Add Hotel Function
@@ -984,13 +1224,13 @@ document.addEventListener('DOMContentLoaded', function() {
          const numberOfRooms = document.getElementById('numberOfRooms').value;
          
          if (!hotelSelect.value) {
-             alert('Please select a hotel first.');
+             showNotification('Please select a hotel first.', 'warning');
              return;
          }
          
          const selectedNights = document.querySelectorAll('.night-btn.active');
          if (selectedNights.length === 0) {
-             alert('Please select at least one night for this hotel.');
+             showNotification('Please select at least one night for this hotel.', 'warning');
              return;
          }
          
@@ -1019,12 +1259,21 @@ document.addEventListener('DOMContentLoaded', function() {
          selectedHotels.push(hotelData);
          displaySelectedHotels();
          
+         // Show success notification
+         showNotification(`Hotel "${hotelData.name}" added successfully for ${hotelData.totalNights} nights!`, 'success');
+         
          // Reset form
          hotelSelect.value = '';
          document.getElementById('roomTypeSelect').value = '';
          document.getElementById('bedTypeSelect').value = '';
          document.getElementById('mealPlanSelect').value = '';
          document.getElementById('numberOfRooms').value = '1';
+         
+         // Clear hotel loading status
+         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+         if (hotelLoadingStatus) {
+             hotelLoadingStatus.innerHTML = '';
+         }
          
          // Clear night selection
          updateConsecutiveSelection([]);
@@ -2597,162 +2846,7 @@ document.addEventListener('DOMContentLoaded', function() {
      };
     
     // Main guest selection modal functions
-    window.openMainGuestSelector = function() {
-        console.log('Opening main guest selector modal');
-        
-        try {
-            // Initialize modal with current values
-            const maleInput = document.getElementById('male');
-            const femaleInput = document.getElementById('female');
-            const childrenInput = document.getElementById('children');
-            const infantsInput = document.getElementById('infants');
-            
-            const male = maleInput ? parseInt(maleInput.value) || 0 : 2;
-            const female = femaleInput ? parseInt(femaleInput.value) || 0 : 2;
-            const children = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-            const infants = infantsInput ? parseInt(infantsInput.value) || 0 : 0;
-            
-            console.log('Current values:', {male, female, children, infants});
-            
-            // Update modal elements with null checks
-            const mainModalMale = document.getElementById('mainModalMale');
-            const mainModalFemale = document.getElementById('mainModalFemale');
-            const mainModalChildren = document.getElementById('mainModalChildren');
-            const mainModalInfants = document.getElementById('mainModalInfants');
-            
-            if (mainModalMale) mainModalMale.textContent = male;
-            if (mainModalFemale) mainModalFemale.textContent = female;
-            if (mainModalChildren) mainModalChildren.textContent = children;
-            if (mainModalInfants) mainModalInfants.textContent = infants;
-            
-            updateMainModalSummary();
-            
-            const modalElement = document.getElementById('mainGuestSelectorModal');
-            if (modalElement) {
-                try {
-                    // Try to get existing modal instance first
-                    let modal = bootstrap.Modal.getInstance(modalElement);
-                    if (!modal) {
-                        // Create new modal if one doesn't exist
-                        modal = new bootstrap.Modal(modalElement);
-                    }
-                    modal.show();
-                } catch (modalError) {
-                    console.error('Error showing modal:', modalError);
-                    // Fallback to jQuery if available
-                    if (typeof $ !== 'undefined') {
-                        $(modalElement).modal('show');
-                    }
-                }
-            } else {
-                console.error('Modal element not found!');
-            }
-        } catch (error) {
-            console.error('Error opening main guest selector:', error);
-        }
-    };
-    
-    window.updateMainGuest = function(type, change) {
-        const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
-        if (!element) return;
-        
-        const currentValue = parseInt(element.textContent) || 0;
-        let newValue = Math.max(0, currentValue + change);
-        
-        // Validation rules
-        if (type === 'male' || type === 'female') {
-            // Ensure at least 1 adult total
-            const maleCount = type === 'male' ? newValue : parseInt(document.getElementById('mainModalMale').textContent) || 0;
-            const femaleCount = type === 'female' ? newValue : parseInt(document.getElementById('mainModalFemale').textContent) || 0;
-            
-            if (maleCount + femaleCount < 1) {
-                return; // Don't allow 0 adults
-            }
-        }
-        
-        element.textContent = newValue;
-        updateMainModalSummary();
-    };
-    
-    function updateMainModalSummary() {
-        try {
-            const maleEl = document.getElementById('mainModalMale');
-            const femaleEl = document.getElementById('mainModalFemale');
-            const childrenEl = document.getElementById('mainModalChildren');
-            const infantsEl = document.getElementById('mainModalInfants');
-            
-            const male = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
-            const female = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
-            const children = childrenEl ? parseInt(childrenEl.textContent) || 0 : 0;
-            const infants = infantsEl ? parseInt(infantsEl.textContent) || 0 : 0;
-            
-            const adults = male + female;
-            const total = adults + children + infants;
-            
-            // Update summary displays with null checks
-            const totalGuestsEl = document.getElementById('mainModalTotalGuests');
-            const summaryEl = document.getElementById('mainModalSummary');
-            const guestInfoEl = document.getElementById('mainModalGuestInfo');
-            
-            if (totalGuestsEl) totalGuestsEl.textContent = `${total} guests`;
-            if (summaryEl) summaryEl.textContent = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-            if (guestInfoEl) guestInfoEl.textContent = `Adults: ${adults} (${male}M + ${female}F), Children: ${children}, Infants: ${infants}`;
-            
-            console.log('Updated summary:', {male, female, children, infants, adults, total});
-        } catch (error) {
-            console.error('Error updating modal summary:', error);
-        }
-    }
-    
-    window.applyMainGuestSelection = function() {
-        const male = parseInt(document.getElementById('mainModalMale').textContent) || 0;
-        const female = parseInt(document.getElementById('mainModalFemale').textContent) || 0;
-        const children = parseInt(document.getElementById('mainModalChildren').textContent) || 0;
-        const infants = parseInt(document.getElementById('mainModalInfants').textContent) || 0;
-        
-        const adults = male + female;
-        
-        // Update hidden form fields
-        document.getElementById('adults').value = adults;
-        document.getElementById('male').value = male;
-        document.getElementById('female').value = female;
-        document.getElementById('children').value = children;
-        document.getElementById('infants').value = infants;
-        
-        // Update display elements
-        document.getElementById('male-count').textContent = male;
-        document.getElementById('female-count').textContent = female;
-        document.getElementById('children-count').textContent = children;
-        document.getElementById('infants-count').textContent = infants;
-        
-        // Update main summary
-        const summaryText = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-        document.getElementById('guestSummary').textContent = summaryText;
-        
-        // Update all service guest summaries
-        updateAllServiceGuestSummaries(male, female, children, infants);
-        
-        // Close modal
-        try {
-            const modalElement = document.getElementById('mainGuestSelectorModal');
-            if (modalElement) {
-                // Try to get existing modal instance first
-                const modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                    modal.hide();
-                } else {
-                    // If no instance found, try jQuery fallback
-                    if (typeof $ !== 'undefined') {
-                        $(modalElement).modal('hide');
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error closing modal:', error);
-        }
-        
-        console.log('Applied guest selection:', {male, female, children, infants, adults});
-    };
+
 
     // Function to update all service guest summaries
     function updateAllServiceGuestSummaries(male, female, children, infants) {
@@ -3787,7 +3881,33 @@ document.addEventListener('DOMContentLoaded', function() {
          }, 3000);
      }
 
+     // Initialize main guest summary
+    function updateMainGuestSummary() {
+        const male = parseInt(document.getElementById('male').value) || 0;
+        const female = parseInt(document.getElementById('female').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const infants = parseInt(document.getElementById('infants').value) || 0;
+        const adults = male + female;
+        
+        const guestSummary = document.getElementById('mainGuestSummary');
+        if (guestSummary) {
+            guestSummary.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
+        }
+        
+        // Update badges
+        const badgeContainer = guestSummary?.closest('.guest-display')?.querySelector('.guest-badges');
+        if (badgeContainer) {
+            const badges = badgeContainer.querySelectorAll('.badge');
+            if (badges.length >= 3) {
+                badges[0].textContent = adults; // Total adults
+                badges[1].textContent = children; // Children
+                badges[2].textContent = infants; // Infants
+            }
+        }
+     }
+
      // Initialize
+    updateMainGuestSummary();
      updateGuestSummary();
     updateAdultsCount();
  });
@@ -3893,6 +4013,10 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* Guest counter alignment */
+
+
+
+
 .guest-btn-plus:hover, .guest-btn-minus:hover {
     transform: scale(1.1);
     transition: transform 0.2s ease;
@@ -4196,11 +4320,7 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 8px;
 }
 
-/* Guest selector styling */
-#adults-count {
-    font-size: 1.1rem;
-    color: #007bff;
-}
+
 
 /* Loading spinner animation */
         .spin {
@@ -4249,9 +4369,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         .dish-option-btn.selected {
-            background-color: #0d6efd;
-            color: white;
-            border-color: #0d6efd;
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* Disabled field styles */
+.form-select:disabled,
+.form-control:disabled {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+    border-color: #dee2e6 !important;
+}
+
+.form-select:disabled option {
+    color: #6c757d;
+}
+
+/* Disabled button styles */
+.btn:disabled {
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+}
+
+.btn-outline-secondary:disabled {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    color: #6c757d !important;
+}
+
+/* Guest display disabled state */
+.guest-display.disabled {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+/* Loading spinner animation */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Hotel loading status styles */
+#hotelLoadingStatus {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+#hotelLoadingStatus i {
+    font-size: 1rem;
 }
 </style>
 
@@ -4290,329 +4467,11 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
-<!-- Main Guest Selection Modal -->
-<div class="modal fade" id="mainGuestSelectorModal" tabindex="-1" aria-labelledby="mainGuestSelectorModalLabel" aria-hidden="true" data-bs-backdrop="static">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="mainGuestSelectorModalLabel">
-                        <i class="ri-group-line me-2"></i>Select Guests for Tour
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Available Guests Info -->
-                    <div class="alert alert-info">
-                        <i class="ri-information-line me-2"></i>
-                        <strong>Available Guests (Based on main selection):</strong>
-                        <br>
-                        <span id="mainModalGuestInfo">Adults: 4 (2M + 2F), Children: 0, Infants: 0</span>
-                    </div>
 
-                    <div class="row">
-                        <!-- Adults Section -->
-                        <div class="col-md-6">
-                            <div class="card border-primary h-100">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0">
-                                        <i class="ri-user-line me-2"></i>Adults (Max: 4)
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <!-- Male -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center mb-3">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-3-line text-primary me-3 fs-5"></i>
-                                            <span class="fw-semibold">Male</span>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateMainGuest('male', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalMale" style="min-width: 30px; text-align: center;">2</span>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateMainGuest('male', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
                                     </div>
 
-                                    <!-- Female -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-4-line me-3 fs-5" style="color: #e91e63;"></i>
-                                            <span class="fw-semibold">Female</span>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateMainGuest('female', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalFemale" style="min-width: 30px; text-align: center;">2</span>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateMainGuest('female', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Children & Infants Section -->
-                        <div class="col-md-6">
-                            <div class="card border-success h-100">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0">
-                                        <i class="ri-team-line me-2"></i>Children & Infants
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <!-- Children -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center mb-3">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-smile-line text-success me-3 fs-5"></i>
-                                            <div>
-                                                <span class="fw-semibold d-block">Children</span>
-                                                <small class="text-muted">Ages 1-17</small>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="updateMainGuest('children', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalChildren" style="min-width: 30px; text-align: center;">0</span>
-                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="updateMainGuest('children', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                    <!-- Infants -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-baby-line text-warning me-3 fs-5"></i>
-                                            <div>
-                                                <span class="fw-semibold d-block">Infants</span>
-                                                <small class="text-muted">Under 1 year</small>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateMainGuest('infants', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalInfants" style="min-width: 30px; text-align: center;">0</span>
-                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateMainGuest('infants', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Total Summary -->
-                    <div class="mt-4 p-3 bg-light rounded">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-bold text-dark">Total Guests:</span>
-                            <span class="fw-bold text-primary fs-5" id="mainModalTotalGuests">4 guests</span>
-                        </div>
-                        <div class="mt-2">
-                            <small class="text-muted" id="mainModalSummary">4 adults (2 male, 2 female) - 0 children - 0 infants</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="applyMainGuestSelection()">
-                        <i class="ri-check-line me-1"></i>Apply Selection
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Simple Test Modal -->
-<div class="modal fade" id="testSimpleModal" tabindex="-1" aria-labelledby="testSimpleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="testSimpleModalLabel">Test Modal</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>This is a simple test modal to verify Bootstrap modal functionality.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Initialize modals when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize all modals on the page
-        const allModals = document.querySelectorAll('.modal');
-        console.log('Found', allModals.length, 'modals on the page');
-        
-        // Pre-initialize all modals to ensure they're ready
-        allModals.forEach(modalEl => {
-            try {
-                new bootstrap.Modal(modalEl);
-                console.log('Pre-initialized modal:', modalEl.id);
-            } catch (e) {
-                console.error('Failed to pre-initialize modal:', modalEl.id, e);
-            }
-        });
-        
-        // Ensure the main guest selector modal is properly set up
-        const mainGuestModal = document.getElementById('mainGuestSelectorModal');
-        if (mainGuestModal) {
-            console.log('Found main guest modal, setting up...');
-            
-            // Initialize modal values
-            const maleInput = document.getElementById('male');
-            const femaleInput = document.getElementById('female');
-            const childrenInput = document.getElementById('children');
-            const infantsInput = document.getElementById('infants');
-            
-            const male = maleInput ? parseInt(maleInput.value) || 0 : 2;
-            const female = femaleInput ? parseInt(femaleInput.value) || 0 : 2;
-            const children = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-            const infants = infantsInput ? parseInt(infantsInput.value) || 0 : 0;
-            
-            // Update modal elements with null checks
-            const mainModalMale = document.getElementById('mainModalMale');
-            const mainModalFemale = document.getElementById('mainModalFemale');
-            const mainModalChildren = document.getElementById('mainModalChildren');
-            const mainModalInfants = document.getElementById('mainModalInfants');
-            
-            if (mainModalMale) mainModalMale.textContent = male;
-            if (mainModalFemale) mainModalFemale.textContent = female;
-            if (mainModalChildren) mainModalChildren.textContent = children;
-            if (mainModalInfants) mainModalInfants.textContent = infants;
-            
-            // Update summary
-            const totalGuestsEl = document.getElementById('mainModalTotalGuests');
-            const summaryEl = document.getElementById('mainModalSummary');
-            const adults = male + female;
-            const total = adults + children + infants;
-            
-            if (totalGuestsEl) totalGuestsEl.textContent = `${total} guests`;
-            if (summaryEl) summaryEl.textContent = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-        }
-        // Add event listener for the main guest selector button
-        const mainGuestBtn = document.getElementById('mainGuestSelectorBtn');
-        if (mainGuestBtn) {
-            mainGuestBtn.addEventListener('click', function() {
-                const modalElement = document.getElementById('mainGuestSelectorModal');
-                if (modalElement) {
-                    try {
-                        console.log('Opening main guest modal from button click...');
-                        
-                        // Method 1: Use data-bs-* attributes
-                        modalElement.setAttribute('data-bs-toggle', 'modal');
-                        modalElement.setAttribute('data-bs-target', '#mainGuestSelectorModal');
-                        
-                        // Method 2: Try Bootstrap 5 way with pre-initialized modal
-                        try {
-                            // Get existing instance if available
-                            let bsModal = bootstrap.Modal.getInstance(modalElement);
-                            if (!bsModal) {
-                                // Create new instance if needed
-                                bsModal = new bootstrap.Modal(modalElement, {
-                                    backdrop: 'static',
-                                    keyboard: false
-                                });
-                            }
-                            bsModal.show();
-                            console.log('Main guest modal opened with Bootstrap 5 method');
-                            return;
-                        } catch (e) {
-                            console.error('Bootstrap 5 method failed for main guest modal:', e);
-                        }
-                        
-                        // Method 3: jQuery fallback
-                        if (typeof $ !== 'undefined') {
-                            try {
-                                $(modalElement).modal('show');
-                                console.log('Main guest modal opened with jQuery');
-                                return;
-                            } catch (e) {
-                                console.error('jQuery method failed for main guest modal:', e);
-                            }
-                        }
-                        
-                        // Method 4: Direct DOM manipulation as last resort
-                        modalElement.classList.add('show');
-                        modalElement.style.display = 'block';
-                        modalElement.setAttribute('aria-modal', 'true');
-                        modalElement.setAttribute('role', 'dialog');
-                        modalElement.removeAttribute('aria-hidden');
-                        document.body.classList.add('modal-open');
-                        
-                        // Add backdrop
-                        const backdrop = document.createElement('div');
-                        backdrop.className = 'modal-backdrop fade show';
-                        document.body.appendChild(backdrop);
-                        
-                        console.log('Main guest modal opened with direct DOM manipulation');
-                        
-                    } catch (error) {
-                        console.error('All methods to open main guest modal failed:', error);
-                        alert('Failed to open main guest modal. See console for details.');
-                    }
-                } else {
-                    console.error('Main guest modal element not found!');
-                    alert('Main guest modal element not found!');
-                }
-            });
-        } else {
-            console.error('Main guest selector button not found!');
-        }
-        const simpleTestButton = document.createElement('button');
-        simpleTestButton.textContent = 'Test Simple Modal';
-        simpleTestButton.className = 'btn btn-sm btn-info position-fixed';
-        simpleTestButton.style.bottom = '60px';
-        simpleTestButton.style.right = '20px';
-        simpleTestButton.style.zIndex = '9999';
-        simpleTestButton.onclick = function() {
-            const modalElement = document.getElementById('testSimpleModal');
-            if (modalElement) {
-                try {
-                    const bsModal = new bootstrap.Modal(modalElement);
-                    bsModal.show();
-                } catch (error) {
-                    console.error('Failed to open simple modal:', error);
-                    alert('Failed to open simple modal. See console for details.');
-                }
-            }
-        };
-        document.body.appendChild(simpleTestButton);
-    });
-    
-    // Initialize attraction guest selectors when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize all attraction guest selectors with values from main tour selection
-        const mainMaleInput = document.getElementById('male');
-        const mainFemaleInput = document.getElementById('female');
-        const mainChildrenInput = document.getElementById('children');
-        const mainInfantsInput = document.getElementById('infants');
-        
-        const mainMale = mainMaleInput ? parseInt(mainMaleInput.value) || 0 : 2;
-        const mainFemale = mainFemaleInput ? parseInt(mainFemaleInput.value) || 0 : 2;
-        const mainChildren = mainChildrenInput ? parseInt(mainChildrenInput.value) || 0 : 0;
-        const mainInfants = mainInfantsInput ? parseInt(mainInfantsInput.value) || 0 : 0;
-        
-        const maxAdults = mainMale + mainFemale;
-        const maxChildren = mainChildren + mainInfants;
-        
-        console.log('Guest selectors initialized with limits:', {maxAdults, maxChildren});
-        
-        // Initialize guest summaries for all service sections
-        updateAllServiceGuestSummaries(mainMale, mainFemale, mainChildren, mainInfants);
-    });
-</script>
 
 @endsection 

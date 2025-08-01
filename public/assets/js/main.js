@@ -522,14 +522,37 @@ if (typeof $ !== 'undefined') {
         var searchJson = 'search-horizontal.json'; // For vertical layout
       }
       // Search API AJAX call
-      var searchData = $.ajax({
-        url: assetsPath + 'json/' + searchJson, //? Use your own search api instead
-        dataType: 'json',
-        async: false
-      }).responseJSON;
+      var searchData;
+      try {
+        searchData = $.ajax({
+          url: assetsPath + 'json/' + searchJson, //? Use your own search api instead
+          dataType: 'json',
+          async: false
+        }).responseJSON;
+        
+        if (!searchData) {
+          console.warn('Search data not available, skipping typeahead initialization');
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to load search data:', error);
+        return;
+      }
       // Init typeahead on searchInput
+      if (searchInput.length === 0) {
+        console.warn('Search input not found, skipping typeahead initialization');
+        return;
+      }
+      
       searchInput.each(function () {
         var $this = $(this);
+        
+        // Check if typeahead is available
+        if (typeof searchInput.typeahead !== 'function') {
+          console.warn('Typeahead library not loaded, skipping search initialization');
+          return;
+        }
+        
         searchInput
           .typeahead(
             {
