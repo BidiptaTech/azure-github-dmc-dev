@@ -2377,7 +2377,7 @@ class TourController extends Controller
                         ]);
                     }
 
-                    $formEnquiry = EnquiryForm::where('multi_enq_id', $currentEnquiry->multi_enq_id)->first();
+                    $formEnquiry = EnquiryForm::where('multi_enq_id', $tour->multi_enq_id)->first();
                     if ($formEnquiry->multi_enq_id) {
                         // Cancel other enquiry forms with same multi_enq_id
                         EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
