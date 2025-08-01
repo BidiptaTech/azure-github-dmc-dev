@@ -19,7 +19,7 @@ const Header1 = () => {
   const userRole = useSelector((state) => state.auth.userRole);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const dmcLogo = useSelector((state) => state.auth.dmcLogo);
 
   const handleLogout = () => {
     dispatch(logoutUser());
