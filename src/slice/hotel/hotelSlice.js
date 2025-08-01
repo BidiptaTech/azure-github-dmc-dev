@@ -55,7 +55,7 @@ export const fetchHotels = createAsyncThunk(
             adults,
             children,
             infant,
-            dmc_id: selectedDmcId // Add DMC ID to params
+            dmc_id: selectedDmcId ? JSON.stringify([selectedDmcId]) : JSON.stringify([]) // Pass DMC ID as JSON string array for hotel listing
                 // Added guests
           },
         
