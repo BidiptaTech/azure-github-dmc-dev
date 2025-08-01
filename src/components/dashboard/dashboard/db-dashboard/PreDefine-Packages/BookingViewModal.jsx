@@ -45,7 +45,8 @@ import {
   Hiking,
   Flight,
   NightsStay,
-  LocalActivity
+  LocalActivity,
+  Business
 } from '@mui/icons-material';
 import { StatusChip, PaymentStatusChip } from './StatusChips';
 import PDFGenerator, { PDFPrintButton, usePDFGenerator } from './PDFGenerator';
@@ -728,6 +729,52 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
         
         {/* Dialog content */}
         <DialogContent sx={{ p: 2 }}>
+          {/* DMC Branding Header */}
+          {bookingData.dmc_data && (bookingData.dmc_data.dmc_company_name || bookingData.dmc_data.dmc_logo) && (
+            <Paper 
+              elevation={1} 
+              sx={{ 
+                borderRadius: '8px', 
+                mb: 2,
+                overflow: 'hidden',
+                background: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)',
+                border: '2px solid #fde68a'
+              }}
+            >
+                <Box sx={{ 
+                 p: 2,
+                 display: 'flex',
+                 flexDirection: 'column',
+                 alignItems: 'center',
+                 justifyContent: 'center',
+                 gap: 1
+               }}>
+                 {bookingData.dmc_data.dmc_logo && (
+                   <Box 
+                     component="img"
+                     src={bookingData.dmc_data.dmc_logo} 
+                     alt={bookingData.dmc_data.dmc_company_name || 'DMC Logo'}
+                     sx={{ 
+                       width: 100, 
+                       height: 80,
+                       objectFit: 'contain',
+                       mb: -3,
+                       
+                     }}
+                   />
+                 )}
+                 <Box sx={{ textAlign: 'center' }}>
+                   <Typography variant="h6" fontWeight={700} sx={{ color: '#92400e', mb: 0.5 }}>
+                     {bookingData.dmc_data.dmc_company_name || 'DMC'}
+                   </Typography>
+                   <Typography variant="caption" sx={{ color: '#a16207', textTransform: 'uppercase', letterSpacing: 1 }}>
+                     Destination Management Company
+                   </Typography>
+                 </Box>
+               </Box>
+            </Paper>
+          )}
+          
           {/* Redesigned Customer and booking summary */}
           <Paper 
             elevation={1} 
@@ -816,6 +863,8 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
                       </Box>
                     </Box>
                   </Grid>
+                  
+                  
                 </Grid>
               </Grid>
               

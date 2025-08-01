@@ -59,7 +59,7 @@ export const TableHeader = ({ order, orderBy, onRequestSort, userRole = null }) 
           </Tooltip>
         </TableCell>
         <SortableColumnHeader 
-          label="Booking ID" 
+          label="Booking ID / DMC" 
           icon={<BookmarkBorder fontSize="small" sx={{ mr: 0.5 }} />} 
           field="bookingId" 
           orderBy={orderBy} 
