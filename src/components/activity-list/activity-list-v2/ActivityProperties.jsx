@@ -15,6 +15,7 @@ import { useSelector } from "react-redux";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "@/slice/dmc/dmcSlice";
 
 const ActivityProperties = ({
   vehicles,
@@ -28,8 +29,8 @@ const ActivityProperties = ({
   priceMode,
 }) => {
   const navigate = useNavigate();
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector(selectSelectedDmcCompanyName);
+  const DmcLogo = useSelector(selectSelectedDmcLogo);
   const bookingType = useSelector((state) => state.common.bookingType);
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);

@@ -1086,13 +1086,28 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        if(state.selectionType === "Entry Port"){
-          state.vehicles = action.payload;
-          console.log("fetchVehicles - Updated Entry Port vehicles:", state.vehicles);
-        }
-        if(state.selectionType === "Exit Port"){
-          state.vehicles1 = action.payload;
-          console.log("fetchVehicles - Updated Exit Port vehicles:", state.vehicles1);
+        // Check if response is an error message
+        if (action.payload && typeof action.payload === 'object' && action.payload.success === false) {
+          console.log("fetchVehicles - Error response received:", action.payload.message);
+          // Set empty array for vehicles based on selection type
+          if(state.selectionType === "Entry Port"){
+            state.vehicles = [];
+            console.log("fetchVehicles - Set Entry Port vehicles to empty array");
+          }
+          if(state.selectionType === "Exit Port"){
+            state.vehicles1 = [];
+            console.log("fetchVehicles - Set Exit Port vehicles to empty array");
+          }
+        } else {
+          // Normal success response
+          if(state.selectionType === "Entry Port"){
+            state.vehicles = action.payload;
+            console.log("fetchVehicles - Updated Entry Port vehicles:", state.vehicles);
+          }
+          if(state.selectionType === "Exit Port"){
+            state.vehicles1 = action.payload;
+            console.log("fetchVehicles - Updated Exit Port vehicles:", state.vehicles1);
+          }
         }
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
@@ -1123,13 +1138,25 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        if(state.selectionType === "Entry Port"){
-          state.vehicles = action.payload;
-          console.log("vehicle", state.vehicles);
-        }
-        if(state.selectionType === "Exit Port"){
-          state.vehicles1 = action.payload;
-          console.log("vehicle1", state.vehicles1);
+        if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
+          console.log("fetchZoneVehicles - Error response received:", action.payload.message);
+          if(state.selectionType === "Entry Port"){
+            state.vehicles = [];
+            console.log("fetchZoneVehicles - Set Entry Port vehicles to empty array");
+          }
+          if(state.selectionType === "Exit Port"){
+            state.vehicles1 = [];
+            console.log("fetchZoneVehicles - Set Exit Port vehicles to empty array");
+          }
+        } else {
+          if(state.selectionType === "Entry Port"){
+            state.vehicles = action.payload;
+            console.log("vehicle", state.vehicles);
+          }
+          if(state.selectionType === "Exit Port"){
+            state.vehicles1 = action.payload;
+            console.log("vehicle1", state.vehicles1);
+          }
         }
         console.log("vehicles", state.vehicles);
 

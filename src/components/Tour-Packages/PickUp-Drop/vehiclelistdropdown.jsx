@@ -313,46 +313,60 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           };
         }
         
+        // Normalize data types to handle inconsistencies
+        const normalizedEntryData = {
+          ...entryData,
+          // Convert string numbers to actual numbers
+          adults: entryData.adults ? Number(entryData.adults) : 1,
+          children: entryData.children ? Number(entryData.children) : 0,
+          dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
+          vehicles_id: entryData.vehicles_id ? String(entryData.vehicles_id) : '',
+          totalPrice: entryData.totalPrice ? Number(entryData.totalPrice) : 0,
+          distance: entryData.distance ? Number(entryData.distance) : 0,
+          // Normalize type for case insensitivity
+          type: entryData.type ? entryData.type.toLowerCase() : 'private'
+        };
+        
         // Find the corresponding vehicle from the vehicles list
-        const matchingVehicle = vehicles.find(v => v.id === entryData.vehicles_id);
+        const matchingVehicle = vehicles.find(v => String(v.id) === String(normalizedEntryData.vehicles_id));
         
         return {
-          id: entryData.id || `entry-${Date.now()}-${index}`,
+          id: normalizedEntryData.id || `entry-${Date.now()}-${index}`,
           vehicle: matchingVehicle || {
-            id: entryData.vehicles_id,
-            vehicle_name: entryData.vehicles_name || 'Unknown Vehicle',
-            vehicle_type: entryData.vehicle_type || '',
-            vehicle_model: entryData.vehicle_model || '',
-            model_year: entryData.model_year || '',
-            seating_capacity: entryData.seating_capacity || 1,
-            image: entryData.image || '',
-            city: entryData.city || '',
-            country: entryData.country || '',
-            dmc_id: entryData.dmc_id || ''
+            id: normalizedEntryData.vehicles_id,
+            vehicle_name: normalizedEntryData.vehicles_name || 'Unknown Vehicle',
+            vehicle_type: normalizedEntryData.vehicle_type || '',
+            vehicle_model: normalizedEntryData.vehicle_model || '',
+            model_year: normalizedEntryData.model_year || '',
+            seating_capacity: normalizedEntryData.seating_capacity || 1,
+            image: normalizedEntryData.image || '',
+            city: normalizedEntryData.city || '',
+            country: normalizedEntryData.country || '',
+            dmc_id: normalizedEntryData.dmc_id || ''
           },
           vehicleData: {
             // Map the price mode to expected structure
-            private_price: entryData.type === 'private' ? entryData.totalPrice : 0,
-            shared_price: entryData.type === 'shared' ? entryData.totalPrice : 0,
+            private_price: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
+            shared_price: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0,
             prices: {
-              privatePrice: entryData.type === 'private' ? entryData.totalPrice : 0,
-              sharablePrice: entryData.type === 'shared' ? entryData.totalPrice : 0
+              privatePrice: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
+              sharablePrice: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0
             }
           },
-          priceMode: entryData.type === 'shared' ? 'Sharable' : 'Private',
+          priceMode: normalizedEntryData.type === 'shared' ? 'Sharable' : 'Private',
           isComplete: true, // Mark as complete since it's loaded data
-          adults: entryData.adults || 1,
-          children: entryData.children || 0,
-          mode: entryData.Mode || 'dmc',
-          dmcId: entryData.dmc_id || '',
-          entrypickup: entryData.entrypickup || '',
-          entrydropoff: entryData.entrydropoff || '',
-          bookingDate: entryData.bookingDate || '',
-          pickupdate: entryData.pickupdate || '',
-          entrytime: entryData.entrytime || '',
+          adults: normalizedEntryData.adults || 1,
+          children: normalizedEntryData.children || 0,
+          mode: normalizedEntryData.Mode || 'dmc',
+          dmcId: normalizedEntryData.dmc_id || '',
+          entrypickup: normalizedEntryData.entrypickup || '',
+          entrydropoff: normalizedEntryData.entrydropoff || '',
+          bookingDate: normalizedEntryData.bookingDate || '',
+          pickupdate: normalizedEntryData.pickupdate || '',
+          entrytime: normalizedEntryData.entrytime || '',
           // Store original loaded data for reference, including booking_id
           originalData: {
-            ...entryData,
+            ...normalizedEntryData,
             booking_id: entryPort.booking_id // Preserve booking_id from service level
           }
         };
@@ -597,11 +611,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   };
   
   // Filter vehicles that have at least one pricing mode
-  const filteredVehicles = vehicles.filter(vehicle => {
+  const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter(vehicle => {
     const hasDmcPrice = vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0;
     const hasTravclicksPrice = vehicle.trav_private_price > 0 || vehicle.trav_sharable_price > 0;
     return hasDmcPrice || hasTravclicksPrice;
-  });
+  }) : [];
   
   // Find selected vehicle object for the primary booking
   const selectedVehicleObj = selectedVehicle ? 
@@ -740,7 +754,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   // Re-initialize bookings when entryPorts prop changes - simplified with stable dependencies
   const hasInitializedRef = useRef(false);
   useEffect(() => {
-    if (validEntryPorts && validEntryPorts.length > 0 && vehicles.length > 0 && !hasInitializedRef.current) {
+    if (validEntryPorts && validEntryPorts.length > 0 && Array.isArray(vehicles) && vehicles.length > 0 && !hasInitializedRef.current) {
       console.log("Entry Vehicle - Detected entryPorts data, re-initializing bookings:", validEntryPorts);
       
       // Re-initialize bookings with the latest entryPorts and vehicles data

@@ -856,9 +856,14 @@ const LocalSlice = createSlice({
       })
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
+        if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
+          console.log("fetchVehicles - Error response received:", action.payload.message);
+          state.vehicles = [];
+          console.log("fetchVehicles - Set Entry Port vehicles to empty array");
+        } else {
         state.vehicles = action.payload;
-        console.log("vehicles", state.vehicles);
-
+          console.log("vehicles", state.vehicles);
+        }
         // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
         //state.PickupPlaceid = null;
         //state.DropoffPlaceid = null;
@@ -878,8 +883,14 @@ const LocalSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.vehicles = action.payload;
-        console.log("vehicles", state.vehicles);
+        if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
+          console.log("fetchZoneVehicles - Error response received:", action.payload.message);
+          state.vehicles = [];
+          console.log("fetchZoneVehicles - Set Entry Port vehicles to empty array");
+        } else {
+          state.vehicles = action.payload;
+          console.log("vehicles", state.vehicles);
+        }
 
         // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
         //state.PickupPlaceid = null;
