@@ -66,7 +66,7 @@ export const fetchHotels = createAsyncThunk(
         }
       );
 
-    //  console.log("API Response:", response.data);
+     console.log("API Response:", response.data);
       return response.data;
     } catch (error) {
      console.error("API Error:", error);
