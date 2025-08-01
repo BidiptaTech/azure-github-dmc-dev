@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 import { logoutUser } from "../common/authSlices";
 import { setPriceMode1 } from "../localtour/Localslice";
 import { BASE_URL } from "@/services/api";
+import { selectDmcId } from "../dmc/dmcSlice";
 
 export const fetchGuides = createAsyncThunk(
   "tourguide/fetchGuides",
@@ -12,7 +13,7 @@ export const fetchGuides = createAsyncThunk(
       const state = getState();
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
-
+      const dmcId = selectDmcId(state);
       // Use the passed parameters or fallback to state values
       const city = params?.city || state.tourguide.entrypickup;
       const date = params?.date || state.tourguide.pickupdate;
@@ -29,6 +30,7 @@ export const fetchGuides = createAsyncThunk(
         params: {
           city: city,
           date: JSON.stringify({ 0: date }),
+          dmc_id: dmcId,
         },
       });
 
@@ -53,13 +55,13 @@ export const fetchGuideDetails = createAsyncThunk(
   async (params, { rejectWithValue, getState }) => {
     try {
       const state = getState();
-      
+      const dmcId = selectDmcId(state);
       // Validate required parameters
       if (!params) {
         throw new Error("Parameters are required for fetching guide details");
       }
       
-      const { pickup, date, guide_id, mode, dmc_id } = params;
+      const { pickup, date, guide_id, mode } = params;
       
       if (!pickup) {
         throw new Error("Pickup location is required");
@@ -73,7 +75,7 @@ export const fetchGuideDetails = createAsyncThunk(
         throw new Error("Mode is required");
       }
       
-      if (!dmc_id) {
+      if (!dmcId) {
         throw new Error("DMC ID is required");
       }
       
@@ -103,7 +105,7 @@ export const fetchGuideDetails = createAsyncThunk(
         date: JSON.stringify({ 0: date }), 
         guide_id,
         mode,
-        dmc_id,
+        dmc_id: dmcId,
       };
 
       // Make API request with params
@@ -163,7 +165,7 @@ export const guideslice = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
-
+      const dmcId = selectDmcId(state);
       // Corrected conditional statement
       let AgentId;
       if (
@@ -198,7 +200,7 @@ export const guideslice = createAsyncThunk(
         children !== undefined
       ) {
         formData = {
-          data: details,
+          data: [...details, { dmc_id: dmcId }],
           type: type1,
           agent_id: AgentId,
           tour_id: tourid,

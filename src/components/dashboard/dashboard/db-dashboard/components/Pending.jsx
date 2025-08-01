@@ -96,6 +96,7 @@ import { setSelectedCity } from "@/slice/common/commonSlice";
 import { clearAttractions } from "@/slice/attractions/attractionSlice";
 import { clearRestaurants } from "@/slice/restaurant/RestaurantsSlice";
 import { UpdateCustomPackage, clearAllServices } from "@/slice/tour-packages/tourPackageSlice";
+import { setSelectedDmcId } from "@/slice/dmc/dmcSlice";
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
@@ -794,6 +795,7 @@ export default function Pending() {
     .then((response) => {
       navigate("/dashboard/tour-packages");
       console.log("Full Response Data:", response);
+      dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
     })
     .catch((error) => {
       console.error("Error fetching booking:", error);
@@ -2753,6 +2755,31 @@ export default function Pending() {
                               </IconButton>
                             </Tooltip>
                           </div>
+                          <Tooltip 
+                            title={list.dmc_company_name || "DMC name not found"}
+                            arrow
+                            placement="top"
+                          >
+                            <div 
+                              style={{ 
+                                fontSize: "12px", 
+                                fontWeight: "600",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: "100%",
+                                marginTop: "4px",
+                                textAlign: "center",
+                                backgroundColor: "#3554D1",
+                                color: "#fff",
+                                padding: "5px 10px",
+                                borderRadius: "50px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {list.dmc_company_name || "DMC name not found"}
+                            </div>
+                          </Tooltip>
                         </td>
                         <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
                           <div

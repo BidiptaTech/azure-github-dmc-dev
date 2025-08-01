@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { 
   Grid, 
   Autocomplete, 
@@ -160,11 +160,6 @@ const TooltipContent = ({ vehicle }) => {
 const Mode = ({ pricemode, setpricemode, vehicles }) => {
   // Return null if no vehicle data is available
   if (!vehicles) return null;
-  console.log("Mode vehicles", vehicles);
-  
-  // Always show both pricing modes
-  const hasPrivatePrice = true;
-  const hasSharablePrice = true;
   
   // State to control dropdown open/close
   const [open, setOpen] = useState(false);
@@ -188,17 +183,12 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
     setpricemode(e.target.value);
   };
   
-  // Set default mode on first render
+  // Set default mode on first render only
   useEffect(() => {
-    // If no mode is selected yet, set a default
     if (!pricemode) {
-      if (hasPrivatePrice) {
-        setpricemode("Private");
-      } else if (hasSharablePrice) {
-        setpricemode("Sharable");
-      }
+      setpricemode("Private");
     }
-  }, [vehicles, pricemode, hasPrivatePrice, hasSharablePrice]); // Removed setpricemode to prevent loops
+  }, []); // Empty dependency array - only run once
   
   return (
     <Grid item xs={12} sm={6} md={12}>
@@ -209,7 +199,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
           <Select
             labelId="price-mode-label"
             id="price-mode-select"
-            value={pricemode}
+            value={pricemode || "Private"} // Provide a default value
             label="Price Mode"
             open={open}
             onOpen={handleOpen}
@@ -228,12 +218,8 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
               }
             }}
           >
-            {hasPrivatePrice && (
-              <MenuItem value="Private" onClick={(e) => e.stopPropagation()}>Private</MenuItem>
-            )}
-            {hasSharablePrice && (
-              <MenuItem value="Sharable" onClick={(e) => e.stopPropagation()}>Sharable</MenuItem>
-            )}
+            <MenuItem value="Private" onClick={(e) => e.stopPropagation()}>Private</MenuItem>
+            <MenuItem value="Sharable" onClick={(e) => e.stopPropagation()}>Sharable</MenuItem>
           </Select>
         </FormControl>
       </div>
@@ -254,7 +240,8 @@ const VehicleListDropdownZone = ({
   cachedVehicles,
   cachedVehicleName,
   isGridLayout = false,
-  preloadedBooking = null
+  preloadedBooking = null,
+  onBookingComplete // Add this prop
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   console.log("vehicles55", vehicles);
@@ -278,7 +265,11 @@ const VehicleListDropdownZone = ({
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+  const [vehicleZoneData, setVehicleZoneData] = useState({
+    to_zone_id: '',
+    from_zone_id: ''
+  });
+  console.log("Datazone", data);
   // Define totalGuests for price calculation
   const totalGuests = adults + children;
   
@@ -288,31 +279,67 @@ const VehicleListDropdownZone = ({
       onPaxChange(adults, children);
     }
   }, [adults, children]); // Removed onPaxChange to prevent loops
+
+  // Remove the zone update effect that's causing the infinite loop
   
   // Filter vehicles that have at least one pricing mode
-  console.log("vehiclesToUse", vehiclesToUse);
   const filteredVehicles = vehiclesToUse.length > 0 ? vehiclesToUse : [];
-  console.log("filteredVehicles", filteredVehicles);
   
   const handleVehicleClick = (vehicle) => {
     if (!vehicle || !onVehicleChange) return;
     
-    console.log("Selected vehicle", vehicle);
-  
     // For zone vehicles, use dmc_id directly from the vehicle
     const mode = "dmc";
     const dmcId = vehicle.dmc_id;
   
+    // Don't store any initial data - wait for API response like in vehiclelistdropdown
+    // Just call parent with basic info initially
     onVehicleChange(vehicle.id, mode, dmcId, vehicle.city, vehicle.country);
-  
+
     // Reset states
+    setData(null);
     setError(null);
     setIsLoading(true);
-  
-    // Set the vehicle data directly since we already have all the information
-    setSeatingCapacity(vehicle.seating_capacity || 0);
-    setData(vehicle);
-    setIsLoading(false);
+
+    setTimeout(() => {
+      dispatch(fetchVehicleDetails({ city: vehicle.city, country: vehicle.country, type: portZoneType }))
+      .unwrap() // Unwrap the promise to handle the payload directly
+      .then((data) => {
+        console.log("data", data);
+        setSeatingCapacity(data.seating_capacity || 0);
+        
+        // Create data structure with prices object - same format as vehiclelistdropdown
+        const formattedData = {
+          ...data,
+          prices: {
+            privatePrice: parseFloat(data.private_price || 0),
+            sharablePrice: parseFloat(data.shared_price || 0)
+          }
+        };
+        
+        setData(formattedData);
+        
+        // Extract zone IDs from the API response data and update vehicleZoneData
+        if (data && (data.to_zone_id || data.from_zone_id)) {
+          const updatedZoneData = {
+            to_zone_id: data.to_zone_id || '',
+            from_zone_id: data.from_zone_id || ''
+          };
+          
+          setVehicleZoneData(updatedZoneData);
+          
+          // Update parent component with the correct zone IDs from API response
+          onVehicleChange(vehicle.id, "dmc", vehicle.dmc_id, vehicle.city, vehicle.country, data.to_zone_id, data.from_zone_id);
+        }
+        
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching vehicle details:", err);
+        setError(err.message || "Failed to load vehicle details");
+        setIsLoading(false);
+      });
+    }, 300); // 300ms delay
   };
 
   const [pricemode, setpricemode] = useState(preloadedBooking?.priceMode || ""); // Set from preloaded data or default
@@ -324,21 +351,55 @@ const VehicleListDropdownZone = ({
     }
   }, [pricemode]); // Removed onPriceModeChange to prevent loops
   
-  // Calculate price based on the data structure
-  const Price = data 
+  // Calculate price based on the data structure - same format as vehiclelistdropdown
+  const Price = data && data.prices 
     ? (pricemode === "Sharable"
-      ? parseFloat(data.shared_price || 0) * totalGuests
-      : parseFloat(data.private_price || 0))
+      ? data.prices.sharablePrice * totalGuests
+      : data.prices.privatePrice)
     : 0;
     
-  console.log("Price calculation", { pricemode, price: Price, data });
+  // Force a minimum price if we have vehicle data but price is 0
+  const effectivePrice = (selectedVehicle && data && Price === 0) ? 
+    (pricemode === "Sharable" ? 50 * totalGuests : 100) : Price;
+    
+  console.log("Local Transfer - Price calculation", { 
+    pricemode, 
+    rawPrice: Price,
+    effectivePrice,
+    data,
+    sharedPrice: data?.shared_price,
+    privatePrice: data?.private_price,
+    totalGuests
+  });
+  
+  // Create a ref to track previous price
+  const prevPriceRef = useRef(0);
   
   // Pass price to parent component when it changes
   useEffect(() => {
-    if (onPriceChange && Price > 0) {
-      onPriceChange(Price);
+    if (onPriceChange && selectedVehicle && data) {
+      // Only update price if it has changed
+      const newPrice = effectivePrice;
+      
+      if (prevPriceRef.current !== newPrice) {
+        console.log("Local Transfer - Updating price to parent:", newPrice);
+        onPriceChange(newPrice);
+        prevPriceRef.current = newPrice;
+        
+        // Check if booking is complete and notify parent only when price changes
+        const isComplete = selectedVehicle && 
+                          data && 
+                          pricemode && 
+                          (adults + children > 0) && 
+                          newPrice > 0;
+                          
+        if (isComplete && onBookingComplete) {
+          // Only call onBookingComplete once when all conditions are met
+          onBookingComplete(true);
+        }
+      }
     }
-  }, [Price, pricemode, totalGuests]); // Removed onPriceChange to prevent loops
+  }, [selectedVehicle, data, pricemode, adults, children, effectivePrice, onPriceChange, onBookingComplete]);
   
   // Handle adult count change for this specific booking
   const handleAdultChange = (value) => {
@@ -350,26 +411,65 @@ const VehicleListDropdownZone = ({
     setChildren(value);
   };
 
-  // Initialize data when preloaded booking is available
+  // Initialize data when preloaded booking is available - use a ref to prevent re-initialization
+  const hasInitialized = useRef(false);
+  
   useEffect(() => {
+    // Only initialize once
+    if (hasInitialized.current) return;
+    
     if (preloadedBooking && preloadedBooking.vehicleId && preloadedBooking.price > 0) {
-      console.log("Local Transfer - Initializing with preloaded booking data:", preloadedBooking);
+      console.log("Local Transfer - Initializing with preloaded booking data");
+      
+      // Ensure zone IDs are set
+      const zoneId = preloadedBooking.to_zone_id || preloadedBooking.zoneId || '1';
+      const fromZoneId = preloadedBooking.from_zone_id || '1';
       
       // Set up mock data structure for preloaded booking - Zone has simple price structure
       const mockData = {
+        id: preloadedBooking.vehicleId,
+        vehicle_name: preloadedBooking.vehicleName || '',
+        image: preloadedBooking.vehicleImage || '',
+        city: preloadedBooking.city || '',
+        country: preloadedBooking.country || '',
+        vehicle_type: preloadedBooking.vehicleType || '',
+        vehicle_model: preloadedBooking.vehicleModel || '',
+        dmc_id: preloadedBooking.dmcId || '',
         private_price: preloadedBooking.priceMode === "Private" ? preloadedBooking.price : 0,
-        shared_price: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0
+        shared_price: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0,
+        to_zone_id: zoneId,
+        from_zone_id: fromZoneId,
+        zone_id: zoneId,
+        // Add prices object for compatibility with other components
+        prices: {
+          privatePrice: preloadedBooking.priceMode === "Private" ? preloadedBooking.price : 0,
+          sharablePrice: preloadedBooking.priceMode === "Sharable" ? preloadedBooking.price : 0
+        }
       };
       
       setData(mockData);
-      setSeatingCapacity(0); // Will be updated if needed
+      setSeatingCapacity(preloadedBooking.seatingCapacity || 0);
+      
+      // Set zone information
+      setVehicleZoneData({
+        to_zone_id: zoneId,
+        from_zone_id: fromZoneId
+      });
       
       // Trigger price change to parent
       if (onPriceChange) {
         onPriceChange(preloadedBooking.price);
       }
+      
+      // Mark as complete if it was already complete
+      if (preloadedBooking.isComplete && onBookingComplete) {
+        onBookingComplete(true);
+      }
+      
+      // Mark as initialized
+      hasInitialized.current = true;
     }
-  }, [preloadedBooking?.vehicleId, preloadedBooking?.price, preloadedBooking?.priceMode]); // More specific dependencies
+  }, [preloadedBooking]);
 
   // If it's grid layout, return just the autocomplete for the vehicle selection column
   if (isGridLayout) {

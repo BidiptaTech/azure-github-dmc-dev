@@ -33,6 +33,8 @@ import {
   ListItemText,
   Tabs,
   Tab,
+  Badge,
+ 
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -785,13 +787,23 @@ const EnquiryList = () => {
             <TableBody>
               {paginatedEnquiries.length > 0 ? (
                 paginatedEnquiries.map((enquiry) => (
-                  <TableRow hover key={enquiry.id}>
+                  <TableRow hover key={enquiry.id} >
                     <TableCell>
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 500, color: "#1976d2" }}
+                        sx={{ fontWeight: 700, color: "#1976d2" }}
                       >
                         {enquiry.display_id}
+                     {enquiry.multi_enq_id && ( 
+                      <Chip
+                        label={enquiry.multi_enq_id}
+                        color="primary"
+                        variant="filled"
+                      
+                        size="small"
+                      
+                     />
+                     )}
                       </Typography>
                     </TableCell>
                     <TableCell>
