@@ -522,6 +522,7 @@ const PreDefinePackages = () => {
             pax: totalPax || 0,
             destination: destination,
             customerName: customerName,
+            dmc_data: booking.dmc_data || null,
             agentId: (() => {
                 // Priority order for agent ID extraction
                 // 1. Direct booking fields

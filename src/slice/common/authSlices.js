@@ -153,6 +153,8 @@ const getInitialState = () => {
   const usdTax = Cookies.get("usdTax") || null;
   const DmcLogo = Cookies.get("DmcLogo") || null;
   const DmcName = Cookies.get("DmcName") || null;
+  const dmcLogo = Cookies.get("dmcLogo") || null; // New field for dmc_logo
+  const dmcCompanyName = Cookies.get("dmcCompanyName") || null; // New field for dmc_company_name
   const dialMaxLength = Cookies.get("dialMaxLength") || null;
   const dialMinLength = Cookies.get("dialMinLength") || null;
   const PriceHide = Cookies.get("PriceHide") ? String(Cookies.get("PriceHide")) : "0";
@@ -189,6 +191,8 @@ const getInitialState = () => {
     currencySymbol,
     DmcLogo,
     DmcName,
+    dmcLogo,
+    dmcCompanyName,
     usdExchangeRate,
     usdCurrencyCode,
     usdCurrencySymbol,
@@ -252,6 +256,8 @@ export const loginUser = createAsyncThunk(
           user_country: user_country,
           zone_on: zone_on,
           dmc_id: dmcId, // Add dmc_id from API response
+          dmc_logo: dmcLogo, // Add dmc_logo from API response
+          dmc_company_name: dmcCompanyName, // Add dmc_company_name from API response
         } = response.data.user;
 
         console.log("DMC Logo from response:", zone_on); // Log the logo URL
@@ -447,6 +453,23 @@ export const loginUser = createAsyncThunk(
           sameSite: "Strict",
         });
 
+        // Store new DMC fields in cookies
+        if (dmcLogo) {
+          Cookies.set("dmcLogo", dmcLogo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+        
+        if (dmcCompanyName) {
+          Cookies.set("dmcCompanyName", dmcCompanyName, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
+
         localStorage.setItem("isAuthenticated", "true");
 
         return {
@@ -471,6 +494,8 @@ export const loginUser = createAsyncThunk(
           dialMinLength,
           PriceHide: priceHideString,
           DmcLogo,
+          dmcLogo,
+          dmcCompanyName,
           userRole: userRole || "Agent",
           user_country,
           zone_on,
@@ -584,6 +609,8 @@ const authSlice = createSlice({
       state.currencyCode = null; // Reset currencyCode
       state.currencySymbol = null; // Reset currencySymbol
       state.DmcName = null;
+      state.dmcLogo = null; // Reset dmcLogo in auth state
+      state.dmcCompanyName = null; // Reset dmcCompanyName in auth state
       state.userRole = null; // Reset user role
       state.dmcId = null; // Reset dmcId in auth state
       Cookies.remove("authToken");
@@ -600,6 +627,8 @@ const authSlice = createSlice({
       Cookies.remove("dialMaxLength");
       Cookies.remove("dialMinLength");
       Cookies.remove("DmcName");
+      Cookies.remove("dmcLogo"); // Remove dmcLogo cookie on logout
+      Cookies.remove("dmcCompanyName"); // Remove dmcCompanyName cookie on logout
       Cookies.remove("PriceHide");
       Cookies.remove("userRole"); // Remove user role cookie
       Cookies.remove("user_country");
@@ -717,6 +746,8 @@ const authSlice = createSlice({
         state.user_country = action.payload.user_country;
         state.zone_on = action.payload.zone_on;
         state.DmcLogo = action.payload.DmcLogo;
+        state.dmcLogo = action.payload.dmcLogo; // Store dmcLogo in auth state
+        state.dmcCompanyName = action.payload.dmcCompanyName; // Store dmcCompanyName in auth state
         state.dmcId = action.payload.dmcId; // Store dmcId in auth state
         
         // For non-Agent users, set DMC ID in DMC slice

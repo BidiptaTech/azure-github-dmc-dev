@@ -12,6 +12,7 @@ import {
   setHighestTotalPrice,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { selectBookingType, setBookingMode } from "../../../slice/common/commonSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import TopHeaderFilter from "@/components/restaurants/tour-list-v1/TopHeaderFilter";
 import {
   Box,
@@ -99,8 +100,9 @@ const TourProperties = () => {
   const [sortedRestaurants, setSortedRestaurants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const [selectedModes, setSelectedModes] = useState({});
   const bookingType = useSelector(selectBookingType);
   // Add this to track the restaurant loading status from Redux
@@ -589,7 +591,7 @@ const TourProperties = () => {
                                         {dmcLogo && (
                                           <Avatar
                                             src={dmcLogo}
-                                            alt={`${dmcName} Logo`}
+                                            alt={`${dmcCompanyName} Logo`}
                                             sx={{ 
                                               width: 14,
                                               height: 14,
@@ -606,7 +608,7 @@ const TourProperties = () => {
                                             fontSize: '0.7rem'
                                           }}
                                         >
-                                          {`${dmcName}'s Mode`}
+                                          {`${dmcCompanyName}'s Mode`}
                                         </Typography>
                                       </Box>
                                     </Box>
@@ -754,7 +756,7 @@ const TourProperties = () => {
                                           {dmcLogo && (
                                             <Avatar
                                               src={dmcLogo}
-                                              alt={`${dmcName} Logo`}
+                                              alt={`${dmcCompanyName} Logo`}
                                               sx={{ 
                                                 width: 14,
                                                 height: 14,
@@ -771,7 +773,7 @@ const TourProperties = () => {
                                               fontSize: '0.7rem'
                                             }}
                                           >
-                                            {`${dmcName}'s Mode`}
+                                            {`${dmcCompanyName}'s Mode`}
                                           </Typography>
                                         </Box>
                                       </Box>

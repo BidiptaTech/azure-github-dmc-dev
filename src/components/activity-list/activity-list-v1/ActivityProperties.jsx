@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "@/slice/dmc/dmcSlice";
 // import { Link } from "react-router-dom";
 // import {
 //   setSelectedGuide,
@@ -42,8 +43,8 @@ const ActivityProperties = ({
   console.log("guidesabc", guides);
   const navigate = useNavigate();
   console.log("status", status);
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector(selectSelectedDmcCompanyName);
+  const DmcLogo = useSelector(selectSelectedDmcLogo);
   const bookingType = useSelector((state) => state.common.bookingType);
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   console.log("currencySymbol", currencySymbol);

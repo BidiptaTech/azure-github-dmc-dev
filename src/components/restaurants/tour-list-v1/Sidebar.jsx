@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setFilters, selectFilters, selectRestaurants } from "../../../slice/restaurant/RestaurantsSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import { Slider, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Avatar } from "@mui/material";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
   const filters = useSelector(selectFilters);
   const restaurants = useSelector(selectRestaurants);
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   
   // Get currency information from Redux store
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -163,7 +165,7 @@ const Sidebar = () => {
                   {dmcLogo && (
                     <Avatar
                       src={dmcLogo}
-                      alt={`${dmcName} Logo`}
+                      alt={`${dmcCompanyName} Logo`}
                       sx={{ 
                         width: 24, 
                         height: 24,
@@ -171,7 +173,7 @@ const Sidebar = () => {
                       }}
                     />
                   )}
-                  <span>{dmcName}'s Mode</span>
+                                      <span>{dmcCompanyName}'s Mode</span>
                 </div>
               </div>
             </div>
