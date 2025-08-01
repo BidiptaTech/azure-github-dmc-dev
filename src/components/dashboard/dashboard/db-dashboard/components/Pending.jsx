@@ -2755,8 +2755,9 @@ export default function Pending() {
                               </IconButton>
                             </Tooltip>
                           </div>
+                          {list.dmc_company_name && (
                           <Tooltip 
-                            title={list.dmc_company_name || "DMC name not found"}
+                            title={list.dmc_company_name }
                             arrow
                             placement="top"
                           >
@@ -2768,7 +2769,7 @@ export default function Pending() {
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                                 maxWidth: "100%",
-                                marginTop: "4px",
+                                marginTop: "10px",
                                 textAlign: "center",
                                 backgroundColor: "#3554D1",
                                 color: "#fff",
@@ -2777,9 +2778,10 @@ export default function Pending() {
                                 cursor: "pointer",
                               }}
                             >
-                              {list.dmc_company_name || "DMC name not found"}
+                              {list.dmc_company_name }
                             </div>
                           </Tooltip>
+                          )}
                         </td>
                         <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
                           <div
@@ -2813,6 +2815,22 @@ export default function Pending() {
                               >
                                 {list.order_from}
                               </span>
+                            )}
+                            {list.multi_enq_id && (
+                              <div 
+                              style={{ 
+                               
+                                textAlign: "center",
+                                //backgroundColor: "#3554D1",
+                                //color: "#fff",
+                                color: "#3554D1",
+                                padding: "5px 10px",
+                                borderRadius: "50px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {list.multi_enq_id}
+                            </div>
                             )}
                           </div>
                         </td>

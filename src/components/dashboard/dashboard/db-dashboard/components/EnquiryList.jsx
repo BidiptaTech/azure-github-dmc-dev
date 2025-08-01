@@ -885,105 +885,115 @@ const EnquiryList = () => {
                               : "Hotel Not Selected"
                           }
                         >
-                          <IconButton
-                            size="small"
-                            color={enquiry.hotel ? "primary" : "default"}
-                            disabled={!enquiry.hotel}
-                            onClick={() =>
-                              enquiry.hotel &&
-                              handleServiceClick(enquiry, "hotel")
-                            }
-                            sx={{
-                              backgroundColor: enquiry.hotel
-                                ? alpha("#1976d2", 0.1)
-                                : "transparent",
-                              "&:hover": {
+                          <span>
+                            <IconButton
+                              size="small"
+                              color={enquiry.hotel ? "primary" : "default"}
+                              disabled={!enquiry.hotel}
+                              onClick={() =>
+                                enquiry.hotel &&
+                                handleServiceClick(enquiry, "hotel")
+                              }
+                              sx={{
                                 backgroundColor: enquiry.hotel
-                                  ? alpha("#1976d2", 0.2)
+                                  ? alpha("#1976d2", 0.1)
                                   : "transparent",
-                              },
-                            }}
-                          >
-                            <HotelIcon fontSize="small" />
-                          </IconButton>
+                                "&:hover": {
+                                  backgroundColor: enquiry.hotel
+                                    ? alpha("#1976d2", 0.2)
+                                    : "transparent",
+                                },
+                              }}
+                            >
+                              <HotelIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                         <Tooltip title={enquiry.local_transfer ? "View Pickup Details" : "Pickup Not Selected"}>
-                          <IconButton 
-                            size="small" 
-                            color={enquiry.local_transfer ? "primary" : "default"}
-                            disabled={!enquiry.local_transfer}
-                            onClick={() => enquiry.local_transfer && handleServiceClick(enquiry, 'local_transfer')}
-                            sx={{ 
-                              backgroundColor: enquiry.local_transfer ? alpha('#1976d2', 0.1) : 'transparent',
-                              '&:hover': {
-                                backgroundColor: enquiry.local_transfer ? alpha('#1976d2', 0.2) : 'transparent',
-                              }
-                            }}
-                          >
-                            <LocalTaxiIcon fontSize="small" />
-                          </IconButton>
+                          <span>
+                            <IconButton 
+                              size="small" 
+                              color={enquiry.local_transfer ? "primary" : "default"}
+                              disabled={!enquiry.local_transfer}
+                              onClick={() => enquiry.local_transfer && handleServiceClick(enquiry, 'local_transfer')}
+                              sx={{ 
+                                backgroundColor: enquiry.local_transfer ? alpha('#1976d2', 0.1) : 'transparent',
+                                '&:hover': {
+                                  backgroundColor: enquiry.local_transfer ? alpha('#1976d2', 0.2) : 'transparent',
+                                }
+                              }}
+                            >
+                              <LocalTaxiIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                         <Tooltip title={enquiry.port ? "View Port Details" : "Port Not Selected"}>
-                          <IconButton 
-                            size="small" 
-                            color={enquiry.port ? "primary" : "default"}
-                            disabled={!enquiry.port}
-                            onClick={() => enquiry.port && handleServiceClick(enquiry, 'port')}
-                            sx={{ 
-                              backgroundColor: enquiry.port ? alpha('#1976d2', 0.1) : 'transparent',
-                              '&:hover': {
-                                backgroundColor: enquiry.port ? alpha('#1976d2', 0.2) : 'transparent',
-                              }
-                            }}
-                          >
-                            <DirectionsBoatIcon fontSize="small" />
-                          </IconButton>
+                          <span>
+                            <IconButton 
+                              size="small" 
+                              color={enquiry.port ? "primary" : "default"}
+                              disabled={!enquiry.port}
+                              onClick={() => enquiry.port && handleServiceClick(enquiry, 'port')}
+                              sx={{ 
+                                backgroundColor: enquiry.port ? alpha('#1976d2', 0.1) : 'transparent',
+                                '&:hover': {
+                                  backgroundColor: enquiry.port ? alpha('#1976d2', 0.2) : 'transparent',
+                                }
+                              }}
+                            >
+                              <DirectionsBoatIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                         <Tooltip title={enquiry.attraction ? "View Attraction Details" : "Attractions Not Selected"}>
-                          <IconButton 
-                            size="small" 
-                            color={enquiry.attraction ? "primary" : "default"}
-                            disabled={!enquiry.attraction}
-                            onClick={() =>
-                              enquiry.attraction &&
-                              handleServiceClick(enquiry, "attraction")
-                            }
-                            sx={{
-                              backgroundColor: enquiry.attraction
-                                ? alpha("#1976d2", 0.1)
-                                : "transparent",
-                              "&:hover": {
+                          <span>
+                            <IconButton 
+                              size="small" 
+                              color={enquiry.attraction ? "primary" : "default"}
+                              disabled={!enquiry.attraction}
+                              onClick={() =>
+                                enquiry.attraction &&
+                                handleServiceClick(enquiry, "attraction")
+                              }
+                              sx={{
                                 backgroundColor: enquiry.attraction
-                                  ? alpha("#1976d2", 0.2)
+                                  ? alpha("#1976d2", 0.1)
                                   : "transparent",
-                              },
-                            }}
-                          >
-                            <AttractionsIcon fontSize="small" />
-                          </IconButton>
+                                "&:hover": {
+                                  backgroundColor: enquiry.attraction
+                                    ? alpha("#1976d2", 0.2)
+                                    : "transparent",
+                                },
+                              }}
+                            >
+                              <AttractionsIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                         <Tooltip title={enquiry.packaged_attractions ? "View Packaged Attractions Details" : "Packaged Attractions Not Selected"}>
-                          <IconButton 
-                            size="small" 
-                            color={enquiry.packaged_attractions ? "primary" : "default"}
-                            disabled={!enquiry.packaged_attractions}
-                            onClick={() =>
-                              enquiry.packaged_attractions &&
-                              handleServiceClick(enquiry, "packaged_attractions")
-                            }
-                            sx={{
-                              backgroundColor: enquiry.packaged_attractions
-                                ? alpha("#1976d2", 0.1)
-                                : "transparent",
-                              "&:hover": {
+                          <span>
+                            <IconButton 
+                              size="small" 
+                              color={enquiry.packaged_attractions ? "primary" : "default"}
+                              disabled={!enquiry.packaged_attractions}
+                              onClick={() =>
+                                enquiry.packaged_attractions &&
+                                handleServiceClick(enquiry, "packaged_attractions")
+                              }
+                              sx={{
                                 backgroundColor: enquiry.packaged_attractions
-                                  ? alpha("#1976d2", 0.2)
+                                  ? alpha("#1976d2", 0.1)
                                   : "transparent",
-                              },
-                            }}
-                          >
-                            <ParkIcon fontSize="small" />
-                          </IconButton>
+                                "&:hover": {
+                                  backgroundColor: enquiry.packaged_attractions
+                                    ? alpha("#1976d2", 0.2)
+                                    : "transparent",
+                                },
+                              }}
+                            >
+                              <ParkIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                         <Tooltip
                           title={
@@ -992,27 +1002,29 @@ const EnquiryList = () => {
                               : "Restaurants Not Selected"
                           }
                         >
-                          <IconButton
-                            size="small"
-                            color={enquiry.restaurant ? "primary" : "default"}
-                            disabled={!enquiry.restaurant}
-                            onClick={() =>
-                              enquiry.restaurant &&
-                              handleServiceClick(enquiry, "restaurant")
-                            }
-                            sx={{
-                              backgroundColor: enquiry.restaurant
-                                ? alpha("#1976d2", 0.1)
-                                : "transparent",
-                              "&:hover": {
+                          <span>
+                            <IconButton
+                              size="small"
+                              color={enquiry.restaurant ? "primary" : "default"}
+                              disabled={!enquiry.restaurant}
+                              onClick={() =>
+                                enquiry.restaurant &&
+                                handleServiceClick(enquiry, "restaurant")
+                              }
+                              sx={{
                                 backgroundColor: enquiry.restaurant
-                                  ? alpha("#1976d2", 0.2)
+                                  ? alpha("#1976d2", 0.1)
                                   : "transparent",
-                              },
-                            }}
-                          >
-                            <RestaurantIcon fontSize="small" />
-                          </IconButton>
+                                "&:hover": {
+                                  backgroundColor: enquiry.restaurant
+                                    ? alpha("#1976d2", 0.2)
+                                    : "transparent",
+                                },
+                              }}
+                            >
+                              <RestaurantIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                         <Tooltip
                           title={
@@ -1021,27 +1033,29 @@ const EnquiryList = () => {
                               : "Guide Not Selected"
                           }
                         >
-                          <IconButton
-                            size="small"
-                            color={enquiry.guide ? "primary" : "default"}
-                            disabled={!enquiry.guide}
-                            onClick={() =>
-                              enquiry.guide &&
-                              handleServiceClick(enquiry, "guide")
-                            }
-                            sx={{
-                              backgroundColor: enquiry.guide
-                                ? alpha("#1976d2", 0.1)
-                                : "transparent",
-                              "&:hover": {
+                          <span>
+                            <IconButton
+                              size="small"
+                              color={enquiry.guide ? "primary" : "default"}
+                              disabled={!enquiry.guide}
+                              onClick={() =>
+                                enquiry.guide &&
+                                handleServiceClick(enquiry, "guide")
+                              }
+                              sx={{
                                 backgroundColor: enquiry.guide
-                                  ? alpha("#1976d2", 0.2)
+                                  ? alpha("#1976d2", 0.1)
                                   : "transparent",
-                              },
-                            }}
-                          >
-                            <PersonIcon fontSize="small" />
-                          </IconButton>
+                                "&:hover": {
+                                  backgroundColor: enquiry.guide
+                                    ? alpha("#1976d2", 0.2)
+                                    : "transparent",
+                                },
+                              }}
+                            >
+                              <PersonIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       </Box>
                     </TableCell>
