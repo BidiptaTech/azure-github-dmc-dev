@@ -384,6 +384,10 @@ class TourController extends Controller
                 ];
             }
 
+            $dmc_company_name = '';
+            if($tour->dmc_id){
+                $dmc_company_name = User::where('userId', $tour->dmc_id)->first();
+            }
             $service = CommonHelper::CommonResponse($agent_id, $tour_id);
             // LogActivityService::log('fetch_tour', 'App\Models\Tour', $tour_id, $tour);
             return response()->json([
@@ -408,6 +412,8 @@ class TourController extends Controller
                     'cities' => $cities,
                     'bookingType' => $booking_type,
                     'dmc_id' => $tour->dmc_id,
+                    'dmc_company_name' => $dmc_company_name->company_name ?? '',
+                    'dmc_logo' => $dmc_company_name->logo ?? '',
                 ],
             ], 200);
         } catch (\Exception $e) {

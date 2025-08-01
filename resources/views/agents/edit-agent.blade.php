@@ -92,9 +92,14 @@
 
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label for="company_name" class="form-label"><strong>Agency Company</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('company_name') is-invalid @enderror" name="company_name" value="{{ $agent->company_name }}" placeholder="Enter Company Name" required>
-                        @error('name')
+                        <label for="company_name" class="form-label"><strong>Select Agency Company</strong><span class="text-danger">*</span></label>
+                        <select class="form-control select2" id="agency_id" name="company_name">
+                            <option value="">Select Agency</option>
+                            @foreach($agency as $a)
+                                <option value="{{ $a->agency_name }}" {{ $agent->company_name == $a->agency_name ? 'selected' : '' }}>{{ $a->agency_name }}</option>
+                            @endforeach
+                        </select>
+                        @error('company_name')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -369,6 +374,13 @@
         // Initialize Country Code field with search functionality
         $('#inputCountryCode').select2({
             placeholder: "Search country code...",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Agency field with search functionality
+        $('#agency_id').select2({
+            placeholder: "Search agency...",
             allowClear: true,
             width: '100%'
         });
