@@ -401,7 +401,7 @@ use Illuminate\Support\Facades\Auth;
                                         @endforeach
                                     @endif
                                     
-                                    @if(!isset($results) || empty($results) || count($results) == 0)
+                                    {{-- @if(!isset($results) || empty($results) || count($results) == 0)
                                         <tr>
                                             <td colspan="10" class="text-center py-5">
                                                 <div class="d-flex flex-column align-items-center">
@@ -411,7 +411,7 @@ use Illuminate\Support\Facades\Auth;
                                                 </div>
                                             </td>
                                         </tr>
-                                    @endif
+                                    @endif --}}
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
