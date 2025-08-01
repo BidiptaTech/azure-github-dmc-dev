@@ -46,6 +46,8 @@ import {
   Security,
   Speed,
   Support,
+  PersonAdd,
+  ArrowForward,
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
 
@@ -625,6 +627,59 @@ function Login() {
                           >
                         {isLoading || loginStatus === "loading" ? "Signing In..." : "Sign In"}
                       </Button>
+                    </Fade>
+
+                    {/* Sign Up Section */}
+                    <Fade in timeout={1800}>
+                      <Box sx={{ textAlign: "center", mt: 2 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: "#666",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <PersonAdd sx={{ fontSize: 16, color: "#667eea" }} />
+                          Don't have an account?
+                        </Typography>
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={() => navigate("/register")}
+                          sx={{
+                            color: "#667eea",
+                            fontWeight: 600,
+                            textTransform: "none",
+                            fontSize: "0.9rem",
+                            p: 1,
+                            borderRadius: 2,
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              background: "rgba(102, 126, 234, 0.1)",
+                              transform: "translateY(-1px)",
+                              color: "#5a6fd8",
+                            },
+                            "&:active": {
+                              transform: "translateY(0)",
+                            },
+                          }}
+                          endIcon={
+                            <ArrowForward sx={{ 
+                              fontSize: 16,
+                              transition: "transform 0.3s ease",
+                              "&:hover": {
+                                transform: "translateX(2px)",
+                              }
+                            }} />
+                          }
+                        >
+                          Sign Up
+                        </Button>
+                      </Box>
                     </Fade>
 
                     {loginError && (
