@@ -661,17 +661,17 @@ class LoginControllerApi extends Controller
         }
         
         // Uploads - these can be done outside the transaction
-        $idProofImage = null;
-        if ($request->hasFile('image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
-            $idProofImage = $pathData['master_value'] ?? null;
-        }
-        
-        $agentImage = null;
-        if ($request->hasFile('agent_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
-            $agentImage = $pathData['master_value'] ?? null;
-        }
+        // $idProofImage = null;
+        // if ($request->hasFile('image')) {
+        //     $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+        //     $idProofImage = $pathData['master_value'] ?? null;
+        // }
+            
+        //     $agentImage = null;
+        //     if ($request->hasFile('agent_image')) {
+        //         $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
+        //         $agentImage = $pathData['master_value'] ?? null;
+        //     }
         $virtualDmc = User::select('userId')->where('role_id', 20)->first();
 
         try {
@@ -716,8 +716,8 @@ class LoginControllerApi extends Controller
             $agent->country = is_array($request->country) ? implode(',', $request->country) : $request->country;
             $agent->id_cards = $request->id_card;
             $agent->id_number = $request->card_number;
-            $agent->image = $idProofImage;
-            $agent->agent_image = $agentImage;
+            $agent->image = $request->image;
+            $agent->agent_image = $request->agent_image;
             $agent->password = bcrypt($request->password);
             $agent->sales_manager_dmc = $virtualDmc->userId;
             $agent->role_id = 20;
