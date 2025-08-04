@@ -3598,8 +3598,8 @@ class BulkUploadController extends Controller
                     $attraction->description = $description;
                     $attraction->master_image = $masterImage;
                     $attraction->additional_image = json_encode($additionalImagesArray);
-                    $attraction->open_time = json_encode($openTime);
-                    $attraction->close_time = json_encode($closeTime);
+                    $attraction->open_time = json_encode([$openTime]);
+                    $attraction->close_time = json_encode([$closeTime]);
                     
                     // Map additional fields if they exist in the database
                     if (Schema::hasColumn('attractions', 'location')) {
@@ -4068,8 +4068,8 @@ class BulkUploadController extends Controller
         $data[] = $sampleData2;
 
         // Add empty row for user input (with notes for required fields)
-        $emptyRow = ['[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '1'];
-        $data[] = $emptyRow;
+        // $emptyRow = ['[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '1'];
+        // $data[] = $emptyRow;
 
         return $data;
     }

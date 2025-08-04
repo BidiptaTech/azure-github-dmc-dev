@@ -583,11 +583,11 @@
                                 <div data-i18n="Create Single Tour Package">Create Single Tour Package</div>
                             </a>
                         </li>
-                        <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
+                        <!-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
                             <a href="{{ route('single-tour-package.index') }}" class="menu-link">
                                 <div data-i18n="Single Tour Packages">Single Tour Packages</div>
                             </a>
-                        </li>
+                        </li> -->
                         @endif
                         @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
                         <!-- Show Booking -->
@@ -1384,6 +1384,7 @@
 
                 <!-- End Driver -->
 
+                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 20)
                 <!-- Agency Management -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
@@ -1396,27 +1397,21 @@
                     </a>
                     <ul class="menu-sub">
                         <!-- List Agencies -->
-                        {{-- @if(hasPermission('view agency')) --}}
                         <li class="menu-item @if(Request::is('agencies')) active @endif">
                             <a href="{{ route('agencies.index') }}" class="menu-link">
                                 <div data-i18n="List Agencies">List Agencies</div>
                             </a>
                         </li>
-                        {{-- @endif --}}
 
                         <!-- Create Agency -->
-                        {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20) --}}
-                        {{-- @if(hasPermission('create agency')) --}}
                         <li class="menu-item @if(Request::is('agencies/create')) active @endif">
                             <a href="{{ route('agencies.create') }}" class="menu-link">
                                 <div data-i18n="Create Agency">Create Agency</div>
                             </a>
                         </li>
-                        {{-- @endif --}}
-                        {{-- @endif --}}
                     </ul>
                 </li>
-
+                @endif
                 <!-- Operation Country -->
                 {{-- @if(hasPermission('view country'))
                 <li class="menu-header mt-5">

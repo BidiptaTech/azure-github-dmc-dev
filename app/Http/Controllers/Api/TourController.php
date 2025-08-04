@@ -384,6 +384,10 @@ class TourController extends Controller
                 ];
             }
 
+            $dmc_company_name = '';
+            if($tour->dmc_id){
+                $dmc_company_name = User::where('userId', $tour->dmc_id)->first();
+            }
             $service = CommonHelper::CommonResponse($agent_id, $tour_id);
             // LogActivityService::log('fetch_tour', 'App\Models\Tour', $tour_id, $tour);
             return response()->json([
@@ -408,6 +412,8 @@ class TourController extends Controller
                     'cities' => $cities,
                     'bookingType' => $booking_type,
                     'dmc_id' => $tour->dmc_id,
+                    'dmc_company_name' => $dmc_company_name->company_name ?? '',
+                    'dmc_logo' => $dmc_company_name->logo ?? '',
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -2236,65 +2242,7 @@ class TourController extends Controller
         $tour = Tour::where('tour_id', $tour_id)->first();
         $user = auth()->user();
         $salesManagerId = $user->sales_manager_dmc;
-
-
-        // if ($user) {
-        //     switch ($user->role_id) {
-        //         case 11: // Agent is a DMC
-        //             $dmc_id = $user->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
-        //             $dmc_users = User::where('userId', $dmc_id)->first();
-        //             break;
-        //             case 33: 
-        //             case 128: 
-        //             case 129: 
-        //             case 130: 
-        //             case 134: 
-        //             case 135: 
-        //             case 136: 
-        //             case 138: // Sales Head
-        //             $salesManagerId = $user->sales_manager_dmc;
-        //                 $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SH
-        //                 if ( $saleshead_dmc) {
-        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-        //                     if ($dmc_users && $dmc_users->role_id == 11) {
-        //                         $dmc_id = $dmc_users->userId;
-        //                     }
-        //                 }
-        //             break;
-        //         case 12:
-        //         case 37: // Sales Manager
-        //             $salesManagerId = $user->sales_manager_dmc;
-        //             $salesmng_dmc= User::where('userId', $user->sales_manager_dmc)->first(); // SM
-                    
-        //             if ($salesmng_dmc) {
-        //                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-        //                 if ( $saleshead_dmc) {
-        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-        //                     if ($dmc_users && $dmc_users->role_id == 11) {
-        //                         $dmc_id = $dmc_users->userId;
-        //                     }
-        //                 }
-        //             }
-        //             break;
-        //         case 38: // Assistant Manager
-        //             $salesManagerId = $user->sales_manager_dmc;
-        //             $asmng_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SM
-        //             if($asmng_dmc){
-        //                 $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-        //             }
-        //             if ($salesmng_dmc) {
-        //                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-        //                 if ( $saleshead_dmc) {
-        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-        //                     if ($dmc_users && $dmc_users->role_id == 11) {
-        //                         $dmc_id = $dmc_users->userId;
-        //                     }
-        //                 }
-        //             }
-        //             break;
-        //     }
-        // }
-        
+ 
         $userId = $user->agent_id;
         switch ($type) {
             case 'enquiry':
@@ -2351,7 +2299,8 @@ class TourController extends Controller
             case 'cancel':
                 if ($currentEnquiry) {
                     $currentEnquiry->update(['status' => 3]);
-
+                }
+                if($tour){
                     $tour = Tour::where('tour_id', $tour_id)->update([
                         'tour_status' => "Cancelled",
                     ]);
@@ -2369,6 +2318,8 @@ class TourController extends Controller
             case 'accept':
                 if ($currentEnquiry) {
                     $currentEnquiry->update(['status' => 2]);
+                }
+                if($tour){
                     Order::where('tour_id', $tour_id)->update(['bookingType' => 'booking']);
                     $tourStatus = Tour::where('tour_id',$tour_id)->first();
                     if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
@@ -2377,17 +2328,17 @@ class TourController extends Controller
                         ]);
                     }
 
-                    $formEnquiry = EnquiryForm::where('multi_enq_id', $currentEnquiry->multi_enq_id)->first();
-                    if ($formEnquiry->multi_enq_id) {
+                    $formEnquiry = EnquiryForm::where('multi_enq_id', (string)$tour->multi_enq_id)->first();
+                    if ($formEnquiry && $formEnquiry->multi_enq_id) {
                         // Cancel other enquiry forms with same multi_enq_id
-                        EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                        EnquiryForm::where('multi_enq_id', (string)$formEnquiry->multi_enq_id)
                             ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
                             ->update([
                                 'status' => 'cancelled',
                             ]);
                         
                     }
-                    Tour::where('multi_enq_id', $tour->multi_enq_id)
+                    Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
                             ->where('tour_id', '!=', $tour_id)
                             ->update(['deleted_at' => now()]);
                             

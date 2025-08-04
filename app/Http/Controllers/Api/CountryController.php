@@ -209,13 +209,24 @@ class CountryController extends Controller
         if($user->role_id == 20){
             $dmc_count = $dmc_count - 1;
         }
-        $dmc_id = null;
+        $dmc_id = null; 
+        $dmc_logo = null;
+        $dmc_company_name = null;  
+        $dmc_name = null;
         if($dmc_count == 1 && count($agentDmcIds) == 1){
+            $dmcuser = User::where('userId', $agentDmcIds[0])->first();
             $dmc_id = $agentDmcIds[0];
+            $dmc_logo = $dmcuser->logo;
+            $dmc_company_name = $dmcuser->company_name;
+            $dmc_name = $dmcuser->name;  
         }
         elseif($dmc_count == 1 && count($agentDmcIds) == 2){
             $dmc_id = $agentDmcIds[1];
+            $dmc_logo = null;
+            $dmc_company_name = null;  
+            $dmc_name = null;  
         }
-        return response()->json(['dmc_count' => $dmc_count, 'dmc_id' => $dmc_id]);
+        return response()->json(['dmc_count' => $dmc_count, 'dmc_id' => $dmc_id, 'dmc_logo' => $dmc_logo, 
+        'dmc_company_name' => $dmc_company_name, 'dmc_name' => $dmc_name]);
     }
 }

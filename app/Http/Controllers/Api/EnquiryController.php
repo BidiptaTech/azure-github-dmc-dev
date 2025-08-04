@@ -150,7 +150,7 @@ class EnquiryController extends Controller
             $query->select('hotel_id', 'double_weekday_price', 'room_type', 'room_id')
                   ->selectRaw('(double_weekday_price / 2) as single_base_price');
         }])->where('city', $city)
-          ->where('country', $country_id->country_id)
+          ->where('country', $country)
           ->where('status', 1)
           ->where('is_active', 1)
           ->where('is_complete', 1)
