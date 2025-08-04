@@ -21,6 +21,8 @@ use App\Models\Agent;
 use App\Models\Tour;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EnquiryController extends Controller
 {
@@ -482,7 +484,7 @@ class EnquiryController extends Controller
     {
         $user = auth()->user();
         $agent_id = $request->agent_id;
-        
+
         if (!$user) {
             return response()->json([
                 'success' => false,
@@ -578,7 +580,6 @@ class EnquiryController extends Controller
             $currentUser = null;
             if(in_array($user->role_id, [33, 37, 38,])){
                 $currentUser = User::where('userId', $user->userId)->first();
-
                 if (!$currentUser) {
                     return response()->json([
                         'success' => false,
@@ -586,18 +587,40 @@ class EnquiryController extends Controller
                     ], 404);
                 }
             }
-
             if($currentUser){
+                
                 // For DMC roles (33, 37, 38), they must select an agent first
                 // No enquiries shown until an agent is selected
-                $enquiries = collect();
+                if($currentUser->role_id == 33){
+                    $dmcId = $currentUser->created_by;
+                }
+                elseif($currentUser->role_id == 37){
+                    $sales_head_id = $currentUser->created_by;
+                    $sales_head = User::where('userId', $sales_head_id)->first();
+                    $dmcId = $sales_head->created_by;
+                }
+                elseif($currentUser->role_id == 38){
+                    $sales_manager_id = $currentUser->created_by;
+                    $sales_manager_createdBy_id = User::where('userId', $sales_manager_id)->first()->value('created_by');
+                    $sales_head = User::where('userId', $sales_manager_createdBy_id)->first();
+                    $dmcId = $sales_head->created_by;
+                }
                 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Please select an agent to view enquiries.',
-                    'enquiries' => [],
-                    'note' => 'Use agent_id parameter to view specific agent enquiries'
-                ]);
+                $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+
+                $enquiries = EnquiryForm::whereIn('agent_id', $agent_ids)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->whereMonth('check_in_time', now()->month)
+                    ->whereYear('check_in_time', now()->year)
+                    ->get();
+
+                $tour_enquiries_list = EnquiryForm::whereIn('agent_id', $agent_ids)
+                    ->whereNotNull('unique_tour_id')
+                    ->where('status', null)
+                    ->whereMonth('check_in_time', now()->month)
+                    ->whereYear('check_in_time', now()->year)
+                    ->get();
             }
             else{
                 if (empty($user?->agent_id)) {
