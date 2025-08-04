@@ -426,6 +426,145 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * Fetch hotels for the current DMC by city
+     */
+    public function fetchHotels(Request $request)
+    {
+        try {
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            $city = $request->input('city');
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            if (!$city) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'City is required'
+                ], 400);
+            }
+
+            // Fetch hotels where dmc_id JSON contains current DMC ID and city matches
+            $hotels = \App\Models\Hotel::whereJsonContains('dmc_id', (int) $dmcId)
+                ->where('status', 1)
+                ->where('is_active', 1)
+                ->where(function ($q) use ($city) {
+                    $q->whereRaw('LOWER(city) = ?', [strtolower($city)]);
+                })
+                ->select('hotel_unique_id', 'name', 'city', 'main_image', 'hotel_star_rating', 'latitude', 'longitude')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'hotels' => $hotels,
+                'total_hotels' => count($hotels),
+                'city' => $city
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching hotels: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Fetch rooms for a specific hotel
+     */
+    public function fetchRooms(Request $request)
+    {
+        try {
+            $hotelId = $request->input('hotel_id');
+            
+            if (!$hotelId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hotel ID is required'
+                ], 400);
+            }
+
+            // Fetch rooms for the selected hotel
+            $rooms = \App\Models\Room::where('hotel_id', $hotelId)
+                ->where('status', 1)
+                ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
+                        'breakfast', 'breakfast_type', 'lunch', 'lunch_type', 'dinner', 'dinner_type',
+                        'breakfast_included', 'dimension', 'features', 'master_image')
+                ->orderBy('room_type')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'rooms' => $rooms,
+                'total_rooms' => count($rooms),
+                'hotel_id' => $hotelId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching rooms: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Fetch beds for a specific room
+     */
+    public function fetchBeds(Request $request)
+    {
+        try {
+            $roomId = $request->input('room_id');
+            
+            if (!$roomId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Room ID is required'
+                ], 400);
+            }
+
+            // Fetch beds for the selected room
+            $beds = \App\Models\Bed::where('room_id', $roomId)
+                ->where('is_active', 1)
+                ->select('bed_id', 'room_type', 'no_of_rooms', 'max_occupancy', 'adult_count', 'child_count', 
+                        'extra_bed', 'extra_bed_price', 'extra_bed_type', 'baby_cot', 'baby_cot_price')
+                ->orderBy('room_type')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'beds' => $beds,
+                'total_beds' => count($beds),
+                'room_id' => $roomId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching beds: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
      * Fetch guides for the current DMC
      */
     public function fetchGuides(Request $request)
