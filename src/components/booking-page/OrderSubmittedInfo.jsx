@@ -5,6 +5,7 @@ import TourStatus from "../common/sub_common/TourStatus";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import { Avatar } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const OrderSubmittedInfo = () => {
   const bookingResponse = useSelector((state) => state.hotels.bookingResponse);
@@ -68,8 +69,9 @@ const OrderSubmittedInfo = () => {
   const usdGrandTotal = usdPrice + usdTaxAmount;
   const convertedGrandTotal = convertedPrice + convertedTaxAmount;
   
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo); 
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC'; 
 
   const handleClick = () => {
     console.log("Clicked");
@@ -191,14 +193,14 @@ const OrderSubmittedInfo = () => {
                         {dmcLogo && (
                           <Avatar
                             src={dmcLogo}
-                            alt={`${dmcName} Logo`}
+                            alt={`${dmcCompanyName} Logo`}
                             sx={{ 
                               width: 24,
                               height: 24,
                             }}
                           />
                         )}
-                        <span>{`${dmcName || "DMC"}'s Mode`}</span>
+                        <span>{`${dmcCompanyName}'s Mode`}</span>
                       </div>
                     ) : latestBooking.priceMode === "travClicks" || 
                         latestBooking.priceMode === "travclicks" || 

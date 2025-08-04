@@ -41,6 +41,7 @@ import EmojiFoodBeverageIcon from "@mui/icons-material/EmojiFoodBeverage";
 import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import dayjs from "dayjs";
 import { useSelector } from "react-redux";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 // Add formatDate utility function
 const formatDate = (date) => {
@@ -103,7 +104,9 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
   const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const { bookings } = useSelector((state) => state.viewDetails);
 
   // Get tax percentages from auth slice like in index2.jsx
@@ -539,15 +542,15 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                               />
                             ) : type === "dmc" ? (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {DmcLogo && (
+                                {dmcLogo && (
                                   <Avatar
-                                    src={DmcLogo}
-                                    alt="DMC Logo"
+                                    src={dmcLogo}
+                                    alt={`${dmcCompanyName} Logo`}
                                     sx={{ width: 32, height: 32 }}
                                   />
                                 )}
                                 <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                                  {`${DmcName || "DMC"}'s Mode`}
+                                  {`${dmcCompanyName}'s Mode`}
                                 </Typography>
                               </Box>
                             ) : (

@@ -8,6 +8,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import { useSelector } from "react-redux";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import dayjs from "dayjs";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -116,7 +117,9 @@ const getMealTypeStyle = (mealType) => {
 
 const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -455,10 +458,10 @@ const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
                           />
                         ) : booking.priceTypes[0] === "dmc" ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo} 
-                                alt="DMC Logo" 
+                                src={dmcLogo} 
+                                alt={`${dmcCompanyName} Logo`} 
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -471,11 +474,11 @@ const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
                                   fontSize: '12px'
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography variant="body2" fontWeight="medium" color="#E65100" noWrap sx={{ maxWidth: 80 }}>
-                              {DmcName || "DMC"}
+                              {dmcCompanyName}
                             </Typography>
                           </Box>
                         ) : (

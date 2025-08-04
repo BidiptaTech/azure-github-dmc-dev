@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Paper, Typography, Box, Button, Grid, Divider, Snackbar, Alert } from '@mui/material';
+import { Paper, Typography, Box, Button, Grid, Divider } from '@mui/material';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PersonIcon from '@mui/icons-material/Person';
 import { useSelector, useDispatch } from 'react-redux';
@@ -23,11 +23,6 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   const [isUserInfoModalOpen, setIsUserInfoModalOpen] = useState(false);
   const [bookingData, setBookingData] = useState(null);
   const [bookingComplete, setBookingComplete] = useState(false);
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
 
   // Try to parse itinerary if it exists, otherwise use empty object
   const originalItinerary = packageData.itinerary ? 
@@ -43,23 +38,12 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   // Get userRole and agentId from auth slice
   const { userRole, agentId } = useSelector(state => state.auth);
 
-  // Handle successful booking
+  // Handle successful booking - removed notification handling since it's now handled at the page level
   useEffect(() => {
     if (bookingSuccess && bookedData) {
       setBookingComplete(true);
-      setNotification({
-        open: true,
-        message: 'Your booking has been successfully submitted!',
-        severity: 'success'
-      });
-
-
-      // Reset booking status after showing success
-      setTimeout(() => {
-        dispatch(resetBookingStatus());
-      }, 1000);
     }
-  }, [bookingSuccess, bookedData, dispatch]);
+  }, [bookingSuccess, bookedData]);
 
 
   // Calculate total price based on number of adults and children
@@ -380,7 +364,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
         package_date: searchParams?.date || packageData.date,
         date: searchParams?.date || packageData.date,
         itinerary: enhancedItinerary.map(day => {
-          const originalDay = originalItinerary.itinerary.find(d => d.day === day.day);
+          const originalDay = originalItinerary?.itinerary?.find(d => d.day === day.day);
         
           return {
             ...day,
@@ -443,10 +427,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   };
 
 
-  // Handle notification close
-  const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
-  };
+
 
 
   return (
@@ -620,21 +601,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
       )}
 
 
-      {/* Notifications */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-      >
-        <Alert
-          onClose={handleCloseNotification}
-          severity={notification.severity}
-        
-          sx={{ width: '100%' }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
+
     </Paper>
   );
 };
