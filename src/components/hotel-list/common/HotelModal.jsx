@@ -36,6 +36,7 @@ import TimerIcon from "@mui/icons-material/Timer";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { useSelector } from "react-redux";
 import HotelBookingModal from "@/components/dashboard/dashboard/db-dashboard/components/HotelBookingModal";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function HotelModal({ open, onClose, bookings = [], date }) {
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -46,8 +47,9 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
   const currencyCode = useSelector((state) => state.auth.currencyCode);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
   // Get tax percentages from auth slice
@@ -599,10 +601,10 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                               />
                           ) : booking.priceMode === "dmc" ? (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                                {DmcLogo ? (
+                                {dmcLogo ? (
                                   <Avatar
-                                  src={DmcLogo} 
-                                  alt="DMC Logo" 
+                                  src={dmcLogo} 
+                                  alt={`${dmcCompanyName} Logo`} 
                                     sx={{ width: 24, height: 24 }}
                                   />
                                 ) : (
@@ -615,11 +617,11 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                                       fontSize: '12px'
                                     }}
                                   >
-                                    {dmcName?.charAt(0) || "D"}
+                                    {dmcCompanyName?.charAt(0) || "D"}
                                   </Avatar>
                                 )}
                                 <Typography variant="body1" fontWeight="medium" color="#E65100">
-                                  {dmcName || "DMC"}
+                                  {dmcCompanyName}
                                 </Typography>
                               </Box>
                             ) : (

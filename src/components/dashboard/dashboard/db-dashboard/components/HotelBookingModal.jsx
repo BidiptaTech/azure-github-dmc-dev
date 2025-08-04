@@ -37,6 +37,7 @@ import CribIcon from "@mui/icons-material/Crib";
 import dayjs from "dayjs";
 import { useSelector } from "react-redux";
 import { alpha } from "@mui/material/styles";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -162,7 +163,9 @@ const getBedTypeIcon = (bedType) => {
 const HotelBookingModal = ({ open, onClose, booking }) => {
   // Add selectors for DMC and currency info
   console.log("booking", booking);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const priceMode =
     useSelector((state) => state.hotels.searchState.priceMode) || "dmc";
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -1084,15 +1087,15 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                           />
                         ) : booking.priceMode === "dmc" ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {DmcLogo && (
+                            {dmcLogo && (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 32, height: 32 }}
                               />
                             )}
                             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         ) : (

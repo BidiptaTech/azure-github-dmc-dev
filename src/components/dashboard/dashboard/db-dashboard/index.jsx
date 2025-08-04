@@ -107,12 +107,12 @@ const DashboardLayout = () => {
     const baseUrl = BASE_URL.replace('/api/v1', '');
     const fullUrl = `${baseUrl}/${cleanPath}`;
     
-    console.log('Profile picture URL construction:');
-    console.log('Original path:', profilePicturePath);
-    console.log('Clean path:', cleanPath);
-    console.log('Base URL:', baseUrl);
-    console.log('Full URL:', fullUrl);
-    console.log('Current profilePicture from auth state:', profilePicture);
+    // console.log('Profile picture URL construction:');
+    // console.log('Original path:', profilePicturePath);
+    // console.log('Clean path:', cleanPath);
+    // console.log('Base URL:', baseUrl);
+    // console.log('Full URL:', fullUrl);
+    // console.log('Current profilePicture from auth state:', profilePicture);
     
     return fullUrl;
   };
@@ -1293,7 +1293,7 @@ const DashboardLayout = () => {
                              }}
                            />
                            
-                           <TextField
+                           {/* <TextField
                              label="Agent ID"
                              value={agentId || "N/A"}
                              InputProps={{
@@ -1311,7 +1311,7 @@ const DashboardLayout = () => {
                                  borderRadius: "10px",
                                }
                              }}
-                           />
+                           /> */}
                            
                            <TextField
                              label="Address"
