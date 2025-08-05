@@ -228,7 +228,7 @@ const formatDate1 = (dateString) => {
   const formattedDay = String(day).padStart(2, "0");
   const formattedMonth = String(month).padStart(2, "0");
   const formattedYear = String(year);
-
+  console.log("formattedDay", formattedDay);
   // Return the formatted date in the same format
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
