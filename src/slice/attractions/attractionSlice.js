@@ -5,6 +5,7 @@ import { setUserInfo, setBookingResponse } from "../common/customerInfo";
 import { setDateService } from "../common/dateServicesSlice";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
 
 // Async thunk to fetch attractions
 export const fetchAttractions = createAsyncThunk(
@@ -182,6 +183,12 @@ export const createBooking = createAsyncThunk(
         
         dispatch(setAttractionService(combinedData));
       }
+
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'attraction', 
+        response: response.data 
+      }));
 
       return response.data;
     } catch (error) {

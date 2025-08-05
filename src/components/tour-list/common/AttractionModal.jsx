@@ -38,6 +38,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import AttractionBookingModal from "../../dashboard/dashboard/db-dashboard/components/AttractionBookingModal";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchAttractionDetails } from "../../../slice/attractions/attractionSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function AttractionModal({
   open,
@@ -53,7 +54,9 @@ export default function AttractionModal({
   const [enrichedBooking, setEnrichedBooking] = useState(null);
   const dispatch = useDispatch();
   const attractionDetails = useSelector((state) => state.attractions?.attractionDetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const theme = useTheme();
   // Get tax percentage from auth slice instead of attractions
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
@@ -583,10 +586,10 @@ export default function AttractionModal({
                               />
                             ) : booking.mode === "dmc" ? (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                                {DmcLogo ? (
+                                {dmcLogo ? (
                                   <Avatar
-                                    src={DmcLogo} 
-                                    alt="DMC Logo" 
+                                    src={dmcLogo} 
+                                    alt={`${dmcCompanyName} Logo`} 
                                     sx={{ width: 24, height: 24 }}
                                   />
                                 ) : (
@@ -599,11 +602,11 @@ export default function AttractionModal({
                                       fontSize: '12px'
                                     }}
                                   >
-                                    {DmcName?.charAt(0) || "D"}
+                                    {dmcCompanyName?.charAt(0) || "D"}
                                   </Avatar>
                                 )}
                                 <Typography variant="body2" fontWeight="medium" color="#E65100" noWrap sx={{ maxWidth: 100 }}>
-                                  {DmcName || "DMC"}
+                                  {dmcCompanyName}
                                 </Typography>
                               </Box>
                             ) : (

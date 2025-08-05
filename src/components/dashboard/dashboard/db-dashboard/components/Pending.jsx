@@ -97,6 +97,7 @@ import { clearAttractions } from "@/slice/attractions/attractionSlice";
 import { clearRestaurants } from "@/slice/restaurant/RestaurantsSlice";
 import { UpdateCustomPackage, clearAllServices } from "@/slice/tour-packages/tourPackageSlice";
 import { setSelectedDmcId } from "@/slice/dmc/dmcSlice";
+import { resetAllServiceResponses } from "@/slice/common/stepperButtonSlice";
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
@@ -601,6 +602,9 @@ export default function Pending() {
     // Clear attractions and restaurants data first
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
+
+    // Reset stepper button state for edit
+    dispatch(resetAllServiceResponses());
 
     // Dispatch necessary actions
     dispatch(setId(list.id));

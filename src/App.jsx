@@ -55,19 +55,6 @@ import ActivityListPage1 from "./pages/activity/activity-list-v1";
 import ActivityListPage2 from "./pages/activity/activity-list-v2";
 import ActivityListPage3 from "./pages/activity/activity-list-v3";
 import ActivitySingleV1Dynamic from "./pages/activity/activity-single";
-// import RentalListPage1 from "./pages/rental/rental-list-v1";
-// import RentalListPage2 from "./pages/rental/rental-list-v2";
-// import RentalListPage3 from "./pages/rental/rental-list-v3";
-// import RentalSingleV1Dynamic from "./pages/rental/rental-single";
-import CarListPage1 from "./pages/car/car-list-v1";
-// import CarListPage2 from "./pages/car/car-list-v2";
-// import CarListPage3 from "./pages/car/car-list-v3";
-import CarSingleV1Dynamic from "./pages/car/car-single";
-// import CruiseListPage1 from "./pages/cruise/cruise-list-v1";
-// import CruiseListPage2 from "./pages/cruise/cruise-list-v2";
-// import CruiseListPage3 from "./pages/cruise/cruise-list-v3";
-// import CruiseSingleV1Dynamic from "./pages/cruise/cruise-single";
-// import FlightListPage1 from "./pages/flight/flight-list-v1";
 import Contact from "./pages/others/contact";
 // import Destinations from "./pages/others/destinations";
 import Login from "./pages/login/Login";
@@ -96,6 +83,7 @@ import PreDefinePackagesPage from "./pages/pre-define-packages/index";
 import Packages from "./pages/packages";
 import PackageDetails from "./pages/pre-define-packages/package-details";
 import ModalTestRoute from "./pages/others/modal-test";
+import BookingEnquiryPage from "./pages/booking-enquiry";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
 
@@ -203,6 +191,11 @@ function App() {
           } />
           <Route path="/modal-test" element={
             <ModalTestRoute />
+          } />
+          <Route path="/booking-enquiry" element={
+            <ProtectedRoute>
+              <BookingEnquiryPage />
+            </ProtectedRoute>
           } />
           <Route path="dashboard">
             <Route
@@ -519,32 +512,6 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-                
-             
-
-             
-
-              {/* <Route path="rental-list-v1" element={<RentalListPage1 />} />
-              <Route path="rental-list-v2" element={<RentalListPage2 />} />
-              <Route path="rental-list-v3" element={<RentalListPage3 />} />
-              <Route
-                path="rental-single/:id"
-                element={<RentalSingleV1Dynamic />}
-              /> */}
-              {/* <Route path="car-list-v1" element={<CarListPage1 />} /> */}
-              {/* <Route path="car-list-v2" element={<CarListPage2 />} />
-              <Route path="car-list-v3" element={<CarListPage3 />} /> */}
-              {/* <Route path="car-single/:id" element={<CarSingleV1Dynamic />} /> */}
-              {/* <Route path="cruise-list-v1" element={<CruiseListPage1 />} />
-              <Route path="cruise-list-v2" element={<CruiseListPage2 />} />
-              <Route path="cruise-list-v3" element={<CruiseListPage3 />} />
-              <Route
-                path="cruise-single/:id"
-                element={<CruiseSingleV1Dynamic />}
-              /> */}
-
-              {/* <Route path="flight-list-v1" element={<FlightListPage1 />} /> */}
-              {/* </Route> */}
             </Route>
           </Route>
         </Routes>

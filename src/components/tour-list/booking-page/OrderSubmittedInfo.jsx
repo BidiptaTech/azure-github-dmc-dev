@@ -6,14 +6,16 @@ import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import { useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Avatar, Box, Chip, Typography } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 const OrderSubmittedInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const bookingResponse = location.state?.bookingResponse;
 
-  // Add selectors for DMC and currency info
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const priceMode =
     useSelector((state) => state.hotels.searchState.priceMode) || "dmc";
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -53,7 +55,11 @@ const OrderSubmittedInfo = () => {
               <div className="size-80 flex-center rounded-full bg-dark-3">
                 <i className="icon-check text-30 text-white" />
               </div>
-              <div className="text-30 lh-1 fw-600 mt-20">{message}</div>
+              <div className="text-30 lh-1 fw-600 mt-20">
+                {message === "Attraction_package Booking created successfully." 
+                  ? "Attraction package booked successfully." 
+                  : message}
+              </div>
               <div className="text-15 flex-center text-light-1 mt-30">
                 {/* Booking details have been sent to:{" "}
                 {parsedData.length > 0
@@ -193,17 +199,17 @@ const OrderSubmittedInfo = () => {
                                   alignItems: 'center', 
                                   gap: '8px' 
                                 }}>
-                                  {DmcLogo && (
+                                  {dmcLogo && (
                                     <Avatar
-                                      src={DmcLogo}
-                                      alt={`${DmcName} Logo`}
+                                      src={dmcLogo}
+                                      alt={`${dmcCompanyName} Logo`}
                                       sx={{ 
                                         width: 24,
                                         height: 24,
                                       }}
                                     />
                                   )}
-                                  <span>{`${DmcName || "DMC"}'s Mode`}</span>
+                                  <span>{`${dmcCompanyName}'s Mode`}</span>
                                 </div>
                               ) : type === "travClicks" ||
                                 type === "travclicks" ? (

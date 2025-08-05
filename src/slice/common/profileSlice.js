@@ -23,7 +23,7 @@ export const updateProfile = createAsyncThunk(
       if (profileData.agent_address) formData.append('agent_address', profileData.agent_address);
       
       // Debug: Log what's being sent to the API
-      console.log('FormData contents:');
+      // console.log('FormData contents:');
       for (let [key, value] of formData.entries()) {
         console.log(`${key}:`, value);
       }
@@ -39,7 +39,7 @@ export const updateProfile = createAsyncThunk(
         formData,
         { headers }
       );
-      console.log('API response:', response.data);
+      // console.log('API response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Profile update error:', error);

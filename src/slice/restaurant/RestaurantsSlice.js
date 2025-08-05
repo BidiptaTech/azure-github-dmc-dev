@@ -3,6 +3,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
 
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
@@ -180,6 +181,12 @@ export const createBooking = createAsyncThunk(
 
         dispatch(storeUserInfo(userInfo));
       }
+
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'restaurent', 
+        response: response.data 
+      }));
 
       return response.data;
     } catch (error) {
