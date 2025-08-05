@@ -273,20 +273,27 @@ class GuideController extends Controller
             } else {
                 $dataArray = $order->data; // Already an array, use directly
             }
-            
-            // Filter the guide bookings within this order that match $guide_id
+        
             return collect($dataArray)
-            ->filter(fn($booking) => is_array($booking) && $booking['guide_id'] == $guide_id && $booking['pickupdate'] == $formattedDate)
-            ->map(function ($booking) {
-                return [
-                    'date' => $booking['pickupdate'],
-                    'start_time' => $booking['entrytime'],
-                    'hour' => $booking['hours'],
-                    'end_time' => Carbon::parse($booking['entrytime'])
-                        ->addHours((int) filter_var($booking['hours'], FILTER_SANITIZE_NUMBER_INT))
-                        ->format('h:i A'),
-                ];
-            });
+                ->filter(function ($booking) use ($guide_id, $formattedDate) {
+                    return is_array($booking)
+                        && isset($booking['guide_id'], $booking['pickupdate']) // Check keys exist
+                        && (int)$booking['guide_id'] == (int)$guide_id
+                        && $booking['pickupdate'] == $formattedDate;
+                })
+                ->map(function ($booking) {
+                    $entryTime = $booking['entrytime'] ?? '00:00';
+                    $hours = (int) filter_var($booking['hours'] ?? 0, FILTER_SANITIZE_NUMBER_INT);
+        
+                    return [
+                        'date' => $booking['pickupdate'],
+                        'start_time' => $entryTime,
+                        'hour' => $booking['hours'],
+                        'end_time' => Carbon::parse($entryTime)
+                            ->addHours($hours)
+                            ->format('h:i A'),
+                    ];
+                });
         });
         $prices = null;
 
