@@ -2572,7 +2572,6 @@ class TourController extends Controller
 
         if ($tour) {
             $previous_status = $tour->tour_status;
-            $tour->previous_status = $previous_status;
             $tour->tour_status = 'cancel - ' . $previous_status;            
             $tour->save();
             return response()->json([
