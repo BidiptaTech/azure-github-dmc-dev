@@ -85,6 +85,9 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
   
+  // State to track if button should be hidden after click
+  const [isButtonHidden, setIsButtonHidden] = useState(false);
+  
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
   console.log("All Services in SearchForm:", allServices);
@@ -1202,7 +1205,19 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
  
   // Determine which handler to use based on packageData presence
   const isUpdatingExistingPackage = Boolean(packageData?.tour?.tour_id > 0);
-  const handleFormSubmit = isUpdatingExistingPackage ? handleUpdate : handleSearch;
+  
+  // Modified form submit handler to hide button after single click
+  const handleFormSubmit = async (e) => {
+    // Hide the button immediately after click
+    setIsButtonHidden(true);
+    
+    // Call the appropriate handler
+    if (isUpdatingExistingPackage) {
+      await handleUpdate(e);
+    } else {
+      await handleSearch(e);
+    }
+  };
   
   // Determine button text based on data source
   const getButtonText = () => {
@@ -1549,81 +1564,85 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
               mb: 1
             }}
           >
-            <Button 
-              type="submit"
-              variant="contained" 
-              size="large"
-              startIcon={<SearchIcon sx={{ fontSize: 24 }} />}
-              sx={{ 
-                borderRadius: 3,
-                px: 6,
-                py: 2.5,
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                textTransform: 'none',
-                minWidth: '280px',
-                background: isDataFromEnquiryDetail
-                  ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
-                  : isUpdatingExistingPackage 
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: isDataFromEnquiryDetail
-                  ? '0 8px 32px rgba(107, 114, 128, 0.4)'
-                  : isUpdatingExistingPackage
-                    ? '0 8px 32px rgba(16, 185, 129, 0.4)'
-                    : '0 8px 32px rgba(102, 126, 234, 0.4)',
-                position: 'relative',
-                overflow: 'hidden',
-                color: 'white',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                  transition: 'left 0.5s ease'
-                },
-                '&:hover': {
+            {!isButtonHidden && (
+              <Button 
+                type="submit"
+                variant="contained" 
+                size="large"
+                startIcon={<SearchIcon sx={{ fontSize: 24 }} />}
+                sx={{ 
+                  borderRadius: 3,
+                  px: 6,
+                  py: 2.5,
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  minWidth: '280px',
                   background: isDataFromEnquiryDetail
-                    ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
-                    : isUpdatingExistingPackage
-                      ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                      : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                    ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+                    : isUpdatingExistingPackage 
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   boxShadow: isDataFromEnquiryDetail
-                    ? '0 12px 40px rgba(107, 114, 128, 0.6)'
+                    ? '0 8px 32px rgba(107, 114, 128, 0.4)'
                     : isUpdatingExistingPackage
-                      ? '0 12px 40px rgba(16, 185, 129, 0.6)'
-                      : '0 12px 40px rgba(102, 126, 234, 0.6)',
-                  transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-3px) scale(1.02)',
+                      ? '0 8px 32px rgba(16, 185, 129, 0.4)'
+                      : '0 8px 32px rgba(102, 126, 234, 0.4)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  color: 'white',
                   '&::before': {
-                    left: '100%'
-                  }
-                },
-                '&:active': {
-                  transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-1px) scale(1.01)'
-                },
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-            >
-              {getButtonText()}
-            </Button>
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                    transition: 'left 0.5s ease'
+                  },
+                  '&:hover': {
+                    background: isDataFromEnquiryDetail
+                      ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
+                      : isUpdatingExistingPackage
+                        ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                        : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                    boxShadow: isDataFromEnquiryDetail
+                      ? '0 12px 40px rgba(107, 114, 128, 0.6)'
+                      : isUpdatingExistingPackage
+                        ? '0 12px 40px rgba(16, 185, 129, 0.6)'
+                        : '0 12px 40px rgba(102, 126, 234, 0.6)',
+                    transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-3px) scale(1.02)',
+                    '&::before': {
+                      left: '100%'
+                    }
+                  },
+                  '&:active': {
+                    transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-1px) scale(1.01)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                {getButtonText()}
+              </Button>
+            )}
           </Box>
           
           {/* Optional: Add helpful text below button */}
-          <Box sx={{ textAlign: 'center', mt: 1 }}>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: '#6b7280',
-                fontSize: '0.75rem',
-                fontStyle: 'italic'
-              }}
-            >
-              {getButtonSubtext()}
-            </Typography>
-          </Box>
+          {!isButtonHidden && (
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: '#6b7280',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic'
+                }}
+              >
+                {getButtonSubtext()}
+              </Typography>
+            </Box>
+          )}
         </Grid>
       </Grid>
       

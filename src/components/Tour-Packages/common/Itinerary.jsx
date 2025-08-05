@@ -50,6 +50,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import WarningIcon from '@mui/icons-material/Warning';
 import LocalActivityIcon from '@mui/icons-material/LocalActivity';
 import FlightIcon from '@mui/icons-material/Flight';
+import CloseIcon from '@mui/icons-material/Close';
 import { BookPackageEnquiry, UpdateCustomBooking } from '../../../slice/tour-packages/tourPackageSlice';
 import { useNavigate } from 'react-router-dom';
 
@@ -79,6 +80,7 @@ export default function Itinerary({ onBookingSuccess }) {
   
   const [portType,setPortType] = useState("Entry Port");
   const [portType1,setPortType1] = useState("Exit Port");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const dispatch = useDispatch();
   const packageData = useSelector((state) => state.tourPackages.packageData);
   console.log("packageData", packageData);
@@ -504,7 +506,7 @@ export default function Itinerary({ onBookingSuccess }) {
 
   // Helper function to check if sidebar should be shown
   const shouldShowSidebar = () => {
-    return enquiryDetail?.hotel_on === true || 
+    return (enquiryDetail?.hotel_on === true || 
            enquiryDetail?.attraction_on === true || 
            enquiryDetail?.restaurant_on === true || 
            enquiryDetail?.guide_on === true || 
@@ -513,7 +515,7 @@ export default function Itinerary({ onBookingSuccess }) {
            enquiryDetail?.pickup_on === true || 
            enquiryDetail?.entry_port_on === true || 
            enquiryDetail?.exit_port_on === true || 
-           enquiryDetail?.packaged_attraction_on === true;
+           enquiryDetail?.packaged_attraction_on === true) && sidebarOpen;
   };
 
   // Function to handle booking
@@ -524,7 +526,7 @@ export default function Itinerary({ onBookingSuccess }) {
         setSnackbarMessage('Package booked successfully!');
         setSnackbarSeverity('success');
         setOpenSnackbar(true);
-        
+        navigate('/dashboard/db-dashboard');
         // Call the callback to reset current step in parent component
         if (onBookingSuccess) {
           onBookingSuccess();
@@ -564,7 +566,11 @@ export default function Itinerary({ onBookingSuccess }) {
     <Box>
       <Grid container spacing={3}>
         {/* Main content area - Grid 7 */}
-        <Grid item xs={12} md={shouldShowSidebar() ? 8 : 12}>
+        <Grid item xs={12} md={shouldShowSidebar() ? 8 : 12} sx={{
+          marginRight: shouldShowSidebar() ? '25%' : 0,
+          transition: 'margin-right 0.3s ease',
+          width: shouldShowSidebar() ? '75%' : '100%',
+        }}>
           {/* Top Level Hotel Section */}
           <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -953,34 +959,106 @@ export default function Itinerary({ onBookingSuccess }) {
           />
         </Grid>
         
+        {/* Floating button to reopen sidebar */}
+        {!sidebarOpen && (enquiryDetail?.hotel_on === true || 
+           enquiryDetail?.attraction_on === true || 
+           enquiryDetail?.restaurant_on === true || 
+           enquiryDetail?.guide_on === true || 
+           enquiryDetail?.localtransfer_on === true || 
+           enquiryDetail?.ports_on === true || 
+           enquiryDetail?.pickup_on === true || 
+           enquiryDetail?.entry_port_on === true || 
+           enquiryDetail?.exit_port_on === true || 
+           enquiryDetail?.packaged_attraction_on === true) && (
+          <Box sx={{
+            position: 'fixed',
+            right: 20,
+            top: 600,
+            zIndex: 1001
+          }}>
+            <Button
+              variant="contained"
+              onClick={() => setSidebarOpen(true)}
+              sx={{
+                bgcolor: '#3554D1',
+                color: 'white',
+                borderRadius: '50%',
+                minWidth: 'auto',
+                width: 56,
+                height: 56,
+                boxShadow: '0 4px 12px rgba(53, 84, 209, 0.3)',
+                '&:hover': {
+                  bgcolor: '#5672E9',
+                  boxShadow: '0 6px 16px rgba(53, 84, 209, 0.4)',
+                }
+              }}
+            >
+              <CommentIcon />
+            </Button>
+          </Box>
+        )}
+
         {/* Enquiry Details Sidebar - Grid 4 (only shown when enquiryDetail exists) */}
         {shouldShowSidebar() && (
-          <Grid item xs={12} md={5} lg={4}>
+          <Grid item xs={12} md={5} lg={4} sx={{ 
+            position: 'fixed', 
+            right: 0,
+            top: 90, // Start where itinerary content begins instead of top
+            height: 'calc(100vh - 120px)', // Adjust height accordingly
+            width: '70%',
+            overflowY: 'auto',
+            zIndex: 1000,
+            bgcolor: 'white',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            // Custom scrollbar styling for sidebar
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#f1f1f1',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#3554D1',
+              borderRadius: '4px',
+              '&:hover': {
+                background: '#5672E9',
+              },
+            },
+          }}>
             <Paper 
               elevation={3} 
               sx={{ 
                 p: 3, 
-                borderRadius: 2,
-                position: 'sticky',
-                top: '20px',
-                maxHeight: 'calc(100vh - 40px)',
-                overflowY: 'auto',
-                bgcolor: 'rgba(255, 255, 255, 0.98)',
-                borderLeft: '4px solid #3554D1'
+                borderRadius: 0,
+                height: '100%', // Changed from 100vh to 100%
+                // Removed overflowY: 'auto' to eliminate duplicate scrollbar
+                bgcolor: 'white',
+                borderRight: '4px solid #3554D1',
+                display: 'flex',
+                flexDirection: 'column'
               }}
             >
-              <Typography 
-                variant="h5" 
-                sx={{ 
-                  mb: 3, 
-                  pb: 1.5, 
-                  borderBottom: '2px solid #3554D1',
-                  fontWeight: 600,
-                  color: '#3554D1' 
-                }}
-              >
-                Enquiry for Services
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 1.5, borderBottom: '2px solid #3554D1' }}>
+                <Typography 
+                  variant="h5" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: '#3554D1' 
+                  }}
+                >
+                  Enquiry for Services
+                </Typography>
+                <IconButton 
+                  onClick={() => setSidebarOpen(false)}
+                  sx={{ 
+                    color: '#3554D1',
+                    '&:hover': { bgcolor: 'rgba(53, 84, 209, 0.1)' }
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
               
               {/* Hotels */}
               {enquiryDetail.hotel_on && (

@@ -44,8 +44,8 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { fetchLists } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import dayjs from "dayjs";
-import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton } from "@mui/material";
-import { Visibility, Edit, AttachMoney, Update } from "@mui/icons-material";
+import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton, Menu, MenuItem } from "@mui/material";
+import { Visibility, Edit, AttachMoney, Update ,Cancel, MoreVert} from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -119,8 +119,10 @@ const getBackgroundColor = (tour_status) => {
       return "rgb(237,237,237)"; // Professional light gray
     case "Cancelled":
       return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
+    case "On Hold":
+      return "#000000"; // Professional light orange
     default:
-      return "transparent";
+      return "#a9a9a9";
   }
 };
 
@@ -145,8 +147,10 @@ const getTextColor = (tour_status) => {
       return "#FF5722"; // Deep Orange
     case "Closed":
       return "#000000"; // Black
+    case "On Hold":
+      return "#ffffff"; // Black
     default:
-      return "#CCCCCC"; // Default gray
+      return "#ffffff"; // Default gray
   }
 };
 
@@ -368,6 +372,10 @@ export default function Pending() {
 
   // Add a new state to track if the enquiry is already processed with status 2 or 3
   const [enquiryStatusProcessed, setEnquiryStatusProcessed] = useState(false);
+
+  // Add state for action menu
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [selectedListItem, setSelectedListItem] = useState(null);
 
   // Add a function to check if a tour has a processed enquiry
   const hasTourProcessedEnquiry = (tourId) => {
@@ -1984,6 +1992,42 @@ export default function Pending() {
     }
   };
 
+  // Menu handlers for action buttons
+  const handleActionMenuOpen = (event, list) => {
+    setActionMenuAnchor(event.currentTarget);
+    setSelectedListItem(list);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionMenuAnchor(null);
+    setSelectedListItem(null);
+  };
+
+  const handleMenuAction = (action) => {
+    if (selectedListItem) {
+      switch (action) {
+        case 'view':
+          handleViewDetails(selectedListItem);
+          break;
+        case 'edit':
+          handleEdit(selectedListItem);
+          break;
+        case 'negotiate':
+          handleDirectEnquiry(selectedListItem);
+          break;
+        case 'update':
+          handleUpdate(selectedListItem);
+          break;
+        case 'delete':
+          handleDelete(selectedListItem.id);
+          break;
+        default:
+          break;
+      }
+    }
+    handleActionMenuClose();
+  };
+
   return (
     <div
       className="dashboard"
@@ -2657,26 +2701,27 @@ export default function Pending() {
                               alignItems: "center",
                             }}
                           >
+                            {/* First 3 buttons always visible */}
                             <Tooltip title="View Details" arrow>
                               <IconButton
                                 size="small"
                                 onClick={() => handleViewDetails(list)}
-                                                                  sx={{
-                                    color: "#4361ee",
-                                    width: "28px",
-                                    height: "28px",
-                                    borderRadius: "6px",
-                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                    transition: "all 0.2s ease",
-                                    "&:hover": {
-                                      backgroundColor: "rgba(67, 97, 238, 0.12)",
-                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                      transform: "translateY(-1px)",
-                                    },
-                                  }}
-                                >
-                                  <Visibility sx={{ fontSize: "16px" }} />
+                                sx={{
+                                  color: "#4361ee",
+                                  width: "28px",
+                                  height: "28px",
+                                  borderRadius: "6px",
+                                  backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                  transition: "all 0.2s ease",
+                                  "&:hover": {
+                                    backgroundColor: "rgba(67, 97, 238, 0.12)",
+                                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                    transform: "translateY(-1px)",
+                                  },
+                                }}
+                              >
+                                <Visibility sx={{ fontSize: "16px" }} />
                               </IconButton>
                             </Tooltip>
 
@@ -2706,38 +2751,62 @@ export default function Pending() {
                               </Tooltip>
                             )}
 
-                            {list.booking_type === "enquiry" &&
-                              userRole === "Agent" && (
-                                <Tooltip title="Negotiate" arrow>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleDirectEnquiry(list)}
-                                    sx={{
-                                      color: "#7b1fa2",
-                                      width: "28px",
-                                      height: "28px",
-                                      borderRadius: "6px",
-                                      backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                      transition: "all 0.2s ease",
-                                      "&:hover": {
-                                        backgroundColor: "rgba(123, 31, 162, 0.12)",
-                                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                        transform: "translateY(-1px)",
-                                      },
-                                    }}
-                                  >
-                                    <AttachMoney sx={{ fontSize: "16px" }} />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
+                            {/* Third button - Negotiate for enquiry type, Update for others */}
+                            {list.booking_type === "enquiry" && userRole === "Agent" ? (
+                              <Tooltip title="Negotiate" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDirectEnquiry(list)}
+                                  sx={{
+                                    color: "#7b1fa2",
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "6px",
+                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      backgroundColor: "rgba(123, 31, 162, 0.12)",
+                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                  }}
+                                >
+                                  <AttachMoney sx={{ fontSize: "16px" }} />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="Update Tour Plan" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleUpdate(list)}
+                                  sx={{
+                                    color: "#f57c00",
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "6px",
+                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      backgroundColor: "rgba(245, 124, 0, 0.12)",
+                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                  }}
+                                >
+                                  <Update sx={{ fontSize: "16px" }} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
 
-                            <Tooltip title="Update Tour Plan" arrow>
+                            {/* 3 dots menu for additional actions */}
+                            <Tooltip title="More Actions" arrow>
                               <IconButton
                                 size="small"
-                                onClick={() => handleUpdate(list)}
+                                onClick={(event) => handleActionMenuOpen(event, list)}
                                 sx={{
-                                  color: "#f57c00",
+                                  color: "#666",
                                   width: "28px",
                                   height: "28px",
                                   borderRadius: "6px",
@@ -2745,13 +2814,13 @@ export default function Pending() {
                                   boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                                   transition: "all 0.2s ease",
                                   "&:hover": {
-                                    backgroundColor: "rgba(245, 124, 0, 0.12)",
+                                    backgroundColor: "rgba(102, 102, 102, 0.12)",
                                     boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
                                     transform: "translateY(-1px)",
                                   },
                                 }}
                               >
-                                <Update sx={{ fontSize: "16px" }} />
+                                <MoreVert sx={{ fontSize: "16px" }} />
                               </IconButton>
                             </Tooltip>
                           </div>
@@ -2987,7 +3056,7 @@ export default function Pending() {
                             </span>
                           </div>
                         </td>
-                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
+                        <td style={{ padding: "10px 10px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
                           <div
                             style={{
                               display: "flex",
@@ -2996,7 +3065,7 @@ export default function Pending() {
                               backgroundColor: getBackgroundColor(
                                 list.tour_status
                               ),
-                              padding: "4px 8px",
+                              padding: "2px 2px",
                               borderRadius: "16px",
                             }}
                           >
@@ -3033,7 +3102,7 @@ export default function Pending() {
                               }}
                             >
                               {" "}
-                              {list.tour_status || "Pending"}
+                              {(list.tour_status).toUpperCase() || "Pending"}
                             </span>
                           </div>
                         </td>
@@ -3354,6 +3423,56 @@ export default function Pending() {
         totalPrice={totalPrice}
         tourId={tourId}
       />
+
+      {/* Action Menu */}
+      <Menu
+        anchorEl={actionMenuAnchor}
+        open={Boolean(actionMenuAnchor)}
+        onClose={handleActionMenuClose}
+        PaperProps={{
+          style: {
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            minWidth: "180px",
+          },
+        }}
+      >
+        {/* Show View Details if not already in first 3 buttons */}
+        <MenuItem onClick={() => handleMenuAction('view')} sx={{ fontSize: "14px", py: 1 }}>
+          <Visibility sx={{ fontSize: "16px", mr: 1, color: "#4361ee" }} />
+          View Details
+        </MenuItem>
+
+        {/* Show Edit if not already in first 3 buttons and editOff is not 1 */}
+        {selectedListItem && selectedListItem.editOff !== 1 && (
+          <MenuItem onClick={() => handleMenuAction('edit')} sx={{ fontSize: "14px", py: 1 }}>
+            <Edit sx={{ fontSize: "16px", mr: 1, color: "#2e7d32" }} />
+            Add More Services
+          </MenuItem>
+        )}
+
+        {/* Show Negotiate if not already in first 3 buttons */}
+        {selectedListItem && selectedListItem.booking_type === "enquiry" && userRole === "Agent" && (
+          <MenuItem onClick={() => handleMenuAction('negotiate')} sx={{ fontSize: "14px", py: 1 }}>
+            <AttachMoney sx={{ fontSize: "16px", mr: 1, color: "#7b1fa2" }} />
+            Negotiate
+          </MenuItem>
+        )}
+
+        {/* Show Update if not already in first 3 buttons */}
+        
+          <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
+            <Update sx={{ fontSize: "16px", mr: 1, color: "#f57c00" }} />
+            Update Tour Plan
+          </MenuItem>
+        
+
+        {/* Always show Delete in menu */}
+        <MenuItem onClick={() => handleMenuAction('delete')} sx={{ fontSize: "14px", py: 1, color: "#f44336" }}>
+          <Cancel sx={{ fontSize: "16px", mr: 1, color: "#f44336" }} />
+          Cancel
+        </MenuItem>
+      </Menu>
     </div>
   );
 }

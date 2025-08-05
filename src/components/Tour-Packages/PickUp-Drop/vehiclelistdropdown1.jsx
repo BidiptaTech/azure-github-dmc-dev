@@ -276,7 +276,8 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   const childCount = useSelector((state) => state.pickupDrop.childCount);
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
-  
+  // Track deleted booking IDs to prevent re-initialization
+  const deletedBookingIdsRef = useRef(new Set());
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   console.log("Exit Ports:", validExitPorts);
@@ -298,7 +299,20 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   const initializeBookings = () => {
     if (validExitPorts && validExitPorts.length > 0) {
       // Pre-populate with existing exit port data
-      return validExitPorts.map((exitPort, index) => {
+      return validExitPorts
+        .filter(exitPort => {
+          const exitData = exitPort.data?.[0];
+          if (!exitData) return false;
+          const bookingId = exitData.id;
+          const bookingIdFromService = exitPort.booking_id;
+          if (deletedBookingIdsRef.current.has(bookingId) ||
+              deletedBookingIdsRef.current.has(bookingIdFromService)) {
+            console.log("Exit Vehicle - Skipping deleted booking during initialization:", bookingId);
+            return false;
+          }
+          return true;
+        })
+        .map((exitPort, index) => {
         const exitData = exitPort.data?.[0];
         if (!exitData) {
           // Fallback to default booking if no data
@@ -403,6 +417,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   const [openSummaryModal, setOpenSummaryModal] = useState(false);
   const [summaryBookingIndex, setSummaryBookingIndex] = useState(null);
   
+  
   // One-time debug logging
   const loggedInitialRef = useRef(false);
   useEffect(() => {
@@ -410,12 +425,20 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       console.log("Exit Vehicle - Initial bookings state:", bookingsRef.current);
       if (validExitPorts && validExitPorts.length > 0) {
         console.log("Exit Vehicle - Loading with existing exitPorts data");
+        // Reset deleted bookings when exitPorts change significantly (new tour)
+        const currentExitPortIds = validExitPorts.map(port => port.booking_id).filter(Boolean);
+        const hasSignificantChange = currentExitPortIds.length > 0 &&
+          !currentExitPortIds.some(id => deletedBookingIdsRef.current.has(id));
+        if (hasSignificantChange) {
+          console.log("Exit Vehicle - Detected significant exitPorts change, clearing deleted bookings set");
+          deletedBookingIdsRef.current.clear();
+        }
       } else {
         console.log("Exit Vehicle - Loading with default empty booking");
       }
       loggedInitialRef.current = true;
     }
-  }, []); // Empty dependency array - only run once
+  }, [validExitPorts]); // Changed dependency to include validExitPorts
   
   // Automatically store exitPorts data into Redux AllServices state when component receives props
   const hasDispatchedAllExitPortsRef = useRef(false);
@@ -677,7 +700,20 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
       console.log("Exit Vehicle - Detected exitPorts data, re-initializing bookings:", validExitPorts);
       
       // Re-initialize bookings with the latest exitPorts and vehicles data
-      const newBookings = validExitPorts.map((exitPort, index) => {
+      const newBookings = validExitPorts
+        .filter(exitPort => {
+          const exitData = exitPort.data?.[0];
+          if (!exitData) return false;
+          const bookingId = exitData.id;
+          const bookingIdFromService = exitPort.booking_id;
+          if (deletedBookingIdsRef.current.has(bookingId) ||
+              deletedBookingIdsRef.current.has(bookingIdFromService)) {
+            console.log("Exit Vehicle - Skipping deleted booking during re-initialization:", bookingId);
+            return false;
+          }
+          return true;
+        })
+        .map((exitPort, index) => {
         const exitData = exitPort.data?.[0];
         if (!exitData) {
           return {
@@ -1127,6 +1163,15 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
 
     console.log("Exit Vehicle - Removing booking:", bookingToRemove);
     
+    // Add the booking ID to the deleted set to prevent re-initialization
+    if (bookingToRemove.id) {
+      deletedBookingIdsRef.current.add(bookingToRemove.id);
+    }
+    if (bookingToRemove.originalData?.booking_id) {
+      deletedBookingIdsRef.current.add(bookingToRemove.originalData.booking_id);
+    }
+    console.log("Exit Vehicle - Added to deleted set:", deletedBookingIdsRef.current);
+    
     // Remove from local state
     setBookings(prevBookings => prevBookings.filter((_, index) => index !== indexToRemove));
     
@@ -1345,6 +1390,9 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
     return () => {
       hasDispatchedAllExitPortsRef.current = false;
       lastDispatchRef.current = null;
+      hasInitializedRef.current = false;
+      // Clear deleted bookings set on unmount
+      deletedBookingIdsRef.current.clear();
     };
   }, []);
 
