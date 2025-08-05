@@ -199,26 +199,29 @@ class FinanceReportController extends Controller
 
         // Get Master DMCs for dropdown (for admin only)
         $masterDmcsForDropdown = collect();
-        if ($user->role_id == 1) { // Admin - can see all Master DMCs
+        if ($user->role_id == 1 || $user->role_id == 2) { // Admin and Super Admin - can see all Master DMCs
             $masterDmcsForDropdown = User::where('role_id', 10)
-                ->select('userId', 'name')
-                ->orderBy('name')
+                ->select('userId', 'name', 'company_name')
+                ->orderBy('company_name', 'asc')
+                ->orderBy('name', 'asc')
                 ->get();
         }
         // Master DMC users and below don't get Master DMC dropdown
 
         // Get DMCs for dropdown based on user role
         $dmcsForDropdown = collect();
-        if ($user->role_id == 1) { // Admin - can see all DMCs
+        if ($user->role_id == 1 || $user->role_id == 2) { // Admin and Super Admin - can see all DMCs
             $dmcsForDropdown = User::where('role_id', 11)
-                ->select('userId', 'name', 'master_dmc_id')
-                ->orderBy('name')
+                ->select('userId', 'name', 'company_name', 'master_dmc_id')
+                ->orderBy('company_name', 'asc')
+                ->orderBy('name', 'asc')
                 ->get();
         } elseif ($user->role_id == 10) { // Master DMC - can see their DMCs
             $dmcsForDropdown = User::where('role_id', 11)
                 ->where('master_dmc_id', $user->userId)
-                ->select('userId', 'name', 'master_dmc_id')
-                ->orderBy('name')
+                ->select('userId', 'name', 'company_name', 'master_dmc_id')
+                ->orderBy('company_name', 'asc')
+                ->orderBy('name', 'asc')
                 ->get();
         }
         // DMC users (role_id = 11) and below don't get DMC dropdown

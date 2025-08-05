@@ -9,7 +9,7 @@
             <div class="card-datatable table-responsive pt-0">
                 <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                     <div class="d-flex align-items-center">
-                        <h5 class="card-title mb-0">Attractions & Experiences Listing</h5>
+                        <h5 class="card-title mb-0">Attractions & Experiences</h5>
                     </div>
 
                     <div class="d-flex justify-content-between gap-3">

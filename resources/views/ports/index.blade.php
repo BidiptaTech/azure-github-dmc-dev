@@ -18,10 +18,11 @@
                     </div>
 
                     <div class="d-flex justify-content-between gap-3">
+                        @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
                         <a href="{{ route('ports.create') }}" class="btn btn-primary">
                             <i class="mdi mdi-plus me-1"></i>Add New Port
                         </a>
-
+                        @endif
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
                             <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
