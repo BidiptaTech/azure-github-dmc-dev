@@ -55,7 +55,11 @@ const OrderSubmittedInfo = () => {
               <div className="size-80 flex-center rounded-full bg-dark-3">
                 <i className="icon-check text-30 text-white" />
               </div>
-              <div className="text-30 lh-1 fw-600 mt-20">{message}</div>
+              <div className="text-30 lh-1 fw-600 mt-20">
+                {message === "Attraction_package Booking created successfully." 
+                  ? "Attraction package booked successfully." 
+                  : message}
+              </div>
               <div className="text-15 flex-center text-light-1 mt-30">
                 {/* Booking details have been sent to:{" "}
                 {parsedData.length > 0

@@ -7,6 +7,7 @@ import { useDispatch } from "react-redux";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import { BASE_URL } from "@/services/api";
 import { useSelector } from "react-redux";
+import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
 
 // Selector to get DMC ID from dmc slice
 const selectDmcId = (state) => state.dmc?.dmcId;
@@ -159,6 +160,13 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       );
 
       console.log("API Response:", response.data);
+      
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'hotel', 
+        response: response.data 
+      }));
+      
       return response.data;
     } catch (error) {
       console.error("API Error:", error);

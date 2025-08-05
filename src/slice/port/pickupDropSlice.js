@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import { logoutUser } from "../common/authSlices";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
 //import state from "sweetalert/typings/modules/state";
 //import { settourId } from "../../HotelSlices/stepsSlice";
 //import { format } from "date-fns";
@@ -819,6 +820,12 @@ export const submitPickupDrop = createAsyncThunk(
         // Update the state with formData1
         dispatch(updateFormData1(formData1));
       }
+
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'port', 
+        response: response.data 
+      }));
 
       return response.data;
     } catch (error) {

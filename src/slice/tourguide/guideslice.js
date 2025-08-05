@@ -5,6 +5,7 @@ import { logoutUser } from "../common/authSlices";
 import { setPriceMode1 } from "../localtour/Localslice";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
+import { updateServiceResponse } from "../common/stepperButtonSlice";
 
 export const fetchGuides = createAsyncThunk(
   "tourguide/fetchGuides",
@@ -284,6 +285,13 @@ export const guideslice = createAsyncThunk(
 
       let guide = response.data?.service?.data || [];
       dispatch(setbookedGuide(guide));
+      
+      // Update stepper button visibility based on booking response
+      dispatch(updateServiceResponse({ 
+        service: 'guide', 
+        response: response.data 
+      }));
+      
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
