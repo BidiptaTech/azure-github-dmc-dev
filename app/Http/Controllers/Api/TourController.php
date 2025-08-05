@@ -2302,7 +2302,7 @@ class TourController extends Controller
                 }
                 if($tour){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "Cancelled",
+                        'tour_status' => "cancel - " . $tour->tour_status,
                     ]);
 
                     return response()->json([
@@ -2571,13 +2571,13 @@ class TourController extends Controller
         $tour = Tour::where('tour_id', $tour_id)->first();
 
         if ($tour) {
-            $tour->status = 4; //cancel tour
+            $previous_status = $tour->tour_status;
+            $tour->previous_status = $previous_status;
+            $tour->tour_status = 'cancel - ' . $previous_status;            
             $tour->save();
-            // Soft delete associated orders if Order model also uses SoftDeletes
-            // Order::where('tour_id', $tour_id)->update(['deleted_at' => now()]);
             return response()->json([
                 'success' => true,
-                'message' => 'Tour has been soft deleted successfully.',
+                'message' => 'Tour has been cancelled successfully.',
             ], 200);
         } else {
             return response()->json([

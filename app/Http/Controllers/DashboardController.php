@@ -530,6 +530,7 @@ class DashboardController extends Controller
         // Get active and completed counts for this month
         $active = (clone $query)
             ->whereNotIn('tour_status', ['Cancelled', 'Closed'])
+            ->where('tour_status', 'not like', 'cancel%')
             ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
             ->count();
         
