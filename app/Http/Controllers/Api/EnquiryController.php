@@ -336,7 +336,7 @@ class EnquiryController extends Controller
                 'city' => $guide->city,
                 'country' => $guide->country,
                 'base_price' => $guide->hourly_price,
-                'languages' => $guide->languages->pluck('language'),
+                'languages' => $guide->languages->pluck('language','proficiency'),
             ];
         });
         

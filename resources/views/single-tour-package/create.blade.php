@@ -104,6 +104,7 @@
                                     <input type="hidden" name="female" id="female" value="0">
                                     <input type="hidden" name="children" id="children" value="0">
                                     <input type="hidden" name="infants" id="infants" value="0">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
                                 </div>
 
                                 <!-- Agent Selection -->
@@ -471,6 +472,15 @@
                                                         <i class="ri-add-line"></i>
                                                     </button>
                                                 </div>
+                                                <!-- Child Ages Section -->
+                                                <div id="childAgesSection" class="mt-3" style="display: none;">
+                                                    <label class="form-label fw-semibold text-success mb-2">
+                                                        <i class="ri-user-settings-line me-1"></i>Select Ages for Children
+                                                    </label>
+                                                    <div id="childAgeDropdowns" class="d-flex flex-column gap-2">
+                                                        <!-- Child age dropdowns will be added here dynamically -->
+                                                    </div>
+                                                </div>
                                             </div>
                                             <!-- Infants -->
                                             <div class="guest-counter">
@@ -527,7 +537,52 @@
         }
         
         element.textContent = newValue;
+        
+        // Handle child age dropdowns
+        if (type === 'children') {
+            updateChildAgeDropdowns(newValue);
+        }
     };
+    
+    // Function to create/update child age dropdowns
+    function updateChildAgeDropdowns(childCount) {
+        const childAgesSection = document.getElementById('childAgesSection');
+        const childAgeDropdowns = document.getElementById('childAgeDropdowns');
+        
+        if (!childAgesSection || !childAgeDropdowns) return;
+        
+        // Show/hide the child ages section
+        if (childCount > 0) {
+            childAgesSection.style.display = 'block';
+        } else {
+            childAgesSection.style.display = 'none';
+            childAgeDropdowns.innerHTML = '';
+            return;
+        }
+        
+        // Clear existing dropdowns
+        childAgeDropdowns.innerHTML = '';
+        
+        // Create age options (1-17 years)
+        const ageOptions = [];
+        for (let i = 1; i <= 17; i++) {
+            ageOptions.push(`<option value="${i}">${i} year${i > 1 ? 's' : ''}</option>`);
+        }
+        
+        // Create dropdowns for each child
+        for (let i = 1; i <= childCount; i++) {
+            const dropdownHTML = `
+                <div class="d-flex align-items-center mb-2">
+                    <label class="me-2 text-success fw-semibold" style="min-width: 80px;">Child ${i}:</label>
+                    <select class="form-select form-select-sm child-age-select" data-child-index="${i}">
+                        <option value="">Select age</option>
+                        ${ageOptions.join('')}
+                    </select>
+                </div>
+            `;
+            childAgeDropdowns.insertAdjacentHTML('beforeend', dropdownHTML);
+        }
+    }
     
     window.applyMainGuestSelection = function() {
         console.log('applyMainGuestSelection called');
@@ -538,7 +593,22 @@
         const infants = parseInt(document.getElementById('mainModalInfants').textContent) || 0;
         const adults = male + female;
         
-        console.log('Modal values:', {adults, male, female, children, infants});
+        // Collect child ages
+        const childAges = [];
+        const childAgeSelects = document.querySelectorAll('.child-age-select');
+        childAgeSelects.forEach(select => {
+            if (select.value) {
+                childAges.push(parseInt(select.value));
+            }
+        });
+        
+        console.log('Modal values:', {adults, male, female, children, infants, childAges});
+        
+        // Validate child ages if children are selected
+        if (children > 0 && childAges.length !== children) {
+            alert('Please select ages for all children before applying.');
+            return;
+        }
         
         // Update hidden inputs
         const adultsInput = document.getElementById('adults');
@@ -546,19 +616,26 @@
         const femaleInput = document.getElementById('female');
         const childrenInput = document.getElementById('children');
         const infantsInput = document.getElementById('infants');
+        const childAgesInput = document.getElementById('child_ages');
         
         if (adultsInput) adultsInput.value = adults;
         if (maleInput) maleInput.value = male;
         if (femaleInput) femaleInput.value = female;
         if (childrenInput) childrenInput.value = children;
         if (infantsInput) infantsInput.value = infants;
+        if (childAgesInput) childAgesInput.value = JSON.stringify(childAges);
         
-        // Update summary display
+        // Update summary display with child ages
         const guestSummary = document.getElementById('mainGuestSummary');
         console.log('Guest summary element:', guestSummary);
         
         if (guestSummary) {
-            guestSummary.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
+            let summaryText = `${adults} adults (${male} male, ${female} female), ${children} children`;
+            if (children > 0 && childAges.length > 0) {
+                summaryText += ` (ages: ${childAges.join(', ')})`;
+            }
+            summaryText += ` - ${infants} infants`;
+            guestSummary.textContent = summaryText;
             console.log('Updated guest summary text');
         }
         
@@ -952,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const female = parseInt(document.getElementById('female').value) || 0;
         const children = parseInt(document.getElementById('children').value) || 0;
         const infants = parseInt(document.getElementById('infants').value) || 0;
+        const childAgesData = document.getElementById('child_ages').value;
         
         if (adults < 1) {
             alert('At least 1 adult is required for the tour package.');
@@ -961,6 +1039,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if ((male + female) !== adults) {
             alert('Total male and female count must equal total adults.');
             return;
+        }
+        
+        // Validate child ages if children are selected
+        if (children > 0) {
+            try {
+                const childAges = JSON.parse(childAgesData);
+                if (childAges.length !== children) {
+                    alert('Please select ages for all children in the guest selector.');
+                    return;
+                }
+            } catch (e) {
+                alert('Invalid child ages data. Please reselect children ages.');
+                return;
+            }
         }
         
         // Show loading state
@@ -981,6 +1073,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('female', female);
         formData.append('children', children);
         formData.append('infants', infants);
+        formData.append('child_ages', childAgesData);
         formData.append('agent_id', agent);
         
         // Send AJAX request to create tour
@@ -1154,37 +1247,63 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Store hotel data globally for reference
+    let hotelData = [];
+    
     // Load hotels for city
     function loadHotelsForCity(cityName) {
         const hotelSelect = document.getElementById('hotelSelect');
         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
         
         // Show loading state
         hotelSelect.innerHTML = '<option value="">Loading hotels in ' + cityName + '...</option>';
         hotelSelect.disabled = true;
-        hotelLoadingStatus.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Loading hotels...';
+        hotelLoadingStatus.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Loading comprehensive hotel data...';
         hotelLoadingStatus.style.color = '#0d6efd';
         
-        // Fetch hotels from API
-        fetch(`/hotel-city/${encodeURIComponent(cityName)}`)
+        // Clear dependent dropdowns
+        roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+        bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+        mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+        
+        // Fetch hotels from API using DMC-specific endpoint
+        fetch(`/fetch-hotels-by-dmc?city=${encodeURIComponent(cityName)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
                 return response.json();
             })
-            .then(data => {
+            .then(response => {
+                console.log('Hotel API Response:', response);
+                
                 hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
                 hotelSelect.disabled = false;
                 
-                if (data && data.length > 0) {
-                    data.forEach(hotel => {
-                        hotelSelect.innerHTML += `<option value="${hotel.hotel_unique_id}">${hotel.name}</option>`;
+                // Handle response format
+                if (response.success && response.hotels && response.hotels.length > 0) {
+                    // Store hotel data globally
+                    hotelData = response.hotels;
+                    
+                    response.hotels.forEach(hotel => {
+                        const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating}⭐)` : '';
+                        hotelSelect.innerHTML += `<option value="${hotel.hotel_unique_id}">${hotel.name}${starInfo}</option>`;
                     });
-                    hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${data.length} hotels found in ${cityName}`;
+                    
+                    hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${response.hotels.length} hotels found in ${cityName}`;
                     hotelLoadingStatus.style.color = '#198754';
-                    console.log(`Loaded ${data.length} hotels for ${cityName}`);
-                } else {
+                    console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
+                    
+                    // Add change event listener to hotel select
+                    hotelSelect.onchange = function() {
+                        updateHotelDependentDropdowns(this.value);
+                    };
+                } 
+                else {
+                    hotelData = [];
                     hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
                     hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
                     hotelLoadingStatus.style.color = '#fd7e14';
@@ -1193,25 +1312,252 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading hotels:', error);
+                hotelData = [];
                 hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
+                hotelSelect.disabled = true;
                 hotelLoadingStatus.innerHTML = '<i class="ri-error-warning-line me-1 text-danger"></i>Error loading hotels';
                 hotelLoadingStatus.style.color = '#dc3545';
+            });
+    }
+    
+    // Update hotel dependent dropdowns by fetching rooms
+    function updateHotelDependentDropdowns(hotelId) {
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+        
+        if (!hotelId) {
+            // Clear dropdowns if no hotel selected
+            if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+            if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+            if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+            return;
+        }
+        
+        // Find selected hotel
+        const selectedHotel = hotelData.find(h => h.hotel_unique_id == hotelId);
+        if (!selectedHotel) {
+            console.error('Selected hotel not found in hotel data');
+            return;
+        }
+        
+        console.log('Selected hotel data:', selectedHotel);
+        
+        // Show loading state
+        if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        
+        // Fetch rooms for the selected hotel
+        fetch(`/fetch-rooms-by-hotel?hotel_id=${encodeURIComponent(hotelId)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Rooms API Response:', response);
                 
-                // Fallback to placeholder hotels for development
-                const placeholderHotels = [
-                    { hotel_unique_id: 1, name: 'Hotel Example 1 - ' + cityName },
-                    { hotel_unique_id: 2, name: 'Hotel Example 2 - ' + cityName },
-                    { hotel_unique_id: 3, name: 'Hotel Example 3 - ' + cityName }
-                ];
+                // Clear dropdowns
+                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
                 
-                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
-                placeholderHotels.forEach(hotel => {
-                    hotelSelect.innerHTML += `<option value="${hotel.hotel_unique_id}">${hotel.name}</option>`;
-                });
+                if (response.success && response.rooms && response.rooms.length > 0) {
+                    // Extract unique values from rooms
+                    const roomTypes = [...new Set(response.rooms.map(room => room.room_type).filter(Boolean))];
+                    
+                    // Create meal plan options based on available meals and guest count
+                    const mealPlans = new Set();
+                    
+                    // Get current guest count
+                    const adults = parseInt(document.getElementById('adults').value) || 0;
+                    const children = parseInt(document.getElementById('children').value) || 0;
+                    const infants = parseInt(document.getElementById('infants').value) || 0;
+                    const totalGuests = adults + children; // Infants usually don't count for meals
+                    
+                    response.rooms.forEach(room => {
+                        let mealOptions = [];
+                        let mealCosts = [];
+                        
+                        if (room.breakfast) {
+                            mealOptions.push('Breakfast');
+                            if (room.breakfast_price) {
+                                mealCosts.push(`Breakfast ($${(room.breakfast_price * totalGuests).toFixed(2)} for ${totalGuests} guests)`);
+                            }
+                        }
+                        if (room.lunch) {
+                            mealOptions.push('Lunch');
+                            if (room.lunch_price) {
+                                mealCosts.push(`Lunch ($${(room.lunch_price * totalGuests).toFixed(2)} for ${totalGuests} guests)`);
+                            }
+                        }
+                        if (room.dinner) {
+                            mealOptions.push('Dinner');
+                            if (room.dinner_price) {
+                                mealCosts.push(`Dinner ($${(room.dinner_price * totalGuests).toFixed(2)} for ${totalGuests} guests)`);
+                            }
+                        }
+                        
+                        // Add meal plan combinations with guest-based pricing
+                        if (mealOptions.length > 0) {
+                            if (mealOptions.length === 1) {
+                                const totalCost = mealCosts.length > 0 ? ` - ${mealCosts[0]}` : '';
+                                mealPlans.add(`${mealOptions[0]} Only (${totalGuests} guests)${totalCost}`);
+                            } else if (mealOptions.length === 2) {
+                                const totalCost = mealCosts.length > 1 ? 
+                                    ` - Total: $${((room.breakfast_price || 0) + (room.lunch_price || 0) + (room.dinner_price || 0)) * totalGuests} for ${totalGuests} guests` : '';
+                                mealPlans.add(`${mealOptions.join(' + ')} (${totalGuests} guests)${totalCost}`);
+                            } else if (mealOptions.length === 3) {
+                                const totalCost = mealCosts.length > 2 ? 
+                                    ` - Total: $${((room.breakfast_price || 0) + (room.lunch_price || 0) + (room.dinner_price || 0)) * totalGuests} for ${totalGuests} guests` : '';
+                                mealPlans.add(`Full Board - All Meals (${totalGuests} guests)${totalCost}`);
+                            }
+                        }
+                        
+                        // Also add individual meal types with guest count
+                        if (room.breakfast_type) {
+                            const cost = room.breakfast_price ? ` - $${(room.breakfast_price * totalGuests).toFixed(2)}` : '';
+                            mealPlans.add(`${room.breakfast_type} Breakfast (${totalGuests} guests)${cost}`);
+                        }
+                        if (room.lunch_type) {
+                            const cost = room.lunch_price ? ` - $${(room.lunch_price * totalGuests).toFixed(2)}` : '';
+                            mealPlans.add(`${room.lunch_type} Lunch (${totalGuests} guests)${cost}`);
+                        }
+                        if (room.dinner_type) {
+                            const cost = room.dinner_price ? ` - $${(room.dinner_price * totalGuests).toFixed(2)}` : '';
+                            mealPlans.add(`${room.dinner_type} Dinner (${totalGuests} guests)${cost}`);
+                        }
+                    });
+                    
+                    // Populate room types
+                    roomTypes.forEach(roomType => {
+                        if (roomTypeSelect) {
+                            roomTypeSelect.innerHTML += `<option value="${roomType}">${roomType}</option>`;
+                        }
+                    });
+                    
+                    // Add event listener for room type selection
+                    if (roomTypeSelect) {
+                        roomTypeSelect.onchange = function() {
+                            updateBedTypesForRoom(this.value);
+                        };
+                    }
+                    
+                    // Store room data globally for bed fetching
+                    window.roomData = response.rooms;
+                    
+                    // For bed types, we'll populate them when a room type is selected
+                    if (bedTypeSelect) {
+                        bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+                    }
+                    
+                    // Populate meal plans
+                    [...mealPlans].forEach(mealPlan => {
+                        if (mealPlanSelect) {
+                            mealPlanSelect.innerHTML += `<option value="${mealPlan}">${mealPlan}</option>`;
+                        }
+                    });
+                    
+                    console.log(`Loaded ${response.rooms.length} rooms for hotel ${hotelId}`);
+                } else {
+                    console.log('No rooms found for hotel:', hotelId);
+                    if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                    if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                    if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">No rooms available</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Error loading rooms</option>';
+            });
+        
+        // Display hotel information
+        displayHotelInfo(selectedHotel);
+    }
+    
+    // Display hotel information
+    function displayHotelInfo(hotel) {
+        const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+        
+        if (hotelLoadingStatus) {
+            let infoHTML = `<div class="mt-2 p-2 bg-light rounded">
+                <strong>${hotel.name}</strong> - ${hotel.category || 'Standard'} Category<br>
+                <small class="text-muted">
+                    📍 ${hotel.address || hotel.city}<br>
+                    🏨 ${hotel.total_rooms || 0} rooms available<br>
+                    💰 From $${hotel.base_price || 0} per night<br>
+                    ⭐ ${hotel.hotel_star_rating || 3} star rating
+                </small>
+            </div>`;
+            
+            hotelLoadingStatus.innerHTML = infoHTML;
+        }
+    }
+    
+    // Update bed types for selected room type
+    function updateBedTypesForRoom(roomType) {
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        
+        if (!roomType || !window.roomData) {
+            if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+            return;
+        }
+        
+        // Find rooms of the selected type
+        const selectedRooms = window.roomData.filter(room => room.room_type === roomType);
+        
+        if (selectedRooms.length === 0) {
+            if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No rooms of this type</option>';
+            return;
+        }
+        
+        // Show loading state
+        if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Loading beds...</option>';
+        
+        // Get the first room of this type to fetch beds
+        const roomId = selectedRooms[0].room_id;
+        
+        // Fetch beds for the selected room
+        fetch(`/fetch-beds-by-room?room_id=${encodeURIComponent(roomId)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Beds API Response:', response);
                 
-                hotelSelect.disabled = false;
-                hotelLoadingStatus.innerHTML = '<i class="ri-information-line me-1 text-info"></i>Using demo hotels (API error)';
-                hotelLoadingStatus.style.color = '#0dcaf0';
+                // Clear dropdown
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                
+                if (response.success && response.beds && response.beds.length > 0) {
+                    // Populate bed types
+                    response.beds.forEach(bed => {
+                        if (bedTypeSelect) {
+                            const roomInfo = bed.no_of_rooms > 1 ? ` (${bed.no_of_rooms} rooms)` : '';
+                            const occupancyInfo = bed.max_occupancy ? ` - Max ${bed.max_occupancy} guests` : '';
+                            const adultChild = bed.adult_count && bed.child_count ? ` (${bed.adult_count}A+${bed.child_count}C)` : '';
+                            const extraBed = bed.extra_bed ? ' + Extra Bed Available' : '';
+                            const babyCot = bed.baby_cot ? ' + Baby Cot Available' : '';
+                            
+                            bedTypeSelect.innerHTML += `<option value="${bed.bed_id}">${bed.room_type}${roomInfo}${occupancyInfo}${adultChild}${extraBed}${babyCot}</option>`;
+                        }
+                    });
+                    
+                    console.log(`Loaded ${response.beds.length} beds for room type ${roomType}`);
+                } else {
+                    console.log('No beds found for room type:', roomType);
+                    if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No beds available</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading beds:', error);
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Error loading beds</option>';
             });
     }
 
@@ -3903,6 +4249,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 badges[1].textContent = children; // Children
                 badges[2].textContent = infants; // Infants
             }
+        }
+        
+        // Refresh meal plans if a hotel is already selected
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (hotelSelect && hotelSelect.value) {
+            updateHotelDependentDropdowns(hotelSelect.value);
         }
      }
 
