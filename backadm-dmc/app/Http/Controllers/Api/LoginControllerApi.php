@@ -334,9 +334,10 @@ class LoginControllerApi extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'agent_address' => $user->agent_address,
-                'profile_picture' => $user->agent_image ?? '',
+                'profile_picture' => $user->image ?? '',
                 'logo' => $master_dmc->logo ?? '', 
                 'dmc_logo' => $dmc_logo ?? '',
+                'agency_logo' => $user->agent_image ?? '',
                 'dmc_name' => $dmc->company_name ?? '', 
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
@@ -440,14 +441,14 @@ class LoginControllerApi extends Controller
         // Update image if provided
         if ($request->hasFile('image')) {
             // Delete old image if exists
-            if ($user->agent_image) {
-                CommonHelper::deleteAzureImage($user->agent_image);
+            if ($user->image) {
+                CommonHelper::deleteAzureImage($user->image);
             }
             
             // Upload new image using CommonHelper
             $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
             if (!empty($pathData['master_value'])) {
-                $user->agent_image = $pathData['master_value'];
+                $user->image = $pathData['master_value'];
             }
         }
         
