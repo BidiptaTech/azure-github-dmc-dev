@@ -182,7 +182,7 @@ const MainFilterSearchBox = ({ Location }) => {
                 viewDetails && 
                 (viewDetails.hotel?.length > 0 || 
                  viewDetails.attraction?.length > 0 || 
-                 viewDetails.restaurant?.length > 0)) && (
+                 viewDetails.restaurant?.length > 0 )) && (
                 <option value="Local Transfer">Local Transfer</option>
               )}
             </select>

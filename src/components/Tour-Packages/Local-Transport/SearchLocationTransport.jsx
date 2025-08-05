@@ -113,6 +113,15 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const [selectedDate1, setSelectedDate1] = useState(itineraryFormattedDate || reduxPickupDate1);
   const [selectedDateZone, setSelectedDateZone] = useState(itineraryFormattedDate || reduxPickupDate || "");
   
+  // Debug log for date initialization
+  console.log(`SearchLocationTransport Day ${dayIndex}: Date initialization:`, {
+    itineraryFormattedDate,
+    reduxPickupDate,
+    selectedDate,
+    selectedDate1,
+    selectedDateZone
+  });
+  
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
   const [pickUpLatLng, setPickupLatLng] = useState(reduxPickUpLatLng);
   const [dropOffLatLng, setDropoffLatLng] = useState(reduxDropOffLatLng);
@@ -231,7 +240,8 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   }, [
     reduxPickUpLocation, reduxDropOffLocation, reduxExitPickUpLocation,
     reduxPickUpZone, reduxDropOffZone, reduxEntryTime, reduxEntryTime1, 
-    reduxEntryTimeZone, reduxDropType, reduxPickUpLatLng, reduxDropOffLatLng
+    reduxEntryTimeZone, reduxDropType, reduxPickUpLatLng, reduxDropOffLatLng,
+    reduxPickupDate, reduxPickupDate1
   ]);
 
   // Handle Itinerary date changes separately
@@ -306,6 +316,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               if (value !== reduxPickupDate1) dispatch(setexitpickupdate(value));
               break;
             case 'selectedDateZone':
+              console.log(`SearchLocationTransport Day ${dayIndex}: Dispatching selectedDateZone:`, value, 'reduxPickupDate:', reduxPickupDate);
               if (value !== reduxPickupDate) dispatch(setpickdate(value));
               break;
             case 'pickUpLatLng':
@@ -531,7 +542,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     } else if (selectedPort === "Local Transfer") {
       // Ensure the date is properly formatted
       const formattedDate = handleDateSelection(selectedDateZone);
-      console.log("Local Transfer search with date:", formattedDate);
+      console.log(`SearchLocationTransport Day ${dayIndex}: Local Transfer search with date:`, formattedDate, 'selectedDateZone:', selectedDateZone);
       
       // Dispatch all necessary data
       const updates = {
