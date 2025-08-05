@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { fetchEnquiryList } from "../../../slice/common/enquiryListSlice";
+import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
 import { styled } from "@mui/material/styles";
 import {
   Box,
@@ -186,20 +186,7 @@ const PreferredGuidesSearch = ({ onSelect }) => {
     ).join(', ');
   };
 
-  // Handle other guide name submission
-  const handleOtherGuideSubmit = () => {
-    if (otherGuideName.trim()) {
-      const customGuide = {
-        guide_id: `custom-${Date.now()}`,
-        name: otherGuideName.trim(),
-      };
-      const updatedGuides = [...selectedGuides, customGuide];
-      setSelectedGuides(updatedGuides);
-      if (onSelect) onSelect(updatedGuides);
-      setOtherGuideName("");
-      setShowOthersInput(false);
-    }
-  };
+
 
   // Remove a guide from selection
   const handleRemoveGuide = (guideId) => {

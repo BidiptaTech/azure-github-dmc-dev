@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import MainFilterSearchBox from "./MainFilterSearchBox";
+import MainFilterSearchBox from "../hero/hero-2/MainFilterSearchBox";
 import BookingEnquiries from "./BookingEnquiries";
 import ConfirmDetails from "./ConfirmDetails";
 

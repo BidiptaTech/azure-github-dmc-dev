@@ -40,8 +40,8 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   updateServiceDetails,
   setSelectedServices,
-} from "../../../slice/common/EnquirySlice";
-import { fetchEnquiryList } from "../../../slice/common/enquiryListSlice";
+} from "@/slice/common/EnquirySlice";
+import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
 import StarCategorySelect from "./StarCategorySelect";
 import PreferredHotelsDropdown from "./PreferredHotelsDropdown";
 import PortAddressSearch from "./PortAddressSearch";
@@ -292,6 +292,10 @@ const BookingEnquiries = ({
   onNext,
   onBack,
 }) => {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const dispatch = useDispatch();
   // Get the selected city from Redux store
   const selectedCity = useSelector((state) => state.common.selectedCity);

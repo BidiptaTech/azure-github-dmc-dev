@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { addCurrentTab } from "../../../features/hero/findPlaceSlice";
-import MainFilterSearchBox from "./MainFilterSearchBox";
+import { addCurrentTab } from "../../features/hero/findPlaceSlice";
+import MainFilterSearchBox from "../hero/hero-2/MainFilterSearchBox";
 import BookingEnquiries from "./BookingEnquiries";
 import ConfirmDetails from "./ConfirmDetails";
 import ThankYouModal from "./ThankYouModal";
@@ -13,6 +13,12 @@ const Index = () => {
   const { enquiryId, multiEnqId, tourId, id } = enquiryState;
   
   const dispatch = useDispatch();
+  
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   const [bookingOptions, setBookingOptions] = useState({
     hotel: false,
     entryExitPort: false,
@@ -28,6 +34,11 @@ const Index = () => {
   
   // Use currentPage to track which component to display
   const [currentPage, setCurrentPage] = useState("search"); // Options: "search", "bookingEnquiries", "confirmDetails"
+
+  // Scroll to top when currentPage changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentPage]);
 
   // Check if we have a submitted enquiry in localStorage on component mount
   useEffect(() => {
@@ -182,24 +193,29 @@ const Index = () => {
         );
       case "bookingEnquiries":
         return (
-          <div className="text-center mb-10">
-            <h1 className="z-2 text-50 lg:text-40 md:text-30 fw-600">
-              <span className="gradient-text">Customize Your Travel Experience</span>
-            </h1>
-            {/* <p className="z-2 text-white mt-5 mx-auto" style={{maxWidth: "600px"}}>
-              Tailor your journey with premium services and exclusive options
-            </p> */}
+          <div className="page-heading-container">
+            <div className="page-heading-bg">
+              <div className="page-heading-content">
+                <h1 className="z-2 text-50 lg:text-40 md:text-30 fw-600">
+                  <span className="booking-gradient-text">Customize Your Travel Experience</span>
+                </h1>
+                <p className="page-subtitle">Select your preferred services and customize your travel experience</p>
+              </div>
+            </div>
           </div>
         );
       case "confirmDetails":
         return (
-          <div className="text-center mb-10">
-            <h1 className="z-2 text-50 lg:text-40 md:text-30 fw-600">
-              <span className="gradient-text">Finalize Your Perfect Itinerary</span>
-            </h1>
-            {/* <p className="z-2 text-white mt-5 mx-auto" style={{maxWidth: "600px"}}>
-              Review your selections and confirm your personalized travel plan
-            </p> */}
+          <div className="page-heading-container">
+            <div className="page-heading-bg">
+          
+              <div className="page-heading-content">
+                <h1 className="z-2 text-50 lg:text-40 md:text-30 fw-600">
+                  <span className="confirm-gradient-text">Finalize Your Perfect Itinerary</span>
+                </h1>
+                <p className="page-subtitle">Review your selections and confirm your personalized travel plan</p>
+              </div>
+            </div>
           </div>
         );
       default:
@@ -208,17 +224,27 @@ const Index = () => {
   };
 
   return (
-    <section className="masthead -type-2 z-2">
-      {/* Background image only for search page */}
+    <section className="masthead -type-2 z-2" style={{marginTop: "10px"}}>
+      {/* Background images for different pages */}
       {currentPage === "search" && (
         <div className="masthead__bg">
-          <img alt="image" src="/img/masthead/4/bg.png" className="js-lazy" style={{width: "100%", height: "120%"}} />
+          <img alt="image" src="/img/masthead/4/bg.png" className="js-lazy" style={{width: "100%", height: "130%"}} />
+        </div>
+      )}
+      {currentPage === "bookingEnquiries" && (
+        <div className="masthead__bg">
+          <img alt="image" src="/img/masthead/9/bg.png" className="js-lazy" style={{width: "100%", height: "350px"}} />
+        </div>
+      )}
+      {currentPage === "confirmDetails" && (  
+        <div className="masthead__bg">
+          <img alt="image" src="/img/masthead/9/bg.png" className="js-lazy" style={{width: "100%", height: "350px"}} />
         </div>
       )}
       <div className="container">
-        <Box sx={{ py: 2 }}>
+        <Box sx={{ py: 1 }}>
           <div className="masthead__content">
-            <div className="row y-gap-5">
+            <div className="row y-gap-3">
               <div className="col-xl-12" data-aos="fade-up" data-aos-offset="0">
                 {/* Dynamic heading based on current page */}
                 {getPageHeading()}
@@ -273,12 +299,13 @@ const Index = () => {
           background: rgba(255, 255, 255, 0.2);
           margin-top: 15px;
         }
-        .page-container {
-          background: rgba(255, 255, 255, 0.05);
-          padding: 15px;
-          border-radius: 12px;
-          min-height: 200px;
-        }
+                  .page-container {
+            //background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 12px;
+            min-height: 150px;
+            margin-top: 5px;
+          }
         .navigation-buttons {
           display: flex;
           justify-content: flex-end;
@@ -291,6 +318,116 @@ const Index = () => {
           text-fill-color: transparent;
           display: inline-block;
           text-shadow: 0px 2px 10px rgba(255, 204, 0, 0.3);
+        }
+        
+        /* Page heading container styles */
+        .page-heading-container {
+          position: relative;
+          margin-bottom: 10px;
+          width: 100%;
+        }
+        
+        .page-heading-bg {
+          position: relative;
+          width: 100%;
+          height: 200px;
+          overflow: hidden;
+        }
+        
+        .page-bg-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        .page-heading-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(135deg, 
+            rgba(30, 58, 138, 0.85) 0%, 
+            rgba(37, 99, 235, 0.75) 30%, 
+            rgba(59, 130, 246, 0.65) 70%, 
+            rgba(96, 165, 250, 0.55) 100%);
+        }
+        
+        .page-heading-content {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          text-align: center;
+          z-index: 10;
+          width: 100%;
+        }
+        
+        .booking-gradient-text {
+          background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 40%, #dbeafe 80%, #bfdbfe 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          text-fill-color: transparent;
+          display: inline-block;
+          text-shadow: 0px 3px 15px rgba(255, 255, 255, 0.6);
+          font-weight: 700;
+        }
+        
+        .confirm-gradient-text {
+          background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 40%, #e0f2fe 80%, #bae6fd 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          text-fill-color: transparent;
+          display: inline-block;
+          text-shadow: 0px 3px 15px rgba(255, 255, 255, 0.6);
+          font-weight: 700;
+        }
+        
+        .page-subtitle {
+          color: rgba(255, 255, 255, 0.95);
+          font-size: 18px;
+          font-weight: 500;
+          margin-top: 15px;
+          text-shadow: 0px 2px 8px rgba(0, 0, 0, 0.3);
+          max-width: 600px;
+          margin-left: auto;
+          margin-right: auto;
+          line-height: 1.4;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+          .page-heading-bg {
+            height: 220px;
+          }
+          
+          .page-heading-content h1 {
+            font-size: 28px !important;
+          }
+          
+          .page-subtitle {
+            font-size: 16px;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .page-heading-bg {
+            height: 180px;
+          }
+          
+          .page-heading-content h1 {
+            font-size: 24px !important;
+          }
+          
+          .page-subtitle {
+            font-size: 14px;
+          }
+          
+          .page-heading-container {
+            margin-bottom: 5px;
+          }
         }
       `}</style>
     </section>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { fetchEnquiryList } from "../../../slice/common/enquiryListSlice";
+import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
 import { styled } from "@mui/material/styles";
 import {
   Box,

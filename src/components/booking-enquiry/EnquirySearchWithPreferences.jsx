@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
-import MainFilterSearchBox from "./MainFilterSearchBox";
+import MainFilterSearchBox from "../hero/hero-2/MainFilterSearchBox";
 import PreferredHotelsDropdown from "./PreferredHotelsDropdown";
 import { setPreferredHotels } from "../../../slice/common/BookingSlice";
 

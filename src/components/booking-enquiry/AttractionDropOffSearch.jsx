@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { fetchEnquiryList } from "../../../slice/common/enquiryListSlice";
+import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
 import { styled } from "@mui/material/styles";
-import {
+import { 
   Box,
   TextField,
-  Typography,
   Paper,
-  List,
-  ListItem,
+  Typography,
+  CircularProgress,
   Button,
   IconButton,
-  Chip,
-  CircularProgress
+  Divider,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemText,
+  Chip
 } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
-import EventIcon from "@mui/icons-material/Event";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 
@@ -35,10 +38,8 @@ const DropdownContainer = styled(Paper)(({ theme }) => ({
   boxShadow: theme.shadows[3],
 }));
 
-const RestaurantOption = styled(ListItem)(({ theme }) => ({
-  padding: theme.spacing(1.5, 2),
+const AttractionOption = styled(ListItem)(({ theme }) => ({
   cursor: "pointer",
-  transition: "background-color 0.2s",
   borderBottom: `1px solid ${theme.palette.divider}`,
   display: "flex",
   justifyContent: "space-between",
@@ -52,18 +53,18 @@ const RestaurantOption = styled(ListItem)(({ theme }) => ({
   },
 }));
 
-const RestaurantInfo = styled(Box)({
+const AttractionInfo = styled(Box)({
   flex: 1,
 });
 
-const RestaurantMetadata = styled(Box)(({ theme }) => ({
+const AttractionMetadata = styled(Box)(({ theme }) => ({
   display: "flex",
   flexWrap: "wrap",
   gap: theme.spacing(1),
   marginBottom: theme.spacing(0.5),
 }));
 
-const RestaurantImage = styled(Box)(({ theme }) => ({
+const AttractionImage = styled(Box)(({ theme }) => ({
   width: 60,
   height: 60,
   flexShrink: 0,
@@ -84,7 +85,6 @@ const OthersOption = styled(ListItem)(({ theme }) => ({
   cursor: "pointer",
   borderTop: `1px dashed ${theme.palette.divider}`,
   fontSize: 13,
-  padding: theme.spacing(1.5, 2),
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
   },
@@ -125,30 +125,23 @@ const SelectedItem = styled(ListItem)(({ theme }) => ({
   },
 }));
 
-const CuisineChip = styled(Chip)(({ theme }) => ({
-  height: 22,
-  fontSize: 11,
-  backgroundColor: theme.palette.grey[100],
-  marginBottom: theme.spacing(0.5),
-}));
-
-const RestaurantDropOffSearch = ({ onSelect }) => {
+const AttractionDropOffSearch = ({ onSelect }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [selectedAttraction, setSelectedAttraction] = useState(null);
   const [showOthersInput, setShowOthersInput] = useState(false);
-  const [otherRestaurantName, setOtherRestaurantName] = useState("");
+  const [otherAttractionName, setOtherAttractionName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Get restaurants from Redux store
-  const { restaurants = [], loading, error } = useSelector(state => state.enquiryList || { restaurants: [], loading: false });
+  // Get attractions from Redux store
+  const { attractions = [], loading, error } = useSelector(state => state.enquiryList || { attractions: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
 
-  // Filter restaurants based on search term
-  const filteredRestaurants = restaurants ? restaurants.filter((restaurant) =>
-    restaurant && restaurant.name && restaurant.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter attractions based on search term
+  const filteredAttractions = attractions ? attractions.filter((attraction) =>
+    attraction && attraction.name && attraction.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) : [];
 
   // Handle clicking outside to close dropdown
@@ -169,42 +162,42 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
     };
   }, []);
 
-  // Handle restaurant selection
-  const handleRestaurantSelect = (restaurant) => {
-    if (restaurant === "others") {
+  // Handle attraction selection
+  const handleAttractionSelect = (attraction) => {
+    if (attraction === "others") {
       setShowOthersInput(true);
-      setSelectedRestaurant(null);
+      setSelectedAttraction(null);
     } else {
-      setSelectedRestaurant(restaurant);
+      setSelectedAttraction(attraction);
       setShowOthersInput(false);
-      setSearchTerm(restaurant.name);
-      if (onSelect) onSelect(restaurant);
+      setSearchTerm(attraction.name);
+      if (onSelect) onSelect(attraction);
     }
     setIsDropdownOpen(false);
   };
 
-  // Handle other restaurant name submission
-  const handleOtherRestaurantSubmit = () => {
-    if (otherRestaurantName.trim()) {
-      const customRestaurant = { 
-        restaurant_id: `custom-${Date.now()}`, 
-        name: otherRestaurantName.trim() 
+  // Handle other attraction name submission
+  const handleOtherAttractionSubmit = () => {
+    if (otherAttractionName.trim()) {
+      const customAttraction = { 
+        attraction_id: `custom-${Date.now()}`, 
+        name: otherAttractionName.trim() 
       };
-      setSelectedRestaurant(customRestaurant);
-      setSearchTerm(otherRestaurantName.trim());
-      if (onSelect) onSelect(customRestaurant);
+      setSelectedAttraction(customAttraction);
+      setSearchTerm(otherAttractionName.trim());
+      if (onSelect) onSelect(customAttraction);
       setShowOthersInput(false);
     }
   };
 
-  // Remove selected restaurant
-  const handleRemoveRestaurant = () => {
-    setSelectedRestaurant(null);
+  // Remove selected attraction
+  const handleRemoveAttraction = () => {
+    setSelectedAttraction(null);
     setSearchTerm("");
     if (onSelect) onSelect(null);
   };
 
-  // Generate a placeholder for the restaurant description
+  // Generate a placeholder for the attraction description
   const getDescriptionSnippet = (description) => {
     if (!description) return "No description available";
     
@@ -213,14 +206,13 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
     return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText;
   };
 
-  // Format meal availability
-  const getMealAvailability = (restaurant) => {
-    const meals = [];
-    if (restaurant.breakfast_available) meals.push("Breakfast");
-    if (restaurant.lunch_available) meals.push("Lunch");
-    if (restaurant.dinner_available) meals.push("Dinner");
+  // Format opening hours
+  const formatHours = (openTime, closeTime) => {
+    if (!openTime || !closeTime || !Array.isArray(openTime) || !Array.isArray(closeTime) || openTime.length === 0 || closeTime.length === 0) {
+      return null;
+    }
     
-    return meals.length > 0 ? meals.join(", ") : null;
+    return `${openTime[0]} - ${closeTime[0]}`;
   };
 
   return (
@@ -230,7 +222,7 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
           inputRef={inputRef}
           fullWidth
           variant="outlined"
-          placeholder="Search for restaurants..."
+          placeholder="Search for attractions..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -246,62 +238,60 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
                 <CircularProgress size={20} sx={{ mr: 1 }} />
-                <Typography color="text.secondary">Loading restaurants...</Typography>
+                <Typography color="text.secondary">Loading attractions...</Typography>
               </Box>
             ) : error ? (
               <Box sx={{ p: 2, color: 'error.main', textAlign: 'center', borderLeft: 3, borderColor: 'error.main', bgcolor: 'error.light', opacity: 0.05 }}>
                 <Typography>Error: {error}</Typography>
               </Box>
-            ) : filteredRestaurants.length > 0 ? (
-              filteredRestaurants.map((restaurant) => (
-                <RestaurantOption
-                  key={restaurant.restaurant_id || `restaurant-${Math.random()}`}
-                  onClick={() => handleRestaurantSelect(restaurant)}
+            ) : filteredAttractions.length > 0 ? (
+              filteredAttractions.map((attraction) => (
+                <AttractionOption
+                  key={attraction.attraction_id || `attraction-${Math.random()}`}
+                  onClick={() => handleAttractionSelect(attraction)}
+                  divider
                 >
-                  <RestaurantInfo>
-                    <Typography variant="subtitle2" fontWeight={500}>{restaurant.name}</Typography>
-                    <RestaurantMetadata>
-                      {restaurant.city && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 12, color: 'text.secondary' }}>
+                  <AttractionInfo>
+                    <Typography variant="subtitle1" fontWeight={500}>{attraction.name}</Typography>
+                    <AttractionMetadata>
+                      {attraction.location && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', fontSize: 12 }}>
                           <LocationOnIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
-                          {restaurant.city}
+                          {attraction.location}
                         </Box>
                       )}
-                      {getMealAvailability(restaurant) && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 12, color: 'text.secondary' }}>
-                          <EventIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
-                          {getMealAvailability(restaurant)}
+                      {formatHours(attraction.open_time, attraction.close_time) && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', fontSize: 12 }}>
+                          <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
+                          {formatHours(attraction.open_time, attraction.close_time)}
                         </Box>
                       )}
-                    </RestaurantMetadata>
-                    {restaurant.cuisine && (
-                      <CuisineChip size="small" label={restaurant.cuisine} />
-                    )}
-                    {restaurant.description && (
+                    </AttractionMetadata>
+                    {attraction.description && (
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.4 }}>
-                        {getDescriptionSnippet(restaurant.description)}
+                        {getDescriptionSnippet(attraction.description)}
                       </Typography>
                     )}
-                  </RestaurantInfo>
-                  {restaurant.master_image && (
-                    <RestaurantImage>
-                      <img src={restaurant.master_image} alt={restaurant.name} />
-                    </RestaurantImage>
+                  </AttractionInfo>
+                  {attraction.master_image && (
+                    <AttractionImage>
+                      <img src={attraction.master_image} alt={attraction.name} />
+                    </AttractionImage>
                   )}
-                </RestaurantOption>
+                </AttractionOption>
               ))
             ) : (
               <Box sx={{ p: 2, color: 'text.secondary', textAlign: 'center', fontStyle: 'italic' }}>
                 <Typography>
-                  {restaurants.length > 0 
-                    ? "No restaurants match your search" 
-                    : "No restaurants found for this location"}
+                  {attractions.length > 0 
+                    ? "No attractions match your search" 
+                    : "No attractions found for this location"}
                 </Typography>
               </Box>
             )}
-            <OthersOption onClick={() => handleRestaurantSelect("others")}>
+            <OthersOption onClick={() => handleAttractionSelect("others")}>
               <AddIcon fontSize="small" sx={{ mr: 1 }} />
-              <Typography variant="body2">Can't find your restaurant? Add it manually</Typography>
+              <Typography variant="body2">Can't find your attraction? Add it manually</Typography>
             </OthersOption>
           </List>
         </DropdownContainer>
@@ -312,48 +302,41 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
           <TextField
             fullWidth
             size="small"
-            placeholder="Enter restaurant name"
-            value={otherRestaurantName}
-            onChange={(e) => setOtherRestaurantName(e.target.value)}
+            placeholder="Enter attraction name"
+            value={otherAttractionName}
+            onChange={(e) => setOtherAttractionName(e.target.value)}
           />
           <Button 
             variant="contained" 
             color="primary" 
-            onClick={handleOtherRestaurantSubmit}
+            onClick={handleOtherAttractionSubmit}
           >
-            Add Restaurant
+            Add Attraction
           </Button>
         </OthersInputContainer>
       )}
 
-      {selectedRestaurant && (
+      {selectedAttraction && (
         <SelectedContainer>
           <SelectedHeader>
             <Typography variant="subtitle2" color="primary" fontWeight={500}>
-              Selected Restaurant
+              Selected Attraction
             </Typography>
           </SelectedHeader>
           <SelectedItems>
             <SelectedItem>
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="body2" fontWeight={500}>{selectedRestaurant.name}</Typography>
-                {selectedRestaurant.cuisine && (
-                  <CuisineChip 
-                    size="small" 
-                    label={selectedRestaurant.cuisine} 
-                    sx={{ mt: 0.5, mr: 'auto' }}
-                  />
-                )}
-                {selectedRestaurant.city && (
+                <Typography variant="body2" fontWeight={500}>{selectedAttraction.name}</Typography>
+                {selectedAttraction.location && (
                   <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 12, color: 'text.secondary', mt: 0.5 }}>
                     <LocationOnIcon fontSize="small" sx={{ mr: 0.5, fontSize: 14 }} />
-                    {selectedRestaurant.city}
+                    {selectedAttraction.location}
                   </Box>
                 )}
               </Box>
               <IconButton 
                 size="small"
-                onClick={handleRemoveRestaurant}
+                onClick={handleRemoveAttraction}
                 sx={{ 
                   width: 24, 
                   height: 24,
@@ -373,4 +356,4 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
   );
 };
 
-export default RestaurantDropOffSearch; 
+export default AttractionDropOffSearch; 

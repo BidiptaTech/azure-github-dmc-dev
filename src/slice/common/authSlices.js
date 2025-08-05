@@ -154,6 +154,7 @@ const getInitialState = () => {
   const DmcLogo = Cookies.get("DmcLogo") || null;
   const DmcName = Cookies.get("DmcName") || null;
   const dmcLogo = Cookies.get("dmcLogo") || null; // New field for dmc_logo
+  const agencyLogo = Cookies.get("agencyLogo") || null; // New field for agency_logo
   const dmcCompanyName = Cookies.get("dmcCompanyName") || null; // New field for dmc_company_name
   const dialMaxLength = Cookies.get("dialMaxLength") || null;
   const dialMinLength = Cookies.get("dialMinLength") || null;
@@ -192,6 +193,7 @@ const getInitialState = () => {
     DmcLogo,
     DmcName,
     dmcLogo,
+    agencyLogo,
     dmcCompanyName,
     usdExchangeRate,
     usdCurrencyCode,
@@ -249,6 +251,7 @@ export const loginUser = createAsyncThunk(
           sgd_tax: sgdTax,
           agent_country_tax: currentTax,
           logo: DmcLogo,
+          agency_logo: agencyLogo,
           agent_country_max_length: dialMaxLength,
           agent_country_min_length: dialMinLength,
           price_hide: PriceHide,
@@ -445,6 +448,13 @@ export const loginUser = createAsyncThunk(
             sameSite: "Strict",
           });
         }
+        if (agencyLogo) {
+          Cookies.set("agencyLogo", agencyLogo, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }   
 
         // Add DmcName to cookies
         Cookies.set("DmcName", DmcName, {
