@@ -387,7 +387,6 @@ class GuideController extends Controller
         } else {
             return response()->json(["message" => "Guide not found"], 404);
         }
-
         $data = [
             'guide' => $mappedGuide,
             'bookingDetails' => $guideBookings,
@@ -395,5 +394,4 @@ class GuideController extends Controller
         
         return $data;
     }
-
 }
