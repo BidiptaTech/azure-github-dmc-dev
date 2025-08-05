@@ -14,6 +14,9 @@ use App\Models\User;
 use App\Models\Guide;
 use App\Models\Restaurant;
 use App\Models\Meal;
+use App\Models\Zone;
+use App\Models\Vehicle;
+use App\Models\VehicleZoneMapping;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
@@ -529,7 +532,6 @@ class SingleTourPackageController extends Controller
     {
         try {
             $roomId = $request->input('room_id');
-            
             if (!$roomId) {
                 return response()->json([
                     'success' => false,
@@ -544,7 +546,6 @@ class SingleTourPackageController extends Controller
                         'extra_bed', 'extra_bed_price', 'extra_bed_type', 'baby_cot', 'baby_cot_price')
                 ->orderBy('room_type')
                 ->get();
-
             return response()->json([
                 'success' => true,
                 'beds' => $beds,
@@ -811,6 +812,120 @@ class SingleTourPackageController extends Controller
             } catch (\Exception $e2) {
                 return $time; // Return original if parsing fails
             }
+        }
+    }
+
+    /**
+     * Fetch zones for transportation dropdowns
+     */
+    public function fetchZones(Request $request)
+    {
+        try {
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            $city = $request->input('city');
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            // Fetch zones for the current DMC and city
+            $zones = Zone::where('dmc_id', $dmcId)  
+                ->where('status', 1)
+                ->when($city, function ($query, $city) {
+                    return $query->where('city', $city);
+                })
+                ->select('zone_id', 'zone_name', 'zone_type', 'city', 'description')
+                ->orderBy('zone_name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'zones' => $zones,
+                'total_zones' => count($zones)
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching zones: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Fetch vehicles based on zone mapping
+     */
+    public function fetchVehiclesByZones(Request $request)
+    {
+        try {
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            $fromZoneId = $request->input('from_zone_id');
+            $toZoneId = $request->input('to_zone_id');
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            if (!$fromZoneId || !$toZoneId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Both pickup and dropoff zones are required'
+                ], 400);
+            }
+
+            // Fetch vehicles that have zone mappings between the selected zones
+            $vehicleMappings = VehicleZoneMapping::with(['vehicle', 'fromZone', 'toZone'])
+                ->where('from_zone_id', $fromZoneId)
+                ->where('to_zone_id', $toZoneId)
+                ->whereHas('vehicle', function ($query) use ($dmcId) {
+                    $query->whereJsonContains('dmc_id', (int) $dmcId)
+                          ->where('is_available', 1);
+                })
+                ->get();
+
+            // Format the response with vehicle details and pricing
+            $vehicles = $vehicleMappings->map(function ($mapping) {
+                return [
+                    'vehicle_id' => $mapping->vehicle->vehicle_id,
+                    'vehicle_name' => $mapping->vehicle->vehicle_name,
+                    'vehicle_type' => $mapping->vehicle->vehicle_type,
+                    'seating_capacity' => $mapping->vehicle->seating_capacity,
+                    'vehicle_model' => $mapping->vehicle->vehicle_model,
+                    'image' => $mapping->vehicle->image,
+                    'private_price' => $mapping->private_price,
+                    'shared_price' => $mapping->shared_price,
+                    'service_type' => $mapping->vehicle->service_type,
+                    'from_zone' => $mapping->fromZone->zone_name,
+                    'to_zone' => $mapping->toZone->zone_name,
+                    'mapping_id' => $mapping->mapping_id
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'vehicles' => $vehicles,
+                'total_vehicles' => count($vehicles),
+                'from_zone_id' => $fromZoneId,
+                'to_zone_id' => $toZoneId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching vehicles: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
         }
     }
 } 
