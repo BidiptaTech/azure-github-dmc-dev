@@ -109,6 +109,9 @@
                     <thead>
                         <tr>
                             <th>No</th>
+                            @if($currentUser->role_id == 1 || $currentUser->role_id == 20)
+                            <th>DMC Name</th>
+                            @endif
                             <th>Display ID</th>
                             <th>Initiated Date</th>
                             <th>Comment</th>
@@ -126,6 +129,9 @@
                             @foreach($enquiries as $key => $enquiry)
                                 <tr data-enquiry-id="{{ $enquiry->enquiry_id }}">
                                     <td>{{ ++$key }}</td>
+                                    @if($currentUser->role_id == 1 || $currentUser->role_id == 20)
+                                    <td>{{ $enquiry->dmc->company_name ?? 'N/A' }}</td>
+                                    @endif
                                     <td>{{ $enquiry->display->display_id ?? 'N/A' }}</td>
                                     <td>
                                         {{\App\Helpers\CommonHelper::DateFormatAdmin($enquiry->created_at)}}
