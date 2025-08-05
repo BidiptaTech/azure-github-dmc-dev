@@ -20,6 +20,8 @@ const Header1 = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const dmcLogo = useSelector((state) => state.auth.dmcLogo);
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  console.log("agencyLogo", agencyLogo);
 
   const handleLogout = () => {
     dispatch(logoutUser());
@@ -74,8 +76,9 @@ const Header1 = () => {
                       e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
                     }}
                   >
+                    
                     <img
-                      src={dmcLogo}  
+                      src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}  
                       alt="logo icon"
                       style={{
                         width: "120px",

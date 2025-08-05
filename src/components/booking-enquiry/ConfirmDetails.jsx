@@ -45,7 +45,7 @@ import {
   Error as ErrorIcon,
   AttachMoney as AttachMoneyIcon
 } from "@mui/icons-material";
-import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice } from "../../../slice/common/EnquirySlice";
+import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice } from "@/slice/common/EnquirySlice";
 import axios from "axios";
 import Cookies from "js-cookie";  
 import { BASE_URL } from '@/services/api';
@@ -145,6 +145,10 @@ const getServiceIcon = (service) => {
 };
 
 const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOptions }) => {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const dispatch = useDispatch();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);

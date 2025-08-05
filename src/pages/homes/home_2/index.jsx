@@ -1,4 +1,4 @@
-import Hero2 from "@/components/hero/hero-2";
+import Hero2 from "@/components/booking-enquiry";
 
 import CallToActions from "@/components/common/CallToActions";
 

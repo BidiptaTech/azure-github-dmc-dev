@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { addCurrentTab } from "../../../features/hero/findPlaceSlice";
-import MainFilterSearchBox from "./MainFilterSearchBox";
+import { addCurrentTab } from "../../features/hero/findPlaceSlice";
+import MainFilterSearchBox from "../hero/hero-2/MainFilterSearchBox";
 import BookingEnquiries from "./BookingEnquiries";
 import ConfirmDetails from "./ConfirmDetails";
 import ThankYouModal from "./ThankYouModal";
@@ -13,6 +13,12 @@ const Index = () => {
   const { enquiryId, multiEnqId, tourId, id } = enquiryState;
   
   const dispatch = useDispatch();
+  
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   const [bookingOptions, setBookingOptions] = useState({
     hotel: false,
     entryExitPort: false,
@@ -28,6 +34,11 @@ const Index = () => {
   
   // Use currentPage to track which component to display
   const [currentPage, setCurrentPage] = useState("search"); // Options: "search", "bookingEnquiries", "confirmDetails"
+
+  // Scroll to top when currentPage changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentPage]);
 
   // Check if we have a submitted enquiry in localStorage on component mount
   useEffect(() => {

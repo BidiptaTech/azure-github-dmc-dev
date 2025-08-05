@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import EnquirySearchWithPreferences from "../../components/hero/hero-2/EnquirySearchWithPreferences";
+import EnquirySearchWithPreferences from "../../components/booking-enquiry/EnquirySearchWithPreferences";
 import DefaultHeader from "../../components/header/default-header";
 import CallToActions from "../../components/common/CallToActions";
 import DefaultFooter from "../../components/footer/default";
