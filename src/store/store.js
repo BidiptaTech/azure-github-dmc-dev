@@ -30,6 +30,7 @@ import tourPackagesReducer from "../slice/tour-packages/tourPackageSlice"
 import prePackagesReducer from "../slice/tour-packages/prePackagesSlice"
 import profileReducer from "../slice/common/profileSlice"
 import dmcReducer from "../slice/dmc/dmcSlice"
+import stepperButtonReducer from "../slice/common/stepperButtonSlice"
 
 export const store = configureStore({
   reducer: {
@@ -63,6 +64,7 @@ export const store = configureStore({
     tourPackages: tourPackagesReducer,
     prePackages: prePackagesReducer,
     profile: profileReducer,
-    dmc: dmcReducer
+    dmc: dmcReducer,
+    stepperButton: stepperButtonReducer
   },
 });

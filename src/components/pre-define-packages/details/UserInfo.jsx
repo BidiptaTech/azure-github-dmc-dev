@@ -37,12 +37,14 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 // import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { bookPackage, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 
 
 
 const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { bookingLoading, bookingSuccess, bookingError } = useSelector(state => state.prePackages);
   
   // Get search params to access the selected date
@@ -153,9 +155,11 @@ const selectedDate = searchParams?.date ?
       setTimeout(() => {
         onSubmit({ ...bookingData, user_info: formData });
         onClose();
+        // Navigate to dashboard pre-define-packages after successful booking
+        navigate('/dashboard/pre-define-packages');
       }, 1500);
     }
-  }, [bookingSuccess, bookingData, formData, onSubmit, onClose]);
+  }, [bookingSuccess, bookingData, formData, onSubmit, onClose, navigate]);
   
   // Handle booking error
   useEffect(() => {

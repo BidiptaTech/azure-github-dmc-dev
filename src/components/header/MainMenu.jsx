@@ -40,7 +40,6 @@ const MainMenu = ({ style = "" }) => {
 
   // Automatically fetch DMC count when component mounts
   useEffect(() => {
-    console.log('🔄 MainMenu: Automatically fetching DMC count...');
     dispatch(fetchDMCCount());
   }, [dispatch]);
 
@@ -56,28 +55,20 @@ const MainMenu = ({ style = "" }) => {
 
   // Common style for menu items
   const menuItemStyle = {
-    marginRight: "25px",
+    marginRight: "40px",
   };
 
   // === Book Tour Handlers (Single DMC Selection) ===
   const handleBookTourClick = (e) => {
     e.preventDefault();
     
-    console.log('🎯 Book Tour clicked - DMC Count:', dmcCount);
-    console.log('🎯 DMC Count Loading:', dmcCountLoading);
-    
     // Wait for DMC count to load
     if (dmcCountLoading) {
-      console.log('⏳ DMC count still loading - please wait...');
       return;
     }
     
     // Check if DMC count is 1 - if so, skip modal and go directly to booking
     if (dmcCount && dmcCount.dmc_count === 1) {
-      console.log('✅ Only 1 DMC available - skipping modal, going directly to booking');
-      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
-      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
-      
       // Navigate directly to the booking page without showing modal
       navigate("/dashboard/db-dashboard/home_1", { 
         state: { 
@@ -86,7 +77,6 @@ const MainMenu = ({ style = "" }) => {
         } 
       });
     } else {
-      console.log('📋 Multiple DMCs available - opening search modal');
       setIsSearchModalOpen(true);
     }
   };
@@ -98,8 +88,6 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handleDMCSelect = (selectedDMC) => {
-    console.log('Selected DMC (Book Tour):', selectedDMC);
-    console.log('Search Criteria (Book Tour):', searchCriteria);
     // Navigate to the tour booking page with the selected DMC and search criteria
     navigate("/dashboard/db-dashboard/home_1", { 
       state: { 
@@ -121,18 +109,11 @@ const MainMenu = ({ style = "" }) => {
   // === Book an Enquiry Handlers (Multiple DMC Selection) ===
   const handleBookEnquiryClick = (e) => {
     e.preventDefault();
-    console.log('🎯 Book Enquiry clicked - DMC Count:', dmcCount);
-    console.log('🎯 DMC Count Loading:', dmcCountLoading);
-    console.log('🎯 User Role:', userRole);
     if (dmcCountLoading) {  
-      console.log('⏳ DMC count still loading - please wait...');
       return;
     }
 
       if(dmcCount && dmcCount.dmc_count === 1){ 
-      console.log('✅ Only 1 DMC available - skipping modal, going directly to enquiry');
-      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
-      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
       navigate("/dashboard/db-dashboard/home_2", { 
         state: { 
           selectedDMCs: [selectedDmcData] ||{ dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
@@ -152,8 +133,6 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handleEnquiryDMCSelect = (selectedDMCs) => {
-    console.log('Selected DMCs (Book Enquiry):', selectedDMCs);
-    console.log('Search Criteria (Book Enquiry):', enquirySearchCriteria);
     // Navigate to the enquiry page with the selected DMCs and search criteria
     navigate("/dashboard/db-dashboard/home_2", { 
       state: { 
@@ -176,19 +155,13 @@ const MainMenu = ({ style = "" }) => {
   const handlePackagesClick = (e) => {
     e.preventDefault();
     
-    console.log('🎯 Packages clicked - DMC Count:', dmcCount);
-    console.log('🎯 DMC Count Loading:', dmcCountLoading);
-    console.log('🎯 User Role:', userRole);
-    
     // Wait for DMC count to load
     if (dmcCountLoading) {
-      console.log('⏳ DMC count still loading - please wait...');
       return;
     }
     
     // For non-Agent users, skip DMC selection and go directly to packages
     if (userRole !== "Agent") {
-      console.log('✅ Non-Agent user - skipping DMC selection, going directly to packages');
       navigate(packagesPath, { 
         state: { 
           selectedDMC: null,
@@ -200,10 +173,6 @@ const MainMenu = ({ style = "" }) => {
     
     // For Agent users, check DMC count
     if (dmcCount && dmcCount.dmc_count === 1) {
-      console.log('✅ Only 1 DMC available - skipping modal, going directly to packages');
-      console.log('✅ Using auto-stored DMC ID:', selectedDmcId);
-      console.log('✅ Using auto-stored DMC Data:', selectedDmcData);
-      
       // Navigate directly to the packages page without showing modal
       navigate(packagesPath, { 
         state: { 
@@ -212,7 +181,6 @@ const MainMenu = ({ style = "" }) => {
         } 
       });
     } else {
-      console.log('📋 Multiple DMCs available - opening search modal for packages');
       setIsPackagesSearchModalOpen(true);
     }
   };
@@ -224,8 +192,6 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handlePackagesDMCSelect = (selectedDMC) => {
-    console.log('Selected DMC (Packages):', selectedDMC);
-    console.log('Search Criteria (Packages):', packagesSearchCriteria);
     // Navigate to the packages page with the selected DMC and search criteria
     navigate(packagesPath, { 
       state: { 
@@ -254,30 +220,32 @@ const MainMenu = ({ style = "" }) => {
           }`}
           style={menuItemStyle}
         >
-          <Link
-            to="/dashboard/db-dashboard"
-            className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-            style={{ flexDirection: "column", alignItems: "flex-start" }}
-           
-          >
+                     <Link
+             to="/dashboard/db-dashboard"
+             className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+             style={{ flexDirection: "column", alignItems: "flex-start" }}
             
+           >
              
-                
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <FaChartLine className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-              <span
-                className={`fw-600 text-15 ${
-                  pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
-                }`}
-              >
-                Dashboard
-              </span>
-            </div>
-            <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-              Manage Your Experience
-            </div>
-           
-          </Link>
+              
+                 
+                           <div style={{ display: "flex", alignItems: "center" }}>
+                <FaChartLine 
+                  className="text-28 text-green-1" 
+                  style={{ marginRight: "12px" }} 
+                  title="Manage Your Experience"
+                />
+                <span
+                  className={`fw-700 text-18 ${
+                    pathname === "/dashboard/db-dashboard" ? "text-green-1" : ""
+                  }`}
+                  title="Manage Your Experience"
+                >
+                  Dashboard
+                </span>
+              </div>
+            
+           </Link>
         </li>
 
         {!isManagerOrSalesHead && (
@@ -287,29 +255,31 @@ const MainMenu = ({ style = "" }) => {
             }`}
             style={menuItemStyle}
           >
-              <a
-                href="#"
-                onClick={handleBookTourClick}
-              className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-              style={{ flexDirection: "column", alignItems: "flex-start" }}
-             
-            >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <FaCompass className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-                <span
-                  className={`fw-600 text-15 ${
-                    pathname === "/dashboard/db-dashboard/home_1"
-                      ? "text-green-1"
-                      : ""
-                  }`}
-                >
-                  Book Tour
-                </span> 
-              </div>
-              <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-                Discover Your Dream Destinations
-              </div>
-              </a>
+                             <a
+                 href="#"
+                 onClick={handleBookTourClick}
+               className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+               style={{ flexDirection: "column", alignItems: "flex-start" }}
+              
+             >
+                               <div style={{ display: "flex", alignItems: "center" }}>
+                  <FaCompass 
+                    className="text-28 text-green-1" 
+                    style={{ marginRight: "12px" }} 
+                    title="Discover Your Dream Destinations"
+                  />
+                  <span
+                    className={`fw-700 text-18 ${
+                      pathname === "/dashboard/db-dashboard/home_1"
+                        ? "text-green-1"
+                        : ""
+                    }`}
+                    title="Discover Your Dream Destinations"
+                  >
+                    Book Tour
+                  </span> 
+                </div>
+               </a>
           </li>
         )}
 
@@ -320,28 +290,30 @@ const MainMenu = ({ style = "" }) => {
             }`}
             style={menuItemStyle}
           >
-              <a
-                href="#"
-                onClick={handleBookEnquiryClick}
-              className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-              style={{ flexDirection: "column", alignItems: "flex-start" }}
-            >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <FaEnvelopeOpenText className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-                <span
-                  className={`fw-600 text-15 ${
-                    pathname === "/dashboard/db-dashboard/home_2"
-                      ? "text-green-1"
-                      : ""
-                  }`}
-                >
-                  Book An Enquiry
-                </span>
-              </div>
-              <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-                Reach Out for Custom Requests
-              </div>
-              </a>
+                             <a
+                 href="#"
+                 onClick={handleBookEnquiryClick}
+               className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+               style={{ flexDirection: "column", alignItems: "flex-start" }}
+             >
+                               <div style={{ display: "flex", alignItems: "center" }}>
+                  <FaEnvelopeOpenText 
+                    className="text-28 text-green-1" 
+                    style={{ marginRight: "12px" }} 
+                    title="Reach Out for Custom Requests"
+                  />
+                  <span
+                    className={`fw-700 text-18 ${
+                      pathname === "/dashboard/db-dashboard/home_2"
+                        ? "text-green-1"
+                        : ""
+                    }`}
+                    title="Reach Out for Custom Requests"
+                  >
+                    Book An Enquiry
+                  </span>
+                </div>
+               </a>
           </li>
         )}
 
@@ -350,26 +322,28 @@ const MainMenu = ({ style = "" }) => {
             pathname === packagesPath ? "current" : ""
           }`}
         >
-          <a
-            href="#"
-            onClick={handlePackagesClick}
-            className="d-flex items-center px-15 py-10 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-            style={{ flexDirection: "column", alignItems: "flex-start" }}
-          >
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <FaBoxOpen className="text-22 text-green-1" style={{ marginRight: "8px" }} />
-              <span
-                className={`fw-600 text-15 ${
-                  pathname === packagesPath ? "text-green-1" : ""
-                }`}
-              >
-                Packages
-              </span>
-            </div>
-            <div className="text-12 text-light-1 fw-400 mt-4" style={{ marginLeft: "30px" }}>
-              Custom Travel Bundles
-            </div>
-          </a>
+                     <a
+             href="#"
+             onClick={handlePackagesClick}
+             className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+             style={{ flexDirection: "column", alignItems: "flex-start" }}
+           >
+                           <div style={{ display: "flex", alignItems: "center" }}>
+                <FaBoxOpen 
+                  className="text-28 text-green-1" 
+                  style={{ marginRight: "12px" }} 
+                  title="Custom Travel Bundles"
+                />
+                <span
+                  className={`fw-700 text-18 ${
+                    pathname === packagesPath ? "text-green-1" : ""
+                  }`}
+                  title="Custom Travel Bundles"
+                >
+                  Packages
+                </span>
+              </div>
+           </a>
         </li>
       </ul>
     </nav>

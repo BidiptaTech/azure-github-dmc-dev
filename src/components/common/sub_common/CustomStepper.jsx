@@ -44,6 +44,7 @@ import {
   setType,
   //resetSteps,
 } from "@/slice/common/stepsSlice";
+import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom"; // Import useNavigate from React Router
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -127,6 +128,9 @@ export default function CustomStepper() {
   const { currentStep, stepStatus1, active_status } = useSelector(
     (state) => state.steps
   );
+  
+  // Get stepper button visibility state
+  const { buttonVisibility } = useSelector((state) => state.stepperButton);
 
   const steps = useMemo(
     () => [
@@ -448,6 +452,25 @@ export default function CustomStepper() {
     setOpenSnackbar(false); // Close Snackbar
   };
 
+  // Determine which buttons to show based on current step and booking responses
+  const getCurrentStepKey = () => {
+    if (currentStep >= 0 && currentStep < steps.length) {
+      return steps[currentStep].key;
+    }
+    return null;
+  };
+
+  const currentStepKey = getCurrentStepKey();
+  const currentStepButtonVisibility = buttonVisibility[currentStepKey] || { showSkip: true, showNext: false };
+  
+  // Special handling for the last step (Local Transfer) - show only Finish button
+  const isLastStep = currentStep === steps.length - 1;
+  
+  // For the last step, show only the Finish button (which uses the Next button logic)
+  // For other steps, use the normal logic
+  const shouldShowSkip = isLastStep ? false : (currentStepButtonVisibility.showSkip || (!currentStepButtonVisibility.showSkip && !currentStepButtonVisibility.showNext));
+  const shouldShowNext = isLastStep ? true : currentStepButtonVisibility.showNext;
+
   return (
     <>
       <Box
@@ -616,13 +639,14 @@ export default function CustomStepper() {
                 maxWidth: "95%",
               }}
             >
-              <Button
-                variant="contained"
-                startIcon={
-                  !isSkipping && <SkipNextIcon sx={{ fontSize: "1.2rem" }} />
-                }
-                onClick={handleSkip}
-                disabled={currentStep === steps.length - 1 || isSkipping}
+              {shouldShowSkip && (
+                <Button
+                  variant="contained"
+                  startIcon={
+                    !isSkipping && <SkipNextIcon sx={{ fontSize: "1.2rem" }} />
+                  }
+                  onClick={handleSkip}
+                  disabled={currentStep === steps.length - 1 || isSkipping}
                 sx={{
                   width: "auto",
                   minWidth: isSkipping ? "210px" : "110px",
@@ -673,21 +697,23 @@ export default function CustomStepper() {
                   "Skip"
                 )}
               </Button>
+              )}
 
-              <Button
-                variant="contained"
-                endIcon={
-                  !isProgressing &&
-                  (isTourCompleted ? (
-                    <DoneAllIcon sx={{ fontSize: "1.2rem" }} />
-                  ) : currentStep === steps.length - 1 ? (
-                    <CheckCircleIcon sx={{ fontSize: "1.2rem" }} />
-                  ) : (
-                    <ArrowForwardIcon sx={{ fontSize: "1.2rem" }} />
-                  ))
-                }
-                onClick={handleNext}
-                disabled={isTourCompleted || isProgressing}
+              {shouldShowNext && (
+                <Button
+                  variant="contained"
+                  endIcon={
+                    !isProgressing &&
+                    (isTourCompleted ? (
+                      <DoneAllIcon sx={{ fontSize: "1.2rem" }} />
+                    ) : currentStep === steps.length - 1 ? (
+                      <CheckCircleIcon sx={{ fontSize: "1.2rem" }} />
+                    ) : (
+                      <ArrowForwardIcon sx={{ fontSize: "1.2rem" }} />
+                    ))
+                  }
+                  onClick={handleNext}
+                  disabled={isTourCompleted || isProgressing}
                 sx={{
                   width: "auto",
                   minWidth: isProgressing ? "180px" : "110px",
@@ -754,6 +780,7 @@ export default function CustomStepper() {
                   "Next"
                 )}
               </Button>
+              )}
             </Box>
           </Box>
         </Box>
