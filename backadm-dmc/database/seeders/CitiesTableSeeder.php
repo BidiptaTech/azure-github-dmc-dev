@@ -33,6 +33,61 @@ class CitiesTableSeeder extends Seeder
                 'New York', 'Los Angeles', 'Chicago', 'Houston', 'Miami', 'Philadelphia', 'San Antonio', 'San Diego', 'San Jose', 'Austin',
                 'Jacksonville', 'San Francisco', 'Columbus', 'Charlotte', 'Seattle', 'Denver', 'Washington', 'Boston', 'Nashville', 'El Paso',
             ],
+            'Thailand' => [
+                'Bangkok', 'Chiang Mai', 'Phuket', 'Pattaya', 'Krabi',
+                'Ayutthaya', 'Hua Hin', 'Chiang Rai', 'Kanchanaburi', 'Udon Thani',
+                'Nakhon Ratchasima', 'Surat Thani', 'Hat Yai', 'Rayong', 'Trang',
+                'Lampang', 'Khon Kaen', 'Nakhon Si Thammarat', 'Phitsanulok', 'Sukhothai',
+                'Mae Hong Son', 'Loei', 'Buriram', 'Chonburi', 'Samut Prakan',
+                'Nakhon Pathom', 'Ratchaburi', 'Phrae', 'Ubon Ratchathani', 'Yala',
+            ],
+            'Cambodia' =>[
+                'Phnom Penh', 'Siem Reap', 'Battambang', 'Sihanoukville', 'Kampot',
+                'Kep', 'Poipet', 'Takeo', 'Kampong Cham', 'Koh Kong',
+                'Pursat', 'Svay Rieng', 'Stung Treng', 'Prey Veng', 'Kratie',
+                'Kampong Thom', 'Kampong Chhnang', 'Tbong Khmum', 'Banteay Meanchey', 'Oddar Meanchey',
+                'Preah Vihear', 'Ratanakiri', 'Mondulkiri', 'Senmonorom', 'Samraong',
+                'Pailin', 'Serei Saophoan', 'Takhmao', 'Doun Kaev', 'Baray',
+            ],
+            'Vietnam' => [
+                'Hanoi', 'Ho Chi Minh City', 'Da Nang', 'Hai Phong', 'Nha Trang',
+                'Hue', 'Can Tho', 'Vung Tau', 'Dalat', 'Bien Hoa',
+                'Buon Ma Thuot', 'Ha Long', 'Quy Nhon', 'Phan Thiet', 'My Tho',
+                'Thanh Hoa', 'Thai Nguyen', 'Nam Dinh', 'Long Xuyen', 'Rach Gia',
+                'Tuy Hoa', 'Cam Ranh', 'Bac Giang', 'Bac Ninh', 'Lang Son',
+                'Cao Bang', 'Tam Ky', 'Ha Tinh', 'Vinh', 'Phu Quoc',
+            ],
+            'Singapore' =>[
+                'Singapore'
+            ],
+            'Malaysia' =>[
+                'Kuala Lumpur', 'George Town', 'Johor Bahru', 'Ipoh', 'Malacca',
+                'Kota Kinabalu', 'Kuching', 'Shah Alam', 'Putrajaya', 'Petaling Jaya',
+                'Alor Setar', 'Seremban', 'Kuantan', 'Miri', 'Batu Pahat',
+                'Sibu', 'Sandakan', 'Taiping', 'Kangar', 'Nilai',
+                'Cyberjaya', 'Rawang', 'Bentong', 'Kluang', 'Segamat',
+                'Selayang', 'Sepang', 'Lahad Datu', 'Tawau', 'Bintulu',
+            ],
+            'Indonesia' =>[
+                'Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang',
+                'Bali', 'Denpasar', 'Palembang', 'Tangerang', 'Bekasi',
+                'Tangerang Selatan', 'Depok', 'Makassar', 'Kuala Lumpur',
+                'Kota Kinabalu', 'Kuching', 'Shah Alam', 'Putrajaya', 'Petaling Jaya',
+                'Alor Setar', 'Seremban', 'Kuantan', 'Miri', 'Batu Pahat',
+            ],
+            'India' => [
+                'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
+                'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Surat',
+                'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Bhopal',
+                'Patna', 'Ranchi', 'Bhubaneswar', 'Raipur', 'Chandigarh',
+                'Ludhiana', 'Amritsar', 'Jalandhar', 'Dehradun', 'Noida',
+                'Gurugram', 'Faridabad', 'Ghaziabad', 'Varanasi', 'Prayagraj',
+                'Agra', 'Meerut', 'Gwalior', 'Vadodara', 'Rajkot',
+                'Jodhpur', 'Udaipur', 'Ajmer', 'Aligarh', 'Gaya',
+                'Howrah', 'Asansol', 'Durgapur', 'Shillong', 'Guwahati',
+                'Imphal', 'Aizawl', 'Kohima', 'Itanagar', 'Panaji',
+                'Thiruvananthapuram', 'Kochi', 'Coimbatore', 'Madurai', 'Mysore',
+            ]
         ];
 
         $lastCityId = \App\Models\City::max('city_id');
