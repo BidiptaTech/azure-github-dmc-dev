@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useState, useEffect, useMemo } from "react";
 import { setFilter, clearFilters, setPriceMode, setPriceBounds } from "@/slice/hotel/CategorySlice";
 import PriceModeFilter from "../sidebar/PriceModeFilter";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 
 const Sidebar = () => {
@@ -19,8 +20,9 @@ const Sidebar = () => {
   const filters = useSelector((state) => state.category);
   const priceBounds = useSelector((state) => state.category.priceBounds); // Get price bounds from Redux
   const reduxPriceRange = useSelector((state) => state.category.priceRange); // Get price range from Redux
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || 'DMC';
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const hotels = useSelector((state) => state.hotels.hotels);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   

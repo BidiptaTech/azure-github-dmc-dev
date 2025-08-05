@@ -14,6 +14,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import HotelIcon from "@mui/icons-material/Hotel";
 import HotelBookingModal from "./HotelBookingModal";
 import { Typography, Box, Chip, Avatar, alpha } from "@mui/material";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -77,7 +78,9 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
 
@@ -298,10 +301,10 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                         />
                       ) : booking.priceMode === "dmc" ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                          {DmcLogo ? (
+                          {dmcLogo ? (
                             <Avatar
-                              src={DmcLogo} 
-                              alt="DMC Logo" 
+                              src={dmcLogo} 
+                              alt={`${dmcCompanyName} Logo`} 
                               sx={{ width: 24, height: 24 }}
                             />
                           ) : (
@@ -314,11 +317,11 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                                 fontSize: '12px'
                               }}
                             >
-                              {DmcName?.charAt(0) || "D"}
+                              {dmcCompanyName?.charAt(0) || "D"}
                             </Avatar>
                           )}
                           <Typography variant="body2" fontWeight="medium" color="#E65100">
-                            {DmcName || "DMC"}
+                            {dmcCompanyName}
                           </Typography>
                         </Box>
                       ) : (

@@ -32,6 +32,7 @@ import GroupIcon from "@mui/icons-material/Group";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import { useSelector } from "react-redux";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 // Utility functions
 const utils = {
@@ -117,7 +118,9 @@ const SectionTitle = ({ title }) => (
 // Main component
 const AttractionBookingModal = ({ open, onClose, booking }) => {
   // Add selector for DMC info
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const { bookings } = useSelector((state) => state.viewDetails);
 
   // Add these selectors at the top with other selectors
@@ -798,10 +801,10 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                 gap: 1,
                               }}
                             >
-                              {DmcLogo && (
+                              {dmcLogo && (
                                 <Avatar
-                                  src={DmcLogo}
-                                  alt="DMC Logo"
+                                  src={dmcLogo}
+                                  alt={`${dmcCompanyName} Logo`}
                                   sx={{ width: 32, height: 32 }}
                                 />
                               )}
@@ -809,7 +812,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                 variant="body1"
                                 sx={{ fontWeight: "medium" }}
                               >
-                                {`${DmcName || "DMC"}'s Mode`}
+                                {`${dmcCompanyName}'s Mode`}
                               </Typography>
                             </Box>
                           ) : (

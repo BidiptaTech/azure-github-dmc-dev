@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchPackageDetails } from '../../../slice/tour-packages/prePackagesSlice';
+import { fetchPackageDetails, resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlice';
 import {
   Container,
   Box,
@@ -48,6 +48,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import GradeIcon from '@mui/icons-material/Grade';
 import CategoryIcon from '@mui/icons-material/Category';
 import LocalDiningIcon from '@mui/icons-material/LocalDining';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -462,7 +463,7 @@ const PackageDetailsContainer = () => {
     };
   }, [activeDay, dayRefs.current.length]);
 
-  const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
+  const { packageDetails, loadingDetails, errorDetails, searchParams, bookingSuccess } = useSelector(state => state.prePackages);
   // const { packageDetails, loadingDetails, errorDetails, searchParams } = useSelector(state => state.prePackages);
 
   useEffect(() => {
@@ -471,6 +472,35 @@ const PackageDetailsContainer = () => {
       dispatch(fetchPackageDetails(id));
     }
   }, [dispatch, id]);
+
+  // Auto-dismiss booking success notification after 5 seconds
+  const [countdown, setCountdown] = useState(5);
+  
+  useEffect(() => {
+    if (bookingSuccess) {
+      setCountdown(5);
+      
+      const timer = setTimeout(() => {
+        dispatch(resetBookingStatus());
+      }, 5000);
+      
+      // Countdown timer for visual feedback
+      const countdownTimer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownTimer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => {
+        clearTimeout(timer);
+        clearInterval(countdownTimer);
+      };
+    }
+  }, [bookingSuccess, dispatch]);
 
 
 
@@ -783,7 +813,54 @@ const PackageDetailsContainer = () => {
 
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4, pt: bookingSuccess ? 8 : 4 }}>
+      {/* Sticky Success Notification */}
+      {bookingSuccess && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            bgcolor: 'success.main',
+            color: 'white',
+            py: 2,
+            px: 3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            animation: 'slideDown 0.3s ease-out',
+            '@keyframes slideDown': {
+              '0%': {
+                transform: 'translateY(-100%)',
+              },
+              '100%': {
+                transform: 'translateY(0)',
+              },
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CheckCircleIcon sx={{ mr: 1 }} />
+            <Typography variant="h6" fontWeight="bold">
+              Your booking has been successfully submitted!
+            </Typography>
+            <Typography variant="body2" sx={{ ml: 2, opacity: 0.8 }}>
+              (Auto-dismiss in {countdown}s)
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={() => dispatch(resetBookingStatus())}
+            sx={{ color: 'white' }}
+            size="small"
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      )}
+
       <Button
         variant="outlined"
         sx={{ mb: 3 }}

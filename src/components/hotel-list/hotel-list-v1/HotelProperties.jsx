@@ -30,6 +30,7 @@ import {
   Box,
   Chip,
   Tooltip,
+  Avatar,
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 
@@ -42,6 +43,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination } from "swiper";
 import { setPriceMode, setPriceModeId } from "@/slice/hotel/CategorySlice";
 import travClikImage from "../../../../public/Images/hotel/travclick.jpg";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 export default function HotelProperties() {
   const amenities = ["Breakfast", "WiFi", "Parking", "Swimming Pool"];
@@ -59,8 +61,9 @@ export default function HotelProperties() {
     (state) => state.auth.usdCurrencySymbol
   );
   const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
-  const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const DmcName = useSelector((state) => state.auth.DmcName);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   //console.log(DmcName,"dmcName");
@@ -951,82 +954,95 @@ export default function HotelProperties() {
                                   {/* Show DMC mode if dmc_price is greater than 0 */}
                                   {item?.dmc_price > 0 && (
                                     <Box
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handlePriceModeChange(item.id, "dmc");
+                                      }}
                                       sx={{
                                         textAlign: "left",
-                                        border: "1px solid #e0e0e0",
-                                        borderRadius: "8px",
-                                        p: 0.75,
-                                        m: 0.5,
-                                        minWidth: "150px",
-                                        maxWidth: "150px",
-                                        transition: "all 0.2s ease-in-out",
+                                        border: "2px solid #ccc",
+                                        borderRadius: "12px",
+                                        p: 1,
+                                        m: 1,
+                                        width: "180px",
+                                        minHeight: "180px",
+                                        height: "auto",
                                         bgcolor:
                                           selectedPriceModes[item.id] === "dmc"
-                                            ? "#f0f7ff"
+                                            ? "#e6f2ff"
                                             : "#fff",
-                                        boxShadow:
-                                          selectedPriceModes[item.id] === "dmc"
-                                            ? "0 2px 5px rgba(0,0,0,0.1)"
-                                            : "none",
                                         transform:
                                           selectedPriceModes[item.id] === "dmc"
-                                            ? "scale(1.02)"
+                                            ? "scale(1.05)"
                                             : "scale(1)",
+                                        cursor: "pointer",
+                                        "&:hover": {
+                                          bgcolor: "#f5f5f5",
+                                        },
+                                        position: "relative",
+                                        zIndex: 1,
                                         display: "flex",
                                         flexDirection: "column",
-                                        justifyContent: "center",
-                                        borderColor:
-                                          selectedPriceModes[item.id] === "dmc"
-                                            ? "#3554D1"
-                                            : "#e0e0e0",
+                                        alignItems: "flex-start",
                                       }}
                                     >
-                                      <FormControlLabel
-                                        value="dmc"
-                                        control={
-                                          <Radio
-                                            name={`radio-${item.id}`}
-                                            checked={
-                                              selectedPriceModes[item.id] ===
-                                              "dmc"
-                                            }
-                                            onChange={() =>
-                                              handlePriceModeChange(
-                                                item.id,
-                                                "dmc"
-                                              )
-                                            }
-                                            size="small"
-                                          />
-                                        }
-                                        label={
-                                          <Box
-                                            display="flex"
-                                            alignItems="center"
-                                            sx={{ fontSize: "13px" }}
-                                          >
-                                            <img
+                                      <Box
+                                        sx={{
+                                          width: "100%",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handlePriceModeChange(item.id, "dmc");
+                                        }}
+                                      >
+                                        <Radio
+                                          checked={selectedPriceModes[item.id] === "dmc"}
+                                          onChange={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handlePriceModeChange(item.id, "dmc");
+                                          }}
+                                          value="dmc"
+                                          sx={{ p: 0, mr: 1, size: "small" }}
+                                          size="small"
+                                        />
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            fontSize: "0.8rem",
+                                            maxWidth: "120px",
+                                            overflow: "hidden",
+                                          }}
+                                        >
+                                          {dmcLogo && (
+                                            <Avatar
                                               src={dmcLogo}
-                                              alt="DMC Logo"
-                                              style={{
-                                                width: "14px",
-                                                height: "14px",
+                                              alt={`${dmcCompanyName} Logo`}
+                                              sx={{
+                                                width: 16,
+                                                height: 16,
                                                 marginRight: "4px",
-                                                objectFit: "contain",
-                                              }}
-                                              onError={(e) => {
-                                                console.error(
-                                                  "Error loading logo:",
-                                                  e
-                                                );
-                                                e.target.style.display = "none";
+                                                flexShrink: 0,
                                               }}
                                             />
-                                            {DmcName}
-                                          </Box>
-                                        }
-                                        sx={{ margin: 0, padding: 0 }}
-                                      />
+                                          )}
+                                          <Typography
+                                            sx={{
+                                              whiteSpace: "nowrap",
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                            }}
+                                          >
+                                            {`${dmcCompanyName}'s Mode`}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
                                       {PriceHide === "0" && (
                                         <Box
                                           sx={{
@@ -1082,83 +1098,67 @@ export default function HotelProperties() {
                                     (bookingType === "booking" ||
                                       bookingType === "null") && (
                                       <Box
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handlePriceModeChange(item.id, "travclicks");
+                                        }}
                                         sx={{
                                           textAlign: "left",
-                                          border: "1px solid #e0e0e0",
-                                          borderRadius: "8px",
-                                          p: 0.75,
-                                          m: 0.5,
-                                          minWidth: "150px",
-                                          maxWidth: "150px",
-                                          transition: "all 0.2s ease-in-out",
+                                          border: "2px solid #ccc",
+                                          borderRadius: "12px",
+                                          p: 1,
+                                          m: 1,
+                                          width: "180px",
+                                          minHeight: "180px",
+                                          height: "auto",
                                           bgcolor:
                                             selectedPriceModes[item.id] ===
                                             "travclicks"
-                                              ? "#f0f7ff"
+                                              ? "#e6f2ff"
                                               : "#fff",
-                                          boxShadow:
-                                            selectedPriceModes[item.id] ===
-                                            "travclicks"
-                                              ? "0 2px 5px rgba(0,0,0,0.1)"
-                                              : "none",
                                           transform:
                                             selectedPriceModes[item.id] ===
                                             "travclicks"
-                                              ? "scale(1.02)"
+                                              ? "scale(1.05)"
                                               : "scale(1)",
+                                          cursor: "pointer",
+                                          "&:hover": {
+                                            bgcolor: "#f5f5f5",
+                                          },
+                                          position: "relative",
+                                          zIndex: 1,
                                           display: "flex",
                                           flexDirection: "column",
-                                          justifyContent: "center",
-                                          borderColor:
-                                            selectedPriceModes[item.id] ===
-                                            "travclicks"
-                                              ? "#3554D1"
-                                              : "#e0e0e0",
+                                          alignItems: "flex-start",
                                         }}
                                       >
-                                        <FormControlLabel
-                                          value="travclicks"
-                                          control={
-                                            <Radio
-                                              name={`radio-${item.id}`}
-                                              checked={
-                                                selectedPriceModes[item.id] ===
-                                                "travclicks"
-                                              }
-                                              onChange={() =>
-                                                handlePriceModeChange(
-                                                  item.id,
-                                                  "travclicks"
-                                                )
-                                              }
-                                              size="small"
-                                            />
-                                          }
-                                          label={
-                                            <Box
-                                              display="flex"
-                                              alignItems="center"
-                                              sx={{ fontSize: "13px" }}
-                                            >
-                                              <img
-                                                src={travClikImage}
-                                                alt="Travclicks"
-                                                style={{
-                                                  width: "14px",
-                                                  height: "14px",
-                                                  marginRight: "4px",
-                                                  objectFit: "contain",
-                                                }}
-                                                onError={(e) => {
-                                                  e.target.style.display =
-                                                    "none";
-                                                }}
-                                              />
-                                              Travclicks
-                                            </Box>
-                                          }
-                                          sx={{ margin: 0, padding: 0 }}
-                                        />
+                                        <Box
+                                          sx={{
+                                            width: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                          }}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handlePriceModeChange(item.id, "travclicks");
+                                          }}
+                                        >
+                                          <Radio
+                                            checked={selectedPriceModes[item.id] === "travclicks"}
+                                            onChange={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handlePriceModeChange(item.id, "travclicks");
+                                            }}
+                                            value="travclicks"
+                                            sx={{ p: 0, mr: 1, size: "small" }}
+                                            size="small"
+                                          />
+                                          <Typography>Travclicks</Typography>
+                                        </Box>
                                         {PriceHide === "0" && (
                                           <Box
                                             sx={{
