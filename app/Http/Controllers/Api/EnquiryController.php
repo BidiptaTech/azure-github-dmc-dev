@@ -499,7 +499,7 @@ class EnquiryController extends Controller
         $enquiries = collect();
         $tour_enquiries_list = collect();
 
-        if ($agent_id) {
+        if ($agent_id && $user->userId) {
             // If user is DMC role (33, 37, 38), verify they have access to this agent
             if (in_array($user->role_id, [33, 37, 38])) {
                 $hasAccess = false;
@@ -538,7 +538,6 @@ class EnquiryController extends Controller
                         } elseif (!is_array($agent_dmc_ids)) {
                             $agent_dmc_ids = [$agent_dmc_ids];
                         }
-                        
                         $hasAccess = in_array($dmc_id, $agent_dmc_ids);
                     }
                 }
@@ -572,7 +571,6 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->get();
             }
-            
             if (!$enquiries) {
                 return response()->json([
                     'success' => false,
@@ -581,7 +579,7 @@ class EnquiryController extends Controller
             }
         }
 
-        elseif($user->userId){
+        elseif($user->userId && !$agent_id){
             $currentUser = null;
             if(in_array($user->role_id, [33, 37, 38,])){
                 $currentUser = User::where('userId', $user->userId)->first();
@@ -593,7 +591,6 @@ class EnquiryController extends Controller
                 }
             }
             if($currentUser){
-                
                 // For DMC roles (33, 37, 38), they must select an agent first
                 // No enquiries shown until an agent is selected
                 if($currentUser->role_id == 33){
