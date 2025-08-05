@@ -49,6 +49,7 @@ import {
   setBookingMode,
   setIsNavigating,
 } from "../../../slice/common/commonSlice";
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
 // Styled components for cards and headers
 const RoomCard = styled(Card)(({ theme }) => ({
@@ -122,10 +123,12 @@ export default function Index2() {
    console.log('attractionDetails srk................................................',attractionDetails);
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  // Get DMC logo and company name from DMC slice instead of auth slice
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || "DMC";
   const bookingType = useSelector((state) => state.common.bookingType);
 
-  // console.log('DmcName, DmcLogo in index2:', { DmcName, DmcLogo });
+  // console.log('dmcLogo, dmcCompanyName in index2:', { dmcLogo, dmcCompanyName });
 
   // State for enquiry form
   const [showEnquiry, setShowEnquiry] = useState(false);
@@ -488,7 +491,7 @@ export default function Index2() {
             },
             bookingType: "enquiry",
             package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-            package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
+            package_attraction_id: attractionDetails?.packages?.[0]?.package_attraction_id || null,
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],
@@ -1342,10 +1345,10 @@ export default function Index2() {
                               gap: 0.8,
                             }}
                           >
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -1358,7 +1361,7 @@ export default function Index2() {
                                   fontSize: "12px",
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography
@@ -1366,7 +1369,7 @@ export default function Index2() {
                               fontWeight="medium"
                               color="#E65100"
                             >
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         ) : (
@@ -1399,10 +1402,10 @@ export default function Index2() {
                               gap: 0.8,
                             }}
                           >
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -1415,7 +1418,7 @@ export default function Index2() {
                                   fontSize: "12px",
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography
@@ -1423,7 +1426,7 @@ export default function Index2() {
                               fontWeight="medium"
                               color="#E65100"
                             >
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         )

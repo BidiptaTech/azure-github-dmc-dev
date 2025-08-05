@@ -364,7 +364,7 @@ const CustomerInfo = forwardRef((props, ref) => {
           nri : attractionBookings?.[0]?.data?.[0]?.ticket_details?.nri || "residential",
           bookingType: "booking",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
+          package_attraction_id: attractionDetails?.packages?.[0]?.package_attraction_id || null,
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
@@ -524,7 +524,7 @@ const CustomerInfo = forwardRef((props, ref) => {
           },
           bookingType: "enquiry",
           package_type: attractionBookings?.[0]?.data?.[0]?.package_type || 0,
-          package_attraction_id: attractionDetails.packages[0].package_attraction_id || null,
+          package_attraction_id: attractionDetails?.packages?.[0]?.package_attraction_id || null,
           ...(isPackageBooking && packageDetails && { package_details: packageDetails })
         }],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,

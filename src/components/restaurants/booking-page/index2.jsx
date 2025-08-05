@@ -53,6 +53,7 @@ import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import AirportShuttleIcon from '@mui/icons-material/AirportShuttle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import GroupIcon from '@mui/icons-material/Group';
+import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice";
 
 const RoomCard = styled(Card)(({ theme }) => ({
   background: "white",
@@ -132,7 +133,8 @@ export default function Index2() {
   //  console.log('selectedRestaurant 13333333333',selectedRestaurant.id);
   
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
-  const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  const dmcLogo = useSelector(selectSelectedDmcLogo);
+  const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || "DMC";
 
 
   const [showMoreIndex, setShowMoreIndex] = useState(null);
@@ -1331,10 +1333,10 @@ const truncateToWords = (text, wordLimit) => {
                               gap: 0.8,
                             }}
                           >
-                            {DmcLogo ? (
+                            {dmcLogo ? (
                               <Avatar
-                                src={DmcLogo}
-                                alt="DMC Logo"
+                                src={dmcLogo}
+                                alt={`${dmcCompanyName} Logo`}
                                 sx={{ width: 24, height: 24 }}
                               />
                             ) : (
@@ -1347,7 +1349,7 @@ const truncateToWords = (text, wordLimit) => {
                                   fontSize: "12px",
                                 }}
                               >
-                                {DmcName?.charAt(0) || "D"}
+                                {dmcCompanyName?.charAt(0) || "D"}
                               </Avatar>
                             )}
                             <Typography
@@ -1356,7 +1358,7 @@ const truncateToWords = (text, wordLimit) => {
                               color="#E65100"
                               sx={{ }}
                             >
-                              {`${DmcName || "DMC"}'s Mode`}
+                              {`${dmcCompanyName}'s Mode`}
                             </Typography>
                           </Box>
                         ) : (

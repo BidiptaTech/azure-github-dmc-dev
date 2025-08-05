@@ -40,6 +40,7 @@ import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
 import { resetVehicles1 } from "../../../slice/localtour/Localslice";
 import {setSelectedCity} from "@/slice/common/commonSlice";
+import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSlice";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -217,6 +218,9 @@ const MainFilterSearchBox = () => {
 
     // Clear any existing restaurants data
     dispatch(clearRestaurants());
+
+    // Reset stepper button state for new search
+    dispatch(resetAllServiceResponses());
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
