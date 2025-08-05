@@ -178,8 +178,8 @@
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Number of Rooms</label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1">
+                                    <label class="form-label fw-semibold" hidden>Number of Rooms</label>
+                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" hidden> 
                                 </div>
                                 <div class="col-md-1 d-flex align-items-end">
                                     <button type="button" class="btn btn-success w-100" onclick="addHotel()">
@@ -254,55 +254,7 @@
                 </div>
             </div>
 
-            <!-- Package Details Section (Hidden Initially) -->
-            <div class="row mb-4" id="packageDetailsSection" style="display: none;">
-                <div class="col-12">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0 fw-bold text-secondary">
-                                <i class="ri-file-text-line me-2"></i>Package Details
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="package_name" class="form-label fw-semibold">
-                                        <i class="ri-bookmark-line me-1"></i>Package Name
-                                    </label>
-                                    <input type="text" name="package_name" id="package_name" class="form-control" placeholder="Enter package name..." required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="estimated_budget" class="form-label fw-semibold">
-                                        <i class="ri-money-dollar-circle-line me-1"></i>Estimated Budget (SGD)
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">S$</span>
-                                        <input type="number" name="estimated_budget" id="estimated_budget" class="form-control" placeholder="0.00" step="0.01" min="0">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <label for="package_description" class="form-label fw-semibold">
-                                        <i class="ri-file-list-line me-1"></i>Package Description
-                                    </label>
-                                    <textarea name="package_description" id="package_description" rows="4" class="form-control" placeholder="Describe the tour package details, inclusions, and highlights..."></textarea>
-                                </div>
-                            </div>
-                            <div class="row mt-3">
-                                <div class="col-md-4">
-                                    <div class="form-check form-switch form-check-lg">
-                                        <input class="form-check-input" type="checkbox" name="is_premium" id="is_premium">
-                                        <label class="form-check-label fw-semibold text-warning" for="is_premium">
-                                            <i class="ri-vip-crown-line me-1"></i>Premium Package
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             <!-- Transports and Other Services Section (Hidden Initially) -->
             <div class="row mb-4" id="transportSection" style="display: none;">
@@ -648,6 +600,12 @@
                 badges[1].textContent = children; // Children
                 badges[2].textContent = infants; // Infants
             }
+        }
+        
+        // Refresh meal plans if a hotel is already selected
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (hotelSelect && hotelSelect.value) {
+            updateHotelDependentDropdowns(hotelSelect.value);
         }
         
         // Close modal
@@ -1368,7 +1326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Extract unique values from rooms
                     const roomTypes = [...new Set(response.rooms.map(room => room.room_type).filter(Boolean))];
                     
-                    // Create meal plan options based on available meals and guest count
+                    // Create meal plan options based on room types and meal availability
                     const mealPlans = new Set();
                     
                     // Get current guest count
@@ -1377,59 +1335,80 @@ document.addEventListener('DOMContentLoaded', function() {
                     const infants = parseInt(document.getElementById('infants').value) || 0;
                     const totalGuests = adults + children; // Infants usually don't count for meals
                     
+                    // Group rooms by room type (star rating)
+                    const roomsByType = {};
                     response.rooms.forEach(room => {
-                        let mealOptions = [];
-                        let mealCosts = [];
-                        
-                        if (room.breakfast) {
-                            mealOptions.push('Breakfast');
-                            if (room.breakfast_price) {
-                                mealCosts.push(`Breakfast ($${(room.breakfast_price * totalGuests).toFixed(2)} for ${totalGuests} guests)`);
-                            }
+                        if (!roomsByType[room.room_type]) {
+                            roomsByType[room.room_type] = [];
                         }
-                        if (room.lunch) {
-                            mealOptions.push('Lunch');
-                            if (room.lunch_price) {
-                                mealCosts.push(`Lunch ($${(room.lunch_price * totalGuests).toFixed(2)} for ${totalGuests} guests)`);
-                            }
-                        }
-                        if (room.dinner) {
-                            mealOptions.push('Dinner');
-                            if (room.dinner_price) {
-                                mealCosts.push(`Dinner ($${(room.dinner_price * totalGuests).toFixed(2)} for ${totalGuests} guests)`);
-                            }
-                        }
-                        
-                        // Add meal plan combinations with guest-based pricing
-                        if (mealOptions.length > 0) {
-                            if (mealOptions.length === 1) {
-                                const totalCost = mealCosts.length > 0 ? ` - ${mealCosts[0]}` : '';
-                                mealPlans.add(`${mealOptions[0]} Only (${totalGuests} guests)${totalCost}`);
-                            } else if (mealOptions.length === 2) {
-                                const totalCost = mealCosts.length > 1 ? 
-                                    ` - Total: $${((room.breakfast_price || 0) + (room.lunch_price || 0) + (room.dinner_price || 0)) * totalGuests} for ${totalGuests} guests` : '';
-                                mealPlans.add(`${mealOptions.join(' + ')} (${totalGuests} guests)${totalCost}`);
-                            } else if (mealOptions.length === 3) {
-                                const totalCost = mealCosts.length > 2 ? 
-                                    ` - Total: $${((room.breakfast_price || 0) + (room.lunch_price || 0) + (room.dinner_price || 0)) * totalGuests} for ${totalGuests} guests` : '';
-                                mealPlans.add(`Full Board - All Meals (${totalGuests} guests)${totalCost}`);
-                            }
-                        }
-                        
-                        // Also add individual meal types with guest count
-                        if (room.breakfast_type) {
-                            const cost = room.breakfast_price ? ` - $${(room.breakfast_price * totalGuests).toFixed(2)}` : '';
-                            mealPlans.add(`${room.breakfast_type} Breakfast (${totalGuests} guests)${cost}`);
-                        }
-                        if (room.lunch_type) {
-                            const cost = room.lunch_price ? ` - $${(room.lunch_price * totalGuests).toFixed(2)}` : '';
-                            mealPlans.add(`${room.lunch_type} Lunch (${totalGuests} guests)${cost}`);
-                        }
-                        if (room.dinner_type) {
-                            const cost = room.dinner_price ? ` - $${(room.dinner_price * totalGuests).toFixed(2)}` : '';
-                            mealPlans.add(`${room.dinner_type} Dinner (${totalGuests} guests)${cost}`);
-                        }
+                        roomsByType[room.room_type].push(room);
                     });
+                    
+                    // Filter rooms based on guest count if needed (example: 3 guests = show only 1* rooms)
+                    let availableRoomTypes = Object.keys(roomsByType);
+                    if (totalGuests >= 3) {
+                        // For 3+ guests, filter to show only rooms that can accommodate them
+                        availableRoomTypes = availableRoomTypes.filter(roomType => {
+                            const rooms = roomsByType[roomType];
+                            return rooms.some(room => {
+                                // Check if room can accommodate the guests (you may need to adjust this logic)
+                                const maxCapacity = room.max_occupancy || room.adult_count || 4; // fallback to 4
+                                return maxCapacity >= totalGuests;
+                            });
+                        });
+                        
+                        // If guest count is exactly 3 and 1* rooms exist, prioritize them
+                        if (totalGuests === 3 && availableRoomTypes.some(type => type.includes('1'))) {
+                            availableRoomTypes = availableRoomTypes.filter(type => type.includes('1'));
+                        }
+                    }
+                    
+                    // Check what meals are available across all room types
+                    const hasBreakfast = response.rooms.some(room => room.breakfast);
+                    const hasLunch = response.rooms.some(room => room.lunch);
+                    const hasDinner = response.rooms.some(room => room.dinner);
+                    
+                    // Generate room quantity options based on guest count
+                    // For 3 guests: show 1, 2, 3 rooms options
+                    const maxRooms = Math.min(totalGuests, 3); // Max 3 rooms shown, or guest count if less
+                    const minRooms = 1;
+                    
+                    for (let roomCount = minRooms; roomCount <= maxRooms; roomCount++) {
+                        const roomText = roomCount === 1 ? `${roomCount} room` : `${roomCount} rooms`;
+                        
+                        // Add "Room Only" option first
+                        mealPlans.add(`${roomText} only`);
+                        
+                        // Add specific meal options
+                        if (hasBreakfast) {
+                            mealPlans.add(`${roomText} with breakfast`);
+                        }
+                        if (hasLunch) {
+                            mealPlans.add(`${roomText} with lunch`);
+                        }
+                        if (hasDinner) {
+                            mealPlans.add(`${roomText} with dinner`);
+                        }
+                        
+                        // Add combination meal options
+                        if (hasBreakfast && hasLunch) {
+                            mealPlans.add(`${roomText} with breakfast + lunch`);
+                        }
+                        if (hasBreakfast && hasDinner) {
+                            mealPlans.add(`${roomText} with breakfast + dinner`);
+                        }
+                        if (hasLunch && hasDinner) {
+                            mealPlans.add(`${roomText} with lunch + dinner`);
+                        }
+                        if (hasBreakfast && hasLunch && hasDinner) {
+                            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
+                        }
+                        
+                        // Add abbreviated versions for common combinations
+                        if (hasBreakfast) {
+                            mealPlans.add(`${roomText} with bf`);
+                        }
+                    }
                     
                     // Populate room types
                     roomTypes.forEach(roomType => {
@@ -1746,7 +1725,7 @@ document.addEventListener('DOMContentLoaded', function() {
                      <div class="day-content p-4 bg-light">
              `;
              
-                           // Entry Port Services (Only on Day 1)
+            // Entry Port Services (Only on Day 1)
               if (day === 1) {
                                    servicesHTML += `
                       <div class="service-card mb-4">
@@ -1779,54 +1758,116 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                               <div class="card-body bg-white">
                                  
-                                 <div class="row g-3">
+                                 <div class="row g-4 align-items-end">
                                      <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pick Up Location</label>
-                                         <input type="text" class="form-control" placeholder="Suntec City" name="day${day}_pickup_location">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_entry_pickup_zone_id" style="padding-left: 45px;">
+                                                     <option value="">Select pickup zone</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
                                      <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Drop Off Location</label>
-                                         <input type="text" class="form-control" placeholder="Serangoon MRT Station (CC13)" name="day${day}_dropoff_location">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_entry_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                     <option value="">Select pickup zone first</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'entry')">
+                                                     <i class="ri-close-line text-muted"></i>
+                                                 </button>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pick Up Time</label>
-                                         <select class="form-select" name="day${day}_pickup_time">
-                                             <option value="12:00 AM">12:00 AM</option>
-                                             <option value="01:00 AM">01:00 AM</option>
-                                             <option value="02:00 AM">02:00 AM</option>
-                                             <option value="03:00 AM">03:00 AM</option>
-                                             <option value="04:00 AM">04:00 AM</option>
-                                             <option value="05:00 AM">05:00 AM</option>
-                                             <option value="06:00 AM">06:00 AM</option>
-                                             <option value="07:00 AM">07:00 AM</option>
-                                             <option value="08:00 AM">08:00 AM</option>
-                                             <option value="09:00 AM">09:00 AM</option>
-                                             <option value="10:00 AM">10:00 AM</option>
-                                             <option value="11:00 AM">11:00 AM</option>
-                                             <option value="12:00 PM" selected>12:00 PM</option>
-                                             <option value="01:00 PM">01:00 PM</option>
-                                             <option value="02:00 PM">02:00 PM</option>
-                                             <option value="03:00 PM">03:00 PM</option>
-                                             <option value="04:00 PM">04:00 PM</option>
-                                             <option value="05:00 PM">05:00 PM</option>
-                                             <option value="06:00 PM">06:00 PM</option>
-                                             <option value="07:00 PM">07:00 PM</option>
-                                             <option value="08:00 PM">08:00 PM</option>
-                                             <option value="09:00 PM">09:00 PM</option>
-                                             <option value="10:00 PM">10:00 PM</option>
-                                             <option value="11:00 PM">11:00 PM</option>
-                                         </select>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select border-2" name="day${day}_entry_pickup_time" style="padding-left: 45px;">
+                                                     <option value="">Select The Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pick Up Date</label>
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_pickup_date">
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                             </label>
+                                             <div class="position-relative">
+                                                 <input type="date" class="form-control border-2" name="day${day}_entry_pickup_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'entry')" id="day${day}_entry_search_btn" disabled>
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                         </button>
                                      </div>
                                  </div>
                                  
-                                 <div class="mt-3 text-center">
-                                     <button type="button" class="btn btn-primary">
-                                         <i class="ri-search-line me-1"></i>Search
-                                     </button>
+                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                 <div class="row mt-4" id="day${day}_entry_vehicle_results" style="display: none;">
+                                     <div class="col-12">
+                                         <div class="alert alert-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-car-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Available Vehicles</strong>
+                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select vehicle-select" name="day${day}_entry_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry')">
+                                             <option value="">Choose vehicle</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Service Type</label>
+                                         <select class="form-select service-type-select" name="day${day}_entry_service_type" onchange="updatePricing(${day}, 'entry')">
+                                             <option value="">Select service type</option>
+                                         </select>
+                                     </div>
                                  </div>
                              </div>
                          </div>
@@ -1867,58 +1908,116 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                               <div class="card-body bg-white">
                                  
-                                 <div class="row g-3">
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Pick Up Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your pick up?" name="day${day}_exit_pickup_location">
+                                 <div class="row g-4 align-items-end">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" style="padding-left: 45px;">
+                                                     <option value="">Select pickup zone</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Drop Off Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your drop off?" name="day${day}_exit_dropoff_location">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                     <option value="">Select pickup zone first</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'exit')">
+                                                     <i class="ri-close-line text-muted"></i>
+                                                 </button>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Exit Time</label>
-                                         <select class="form-select" name="day${day}_exit_time">
-                                             <option value="">Select The Time</option>
-                                             <option value="12:00 AM">12:00 AM</option>
-                                             <option value="01:00 AM">01:00 AM</option>
-                                             <option value="02:00 AM">02:00 AM</option>
-                                             <option value="03:00 AM">03:00 AM</option>
-                                             <option value="04:00 AM">04:00 AM</option>
-                                             <option value="05:00 AM">05:00 AM</option>
-                                             <option value="06:00 AM">06:00 AM</option>
-                                             <option value="07:00 AM">07:00 AM</option>
-                                             <option value="08:00 AM">08:00 AM</option>
-                                             <option value="09:00 AM">09:00 AM</option>
-                                             <option value="10:00 AM">10:00 AM</option>
-                                             <option value="11:00 AM">11:00 AM</option>
-                                             <option value="12:00 PM">12:00 PM</option>
-                                             <option value="01:00 PM">01:00 PM</option>
-                                             <option value="02:00 PM">02:00 PM</option>
-                                             <option value="03:00 PM">03:00 PM</option>
-                                             <option value="04:00 PM">04:00 PM</option>
-                                             <option value="05:00 PM">05:00 PM</option>
-                                             <option value="06:00 PM">06:00 PM</option>
-                                             <option value="07:00 PM">07:00 PM</option>
-                                             <option value="08:00 PM">08:00 PM</option>
-                                             <option value="09:00 PM">09:00 PM</option>
-                                             <option value="10:00 PM">10:00 PM</option>
-                                             <option value="11:00 PM">11:00 PM</option>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-time-line text-warning me-2"></i>Exit Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select border-2" name="day${day}_exit_time" style="padding-left: 45px;">
+                                                     <option value="">Select The Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-calendar-line text-primary me-2"></i>Exit Date
+                                             </label>
+                                             <div class="position-relative">
+                                                 <input type="date" class="form-control border-2" name="day${day}_exit_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'exit')" id="day${day}_exit_search_btn" disabled>
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                         </button>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
+                                     <div class="col-12">
+                                         <div class="alert alert-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-car-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Available Vehicles</strong>
+                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select vehicle-select" name="day${day}_exit_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit')">
+                                             <option value="">Choose vehicle</option>
                                          </select>
                                      </div>
-                                 </div>
-                                 
-                                 <div class="row mt-3">
-                                     <div class="col-md-12">
-                                         <label class="form-label fw-semibold">Exit Date</label>
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_exit_date">
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Service Type</label>
+                                         <select class="form-select service-type-select" name="day${day}_exit_service_type" onchange="updatePricing(${day}, 'exit')">
+                                             <option value="">Select service type</option>
+                                         </select>
                                      </div>
-                                 </div>
-                                 
-                                 <div class="mt-3 text-center">
-                                     <button type="button" class="btn btn-primary">
-                                         <i class="ri-search-line me-1"></i>Search
-                                     </button>
                                  </div>
                              </div>
                          </div>
@@ -2223,51 +2322,116 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                                  
-                                 <div class="row g-3">
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Pick Up Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your pick up?" name="day${day}_transport_pickup">
+                                 <div class="row g-4 align-items-end">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;">
+                                                     <option value="">Select pickup zone</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Drop Off Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your drop off?" name="day${day}_transport_dropoff">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                     <option value="">Select pickup zone first</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'transport')">
+                                                     <i class="ri-close-line text-muted"></i>
+                                                 </button>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Select the Pick up Time</label>
-                                         <select class="form-select" name="day${day}_transport_pickup_time">
-                                             <option value="">Select The Time</option>
-                                             <option value="12:00 AM">12:00 AM</option>
-                                             <option value="01:00 AM">01:00 AM</option>
-                                             <option value="02:00 AM">02:00 AM</option>
-                                             <option value="03:00 AM">03:00 AM</option>
-                                             <option value="04:00 AM">04:00 AM</option>
-                                             <option value="05:00 AM">05:00 AM</option>
-                                             <option value="06:00 AM">06:00 AM</option>
-                                             <option value="07:00 AM">07:00 AM</option>
-                                             <option value="08:00 AM">08:00 AM</option>
-                                             <option value="09:00 AM">09:00 AM</option>
-                                             <option value="10:00 AM">10:00 AM</option>
-                                             <option value="11:00 AM">11:00 AM</option>
-                                             <option value="12:00 PM">12:00 PM</option>
-                                             <option value="01:00 PM">01:00 PM</option>
-                                             <option value="02:00 PM">02:00 PM</option>
-                                             <option value="03:00 PM">03:00 PM</option>
-                                             <option value="04:00 PM">04:00 PM</option>
-                                             <option value="05:00 PM">05:00 PM</option>
-                                             <option value="06:00 PM">06:00 PM</option>
-                                             <option value="07:00 PM">07:00 PM</option>
-                                             <option value="08:00 PM">08:00 PM</option>
-                                             <option value="09:00 PM">09:00 PM</option>
-                                             <option value="10:00 PM">10:00 PM</option>
-                                             <option value="11:00 PM">11:00 PM</option>
-                                         </select>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select border-2" name="day${day}_transport_pickup_time" style="padding-left: 45px;">
+                                                     <option value="">Select The Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-calendar-line text-primary me-2"></i>Transport Date
+                                             </label>
+                                             <div class="position-relative">
+                                                 <input type="date" class="form-control border-2" name="day${day}_transport_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport')" id="day${day}_transport_search_btn" disabled>
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                         </button>
                                      </div>
                                  </div>
                                  
-                                 <div class="mt-3 text-center">
-                                     <button type="button" class="btn btn-warning">
-                                         <i class="ri-search-line me-1"></i>Search
-                                     </button>
+                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                 <div class="row mt-4" id="day${day}_transport_vehicle_results" style="display: none;">
+                                     <div class="col-12">
+                                         <div class="alert alert-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-car-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Available Vehicles</strong>
+                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select vehicle-select" name="day${day}_transport_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport')">
+                                             <option value="">Choose vehicle</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Service Type</label>
+                                         <select class="form-select service-type-select" name="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
+                                             <option value="">Select service type</option>
+                                         </select>
+                                     </div>
                                  </div>
                              </div>
                          </div>
@@ -4262,7 +4426,372 @@ document.addEventListener('DOMContentLoaded', function() {
     updateMainGuestSummary();
      updateGuestSummary();
     updateAdultsCount();
+    
+    // Load zones when city is selected
+    loadZonesForCity();
+    
+    // Setup new transportation handlers
+    setupNewTransportationHandlers();
  });
+
+ // Zone and Vehicle Management Functions
+ function loadZonesForCity() {
+     const citySelect = document.getElementById('city');
+     if (citySelect) {
+         citySelect.addEventListener('change', function() {
+             const selectedCity = this.value;
+             if (selectedCity) {
+                 fetchZonesForAllTransportSections(selectedCity);
+             }
+         });
+     }
+ }
+
+ function fetchZonesForAllTransportSections(city) {
+     fetch(`/fetch-zones-by-dmc?city=${encodeURIComponent(city)}`)
+         .then(response => response.json())
+         .then(data => {
+             if (data.success && data.zones) {
+                 // Update all pickup zone selects
+                 const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
+                 pickupZoneSelects.forEach(select => {
+                     select.innerHTML = '<option value="">Select pickup zone</option>';
+                     data.zones.forEach(zone => {
+                         select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                     });
+                     select.disabled = false;
+                 });
+                 
+                 // Reset dependent dropdowns
+                 const dropoffZoneSelects = document.querySelectorAll('.dropoff-zone-select');
+                 dropoffZoneSelects.forEach(select => {
+                     select.innerHTML = '<option value="">Select pickup zone first</option>';
+                     select.disabled = true;
+                 });
+                 
+                 const vehicleSelects = document.querySelectorAll('.vehicle-select');
+                 vehicleSelects.forEach(select => {
+                     select.innerHTML = '<option value="">Select zones first</option>';
+                     select.disabled = true;
+                 });
+                 
+                 const serviceTypeSelects = document.querySelectorAll('.service-type-select');
+                 serviceTypeSelects.forEach(select => {
+                     select.innerHTML = '<option value="">Select vehicle first</option>';
+                     select.disabled = true;
+                 });
+             }
+         })
+         .catch(error => {
+             console.error('Error fetching zones:', error);
+         });
+ }
+
+ function loadDropoffZones(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+     
+     const pickupZoneId = pickupZoneSelect.value;
+     
+     if (pickupZoneId) {
+         const citySelect = document.getElementById('city');
+         const city = citySelect ? citySelect.value : '';
+         
+         fetch(`/fetch-zones-by-dmc?city=${encodeURIComponent(city)}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.zones) {
+                     dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+                     
+                     // Show all zones except the selected pickup zone
+                     data.zones.forEach(zone => {
+                         if (zone.zone_id !== pickupZoneId) {
+                             dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                         }
+                     });
+                     
+                     dropoffZoneSelect.disabled = false;
+                 }
+             })
+             .catch(error => {
+                 console.error('Error fetching dropoff zones:', error);
+             });
+     } else {
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+     }
+     
+     // Reset vehicle and service type selects
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (vehicleSelect) {
+         vehicleSelect.innerHTML = '<option value="">Select zones first</option>';
+         vehicleSelect.disabled = true;
+     }
+     
+     if (serviceTypeSelect) {
+         serviceTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+         serviceTypeSelect.disabled = true;
+     }
+ }
+
+ function loadVehiclesForZones(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect || !vehicleSelect) return;
+     
+     const fromZoneId = pickupZoneSelect.value;
+     const toZoneId = dropoffZoneSelect.value;
+     
+     if (fromZoneId && toZoneId) {
+         vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+         vehicleSelect.disabled = true;
+         
+         fetch(`/fetch-vehicles-by-zones?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.vehicles && data.vehicles.length > 0) {
+                     vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+                     
+                     data.vehicles.forEach(vehicle => {
+                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                             data-private-price="${vehicle.private_price}" 
+                             data-shared-price="${vehicle.shared_price}"
+                             data-service-type="${vehicle.service_type}"
+                             data-mapping-id="${vehicle.mapping_id}">
+                             ${vehicleInfo}
+                         </option>`;
+                     });
+                     
+                     vehicleSelect.disabled = false;
+                 } else {
+                     vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
+                     vehicleSelect.disabled = true;
+                 }
+             })
+             .catch(error => {
+                 console.error('Error fetching vehicles:', error);
+                 vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                 vehicleSelect.disabled = true;
+             });
+     } else {
+         vehicleSelect.innerHTML = '<option value="">Select zones first</option>';
+         vehicleSelect.disabled = true;
+     }
+     
+     // Reset service type select
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     if (serviceTypeSelect) {
+         serviceTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+         serviceTypeSelect.disabled = true;
+     }
+ }
+
+ function updateVehicleDetails(day, section) {
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (!vehicleSelect || !serviceTypeSelect) return;
+     
+     const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+     
+     if (selectedOption.value) {
+         const serviceType = selectedOption.getAttribute('data-service-type');
+         const privatePrice = selectedOption.getAttribute('data-private-price');
+         const sharedPrice = selectedOption.getAttribute('data-shared-price');
+         
+         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
+         
+         if (privatePrice && parseFloat(privatePrice) > 0) {
+             serviceTypeSelect.innerHTML += `<option value="private" data-price="${privatePrice}">Private - $${privatePrice}</option>`;
+         }
+         
+         if (sharedPrice && parseFloat(sharedPrice) > 0) {
+             serviceTypeSelect.innerHTML += `<option value="shared" data-price="${sharedPrice}">Shared - $${sharedPrice}</option>`;
+         }
+         
+         serviceTypeSelect.disabled = false;
+     } else {
+         serviceTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+         serviceTypeSelect.disabled = true;
+     }
+ }
+
+ function updatePricing(day, section) {
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (serviceTypeSelect) {
+         const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+         const price = selectedOption.getAttribute('data-price');
+         
+         if (price) {
+             console.log(`Selected ${selectedOption.value} service for day ${day}: $${price}`);
+             // You can add price display or calculation logic here
+         }
+     }
+ }
+
+ // New functions for the search-based interface
+ function searchVehicles(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+
+     if (!pickupZoneSelect || !dropoffZoneSelect || !pickupZoneSelect.value || !dropoffZoneSelect.value) {
+         alert('Please select both pickup and dropoff zones');
+         return;
+     }
+
+     const fromZoneId = pickupZoneSelect.value;
+     const toZoneId = dropoffZoneSelect.value;
+
+     // Show loading state
+     searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+     searchBtn.disabled = true;
+
+     fetch(`/fetch-vehicles-by-zones?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+         .then(response => response.json())
+         .then(data => {
+             if (data.success && data.vehicles && data.vehicles.length > 0) {
+                 // Populate vehicle dropdown
+                 vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                 data.vehicles.forEach(vehicle => {
+                     const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                     vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                         data-private-price="${vehicle.private_price}" 
+                         data-shared-price="${vehicle.shared_price}"
+                         data-service-type="${vehicle.service_type}"
+                         data-mapping-id="${vehicle.mapping_id}">
+                         ${vehicleInfo}
+                     </option>`;
+                 });
+
+                 // Show results section
+                 vehicleResultsDiv.style.display = 'block';
+                 vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                 // Reset search button
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.disabled = false;
+             } else {
+                 alert('No vehicles available for this route. Please try different zones.');
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.disabled = false;
+             }
+         })
+         .catch(error => {
+             console.error('Error searching vehicles:', error);
+             alert('Error searching vehicles. Please try again.');
+             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+             searchBtn.disabled = false;
+         });
+ }
+
+ function clearDropoffZone(day, section) {
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+
+     if (dropoffZoneSelect) {
+         dropoffZoneSelect.value = '';
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+     }
+
+     if (vehicleResultsDiv) {
+         vehicleResultsDiv.style.display = 'none';
+     }
+
+     if (searchBtn) {
+         searchBtn.disabled = true;
+     }
+ }
+
+ // Update the existing loadDropoffZones function for the new interface
+ function loadDropoffZonesNew(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+
+     const pickupZoneId = pickupZoneSelect.value;
+
+     if (pickupZoneId) {
+         const citySelect = document.getElementById('city');
+         const city = citySelect ? citySelect.value : '';
+
+         fetch(`/fetch-zones-by-dmc?city=${encodeURIComponent(city)}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.zones) {
+                     dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+
+                     // Show all zones except the selected pickup zone
+                     data.zones.forEach(zone => {
+                         if (zone.zone_id !== pickupZoneId) {
+                             dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                         }
+                     });
+
+                     dropoffZoneSelect.disabled = false;
+                 }
+             })
+             .catch(error => {
+                 console.error('Error fetching dropoff zones:', error);
+             });
+     } else {
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+         if (searchBtn) searchBtn.disabled = true;
+         if (vehicleResultsDiv) vehicleResultsDiv.style.display = 'none';
+     }
+ }
+
+ // Update dropdown change handlers for new interface
+ function setupNewTransportationHandlers() {
+     // Setup pickup zone change handlers
+     const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
+     pickupZoneSelects.forEach(select => {
+         select.addEventListener('change', function() {
+             const [day, section] = extractDayAndSection(this.name);
+             if (day && section) {
+                 loadDropoffZonesNew(day, section);
+             }
+         });
+     });
+
+     // Setup dropoff zone change handlers
+     const dropoffZoneSelects = document.querySelectorAll('.dropoff-zone-select');
+     dropoffZoneSelects.forEach(select => {
+         select.addEventListener('change', function() {
+             const [day, section] = extractDayAndSection(this.name);
+             const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+             
+             if (this.value && searchBtn) {
+                 searchBtn.disabled = false;
+             } else if (searchBtn) {
+                 searchBtn.disabled = true;
+             }
+         });
+     });
+ }
+
+ function extractDayAndSection(fieldName) {
+     // Extract day and section from field names like "day1_entry_pickup_zone_id"
+     const match = fieldName.match(/day(\d+)_(\w+)_/);
+     return match ? [match[1], match[2]] : [null, null];
+ }
 </script>
 @endsection
 
@@ -4770,6 +5299,43 @@ document.addEventListener('DOMContentLoaded', function() {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* New transportation section styles */
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.form-select.border-2,
+.form-control.border-2 {
+    border-width: 2px !important;
+    border-color: #e0e0e0 !important;
+    transition: all 0.3s ease;
+}
+
+.form-select.border-2:focus,
+.form-control.border-2:focus {
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+}
+
+.form-select:disabled.border-2 {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    opacity: 0.7;
+}
+
+.position-relative .ri-map-pin-fill,
+.position-relative .ri-time-fill,
+.position-relative .ri-calendar-fill {
+    pointer-events: none;
+}
+
+.alert-info {
+    background-color: #e7f3ff !important;
+    border-color: #b8daff !important;
+    color: #0c63e4 !important;
 }
 
 /* Hotel loading status styles */
