@@ -1841,6 +1841,5 @@
                 });
             });
         });
-        </script>
-        </body>
-        </html>
+        </script>        
+        
