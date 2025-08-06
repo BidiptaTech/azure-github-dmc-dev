@@ -73,6 +73,7 @@ import {
   RenderPackagedAttractionsDetails
 } from './renderServices';
 import { clearPackages, setPackageData } from "@/slice/tour-packages/tourPackageSlice";
+import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
 
 // Modal style
 const modalStyle = {
@@ -359,6 +360,7 @@ const EnquiryList = () => {
         convertEnquiresToTourId({ agentId, enquiryID: enquiryId })
       ).unwrap()
       .then((response) => {
+        dispatch(resetPackages());
         navigate("/dashboard/tour-packages");
         console.log("Full Response Data:", response);
       })

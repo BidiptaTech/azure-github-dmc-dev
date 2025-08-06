@@ -8,6 +8,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 import { clearPackages, setPackageData } from '@/slice/tour-packages/tourPackageSlice';
 import { resetConvertState } from '@/slice/enquiries/enquiryToTourSlice';
+import { resetPackages } from '@/slice/tour-packages/prePackagesSlice';
 
 // Create a custom theme for the button
 const theme = createTheme({
@@ -58,11 +59,13 @@ const Packages = () => {
     const handleTourPackagesClick = () => {
         dispatch(setPackageData(null));
         dispatch(clearPackages());
+        dispatch(resetPackages());
         dispatch(resetConvertState());
         navigate('/dashboard/tour-packages');
     };
     
     const handlePreDefinePackagesClick = () => {
+        dispatch(resetPackages());
         navigate('/dashboard/pre-define-packages');
     };
     
