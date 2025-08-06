@@ -238,18 +238,24 @@ class HotelController extends Controller
         if(!$get_tour_id){
             return response()->json(['message' => 'Tour Id required'], 404);
         }
-        // if(!$dmcs_id){
-        //     return response()->json(['message' => 'Dmc Id required'], 404);
-        // }
+        if(!$dmcs_id){
+            return response()->json(['message' => 'Dmc Id required'], 404);
+        }
         
         if(!$price_mode){
             return response()->json(['message' => 'Price Mode required'], 404);
         }
         $agent_id = Auth::user()->id;
         $id = $request->query('id');
-        // Fetch the hotel with its relationships
-        $hotel = Hotel::with('hotelPolicy','category', 'rooms.beds')->where('hotel_unique_id', $id)
-        ->orderBy('id', 'desc')
+        // Fetch the hotel with its relationships, filtering rooms by DMC ID
+        $hotel = Hotel::with([
+            'hotelPolicy',
+            'category', 
+            'rooms' => function($query) use ($dmcs_id) {
+                $query->where('created_by', $dmcs_id);
+            },
+            'rooms.beds'
+        ])->where('hotel_unique_id', $id)
         ->first();
         if (!$hotel) {
             return response()->json(['message' => 'No hotels found'], 404);

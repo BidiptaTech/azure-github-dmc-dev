@@ -2302,7 +2302,7 @@ class TourController extends Controller
                 }
                 if($tour){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "cancel - " . $tour->tour_status,
+                        'tour_status' => "Cancel - " . $tour->tour_status,
                     ]);
 
                     return response()->json([
@@ -2572,7 +2572,7 @@ class TourController extends Controller
 
         if ($tour) {
             $previous_status = $tour->tour_status;
-            $tour->tour_status = 'cancel - ' . $previous_status;            
+            $tour->tour_status = 'Cancel - ' . $previous_status;            
             $tour->save();
             return response()->json([
                 'success' => true,
