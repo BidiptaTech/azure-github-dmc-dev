@@ -1,0 +1,539 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setAllServices, setCustomerInfoValid } from '@/slice/tour-packages/tourPackageSlice';
+import {
+  TextField,
+  Paper,
+  Typography,
+  Box,
+  Button,
+  Grid,
+  InputAdornment,
+  FormControl,
+  Select,
+  MenuItem,
+  Chip,
+  Alert,
+} from '@mui/material';
+
+const SimpleCustomerInfo = () => {
+  const dispatch = useDispatch();
+  const allServices = useSelector(state => state.tourPackages?.AllServices || []);
+  console.log("allServicesssd", allServices);
+  const customerInfo = useSelector(state => state.tourPackages?.packageData?.customer_info || {});
+  console.log("customerInfo", customerInfo);
+  
+  // Check if customerInfo has data (form should be read-only)
+  const hasCustomerInfo = customerInfo && Object.keys(customerInfo).length > 0 && 
+    (customerInfo.fullName || customerInfo.email || customerInfo.phone);
+  
+  // Get user_country and searchLocation from Redux store (same as CustomerInfo.jsx)
+  const user_country = useSelector((state) => state.auth.user_country);
+  const searchLocation = useSelector((state) => state.bookings.searchLocation);
+  
+  // State for selected country and dynamic validation (same as CustomerInfo.jsx)
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [dialMinLength, setDialMinLength] = useState(8);
+  const [dialMaxLength, setDialMaxLength] = useState(15);
+  
+  // Form state with the same mandatory fields as the original component
+  const [form, setForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    address1: '',
+    address2: '',
+    state: '',
+    zip: '',
+    specialRequests: '',
+    countryCode: '+1', // Default country code
+  });
+
+  // Track validation state
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [formValid, setFormValid] = useState(false);
+  
+  // Use refs to track the previous values and prevent infinite loops
+  const prevFormRef = useRef({});
+  const formUpdatedRef = useRef(false);
+  
+  // Auto-populate form when customerInfo is available
+  useEffect(() => {
+    if (hasCustomerInfo) {
+      console.log("Auto-populating form with customerInfo:", customerInfo);
+      setForm(prevForm => ({
+        ...prevForm,
+        fullName: customerInfo.fullName || '',
+        email: customerInfo.email || '',
+        phone: customerInfo.phone || '',
+        address1: customerInfo.address1 || '',
+        address2: customerInfo.address2 || '',
+        state: customerInfo.state || '',
+        zip: customerInfo.zip || '',
+        specialRequests: customerInfo.specialRequests || '',
+        countryCode: customerInfo.countryCode || prevForm.countryCode,
+      }));
+      
+      // Set form as valid since it's populated with existing data
+      setFormValid(true);
+      dispatch(setCustomerInfoValid(true));
+      
+      // Find and set the country based on countryCode
+      if (customerInfo.countryCode && user_country) {
+        const country = user_country.find(c => c.country_code === customerInfo.countryCode);
+        if (country) {
+          setSelectedCountry(country);
+          setDialMinLength(country.contact_min_length);
+          setDialMaxLength(country.contact_max_length);
+        }
+      }
+    }
+  }, [customerInfo, hasCustomerInfo, user_country, dispatch]);
+
+  // Initialize selected country from user_country array (same as CustomerInfo.jsx)
+  useEffect(() => {
+    if (user_country && user_country.length > 0 && !hasCustomerInfo) {
+      // Set default to first country in the array
+      const defaultCountry = user_country[0];
+      setSelectedCountry(defaultCountry);
+      setDialMinLength(defaultCountry.contact_min_length);
+      setDialMaxLength(defaultCountry.contact_max_length);
+      setForm((prevForm) => ({
+        ...prevForm,
+        countryCode: defaultCountry.country_code,
+      }));
+      formUpdatedRef.current = true;
+    }
+  }, [user_country, hasCustomerInfo]);
+
+  // Auto-set country based on search location (same as CustomerInfo.jsx)
+  useEffect(() => {
+    if (searchLocation && searchLocation[0] && user_country && !hasCustomerInfo) {
+      const country = user_country.find(
+        (c) => c.code.toLowerCase() === searchLocation[0].toLowerCase()
+      );
+      if (country) {
+        setSelectedCountry(country);
+        setDialMinLength(country.contact_min_length);
+        setDialMaxLength(country.contact_max_length);
+        setForm((prevForm) => ({
+          ...prevForm,
+          countryCode: country.country_code,
+        }));
+        formUpdatedRef.current = true;
+      }
+    }
+  }, [searchLocation, user_country, hasCustomerInfo]);
+
+  // Handler for country selection (same as CustomerInfo.jsx)
+  const handleCountryChange = (event) => {
+    if (hasCustomerInfo) return; // Prevent changes when form is read-only
+    
+    const selectedCountryCode = event.target.value;
+    const country = user_country.find(c => c.code === selectedCountryCode);
+    
+    if (country) {
+      setSelectedCountry(country);
+      setDialMinLength(country.contact_min_length);
+      setDialMaxLength(country.contact_max_length);
+      setForm((prevForm) => ({
+        ...prevForm,
+        countryCode: country.country_code,
+      }));
+      formUpdatedRef.current = true;
+      
+      // Re-validate phone if it's already touched
+      if (touched.phone && form.phone) {
+        const phoneError = validateField('phone', form.phone);
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          phone: phoneError,
+        }));
+      }
+    }
+  };
+  
+  // Function to validate a single field
+  const validateField = (field, value) => {
+    let error = '';
+
+    switch (field) {
+      case 'fullName':
+        if (!value.trim()) error = 'Full Name is required';
+        break;
+      case 'email':
+        if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value))
+          error = 'Enter a valid email';
+        break;
+      case 'phone':
+        // Use dynamic dial lengths from selected country (same as CustomerInfo.jsx)
+        const phoneRegex = new RegExp(`^\\d{${dialMinLength},${dialMaxLength}}$`);
+        if (!value) {
+          error = "Phone number is required";
+        } else if (!phoneRegex.test(value)) {
+          error = `Please enter a valid phone number (${dialMinLength}-${dialMaxLength} digits)`;
+        }
+        break;
+      case 'address1':
+        if (!value.trim()) error = 'Address is required';
+        break;
+      case 'state':
+        if (!value.trim()) error = 'State is required';
+        break;
+      case 'zip':
+        if (!/^\d{5,8}$/.test(value)) error = 'Enter a valid ZIP code';
+        break;
+      default:
+        break;
+    }
+
+    return error;
+  };
+
+  // Function to validate the entire form
+  const validateForm = () => {
+    const requiredFields = [
+      'fullName',
+      'email',
+      'phone',
+      'address1',
+      'state',
+      'zip',
+    ];
+    let newErrors = {};
+
+    requiredFields.forEach((field) => {
+      const error = validateField(field, form[field]);
+      if (error) newErrors[field] = error;
+    });
+
+    setErrors(newErrors);
+    
+    // Form is valid if there are no errors
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Function to handle input change
+  const handleChange = (e) => {
+    if (hasCustomerInfo) return; // Prevent changes when form is read-only
+    
+    const { name, value } = e.target;
+    setForm((prevForm) => ({
+      ...prevForm,
+      [name]: value,
+    }));
+    
+    // Mark that the form has been updated
+    formUpdatedRef.current = true;
+
+    if (touched[name]) {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        [name]: validateField(name, value),
+      }));
+    }
+  };
+
+  // Function to handle blur event (field loses focus)
+  const handleBlur = (e) => {
+    if (hasCustomerInfo) return; // Prevent changes when form is read-only
+    
+    const { name, value } = e.target;
+    setTouched((prevTouched) => ({ ...prevTouched, [name]: true }));
+
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: validateField(name, value),
+    }));
+  };
+  
+  // Check if form has changed since last update
+  const hasFormChanged = () => {
+    return JSON.stringify(form) !== JSON.stringify(prevFormRef.current);
+  };
+
+  // Effect to update services when form changes
+  useEffect(() => {
+    // Only proceed if the form has actually been updated by user input
+    if (!formUpdatedRef.current) {
+      return;
+    }
+    
+    const isValid = validateForm();
+    
+    // Dispatch customer info validity to Redux
+    dispatch(setCustomerInfoValid(isValid && Object.values(touched).some(t => t)));
+    
+    // Only proceed if form is valid, has been touched, and has changed since last update
+    if (isValid && Object.values(touched).some(t => t) && hasFormChanged()) {
+      // Get customer info 
+      const customerInfo = {
+        ...form
+      };
+      
+      // Remember the current form state to avoid redundant updates
+      prevFormRef.current = {...form};
+      
+      // Create a new array with customer info embedded in each service type
+      if (allServices.length > 0) {
+        const updatedServices = allServices.map(service => {
+          if (Array.isArray(service.data)) {
+            // If service has a data array, update each item in the data array
+            return {
+              ...service,
+              data: service.data.map(item => ({
+                ...item,
+                ...customerInfo
+              }))
+            };
+          }
+          return service;
+        });
+        
+        // Reset the form updated flag before dispatching
+        formUpdatedRef.current = false;
+        
+        // Dispatch updated services to Redux
+        dispatch(setAllServices(updatedServices));
+      }
+      
+      setFormValid(true);
+    } else {
+      setFormValid(false);
+    }
+  }, [form, touched, dispatch]);
+
+  // Cleanup effect to clear customer info validation when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(setCustomerInfoValid(false));
+    };
+  }, [dispatch]);
+
+  return (
+    <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h5">Customer Information</Typography>
+        {hasCustomerInfo && (
+          <Chip 
+            label="Auto-filled" 
+            color="success" 
+            variant="outlined" 
+            size="small"
+          />
+        )}
+      </Box>
+      
+      {hasCustomerInfo ? (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Your information has been automatically filled from your Tour Package Booking.
+        </Alert>
+      ) : (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Please provide your contact information below. Fields marked with * are required.
+        </Typography>
+      )}
+      
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <TextField
+            label="Full Name *"
+            name="fullName"
+            fullWidth
+            variant="outlined"
+            value={form.fullName}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!errors.fullName && touched.fullName}
+            helperText={touched.fullName && errors.fullName}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Email *"
+            name="email"
+            fullWidth
+            variant="outlined"
+            value={form.email}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!errors.email && touched.email}
+            helperText={touched.email && errors.email}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Phone Number *"
+            name="phone"
+            fullWidth
+            variant="outlined"
+            value={form.phone}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!errors.phone && touched.phone}
+            helperText={touched.phone && errors.phone}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+              startAdornment: (
+                <InputAdornment position="start">
+                  <FormControl 
+                    variant="standard" 
+                    sx={{ 
+                      minWidth: 80,
+                      marginRight: 1,
+                      '& .MuiInput-underline:before': { display: 'none' },
+                      '& .MuiInput-underline:after': { display: 'none' },
+                      '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
+                    }}
+                  >
+                    <Select
+                      value={selectedCountry?.code || ''}
+                      onChange={handleCountryChange}
+                      disableUnderline
+                      disabled={hasCustomerInfo}
+                      sx={{
+                        fontSize: '0.875rem',
+                        '& .MuiSelect-select': {
+                          paddingRight: '20px !important',
+                          paddingLeft: 0,
+                          paddingTop: 0,
+                          paddingBottom: 0,
+                          display: 'flex',
+                          alignItems: 'center'
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1rem'
+                        }
+                      }}
+                    >
+                      {user_country && user_country.map((country) => (
+                        <MenuItem key={country.code} value={country.code}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            label="Address Line 1 *"
+            name="address1"
+            fullWidth
+            variant="outlined"
+            value={form.address1}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!errors.address1 && touched.address1}
+            helperText={touched.address1 && errors.address1}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            label="Address Line 2"
+            name="address2"
+            fullWidth
+            variant="outlined"
+            value={form.address2}
+            onChange={handleChange}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="State/Province/Region *"
+            name="state"
+            fullWidth
+            variant="outlined"
+            value={form.state}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!errors.state && touched.state}
+            helperText={touched.state && errors.state}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="ZIP Code/Postal Code *"
+            name="zip"
+            fullWidth
+            variant="outlined"
+            value={form.zip}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!errors.zip && touched.zip}
+            helperText={touched.zip && errors.zip}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            label="Special Requests"
+            name="specialRequests"
+            fullWidth
+            multiline
+            rows={4}
+            variant="outlined"
+            value={form.specialRequests}
+            onChange={handleChange}
+            disabled={hasCustomerInfo}
+            InputProps={{
+              readOnly: hasCustomerInfo,
+            }}
+          />
+        </Grid>
+      </Grid>
+      
+      <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography 
+          variant="body2" 
+          color={formValid ? "success.main" : "text.secondary"}
+        >
+          {hasCustomerInfo 
+            ? "✓ Information loaded from package data" 
+            : (formValid ? "✓ Information saved" : "Fill in all required fields to save automatically")
+          }
+        </Typography>
+      </Box>
+    </Paper>
+  );
+};
+
+export default SimpleCustomerInfo; 
