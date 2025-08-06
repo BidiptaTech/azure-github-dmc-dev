@@ -645,6 +645,7 @@ const LocalSlice = createSlice({
     pricemode: "",
     bookingtype: "",
     selectedPort: "",
+    port: "",
     zone: [],
     picktype: "",
     droptype: "",
@@ -807,6 +808,10 @@ const LocalSlice = createSlice({
       state.selectedPort = action.payload;
       console.log("selectedPort", state.selectedPort);
     },
+    setPort: (state, action) => {
+      state.port = action.payload;
+      console.log("port", state.port);
+    },
     resetVehicles1: (state, action) => {
       state.vehicles = [];
       state.entrypickup = "";
@@ -954,6 +959,7 @@ export const {
   resetVehicles1,
   setbookingtype3,
   setSelectedPort,
+  setPort,
   setPicktype,
   setDroptype,
   setSelectbooking,

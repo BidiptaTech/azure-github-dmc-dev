@@ -8,7 +8,7 @@ import Counter from "@/components/counter/Counter";
 import Team1 from "@/components/team/Team1";
 import Testimonial from "@/components/testimonial/Testimonial";
 import Counter2 from "@/components/counter/Counter2";
-import Brand from "@/components/brand/Brand";
+
 
 import MetaComponent from "@/components/common/MetaComponent";
 
