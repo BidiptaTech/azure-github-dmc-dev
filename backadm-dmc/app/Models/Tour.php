@@ -46,4 +46,13 @@ class Tour extends Model
         return $this->belongsTo(Agent::class, 'agent_id', 'agent_id');
     }
 
+    public function dmc()
+    {
+        return $this->belongsTo(User::class, 'dmc_id', 'user_id');
+    }
+
+    public function masterDmc()
+    {
+        return $this->belongsTo(User::class, 'master_dmc_id', 'user_id');
+    }
 }

@@ -28,7 +28,7 @@ class EnquiryController extends Controller
                 case 11: // Agent is a DMC
                     $dmc_id = $user->userId; // Assuming `userId` in agent or fallback to agent_id
                     $dmc_users = User::where('userId', $dmc_id)->first();
-                    $enquiries = Enquiry::where('dmcId', $dmc_id)->get();
+                    $enquiries = Enquiry::where('dmcId', $dmc_id)->orderBy('created_at', 'desc')->get();
                     break;
                 case 33: // Sales Head
                 case 128: // Sales Head
@@ -44,7 +44,7 @@ class EnquiryController extends Controller
                             $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
-                                $enquiries = Enquiry::where('dmcId', $dmc_id)->get();
+                                $enquiries = Enquiry::where('dmcId', $dmc_id)->orderBy('created_at', 'desc')->get();
                             }
                         }
                         
@@ -60,7 +60,7 @@ class EnquiryController extends Controller
                             $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
-                                $enquiries = Enquiry::where('dmcId', $dmc_id)->get();
+                                $enquiries = Enquiry::where('dmcId', $dmc_id)->orderBy('created_at', 'desc')->get();
                             }
                         }
                     }
@@ -78,15 +78,19 @@ class EnquiryController extends Controller
                             $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
-                                $enquiries = Enquiry::where('dmcId', $dmc_id)->get();
+                                $enquiries = Enquiry::where('dmcId', $dmc_id)->orderBy('created_at', 'desc')->get();
                             }
                         }
                     }
                     break;
+                default:
+                    $enquiries = Enquiry::with(['display'])->where('status', 1)->orderBy('created_at', 'desc')->get();
+                    break;
             }
-        }else{
-            $enquiries = Enquiry::with(['display'])->where('status', 1)->orderBy('created_at', 'desc')->get();
         }
+        // else{
+        //     $enquiries = Enquiry::with(['display'])->where('status', 1)->orderBy('created_at', 'desc')->get();
+        // }
         return view('enquiry.enquiry',compact('enquiries','currentUser', ));
     }
 
