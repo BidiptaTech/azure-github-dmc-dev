@@ -10,6 +10,7 @@ import { useSelector, useDispatch } from "react-redux";
 import DMCSelectionModal from "../common/DMCSelectionModal";
 import SearchLocationModal from "../common/SearchLocationModal";
 import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
+import { resetPackages } from "../../slice/tour-packages/prePackagesSlice";
 
 const MainMenu = ({ style = "" }) => {
   const { pathname } = useLocation();
@@ -155,6 +156,9 @@ const MainMenu = ({ style = "" }) => {
   const handlePackagesClick = (e) => {
     e.preventDefault();
     
+    // Clear packages listing when Packages button is clicked
+    dispatch(resetPackages());
+    
     // Wait for DMC count to load
     if (dmcCountLoading) {
       return;
@@ -192,6 +196,9 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handlePackagesDMCSelect = (selectedDMC) => {
+    // Clear packages listing when navigating to packages
+    dispatch(resetPackages());
+    
     // Navigate to the packages page with the selected DMC and search criteria
     navigate(packagesPath, { 
       state: { 
