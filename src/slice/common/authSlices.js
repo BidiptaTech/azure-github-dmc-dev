@@ -505,6 +505,7 @@ export const loginUser = createAsyncThunk(
           PriceHide: priceHideString,
           DmcLogo,
           dmcLogo,
+          agencyLogo, // Add agencyLogo to return object
           dmcCompanyName,
           userRole: userRole || "Agent",
           user_country,
@@ -620,6 +621,7 @@ const authSlice = createSlice({
       state.currencySymbol = null; // Reset currencySymbol
       state.DmcName = null;
       state.dmcLogo = null; // Reset dmcLogo in auth state
+      state.agencyLogo = null; // Reset agencyLogo in auth state
       state.dmcCompanyName = null; // Reset dmcCompanyName in auth state
       state.userRole = null; // Reset user role
       state.dmcId = null; // Reset dmcId in auth state
@@ -638,6 +640,7 @@ const authSlice = createSlice({
       Cookies.remove("dialMinLength");
       Cookies.remove("DmcName");
       Cookies.remove("dmcLogo"); // Remove dmcLogo cookie on logout
+      Cookies.remove("agencyLogo"); // Remove agencyLogo cookie on logout
       Cookies.remove("dmcCompanyName"); // Remove dmcCompanyName cookie on logout
       Cookies.remove("PriceHide");
       Cookies.remove("userRole"); // Remove user role cookie
@@ -757,6 +760,7 @@ const authSlice = createSlice({
         state.zone_on = action.payload.zone_on;
         state.DmcLogo = action.payload.DmcLogo;
         state.dmcLogo = action.payload.dmcLogo; // Store dmcLogo in auth state
+        state.agencyLogo = action.payload.agencyLogo; // Store agencyLogo in auth state
         state.dmcCompanyName = action.payload.dmcCompanyName; // Store dmcCompanyName in auth state
         state.dmcId = action.payload.dmcId; // Store dmcId in auth state
         
