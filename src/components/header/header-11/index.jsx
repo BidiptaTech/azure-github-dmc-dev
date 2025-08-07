@@ -21,7 +21,6 @@ const Header1 = () => {
   const dispatch = useDispatch();
   const dmcLogo = useSelector((state) => state.auth.dmcLogo);
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
-  console.log("agencyLogo", agencyLogo);
 
   const handleLogout = () => {
     dispatch(logoutUser());
@@ -78,7 +77,8 @@ const Header1 = () => {
                   >
                     
                     <img
-                      src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}  
+                       src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}  
+                      //src={agencyLogo}
                       alt="logo icon"
                       style={{
                         width: "120px",

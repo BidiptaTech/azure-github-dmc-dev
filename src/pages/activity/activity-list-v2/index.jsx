@@ -231,7 +231,7 @@ const ActivityListPage2 = () => {
       {/* End Header 1 */}
 
       <section className="pt-40 pb-40 bg-light-2">
-        <div className="container-xxl">
+        <div className="container-xxl padding-left-right-5">
           {/* Visual debugging information */}
           {/* <div className="row mb-20">
             <div className="col-12">
@@ -254,7 +254,7 @@ const ActivityListPage2 = () => {
           {/* End visual debugging */}
           
           <div className="row">
-            <div className="col-12" style={{ padding: "5px" }}>
+            <div className="col-12" style={{ padding: "20px" }}>
               <div className="text-center">
                 <h1 className="text-30 fw-600">Entry/Exit Port</h1>
               </div>
@@ -293,8 +293,8 @@ const ActivityListPage2 = () => {
       </section>
 
       <section className="layout-pt-md layout-pb-lg">
-        <div className="container-xxl">
-          <div className="row y-gap-30">
+        <div className="container-xxl padding-left-right-5">
+          <div className="row y-gap-30" style={{ padding: "20px" }}>
             {/* Desktop Sidebar */}
             <div className="col-xl-3  d-xl-block">
               <aside className="sidebar y-gap-40 xl:d-none">
