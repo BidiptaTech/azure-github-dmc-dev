@@ -31,7 +31,6 @@ export const fetchRoomData = createAsyncThunk(
   async ({ id, tour_id, priceMode,priceModeId,dmc_id }, { rejectWithValue, dispatch }) => {
     // console.log(tour_id,"tour ID");
     // console.log(priceModeId,"pricmodeID");
-    console.log(dmc_id,"dmc_id");
     
     try {
       //console.log("API call initiated with ID:", id, "Price Mode:", priceMode);

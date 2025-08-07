@@ -340,7 +340,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   return (
     <>
-      <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
+      <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-10">
         <div className="single-row-container">
           {/* Port Selection */}
           <div className="search-item port-selection mb-10">
@@ -582,7 +582,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
       <style jsx>{`
         .single-row-container {
           display: grid;
-          grid-template-columns: 140px 2fr 2fr 2fr 2fr 1fr 140px;
+          grid-template-columns: 140px 1fr 2fr 2fr 2fr 1fr 140px;
           flex-wrap: nowrap;
           width: 100%;
           gap: 5px;
@@ -598,7 +598,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
         }
 
         .city-selection {
-          width: 200px;
+          width: 100px;
         }
 
         .location-search {

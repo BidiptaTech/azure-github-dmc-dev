@@ -36,11 +36,8 @@ import DBDashboard from "./pages/dashboard/dashboard/db-dashboard";
 import DBBooking from "./pages/dashboard/dashboard/db-booking";
 import DBWishlist from "./pages/dashboard/dashboard/db-wishlist";
 import DBSettings from "./pages/dashboard/dashboard/db-settings";
-import VendorAddHotel from "./pages/dashboard/vendor-dashboard/add-hotel";
-import VendorBooking from "./pages/dashboard/vendor-dashboard/booking";
-import BVVendorHotel from "./pages/dashboard/vendor-dashboard/hotels";
-import BDVendorRecovery from "./pages/dashboard/vendor-dashboard/recovery";
-import VendorDashboard from "./pages/dashboard/vendor-dashboard/dashboard";
+
+
 import HotelListPage1 from "./pages/hotel/hotel-list-v1";
 import HotelSingleV1Dynamic from "./pages/hotel/hotel-single-v1";
 import BookingPage from "./pages/hotel/booking-page";

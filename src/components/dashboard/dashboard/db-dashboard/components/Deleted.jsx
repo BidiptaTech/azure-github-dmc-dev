@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import "./ResponsiveTable.css";
 
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -44,7 +45,8 @@ import { fetchLists } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
-import { Button, InputAdornment, TextField, Typography, Tooltip, IconButton } from "@mui/material";
+import { Button, InputAdornment, TextField, Typography, IconButton, Tooltip } from "@mui/material";
+import CustomPaymentTooltip from "./CustomTooltip";
 import { Visibility } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
@@ -1160,8 +1162,8 @@ export default function Pending() {
               border: "1px solid #e0e6ed",
             }}
           >
-            <div className="overflow-hidden">
-              <table className="table-3 -border-bottom col-12" style={{ width: "100%", tableLayout: "fixed" }}>
+            <div className="responsive-table-container">
+              <table className="table-3 -border-bottom col-12 responsive-table">
                 <thead className="bg-light-2">
                   <tr>
                     <th
@@ -1255,7 +1257,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1315,7 +1317,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1375,7 +1377,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1440,7 +1442,7 @@ export default function Pending() {
                             className={`icon-arrow-${
                               order === "asc" ? "down" : "up"
                             }`}
-                            style={{ fontSize: "12px", opacity: 0.7 }}
+                            style={{ fontSize: "10px", opacity: 0.7 }}
                           ></i>
                         )}
                       </div>
@@ -1578,6 +1580,9 @@ export default function Pending() {
                         cursor: "pointer",
                         transition: "background-color 0.3s ease",
                         whiteSpace: "nowrap",
+                        width: "140px",
+                        minWidth: "140px",
+                        maxWidth: "140px",
                       }}
                       // onClick={() => handleColumnSort("status")}
                       onMouseEnter={(e) => {
@@ -1608,49 +1613,7 @@ export default function Pending() {
                             color: "#3554D1",
                           }}
                         ></i>
-                        Payment
-                      </div>
-                    </th>
-                    <th
-                      style={{
-                        backgroundColor: "#f5f7fc",
-                        padding: "14px 20px",
-                        fontWeight: "600",
-                        color: "#3554D1",
-                        cursor: "pointer",
-                        transition: "background-color 0.3s ease",
-                        whiteSpace: "nowrap",
-                      }}
-                      // onClick={() => handleColumnSort("status")}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e6eafb";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f5f7fc";
-                        e.currentTarget.querySelector("i").style.transform =
-                          "scale(1)";
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <i
-                          className="icon-usd"
-                          style={{
-                            fontSize: "14px",
-                            color: "#3554D1",
-                          }}
-                        ></i>
-                        Payment Status
+                        Payment Details
                       </div>
                     </th>
                     <th
@@ -1691,34 +1654,35 @@ export default function Pending() {
                         <td style={{ padding: "12px 20px", minWidth: "80px", whiteSpace: "nowrap" }}>
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                        <td className="booking-id-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                        <td className="date-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "90px", minWidth: "90px", maxWidth: "90px" }}>
+                        <td className="date-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "16px 10px", width: "80px", minWidth: "80px", maxWidth: "80px", textAlign: "center" }}>
+                        <td className="pax-column" style={{ textAlign: "center" }}>
                           <Skeleton variant="text" width={60} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
+                        <td className="destination-column">
                           <Skeleton variant="text" width={100} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "130px", minWidth: "130px", maxWidth: "130px" }}>
+                        <td className="customer-column">
                           <Skeleton variant="text" width={100} />
                         </td>
-                        <td style={{ padding: "16px 20px", width: "100px", minWidth: "100px", maxWidth: "100px" }}>
+                        <td className="booking-id-column">
                           <Skeleton variant="text" width={80} />
                         </td>
-                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px" }}>
-                          <Skeleton variant="text" width={80} />
+                        <td className="payment-column">
+                          <Skeleton
+                            variant="rectangular"
+                            width={140}
+                            height={80}
+                          />
                         </td>
-                        <td style={{ padding: "8px 12px", width: "120px", minWidth: "120px", maxWidth: "120px" }}>
-                          <Skeleton variant="text" width={100} />
-                        </td>
-                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap" }}>
+                        <td className="actions-column" style={{ whiteSpace: "nowrap" }}>
                           <Skeleton variant="text" width={100} />
                         </td>
                       </tr>
@@ -1744,7 +1708,7 @@ export default function Pending() {
                           <div
                             style={{
                               display: "flex",
-                              gap: "8px",
+                              gap: "4px",
                               flexWrap: "nowrap",
                               whiteSpace: "nowrap",
                               alignItems: "center",
@@ -1754,22 +1718,17 @@ export default function Pending() {
                               <IconButton
                                 size="small"
                                 onClick={() => handleViewDetails(list)}
-                                                                  sx={{
-                                    color: "#4361ee",
-                                    width: "28px",
-                                    height: "28px",
-                                    borderRadius: "6px",
-                                    backgroundColor: "rgba(0, 0, 0, 0.04)",
-                                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                    transition: "all 0.2s ease",
-                                    "&:hover": {
-                                      backgroundColor: "rgba(67, 97, 238, 0.12)",
-                                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
-                                      transform: "translateY(-1px)",
-                                    },
-                                  }}
-                                >
-                                  <Visibility sx={{ fontSize: "16px" }} />
+                                sx={{
+                                  color: "#4361ee",
+                                  width: "28px",
+                                  height: "28px",
+                                  padding: "4px",
+                                  "&:hover": {
+                                    color: "#2847C7",
+                                  },
+                                }}
+                              >
+                                <Visibility sx={{ fontSize: "14px" }} />
                               </IconButton>
                             </Tooltip>
                             {/* Only render Edit button if editOff is not 1 */}
@@ -1795,7 +1754,7 @@ export default function Pending() {
                                   <i
                                     className="icon-edit"
                                     style={{
-                                      fontSize: "16px",
+                                      fontSize: "10px",
                                     }}
                                   ></i>
                                 </IconButton>
@@ -1822,7 +1781,7 @@ export default function Pending() {
                                 <i
                                   className="icon-trash-2"
                                   style={{
-                                    fontSize: "16px",
+                                    fontSize: "10px",
                                   }}
                                 ></i>
                               </IconButton>
@@ -1835,7 +1794,7 @@ export default function Pending() {
       backgroundColor: "rgba(53, 84, 209, 0.1)",
       padding: "6px 8px",
       borderRadius: "12px",
-      fontSize: "11px",
+      fontSize: "10px",
       color: "#3554D1",
       fontWeight: "600",
       display: "inline-flex",
@@ -1855,7 +1814,7 @@ export default function Pending() {
           color: "#fff",
           padding: "2px 8px",
           borderRadius: "50px",
-          fontSize: "12px",
+          fontSize: "10px",
           marginTop: "4px",
         }}
       >
@@ -1873,9 +1832,9 @@ export default function Pending() {
                             <div
                               style={{
                                 backgroundColor: "rgba(76, 175, 80, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "15px",
+                                padding: "4px 6px",
+                                borderRadius: "8px",
+                                fontSize: "10px",
                                 color: "#4CAF50",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -1885,7 +1844,7 @@ export default function Pending() {
                                 cursor: "pointer",
                               }}
                             >
-                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_in_time)}</span>
+                              <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_in_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -1898,9 +1857,9 @@ export default function Pending() {
                             <div
                               style={{
                                 backgroundColor: "rgba(244, 67, 54, 0.1)",
-                                padding: "6px 8px",
-                                borderRadius: "12px",
-                                fontSize: "15px",
+                                padding: "4px 6px",
+                                borderRadius: "8px",
+                                fontSize: "10px",
                                 color: "#F44336",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -1910,7 +1869,7 @@ export default function Pending() {
                                 cursor: "pointer",
                               }}
                             >
-                              <span style={{ fontWeight: "600", fontSize: "15px" }}>{formatDate(list.check_out_time)}</span>
+                              <span style={{ fontWeight: "600", fontSize: "12px" }}>{formatDate(list.check_out_time)}</span>
                             </div>
                           </Tooltip>
                         </td>
@@ -1945,7 +1904,7 @@ export default function Pending() {
                             <span
                               style={{
                                 fontWeight: "600",
-                                fontSize: "15px",
+                                fontSize: "10px",
                                 color: "#FF9800",
                                 whiteSpace: "nowrap",
                               }}
@@ -2030,7 +1989,7 @@ export default function Pending() {
                               }}
                             ></i>
                             <span                              style={{                                fontWeight: "600",                                color: getTextColor(list.tour_status),
-                                fontSize: "11px",
+                                fontSize: "10px",
                               }}                            >                              {list.tour_status || "Pending"}
                             </span>
                           </div>
@@ -2038,13 +1997,12 @@ export default function Pending() {
                         <td
                           style={{
                             padding: "8px 12px",
+                            width: "140px",
+                            minWidth: "140px",
+                            maxWidth: "140px",
                           }}
                         >
-                          <Tooltip 
-                            title={`Original: SGD ${Math.ceil(list.finalAmount + list.discountAmount)} | Discount: SGD ${Math.ceil(list.discountAmount)} | Final: SGD ${Math.ceil(list.finalAmount)}`}
-                            arrow
-                            placement="top"
-                          >
+                          <CustomPaymentTooltip list={list}>
                             <div
                               style={{
                                 borderRadius: "8px",
@@ -2064,118 +2022,106 @@ export default function Pending() {
                                 e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                               }}
                             >
+                              {/* Original Amount */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: "4px",
+                                  padding: "3px 6px",
+                                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                  borderRadius: "6px",
+                                  border: "1px solid rgba(0, 0, 0, 0.1)",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-tag" style={{ fontSize: "10px", color: "#1976d2" }}></i>
+                                  <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "600" }}>
+                                    Original
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "700" }}>
+                                  SGD {Math.ceil(list.finalAmount + list.discountAmount)}
+                                </span>
+                              </div>
+
+                              {/* Discount Amount */}
+                              {list.discountAmount > 0 && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    marginBottom: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(229, 57, 53, 0.2)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <i className="icon-usd" style={{ fontSize: "10px", color: "#e53935" }}></i>
+                                    <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "600" }}>
+                                      Discount
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "700" }}>
+                                    -SGD {Math.ceil(list.discountAmount)}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Final Amount */}
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "space-between",
                                   marginBottom: "6px",
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-usd" style={{ fontSize: "12px", color: "#e53935" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
-                                    -{Math.ceil(list.discountAmount)}
-                                  </span>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-tag" style={{ fontSize: "12px", color: "#1976d2" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#1976d2", fontWeight: "600" }}>
-                                    {Math.ceil(list.finalAmount)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: "6px",
                                   padding: "4px 8px",
-                                  backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                  backgroundColor: "rgba(76, 175, 80, 0.1)",
                                   borderRadius: "6px",
-                                  border: "1px solid rgba(33, 150, 243, 0.1)",
+                                  border: "1px solid rgba(76, 175, 80, 0.2)",
                                 }}
                               >
-                                <i className="icon-wallet" style={{ fontSize: "14px", color: "#1976d2" }}></i>
-                                <span style={{ fontSize: "12px", fontWeight: "700", color: "#1976d2" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                    Final
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
                                   SGD {Math.ceil(list.finalAmount)}
                                 </span>
                               </div>
-                            </div>
-                          </Tooltip>
-                        </td>
 
-                        <td style={{ padding: "8px 12px" }}>
-                          <Tooltip 
-                            title={`Status: ${list.payment_status}${list.dueAmount > 0 ? ` | Due: SGD ${Math.ceil(list.dueAmount)}` : ''}`}
-                            arrow
-                            placement="top"
-                          >
-                            <div
-                              style={{
-                                borderRadius: "8px",
-                                padding: "10px 12px",
-                                backgroundColor:
-                                  list.payment_status === "Not Paid"
-                                    ? "rgba(253, 236, 234, 0.95)"
-                                    : list.payment_status === "Partially Paid"
-                                    ? "rgba(227, 242, 253, 0.95)"
-                                    : list.payment_status === "Completely Paid"
-                                    ? "rgba(232, 245, 233, 0.95)"
-                                    : "rgba(224, 224, 224, 0.95)",
-                                border: `1px solid ${
-                                  list.payment_status === "Not Paid"
-                                    ? "rgba(211, 47, 47, 0.3)"
-                                    : list.payment_status === "Partially Paid"
-                                    ? "rgba(25, 118, 210, 0.3)"
-                                    : list.payment_status === "Completely Paid"
-                                    ? "rgba(56, 142, 60, 0.3)"
-                                    : "rgba(97, 97, 97, 0.3)"
-                                }`,
-                                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
-                                transition: "all 0.3s ease",
-                                cursor: "pointer",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = "translateY(-2px)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = "translateY(0)";
-                                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.12)";
-                              }}
-                            >
-                              {list.dueAmount > 0 && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "4px",
-                                    marginBottom: "6px",
-                                    padding: "3px 8px",
-                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
-                                    borderRadius: "12px",
-                                    border: "1px solid rgba(229, 57, 53, 0.2)",
-                                  }}
-                                >
-                                  <i className="icon-alert-circle" style={{ fontSize: "10px", color: "#e53935" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#e53935", fontWeight: "600" }}>
-                                    Due: SGD {Math.ceil(list.dueAmount)}
-                                  </span>
-                                </div>
-                              )}
+                              {/* Payment Status */}
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
-                                  gap: "6px",
-                                  padding: "4px 8px",
-                                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                  gap: "4px",
+                                  padding: "3px 6px",
+                                  backgroundColor:
+                                    list.payment_status === "Not Paid"
+                                      ? "rgba(253, 236, 234, 0.9)"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "rgba(227, 242, 253, 0.9)"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "rgba(232, 245, 233, 0.9)"
+                                      : "rgba(224, 224, 224, 0.9)",
                                   borderRadius: "6px",
-                                  border: "1px solid rgba(0, 0, 0, 0.1)",
+                                  border: `1px solid ${
+                                    list.payment_status === "Not Paid"
+                                      ? "rgba(211, 47, 47, 0.3)"
+                                      : list.payment_status === "Partially Paid"
+                                      ? "rgba(25, 118, 210, 0.3)"
+                                      : list.payment_status === "Completely Paid"
+                                      ? "rgba(56, 142, 60, 0.3)"
+                                      : "rgba(97, 97, 97, 0.3)"
+                                  }`,
                                 }}
                               >
                                 <i 
@@ -2189,7 +2135,7 @@ export default function Pending() {
                                       : "icon-help-circle"
                                   }
                                   style={{ 
-                                    fontSize: "14px", 
+                                    fontSize: "10px", 
                                     color:
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
@@ -2202,8 +2148,8 @@ export default function Pending() {
                                 ></i>
                                 <span
                                   style={{
-                                    fontWeight: "700",
-                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    fontSize: "9px",
                                     color:
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
@@ -2217,10 +2163,32 @@ export default function Pending() {
                                   {list.payment_status}
                                 </span>
                               </div>
+
+                              {/* Due Amount Warning */}
+                              {list.dueAmount > 0 && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                    marginTop: "4px",
+                                    padding: "3px 6px",
+                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                    borderRadius: "6px",
+                                    border: "1px solid rgba(229, 57, 53, 0.2)",
+                                  }}
+                                >
+                                  <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
+                                  <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
+                                    Due: SGD {Math.ceil(list.dueAmount)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          </Tooltip>
+                          </CustomPaymentTooltip>
                         </td>
-                        <td style={{ padding: "8px 12px", width: "110px", minWidth: "110px", maxWidth: "110px", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                        <td className="actions-column" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
   <span style={{ fontSize: "11px" }}>
     {list.created_at ? dayjs(list.created_at).format("DD MMM YYYY, HH:mm") : "-"}
   </span>
@@ -2229,10 +2197,10 @@ export default function Pending() {
                     ))
                   ) : (
                     <tr>
-                      <td
-                        colSpan="13"
-                        style={{ textAlign: "center", padding: "40px 20px" }}
-                      >
+                                              <td
+                          colSpan="12"
+                          style={{ textAlign: "center", padding: "40px 20px" }}
+                        >
                         <div
                           style={{
                             display: "flex",

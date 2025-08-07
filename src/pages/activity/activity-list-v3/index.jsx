@@ -30,6 +30,7 @@ import {
   setSelectedVehicle,
   setMode,
   fetchVehicleDetails,
+  setSelectedPort,
 } from "@/slice/localtour/Localslice";
 
 import MetaComponent from "@/components/common/MetaComponent";
@@ -1335,6 +1336,7 @@ const ActivityListPage3 = () => {
                                           booking.hotelDetails.hotel_id,
                                           "hotel"
                                         );
+                                        dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Attraction"
                                       ) {
@@ -1343,6 +1345,7 @@ const ActivityListPage3 = () => {
                                           booking.service_details.attraction_id,
                                           "attraction"
                                         );
+                                        dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Attraction Package"
                                       ) {
@@ -1351,6 +1354,7 @@ const ActivityListPage3 = () => {
                                           booking.package_attraction_id,
                                           "attraction_package"
                                         );
+                                        dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Restaurant"
                                       ) {
@@ -1359,6 +1363,7 @@ const ActivityListPage3 = () => {
                                           booking.service_details.restaurant_id,
                                           "restaurant"
                                         );
+                                        dispatch(setSelectedPort("Local Transfer"));
                                       }
                                     }}
                                     style={{
@@ -1418,10 +1423,10 @@ const ActivityListPage3 = () => {
           <section className="pt-40 pb-40 bg-light-2">
             <div
               className={
-                selectedPort === "Hourly" ? "container" : "container-xxl"
+                selectedPort === "Hourly" ? "container" : "container-xxl padding-left-right-5"
               }
             >
-              <div className="row">
+              <div className="row" style={{ padding: "20px" }}>
                 <div className="col-12">
                   <div className="text-center">
                     <h1 className="text-30 fw-600">Local Tour</h1>
@@ -1434,8 +1439,8 @@ const ActivityListPage3 = () => {
             </div>
           </section>
           <section className="layout-pt-md layout-pb-lg">
-            <div className="container-xxl">
-              <div className="row y-gap-30">
+            <div className="container-xxl padding-left-right-5`">
+              <div className="row y-gap-30" style={{ padding: "20px" }}>
                 <div className="col-xl-3  d-xl-block">
                   <aside className="sidebar y-gap-40 xl:d-none">
                     <Sidebar
