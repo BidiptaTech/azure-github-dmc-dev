@@ -468,6 +468,7 @@ export default function HotelProperties() {
           tour_id,
           priceMode: selectedMode, // Keep this as string for API compatibility
           priceModeId: priceModeId,
+          dmc_id: selectedHotel.dmc_id,
         })
       );
 
