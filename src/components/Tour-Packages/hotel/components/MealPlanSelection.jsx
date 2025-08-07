@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Box, Typography, Button, Menu, MenuItem, Chip, Avatar,
-  Divider
+  Divider, Paper, Alert
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PersonIcon from '@mui/icons-material/Person';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
+import FreeBreakfastIcon from '@mui/icons-material/FreeBreakfast';
+import LunchDiningIcon from '@mui/icons-material/LunchDining';
+import DinnerDiningIcon from '@mui/icons-material/DinnerDining';
+import { IoPersonSharp } from "react-icons/io5";
 
 /**
  * Meal Plan Selection component
@@ -16,18 +20,74 @@ const MealPlanSelection = ({
   selectedGuests, 
   guestMealPlans, 
   handleGuestMealPlanChange, 
-  handleGuestCountChange, // Add this prop for updating guest count
+  handleGuestCountChange, 
   bedType, 
   searchCriteria,
-  mealPlans
+  mealPlans,
+  roomData = null, // Added room data prop similar to RenderRoomCards
+  isLoading = false
 }) => {
   const [guestMealAnchorEl, setGuestMealAnchorEl] = useState(null);
   const isGuestMealMenuOpen = Boolean(guestMealAnchorEl);
   
-  // Helper function to get icon for meal plans
-  const getMealPlanIcon = () => {
-    return <RestaurantMenuIcon sx={{ fontSize: 18 }} />;
+  // Helper function to get icon for meal plans based on plan ID
+  const getMealPlanIcon = (planId) => {
+    switch(planId) {
+      case 'breakfast':
+      case 'breakfast_lunch':
+      case 'breakfast_dinner':
+        return <FreeBreakfastIcon sx={{ fontSize: 18 }} />;
+      case 'lunch':
+      case 'lunch_dinner':
+        return <LunchDiningIcon sx={{ fontSize: 18 }} />;
+      case 'dinner':
+        return <DinnerDiningIcon sx={{ fontSize: 18 }} />;
+      case 'fullboard':
+        return <RestaurantMenuIcon sx={{ fontSize: 18 }} />;
+      default:
+        return <RestaurantMenuIcon sx={{ fontSize: 18 }} />;
+    }
   };
+  
+  // Calculate max occupancy from bed type or search criteria
+  const maxOccupancy = useMemo(() => {
+    // Try multiple possible property names for guest data
+    const adults = parseInt(searchCriteria?.guests?.Adults || searchCriteria?.guests?.adults || 1);
+    const children = parseInt(searchCriteria?.guests?.Children || searchCriteria?.guests?.children || 0);
+    const totalTourGuests = adults + children;
+    const bedMaxOccupancy = bedType?.max_occupancy || totalTourGuests;
+    
+    return Math.min(totalTourGuests, bedMaxOccupancy);
+  }, [bedType, searchCriteria]);
+  
+  // Check if loading or missing essential data
+  if (isLoading) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Paper elevation={1} sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+          <Typography variant="body2">Loading meal plan options...</Typography>
+        </Paper>
+      </Box>
+    );
+  }
+  
+  // Check if room data or bed type is missing
+  if (!bedType) {
+    return (
+      <Box sx={{ width: '100%', mt: 2 }}>
+        <Alert 
+          severity="info" 
+          sx={{ 
+            borderRadius: '12px'
+          }}
+        >
+          <Typography variant="body2">
+            Please select a bed type to view available meal plans.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
   
   return (
     <Box sx={{ mt: 2 }}>
@@ -113,8 +173,8 @@ const MealPlanSelection = ({
           horizontal: 'left',
         }}
       >
-        {/* Guest count section */}
-        <MenuItem disabled sx={{ bgcolor: '#e3f2fd', fontWeight: 'bold' }}>
+        {/* Guest count section with improved styling */}
+        <MenuItem disabled sx={{ bgcolor: '#e3f2fd', fontWeight: 'bold', borderBottom: '1px solid #bbdefb' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <Typography variant="subtitle2">Number of Guests</Typography>
             <Typography variant="caption" color="text.secondary">
@@ -156,15 +216,28 @@ const MealPlanSelection = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                <Typography>
-                  {num} {num === 1 ? 'Guest' : 'Guests'}
-                  {num === totalTourGuests && (
-                    <Chip label="From Tour" size="small" color="info" sx={{ ml: 1, height: 18, fontSize: '0.6rem' }} />
-                  )}
-                  {num === maxBedOccupancy && bedType && (
-                    <Chip label="Max Bed" size="small" color="warning" sx={{ ml: 1, height: 18, fontSize: '0.6rem' }} />
-                  )}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {/* Display person icons similar to RenderRoomCards */}
+                  {Array.from({ length: num }).map((_, iconIndex) => (
+                    <IoPersonSharp 
+                      key={iconIndex}
+                      size={16}
+                      style={{ 
+                        color: '#3554D1',
+                        marginRight: '2px'
+                      }}
+                    />
+                  ))}
+                  <Typography sx={{ ml: 1 }}>
+                    {num} {num === 1 ? 'Guest' : 'Guests'}
+                    {num === totalTourGuests && (
+                      <Chip label="From Tour" size="small" color="info" sx={{ ml: 1, height: 18, fontSize: '0.6rem' }} />
+                    )}
+                    {num === maxBedOccupancy && bedType && (
+                      <Chip label="Max Bed" size="small" color="warning" sx={{ ml: 1, height: 18, fontSize: '0.6rem' }} />
+                    )}
+                  </Typography>
+                </Box>
                 {selectedGuests === num && (
                   <Chip label="✓ Selected" size="small" color="primary" sx={{ height: 20 }} />
                 )}
@@ -183,12 +256,31 @@ const MealPlanSelection = ({
         {/* Meal plans for each guest */}
         {selectedGuests > 0 && Array.from({ length: selectedGuests }).map((_, guestIndex) => (
           <Box key={guestIndex}>
-            {/* Guest header with person icon */}
-            <MenuItem disabled sx={{ bgcolor: '#f5f5f5', fontWeight: 'bold' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PersonIcon sx={{ mr: 1, fontSize: 18 }} />
-                <Typography variant="subtitle2">
-                  Guest {guestIndex + 1}
+            {/* Guest header with improved styling similar to RenderRoomCards */}
+            <MenuItem disabled sx={{ 
+              bgcolor: '#e6f2ff', 
+              fontWeight: 'bold',
+              padding: '8px',
+              borderRadius: '4px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              my: 1
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <IoPersonSharp 
+                    size={18}
+                    style={{ 
+                      color: '#3554D1',
+                      marginRight: '8px'
+                    }}
+                  />
+                  <Typography variant="subtitle2">
+                    Guest {guestIndex + 1}
+                  </Typography>
+                </Box>
+                {/* Show person count in similar style to RenderRoomCards */}
+                <Typography variant="caption" color="text.secondary">
+                  Person {guestIndex + 1} of {selectedGuests}
                 </Typography>
               </Box>
             </MenuItem>
@@ -205,15 +297,29 @@ const MealPlanSelection = ({
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {getMealPlanIcon()}
-                    <Typography sx={{ ml: 1 }}>{plan.title}</Typography>
+                    {getMealPlanIcon(plan.id)}
+                    <Box sx={{ ml: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{plan.title}</Typography>
+                      {plan.description && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {plan.description}
+                        </Typography>
+                      )}
+                    </Box>
                     {(guestMealPlans[guestIndex]?.id || guestMealPlans[guestIndex]) === plan.id && (
                       <Chip label="✓ Selected" size="small" color="primary" sx={{ ml: 1, height: 20 }} />
                     )}
                   </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {plan.price > 0 ? `$${parseFloat(plan.price).toFixed(2)}` : 'Free'}
-                  </Typography>
+                  <Box>
+                    <Typography variant="body2" fontWeight="500" color="primary.main">
+                      {plan.price > 0 ? `$${parseFloat(plan.price).toFixed(2)}` : 'Free'}
+                    </Typography>
+                    {plan.personCount > 1 && plan.price > 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        ${(plan.price / plan.personCount).toFixed(2)} per person
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
               </MenuItem>
             ))}
@@ -228,22 +334,65 @@ const MealPlanSelection = ({
         ))}
       </Menu>
       
-      {/* Summary */}
-      {guestMealPlans.length > 0 && guestMealPlans.some(plan => (plan?.id || plan) && (plan?.id || plan) !== 'self') && (
-        <Box sx={{ mt: 2, p: 1, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            <strong>Total Cost:</strong> ${guestMealPlans.reduce((total, mealPlanData) => {
-              // Handle both old format (string) and new format (object)
-              if (mealPlanData?.price !== undefined) {
-                return total + mealPlanData.price;
-              } else {
-                const plan = mealPlans.find(p => p.id === mealPlanData);
-                return total + (plan?.price || 0);
-              }
-            }, 0).toFixed(2)}
+      {/* Enhanced Summary with base price + meal plan price display */}
+      {/* {guestMealPlans.length > 0 && (
+        <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Meal Plan Summary
           </Typography>
+          
+        
+          {guestMealPlans.map((mealPlanData, idx) => {
+            // Handle both old format (string) and new format (object)
+            const planId = mealPlanData?.id || mealPlanData;
+            const plan = mealPlans.find(p => p.id === planId);
+            const planPrice = mealPlanData?.price !== undefined ? mealPlanData.price : (plan?.price || 0);
+            
+            if (!plan) return null;
+            
+            return (
+              <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" component="span">
+                    Guest {idx + 1}:
+                  </Typography>
+                  <Chip 
+                    size="small" 
+                    label={plan.title} 
+                    icon={getMealPlanIcon(planId)}
+                    sx={{ ml: 1, height: 20, fontSize: '0.75rem' }} 
+                    variant="outlined" 
+                    color={planId === 'self' ? 'default' : 'primary'}
+                  />
+                </Box>
+                <Typography variant="body2" fontWeight="500">
+                  ${planPrice.toFixed(2)}
+                </Typography>
+              </Box>
+            );
+          })}
+          
+          <Divider sx={{ my: 1 }} />
+          
+     
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+            <Typography variant="subtitle2">
+              Total Cost:
+            </Typography>
+            <Typography variant="subtitle1" fontWeight="bold" color="primary.main">
+              ${guestMealPlans.reduce((total, mealPlanData) => {
+                // Handle both old format (string) and new format (object)
+                if (mealPlanData?.price !== undefined) {
+                  return total + mealPlanData.price;
+                } else {
+                  const plan = mealPlans.find(p => p.id === mealPlanData);
+                  return total + (plan?.price || 0);
+                }
+              }, 0).toFixed(2)}
+            </Typography>
+          </Box>
         </Box>
-      )}
+      )} */}
     </Box>
   );
 };
