@@ -716,7 +716,7 @@
                                                                                     </td>
                                                                     
                                                                                     <!-- Booking Date -->
-                                                                                    <td>{{ $attraction['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($attraction['bookingDate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($attraction['bookingDate']) && $attraction['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($attraction['bookingDate']) : 'N/A' }}</td>
 
                                                                                     <!-- Pax (Adult + Child) -->
                                                                                     <td>{{ ($attraction['adultCount'] ?? 0) + ($attraction['childCount'] ?? 0) }}</td>
@@ -812,10 +812,10 @@
                                                                                             <strong class="text-dark">{{ $tour_guide['guide_name'] ?? 'N/A' }}</strong>
                                                                                         </div>
                                     </td>                                    
-                                                <td>{{ $tour_guide['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($tour_guide['bookingDate']) : 'N/A' }}</td>
+                                                <td>{{ isset($tour_guide['bookingDate']) && $tour_guide['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($tour_guide['bookingDate']) : 'N/A' }}</td>
                                                 <td>{{ ($tour_guide['adults'] ?? 0) + ($tour_guide['children'] ?? 0) }}</td>
                                                 <td>{{ $tour_guide['entrypickup'] ?? 'N/A' }}</td>
-                                                <td>{{ $tour_guide['pickupdate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($tour_guide['pickupdate']) : 'N/A' }}</td>
+                                                <td>{{ isset($tour_guide['pickupdate']) && $tour_guide['pickupdate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($tour_guide['pickupdate']) : 'N/A' }}</td>
                                                 <td>{{ $tour_guide['entrytime'] ?? 'N/A' }}</td>
                                                 <td class="text-wrap text-break" style="min-width: 170px;">
                                                     <strong>Name:</strong> {{ $tour_guide['fullName'] ?? 'N/A' }} <br>
@@ -901,7 +901,7 @@
                                                                                             <strong class="text-dark">{{ $travel['vehicles_name'] ?? 'N/A' }}</strong>
                                     </div>
                                 </td>
-                                                                                    <td>{{ $travel['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($travel['bookingDate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($travel['bookingDate']) && $travel['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($travel['bookingDate']) : 'N/A' }}</td>
                                                                                     <td>{{ ($travel['adults'] ?? 0) + ($travel['children'] ?? 0) }}</td>
                                                                                     <td>{{ $travel['entrytime'] ?? 'N/A' }}</td>
                                                                                     <td>{{ $travel['city'] ?? 'N/A' }}</td>
@@ -991,7 +991,7 @@
                                                                                             <strong class="text-dark">{{ $restaurant['restaurantName'] ?? 'N/A' }}</strong>
                                                                                         </div>
                                                                                     </td>
-                                                                                    <td>{{ $restaurant['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($restaurant['bookingDate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($restaurant['bookingDate']) && $restaurant['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($restaurant['bookingDate']) : 'N/A' }}</td>
                                                                                     <td>{{ ($restaurant['adultCount'] ?? 0) + ($restaurant['childCount'] ?? 0) }}</td>
                                                                                     <td>{{ $restaurant['visitTime'] ?? 'N/A' }}</td>
                                                                                     <td>{{ $restaurant['mealType'] ?? 'N/A' }}</td>
@@ -1165,8 +1165,8 @@
                                                                                             <strong class="text-dark">{{ $pickup['vehicles_name'] ?? 'N/A' }}</strong>
                                     </div>
                                 </td>
-                                                                                    <td>{{ $pickup['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($pickup['bookingDate']) : 'N/A' }}</td>
-                                                                                    <td>{{ $pickup['pickupdate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($pickup['pickupdate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($pickup['bookingDate']) && $pickup['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($pickup['bookingDate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($pickup['pickupdate']) && $pickup['pickupdate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($pickup['pickupdate']) : 'N/A' }}</td>
                                                                                     <td>{{ ($pickup['adults'] ?? 0) + ($pickup['children'] ?? 0) }}</td>
                                                                                     <td class="text-wrap text-break" style="min-width: 95px;">{{ $pickup['entrypickup'] ?? 'N/A' }}</td>
                                                                                     <td class="text-wrap text-break" style="min-width: 95px;">{{ $pickup['entrydropoff'] ?? 'N/A' }}</td>
@@ -1276,8 +1276,8 @@
                                                                                             <strong class="text-dark">{{ $dropoff['vehicles_name'] ?? 'N/A' }}</strong>
                                                                                         </div>
                                                                                     </td>
-                                                                                    <td>{{ $dropoff['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($dropoff['bookingDate']) : 'N/A' }}</td>
-                                                                                    <td>{{ $dropoff['exitpickupdate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($dropoff['exitpickupdate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($dropoff['bookingDate']) && $dropoff['bookingDate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($dropoff['bookingDate']) : 'N/A' }}</td>
+                                                                                    <td>{{ isset($dropoff['exitpickupdate']) && $dropoff['exitpickupdate'] ? \App\Helpers\CommonHelper::DateFormatAdmin($dropoff['exitpickupdate']) : 'N/A' }}</td>
                                                                                     <td>{{ ($dropoff['adults'] ?? 0) + ($dropoff['children'] ?? 0) }}</td>
                                                                                     <td class="text-wrap text-break" style="min-width: 95px;">{{ $dropoff['exitpickup'] ?? 'N/A' }}</td>
                                                                                     <td class="text-wrap text-break" style="min-width: 95px;">{{ $dropoff['exitdropoff'] ?? 'N/A' }}</td>
