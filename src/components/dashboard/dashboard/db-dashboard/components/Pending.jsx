@@ -2182,7 +2182,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -2245,7 +2245,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -2308,7 +2308,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -2374,7 +2374,7 @@ export default function Pending() {
                               order === "asc" ? "down" : "up"
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "bold" : "normal",
                             }}
@@ -2764,7 +2764,7 @@ export default function Pending() {
                           >
                             <div 
                               style={{ 
-                                fontSize: "12px", 
+                                fontSize: "10px", 
                                 fontWeight: "600",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -2790,7 +2790,7 @@ export default function Pending() {
                               backgroundColor: "rgba(53, 84, 209, 0.1)",
                               padding: "6px 8px",
                               borderRadius: "12px",
-                              fontSize: "11px",
+                              fontSize: "10px",
                               color: "#3554D1",
                               fontWeight: "600",
                               display: "inline-flex",
@@ -2810,7 +2810,7 @@ export default function Pending() {
                                   color: "#fff",
                                   padding: "2px 8px",
                                   borderRadius: "50px",
-                                  fontSize: "12px",
+                                  fontSize: "10px",
                                   marginTop: "4px",
                                 }}
                               >
@@ -2847,7 +2847,7 @@ export default function Pending() {
                                 backgroundColor: "rgba(76, 175, 80, 0.1)",
                                 padding: "4px 6px",
                                 borderRadius: "8px",
-                                fontSize: "12px",
+                                fontSize: "10px",
                                 color: "#4CAF50",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -2872,7 +2872,7 @@ export default function Pending() {
                                 backgroundColor: "rgba(244, 67, 54, 0.1)",
                                 padding: "4px 6px",
                                 borderRadius: "8px",
-                                fontSize: "12px",
+                                fontSize: "10px",
                                 color: "#F44336",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -3029,7 +3029,7 @@ export default function Pending() {
                               style={{
                                 fontWeight: "600",
                                 color: getTextColor(list.tour_status),
-                                fontSize: "11px",
+                                fontSize: "10px",
                                 whiteSpace: "nowrap",
                               }}
                             >
@@ -3125,7 +3125,7 @@ export default function Pending() {
                                 }}
                               >
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-wallet" style={{ fontSize: "12px", color: "#4CAF50" }}></i>
+                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
                                   <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
                                     Final
                                   </span>
@@ -3372,14 +3372,14 @@ export default function Pending() {
       >
         {/* Show View Details if not already in first 3 buttons */}
         <MenuItem onClick={() => handleMenuAction('view')} sx={{ fontSize: "14px", py: 1 }}>
-          <Visibility sx={{ fontSize: "12px", mr: 1, color: "#4361ee" }} />
+          <Visibility sx={{ fontSize: "10px", mr: 1, color: "#4361ee" }} />
           View Details
         </MenuItem>
 
         {/* Show Edit if not already in first 3 buttons and editOff is not 1 */}
         {selectedListItem && selectedListItem.editOff !== 1 && (
           <MenuItem onClick={() => handleMenuAction('edit')} sx={{ fontSize: "14px", py: 1 }}>
-            <Edit sx={{ fontSize: "12px", mr: 1, color: "#2e7d32" }} />
+            <Edit sx={{ fontSize: "10px", mr: 1, color: "#2e7d32" }} />
             Add More Services
           </MenuItem>
         )}
@@ -3387,7 +3387,7 @@ export default function Pending() {
         {/* Show Negotiate if not already in first 3 buttons */}
         {selectedListItem && selectedListItem.booking_type === "enquiry" && userRole === "Agent" && (
           <MenuItem onClick={() => handleMenuAction('negotiate')} sx={{ fontSize: "14px", py: 1 }}>
-            <AttachMoney sx={{ fontSize: "12px", mr: 1, color: "#7b1fa2" }} />
+            <AttachMoney sx={{ fontSize: "10px", mr: 1, color: "#7b1fa2" }} />
             Negotiate
           </MenuItem>
         )}
@@ -3395,14 +3395,14 @@ export default function Pending() {
         {/* Show Update if not already in first 3 buttons */}
         
           <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
-            <Update sx={{ fontSize: "12px", mr: 1, color: "#f57c00" }} />
+            <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
             Update Tour Plan
           </MenuItem>
         
 
         {/* Always show Delete in menu */}
         <MenuItem onClick={() => handleMenuAction('delete')} sx={{ fontSize: "14px", py: 1, color: "#f44336" }}>
-          <Cancel sx={{ fontSize: "12px", mr: 1, color: "#f44336" }} />
+          <Cancel sx={{ fontSize: "10px", mr: 1, color: "#f44336" }} />
           Cancel
         </MenuItem>
       </Menu>
