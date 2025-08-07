@@ -32,5 +32,9 @@ class Enquiry extends Model
     {
         return $this->belongsTo(Tour::class, 'tour_id', 'tour_id');
     }
+    public function dmc()
+    {
+        return $this->belongsTo(User::class, 'dmcId', 'userId');
+    }
 
 }

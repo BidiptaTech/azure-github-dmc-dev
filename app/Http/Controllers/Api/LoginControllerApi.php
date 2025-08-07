@@ -9,8 +9,9 @@ use App\Models\User;
 use App\Models\Agent;
 use App\Models\Country;
 use App\Models\OtpVerification;
-use Auth;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use App\Models\Setting;
 use App\Models\Role;
 use App\Services\CurrencyService;
@@ -319,9 +320,42 @@ class LoginControllerApi extends Controller
         }
 
         $countryInfo = Country::where('name', $country)->first();
-        if($dmc_id){
-            $dmc_company_name = $dmc->company_name;
+        
+        // Handle multiple DMC IDs and company names
+        $dmc_ids = [];
+        $dmc_company_names = [];
+        
+        if ($userModel == 'Agent' && $user->dmc_id) {
+            // Parse the JSON array of DMC IDs from agent table
+            $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
+            
+            if (is_array($agentDmcIds)) {
+                $dmc_ids = $agentDmcIds;
+                
+                // Fetch company names for all DMC IDs
+                $dmcCompanies = User::whereIn('userId', $agentDmcIds)
+                    ->where('role_id', 11) // DMC role
+                    ->select('userId', 'company_name')
+                    ->get();
+                
+                foreach ($dmcCompanies as $dmcCompany) {
+                    $dmc_company_names[] = [
+                        'dmc_id' => $dmcCompany->userId,
+                        'company_name' => $dmcCompany->company_name
+                    ];
+                }
+            }
+        } else {
+            // For User model or single DMC case, use existing logic
+            if($dmc_id){
+                $dmc_ids = [$dmc_id];
+                $dmc_company_names = [[
+                    'dmc_id' => $dmc_id,
+                    'company_name' => $dmc->company_name ?? ''
+                ]];
+            }
         }
+        
         $agent_country_tax = $countryInfo->tax_percentage ?? 0;
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
@@ -357,8 +391,10 @@ class LoginControllerApi extends Controller
                 'phone_no' => $user->phone,
                 'price_hide' => $dmc_users->price_hide ?? 0,
                 'user_role' => $userRole,
-                'dmc_id' => $dmc_id ?? '',
-                'dmc_company_name' => $dmc_company_name ?? '',
+                // 'dmc_id' => $dmc_id ?? '',
+                // 'dmc_company_name' => $dmc->company_name ?? '',
+                'dmc_ids' => $dmc_ids,
+                'dmc_companies' => $dmc_company_names,
                 'zone_on' => $dmc_users->zone_on ?? 0,
             ],
         ]);
@@ -689,7 +725,7 @@ class LoginControllerApi extends Controller
 
         try {
             // Start a database transaction
-            \DB::beginTransaction();
+            DB::beginTransaction();
             
             // Get virtual DMC inside the transaction
             $virtualDmc = User::select('userId', 'logo', 'company_name', 'email', 'phone')
@@ -740,7 +776,7 @@ class LoginControllerApi extends Controller
             $agent->save();
             
             // Clean up any OTP verifications for this email
-            \DB::table('otp_verifications')->where('email', $request->email)->delete();
+            DB::table('otp_verifications')->where('email', $request->email)->delete();
             
             // Commit the transaction
             \DB::commit();

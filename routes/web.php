@@ -151,6 +151,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuides'])->name('fetch-guides-by-dmc');
     Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurants'])->name('fetch-restaurants-by-dmc');
     Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
+    Route::get('/fetch-zones-by-dmc', [SingleTourPackageController::class, 'fetchZones'])->name('fetch-zones-by-dmc');
+    Route::get('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');
     
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
