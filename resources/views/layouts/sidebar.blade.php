@@ -445,7 +445,7 @@
   color: #2ecc71;
   transform: scale(1.1);
   transition: 0.3s;
-}
+ }
 
     /* Menu Text Truncation and Tooltip Styles */
     .menu-text-with-tooltip {
@@ -647,6 +647,55 @@
         @endif
 
         <!-- End Tour -->
+
+        <!-- Bookings -->
+        {{-- @if(hasPermission('view booking')) --}}
+        <li class="menu-header mt-5">
+            <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
+        </li>
+        
+        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative')) open active @endif">
+            <a href="#" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
+                <div data-i18n="Bookings">Bookings</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
+                    <a href="{{ route('bookings.new-enquiries') }}" class="menu-link">
+                        <div data-i18n="New Enquiries">New Enquiries</div>
+                    </a>
+                </li>
+                <!-- Show Booking -->
+                <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
+                    <a href="{{ route('bookings.follow-ups') }}" class="menu-link">
+                        <div data-i18n="Follow Ups">Follow Ups</div>
+                    </a>
+                </li>
+
+                <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
+                    <a href="{{ route('bookings.confirmed') }}" class="menu-link">
+                        <div data-i18n="Confirmed Bookings">Confirmed Bookings</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
+                    <a href="{{ route('bookings.definite') }}" class="menu-link">
+                        <div data-i18n="Definite Bookings">Definite Bookings</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
+                    <a href="{{ route('bookings.actual') }}" class="menu-link">
+                        <div data-i18n="Actual Bookings">Actual Bookings</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('bookings/cancellations-refunds')) active @endif">
+                    <a href="{{ route('bookings.cancellations-refunds') }}" class="menu-link">
+                        <div data-i18n="Cancellations & Refunds">Cancellations & Refunds</div>
+                    </a>
+                </li>
+            </ul>
+        </li>  
+    {{-- @endif --}}
+    <!-- End Bookings --> 
 
         <!-- Booking List -->
         {{-- @if(hasPermission('view booking')) --}}
