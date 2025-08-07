@@ -18,7 +18,6 @@ import {
   Divider
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchHotels, updateSearchState } from "@/slice/hotel/hotelSlice";
 import { fetchRoomData } from "@/slice/hotel/HotelAvailabilitySlice";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import StarIcon from "@mui/icons-material/Star";
@@ -353,7 +352,8 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
       id: hotel.id,
       tour_id: tourId,
       priceMode: "dmc", // Default to DMC mode
-      priceModeId: hotel.dmc_id || 4
+     // priceModeId: hotel.dmc_id || 4,
+      dmc_id: hotel.dmc_id || 4
     }));
     
     if (onSelect) onSelect(hotel);
