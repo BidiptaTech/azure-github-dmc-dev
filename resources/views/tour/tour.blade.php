@@ -2076,6 +2076,9 @@
     </div>
 @endif
 @endforeach
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
