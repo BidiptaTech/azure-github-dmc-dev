@@ -427,7 +427,7 @@ const Index = () => {
   const AgentId = Cookies.get("AgentId") || "0";
   const location = useLocation();
   const restaurant = location.state?.restaurants || {};
-  // console.log("restaurant restaurant", restaurant);
+ 
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const searchParams =
