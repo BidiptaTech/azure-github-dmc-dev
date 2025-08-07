@@ -250,6 +250,7 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
 
         Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms']);
+        Route::get('/get-rooms-by-dmc', [HotelController::class, 'getRoomsByDmc']);
         Route::get('/api/get-dmc-cities/{dmcId}', [DriverController::class, 'getDmcCities'])->name('get.dmc.cities');
         Route::get('/features', [FeaturesController::class, 'index'])->name('features'); 
         Route::post('/save-feature-roles/{id}', [FeaturesController::class, 'saveFeatureRoles'])->name('save-feature-roles');
