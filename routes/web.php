@@ -20,6 +20,7 @@ use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\HotelRestaurantController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\BookingsController;
 use App\Http\Controllers\CustomPackageController;
 use App\Http\Controllers\AttractionController;
 use App\Http\Controllers\CountryController;
@@ -454,6 +455,17 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::get('/booking', [BookingController::class, 'index'])->name('booking.index');
         Route::post('/approve-booking', [BookingController::class, 'approve'])->name('bookings.approve');
         Route::post('/decline-booking', [BookingController::class, 'decline'])->name('bookings.decline');
+
+        // Bookings Management Routes
+        Route::get('/bookings/new-enquiries', [BookingsController::class, 'newEnquiries'])->name('bookings.new-enquiries');
+        Route::get('/bookings/follow-ups', [BookingsController::class, 'followUps'])->name('bookings.follow-ups');
+        Route::get('/bookings/tentative', [BookingsController::class, 'tentative'])->name('bookings.tentative');
+        Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
+        Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
+        Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
+        Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
+        Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
+        Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
 
         // Route::get('/approve-attraction', [BookingAttractionController::class, 'index'])->name('booking.attraction');
         // Route::post('/booking-attraction/approve', [BookingAttractionController::class, 'approve'])->name('booking.attraction.approve');
