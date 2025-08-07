@@ -184,21 +184,47 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
         sx={{
           border: '1px solid #e0e0e0',
           borderRadius: '8px',
-          overflow: 'hidden',
+          overflow: 'auto', // Enable both horizontal and vertical scrolling
           backgroundColor: 'white',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+          maxWidth: '100%', // Ensure container doesn't exceed viewport
+          // On large screens, enable horizontal scrolling when content overflows
+          '@media (min-width: 1200px)': {
+            overflowX: 'auto',
+            overflowY: 'visible',
+            // Add subtle visual hint for horizontal scrollability
+            '&::-webkit-scrollbar': {
+              height: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: '#f1f1f1',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#c1c1c1',
+              borderRadius: '4px',
+              '&:hover': {
+                backgroundColor: '#a8a8a8',
+              },
+            },
+          }
         }}
       >
-        <Table sx={{ minWidth: 1000 }}>
+        <Table sx={{ 
+          minWidth: 1200, // Increased minimum width to ensure all columns are visible
+          // Ensure table takes full width but allows horizontal scroll when needed
+          width: '100%',
+          tableLayout: 'auto'
+        }}>
           <TableHead sx={{ backgroundColor: '#f0f4f8' }}>
             <TableRow>
-              <TableCell align="center" sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell align="center" sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   <Settings fontSize="small" />
                   Actions
                 </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 150, width: 150 }}>
                 <TableSortLabel
                   active={orderBy === 'bookingId'}
                   direction={orderBy === 'bookingId' ? order : 'asc'}
@@ -210,7 +236,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
                 <TableSortLabel
                   active={orderBy === 'startDate'}
                   direction={orderBy === 'startDate' ? order : 'asc'}
@@ -222,7 +248,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
                 <TableSortLabel
                   active={orderBy === 'endDate'}
                   direction={orderBy === 'endDate' ? order : 'asc'}
@@ -234,7 +260,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 80, width: 80 }}>
                 <TableSortLabel
                   active={orderBy === 'pax'}
                   direction={orderBy === 'pax' ? order : 'asc'}
@@ -246,7 +272,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 150, width: 150 }}>
                 <TableSortLabel
                   active={orderBy === 'destination'}
                   direction={orderBy === 'destination' ? order : 'asc'}
@@ -258,7 +284,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 150, width: 150 }}>
                 <TableSortLabel
                   active={orderBy === 'customerName'}
                   direction={orderBy === 'customerName' ? order : 'asc'}
@@ -271,7 +297,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 </TableSortLabel>
               </TableCell>
               {userRole !== 'Agent' && (
-                <TableCell sx={{ fontWeight: 'bold', color: '#37474f' }}>
+                <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
                   <TableSortLabel
                     active={orderBy === 'agentId'}
                     direction={orderBy === 'agentId' ? order : 'asc'}

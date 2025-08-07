@@ -2438,7 +2438,7 @@ export default function Pending() {
                                 backgroundColor: "rgba(53, 84, 209, 0.1)",
                                 padding: "4px 6px",
                                 borderRadius: "8px",
-                                fontSize: "11px",
+                                fontSize: "10px",
                                 color: "#3554D1",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -2455,7 +2455,7 @@ export default function Pending() {
                                     color: "#fff",
                                     padding: "2px 8px",
                                     borderRadius: "50px",
-                                    fontSize: "12px",
+                                    fontSize: "10px",
                                     marginTop: "4px",
                                   }}
                                 >
