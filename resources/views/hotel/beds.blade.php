@@ -213,9 +213,12 @@
                             <div class="col-md-3 mb-3">
                                 <label for="room_type" class="form-label"><strong>Room Category</strong><span
                                         class="text-danger">*</span></label>
-                                <select id="room_type" class="form-control" name="room_id" required disabled>
-                                    <option value="">Select DMC First</option>
-                                </select>
+                                        <select id="room_type" class="form-control" name="room_id" required>
+                                            <option value="">Select Room Category</option>
+                                            @foreach($rooms as $room)
+                                                <option value="{{$room->room_id}}">{{$room->room_type}}</option>
+                                            @endforeach
+                                        </select>
                             </div>
 
                             <!-- Bed Type -->
