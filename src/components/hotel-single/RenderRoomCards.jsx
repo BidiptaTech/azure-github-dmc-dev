@@ -217,15 +217,12 @@ const RenderRoomCards = ({
   const isLunchAvailable = data?.lunch === 1 && data?.lunch_price !== null && data?.lunch_price !== undefined;
   const isDinnerAvailable = data?.dinner === 1 && data?.dinner_price !== null && data?.dinner_price !== undefined;
   
-  // Special case for complimentary breakfast
-  const hasComplimentaryBreakfast = data?.complemenatry_breakfast_included === true;
-  
-  // Room Only is always available if rooms_only is 1
-  const isRoomOnlyAvailable = data?.rooms_only === 1;
+  // Room Only is available if no meals are available or rooms_only is 1
+  const isRoomOnlyAvailable = (data?.rooms_only === 1) || (!isBreakfastAvailable && !isLunchAvailable && !isDinnerAvailable);
 
   const mealOptions = [
     { 
-      title: hasComplimentaryBreakfast ? "Room Only (Breakfast Included)" : "Room Only", 
+      title: "Room Only", 
       extraPrice: 0,
       totalPrice: parseFloat(basePrice),
       condition: isRoomOnlyAvailable
@@ -233,7 +230,7 @@ const RenderRoomCards = ({
     { 
       title: "Room with Breakfast", 
       extraPrice: parseFloat(data?.breakfast_price || 0), 
-      condition: isBreakfastAvailable && !hasComplimentaryBreakfast,
+      condition: isBreakfastAvailable,
       totalPrice: parseFloat(basePrice) + parseFloat(data?.breakfast_price || 0)
     },
     { 
@@ -249,16 +246,16 @@ const RenderRoomCards = ({
       totalPrice: parseFloat(basePrice) + parseFloat(data?.dinner_price || 0)
     },
     { 
-      title: hasComplimentaryBreakfast ? "Room with Lunch (Breakfast Included)" : "Room with Breakfast & Lunch", 
-      extraPrice: (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0), 
-      condition: (isBreakfastAvailable || hasComplimentaryBreakfast) && isLunchAvailable,
-      totalPrice: parseFloat(basePrice) + (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0)
+      title: "Room with Breakfast & Lunch", 
+      extraPrice: parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0), 
+      condition: isBreakfastAvailable && isLunchAvailable,
+      totalPrice: parseFloat(basePrice) + parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0)
     },
     { 
-      title: hasComplimentaryBreakfast ? "Room with Dinner (Breakfast Included)" : "Room with Breakfast & Dinner", 
-      extraPrice: (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.dinner_price || 0), 
-      condition: (isBreakfastAvailable || hasComplimentaryBreakfast) && isDinnerAvailable,
-      totalPrice: parseFloat(basePrice) + (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.dinner_price || 0)
+      title: "Room with Breakfast & Dinner", 
+      extraPrice: parseFloat(data?.breakfast_price || 0) + parseFloat(data?.dinner_price || 0), 
+      condition: isBreakfastAvailable && isDinnerAvailable,
+      totalPrice: parseFloat(basePrice) + parseFloat(data?.breakfast_price || 0) + parseFloat(data?.dinner_price || 0)
     },
     { 
       title: "Room with Lunch & Dinner", 
@@ -267,10 +264,10 @@ const RenderRoomCards = ({
       totalPrice: parseFloat(basePrice) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0)
     },
     { 
-      title: hasComplimentaryBreakfast ? "Room with Lunch & Dinner (Breakfast Included)" : "Room with All Meals", 
-      extraPrice: (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0), 
-      condition: (isBreakfastAvailable || hasComplimentaryBreakfast) && isLunchAvailable && isDinnerAvailable,
-      totalPrice: parseFloat(basePrice) + (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0)
+      title: "Room with All Meals", 
+      extraPrice: parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0), 
+      condition: isBreakfastAvailable && isLunchAvailable && isDinnerAvailable,
+      totalPrice: parseFloat(basePrice) + parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0)
     },
   ];
 
@@ -285,7 +282,7 @@ const RenderRoomCards = ({
 
   const mealOptionsDouble = [
     { 
-      title: hasComplimentaryBreakfast ? "Room Only (Breakfast Included)" : "Room Only", 
+      title: "Room Only", 
       extraPrice: 0,
       totalPrice: (personCount) => parseFloat(basePriceDouble) + getExtraBedPriceForPersonCount(personCount),
       condition: isRoomOnlyAvailable
@@ -293,7 +290,7 @@ const RenderRoomCards = ({
     { 
       title: "Room with Breakfast", 
       extraPrice: parseFloat(data?.breakfast_price || 0), 
-      condition: isBreakfastAvailable && !hasComplimentaryBreakfast,
+      condition: isBreakfastAvailable,
       totalPrice: (personCount) => parseFloat(basePriceDouble) + parseFloat(data?.breakfast_price || 0) + getExtraBedPriceForPersonCount(personCount)
     },
     { 
@@ -309,16 +306,16 @@ const RenderRoomCards = ({
       totalPrice: (personCount) => parseFloat(basePriceDouble) + parseFloat(data?.dinner_price || 0) + getExtraBedPriceForPersonCount(personCount)
     },
     { 
-      title: hasComplimentaryBreakfast ? "Room with Lunch (Breakfast Included)" : "Room with Breakfast & Lunch", 
-      extraPrice: (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0), 
-      condition: (isBreakfastAvailable || hasComplimentaryBreakfast) && isLunchAvailable,
-      totalPrice: (personCount) => parseFloat(basePriceDouble) + (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0) + getExtraBedPriceForPersonCount(personCount)
+      title: "Room with Breakfast & Lunch", 
+      extraPrice: parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0), 
+      condition: isBreakfastAvailable && isLunchAvailable,
+      totalPrice: (personCount) => parseFloat(basePriceDouble) + parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0) + getExtraBedPriceForPersonCount(personCount)
     },
     { 
-      title: hasComplimentaryBreakfast ? "Room with Dinner (Breakfast Included)" : "Room with Breakfast & Dinner", 
-      extraPrice: (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.dinner_price || 0), 
-      condition: (isBreakfastAvailable || hasComplimentaryBreakfast) && isDinnerAvailable,
-      totalPrice: (personCount) => parseFloat(basePriceDouble) + (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.dinner_price || 0) + getExtraBedPriceForPersonCount(personCount)
+      title: "Room with Breakfast & Dinner", 
+      extraPrice: parseFloat(data?.breakfast_price || 0) + parseFloat(data?.dinner_price || 0), 
+      condition: isBreakfastAvailable && isDinnerAvailable,
+      totalPrice: (personCount) => parseFloat(basePriceDouble) + parseFloat(data?.breakfast_price || 0) + parseFloat(data?.dinner_price || 0) + getExtraBedPriceForPersonCount(personCount)
     },
     { 
       title: "Room with Lunch & Dinner", 
@@ -327,10 +324,10 @@ const RenderRoomCards = ({
       totalPrice: (personCount) => parseFloat(basePriceDouble) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0) + getExtraBedPriceForPersonCount(personCount)
     },
     { 
-      title: hasComplimentaryBreakfast ? "Room with Lunch & Dinner (Breakfast Included)" : "Room with All Meals", 
-      extraPrice: (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0), 
-      condition: (isBreakfastAvailable || hasComplimentaryBreakfast) && isLunchAvailable && isDinnerAvailable,
-      totalPrice: (personCount) => parseFloat(basePriceDouble) + (hasComplimentaryBreakfast ? 0 : parseFloat(data?.breakfast_price || 0)) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0) + getExtraBedPriceForPersonCount(personCount)
+      title: "Room with All Meals", 
+      extraPrice: parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0), 
+      condition: isBreakfastAvailable && isLunchAvailable && isDinnerAvailable,
+      totalPrice: (personCount) => parseFloat(basePriceDouble) + parseFloat(data?.breakfast_price || 0) + parseFloat(data?.lunch_price || 0) + parseFloat(data?.dinner_price || 0) + getExtraBedPriceForPersonCount(personCount)
     },
   ];
 
