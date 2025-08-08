@@ -47,7 +47,7 @@ import Pagination from "../../common/Pagination";
 import dayjs from "dayjs";
 import { Button, InputAdornment, TextField, Typography, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
 import CustomPaymentTooltip from "./CustomTooltip";
-import { Visibility, Edit, AttachMoney, Update ,Cancel, MoreVert} from "@mui/icons-material";
+import { Visibility, Edit, AttachMoney, Update, Cancel, MoreVert } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -234,6 +234,17 @@ const formatDate1 = (dateString) => {
   console.log("formattedDay", formattedDay);
   // Return the formatted date in the same format
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
+};
+
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
 };
 
 export default function Pending() {
@@ -803,19 +814,19 @@ export default function Pending() {
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
-    dispatch(resetVehicles1()); 
+    dispatch(resetVehicles1());
     dispatch(resetguide());
     dispatch(UpdateCustomPackage({ tour_id: tourId }))
-    .unwrap()
-    .then((response) => {
-      dispatch(resetPackages());
-      navigate("/dashboard/tour-packages");
-      console.log("Full Response Data:", response);
-      dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
-    })
-    .catch((error) => {
-      console.error("Error fetching booking:", error);
-    });
+      .unwrap()
+      .then((response) => {
+        dispatch(resetPackages());
+        navigate("/dashboard/tour-packages");
+        console.log("Full Response Data:", response);
+        dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
+      })
+      .catch((error) => {
+        console.error("Error fetching booking:", error);
+      });
   };
 
   // Update the handleViewDetails function to properly initialize and persist data
@@ -1476,8 +1487,7 @@ export default function Pending() {
 
         // Save the completed PDF
         pdf.save(
-          `Tour_Details_${
-            bookings.display_id || bookings.data?.display_id || "booking"
+          `Tour_Details_${bookings.display_id || bookings.data?.display_id || "booking"
           }.pdf`
         );
 
@@ -1539,9 +1549,6 @@ export default function Pending() {
     // Set the enquiry amount to the current total price
     setEnquiryAmount(Math.ceil(totalOriginalPrice));
 
-    // Log current state for debugging
-    console.log("Current tourId state:", tourId);
-    console.log("Current bookings data:", bookings);
 
     // Fetch enquiry history data
     try {
@@ -1571,7 +1578,7 @@ export default function Pending() {
         }
       }
 
-      console.log("Using tour_id for enquiry:", currentTourId);
+      
 
       if (!currentTourId) {
         console.error("No tour_id available for fetching enquiry history");
@@ -1591,7 +1598,7 @@ export default function Pending() {
         },
       });
 
-      console.log("Enquiry history response:", response.data);
+      
 
       if (response.data && response.data.data) {
         // For single object response, convert to array
@@ -1600,7 +1607,7 @@ export default function Pending() {
           : [response.data.data];
         setEnquiryHistory(historyData);
         setEnquiryAmount(historyData[0].current_price);
-        console.log("History data:", historyData[0].current_price);
+        
 
         // Check if there's an entry with status 2 (Booked) or 3 (Cancel)
         const hasStatusBookedOrCancel = historyData.some(
@@ -1611,7 +1618,7 @@ export default function Pending() {
             item.status === 3
         );
 
-        console.log("Has status booked or cancel?", hasStatusBookedOrCancel);
+      
 
         // If the status is 2 or 3, close the modal and don't show it
         if (hasStatusBookedOrCancel) {
@@ -1626,21 +1633,19 @@ export default function Pending() {
         const isAssignedToAgent = historyData.some(
           (item) => item.assigned && item.assigned === "Agent"
         );
-        console.log("Enquiry history data:", historyData);
-        console.log("Is assigned to agent?", isAssignedToAgent);
+        
 
         // Check if any entry has assigned as "OM" or other value
         const assignedValue =
           historyData.length > 0 ? historyData[0].assigned : "none";
-        console.log("Assigned value found:", assignedValue);
-        console.log("Is assigned OM?", assignedValue === "OM");
+        
 
         // Set assigned state based on what we found
         if (
           assignedValue === "OM" ||
           (assignedValue && assignedValue !== "Agent")
         ) {
-          console.log("Setting assigned to a non-Agent value:", assignedValue);
+          
           setAssigned(assignedValue);
         } else {
           setAssigned(isAssignedToAgent ? "Agent" : null);
@@ -2085,7 +2090,7 @@ export default function Pending() {
             }}
           >
             <div className="responsive-table-container">
-              <table className="table-3 -border-bottom col-12 responsive-table">
+              <table className="table-3 -border-bottom col-12 responsive-table" style={{ tableLayout: 'fixed' }}>
                 <thead className="bg-light-2">
                   <tr>
                     <th
@@ -2097,9 +2102,9 @@ export default function Pending() {
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         transition: "background-color 0.3s ease",
-                        width: "120px",
-                        minWidth: "120px",
-                        maxWidth: "120px",
+                        width: "130px",
+                        minWidth: "130px",
+                        maxWidth: "130px",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = "#e6eafb";
@@ -2142,6 +2147,9 @@ export default function Pending() {
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         transition: "background-color 0.3s ease",
+                        width: "140px",
+                        minWidth: "140px",
+                        maxWidth: "140px",
                       }}
                       onClick={() => handleColumnSort("id")}
                       onMouseEnter={(e) =>
@@ -2150,13 +2158,12 @@ export default function Pending() {
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.backgroundColor = "#f5f7fc")
                       }
-                      title={`Sort by Booking ID (${
-                        sortColumn === "id"
+                      title={`Sort by Booking ID (${sortColumn === "id"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2178,9 +2185,8 @@ export default function Pending() {
                         Booking ID
                         {sortColumn === "id" && (
                           <i
-                            className={`icon-up-down text-blue-1 mr-5 ${
-                              order === "asc" ? "rotate-180" : ""
-                            }`}
+                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2213,13 +2219,12 @@ export default function Pending() {
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1)";
                       }}
-                      title={`Sort by Start Date (${
-                        sortColumn === "startDate"
+                      title={`Sort by Start Date (${sortColumn === "startDate"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2241,9 +2246,8 @@ export default function Pending() {
                         Start Date
                         {sortColumn === "startDate" && (
                           <i
-                            className={`icon-up-down text-blue-1 mr-5 ${
-                              order === "asc" ? "rotate-180" : ""
-                            }`}
+                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2276,13 +2280,12 @@ export default function Pending() {
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1)";
                       }}
-                      title={`Sort by End Date (${
-                        sortColumn === "endDate"
+                      title={`Sort by End Date (${sortColumn === "endDate"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2304,9 +2307,8 @@ export default function Pending() {
                         End Date
                         {sortColumn === "endDate" && (
                           <i
-                            className={`icon-up-down text-blue-1 mr-5 ${
-                              order === "asc" ? "rotate-180" : ""
-                            }`}
+                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2342,13 +2344,12 @@ export default function Pending() {
                         e.currentTarget.querySelector("i").style.transform =
                           "rotate(0deg)";
                       }}
-                      title={`Sort by Pax Count (${
-                        sortColumn === "pax"
+                      title={`Sort by Pax Count (${sortColumn === "pax"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2370,9 +2371,8 @@ export default function Pending() {
                         Pax
                         {sortColumn === "pax" && (
                           <i
-                            className={`icon-arrow-${
-                              order === "asc" ? "down" : "up"
-                            }`}
+                            className={`icon-arrow-${order === "asc" ? "down" : "up"
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2645,8 +2645,9 @@ export default function Pending() {
                         <td
                           style={{
                             padding: "8px 12px",
-                            minWidth: "120px",
-                            maxWidth: "120px",
+                            width: "130px",
+                            minWidth: "130px",
+                            maxWidth: "130px",
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -2757,34 +2758,43 @@ export default function Pending() {
                             </Tooltip>
                           </div>
                           {list.dmc_company_name && (
-                          <Tooltip 
-                            title={list.dmc_company_name }
-                            arrow
-                            placement="top"
-                          >
-                            <div 
-                              style={{ 
-                                fontSize: "10px", 
-                                fontWeight: "600",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                maxWidth: "100%",
-                                marginTop: "10px",
-                                textAlign: "center",
-                                backgroundColor: "#3554D1",
-                                color: "#fff",
-                                padding: "5px 10px",
-                                borderRadius: "50px",
-                                cursor: "pointer",
-                              }}
+                            <Tooltip
+                              title={list.dmc_company_name}
+                              arrow
+                              placement="top"
                             >
-                              {list.dmc_company_name }
-                            </div>
-                          </Tooltip>
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: "600",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "100%",
+                                  marginTop: "10px",
+                                  textAlign: "center",
+                                  backgroundColor: "#3554D1",
+                                  color: "#fff",
+                                  padding: "5px 10px",
+                                  borderRadius: "50px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {list.dmc_company_name}
+                              </div>
+                            </Tooltip>
                           )}
                         </td>
-                        <td className="booking-id-column">
+                        <td 
+                          className="booking-id-column"
+                          style={{
+                            padding: "8px 12px",
+                            width: "140px",
+                            minWidth: "140px",
+                            maxWidth: "140px",
+                            textAlign: "center",
+                          }}
+                        >
                           <div
                             style={{
                               backgroundColor: "rgba(53, 84, 209, 0.1)",
@@ -2797,6 +2807,8 @@ export default function Pending() {
                               flexDirection: "column",
                               alignItems: "center",
                               whiteSpace: "nowrap",
+                              width: "100%",
+                              maxWidth: "120px",
                             }}
                           >
                             {/* Display ID on top */}
@@ -2818,26 +2830,23 @@ export default function Pending() {
                               </span>
                             )}
                             {list.multi_enq_id && (
-                              <div 
-                              style={{ 
-                               
-                                textAlign: "center",
-                                //backgroundColor: "#3554D1",
-                                //color: "#fff",
-                                color: "#3554D1",
-                                padding: "5px 10px",
-                                borderRadius: "50px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              {list.multi_enq_id}
-                            </div>
+                              <div
+                                style={{
+                                  textAlign: "center",
+                                  color: "#3554D1",
+                                  padding: "5px 10px",
+                                  borderRadius: "50px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {list.multi_enq_id}
+                              </div>
                             )}
                           </div>
                         </td>
 
                         <td className="date-column">
-                          <Tooltip 
+                          <Tooltip
                             title={formatDateTooltip(list.check_in_time)}
                             arrow
                             placement="top"
@@ -2862,7 +2871,7 @@ export default function Pending() {
                           </Tooltip>
                         </td>
                         <td className="date-column">
-                          <Tooltip 
+                          <Tooltip
                             title={formatDateTooltip(list.check_out_time)}
                             arrow
                             placement="top"
@@ -2948,46 +2957,57 @@ export default function Pending() {
                             >
                               {list.destination
                                 ? list.destination
-                                    .split(",")
-                                    .map((code) => {
-                                      const trimmedCode = code.trim();
-                                      // First try to get the name from codeToName mapping
-                                      const countryName =
-                                        countryMappings.codeToName[trimmedCode];
-                                      if (countryName) {
-                                        return countryName;
-                                      }
-                                      // If not found in codeToName, check if it's already a name
-                                      if (
-                                        countryMappings.nameToCode[trimmedCode]
-                                      ) {
-                                        return trimmedCode;
-                                      }
-                                      // If neither found, return the original code
+                                  .split(",")
+                                  .map((code) => {
+                                    const trimmedCode = code.trim();
+                                    // First try to get the name from codeToName mapping
+                                    const countryName =
+                                      countryMappings.codeToName[trimmedCode];
+                                    if (countryName) {
+                                      return countryName;
+                                    }
+                                    // If not found in codeToName, check if it's already a name
+                                    if (
+                                      countryMappings.nameToCode[trimmedCode]
+                                    ) {
                                       return trimmedCode;
-                                    })
-                                    .join(", ")
+                                    }
+                                    // If neither found, return the original code
+                                    return trimmedCode;
+                                  })
+                                  .join(", ")
                                 : "N/A"}
                             </span>
                           </div>
                         </td>
-                        <td className="customer-column">
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            <i
-                              className="icon-customer"
-                              style={{ fontSize: "18px", color: "#F44336" }}
-                            ></i>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {list.customer_name || "N/A"}
-                            </span>
-                          </div>
-                        </td>
+                          <td className="customer-column">
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                maxWidth: "150px",
+                              }}
+                            >
+                              <i
+                                className="icon-customer"
+                                style={{ fontSize: "18px", color: "#F44336" }}
+                              ></i>
+                              <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    maxWidth: "110px",
+                                  }}
+                                >
+                                  {truncateName(list.customer_name, 10)}
+                                </span>
+                              </Tooltip>
+                            </div>
+                          </td>
                         <td className="status-column">
                           <div
                             style={{
@@ -3147,42 +3167,41 @@ export default function Pending() {
                                     list.payment_status === "Not Paid"
                                       ? "rgba(253, 236, 234, 0.9)"
                                       : list.payment_status === "Partially Paid"
-                                      ? "rgba(227, 242, 253, 0.9)"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "rgba(232, 245, 233, 0.9)"
-                                      : "rgba(224, 224, 224, 0.9)",
+                                        ? "rgba(227, 242, 253, 0.9)"
+                                        : list.payment_status === "Completely Paid"
+                                          ? "rgba(232, 245, 233, 0.9)"
+                                          : "rgba(224, 224, 224, 0.9)",
                                   borderRadius: "6px",
-                                  border: `1px solid ${
-                                    list.payment_status === "Not Paid"
+                                  border: `1px solid ${list.payment_status === "Not Paid"
                                       ? "rgba(211, 47, 47, 0.3)"
                                       : list.payment_status === "Partially Paid"
-                                      ? "rgba(25, 118, 210, 0.3)"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "rgba(56, 142, 60, 0.3)"
-                                      : "rgba(97, 97, 97, 0.3)"
-                                  }`,
+                                        ? "rgba(25, 118, 210, 0.3)"
+                                        : list.payment_status === "Completely Paid"
+                                          ? "rgba(56, 142, 60, 0.3)"
+                                          : "rgba(97, 97, 97, 0.3)"
+                                    }`,
                                 }}
                               >
-                                <i 
+                                <i
                                   className={
                                     list.payment_status === "Not Paid"
                                       ? "icon-x-circle"
                                       : list.payment_status === "Partially Paid"
-                                      ? "icon-clock"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "icon-check-circle"
-                                      : "icon-help-circle"
+                                        ? "icon-clock"
+                                        : list.payment_status === "Completely Paid"
+                                          ? "icon-check-circle"
+                                          : "icon-help-circle"
                                   }
-                                  style={{ 
-                                    fontSize: "10px", 
+                                  style={{
+                                    fontSize: "10px",
                                     color:
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
                                         : list.payment_status === "Partially Paid"
-                                        ? "#1976d2"
-                                        : list.payment_status === "Completely Paid"
-                                        ? "#388e3c"
-                                        : "#616161"
+                                          ? "#1976d2"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "#388e3c"
+                                            : "#616161"
                                   }}
                                 ></i>
                                 <span
@@ -3193,10 +3212,10 @@ export default function Pending() {
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
                                         : list.payment_status === "Partially Paid"
-                                        ? "#1976d2"
-                                        : list.payment_status === "Completely Paid"
-                                        ? "#388e3c"
-                                        : "#616161",
+                                          ? "#1976d2"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "#388e3c"
+                                            : "#616161",
                                   }}
                                 >
                                   {list.payment_status}
@@ -3236,10 +3255,10 @@ export default function Pending() {
                     ))
                   ) : (
                     <tr>
-                                              <td
-                          colSpan="11"
-                          style={{ textAlign: "center", padding: "40px 20px" }}
-                        >
+                      <td
+                        colSpan="11"
+                        style={{ textAlign: "center", padding: "40px 20px" }}
+                      >
                         <div
                           style={{
                             display: "flex",
@@ -3393,12 +3412,12 @@ export default function Pending() {
         )}
 
         {/* Show Update if not already in first 3 buttons */}
-        
-          <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
-            <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
-            Update Tour Plan
-          </MenuItem>
-        
+
+        <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
+          <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
+          Update Tour Plan
+        </MenuItem>
+
 
         {/* Always show Delete in menu */}
         <MenuItem onClick={() => handleMenuAction('delete')} sx={{ fontSize: "14px", py: 1, color: "#f44336" }}>

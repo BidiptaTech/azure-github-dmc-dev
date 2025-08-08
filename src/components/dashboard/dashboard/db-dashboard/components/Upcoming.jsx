@@ -190,6 +190,17 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
+};
+
 export default function Pending() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -2604,13 +2615,26 @@ export default function Pending() {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "8px",
+                                maxWidth: "150px",
                               }}
                             >
                               <i
                                 className="icon-customer"
                                 style={{ fontSize: "18px", color: "#F44336" }}
                               ></i>
-                              <span>{list.customer_name || "N/A"}</span>
+                              <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    maxWidth: "110px",
+                                  }}
+                                >
+                                  {truncateName(list.customer_name, 10)}
+                                </span>
+                              </Tooltip>
                             </div>
                           </td>
                           <td className="booking-id-column">
