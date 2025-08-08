@@ -284,7 +284,7 @@ class GuideController extends Controller
                 ->map(function ($booking) {
                     $entryTime = $booking['entrytime'] ?? '00:00';
                     $hours = (int) filter_var($booking['hours'] ?? 0, FILTER_SANITIZE_NUMBER_INT);
-        
+                    
                     return [
                         'date' => $booking['pickupdate'],
                         'start_time' => $entryTime,

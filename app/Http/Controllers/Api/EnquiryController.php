@@ -745,18 +745,17 @@ class EnquiryController extends Controller
                 'guide' => $enquiry->guide,
                 'guide_remarks' => $enquiry->guide_remarks,
                 'guide_details' => $guides,
-
                 'packaged_attractions' => $enquiry->packaged_attractions,
                 'packaged_attraction_details' => $packagedAttractions,
-
                 'entry_port' => $enquiry->entry_port,
                 'entry_port_address' => $enquiry->entry_port_address,
                 'entry_dropoff_type' => $enquiry->entry_dropoff_type,
                 'entry_dropoff_location' => $entry_dropoff_location,
-
                 'exit_port' => $enquiry->exit_port,
                 'multi_enq_id' => $enquiry->multi_enq_id,
-                'created_at' => $enquiry->created_at->format('Y-m-d H:i:s'),
+                'created_at' => $enquiry->created_at
+                ->timezone('Asia/Kolkata')
+                ->format('Y-m-d H:i:s'),
                 'approx_price' => $enquiry->approx_price,
                 'exit_port_address' => $enquiry->exit_port_address,
                 'exit_pickup_type' => $enquiry->exit_pickup_type,
