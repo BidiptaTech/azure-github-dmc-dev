@@ -190,6 +190,17 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
+};
+
 export default function Pending() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -1257,7 +1268,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1317,7 +1328,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1377,7 +1388,7 @@ export default function Pending() {
                               order === "asc" ? "rotate-180" : ""
                             }`}
                             style={{
-                              fontSize: "12px",
+                              fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
                               fontWeight: order === "asc" ? "normal" : "bold",
                             }}
@@ -1442,7 +1453,7 @@ export default function Pending() {
                             className={`icon-arrow-${
                               order === "asc" ? "down" : "up"
                             }`}
-                            style={{ fontSize: "12px", opacity: 0.7 }}
+                            style={{ fontSize: "10px", opacity: 0.7 }}
                           ></i>
                         )}
                       </div>
@@ -1754,7 +1765,7 @@ export default function Pending() {
                                   <i
                                     className="icon-edit"
                                     style={{
-                                      fontSize: "12px",
+                                      fontSize: "10px",
                                     }}
                                   ></i>
                                 </IconButton>
@@ -1781,7 +1792,7 @@ export default function Pending() {
                                 <i
                                   className="icon-trash-2"
                                   style={{
-                                    fontSize: "12px",
+                                    fontSize: "10px",
                                   }}
                                 ></i>
                               </IconButton>
@@ -1794,7 +1805,7 @@ export default function Pending() {
       backgroundColor: "rgba(53, 84, 209, 0.1)",
       padding: "6px 8px",
       borderRadius: "12px",
-      fontSize: "11px",
+      fontSize: "10px",
       color: "#3554D1",
       fontWeight: "600",
       display: "inline-flex",
@@ -1814,7 +1825,7 @@ export default function Pending() {
           color: "#fff",
           padding: "2px 8px",
           borderRadius: "50px",
-          fontSize: "12px",
+          fontSize: "10px",
           marginTop: "4px",
         }}
       >
@@ -1834,7 +1845,7 @@ export default function Pending() {
                                 backgroundColor: "rgba(76, 175, 80, 0.1)",
                                 padding: "4px 6px",
                                 borderRadius: "8px",
-                                fontSize: "12px",
+                                fontSize: "10px",
                                 color: "#4CAF50",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -1859,7 +1870,7 @@ export default function Pending() {
                                 backgroundColor: "rgba(244, 67, 54, 0.1)",
                                 padding: "4px 6px",
                                 borderRadius: "8px",
-                                fontSize: "12px",
+                                fontSize: "10px",
                                 color: "#F44336",
                                 fontWeight: "600",
                                 display: "inline-flex",
@@ -1904,7 +1915,7 @@ export default function Pending() {
                             <span
                               style={{
                                 fontWeight: "600",
-                                fontSize: "12px",
+                                fontSize: "10px",
                                 color: "#FF9800",
                                 whiteSpace: "nowrap",
                               }}
@@ -1951,13 +1962,26 @@ export default function Pending() {
                               display: "flex",
                               alignItems: "center",
                               gap: "8px",
+                              maxWidth: "150px",
                             }}
                           >
                             <i
                               className="icon-customer"
                               style={{ fontSize: "18px", color: "#F44336" }}
                             ></i>
-                            <span>{list.customer_name || "N/A"}</span>
+                            <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  display: "inline-block",
+                                  maxWidth: "110px",
+                                }}
+                              >
+                                {truncateName(list.customer_name, 10)}
+                              </span>
+                            </Tooltip>
                           </div>
                         </td>
                         <td style={{ padding: "16px 20px" }}>
@@ -1989,7 +2013,7 @@ export default function Pending() {
                               }}
                             ></i>
                             <span                              style={{                                fontWeight: "600",                                color: getTextColor(list.tour_status),
-                                fontSize: "11px",
+                                fontSize: "10px",
                               }}                            >                              {list.tour_status || "Pending"}
                             </span>
                           </div>
@@ -2086,7 +2110,7 @@ export default function Pending() {
                                 }}
                               >
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-wallet" style={{ fontSize: "12px", color: "#4CAF50" }}></i>
+                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
                                   <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
                                     Final
                                   </span>

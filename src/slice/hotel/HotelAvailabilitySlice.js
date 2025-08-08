@@ -28,10 +28,9 @@ const extractPolicyData = (apiResponse) => {
 // Thunk for fetching room data
 export const fetchRoomData = createAsyncThunk(
   "rooms/fetchRoomData",
-  async ({ id, tour_id, priceMode,priceModeId }, { rejectWithValue, dispatch }) => {
+  async ({ id, tour_id, priceMode,priceModeId,dmc_id }, { rejectWithValue, dispatch }) => {
     // console.log(tour_id,"tour ID");
     // console.log(priceModeId,"pricmodeID");
-    
     
     try {
       //console.log("API call initiated with ID:", id, "Price Mode:", priceMode);
@@ -48,7 +47,7 @@ export const fetchRoomData = createAsyncThunk(
       }
 
       const response = await axios.get(
-        `${BASE_URL}/hotel-details?id=${id}&price-mode=${priceMode}&agent-id=${AgentId}&tour-id=${tour_id}`,
+        `${BASE_URL}/hotel-details?id=${id}&price-mode=${priceMode}&agent-id=${AgentId}&tour-id=${tour_id}&dmc_id=${dmc_id}`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,

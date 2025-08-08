@@ -427,7 +427,7 @@ const Index = () => {
   const AgentId = Cookies.get("AgentId") || "0";
   const location = useLocation();
   const restaurant = location.state?.restaurants || {};
-  // console.log("restaurant restaurant", restaurant);
+ 
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const searchParams =
@@ -652,8 +652,6 @@ const Index = () => {
   const handleMealSelection = (e) => {
     const selectedMealName = e.target.value;
     setSpecificMealType(selectedMealName);
-    setSelectedMealIndex(null); // Reset selected index
-    setSelectedMealIndexes([]); // Reset selected indexes
 
     const selectedMeals = restaurantsDetails.meals.filter(
       (meal) =>
@@ -662,29 +660,107 @@ const Index = () => {
     );
 
     if (selectedMeals.length > 0) {
-      const mealParts = selectedMeals.map((meal) => ({
-        item_name: meal.name,
-        name: meal.item_description,
-        category: meal.category,
-        item_type: meal.item_type,
-        checked: false,
-        price: meal.price,
-        meal_id: meal.meal_id,
-        quantity: 1,
-        // Add adult and child prices for buffet type
-        adult_price: meal.adult_price,
-        child_price: meal.child_price,
-        // Initialize counts for buffet
-        adultCount: 0,
-        childCount: 0
-      }));
+      const mealParts = selectedMeals.map((meal) => {
+        // Check if this meal was previously confirmed
+        const confirmedMeal = confirmedMealParts.find(
+          confirmed => confirmed.meal_id === meal.meal_id
+        );
+        
+        return {
+          item_name: meal.name,
+          name: meal.item_description,
+          category: meal.category,
+          item_type: meal.item_type,
+          checked: confirmedMeal ? true : false, // Restore checked state
+          price: meal.price,
+          meal_id: meal.meal_id,
+          quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1, // Restore quantity
+          // Add adult and child prices for buffet type
+          adult_price: meal.adult_price,
+          child_price: meal.child_price,
+          // Initialize counts for buffet
+          adultCount: confirmedMeal ? confirmedMeal.adultCount || 0 : 0,
+          childCount: confirmedMeal ? confirmedMeal.childCount || 0 : 0
+        };
+      });
+
+      // Restore selected indexes based on confirmed selections
+      const confirmedIndexes = [];
+      let confirmedSingleIndex = null;
+      
+      mealParts.forEach((part, index) => {
+        if (part.checked) {
+          confirmedIndexes.push(index);
+          if (confirmedSingleIndex === null) {
+            confirmedSingleIndex = index;
+          }
+        }
+      });
 
       setSelectedMealParts(mealParts);
-      setIsConfirmDisabled(true);
+      setSelectedMealIndexes(confirmedIndexes);
+      setSelectedMealIndex(confirmedSingleIndex);
+      setIsConfirmDisabled(confirmedIndexes.length === 0);
       setOpen(true);
     } else {
       setSelectedMealParts([]);
       setOpen(false);
+    }
+  };
+
+  // New function to handle meal item clicks (including re-selections)
+  const handleMealItemClick = (selectedMealName) => {
+    setSpecificMealTypeOpen(false); // Close the dropdown
+
+    const selectedMeals = restaurantsDetails.meals.filter(
+      (meal) =>
+        meal.type === selectedMealName &&
+        meal.meal_period.toLowerCase() === mealType.toLowerCase()
+    );
+
+    if (selectedMeals.length > 0) {
+      const mealParts = selectedMeals.map((meal) => {
+        // Check if this meal was previously confirmed
+        const confirmedMeal = confirmedMealParts.find(
+          confirmed => confirmed.meal_id === meal.meal_id
+        );
+        
+        return {
+          item_name: meal.name,
+          name: meal.item_description,
+          category: meal.category,
+          item_type: meal.item_type,
+          checked: confirmedMeal ? true : false, // Restore checked state
+          price: meal.price,
+          meal_id: meal.meal_id,
+          quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1, // Restore quantity
+          // Add adult and child prices for buffet type
+          adult_price: meal.adult_price,
+          child_price: meal.child_price,
+          // Initialize counts for buffet
+          adultCount: confirmedMeal ? confirmedMeal.adultCount || 0 : 0,
+          childCount: confirmedMeal ? confirmedMeal.childCount || 0 : 0
+        };
+      });
+
+      // Restore selected indexes based on confirmed selections
+      const confirmedIndexes = [];
+      let confirmedSingleIndex = null;
+      
+      mealParts.forEach((part, index) => {
+        if (part.checked) {
+          confirmedIndexes.push(index);
+          if (confirmedSingleIndex === null) {
+            confirmedSingleIndex = index;
+          }
+        }
+      });
+
+      setSelectedMealParts(mealParts);
+      setSelectedMealIndexes(confirmedIndexes);
+      setSelectedMealIndex(confirmedSingleIndex);
+      setIsConfirmDisabled(confirmedIndexes.length === 0);
+      setOpen(true);
     }
   };
 
@@ -1163,6 +1239,7 @@ const Index = () => {
                       key={index}
                       value={uniqueMealType}
                       isNightTime={false}
+                      onClick={() => handleMealItemClick(uniqueMealType)}
                     >
                       {mealTypeIcon}
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -1630,7 +1707,13 @@ const Index = () => {
               </Box>
               
               <IconButton 
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setSpecificMealType("");  // Reset meal type selection
+                  setConfirmedMealParts([]); // Clear confirmed selections
+                  setSelectedTime(""); // Clear time slot selection
+                  setTimeSlots([]); // Clear available time slots
+                }}
                 sx={{ 
                   color: '#64748B', 
                   backgroundColor: 'rgba(100, 116, 139, 0.1)',
@@ -2321,7 +2404,13 @@ const Index = () => {
               
               <Box sx={{ display: 'flex', gap: '16px', zIndex: 1 }}>
                 <Button
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    setSpecificMealType("");  // Reset meal type selection
+                    setConfirmedMealParts([]); // Clear confirmed selections
+                    setSelectedTime(""); // Clear time slot selection
+                    setTimeSlots([]); // Clear available time slots
+                  }}
                   sx={{
                     padding: '12px 28px',
                     borderRadius: '12px',

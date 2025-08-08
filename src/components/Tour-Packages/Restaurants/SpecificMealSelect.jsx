@@ -143,6 +143,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
   const [isConfirmDisabled, setIsConfirmDisabled] = useState(true);
   const [totalPrice, setTotalPrice] = useState(0);
   const [paxCounts, setPaxCounts] = useState({ Adults: 0, Children: 0 });
+  const [confirmedMealParts, setConfirmedMealParts] = useState([]);
 
   // Get the search parameters from Redux store for pax counts
   const searchParams = useSelector((state) => state.restaurants.searchParams);
@@ -260,10 +261,6 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
     const selectedType = event.target.value;
     console.log('Selected Meal Type:', selectedType);
     setSpecificMealType(selectedType);
-    setSelectedMealIndex(null);
-    setSelectedMealIndexes([]);
-    setIsConfirmDisabled(true);
-    setTotalPrice(0);
 
     if (selectedType) {
       const filteredMeals = restaurantDetails?.meals?.filter(
@@ -275,23 +272,100 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
 
       console.log('Filtered Meals:', filteredMeals);
 
-      const mealParts = filteredMeals.map((meal) => ({
+      const mealParts = filteredMeals.map((meal) => {
+        // Check if this meal was previously confirmed
+        const confirmedMeal = confirmedMealParts.find(
+          confirmed => confirmed.meal_id === meal.id
+        );
+        
+        return {
+          meal_id: meal.id,
+          name: meal.name,
+          description: meal.description,
+          price: meal.price,
+          adult_price: meal.adult_price,
+          child_price: meal.child_price,
+          adultCount: confirmedMeal ? confirmedMeal.adultCount || paxCounts.Adults : paxCounts.Adults,
+          childCount: confirmedMeal ? confirmedMeal.childCount || paxCounts.Children : paxCounts.Children,
+          quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1,
+          checked: confirmedMeal ? true : false // Restore checked state
+        };
+      });
+
+      // Restore selected indexes based on confirmed selections
+      const confirmedIndexes = [];
+      let confirmedSingleIndex = null;
+      
+      mealParts.forEach((part, index) => {
+        if (part.checked) {
+          confirmedIndexes.push(index);
+          if (confirmedSingleIndex === null) {
+            confirmedSingleIndex = index;
+          }
+        }
+      });
+
+      console.log('Prepared Meal Parts:', mealParts);
+      setSelectedMealParts(mealParts);
+      setSelectedMealIndexes(confirmedIndexes);
+      setSelectedMealIndex(confirmedSingleIndex);
+      setIsConfirmDisabled(confirmedIndexes.length === 0);
+      setOpenModal(true);
+    }
+  };
+
+  // New function to handle meal item clicks (including re-selections)
+  const handleMealItemClick = (selectedType) => {
+    console.log('Selected Meal Type:', selectedType);
+
+    const filteredMeals = restaurantDetails?.meals?.filter(
+      (meal) =>
+        meal.meal_period === selectedMealType &&
+        meal.type === selectedType &&
+        meal.is_active === 1
+    ) || [];
+
+    console.log('Filtered Meals:', filteredMeals);
+
+    const mealParts = filteredMeals.map((meal) => {
+      // Check if this meal was previously confirmed
+      const confirmedMeal = confirmedMealParts.find(
+        confirmed => confirmed.meal_id === meal.id
+      );
+      
+      return {
         meal_id: meal.id,
         name: meal.name,
         description: meal.description,
         price: meal.price,
         adult_price: meal.adult_price,
         child_price: meal.child_price,
-        adultCount: paxCounts.Adults,
-        childCount: paxCounts.Children,
-        quantity: 1,
-        checked: false
-      }));
+        adultCount: confirmedMeal ? confirmedMeal.adultCount || paxCounts.Adults : paxCounts.Adults,
+        childCount: confirmedMeal ? confirmedMeal.childCount || paxCounts.Children : paxCounts.Children,
+        quantity: confirmedMeal ? confirmedMeal.quantity || 1 : 1,
+        checked: confirmedMeal ? true : false // Restore checked state
+      };
+    });
 
-      console.log('Prepared Meal Parts:', mealParts);
-      setSelectedMealParts(mealParts);
-      setOpenModal(true);
-    }
+    // Restore selected indexes based on confirmed selections
+    const confirmedIndexes = [];
+    let confirmedSingleIndex = null;
+    
+    mealParts.forEach((part, index) => {
+      if (part.checked) {
+        confirmedIndexes.push(index);
+        if (confirmedSingleIndex === null) {
+          confirmedSingleIndex = index;
+        }
+      }
+    });
+
+    console.log('Prepared Meal Parts:', mealParts);
+    setSelectedMealParts(mealParts);
+    setSelectedMealIndexes(confirmedIndexes);
+    setSelectedMealIndex(confirmedSingleIndex);
+    setIsConfirmDisabled(confirmedIndexes.length === 0);
+    setOpenModal(true);
   };
 
   const handleRadioChange = (index) => {
@@ -347,6 +421,9 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
       });
 
       if (selectedItems.length > 0) {
+        // Store confirmed selections for future reopening
+        setConfirmedMealParts(selectedItems);
+        
         const selectionData = { 
           target: { 
             value: {
@@ -383,7 +460,11 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
             <em>Select a meal type</em>
           </MenuItem>
           {getMealOptions().map((type) => (
-            <StyledMenuItem key={type} value={type}>
+            <StyledMenuItem 
+              key={type} 
+              value={type}
+              onClick={() => handleMealItemClick(type)}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 {getIconForMealType(type)}
                 <Typography sx={{ ml: 2 }}>{type}</Typography>
@@ -433,7 +514,13 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
               <Typography variant="h6" component="h2">
                 Select {specificMealType}
               </Typography>
-              <IconButton onClick={() => setOpenModal(false)} size="small">
+              <IconButton onClick={() => {
+                setOpenModal(false);
+                setSpecificMealType("");  // Reset meal type selection
+                setConfirmedMealParts([]); // Clear confirmed selections
+                // Notify parent to clear the specific meal selection
+                onChange({ target: { value: "" } });
+              }} size="small">
                 <CloseIcon />
               </IconButton>
             </Box>
@@ -599,7 +686,13 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
               backgroundColor: 'rgba(255, 255, 255, 0.95)',
             }}>
               <Button 
-                onClick={() => setOpenModal(false)}
+                onClick={() => {
+                  setOpenModal(false);
+                  setSpecificMealType("");  // Reset meal type selection
+                  setConfirmedMealParts([]); // Clear confirmed selections
+                  // Notify parent to clear the specific meal selection
+                  onChange({ target: { value: "" } });
+                }}
                 variant="outlined"
                 color="inherit"
               >

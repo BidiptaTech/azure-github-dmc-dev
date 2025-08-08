@@ -478,6 +478,14 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         timeSlot: '',
         bookingDate: bookingDate // Preserve booking date
       };
+    } else if (field === 'specificMeal' && value === '') {
+      // Clear timeSlot when specificMeal is cleared (e.g., on cancel)
+      newFormSections[sectionIndex] = {
+        ...newFormSections[sectionIndex],
+        specificMeal: '',
+        timeSlot: '',
+        bookingDate: bookingDate // Preserve booking date
+      };
     } else if (field === 'pax') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],

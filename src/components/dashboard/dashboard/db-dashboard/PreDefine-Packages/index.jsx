@@ -930,7 +930,13 @@ const PreDefinePackages = () => {
 
     return (
         <Box sx={{ width: "100%" }}>
-            <Card sx={{ mb: 3, overflow: 'hidden' }}>
+            <Card sx={{ 
+                mb: 3, 
+                overflow: 'visible',  // Allow content to overflow for horizontal scrolling
+                '@media (min-width: 1200px)': {
+                    overflow: 'visible'  // Ensure large screens allow overflow
+                }
+            }}>
                 <Tabs
                     value={tabValue}
                     onChange={handleTabChange}
@@ -1036,7 +1042,15 @@ const PreDefinePackages = () => {
             </Card>
 
             <TabPanel value={tabValue} index={0}>
-                <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                <Card sx={{ 
+                    mb: 3, 
+                    p: 3, 
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                    overflow: 'visible',
+                    '@media (min-width: 1200px)': {
+                        overflow: 'visible'
+                    }
+                }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <DonutLarge sx={{ mr: 1, color: '#4361ee' }} /> Currently Ongoing Packages
@@ -1110,7 +1124,15 @@ const PreDefinePackages = () => {
             </TabPanel>
 
             <TabPanel value={tabValue} index={1}>
-                <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                <Card sx={{ 
+                    mb: 3, 
+                    p: 3, 
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                    overflow: 'visible',
+                    '@media (min-width: 1200px)': {
+                        overflow: 'visible'
+                    }
+                }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <Upcoming sx={{ mr: 1, color: '#4361ee' }} /> Upcoming Packages
@@ -1184,7 +1206,15 @@ const PreDefinePackages = () => {
             </TabPanel>
 
             <TabPanel value={tabValue} index={2}>
-                <Card sx={{ mb: 3, p: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+                <Card sx={{ 
+                    mb: 3, 
+                    p: 3, 
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                    overflow: 'visible',
+                    '@media (min-width: 1200px)': {
+                        overflow: 'visible'
+                    }
+                }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <History sx={{ mr: 1, color: '#4361ee' }} /> Past Packages
