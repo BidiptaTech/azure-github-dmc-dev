@@ -100,7 +100,7 @@ class BookingsController extends Controller
      */
     public function confirmedBookings()
     {
-        $tours = Tour::where('tour_status', 'Confirmed')
+        $tours = Tour::where('tour_status', 'On Hold')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
                 'tours.tour_id',
@@ -198,6 +198,50 @@ class BookingsController extends Controller
     }
 
     /**
+     * Display Cancelled Bookings (tour_status contains 'Cancel')
+     */
+    public function cancelledBookings()
+    {
+        $tours = Tour::where(function($query) {
+                $query->where('tour_status', 'LIKE', 'Cancel%')
+                      ->orWhere('tour_status', 'LIKE', '%Cancel%');
+            })
+            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->select([
+                'tours.tour_id',
+                'tours.display_id',
+                'tours.multi_enq_id',
+                'tours.adult',
+                'tours.child',
+                'tours.destination',
+                'tours.city',
+                'tours.check_in_time',
+                'tours.check_out_time',
+                'tours.tour_status',
+                'tours.payment_details',
+                'tours.created_at',
+                'tours.updated_at',
+                'tours.agent_id',
+                'agents.name as agent_name'
+            ])
+            ->orderBy('tours.created_at', 'desc')
+            ->paginate(15);
+
+        return view('bookings.cancelled', compact('tours'));
+    }
+
+    /**
+     * Display Refunds (placeholder for future implementation)
+     */
+    public function refunds()
+    {
+        // For now, return empty data as refunds section is not needed yet
+        $tours = collect([]);
+        
+        return view('bookings.refunds', compact('tours'));
+    }
+
+    /**
      * Display Cancellations & Refunds (tour_status = 'Cancelled')
      */
     public function cancellationsRefunds()
@@ -236,7 +280,7 @@ class BookingsController extends Controller
             'new_enquiries' => Tour::where('tour_status', 'New Enquiry')->count(),
             'follow_ups' => Tour::where('tour_status', 'Prospect')->count(),
             'tentative' => Tour::where('tour_status', 'Tentative')->count(),
-            'confirmed' => Tour::where('tour_status', 'Confirmed')->count(),
+            'confirmed' => Tour::where('tour_status', 'On Hold')->count(),
             'definite' => Tour::where('tour_status', 'Definite')->count(),
             'actual' => Tour::where('tour_status', 'Actual')->count(),
             'cancelled' => Tour::where('tour_status', 'Cancelled')->count(),

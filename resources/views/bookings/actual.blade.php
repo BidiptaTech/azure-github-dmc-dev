@@ -32,9 +32,9 @@
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
-                                <i class="ri-check-circle-line ri-24px"></i>
+                                <i class="ri-bar-chart-line ri-24px"></i>
                             </div>
-                        </div>
+                        </div>                        
                     </div>
                 </div>
             </div>
@@ -102,37 +102,31 @@
         </div>
     </div>
 
-    <!-- Tours Table -->
-    <div class="card">
+    <!-- Filters -->
+    <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Actual Bookings List</h5>
-            <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-success" onclick="requestFeedback()">
-                    <i class="ri-star-line me-1"></i> Request Feedback
-                </button>
-                <button class="btn btn-sm btn-outline-info" onclick="generateReports()">
-                    <i class="ri-file-chart-line me-1"></i> Generate Reports
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="exportData()">
-                    <i class="ri-download-line me-1"></i> Export
-                </button>
-            </div>
+            <h5 class="mb-0">Filters</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                <i class="ri-refresh-line me-1"></i> Reset
+            </button>
         </div>
         <div class="card-body">
-            <!-- Filter Options -->
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search by Tour ID, Display ID...">
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="active">Currently Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="upcoming">Upcoming</option>
+                        <option value="Active">Currently Active</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Upcoming">Upcoming</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label class="form-label">Payment Type</label>
                     <select class="form-select" id="paymentFilter">
                         <option value="">All Payments</option>
                         <option value="cash">Cash Payments</option>
@@ -140,20 +134,67 @@
                         <option value="bank">Bank Transfer</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                        <i class="ri-refresh-line me-1"></i> Reset Filters
-                    </button>
+                <div class="col-md-2">
+                    <label class="form-label">Destination</label>
+                    <select class="form-select" id="destinationFilter">
+                        <option value="">All Destinations</option>
+                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
+                            <option value="{{ $destination }}">{{ $destination }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Agent</label>
+                    <select class="form-select" id="agentFilter">
+                        <option value="">All Agents</option>
+                        @foreach($tours->where('agent_name', '!=', null)->pluck('agent_name', 'agent_id')->unique() as $agentId => $agentName)
+                            <option value="{{ $agentName }}">{{ $agentName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" id="timeFilter">
+                        <option value="">All Time</option>
+                        <option value="this_week">This Week</option>
+                        <option value="next_week">Next Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="next_month">Next Month</option>
+                    </select>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Tours Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Actual Bookings List</h5>
+            <div class="d-flex gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-success btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
 
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
                     <thead class="table-light">
                         <tr>
-                            <th>
+                            {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
+                            </th> --}}
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
@@ -185,9 +226,9 @@
                             }
                         @endphp
                         <tr class="{{ $isActive ? 'table-warning' : ($isCompleted ? 'table-success' : '') }}">
-                            <td>
+                            {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
-                            </td>
+                            </td> --}}
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -256,7 +297,7 @@
                                         </div>
                                         @if(!empty($tour->parsed_payment_details))
                                             <button class="btn btn-sm btn-outline-info mt-1" onclick="showPaymentDetails('{{ $tour->tour_id }}')">
-                                                <i class="ri-eye-line"></i> View Details
+                                                <i class="ri-eye-line"></i> View
                                             </button>
                                         @endif
                                     @else
@@ -268,7 +309,7 @@
                                 @if($isActive)
                                     <span class="badge bg-warning">
                                         <i class="ri-play-circle-line me-1"></i>Active
-                                    </span>
+                                    </span> 
                                 @elseif($isCompleted)
                                     <span class="badge bg-success">
                                         <i class="ri-checkbox-circle-line me-1"></i>Completed
@@ -279,7 +320,7 @@
                                     </span>
                                 @endif
                             </td>
-                            <td>
+                            {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         Actions
@@ -313,7 +354,7 @@
                                             </a>
                                         </li>
                                         @endif
-                                        {{-- <li>
+                                        <li>
                                             <a class="dropdown-item" href="#" onclick="downloadDocuments('{{ $tour->tour_id }}')">
                                                 <i class="ri-download-line me-2"></i> Download Documents
                                             </a>
@@ -328,9 +369,15 @@
                                             <a class="dropdown-item" href="#" onclick="sendReceipt('{{ $tour->tour_id }}')">
                                                 <i class="ri-mail-send-line me-2"></i> Send Receipt
                                             </a>
-                                        </li> --}}
+                                        </li>
                                     </ul>
                                 </div>
+                            </td> --}}
+                            <td>
+                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                   class="btn btn-outline-primary btn-sm rounded-pill">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
                             </td>
                         </tr>
                         @empty
@@ -554,48 +601,37 @@ function generateReports() {
     console.log('Generating reports for', selectedTours.length, 'bookings');
 }
 
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('paymentFilter').value = '';
-    filterTable();
-}
-
 function filterTable() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
-    const paymentFilter = document.getElementById('paymentFilter').value;
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const paymentFilter = document.getElementById('paymentFilter')?.value || '';
+    const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const timeFilter = document.getElementById('timeFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[5]?.textContent.toLowerCase() || '';
+        const paymentBadges = row.cells[6]?.querySelectorAll('.badge') || [];
+        
         let show = true;
         
-        // Search filter
-        if (searchTerm) {
-            const tourDetails = row.cells[2].textContent.toLowerCase(); // Tour Details column
-            const destination = row.cells[3].textContent.toLowerCase(); // Destination column
-            const agent = row.cells[5].textContent.toLowerCase(); // Agent column
-            if (!tourDetails.includes(searchTerm) && !destination.includes(searchTerm) && !agent.includes(searchTerm)) {
-                show = false;
-            }
+        if (searchTerm && !tourDetails.includes(searchTerm)) {
+            show = false;
         }
         
-        // Status filter
-        if (statusFilter) {
-            const statusBadge = row.cells[8].querySelector('.badge'); // Status column (0-based: checkbox, #, tour, dest, guests, agent, travel, payment, status, actions)
-            const statusText = statusBadge ? statusBadge.textContent.toLowerCase() : '';
-            
-            if (statusFilter === 'active' && !statusText.includes('active')) show = false;
-            if (statusFilter === 'completed' && !statusText.includes('completed')) show = false;
-            if (statusFilter === 'upcoming' && !statusText.includes('upcoming')) show = false;
+        if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+            show = false;
         }
         
-        // Payment filter
         if (paymentFilter) {
-            const paymentBadges = row.cells[7].querySelectorAll('.badge'); // Payment Details column
             let hasPaymentType = false;
             paymentBadges.forEach(badge => {
                 if (badge.textContent.toLowerCase().includes(paymentFilter)) {
@@ -605,25 +641,73 @@ function filterTable() {
             if (!hasPaymentType) show = false;
         }
         
+        if (destinationFilter && destination !== destinationFilter) {
+            show = false;
+        }
+        
+        if (agentFilter && agent !== agentFilter) {
+            show = false;
+        }
+        
+        if (timeFilter) {
+            const daysToGoMatch = travelDates.match(/(\d+) days to go/);
+            const daysToGo = daysToGoMatch ? parseInt(daysToGoMatch[1]) : null;
+            const isStartingToday = travelDates.includes('starting today');
+            const isInProgress = travelDates.includes('started') || travelDates.includes('days ago');
+            
+            if (timeFilter === 'this_week') {
+                // Show tours starting within 7 days or starting today
+                if (!((daysToGo !== null && daysToGo <= 7) || isStartingToday)) {
+                    show = false;
+                }
+            } else if (timeFilter === 'next_week') {
+                // Show tours starting in 8-14 days
+                if (!(daysToGo !== null && daysToGo >= 8 && daysToGo <= 14)) {
+                    show = false;
+                }
+            } else if (timeFilter === 'this_month') {
+                // Show tours starting within 30 days
+                if (!((daysToGo !== null && daysToGo <= 30) || isStartingToday)) {
+                    show = false;
+                }
+            } else if (timeFilter === 'next_month') {
+                // Show tours starting in 31-60 days
+                if (!(daysToGo !== null && daysToGo >= 31 && daysToGo <= 60)) {
+                    show = false;
+                }
+            }
+        }
+        
         row.style.display = show ? '' : 'none';
     });
 }
 
-function exportData() {
-    console.log('Exporting actual bookings data...');
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('paymentFilter').value = '';
+    document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
+    document.getElementById('timeFilter').value = '';
+    filterTable();
 }
 
-// Initialize filters
-document.getElementById('searchInput').addEventListener('input', filterTable);
-document.getElementById('statusFilter').addEventListener('change', filterTable);
-document.getElementById('paymentFilter').addEventListener('change', filterTable);
-
-// Select all functionality
-document.getElementById('selectAll').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-    });
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const paymentFilter = document.getElementById('paymentFilter');
+    const destinationFilter = document.getElementById('destinationFilter');
+    const agentFilter = document.getElementById('agentFilter');
+    const timeFilter = document.getElementById('timeFilter');
+    
+    // Add event listeners
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    if (paymentFilter) paymentFilter.addEventListener('change', filterTable);
+    if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
+    if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    if (timeFilter) timeFilter.addEventListener('change', filterTable);
 });
 
 // Test function to verify modal works
@@ -647,6 +731,88 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Modal element exists:', !!document.getElementById('paymentDetailsModal'));
     console.log('Modal content element exists:', !!document.getElementById('paymentDetailsContent'));
 });
+</script>
+@endsection
+
+@section('scripts')
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<script>
+    $(document).ready(function() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
+        // Initialize DataTable with export buttons
+        var table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print' // Keep buttons for functionality but don't show them
+            ],
+            searching: false, // Disable built-in searching since we use custom filters
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            pageLength: 25,
+            // order: [[5, 'desc']], // Sort by Travel Dates column (index 5) in descending order
+            columnDefs: [
+                {
+                    targets: [8], // Actions column (index 8)
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [3], // Guests column (index 3)
+                    orderable: false
+                },
+                {
+                    targets: [6, 7], // Payment Details and Status columns (index 6, 7)
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Custom export button functionality (for the dropdown)
+        $('#exportCopy').on('click', function() {
+            table.button('.buttons-copy').trigger();
+        });
+
+        $('#exportCSV').on('click', function() {
+            table.button('.buttons-csv').trigger();
+        });
+
+        $('#exportExcel').on('click', function() {
+            table.button('.buttons-excel').trigger();
+        });
+
+        $('#exportPDF').on('click', function() {
+            table.button('.buttons-pdf').trigger();
+        });
+
+        $('#exportPrint').on('click', function() {
+            table.button('.buttons-print').trigger();
+        });
+    });
 </script>
 @endsection
 

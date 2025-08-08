@@ -296,7 +296,7 @@
 
         <!-- Sidebar -->
         <div class="col-lg-4">
-            <!-- Quick Actions -->
+            {{-- <!-- Quick Actions -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">Quick Actions</h5>
@@ -353,7 +353,7 @@
                         </button>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
             <!-- Tour Statistics -->
             <div class="card mb-4">

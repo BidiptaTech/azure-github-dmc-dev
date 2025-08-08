@@ -49,7 +49,7 @@
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-warning rounded">
-                                <i class="ri-calendar-week-line ri-24px"></i>
+                                <i class="ri-calendar-line ri-24px"></i>
                             </div>
                         </div>
                     </div>
@@ -73,7 +73,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+        {{-- <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -89,7 +89,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 
     <!-- Action Required Alert -->
@@ -111,61 +111,91 @@
     </div>
     @endif
 
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filters</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                <i class="ri-refresh-line me-1"></i> Reset
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="Ready">Ready to Execute</option>
+                        <option value="Soon">Starting Soon</option>
+                        <option value="Definite">Definite</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Destination</label>
+                    <select class="form-select" id="destinationFilter">
+                        <option value="">All Destinations</option>
+                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
+                            <option value="{{ $destination }}">{{ $destination }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Agent</label>
+                    <select class="form-select" id="agentFilter">
+                        <option value="">All Agents</option>
+                        @foreach($tours->where('agent_name', '!=', null)->pluck('agent_name', 'agent_id')->unique() as $agentId => $agentName)
+                            <option value="{{ $agentName }}">{{ $agentName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" id="timeFilter">
+                        <option value="">All Time</option>
+                        <option value="this_week">This Week</option>
+                        <option value="next_week">Next Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="next_month">Next Month</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tours Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Definite Bookings List</h5>
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-success" onclick="bulkMakeActual()">
-                    <i class="ri-play-circle-line me-1"></i> Make Actual
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="assignServices()">
-                    <i class="ri-team-line me-1"></i> Assign Services
-                </button>
-                <button class="btn btn-sm btn-outline-info" onclick="generateJobSheets()">
-                    <i class="ri-file-list-line me-1"></i> Job Sheets
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="exportData()">
-                    <i class="ri-download-line me-1"></i> Export
-                </button>
+                <div class="dropdown">
+                    <button class="btn btn-info btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
         <div class="card-body">
-            <!-- Filter Options -->
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search by Tour ID, Display ID...">
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="statusFilter">
-                        <option value="">All Status</option>
-                        <option value="ready">Ready to Execute</option>
-                        <option value="upcoming">Upcoming</option>
-                        <option value="future">Future</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="destinationFilter">
-                        <option value="">All Destinations</option>
-                        @foreach($tours->pluck('country')->unique()->filter() as $country)
-                            <option value="{{ $country }}">{{ $country }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                        <i class="ri-refresh-line me-1"></i> Reset Filters
-                    </button>
-                </div>
-            </div>
 
             <div class="table-responsive">
-                <table class="table table-hover" id="toursTable">
+                <table class="datatables-basic table table-bordered" id="toursTable">
                     <thead class="table-light">
                         <tr>
-                            <th>
+                            {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
+                            </th> --}}
+                            <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
                             <th>Guests</th>
@@ -176,15 +206,16 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($tours as $tour)
+                        @forelse($tours as $key => $tour)
                         <tr class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast() ? 'table-success' : ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 ? 'table-warning' : '') }}">
-                            <td>
+                            {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
-                            </td>
+                            </td> --}}
+                            <td>{{ $key + 1 }}</td>
                             <td>
                                 <div class="d-flex flex-column">
                                     <strong class="text-info">{{ $tour->display_id }}</strong>
-                                    <small class="text-muted">ID: {{ $tour->tour_id }}</small>
+                                    <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
@@ -192,7 +223,7 @@
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->country ?? 'N/A' }}</span>
+                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
@@ -209,14 +240,15 @@
                             <td>
                                 <div class="d-flex flex-column">
                                     @if($tour->check_in_time)
-                                        <small><strong>Start:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</small>
+                                        <small><strong>Start:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('D, M d, Y') }}</small>
                                     @endif
                                     @if($tour->check_out_time)
-                                        <small><strong>End:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</small>
+                                        <small><strong>End:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('D, M d, Y') }}</small>
                                     @endif
                                     @if($tour->check_in_time)
                                         @php
-                                            $daysUntilTravel = \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false);
+                                            $checkInTime = \Carbon\Carbon::parse($tour->check_in_time);
+                                            $daysUntilTravel = floor($checkInTime->diffInDays(now(), false));
                                         @endphp
                                         @if($daysUntilTravel < 0)
                                             <span class="badge bg-primary mt-1">{{ abs($daysUntilTravel) }} days to go</span>
@@ -259,7 +291,7 @@
                                     </span>
                                 </div>
                             </td>
-                            <td>
+                            {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         Actions
@@ -316,10 +348,16 @@
                                         </li>
                                     </ul>
                                 </div>
+                            </td> --}}
+                            <td>
+                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                   class="btn btn-outline-primary btn-sm rounded-pill">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
                             </td>
                         </tr>
                         @empty
-                        <tr>
+                        {{-- <tr>
                             <td colspan="8" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-shield-check-line ri-48px text-muted mb-2"></i>
@@ -327,14 +365,14 @@
                                     <p class="text-muted mb-0">All bookings are in other stages or there are no definite bookings yet.</p>
                                 </div>
                             </td>
-                        </tr>
+                        </tr> --}}
                         @endforelse
                     </tbody>
                 </table>
             </div>
 
             <!-- Pagination -->
-            <div class="d-flex justify-content-between align-items-center mt-4">
+            {{-- <div class="d-flex justify-content-between align-items-center mt-4">
                 <div>
                     <p class="text-muted mb-0">
                         Showing {{ $tours->firstItem() ?? 0 }} to {{ $tours->lastItem() ?? 0 }} of {{ $tours->total() }} results
@@ -343,7 +381,7 @@
                 <div>
                     {{ $tours->links() }}
                 </div>
-            </div>
+            </div> --}}
         </div>
     </div>
 </div>
@@ -424,48 +462,68 @@ function generateJobSheets() {
     console.log('Generating job sheets for', selectedTours.length, 'bookings');
 }
 
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    filterTable();
-}
-
 function filterTable() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
-    const destinationFilter = document.getElementById('destinationFilter').value;
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const timeFilter = document.getElementById('timeFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[5]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[4]?.textContent.toLowerCase() || '';
+        
         let show = true;
         
-        // Search filter
-        if (searchTerm) {
-            const tourDetails = row.cells[1].textContent.toLowerCase();
-            if (!tourDetails.includes(searchTerm)) {
-                show = false;
-            }
+        if (searchTerm && !tourDetails.includes(searchTerm)) {
+            show = false;
         }
         
-        // Status filter
-        if (statusFilter) {
-            const hasReadyClass = row.classList.contains('table-success');
-            const hasUpcomingClass = row.classList.contains('table-warning');
+        if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+            show = false;
+        }
+        
+        if (destinationFilter && destination !== destinationFilter) {
+            show = false;
+        }
+        
+        if (agentFilter && agent !== agentFilter) {
+            show = false;
+        }
+        
+        if (timeFilter) {
+            const daysToGoMatch = travelDates.match(/(\d+) days to go/);
+            const daysToGo = daysToGoMatch ? parseInt(daysToGoMatch[1]) : null;
+            const isStartingToday = travelDates.includes('starting today');
+            const isReadyToExecute = travelDates.includes('ready to execute');
             
-            if (statusFilter === 'ready' && !hasReadyClass) show = false;
-            if (statusFilter === 'upcoming' && !hasUpcomingClass) show = false;
-            if (statusFilter === 'future' && (hasReadyClass || hasUpcomingClass)) show = false;
-        }
-        
-        // Destination filter
-        if (destinationFilter) {
-            const country = row.cells[2].querySelector('.fw-medium')?.textContent || '';
-            if (country !== destinationFilter) {
-                show = false;
+            if (timeFilter === 'this_week') {
+                // Show tours starting within 7 days or starting today
+                if (!((daysToGo !== null && daysToGo <= 7) || isStartingToday)) {
+                    show = false;
+                }
+            } else if (timeFilter === 'next_week') {
+                // Show tours starting in 8-14 days
+                if (!(daysToGo !== null && daysToGo >= 8 && daysToGo <= 14)) {
+                    show = false;
+                }
+            } else if (timeFilter === 'this_month') {
+                // Show tours starting within 30 days
+                if (!((daysToGo !== null && daysToGo <= 30) || isStartingToday)) {
+                    show = false;
+                }
+            } else if (timeFilter === 'next_month') {
+                // Show tours starting in 31-60 days
+                if (!(daysToGo !== null && daysToGo >= 31 && daysToGo <= 60)) {
+                    show = false;
+                }
             }
         }
         
@@ -473,22 +531,112 @@ function filterTable() {
     });
 }
 
-function exportData() {
-    console.log('Exporting definite bookings data...');
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
+    document.getElementById('timeFilter').value = '';
+    filterTable();
 }
 
-// Initialize filters
-document.getElementById('searchInput').addEventListener('input', filterTable);
-document.getElementById('statusFilter').addEventListener('change', filterTable);
-document.getElementById('destinationFilter').addEventListener('change', filterTable);
-
-// Select all functionality
-document.getElementById('selectAll').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-    });
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const destinationFilter = document.getElementById('destinationFilter');
+    const agentFilter = document.getElementById('agentFilter');
+    const timeFilter = document.getElementById('timeFilter');
+    
+    // Add event listeners
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
+    if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    if (timeFilter) timeFilter.addEventListener('change', filterTable);
 });
+</script>
+@endsection
+
+@section('scripts')
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<script>
+    $(document).ready(function() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
+        // Initialize DataTable with export buttons
+        var table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print' // Keep buttons for functionality but don't show them
+            ],
+            searching: false, // Disable built-in searching since we use custom filters
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            pageLength: 25,
+            // order: [[5, 'desc']], // Sort by Travel Dates column (index 5) in descending order
+            columnDefs: [
+                {
+                    targets: [7], // Actions column (index 7)
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [3], // Guests column (index 3)
+                    orderable: false
+                },
+                {
+                    targets: [5, 6], // Execution Status and Services columns (index 5, 6)
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Custom export button functionality (for the dropdown)
+        $('#exportCopy').on('click', function() {
+            table.button('.buttons-copy').trigger();
+        });
+
+        $('#exportCSV').on('click', function() {
+            table.button('.buttons-csv').trigger();
+        });
+
+        $('#exportExcel').on('click', function() {
+            table.button('.buttons-excel').trigger();
+        });
+
+        $('#exportPDF').on('click', function() {
+            table.button('.buttons-pdf').trigger();
+        });
+
+        $('#exportPrint').on('click', function() {
+            table.button('.buttons-print').trigger();
+        });
+    });
 </script>
 @endsection
 
