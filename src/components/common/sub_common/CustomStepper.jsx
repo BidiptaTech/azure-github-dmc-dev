@@ -7,49 +7,24 @@ import {
   StepConnector,
   Box,
   Typography,
-  Grid,
   Button,
   Snackbar,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  stepConnectorClasses,
 } from "@mui/material";
-//import { Modal } from "antd";
-//import hotelIcon from "../../icons/hotel.png";
+
 import hotelIcon from "../../../../public/icons/hotel.png";
-//import car from "../../icons/car.png";
 import car from "../../../../public/icons/car.png";
-//import attractionIcon from "../../icons/tourist-attraction.png";
 import attractionIcon from "../../../../public/icons/tourist-attraction.png";
 import ArrivalDeparture from "../../../../public/icons/ArrivalDeparture.png";
-//import ArrivalDeparture from "../../icons/ArrivalDeparture.png";
 import restaurantIcon from "../../../../public/icons/restaurant.png";
-//import restaurantIcon from "../../icons/restaurant.png";
 import guideIcon from "../../../../public/icons/tour-guide.png";
 import MuiAlert from "@mui/material/Alert";
-import { toast, ToastContainer } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import swal from "sweetalert";
-import {
-  // skipStep,
-  // setCurrentStep,
-  // settourId, //resetStepsStatus,
-  // setstepname,
-  // updateStepStatus,
-  statusUpdate,
-  // resetStepsStatus,
-  //setTourId,
-  updateStepStatus,
-  setType,
-  //resetSteps,
-} from "@/slice/common/stepsSlice";
-import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
+import { statusUpdate, updateStepStatus, setType } from "@/slice/common/stepsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; // Import useNavigate from React Router
+import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import SkipNextIcon from "@mui/icons-material/SkipNext";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -58,14 +33,10 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
 import KeyboardDoubleArrowRightIcon from "@mui/icons-material/KeyboardDoubleArrowRight";
-import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
-import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
-import SpeedIcon from "@mui/icons-material/Speed";
-import BoltIcon from "@mui/icons-material/Bolt";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import LaunchIcon from "@mui/icons-material/Launch";
 import SendIcon from "@mui/icons-material/Send";
-import TelegramIcon from "@mui/icons-material/Telegram";
+
+import Stack from '@mui/material/Stack';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 
 // Create the Alert component using MuiAlert
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -134,15 +105,11 @@ const LoadingDots = () => {
 };
 
 export default function CustomStepper() {
-  //const location = useLocation(); // Get current location
   const id = useSelector((state) => state.hotels.id);
-  // const stepStatus = useSelector(
-  //   (state) => state.steps.responses?.[0]?.data || {}
-  // );
-  const { currentStep, stepStatus1, active_status } = useSelector(
+  const { currentStep, stepStatus1 } = useSelector(
     (state) => state.steps
   );
-  
+
   // Get stepper button visibility state
   const { buttonVisibility } = useSelector((state) => state.stepperButton);
 
@@ -190,14 +157,6 @@ export default function CustomStepper() {
     5: restaurantIcon,
     6: car,
   };
-  // const level = [
-  //   "hotel",
-  //   "port",
-  //   "attraction",
-  //   "transfer",
-  //   "guide",
-  //   "restaurant",
-  // ];
 
   const CustomConnector = styled(StepConnector)(({ theme }) => ({
     // Hide the default connector since we're using custom ones
@@ -205,7 +164,6 @@ export default function CustomStepper() {
   }));
 
   const StepIcon = ({ status, icon }) => {
-    // console.log(`Icon Key: ${icon}, Status: ${status}`); // Debugging log
     const isSkipped = status === 1;
     const isActive = status === 2;
     const isCompleted = status === 3;
@@ -213,18 +171,18 @@ export default function CustomStepper() {
     const borderColor = isSkipped
       ? "#ff5252"
       : isActive
-      ? "#ffa726"
-      : isCompleted
-      ? "#4caf50"
-      : "#e0e0e0";
+        ? "#ffa726"
+        : isCompleted
+          ? "#4caf50"
+          : "#e0e0e0";
 
     const backgroundColor = isSkipped
       ? "rgba(255, 82, 82, 0.1)"
       : isActive
-      ? "rgba(255, 167, 38, 0.1)"
-      : isCompleted
-      ? "rgba(76, 175, 80, 0.1)"
-      : "white";
+        ? "rgba(255, 167, 38, 0.1)"
+        : isCompleted
+          ? "rgba(76, 175, 80, 0.1)"
+          : "white";
 
     const iconContainerStyle = {
       display: "flex",
@@ -240,13 +198,12 @@ export default function CustomStepper() {
       zIndex: 2,
       boxShadow:
         isSkipped || isActive || isCompleted
-          ? `0 4px 10px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(${
-              isSkipped
-                ? "255, 82, 82"
-                : isActive
-                ? "255, 167, 38"
-                : "76, 175, 80"
-            }, 0.1)`
+          ? `0 4px 10px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(${isSkipped
+            ? "255, 82, 82"
+            : isActive
+              ? "255, 167, 38"
+              : "76, 175, 80"
+          }, 0.1)`
           : "none",
     };
 
@@ -265,72 +222,29 @@ export default function CustomStepper() {
     );
   };
 
-  // const [activeStep, setActiveStep] = React.useState(0); // Start with first step selected
-  const [openSnackbar, setOpenSnackbar] = React.useState(false); // Snackbar state
-  const [snackbarMessage, setSnackbarMessage] = React.useState(""); // Message for the Snackbar
-  const [isTourCompleted, setIsTourCompleted] = React.useState(false); // Track if the tour is finished
-  // const [skippedSteps, setSkippedSteps] = React.useState([]);
+  const [openSnackbar, setOpenSnackbar] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState("");
+  const [isTourCompleted, setIsTourCompleted] = React.useState(false);
   const dispatch = useDispatch();
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isModalVisible1, setIsModalVisible1] = useState(false);
-  const [isModalVisible2, setIsModalVisible2] = useState(false);
-  const navigate = useNavigate(); // React Router navigation hook
-
-  //const currentStep = useSelector((state) => state.steps.currentStep);
-  //const response = useSelector((state) => state.steps.response);
-  const formData = useSelector((state) => state.pickupDrop.formData);
-  // console.log("snsd", formData);
-  const formData1 = useSelector((state) => state.pickupDrop.formData1);
-  // console.log("ndc", formData1);
-  const travelPoint = useSelector((state) => state.localtour.pointtopoint);
-  // console.log("pointtopoint", travelPoint);
-  const travelHourly = useSelector((state) => state.localtour.hourly);
-  // console.log("hourly", travelHourly);
-  const guide = useSelector((state) => state.tourguide.bookedguide);
-  // console.log("guidesss", guide);
-
-  // console.log("Steps:", steps);
-  // console.log("Current Step:", currentStep);
-
-  const labelMapping = {
-    entrypickup: "Pick Up Location",
-    exitpickup: "Pick Up Location",
-    entrydropoff: "Drop Off Location",
-    pickupdate: "Date",
-    exitpickupdate: "Date",
-    entrytime: "Time",
-    entrytime1: "Time",
-    traveller0: "Traveller",
-    traveller1: "Traveller",
-    vehicletype: "Vehicle Type",
-    vehicletype1: "Vehicle Type",
-    hours: "Hourly Package",
-  };
-  const labelMapping1 = {
-    guide_name: "Guide Name",
-    entrypickup: "Pick Up Location",
-    entrytime: "Time",
-    adults: "Adult",
-    children: "Children",
-    hours: "Hourly Package",
-    bookingDate: "Date",
-    totalPrice: "Total Amount to be Paid",
-  };
+  const navigate = useNavigate();
 
   const [isSkipping, setIsSkipping] = useState(false);
   const [isProgressing, setIsProgressing] = useState(false);
   const [isGoingBack, setIsGoingBack] = useState(false);
 
   const handleNext = async () => {
-    // console.log("steps", currentStep);
     const currentStepKey = steps[currentStep].key;
 
     let shouldProceed = true;
 
-    // Handle final step completion
     if (currentStepKey) {
+      const isLastStep = currentStep === steps.length - 1;
+      const confirmationTitle = isLastStep 
+        ? "Are you sure all of your services are completed?"
+        : `Are you sure all of your ${steps[currentStep].label} booking is completed?`;
+      
       const willDelete = await swal({
-        title: `Are you sure all of your ${steps[currentStep].label} booking is completed?`,
+        title: confirmationTitle,
         icon: "warning",
         buttons: { cancel: "Cancel", confirm: "OK" },
         dangerMode: true,
@@ -384,7 +298,6 @@ export default function CustomStepper() {
   };
 
   const handleSkip = () => {
-    //const currentStep = steps[currentIndex];
     //if (currentStep) {
     setIsSkipping(true); // Set loading state to true
     dispatch(updateStepStatus({ key: steps[currentStep].key, status: 1 })); // Mark current step as skipped (1)
@@ -415,7 +328,6 @@ export default function CustomStepper() {
   };
 
   const handleBack = () => {
-    // console.log("stepStatus1:", stepStatus1);
 
     const prevStep = currentStep - 1;
     if (prevStep < 0) return; // Prevent going before first step
@@ -456,10 +368,10 @@ export default function CustomStepper() {
 
   const currentStepKey = getCurrentStepKey();
   const currentStepButtonVisibility = buttonVisibility[currentStepKey] || { showSkip: true, showNext: false };
-  
+
   // Special handling for the last step (Local Transfer) - show only Finish button
   const isLastStep = currentStep === steps.length - 1;
-  
+
   // For the last step, show only the Finish button (which uses the Next button logic)
   // For other steps, use the normal logic
   const shouldShowSkip = isLastStep ? false : (currentStepButtonVisibility.showSkip || (!currentStepButtonVisibility.showSkip && !currentStepButtonVisibility.showNext));
@@ -478,31 +390,33 @@ export default function CustomStepper() {
           mb: 4,
         }}
       >
-        <Typography
-          variant="h5"
-          align="center"
-          gutterBottom
-          sx={{
-            fontWeight: "700",
-            color: "#2c3e50",
-            mb: 4,
-            position: "relative",
-            letterSpacing: "0.5px",
-            "&:after": {
-              content: '""',
-              position: "absolute",
-              width: "80px",
-              height: "4px",
-              borderRadius: "4px",
-              background: "linear-gradient(90deg, #4caf50, #2196f3)",
-              bottom: "-12px",
-              left: "50%",
-              transform: "translateX(-50%)",
-            },
-          }}
-        >
-          Travel Planner
-        </Typography>
+        <Stack direction="column" alignItems="center" spacing={2} sx={{ mb: 4 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <TravelExploreIcon sx={{ fontSize: 32, color: '#2196f3' }} />
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                color: '#2c3e50',
+                position: 'relative',
+                letterSpacing: '0.5px',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '80px',
+                  height: '4px',
+                  borderRadius: '4px',
+                  background: 'linear-gradient(90deg, #4caf50, #2196f3)',
+                  bottom: '-12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                },
+              }}
+            >
+              Travel Planner
+            </Typography>
+          </Stack>
+        </Stack>
         <div className="stepper-wrapper">
           <Stepper
             alternativeLabel
@@ -537,19 +451,19 @@ export default function CustomStepper() {
                       left: 'calc(-50% + 28px)',
                       right: 'calc(50% + 28px)',
                       height: '4px',
-                      background: parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 1 
-                        ? 'linear-gradient(90deg, #ff5252 0%, #ff1744 100%)' 
-                        : parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 3 
-                        ? 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)' 
-                        : '#e0e0e0',
+                      background: parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 1
+                        ? 'linear-gradient(90deg, #ff5252 0%, #ff1744 100%)'
+                        : parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 3
+                          ? 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)'
+                          : '#e0e0e0',
                       borderRadius: '4px',
                       zIndex: 1,
                       transition: 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
-                      boxShadow: parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 1 
-                        ? '0 2px 8px rgba(255, 82, 82, 0.3)' 
-                        : parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 3 
-                        ? '0 2px 8px rgba(76, 175, 80, 0.3)' 
-                        : 'none',
+                      boxShadow: parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 1
+                        ? '0 2px 8px rgba(255, 82, 82, 0.3)'
+                        : parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 3
+                          ? '0 2px 8px rgba(76, 175, 80, 0.3)'
+                          : 'none',
                       // Add animation for color changes
                       '&:hover': {
                         transform: 'scaleY(1.2)',
@@ -584,7 +498,7 @@ export default function CustomStepper() {
             <Button
               variant="contained"
               startIcon={
-                !isGoingBack && <ArrowBackIcon sx={{ 
+                !isGoingBack && <ArrowBackIcon sx={{
                   fontSize: "1.3rem",
                   filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
                 }} />
@@ -606,17 +520,17 @@ export default function CustomStepper() {
                     : "0 8px 32px rgba(102, 126, 234, 0.4), 0 4px 16px rgba(118, 75, 162, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
                 "&:hover": {
                   background:
-                    currentStep === 0 || isGoingBack 
-                      ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)" 
+                    currentStep === 0 || isGoingBack
+                      ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
                       : "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
-                  boxShadow: currentStep === 0 || isGoingBack 
+                  boxShadow: currentStep === 0 || isGoingBack
                     ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                     : "0 12px 40px rgba(102, 126, 234, 0.5), 0 8px 24px rgba(118, 75, 162, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
                   transform: currentStep === 0 || isGoingBack ? "none" : "translateY(-4px) scale(1.02)",
                 },
                 "&:active": {
                   transform: currentStep === 0 || isGoingBack ? "none" : "translateY(-2px) scale(1.01)",
-                  boxShadow: currentStep === 0 || isGoingBack 
+                  boxShadow: currentStep === 0 || isGoingBack
                     ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                     : "0 6px 20px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(118, 75, 162, 0.3)",
                 },
@@ -659,8 +573,8 @@ export default function CustomStepper() {
             >
               {isGoingBack ? (
                 <>
-                  <TrendingFlatIcon sx={{ 
-                    fontSize: "1.4rem", 
+                  <TrendingFlatIcon sx={{
+                    fontSize: "1.4rem",
                     transform: "rotate(180deg)",
                     marginRight: "8px",
                     filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
@@ -670,8 +584,8 @@ export default function CustomStepper() {
                 </>
               ) : (
                 <>
-                  <AutoAwesomeIcon sx={{ 
-                    fontSize: "1.1rem", 
+                  <AutoAwesomeIcon sx={{
+                    fontSize: "1.1rem",
                     marginRight: "4px",
                     filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
                   }} />
@@ -708,99 +622,99 @@ export default function CustomStepper() {
                 <Button
                   variant="contained"
                   startIcon={
-                    !isSkipping && <FastForwardIcon sx={{ 
+                    !isSkipping && <FastForwardIcon sx={{
                       fontSize: "1.3rem",
                       filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
                     }} />
                   }
                   onClick={handleSkip}
                   disabled={currentStep === steps.length - 1 || isSkipping}
-                sx={{
-                  width: "auto",
-                  minWidth: isSkipping ? "260px" : "120px",
-                  height: "50px",
-                  background:
-                    currentStep === steps.length - 1 || isSkipping
-                      ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
-                      : "linear-gradient(135deg, #ff9500 0%, #ff6b35 100%)",
-                  color: "#fff",
-                  boxShadow:
-                    currentStep === steps.length - 1 || isSkipping
-                      ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                      : "0 8px 32px rgba(255, 149, 0, 0.4), 0 4px 16px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                  "&:hover": {
+                  sx={{
+                    width: "auto",
+                    minWidth: isSkipping ? "260px" : "120px",
+                    height: "50px",
                     background:
                       currentStep === steps.length - 1 || isSkipping
                         ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
-                        : "linear-gradient(135deg, #e68900 0%, #e55a2b 100%)",
-                    boxShadow: currentStep === steps.length - 1 || isSkipping
-                      ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                      : "0 12px 40px rgba(255, 149, 0, 0.5), 0 8px 24px rgba(255, 107, 53, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
-                    transform: currentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-4px) scale(1.02)",
-                  },
-                  "&:active": {
-                    transform: currentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-2px) scale(1.01)",
-                    boxShadow: currentStep === steps.length - 1 || isSkipping
-                      ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                      : "0 6px 20px rgba(255, 149, 0, 0.4), 0 4px 12px rgba(255, 107, 53, 0.3)",
-                  },
-                  textTransform: "none",
-                  fontWeight: 700,
-                  px: 3,
-                  py: 1.5,
-                  borderRadius: "25px",
-                  fontSize: "1rem",
-                  transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                  border: "none",
-                  backdropFilter: "blur(20px)",
-                  letterSpacing: "0.8px",
-                  whiteSpace: "nowrap",
-                  position: "relative",
-                  overflow: "hidden",
-                  "&:before": {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: "-100%",
-                    width: "100%",
-                    height: "100%",
-                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                    transition: "left 0.6s",
-                  },
-                  "&:hover:before": {
-                    left: "100%",
-                  },
-                  "&:disabled": {
-                    background: "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)",
-                    color: "#9e9e9e",
-                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
-                    "&:before": {
-                      display: "none",
+                        : "linear-gradient(135deg, #ff9500 0%, #ff6b35 100%)",
+                    color: "#fff",
+                    boxShadow:
+                      currentStep === steps.length - 1 || isSkipping
+                        ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+                        : "0 8px 32px rgba(255, 149, 0, 0.4), 0 4px 16px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                    "&:hover": {
+                      background:
+                        currentStep === steps.length - 1 || isSkipping
+                          ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
+                          : "linear-gradient(135deg, #e68900 0%, #e55a2b 100%)",
+                      boxShadow: currentStep === steps.length - 1 || isSkipping
+                        ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+                        : "0 12px 40px rgba(255, 149, 0, 0.5), 0 8px 24px rgba(255, 107, 53, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+                      transform: currentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-4px) scale(1.02)",
                     },
-                  },
-                }}
-              >
-                {isSkipping ? (
-                  <>
-                    <KeyboardDoubleArrowRightIcon sx={{ 
-                      fontSize: "1.4rem", 
-                      marginRight: "8px",
-                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-                    }} />
-                    Skipping Current Service
-                    <LoadingDots />
-                  </>
-                ) : (
-                  <>
-                    <PlayArrowIcon sx={{ 
-                      fontSize: "1.1rem", 
-                      marginRight: "4px",
-                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-                    }} />
-                    Skip
-                  </>
-                )}
-              </Button>
+                    "&:active": {
+                      transform: currentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-2px) scale(1.01)",
+                      boxShadow: currentStep === steps.length - 1 || isSkipping
+                        ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+                        : "0 6px 20px rgba(255, 149, 0, 0.4), 0 4px 12px rgba(255, 107, 53, 0.3)",
+                    },
+                    textTransform: "none",
+                    fontWeight: 700,
+                    px: 3,
+                    py: 1.5,
+                    borderRadius: "25px",
+                    fontSize: "1rem",
+                    transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                    border: "none",
+                    backdropFilter: "blur(20px)",
+                    letterSpacing: "0.8px",
+                    whiteSpace: "nowrap",
+                    position: "relative",
+                    overflow: "hidden",
+                    "&:before": {
+                      content: '""',
+                      position: "absolute",
+                      top: 0,
+                      left: "-100%",
+                      width: "100%",
+                      height: "100%",
+                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                      transition: "left 0.6s",
+                    },
+                    "&:hover:before": {
+                      left: "100%",
+                    },
+                    "&:disabled": {
+                      background: "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)",
+                      color: "#9e9e9e",
+                      boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
+                      "&:before": {
+                        display: "none",
+                      },
+                    },
+                  }}
+                >
+                  {isSkipping ? (
+                    <>
+                      <KeyboardDoubleArrowRightIcon sx={{
+                        fontSize: "1.4rem",
+                        marginRight: "8px",
+                        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                      }} />
+                      Skipping Current Service
+                      <LoadingDots />
+                    </>
+                  ) : (
+                    <>
+                      <PlayArrowIcon sx={{
+                        fontSize: "1.1rem",
+                        marginRight: "4px",
+                        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                      }} />
+                      Skip
+                    </>
+                  )}
+                </Button>
               )}
 
               {shouldShowNext && (
@@ -809,17 +723,17 @@ export default function CustomStepper() {
                   endIcon={
                     !isProgressing &&
                     (isTourCompleted ? (
-                      <DoneAllIcon sx={{ 
+                      <DoneAllIcon sx={{
                         fontSize: "1.3rem",
                         filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
                       }} />
                     ) : currentStep === steps.length - 1 ? (
-                      <RocketLaunchIcon sx={{ 
+                      <RocketLaunchIcon sx={{
                         fontSize: "1.3rem",
                         filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
                       }} />
                     ) : (
-                      <SendIcon sx={{ 
+                      <SendIcon sx={{
                         fontSize: "1.3rem",
                         filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
                       }} />
@@ -827,120 +741,120 @@ export default function CustomStepper() {
                   }
                   onClick={handleNext}
                   disabled={isTourCompleted || isProgressing}
-                sx={{
-                  width: "auto",
-                  minWidth: isProgressing ? "220px" : "130px",
-                  height: "50px",
-                  background:
-                    isTourCompleted || isProgressing
-                      ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
-                      : currentStep === steps.length - 1
-                      ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)"
-                      : "linear-gradient(135deg, #2196f3 0%, #1565c0 100%)",
-                  color: "#fff",
-                  boxShadow:
-                    isTourCompleted || isProgressing
-                      ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                      : currentStep === steps.length - 1
-                      ? "0 8px 32px rgba(76, 175, 80, 0.4), 0 4px 16px rgba(46, 125, 50, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)"
-                      : "0 8px 32px rgba(33, 150, 243, 0.4), 0 4px 16px rgba(21, 101, 192, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                  "&:hover": {
+                  sx={{
+                    width: "auto",
+                    minWidth: isProgressing ? "220px" : "130px",
+                    height: "50px",
                     background:
                       isTourCompleted || isProgressing
                         ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
                         : currentStep === steps.length - 1
-                        ? "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)"
-                        : "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
-                    boxShadow: isTourCompleted || isProgressing
-                      ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                      : currentStep === steps.length - 1
-                      ? "0 12px 40px rgba(76, 175, 80, 0.5), 0 8px 24px rgba(46, 125, 50, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)"
-                      : "0 12px 40px rgba(33, 150, 243, 0.5), 0 8px 24px rgba(21, 101, 192, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
-                    transform: isTourCompleted || isProgressing ? "none" : "translateY(-4px) scale(1.02)",
-                  },
-                  "&:active": {
-                    transform: isTourCompleted || isProgressing ? "none" : "translateY(-2px) scale(1.01)",
-                    boxShadow: isTourCompleted || isProgressing
-                      ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                      : currentStep === steps.length - 1
-                      ? "0 6px 20px rgba(76, 175, 80, 0.4), 0 4px 12px rgba(46, 125, 50, 0.3)"
-                      : "0 6px 20px rgba(33, 150, 243, 0.4), 0 4px 12px rgba(21, 101, 192, 0.3)",
-                  },
-                  textTransform: "none",
-                  fontWeight: 700,
-                  px: 3,
-                  py: 1.5,
-                  borderRadius: "25px",
-                  fontSize: "1rem",
-                  transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                  border: "none",
-                  backdropFilter: "blur(20px)",
-                  letterSpacing: "0.8px",
-                  whiteSpace: "nowrap",
-                  position: "relative",
-                  overflow: "hidden",
-                  "&:before": {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: "-100%",
-                    width: "100%",
-                    height: "100%",
-                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                    transition: "left 0.6s",
-                  },
-                  "&:hover:before": {
-                    left: "100%",
-                  },
-                  "&:disabled": {
-                    background: "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)",
-                    color: "#9e9e9e",
-                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
-                    "&:before": {
-                      display: "none",
+                          ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)"
+                          : "linear-gradient(135deg, #2196f3 0%, #1565c0 100%)",
+                    color: "#fff",
+                    boxShadow:
+                      isTourCompleted || isProgressing
+                        ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+                        : currentStep === steps.length - 1
+                          ? "0 8px 32px rgba(76, 175, 80, 0.4), 0 4px 16px rgba(46, 125, 50, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)"
+                          : "0 8px 32px rgba(33, 150, 243, 0.4), 0 4px 16px rgba(21, 101, 192, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                    "&:hover": {
+                      background:
+                        isTourCompleted || isProgressing
+                          ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
+                          : currentStep === steps.length - 1
+                            ? "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)"
+                            : "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
+                      boxShadow: isTourCompleted || isProgressing
+                        ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+                        : currentStep === steps.length - 1
+                          ? "0 12px 40px rgba(76, 175, 80, 0.5), 0 8px 24px rgba(46, 125, 50, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)"
+                          : "0 12px 40px rgba(33, 150, 243, 0.5), 0 8px 24px rgba(21, 101, 192, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+                      transform: isTourCompleted || isProgressing ? "none" : "translateY(-4px) scale(1.02)",
                     },
-                  },
-                }}
-              >
-                {isProgressing ? (
-                  <>
-                    <TrendingFlatIcon sx={{ 
-                      fontSize: "1.4rem", 
-                      marginRight: "8px",
-                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-                    }} />
-                    Next Service
-                    <LoadingDots />
-                  </>
-                ) : isTourCompleted ? (
-                  <>
-                    <CheckCircleIcon sx={{ 
-                      fontSize: "1.1rem", 
-                      marginRight: "4px",
-                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-                    }} />
-                    Done
-                  </>
-                ) : currentStep === steps.length - 1 ? (
-                  <>
-                    <AutoAwesomeIcon sx={{ 
-                      fontSize: "1.1rem", 
-                      marginRight: "4px",
-                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-                    }} />
-                    Finish
-                  </>
-                ) : (
-                  <>
-                    <ArrowForwardIcon sx={{ 
-                      fontSize: "1.1rem", 
-                      marginRight: "4px",
-                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-                    }} />
-                    Next
-                  </>
-                )}
-              </Button>
+                    "&:active": {
+                      transform: isTourCompleted || isProgressing ? "none" : "translateY(-2px) scale(1.01)",
+                      boxShadow: isTourCompleted || isProgressing
+                        ? "inset 0 2px 4px rgba(0,0,0,0.1)"
+                        : currentStep === steps.length - 1
+                          ? "0 6px 20px rgba(76, 175, 80, 0.4), 0 4px 12px rgba(46, 125, 50, 0.3)"
+                          : "0 6px 20px rgba(33, 150, 243, 0.4), 0 4px 12px rgba(21, 101, 192, 0.3)",
+                    },
+                    textTransform: "none",
+                    fontWeight: 700,
+                    px: 3,
+                    py: 1.5,
+                    borderRadius: "25px",
+                    fontSize: "1rem",
+                    transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                    border: "none",
+                    backdropFilter: "blur(20px)",
+                    letterSpacing: "0.8px",
+                    whiteSpace: "nowrap",
+                    position: "relative",
+                    overflow: "hidden",
+                    "&:before": {
+                      content: '""',
+                      position: "absolute",
+                      top: 0,
+                      left: "-100%",
+                      width: "100%",
+                      height: "100%",
+                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                      transition: "left 0.6s",
+                    },
+                    "&:hover:before": {
+                      left: "100%",
+                    },
+                    "&:disabled": {
+                      background: "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)",
+                      color: "#9e9e9e",
+                      boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
+                      "&:before": {
+                        display: "none",
+                      },
+                    },
+                  }}
+                >
+                  {isProgressing ? (
+                    <>
+                      <TrendingFlatIcon sx={{
+                        fontSize: "1.4rem",
+                        marginRight: "8px",
+                        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                      }} />
+                      Next Service
+                      <LoadingDots />
+                    </>
+                  ) : isTourCompleted ? (
+                    <>
+                      <CheckCircleIcon sx={{
+                        fontSize: "1.1rem",
+                        marginRight: "4px",
+                        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                      }} />
+                      Done
+                    </>
+                  ) : currentStep === steps.length - 1 ? (
+                    <>
+                      <AutoAwesomeIcon sx={{
+                        fontSize: "1.1rem",
+                        marginRight: "4px",
+                        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                      }} />
+                      Finish
+                    </>
+                  ) : (
+                    <>
+                      <ArrowForwardIcon sx={{
+                        fontSize: "1.1rem",
+                        marginRight: "4px",
+                        filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                      }} />
+                      Next
+                    </>
+                  )}
+                </Button>
               )}
             </Box>
           </Box>
