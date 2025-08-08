@@ -759,7 +759,7 @@ $(document).ready(function() {
         $('#searchResults').hide();
 
         $.ajax({
-            url: '/search-agents',
+            url: `${APP_URL}/search-agents`,
             method: 'GET',
             data: searchData,
             success: function(response) {

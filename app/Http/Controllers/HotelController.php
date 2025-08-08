@@ -2334,6 +2334,22 @@ class HotelController extends Controller
         $rooms = Room::where('room_id', $roomTypeId)->get(['id', 'no_of_room']); 
         return response()->json($rooms);
     }
+
+    public function getRoomsByDmc(Request $request){
+        $dmcId = $request->input('dmc_id');
+        $hotelId = $request->input('hotel_id');
+        
+        if (!$dmcId || !$hotelId) {
+            return response()->json([]);
+        }
+        
+        $rooms = Room::where('hotel_id', $hotelId)
+                    ->where('created_by', $dmcId)
+                    ->where('status', 1)
+                    ->get(['room_id', 'room_type']); 
+        
+        return response()->json($rooms);
+    }
     
     /*
     * Hotel Calender Monthly Details with DMC Filtering.

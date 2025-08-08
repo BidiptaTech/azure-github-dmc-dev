@@ -213,12 +213,12 @@
                             <div class="col-md-3 mb-3">
                                 <label for="room_type" class="form-label"><strong>Room Category</strong><span
                                         class="text-danger">*</span></label>
-                                <select id="room_type" class="form-control" name="room_id" required>
-                                    <option value="">Select Room Category</option>
-                                    @foreach($rooms as $room)
-                                        <option value="{{$room->room_id}}">{{$room->room_type}}</option>
-                                    @endforeach
-                                </select>
+                                        <select id="room_type" class="form-control" name="room_id" required>
+                                            <option value="">Select Room Category</option>
+                                            @foreach($rooms as $room)
+                                                <option value="{{$room->room_id}}">{{$room->room_type}}</option>
+                                            @endforeach
+                                        </select>
                             </div>
 
                             <!-- Bed Type -->
@@ -648,6 +648,63 @@
         toggleForceChildCount();
         
         @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+        // DMC Selection Change Handler
+        $('#dmc_selection').on('change', function() {
+            const selectedDmcId = $(this).val();
+            const hotelId = $('#hotel_id').val();
+            
+            if (selectedDmcId) {
+                // Enable room dropdown and fetch DMC-specific rooms
+                $('#room_type').prop('disabled', false);
+                fetchRoomsByDmc(selectedDmcId, hotelId);
+            } else {
+                // Disable room dropdown and reset
+                $('#room_type').prop('disabled', true)
+                    .empty()
+                    .append('<option value="">Select DMC First</option>');
+                // Reset dependent dropdowns
+                resetDependentDropdowns();
+            }
+        });
+
+        // Function to fetch rooms by DMC
+        function fetchRoomsByDmc(dmcId, hotelId) {
+            $.ajax({
+                url: `${BASE_URL}/get-rooms-by-dmc`,
+                type: 'GET',
+                data: {
+                    dmc_id: dmcId,
+                    hotel_id: hotelId
+                },
+                success: function(response) {
+                    $('#room_type').empty().append('<option value="">Select Room Category</option>');
+                    
+                    if (response.length > 0) {
+                        response.forEach(room => {
+                            $('#room_type').append(
+                                `<option value="${room.room_id}">${room.room_type}</option>`
+                            );
+                        });
+                    } else {
+                        $('#room_type').append('<option value="">No rooms available for this DMC</option>');
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error fetching rooms:', xhr.responseText);
+                    $('#room_type').empty().append('<option value="">Error loading rooms</option>');
+                }
+            });
+        }
+
+        // Function to reset dependent dropdowns
+        function resetDependentDropdowns() {
+            $('#bed_type').val('').trigger('change');
+            $('#no_of_rooms').prop('disabled', true).empty().append('<option value="">Select Room Category First</option>');
+            $('#max-occupancy').val('');
+            $('#adult_count').empty().append('<option value="">Select Adults</option>').prop('disabled', true);
+            $('#child_count').empty().append('<option value="">Select Children</option>').prop('disabled', true);
+        }
+
         // DMC Selection Validation for Admin and Role 20
         $('#hotelForm').on('submit', function(e) {
             const dmcSelection = $('#dmc_selection').val();
@@ -773,7 +830,7 @@
 </script>
 
 <script>
-    const BASE_URL = "{{ url('/') }}";
+    const BASE_URL = "{{ env('APP_URL') }}";
     $(document).ready(function() {
         $('#room_type').on('change', function() {
             const roomTypeId = $(this).val(); 
@@ -816,7 +873,7 @@
         $('#bed_type').on('change', function () {
             const selectedBedType = $(this).val(); // Get the selected bed type
             const hotelId = $('#hotel_id').val();
-            const BASE_URL = "{{ url('/') }}";
+            const BASE_URL = "{{ env('APP_URL') }}";
             if (selectedBedType) {
                 $.ajax({
                     url: `${BASE_URL}/get-bed-type-data`,
