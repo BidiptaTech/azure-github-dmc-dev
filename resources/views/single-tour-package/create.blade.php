@@ -292,11 +292,7 @@
                     </div>
                 </div>
             </div>
-
-
-
         </form>
-
     </div>
 </div>
 @endsection
@@ -648,37 +644,37 @@ document.addEventListener('DOMContentLoaded', function() {
             citySelect.innerHTML = '<option value="">Loading cities...</option>';
             
                          // Use jQuery AJAX for country-city loading
-             setTimeout(function() {
-                 $.ajax({
-                     url: "{{ route('fetch-cities-by-country-single-tour') }}",
-                     type: "GET",
-                     data: { country: selectedCountry },
-                     dataType: 'json',
-                     success: function(response) {
-                         citySelect.innerHTML = '<option value="">Select city...</option>';
-                         
-                         if (response.cities && response.cities.length > 0) {
-                             // Set country_id for the hidden field (we'll use country name for now)
-                             document.getElementById('country_id').value = selectedCountry;
-                             
-                             response.cities.forEach(function(city) {
-                                 citySelect.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
-                             });
-                         } else {
-                             citySelect.innerHTML += '<option disabled>No cities found</option>';
-                         }
-                         
-                         citySelect.disabled = false;
-                         cityLoader.style.display = 'none';
-                     },
-                     error: function(xhr, status, error) {
-                         console.error('Error loading cities:', error);
-                         citySelect.innerHTML = '<option disabled>Error loading cities</option>';
-                         citySelect.disabled = false;
-                         cityLoader.style.display = 'none';
-                     }
-                 });
-             }, 300); // Small delay to ensure smooth UX
+            setTimeout(function() {
+                $.ajax({
+                    url: "{{ route('fetch-cities-by-country-single-tour') }}",
+                    type: "GET",
+                    data: { country: selectedCountry },
+                    dataType: 'json',
+                    success: function(response) {
+                    citySelect.innerHTML = '<option value="">Select city...</option>';
+                        
+                    if (response.cities && response.cities.length > 0) {
+                        // Set country_id for the hidden field (we'll use country name for now)
+                        document.getElementById('country_id').value = selectedCountry;
+                        
+                        response.cities.forEach(function(city) {
+                            citySelect.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
+                        });
+                    } else {
+                        citySelect.innerHTML += '<option disabled>No cities found</option>';
+                    }
+                        
+                        citySelect.disabled = false;
+                        cityLoader.style.display = 'none';
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading cities:', error);
+                        citySelect.innerHTML = '<option disabled>Error loading cities</option>';
+                        citySelect.disabled = false;
+                        cityLoader.style.display = 'none';
+                    }
+                });
+            }, 300); // Small delay to ensure smooth UX
         } else {
             citySelect.innerHTML = '<option value="">Select country first</option>';
             citySelect.disabled = true;
@@ -706,51 +702,49 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
          // Wait for all dependencies to load
-     $(document).ready(function() {
-         // Date Range Picker Initialization
-         $('#travel_dates').daterangepicker({
-             opens: 'left',
-             autoUpdateInput: false,
-             minDate: moment(),
-             locale: {
-                 format: 'MMM DD, YYYY',
-                 cancelLabel: 'Clear'
-             }
-         });
+    $(document).ready(function() {
+        // Date Range Picker Initialization
+        $('#travel_dates').daterangepicker({
+            opens: 'left',
+            autoUpdateInput: false,
+            minDate: moment(),
+            locale: {
+                format: 'MMM DD, YYYY',
+                cancelLabel: 'Clear'
+            }
+        });
 
-         $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
-             $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
-             
-             // Set hidden date fields
-             document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
-             document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
-             
-             // Update global variables
-             tourStartDate = picker.startDate;
-             tourEndDate = picker.endDate;
-             tourNights = picker.endDate.diff(picker.startDate, 'days');
-             
-             // Update the hotel section date display
-             document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
-             document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
-             
-                      // Generate night selection buttons
-         generateNightSelection();
-         // Initialize night display
-         updateNightDisplay();
-         });
+        $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
+            $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
+            
+            // Set hidden date fields
+            document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
+            document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
+            
+            // Update global variables
+            tourStartDate = picker.startDate;
+            tourEndDate = picker.endDate;
+            tourNights = picker.endDate.diff(picker.startDate, 'days');
+            
+            // Update the hotel section date display
+            document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
+            document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            
+                    // Generate night selection buttons
+            generateNightSelection();
+            // Initialize night display
+            updateNightDisplay();
+        });
 
-         $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
-             $(this).val('');
-             document.getElementById('start_date').value = '';
-             document.getElementById('end_date').value = '';
-             tourStartDate = null;
-             tourEndDate = null;
-             tourNights = 0;
-         });
-     });
-
-
+        $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
+            $(this).val('');
+            document.getElementById('start_date').value = '';
+            document.getElementById('end_date').value = '';
+            tourStartDate = null;
+            tourEndDate = null;
+            tourNights = 0;
+        });
+    });
 
         // Update total adults count and hidden field
         const updateAdultsCount = () => {
@@ -796,10 +790,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-
-
          // Generate night selection based on date range
-     function generateNightSelection() {
+    function generateNightSelection() {
          const nightSelectionDiv = document.getElementById('nightSelection');
          nightSelectionDiv.innerHTML = '';
          
@@ -827,10 +819,10 @@ document.addEventListener('DOMContentLoaded', function() {
                  nightSelectionDiv.appendChild(nightButton);
              }
          }
-     }
+    }
 
      // Handle night selection with automatic consecutive filling
-     function handleNightSelection(selectedNight) {
+    function handleNightSelection(selectedNight) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          let manuallySelectedNights = [];
          
@@ -854,10 +846,10 @@ document.addEventListener('DOMContentLoaded', function() {
          const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
          updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
          updateNightDisplay();
-     }
+    }
 
      // Fill gaps to make consecutive nights
-     function fillConsecutiveNights(nights) {
+    function fillConsecutiveNights(nights) {
          if (nights.length === 0) return nights;
          
          nights.sort((a, b) => a - b);
@@ -870,10 +862,10 @@ document.addEventListener('DOMContentLoaded', function() {
          }
          
          return consecutiveNights;
-     }
+    }
 
      // Update visual selection of nights with color coding
-     function updateConsecutiveSelectionWithColors(manuallySelected, allConsecutive) {
+    function updateConsecutiveSelectionWithColors(manuallySelected, allConsecutive) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          
          allNightButtons.forEach(btn => {
@@ -896,15 +888,15 @@ document.addEventListener('DOMContentLoaded', function() {
                  }
              }
          });
-     }
+    }
 
      // Legacy function for backward compatibility
-     function updateConsecutiveSelection(selectedNights) {
+    function updateConsecutiveSelection(selectedNights) {
          updateConsecutiveSelectionWithColors(selectedNights, selectedNights);
-     }
+    }
 
      // Update night display summary
-     function updateNightDisplay() {
+    function updateNightDisplay() {
          const selectedNights = [];
          const manualNights = [];
          const autoNights = [];
@@ -965,7 +957,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  </div>
              `;
          }
-     }
+    }
 
     // Create Tour Package Function
     window.createTourPackage = function() {
@@ -1075,6 +1067,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Generate daily services based on tour dates
         generateDailyServices();
+        
+        // Load zones for the newly created transport sections
+        const selectedCity = document.getElementById('city').value;
+        if (selectedCity) {
+            fetchZonesForAllTransportSections(selectedCity);
+        }
         
         // Scroll to hotel section
         document.getElementById('hotelSection').scrollIntoView({ 
@@ -1228,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
         
         // Fetch hotels from API using DMC-specific endpoint
-        fetch(`/fetch-hotels-by-dmc?city=${encodeURIComponent(cityName)}`)
+        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -1307,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
         
         // Fetch rooms for the selected hotel
-        fetch(`/fetch-rooms-by-hotel?hotel_id=${encodeURIComponent(hotelId)}`)
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -1501,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const roomId = selectedRooms[0].room_id;
         
         // Fetch beds for the selected room
-        fetch(`/fetch-beds-by-room?room_id=${encodeURIComponent(roomId)}`)
+        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${encodeURIComponent(roomId)}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -1541,7 +1539,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
          // Add Hotel Function
-     window.addHotel = function() {
+    window.addHotel = function() {
          const hotelSelect = document.getElementById('hotelSelect');
          const roomType = document.getElementById('roomTypeSelect').value;
          const bedType = document.getElementById('bedTypeSelect').value;
@@ -1613,12 +1611,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (document.getElementById('transportSection').style.display !== 'block') {
                 document.getElementById('transportSection').style.display = 'block';
                 generateDailyServices();
+                
+                // Load zones for transport sections if city is selected
+                const selectedCity = document.getElementById('city').value;
+                if (selectedCity) {
+                    fetchZonesForAllTransportSections(selectedCity);
+                }
             }
         }
-     };
+
+        
+    };
 
          // Display selected hotels
-     function displaySelectedHotels() {
+    function displaySelectedHotels() {
          const container = document.getElementById('selectedHotels');
          
          if (selectedHotels.length === 0) {
@@ -1679,10 +1685,10 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('totalHotels').textContent = selectedHotels.length;
          const totalNights = selectedHotels.reduce((sum, hotel) => sum + hotel.totalNights, 0);
          document.getElementById('totalNights').textContent = totalNights + ' Nights';
-     }
+    }
 
          // Generate daily services based on tour dates
-     function generateDailyServices() {
+    function generateDailyServices() {
          const container = document.getElementById('dailyServicesContainer');
          
          // Ensure we have valid tour dates
@@ -1736,8 +1742,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPortService(${day})">
-                                  <i class="ri-add-line me-1"></i>Add Port Service
+                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="saveService(${day}, 'entry_port')">
+                                  <i class="ri-save-line me-1"></i>Save and Add Port Service
                               </button>
                           </div>
                           
@@ -1866,7 +1872,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <label class="form-label fw-semibold">Service Type</label>
                                          <select class="form-select service-type-select" name="day${day}_entry_service_type" onchange="updatePricing(${day}, 'entry')">
                                              <option value="">Select service type</option>
+                                             <option value="Shared">Shared</option>
+                                             <option value="Private">Private</option>
                                          </select>
+                                     </div>
+                                     <div class="col-12 mt-3">
+                                         <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'entry_port')">
+                                             <i class="ri-save-line me-2"></i>Save and Add More
+                                         </button>
                                      </div>
                                  </div>
                              </div>
@@ -1886,8 +1899,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addPortService(${day})">
-                                  <i class="ri-add-line me-1"></i>Add Port Service
+                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="saveService(${day}, 'exit_port')">
+                                  <i class="ri-save-line me-1"></i>Save and Add Port Service
                               </button>
                           </div>
                           
@@ -2016,7 +2029,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <label class="form-label fw-semibold">Service Type</label>
                                          <select class="form-select service-type-select" name="day${day}_exit_service_type" onchange="updatePricing(${day}, 'exit')">
                                              <option value="">Select service type</option>
+                                             <option value="Shared">Shared</option>
+                                             <option value="Private">Private</option>
                                          </select>
+                                     </div>
+                                     <div class="col-12 mt-3">
+                                         <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'exit_port')">
+                                             <i class="ri-save-line me-2"></i>Save and Add More
+                                         </button>
                                      </div>
                                  </div>
                              </div>
@@ -2105,8 +2125,8 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="addMoreAttractions(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Another Attraction
+                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="saveService(${day}, 'attraction')">
+                                              <i class="ri-save-line me-1"></i>Save and Add Attraction
                                           </button>
                              </div>
                          </div>
@@ -2198,8 +2218,8 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="addMoreGuides(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Another Guide
+                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="saveService(${day}, 'guide')">
+                                              <i class="ri-save-line me-1"></i>Save and Add Guide
                                           </button>
                              </div>
                          </div>
@@ -2291,9 +2311,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                                  
                                  <div class="mt-3 text-center">
-                              <button type="button" class="btn btn-sm btn-outline-success" onclick="addMoreRestaurants(${day})">
-                                  <i class="ri-add-line me-1"></i>Add Another Restaurant
-                                     </button>
+                              <button type="button" class="btn btn-sm btn-outline-success" onclick="saveService(${day}, 'restaurant')">
+                                              <i class="ri-save-line me-1"></i>Save and Add Restaurant
+                                          </button>
                              </div>
                          </div>
                      </div>
@@ -2305,8 +2325,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <i class="ri-car-line me-2"></i>Book Transport Services
                                  <small class="text-muted ms-2">Select professional transport and configure your tour package</small>
                              </h6>
-                             <button type="button" class="btn btn-sm btn-warning" onclick="addTransport(${day})">
-                                 <i class="ri-add-line me-1"></i>Search Transport
+                             <button type="button" class="btn btn-sm btn-warning" onclick="saveService(${day}, 'transport')">
+                                 <i class="ri-save-line me-1"></i>Save and Add Transport
                              </button>
                          </div>
                          
@@ -2390,15 +2410,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      <div class="col-md-2">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-calendar-line text-primary me-2"></i>Transport Date
-                                             </label>
-                                             <div class="position-relative">
-                                                 <input type="date" class="form-control border-2" name="day${day}_transport_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
-                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                             </div>
-                                         </div>
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-calendar-line text-primary me-2"></i>Transport Date
+                                            </label>
+                                            <div class="position-relative">
+                                                <input type="date" class="form-control border-2" name="day${day}_transport_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            </div>
+                                        </div>
                                      </div>
                                      <div class="col-md-2">
                                          <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport')" id="day${day}_transport_search_btn" disabled>
@@ -2426,12 +2446,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Choose vehicle</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-6">
-                                         <label class="form-label fw-semibold">Service Type</label>
-                                         <select class="form-select service-type-select" name="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
-                                             <option value="">Select service type</option>
-                                         </select>
-                                     </div>
+                                    <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Service Type</label>
+                                    <select class="form-select" name="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
+                                        <option value="">Select service type</option>
+                                        <option value="Shared">Shared</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'transport')">
+                                            <i class="ri-save-line me-2"></i>Save and Add More
+                                        </button>
+                                    </div>
                                  </div>
                              </div>
                          </div>
@@ -2564,9 +2591,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading tickets:', error);
                 ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
             });
-     }
+    }
      
-     function initializeServiceGuestSummaries() {
+    function initializeServiceGuestSummaries() {
          // Get current guest values from main form
          const male = parseInt(document.getElementById('male').value) || 0;
          const female = parseInt(document.getElementById('female').value) || 0;
@@ -2594,10 +2621,10 @@ document.addEventListener('DOMContentLoaded', function() {
                  badges[2].textContent = infants; // Infants
              }
          });
-     }
+    }
 
      // Remove hotel function
-     window.removeHotel = function(index) {
+    window.removeHotel = function(index) {
          selectedHotels.splice(index, 1);
          displaySelectedHotels();
          
@@ -2606,22 +2633,22 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('transportSection').style.display = 'none';
             document.getElementById('submitSection').style.display = 'none';
         }
-     };
+    };
 
          // Service management functions with improved UI feedback
-     window.addPortService = function(day) {
+    window.addPortService = function(day) {
          showNotification(`Port service added for Day ${day}`, 'success');
          console.log('Add port service for day', day);
          // Future implementation: Add dynamic form for port services
-     };
+    };
      
-     window.addAttractionService = function(day) {
+    window.addAttractionService = function(day) {
          showNotification(`Attraction service added for Day ${day}`, 'success');
          console.log('Add attraction service for day', day);
          // Future implementation: Add dynamic form for attractions
-     };
+    };
      
-     window.addMoreAttractions = function(day) {
+    window.addMoreAttractions = function(day) {
         const container = document.getElementById(`day${day}_attractions_container`);
         const existingAttractions = container.querySelectorAll('.attraction-item');
         const newIndex = existingAttractions.length + 1;
@@ -3301,59 +3328,59 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
          // Quantity update function for Set Menu
-     window.updateQuantity = function(change) {
-         const currentData = window.currentDishData;
-         if (!currentData) return;
-         
-         currentData.quantity = Math.max(0, currentData.quantity + change);
-         
-         const quantityDisplay = document.getElementById('quantityDisplay');
-         const priceDisplay = document.getElementById('priceDisplay');
-         const totalPriceDisplay = document.getElementById('totalPriceDisplay');
-         const quantityInfo = document.getElementById('quantityInfo');
-         const confirmBtn = document.getElementById('confirmBtn');
-         
-         const totalPrice = currentData.unitPrice * currentData.quantity;
-         
-         if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
-         if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
-         if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
-         if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
-         
-         // Enable/disable confirm button based on quantity
-         if (confirmBtn) {
-             confirmBtn.disabled = currentData.quantity === 0;
-             // Update onclick with current total price
-             confirmBtn.setAttribute('onclick', `confirmDishSelection(${currentData.meal.meal_id}, '${currentData.meal.display_name}', ${currentData.day}, ${currentData.index}, ${totalPrice.toFixed(2)})`);
-         }
-     };
+    window.updateQuantity = function(change) {
+        const currentData = window.currentDishData;
+        if (!currentData) return;
+        
+        currentData.quantity = Math.max(0, currentData.quantity + change);
+        
+        const quantityDisplay = document.getElementById('quantityDisplay');
+        const priceDisplay = document.getElementById('priceDisplay');
+        const totalPriceDisplay = document.getElementById('totalPriceDisplay');
+        const quantityInfo = document.getElementById('quantityInfo');
+        const confirmBtn = document.getElementById('confirmBtn');
+        
+        const totalPrice = currentData.unitPrice * currentData.quantity;
+        
+        if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
+        if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
+        if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+        if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
+        
+        // Enable/disable confirm button based on quantity
+        if (confirmBtn) {
+            confirmBtn.disabled = currentData.quantity === 0;
+            // Update onclick with current total price
+            confirmBtn.setAttribute('onclick', `confirmDishSelection(${currentData.meal.meal_id}, '${currentData.meal.display_name}', ${currentData.day}, ${currentData.index}, ${totalPrice.toFixed(2)})`);
+        }
+    };
     
          // Confirm selection function
-     window.confirmDishSelection = function(mealId, dishName, day, index, totalPrice) {
-         console.log('Dish confirmed:', dishName, 'Price:', totalPrice);
-         
-         // Mark the selected dish button as selected and show price
-         const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
-         if (dishContainer) {
-             dishContainer.querySelectorAll('.dish-option-btn').forEach(btn => {
-                 btn.classList.remove('selected');
-                 if (btn.dataset.mealId == mealId) {
-                     btn.classList.add('selected');
-                     // Update button text to show price
-                     const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
-                     btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
-                 }
-             });
-         }
-         
-         // Close modal
-         const modal = bootstrap.Modal.getInstance(document.getElementById('tempDishModal'));
-         if (modal) modal.hide();
-         
-         // Remove temp modal
-         const tempModal = document.getElementById('tempDishModal');
-         if (tempModal) tempModal.remove();
-     };
+    window.confirmDishSelection = function(mealId, dishName, day, index, totalPrice) {
+        console.log('Dish confirmed:', dishName, 'Price:', totalPrice);
+        
+        // Mark the selected dish button as selected and show price
+        const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
+        if (dishContainer) {
+            dishContainer.querySelectorAll('.dish-option-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.dataset.mealId == mealId) {
+                    btn.classList.add('selected');
+                    // Update button text to show price
+                    const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
+                    btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
+                }
+            });
+        }
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('tempDishModal'));
+        if (modal) modal.hide();
+        
+        // Remove temp modal
+        const tempModal = document.getElementById('tempDishModal');
+        if (tempModal) tempModal.remove();
+    };
     
     // Main guest selection modal functions
 
@@ -3993,13 +4020,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
      
-     window.addGuideService = function(day) {
-         showNotification(`Tour guide service added for Day ${day}`, 'success');
-         console.log('Add guide service for day', day);
-         // Future implementation: Add dynamic form for tour guides
-     };
+    window.addGuideService = function(day) {
+        showNotification(`Tour guide service added for Day ${day}`, 'success');
+        console.log('Add guide service for day', day);
+        // Future implementation: Add dynamic form for tour guides
+    };
      
-     window.addMoreGuides = function(day) {
+    window.addMoreGuides = function(day) {
         const container = document.getElementById(`day${day}_guides_container`);
         const existingGuides = container.querySelectorAll('.guide-item');
         const newIndex = existingGuides.length + 1;
@@ -4132,9 +4159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-
-     
-     function createGuestSelectorModal(serviceId) {
+    function createGuestSelectorModal(serviceId) {
         // Get limits from main form
         const maxMale = parseInt(document.getElementById('male').value) || 0;
         const maxFemale = parseInt(document.getElementById('female').value) || 0;
@@ -4142,147 +4167,147 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxInfants = parseInt(document.getElementById('infants').value) || 0;
         const maxAdults = maxMale + maxFemale;
         
-         const modalHTML = `
-             <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel" aria-hidden="true">
-                 <div class="modal-dialog modal-lg">
-                     <div class="modal-content">
-                         <div class="modal-header bg-primary text-white">
-                             <h5 class="modal-title" id="guestSelectorModalLabel">
-                                 <i class="ri-group-line me-2"></i>Select Guests for Service
-                             </h5>
-                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                         </div>
-                         <div class="modal-body">
-                            <!-- Service Limits Notice -->
-                            <div class="alert alert-info mb-4">
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <h6 class="alert-heading mb-2">
-                                            <i class="ri-information-line me-2"></i>Available Guests (Based on main selection)
-                                        </h6>
-                                        <div class="d-flex gap-3 flex-wrap">
-                                            <span class="badge bg-primary">Adults: ${maxAdults} (${maxMale}M + ${maxFemale}F)</span>
-                                            <span class="badge bg-success">Children: ${maxChildren}</span>
-                                            <span class="badge bg-warning text-dark">Infants: ${maxInfants}</span>
+        const modalHTML = `
+            <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="guestSelectorModalLabel">
+                                <i class="ri-group-line me-2"></i>Select Guests for Service
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                        <!-- Service Limits Notice -->
+                        <div class="alert alert-info mb-4">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="ri-information-line me-2"></i>Available Guests (Based on main selection)
+                                    </h6>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <span class="badge bg-primary">Adults: ${maxAdults} (${maxMale}M + ${maxFemale}F)</span>
+                                        <span class="badge bg-success">Children: ${maxChildren}</span>
+                                        <span class="badge bg-warning text-dark">Infants: ${maxInfants}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                            <div class="row g-4">
+                                <!-- Adults Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults (Max: ${maxAdults})</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Male -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-primary">
+                                                <i class="ri-user-3-line me-1"></i>Male (Max: ${maxMale})
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxMale === 0 ? '<small class="text-muted">No male adults selected in main form</small>' : ''}
+                                            </div>
+                                            <!-- Female -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-danger">
+                                                <i class="ri-user-4-line me-1"></i>Female (Max: ${maxFemale})
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxFemale === 0 ? '<small class="text-muted">No female adults selected in main form</small>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Children & Infants Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Children -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-success">
+                                                <i class="ri-user-smile-line me-1"></i>Children (Max: ${maxChildren})
+                                                    <small class="text-muted">(Ages 1-17)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxChildren === 0 ? '<small class="text-muted">No children selected in main form</small>' : ''}
+                                            </div>
+                                            <!-- Infants -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-warning">
+                                                <i class="ri-user-heart-line me-1"></i>Infants (Max: ${maxInfants})
+                                                    <small class="text-muted">(Under 1 year)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxInfants === 0 ? '<small class="text-muted">No infants selected in main form</small>' : ''}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                             <div class="row g-4">
-                                 <!-- Adults Section -->
-                                 <div class="col-md-6">
-                                     <div class="card border-primary">
-                                         <div class="card-header bg-primary text-white">
-                                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults (Max: ${maxAdults})</h6>
-                                         </div>
-                                         <div class="card-body">
-                                             <!-- Male -->
-                                             <div class="guest-counter mb-3">
-                                                 <label class="form-label fw-semibold text-primary">
-                                                    <i class="ri-user-3-line me-1"></i>Male (Max: ${maxMale})
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
-                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxMale === 0 ? '<small class="text-muted">No male adults selected in main form</small>' : ''}
-                                             </div>
-                                             <!-- Female -->
-                                             <div class="guest-counter">
-                                                 <label class="form-label fw-semibold text-danger">
-                                                    <i class="ri-user-4-line me-1"></i>Female (Max: ${maxFemale})
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
-                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxFemale === 0 ? '<small class="text-muted">No female adults selected in main form</small>' : ''}
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Children & Infants Section -->
-                                 <div class="col-md-6">
-                                     <div class="card border-success">
-                                         <div class="card-header bg-success text-white">
-                                             <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
-                                         </div>
-                                         <div class="card-body">
-                                             <!-- Children -->
-                                             <div class="guest-counter mb-3">
-                                                 <label class="form-label fw-semibold text-success">
-                                                    <i class="ri-user-smile-line me-1"></i>Children (Max: ${maxChildren})
-                                                     <small class="text-muted">(Ages 1-17)</small>
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
-                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxChildren === 0 ? '<small class="text-muted">No children selected in main form</small>' : ''}
-                                             </div>
-                                             <!-- Infants -->
-                                             <div class="guest-counter">
-                                                 <label class="form-label fw-semibold text-warning">
-                                                    <i class="ri-user-heart-line me-1"></i>Infants (Max: ${maxInfants})
-                                                     <small class="text-muted">(Under 1 year)</small>
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
-                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxInfants === 0 ? '<small class="text-muted">No infants selected in main form</small>' : ''}
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                         <div class="modal-footer">
-                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                             <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
-                                 <i class="ri-check-line me-1"></i>Apply Selection
-                             </button>
-                         </div>
-                     </div>
-                 </div>
-             </div>
-         `;
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
+                                <i class="ri-check-line me-1"></i>Apply Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
          
-         document.body.insertAdjacentHTML('beforeend', modalHTML);
-         
-         // Initialize modal values from main form
-         initializeModalGuestValues();
-         
-         // Show modal
-         const modal = document.getElementById('guestSelectorModal');
-         modal.setAttribute('data-service-id', serviceId);
-         const modalInstance = new bootstrap.Modal(modal);
-         modalInstance.show();
-     }
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Initialize modal values from main form
+        initializeModalGuestValues();
+        
+        // Show modal
+        const modal = document.getElementById('guestSelectorModal');
+        modal.setAttribute('data-service-id', serviceId);
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+    }
      
-     function initializeModalGuestValues() {
+    function initializeModalGuestValues() {
          // Get values from main form
          const male = parseInt(document.getElementById('male').value) || 0;
          const female = parseInt(document.getElementById('female').value) || 0;
@@ -4294,9 +4319,9 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('serviceModalFemale').textContent = female;
          document.getElementById('serviceModalChildren').textContent = children;
          document.getElementById('serviceModalInfants').textContent = infants;
-     }
+    }
      
-     window.updateServiceGuest = function(type, change) {
+    window.updateServiceGuest = function(type, change) {
          const element = document.getElementById('serviceModal' + type.charAt(0).toUpperCase() + type.slice(1));
          const currentValue = parseInt(element.textContent) || 0;
         
@@ -4331,9 +4356,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
          element.textContent = newValue;
-     };
+    };
      
-     window.applyGuestSelection = function() {
+    window.applyGuestSelection = function() {
          const serviceId = document.getElementById('guestSelectorModal').getAttribute('data-service-id');
          const male = parseInt(document.getElementById('serviceModalMale').textContent) || 0;
          const female = parseInt(document.getElementById('serviceModalFemale').textContent) || 0;
@@ -4365,10 +4390,10 @@ document.addEventListener('DOMContentLoaded', function() {
          modal.hide();
          
          showNotification(`Guest selection updated: ${total} total guests`, 'success');
-     };
+    };
      
      // Notification helper function
-     function showNotification(message, type = 'info') {
+    window.showNotification = function(message, type = 'info') {
          const alertClass = type === 'success' ? 'alert-success' : 
                            type === 'error' ? 'alert-danger' : 'alert-info';
          
@@ -4389,7 +4414,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  alert.remove();
              }
          }, 3000);
-     }
+    }
 
      // Initialize main guest summary
     function updateMainGuestSummary() {
@@ -4420,11 +4445,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (hotelSelect && hotelSelect.value) {
             updateHotelDependentDropdowns(hotelSelect.value);
         }
-     }
-
-     // Initialize
+    }
+    //Initialize
     updateMainGuestSummary();
-     updateGuestSummary();
+    updateGuestSummary();
     updateAdultsCount();
     
     // Load zones when city is selected
@@ -4432,6 +4456,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup new transportation handlers
     setupNewTransportationHandlers();
+    
+    // Setup search button listeners
+    setupSearchButtonListeners();
  });
 
  // Zone and Vehicle Management Functions
@@ -4446,15 +4473,69 @@ document.addEventListener('DOMContentLoaded', function() {
          });
      }
  }
+ 
+ // Function to enable search button when pickup time changes
+ function enableSearchButton(day, section) {
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     if (searchBtn) {
+         searchBtn.disabled = false;
+         searchBtn.classList.remove('btn-secondary');
+         searchBtn.classList.add('btn-primary');
+     }
+ }
+ 
+ // Add event listeners to pickup time fields for entry port and transport sections
+ function setupSearchButtonListeners() {
+     // For each day, set up listeners for pickup time fields
+     for (let day = 1; day <= 7; day++) {
+         // Entry port pickup time
+         const entryPickupTime = document.querySelector(`select[name="day${day}_entry_pickup_time"]`);
+         const entrySearchBtn = document.getElementById(`day${day}_entry_search_btn`);
+         
+         // Transport pickup time
+         const transportPickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`);
+         const transportSearchBtn = document.getElementById(`day${day}_transport_search_btn`);
+         
+         // Add event listener for entry port pickup time
+         if (entryPickupTime) {
+             entryPickupTime.addEventListener('change', () => enableSearchButton(day, 'entry'));
+         }
+         
+         // Add event listener for transport pickup time
+         if (transportPickupTime) {
+             transportPickupTime.addEventListener('change', () => enableSearchButton(day, 'transport'));
+         }
+         
+         // Initially disable search buttons
+         if (entrySearchBtn) {
+             entrySearchBtn.disabled = true;
+             entrySearchBtn.classList.remove('btn-primary');
+             entrySearchBtn.classList.add('btn-secondary');
+         }
+         if (transportSearchBtn) {
+             transportSearchBtn.disabled = true;
+             transportSearchBtn.classList.remove('btn-primary');
+             transportSearchBtn.classList.add('btn-secondary');
+         }
+     }
+ }
 
  function fetchZonesForAllTransportSections(city) {
-     fetch(`/fetch-zones-by-dmc?city=${encodeURIComponent(city)}`)
+     console.log('Fetching zones for city:', city);
+     fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
          .then(response => response.json())
          .then(data => {
+             console.log('Zones data received:', data);
              if (data.success && data.zones) {
+                 // Store zones data globally for use in other functions
+                 window.allZonesData = data.zones;
+                 
                  // Update all pickup zone selects
                  const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
-                 pickupZoneSelects.forEach(select => {
+                 console.log('Found pickup zone selects:', pickupZoneSelects.length);
+                 
+                 pickupZoneSelects.forEach((select, index) => {
+                     console.log(`Updating pickup zone select ${index}:`, select.name);
                      select.innerHTML = '<option value="">Select pickup zone</option>';
                      data.zones.forEach(zone => {
                          select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
@@ -4462,24 +4543,32 @@ document.addEventListener('DOMContentLoaded', function() {
                      select.disabled = false;
                  });
                  
-                 // Reset dependent dropdowns
+                 // Update all dropoff zone selects with all zones initially
                  const dropoffZoneSelects = document.querySelectorAll('.dropoff-zone-select');
-                 dropoffZoneSelects.forEach(select => {
+                 console.log('Found dropoff zone selects:', dropoffZoneSelects.length);
+                 
+                 dropoffZoneSelects.forEach((select, index) => {
+                     console.log(`Updating dropoff zone select ${index}:`, select.name);
                      select.innerHTML = '<option value="">Select pickup zone first</option>';
+                     data.zones.forEach(zone => {
+                         select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                     });
                      select.disabled = true;
+                     console.log(`Dropoff select ${index} has ${data.zones.length} zones but is disabled`);
                  });
                  
-                 const vehicleSelects = document.querySelectorAll('.vehicle-select');
-                 vehicleSelects.forEach(select => {
-                     select.innerHTML = '<option value="">Select zones first</option>';
-                     select.disabled = true;
-                 });
+                const vehicleSelects = document.querySelectorAll('.vehicle-select');
+                vehicleSelects.forEach(select => {
+                    select.innerHTML = '<option value="">Select zones first</option>';
+                    select.disabled = true;
+                });
                  
-                 const serviceTypeSelects = document.querySelectorAll('.service-type-select');
-                 serviceTypeSelects.forEach(select => {
-                     select.innerHTML = '<option value="">Select vehicle first</option>';
-                     select.disabled = true;
-                 });
+                const serviceTypeSelects = document.querySelectorAll('.service-type-select');
+                serviceTypeSelects.forEach(select => {
+                    // Keep hardcoded options, just disable and reset selection
+                    select.disabled = true;
+                    select.value = "";
+                });
              }
          })
          .catch(error => {
@@ -4499,22 +4588,20 @@ document.addEventListener('DOMContentLoaded', function() {
          const citySelect = document.getElementById('city');
          const city = citySelect ? citySelect.value : '';
          
-         fetch(`/fetch-zones-by-dmc?city=${encodeURIComponent(city)}`)
+         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
              .then(response => response.json())
              .then(data => {
                  if (data.success && data.zones) {
-                     dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
-                     
-                     // Show all zones except the selected pickup zone
-                     data.zones.forEach(zone => {
-                         if (zone.zone_id !== pickupZoneId) {
-                             dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                         }
-                     });
-                     
-                     dropoffZoneSelect.disabled = false;
-                 }
-             })
+                    dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+                    // Show all zones except the selected pickup zone
+                    data.zones.forEach(zone => {
+                        if (zone.zone_id !== pickupZoneId) {
+                            dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                        }
+                    });
+                    dropoffZoneSelect.disabled = false;
+                }
+            })
              .catch(error => {
                  console.error('Error fetching dropoff zones:', error);
              });
@@ -4533,9 +4620,79 @@ document.addEventListener('DOMContentLoaded', function() {
      }
      
      if (serviceTypeSelect) {
-         serviceTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+         // Keep the hardcoded options, just disable and reset selection
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
          serviceTypeSelect.disabled = true;
      }
+ }
+
+ // New function to handle pickup zone changes with section-specific exclusion
+ function handlePickupZoneChange(day, section) {
+     console.log(`handlePickupZoneChange called for day ${day}, section ${section}`);
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     
+     console.log('Pickup zone select found:', !!pickupZoneSelect);
+     console.log('Dropoff zone select found:', !!dropoffZoneSelect);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+     
+     const pickupZoneId = pickupZoneSelect.value;
+     console.log('Selected pickup zone ID:', pickupZoneId);
+     
+     if (pickupZoneId) {
+         // Use the stored zones data instead of reading from dropdown
+         const allZones = window.allZonesData || [];
+         console.log('Using stored zones data:', allZones.length, 'zones');
+         console.log('Zones to exclude:', pickupZoneId);
+         
+         // Update dropoff select with all zones except the selected pickup zone
+         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+         allZones.forEach(zone => {
+             if (zone.zone_id != pickupZoneId) {
+                 dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+             }
+         });
+         
+         dropoffZoneSelect.disabled = false;
+         console.log('Dropoff select enabled and updated with', allZones.length - 1, 'zones');
+     } else {
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+     }
+     
+     // Reset vehicle and service type selects
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (vehicleSelect) {
+         vehicleSelect.innerHTML = '<option value="">Select zones first</option>';
+         vehicleSelect.disabled = true;
+     }
+     
+     if (serviceTypeSelect) {
+         // Keep the hardcoded options, just disable and reset selection
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
+         serviceTypeSelect.disabled = true;
+     }
+     
+     // Reset search button and hide vehicle results
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+     
+     if (searchBtn) {
+         searchBtn.disabled = true;
+         searchBtn.classList.remove('btn-primary');
+         searchBtn.classList.add('btn-secondary');
+     }
+     if (vehicleResultsDiv) {
+         vehicleResultsDiv.style.display = 'none';
+     }
+     
+     // Check if search button should be enabled after zone selection
+     setTimeout(() => enableSearchButton(day, section), 100);
  }
 
  function loadVehiclesForZones(day, section) {
@@ -4552,7 +4709,7 @@ document.addEventListener('DOMContentLoaded', function() {
          vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
          vehicleSelect.disabled = true;
          
-         fetch(`/fetch-vehicles-by-zones?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+         fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
              .then(response => response.json())
              .then(data => {
                  if (data.success && data.vehicles && data.vehicles.length > 0) {
@@ -4588,7 +4745,9 @@ document.addEventListener('DOMContentLoaded', function() {
      // Reset service type select
      const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
      if (serviceTypeSelect) {
-         serviceTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+         // Keep the hardcoded options, just disable and reset selection
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
          serviceTypeSelect.disabled = true;
      }
  }
@@ -4602,49 +4761,293 @@ document.addEventListener('DOMContentLoaded', function() {
      const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
      
      if (selectedOption.value) {
-         const serviceType = selectedOption.getAttribute('data-service-type');
-         const privatePrice = selectedOption.getAttribute('data-private-price');
-         const sharedPrice = selectedOption.getAttribute('data-shared-price');
-         
-         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
-         
-         if (privatePrice && parseFloat(privatePrice) > 0) {
-             serviceTypeSelect.innerHTML += `<option value="private" data-price="${privatePrice}">Private - $${privatePrice}</option>`;
-         }
-         
-         if (sharedPrice && parseFloat(sharedPrice) > 0) {
-             serviceTypeSelect.innerHTML += `<option value="shared" data-price="${sharedPrice}">Shared - $${sharedPrice}</option>`;
-         }
-         
+         // Just enable the service type select, don't modify its content
          serviceTypeSelect.disabled = false;
      } else {
-         serviceTypeSelect.innerHTML = '<option value="">Select vehicle first</option>';
+         // Reset to default state but keep the hardcoded options
          serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
      }
  }
 
  function updatePricing(day, section) {
-     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
-     
-     if (serviceTypeSelect) {
-         const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
-         const price = selectedOption.getAttribute('data-price');
-         
-         if (price) {
-             console.log(`Selected ${selectedOption.value} service for day ${day}: $${price}`);
-             // You can add price display or calculation logic here
-         }
-     }
- }
+    const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+    
+    if (serviceTypeSelect) {
+        const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+        const price = selectedOption.getAttribute('data-price');
+        
+        if (price) {
+            console.log(`Selected ${selectedOption.value} service for day ${day}: $${price}`);
+            // You can add price display or calculation logic here
+        }
+    }
+}
 
- // New functions for the search-based interface
+// Save service data to the backend
+window.saveService = function(day, type) {
+    // Get tour ID
+    const tourId = window.currentTourId;
+    if (!tourId) {
+        showNotification('Tour ID not found. Please create a tour first.', 'error');
+        return;
+    }
+    
+    // Get agent ID
+    const agentId = document.getElementById('agent_id').value;
+    if (!agentId) {
+        showNotification('Agent ID not found.', 'error');
+        return;
+    }
+    
+    // Prepare data based on service type
+    let data = {};
+    let section = '';
+    
+    if (type === 'entry_port') {
+        section = 'entry';
+        const pickupZoneId = document.querySelector(`select[name="day${day}_entry_pickup_zone_id"]`).value;
+        const dropoffZoneId = document.querySelector(`select[name="day${day}_entry_dropoff_zone_id"]`).value;
+        const pickupTime = document.querySelector(`select[name="day${day}_entry_pickup_time"]`).value;
+        const pickupDate = document.querySelector(`input[name="day${day}_entry_pickup_date"]`).value;
+        const vehicleId = document.querySelector(`select[name="day${day}_entry_vehicle_id"]`).value;
+        const serviceType = document.querySelector(`select[name="day${day}_entry_service_type"]`).value;
+        
+        // Validate required fields
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please fill in all required fields for entry port service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            from_zone_id: pickupZoneId,
+            to_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            day: day
+        };
+    } 
+    else if (type === 'exit_port') {
+        section = 'exit';
+        const pickupZoneId = document.querySelector(`select[name="day${day}_exit_pickup_zone_id"]`).value;
+        const dropoffZoneId = document.querySelector(`select[name="day${day}_exit_dropoff_zone_id"]`).value;
+        const pickupTime = document.querySelector(`select[name="day${day}_exit_time"]`).value;
+        const pickupDate = document.querySelector(`input[name="day${day}_exit_date"]`).value;
+        const vehicleId = document.querySelector(`select[name="day${day}_exit_vehicle_id"]`).value;
+        const serviceType = document.querySelector(`select[name="day${day}_exit_service_type"]`).value;
+        
+        // Validate required fields
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please fill in all required fields for exit port service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            from_zone_id: pickupZoneId,
+            to_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            day: day
+        };
+    }
+    else if (type === 'transport') {
+        section = 'transport';
+        const pickupZoneId = document.querySelector(`select[name="day${day}_transport_pickup_zone_id"]`).value;
+        const dropoffZoneId = document.querySelector(`select[name="day${day}_transport_dropoff_zone_id"]`).value;
+        const pickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`).value;
+        const pickupDate = document.querySelector(`input[name="day${day}_transport_date"]`).value;
+        const vehicleId = document.querySelector(`select[name="day${day}_transport_vehicle_id"]`).value;
+        const serviceType = document.querySelector(`select[name="day${day}_transport_service_type"]`).value;
+        
+        // Validate required fields
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please fill in all required fields for transport service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            from_zone_id: pickupZoneId,
+            to_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            day: day
+        };
+    }
+    else if (type === 'guide') {
+        section = 'guide';
+        const guideId = document.querySelector(`select[name="day${day}_guide_1"]`).value;
+        const packageType = document.querySelector(`select[name="day${day}_guide_1_package"]`).value;
+        const pickupTime = document.querySelector(`input[name="day${day}_guide_1_pickup_time"]`).value;
+        
+        // Validate required fields
+        if (!guideId || !packageType || !pickupTime) {
+            showNotification('Please fill in all required fields for guide service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            guide_id: guideId,
+            package_type: packageType,
+            pickup_time: pickupTime,
+            day: day
+        };
+    }
+    else if (type === 'attraction') {
+        section = 'attraction';
+        const attractionId = document.querySelector(`select[name="day${day}_attraction_1"]`).value;
+        const ticketId = document.querySelector(`select[name="day${day}_attraction_1_ticket"]`).value;
+        const timeSlot = document.querySelector(`select[name="day${day}_attraction_1_time"]`).value;
+        
+        // Validate required fields
+        if (!attractionId || !ticketId || !timeSlot) {
+            showNotification('Please fill in all required fields for attraction service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            attraction_id: attractionId,
+            ticket_id: ticketId,
+            time_slot: timeSlot,
+            day: day
+        };
+    }
+    else if (type === 'restaurant') {
+        section = 'restaurant';
+        const restaurantId = document.querySelector(`select[name="day${day}_restaurant_1"]`).value;
+        const mealType = document.querySelector(`select[name="day${day}_restaurant_1_meal_type"]`).value;
+        const mealTime = document.querySelector(`select[name="day${day}_restaurant_1_time"]`).value;
+        
+        // Validate required fields
+        if (!restaurantId || !mealType || !mealTime) {
+            showNotification('Please fill in all required fields for restaurant service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            restaurant_id: restaurantId,
+            meal_type: mealType,
+            meal_time: mealTime,
+            day: day
+        };
+    }
+    
+    // Prepare request data
+    const requestData = {
+        agent_id: agentId,
+        tour_id: tourId,
+        type: type,
+        data: data
+    };
+    
+    // Show loading state
+    const saveBtn = document.querySelector(`button[onclick="saveService(${day}, '${type}')"]`);
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Saving...';
+    saveBtn.disabled = true;
+    
+         // Send data to backend
+     fetch('{{ route("save-service") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`${type.replace('_', ' ').toUpperCase()} service saved successfully!`, 'success');
+            
+            // Reset form fields
+            if (type === 'entry_port' || type === 'exit_port' || type === 'transport') {
+                // Reset dropoff zone
+                const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+                if (dropoffZoneSelect) {
+                    dropoffZoneSelect.value = '';
+                    dropoffZoneSelect.disabled = true;
+                }
+                
+                // Reset vehicle and service type
+                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+                
+                if (vehicleSelect) {
+                    vehicleSelect.value = '';
+                }
+                
+                if (serviceTypeSelect) {
+                    serviceTypeSelect.value = '';
+                }
+                
+                // Hide vehicle results
+                const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+                if (vehicleResultsDiv) {
+                    vehicleResultsDiv.style.display = 'none';
+                }
+            }
+        } else {
+            showNotification(data.message || 'Failed to save service.', 'error');
+        }
+        
+        // Reset button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    })
+    .catch(error => {
+        console.error('Error saving service:', error);
+        showNotification('An error occurred while saving the service.', 'error');
+        
+        // Reset button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    });
+}
+
+// New functions for the search-based interface
  function searchVehicles(day, section) {
+     console.log(`Searching vehicles for day ${day}, section ${section}`);
+     
      const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
      const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
      const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
      const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
      const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
      const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     
+     console.log('Elements found:', {
+         pickupZoneSelect: !!pickupZoneSelect,
+         dropoffZoneSelect: !!dropoffZoneSelect,
+         vehicleResultsDiv: !!vehicleResultsDiv,
+         vehicleSelect: !!vehicleSelect,
+         serviceTypeSelect: !!serviceTypeSelect,
+         searchBtn: !!searchBtn
+     });
+     
+     if (vehicleSelect) {
+         console.log('Vehicle select element:', vehicleSelect.name, vehicleSelect.id);
+     } else {
+         console.error('Vehicle select not found for day', day, 'section', section);
+         console.log('Looking for selector: select[name="day${day}_${section}_vehicle_id"]');
+     }
+
+     // Check if search button is enabled
+     if (!searchBtn || searchBtn.disabled) {
+         alert('Please fill in all required fields before searching for vehicles');
+         return;
+     }
 
      if (!pickupZoneSelect || !dropoffZoneSelect || !pickupZoneSelect.value || !dropoffZoneSelect.value) {
          alert('Please select both pickup and dropoff zones');
@@ -4658,22 +5061,31 @@ document.addEventListener('DOMContentLoaded', function() {
      searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
      searchBtn.disabled = true;
 
-     fetch(`/fetch-vehicles-by-zones?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+     fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
          .then(response => response.json())
          .then(data => {
+             console.log('Vehicle search response:', data);
              if (data.success && data.vehicles && data.vehicles.length > 0) {
                  // Populate vehicle dropdown
-                 vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                 data.vehicles.forEach(vehicle => {
-                     const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                     vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                         data-private-price="${vehicle.private_price}" 
-                         data-shared-price="${vehicle.shared_price}"
-                         data-service-type="${vehicle.service_type}"
-                         data-mapping-id="${vehicle.mapping_id}">
-                         ${vehicleInfo}
-                     </option>`;
-                 });
+                 if (vehicleSelect) {
+                     vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                     data.vehicles.forEach(vehicle => {
+                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                             data-private-price="${vehicle.private_price || ''}" 
+                             data-shared-price="${vehicle.shared_price || ''}"
+                             data-service-type="${vehicle.service_type || ''}"
+                             data-mapping-id="${vehicle.mapping_id || ''}">
+                             ${vehicleInfo}
+                         </option>`;
+                     });
+                     
+                     // Enable the vehicle select
+                     vehicleSelect.disabled = false;
+                     console.log('Vehicle dropdown populated successfully');
+                 } else {
+                     console.error('Vehicle select element not found!');
+                 }
 
                  // Show results section
                  vehicleResultsDiv.style.display = 'block';
@@ -4682,6 +5094,8 @@ document.addEventListener('DOMContentLoaded', function() {
                  // Reset search button
                  searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                  searchBtn.disabled = false;
+                 
+                 console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
              } else {
                  alert('No vehicles available for this route. Please try different zones.');
                  searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
@@ -4696,7 +5110,7 @@ document.addEventListener('DOMContentLoaded', function() {
          });
  }
 
- function clearDropoffZone(day, section) {
+  function clearDropoffZone(day, section) {
      const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
      const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
      const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
@@ -4713,7 +5127,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
      if (searchBtn) {
          searchBtn.disabled = true;
+         searchBtn.classList.remove('btn-primary');
+         searchBtn.classList.add('btn-secondary');
      }
+     
+     // Check if search button should be enabled
+     enableSearchButton(day, section);
  }
 
  // Update the existing loadDropoffZones function for the new interface
@@ -4731,7 +5150,7 @@ document.addEventListener('DOMContentLoaded', function() {
          const citySelect = document.getElementById('city');
          const city = citySelect ? citySelect.value : '';
 
-         fetch(`/fetch-zones-by-dmc?city=${encodeURIComponent(city)}`)
+         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
              .then(response => response.json())
              .then(data => {
                  if (data.success && data.zones) {
@@ -4760,15 +5179,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
  // Update dropdown change handlers for new interface
  function setupNewTransportationHandlers() {
-     // Setup pickup zone change handlers
-     const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
-     pickupZoneSelects.forEach(select => {
-         select.addEventListener('change', function() {
-             const [day, section] = extractDayAndSection(this.name);
+     console.log('Setting up transportation handlers');
+     
+     // Setup pickup zone change handlers using event delegation
+     document.addEventListener('change', function(event) {
+         if (event.target.classList.contains('pickup-zone-select')) {
+             console.log('Pickup zone change detected:', event.target.name);
+             const [day, section] = extractDayAndSection(event.target.name);
+             console.log('Extracted day:', day, 'section:', section);
              if (day && section) {
-                 loadDropoffZonesNew(day, section);
+                 handlePickupZoneChange(day, section);
              }
-         });
+         }
      });
 
      // Setup dropoff zone change handlers
@@ -4789,8 +5211,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
  function extractDayAndSection(fieldName) {
      // Extract day and section from field names like "day1_entry_pickup_zone_id"
+     // We want to extract: day=1, section=entry from "day1_entry_pickup_zone_id"
      const match = fieldName.match(/day(\d+)_(\w+)_/);
-     return match ? [match[1], match[2]] : [null, null];
+     if (match) {
+         const day = match[1];
+         // Extract the section (entry, exit, transport) from the field name
+         // Use a more specific regex to get just the section part
+         const sectionMatch = fieldName.match(/day\d+_([^_]+)_/);
+         const section = sectionMatch ? sectionMatch[1] : null;
+         console.log(`Extracted from "${fieldName}": day=${day}, section=${section}`);
+         return [day, section];
+     }
+     console.log(`No match found for field name: "${fieldName}"`);
+     return [null, null];
  }
 </script>
 @endsection
