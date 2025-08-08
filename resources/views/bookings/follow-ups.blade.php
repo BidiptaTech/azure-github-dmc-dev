@@ -93,7 +93,7 @@
     </div>
 
     <!-- Priority Actions -->
-    <div class="card mb-4 border-warning">
+    {{-- <div class="card mb-4 border-warning">
         <div class="card-header bg-warning-subtle">
             <h5 class="mb-0 text-warning-emphasis">
                 <i class="ri-alarm-line me-2"></i>Priority Follow Ups
@@ -128,7 +128,7 @@
                 @endforelse
             </div>
         </div>
-    </div>
+    </div> --}}
 
     <!-- Filters -->
     <div class="card mb-4">
@@ -188,12 +188,22 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Follow Up List</h5>
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-warning" onclick="scheduleFollowUp()">
+                {{-- <button class="btn btn-sm btn-outline-warning" onclick="scheduleFollowUp()">
                     <i class="ri-calendar-schedule-line me-1"></i> Schedule Follow Up
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="exportData()">
-                    <i class="ri-download-line me-1"></i> Export
-                </button>
+                </button> --}}
+                <div class="dropdown">
+                    <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
         <div class="card-body">
@@ -201,9 +211,9 @@
                 <table class="datatables-basic table table-bordered" id="toursTable">
                     <thead class="table-light">
                         <tr>
-                            <th>
+                            {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
+                            </th> --}}
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
@@ -218,9 +228,9 @@
                     <tbody>
                         @forelse($tours as $key => $tour)
                         <tr class="{{ $tour->updated_at < now()->subDays(7) ? 'table-warning' : '' }}">
-                            <td>
+                            {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
-                            </td>
+                            </td> --}}
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -289,7 +299,7 @@
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
                             </td>
-                            <td>
+                            {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         Actions
@@ -342,6 +352,12 @@
                                         </li>
                                     </ul>
                                 </div>
+                            </td> --}}
+                            <td>
+                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                   class="btn btn-outline-primary btn-sm rounded-pill">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
                             </td>
                         </tr>
                         @empty
@@ -468,11 +484,11 @@ function filterTable() {
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
-        const tourDetails = row.cells[2]?.textContent.toLowerCase() || '';
-        const destination = row.cells[3]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const followUpStatus = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[5]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const followUpStatus = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         
         let show = true;
         
@@ -514,6 +530,88 @@ function resetFilters() {
     document.getElementById('followUpFilter').value = '';
     filterTable();
 }
+</script>
+@endsection
+
+@section('scripts')
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<script>
+    $(document).ready(function() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
+        // Initialize DataTable with export buttons
+        var table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print' // Keep buttons for functionality but don't show them
+            ],
+            searching: false, // Disable built-in searching since we use custom filters
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            pageLength: 25,
+            // order: [[7, 'desc']], // Sort by Last Contact column (index 7) in descending order
+            columnDefs: [
+                {
+                    targets: [8], // Actions column (index 8)
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [3], // Guests column (index 3)
+                    orderable: false
+                },
+                {
+                    targets: [5, 6], // Status and Follow Up Status columns (index 5, 6)
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Custom export button functionality (for the dropdown)
+        $('#exportCopy').on('click', function() {
+            table.button('.buttons-copy').trigger();
+        });
+
+        $('#exportCSV').on('click', function() {
+            table.button('.buttons-csv').trigger();
+        });
+
+        $('#exportExcel').on('click', function() {
+            table.button('.buttons-excel').trigger();
+        });
+
+        $('#exportPDF').on('click', function() {
+            table.button('.buttons-pdf').trigger();
+        });
+
+        $('#exportPrint').on('click', function() {
+            table.button('.buttons-print').trigger();
+        });
+    });
 </script>
 @endsection
 

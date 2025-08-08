@@ -133,10 +133,10 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
+                {{-- <div class="col-md-2">
                     <label class="form-label">Date Range</label>
                     <input type="date" class="form-control" id="dateFilter">
-                </div>
+                </div> --}}
             </div>
         </div>
     </div>
@@ -146,12 +146,22 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">New Enquiries List</h5>
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary" onclick="exportData()">
-                    <i class="ri-download-line me-1"></i> Export
-                </button>
-                <button class="btn btn-sm btn-primary" onclick="bulkActions()">
+                <div class="dropdown">
+                    <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
+                </div>
+                {{-- <button class="btn btn-sm btn-primary" onclick="bulkActions()">
                     <i class="ri-settings-line me-1"></i> Bulk Actions
-                </button>
+                </button> --}}
             </div>
         </div>
         <div class="card-body">
@@ -159,9 +169,9 @@
                 <table class="datatables-basic table table-bordered" id="toursTable">
                     <thead class="table-light">
                         <tr>
-                            <th>
+                            {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
+                            </th> --}}
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
@@ -175,9 +185,9 @@
                     <tbody>
                         @forelse($tours as $key => $tour)
                         <tr>
-                            <td>
+                            {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
-                            </td>
+                            </td> --}}
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -236,7 +246,7 @@
                                     <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
                                 </div>
                             </td>
-                            <td>
+                            {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         Actions
@@ -265,7 +275,14 @@
                                         </li>
                                     </ul>
                                 </div>
+                            </td> --}}
+                            <td>
+                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                   class="btn btn-outline-primary btn-sm rounded-pill">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
                             </td>
+                            
                         </tr>
                         @empty
                         {{-- <tr>
@@ -298,62 +315,46 @@
 </div>
 
 <script>
+// Filter functionality
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize DataTable-like functionality
     const searchInput = document.getElementById('searchInput');
     const countryFilter = document.getElementById('countryFilter');
     const cityFilter = document.getElementById('cityFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const dateFilter = document.getElementById('dateFilter');
     
-    // Search functionality
-    searchInput.addEventListener('input', function() {
-        filterTable();
-    });
-    
-    countryFilter.addEventListener('change', function() {
-        filterTable();
-    });
-    
-    cityFilter.addEventListener('change', function() {
-        filterTable();
-    });
-    
-    agentFilter.addEventListener('change', function() {
-        filterTable();
-    });
-    
-    dateFilter.addEventListener('change', function() {
-        filterTable();
-    });
+    // Add event listeners
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (countryFilter) countryFilter.addEventListener('change', filterTable);
+    if (cityFilter) cityFilter.addEventListener('change', filterTable);
+    if (agentFilter) agentFilter.addEventListener('change', filterTable);
     
     // Select all functionality
-    document.getElementById('selectAll').addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.row-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
         });
-    });
+    }
 });
 
 function filterTable() {
-    // Implementation for client-side filtering
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const countryFilter = document.getElementById('countryFilter').value;
-    const cityFilter = document.getElementById('cityFilter').value;
-    const agentFilter = document.getElementById('agentFilter').value;
-    const dateFilter = document.getElementById('dateFilter').value;
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const countryFilter = document.getElementById('countryFilter')?.value || '';
+    const cityFilter = document.getElementById('cityFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
-        const tourDetails = row.cells[1].textContent.toLowerCase();
-        const destination = row.cells[2].textContent.toLowerCase();
-        const country = row.cells[2].querySelector('.fw-medium')?.textContent || '';
-        const city = row.cells[2].querySelector('.text-muted')?.textContent || '';
-        const agent = row.cells[4].querySelector('.fw-medium')?.textContent || '';
+        const tourDetails = row.cells[2]?.textContent.toLowerCase() || '';
+        const destination = row.cells[3]?.querySelector('.fw-medium')?.textContent || '';
+        const city = row.cells[3]?.querySelector('.text-muted')?.textContent || '';
+        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
         
         let show = true;
         
@@ -361,7 +362,7 @@ function filterTable() {
             show = false;
         }
         
-        if (countryFilter && country !== countryFilter) {
+        if (countryFilter && destination !== countryFilter) {
             show = false;
         }
         
@@ -382,7 +383,6 @@ function resetFilters() {
     document.getElementById('countryFilter').value = '';
     document.getElementById('cityFilter').value = '';
     document.getElementById('agentFilter').value = '';
-    document.getElementById('dateFilter').value = '';
     filterTable();
 }
 
@@ -415,224 +415,94 @@ function exportData() {
     console.log('Exporting data...');
 }
 
-function bulkActions() {
-    const selectedTours = document.querySelectorAll('.row-checkbox:checked');
-    if (selectedTours.length === 0) {
-        alert('Please select at least one tour for bulk actions.');
-        return;
-    }
+// function bulkActions() {
+//     const selectedTours = document.querySelectorAll('.row-checkbox:checked');
+//     if (selectedTours.length === 0) {
+//         alert('Please select at least one tour for bulk actions.');
+//         return;
+//     }
     
-    // Implementation for bulk actions
-    console.log('Bulk actions for', selectedTours.length, 'tours');
-}
+//     // Implementation for bulk actions
+//     console.log('Bulk actions for', selectedTours.length, 'tours');
+// }
 </script>
 @endsection
 @section('scripts')
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
-{{-- <script>
+<script>
     $(document).ready(function() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
         // Initialize DataTable with export buttons
         var table = $('.datatables-basic').DataTable({
             responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
                 'copy',
                 'csv',
                 'excel',
                 'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
+                'print' // Keep buttons for functionality but don't show them
             ],
+            searching: false, // Disable built-in searching since we use custom filters
             language: {
-                search: "_INPUT_",
-                searchPlaceholder: "Search...",
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
-            pageLength: 10, // Default number of entries per page
-            drawCallback: function() {
-                // Reinitialize Select2 for guide and driver dropdowns after each draw
-                $(document).ready(function () {
-                    let currentDeclineBookingId = null;
-                    let currentDeclineRow = null;
-                    
-                    // Open Approve Modal and set booking ID and Tour ID
-                    $(".approve-btn").on("click", function () {
-                        let bookingId = $(this).data("id");
-                        let tourId = $(this).closest("tr").find("td:eq(1)").text(); // Get tour ID from the second column
-                        
-                        // Set values in modal
-                        $("#bookingId").val(bookingId);
-                        $("#modalTourId").text("Tour ID: #" + tourId.trim());
-                        
-                        // Reset the form and hide loader when opening modal
-                        $("#approveForm")[0].reset();
-                        $("#approveLoader").hide();
-                        $("#approveButtonText").show();
-                        $("#approveButtonSpinner").hide();
-                        $("#approveSubmitBtn").prop("disabled", false);
-                    });
-    
-                    // Handle Approve Form Submission
-                    $("#approveForm").on("submit", function (e) {
-                        e.preventDefault();
-    
-                        // Show loading spinner and disable button
-                        $("#approveLoader").show();
-                        $("#approveButtonText").text("Processing...");
-                        $("#approveButtonSpinner").show();
-                        $("#approveSubmitBtn").prop("disabled", true);
-                        
-                        let formData = new FormData(this);
-                        let bookingId = $("#bookingId").val();
-                        let row = $("button[data-id='" + bookingId + "']").closest("tr"); // Get table row
-    
-                        $.ajax({
-                            url: "{{ route('bookings.approve') }}",
-                            type: "POST",
-                            data: formData,
-                            processData: false,
-                            contentType: false,
-                            headers: {
-                                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    // Hide spinner
-                                    $("#approveLoader").hide();
-                                    $("#approveModal").modal("hide"); // Hide modal
-    
-                                    // Apply green background
-                                    row.addClass("row-approved");
-                                    
-                                    // Wait a moment to show the color change, then swipe left
-                                    setTimeout(function() {
-                                        row.addClass("swipe-left");
-                                        
-                                        // Show global loader during refresh
-                                        setTimeout(function() {
-                                            $("#globalLoader").addClass("active");
-                                            
-                                            // Delay and refresh the page
-                                            setTimeout(function () {
-                                                location.reload();
-                                            }, 800);
-                                        }, 700); // After swipe animation is mostly done
-                                    }, 300);
-                                }
-                            },
-                            error: function (xhr) {
-                                // Hide spinner and re-enable button on error
-                                $("#approveLoader").hide();
-                                $("#approveButtonText").text("Approved");
-                                $("#approveButtonSpinner").hide();
-                                $("#approveSubmitBtn").prop("disabled", false);
-                                
-                                alert("Error! " + (xhr.responseJSON ? xhr.responseJSON.message : "Something went wrong."));
-                            }
-                        });
-                    });
-    
-                    // Handle Decline Button Click with custom confirmation
-                    $(".decline-btn").on("click", function () {
-                        currentDeclineBookingId = $(this).data("id");
-                        currentDeclineRow = $(this).closest("tr");
-                        
-                        // Show custom confirmation dialog
-                        $("#declineConfirmDialog").addClass("active");
-                    });
-                    
-                    // Handle Cancel Decline
-                    $("#cancelDecline").on("click", function() {
-                        $("#declineConfirmDialog").removeClass("active");
-                        currentDeclineBookingId = null;
-                        currentDeclineRow = null;
-                    });
-                    
-                    // Handle Confirm Decline
-                    $("#confirmDecline").on("click", function() {
-                        if (!currentDeclineBookingId) return;
-                        
-                        // Hide confirmation dialog
-                        $("#declineConfirmDialog").removeClass("active");
-                        
-                        // Show global loader
-                        $("#globalLoader").addClass("active");
-    
-                        $.ajax({
-                            url: "{{ route('bookings.decline') }}",
-                            type: "POST",
-                            data: {
-                                booking_id: currentDeclineBookingId,
-                                _token: "{{ csrf_token() }}"
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    // Hide global loader
-                                    $("#globalLoader").removeClass("active");
-                                    
-                                    // Apply red background
-                                    currentDeclineRow.addClass("row-declined");
-                                    
-                                    // Wait a moment to show the color change, then swipe left
-                                    setTimeout(function() {
-                                        currentDeclineRow.addClass("swipe-left");
-                                        
-                                        // Show global loader during refresh
-                                        setTimeout(function() {
-                                            $("#globalLoader").addClass("active");
-                                            
-                                            // Delay and refresh the page
-                                            setTimeout(function () {
-                                                location.reload();
-                                            }, 800);
-                                        }, 700); // After swipe animation is mostly done
-                                    }, 300);
-                                }
-                            },
-                            error: function (xhr) {
-                                // Hide global loader on error
-                                $("#globalLoader").removeClass("active");
-                                alert("Error! " + (xhr.responseJSON ? xhr.responseJSON.message : "Something went wrong."));
-                            }
-                        });
-                    });
-                    
-                    // Close confirmation dialog when clicking outside
-                    $(document).on("click", function(e) {
-                        if (
-                            $("#declineConfirmDialog").hasClass("active") && 
-                            !$(e.target).closest(".confirm-content").length && 
-                            !$(e.target).closest(".decline-btn").length
-                        ) {
-                            $("#declineConfirmDialog").removeClass("active");
-                            currentDeclineBookingId = null;
-                            currentDeclineRow = null;
-                        }
-                    });
-                });
+            pageLength: 25,
+            // order: [[7, 'desc']], // Sort by Created Date column (index 7) in descending order
+            columnDefs: [
+                {
+                    targets: [7], // Actions column
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [4], // Guests column
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
             }
         });
-    
+
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
             table.button('.buttons-copy').trigger();
         });
-    
+
         $('#exportCSV').on('click', function() {
             table.button('.buttons-csv').trigger();
         });
-    
+
         $('#exportExcel').on('click', function() {
             table.button('.buttons-excel').trigger();
         });
-    
+
         $('#exportPDF').on('click', function() {
             table.button('.buttons-pdf').trigger();
         });
-    
+
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
     });
-</script> --}}
+</script>
 @endsection
 
 @extends('layouts.datatablejs')

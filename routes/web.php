@@ -463,7 +463,9 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
         Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
         Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
-        Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
+        Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
+Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
+Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
         Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
         Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
 
