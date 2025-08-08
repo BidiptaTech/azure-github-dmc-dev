@@ -824,20 +824,17 @@ class SingleTourPackageController extends Controller
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
             $city = $request->input('city');
-            
+            $city_id = City::where('name', $city)->first()->city_id;
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unable to determine DMC ID'
                 ], 403);
             }
-
             // Fetch zones for the current DMC and city
             $zones = Zone::where('dmc_id', $dmcId)  
                 ->where('status', 1)
-                ->when($city, function ($query, $city) {
-                    return $query->where('city', $city);
-                })
+                ->where('city', $city_id)
                 ->select('zone_id', 'zone_name', 'zone_type', 'city', 'description')
                 ->orderBy('zone_name')
                 ->get();
@@ -861,11 +858,12 @@ class SingleTourPackageController extends Controller
      */
     public function fetchVehiclesByZones(Request $request)
     {
+        
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
-            $fromZoneId = $request->input('from_zone_id');
-            $toZoneId = $request->input('to_zone_id');
+            $fromZoneId = $request->from_zone_id;
+            $toZoneId = $request->from_zone_id;
             
             if (!$dmcId) {
                 return response()->json([
@@ -882,27 +880,22 @@ class SingleTourPackageController extends Controller
             }
 
             // Fetch vehicles that have zone mappings between the selected zones
-            $vehicleMappings = VehicleZoneMapping::with(['vehicle', 'fromZone', 'toZone'])
-                ->where('from_zone_id', $fromZoneId)
+            $vehicleMappings = VehicleZoneMapping::where('from_zone_id', $fromZoneId)
                 ->where('to_zone_id', $toZoneId)
-                ->whereHas('vehicle', function ($query) use ($dmcId) {
-                    $query->whereJsonContains('dmc_id', (int) $dmcId)
-                          ->where('is_available', 1);
-                })
                 ->get();
-
             // Format the response with vehicle details and pricing
             $vehicles = $vehicleMappings->map(function ($mapping) {
+                $zone_vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type')->where('vehicle_id', $mapping->vehicle_id)->first();
                 return [
-                    'vehicle_id' => $mapping->vehicle->vehicle_id,
-                    'vehicle_name' => $mapping->vehicle->vehicle_name,
-                    'vehicle_type' => $mapping->vehicle->vehicle_type,
-                    'seating_capacity' => $mapping->vehicle->seating_capacity,
-                    'vehicle_model' => $mapping->vehicle->vehicle_model,
-                    'image' => $mapping->vehicle->image,
-                    'private_price' => $mapping->private_price,
-                    'shared_price' => $mapping->shared_price,
-                    'service_type' => $mapping->vehicle->service_type,
+                    'vehicle_id' => $zone_vehicles->vehicle_id,
+                    'vehicle_name' => $zone_vehicles->vehicle_name,
+                    'vehicle_type' => $zone_vehicles->vehicle_type,
+                    'seating_capacity' => $zone_vehicles->seating_capacity,
+                    'vehicle_model' => $zone_vehicles->vehicle_model,
+                    'image' => $zone_vehicles->image,
+                    'private_price' => $zone_vehicles->private_price,
+                    'shared_price' => $zone_vehicles->shared_price,
+                    'service_type' => $zone_vehicles->service_type,
                     'from_zone' => $mapping->fromZone->zone_name,
                     'to_zone' => $mapping->toZone->zone_name,
                     'mapping_id' => $mapping->mapping_id
