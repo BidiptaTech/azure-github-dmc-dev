@@ -130,7 +130,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/admin/login-as/{userId}', [UserController::class, 'loginAsUser'])->name('admin.loginAsUser');
     Route::post('/update-price-comment', [EnquiryController::class, 'update'])->name('update-price-comment');
     //currency exchange rate
-    Route::get('/exchange-rate', [CurrencyController::class, 'showExchangeRate']);
+    Route::get('/exchange-rate', [CurrencyController::class, 'showExchangeRate'])->name('exchange-rate');
     Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
     
     // Single Tour Package Routes
@@ -154,16 +154,13 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
     Route::get('/fetch-zones-by-dmc', [SingleTourPackageController::class, 'fetchZones'])->name('fetch-zones-by-dmc');
     Route::get('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');
-    
+    Route::post('/save-service', 'App\Http\Controllers\Api\OrderController@saveService')->name('save-service');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
        
         // Predefined Packages Routes
         // Country → City
-        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
-
-        // Country → City
-        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity']);
+        Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity'])->name('hotel-city');
 
         Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
         Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
@@ -175,16 +172,16 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
         Route::get('reports/export-transaction/{id}', [FinanceReportController::class, 'exportTransaction'])->name('reports.export-transaction');
         Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
         
-        Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry']);
+        Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
         // City → Hotel
         // City → Attraction
-        Route::get('/attractions/{city}', [PackageController::class, 'getAttractionsByCity']);
+        Route::get('/attractions/{city}', [PackageController::class, 'getAttractionsByCity'])->name('attractions-by-city');
         // City → Guide
-        Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity']);
+        Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity'])->name('guides-by-city');
         // City → Restaurant
-        Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity']);
+        Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity'])->name('restaurants-by-city');
         // City → Transport
-        Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity']);
+        Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
         Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
 Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
 Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
@@ -228,7 +225,7 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::post('/get-hotel-rooms', [HotelController::class, 'getHotelRooms'])->name('getHotelRooms');
         Route::post('bed/update', [BedsController::class, 'update'])->name('beds.update');
         Route::get('/get-bed-type-data', [HotelController::class, 'getBedTypeData'])->name('bed.type.data');
-        Route::get('/get-user-details/{id}', [DriverController::class, 'getUserDetails']);
+        Route::get('/get-user-details/{id}', [DriverController::class, 'getUserDetails'])->name('get-user-details');
 
         Route::get('/tours', [TourController::class, 'index'])->name('tours');
         Route::post('/tour/add-payment/{tourId}', [TourController::class, 'addPayment'])->name('tour.add-payment');
@@ -250,12 +247,12 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::get('/get-cities-name-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
         Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
 
-        Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms']);
+        Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms'])->name('get-no-of-rooms');
         Route::get('/get-rooms-by-dmc', [HotelController::class, 'getRoomsByDmc']);
         Route::get('/api/get-dmc-cities/{dmcId}', [DriverController::class, 'getDmcCities'])->name('get.dmc.cities');
         Route::get('/features', [FeaturesController::class, 'index'])->name('features'); 
         Route::post('/save-feature-roles/{id}', [FeaturesController::class, 'saveFeatureRoles'])->name('save-feature-roles');
-        Route::post('/update-status', [FeaturesController::class, 'statusUpdate']);
+        Route::post('/update-status', [FeaturesController::class, 'statusUpdate'])->name('update-status');
         Route::get('master-setting', action: [MasterSettingController::class, 'index'])->name('master-setting');
         Route::post('store-setting', [MasterSettingController::class, 'store'])->name('store-setting');
         Route::resource('category', CategoryController::class);
@@ -263,7 +260,7 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::resource('facility', FacilityController::class);
         Route::resource('roomType', RoomtypeController::class);
 
-        Route::get('/get-room-categories/{hotel_id}', [BedsController::class, 'getRoomCategories']);
+        Route::get('/get-room-categories/{hotel_id}', [BedsController::class, 'getRoomCategories'])->name('get-room-categories');
         Route::get('beds/index', [BedsController::class, 'index'])->name('beds.index');
         Route::get('beds/create/{id}', [BedsController::class, 'create'])->name('beds.create');
         Route::post('beds/store', [BedsController::class, 'store'])->name('beds.store');
@@ -448,7 +445,7 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::resource('driver', DriverController::class);
         
         Route::get('/hotels/search', [RoomtypeController::class, 'search'])->name('hotels.search');
-        Route::get('/hotels/{hotelId}/facilities', [RoomtypeController::class, 'getHotelFacilities']);
+        Route::get('/hotels/{hotelId}/facilities', [RoomtypeController::class, 'getHotelFacilities'])->name('hotels.facilities');
         // Route::get('/booking', [BookingController::class, 'index'])->name('booking');
         // Route::post('/booking/decline', [BookingController::class, 'decline'])->name('booking.decline');
 
@@ -601,7 +598,7 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::post('hotelCloseDate', [HotelController::class, 'hotelCloseDate'])->name('hotel_close_dates');
 
         Route::resource('agents', AgentController::class);
-        Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails']);
+        Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails'])->name('get-sales-manager-details');
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
         Route::get('/fetch-country-code', [AgentController::class, 'fetchCountryCode'])->name('fetch-country-code');
         Route::post('/update-agent-dmc', [AgentController::class, 'updateDmcId'])->name('agents.update-dmc');
@@ -613,14 +610,14 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
 
         Route::get('/search-agents', [App\Http\Controllers\AgentController::class, 'searchAgents'])->name('search-agents');
         Route::resource('users', UserController::class);
-        Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries']);
-        Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry']);
-        Route::get('/get-assistant-manager/{country}', [UserController::class, 'getAssistantManagers']);
-        Route::post('/admin/get-countries-by-master-dmc', [UserController::class, 'getCountriesByMasterDmc']);
-        Route::post('/admin/get-sales-managers-by-master-dmc', [UserController::class, 'getSalesManagersByMasterDmc']);
+        Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries'])->name('get-countries');
+        Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry'])->name('get-markup');
+        Route::get('/get-assistant-manager/{country}', [UserController::class, 'getAssistantManagers'])->name('get-assistant-manager');
+        Route::post('/admin/get-countries-by-master-dmc', [UserController::class, 'getCountriesByMasterDmc'])->name('admin.get-countries-by-master-dmc');
+        Route::post('/admin/get-sales-managers-by-master-dmc', [UserController::class, 'getSalesManagersByMasterDmc'])->name('admin.get-sales-managers-by-master-dmc');
 
         Route::resource('roles', RoleController::class);  
-        Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType']);
+        Route::get('/get-roles-by-user-type/{userType}', [UserController::class, 'getRolesByUserType'])->name('get-roles-by-user-type');
         
         Route::post('add-money/{id}', [UserController::class, 'add_money'])->name('add-money');
         // Route::post('/guide/approve-or-decline/{guideId}', [GuideController::class, 'approveOrDecline']);
