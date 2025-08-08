@@ -315,7 +315,7 @@ export const Localtourslice = createAsyncThunk(
         // formData.append("agent_id", AgentId);
         // formData.append("tour_id", tourid);
         formData = {
-          data: [...details, { dmc_id: selectedDmcId }],
+          data: details.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: selectedType === "travelpointzone" ? type2 : type,
           agent_id: AgentId,
           tour_id: tourid,
@@ -346,7 +346,7 @@ export const Localtourslice = createAsyncThunk(
         // formData1.append("agent_id", AgentId);
         // formData1.append("tour_id", tourid);
         formData1 = {
-          data: [...details1, { dmc_id: selectedDmcId }],   
+          data: details1.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: type1,
           agent_id: AgentId,
           tour_id: tourid,
