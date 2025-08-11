@@ -154,7 +154,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
     Route::get('/fetch-zones-by-dmc', [SingleTourPackageController::class, 'fetchZones'])->name('fetch-zones-by-dmc');
     Route::get('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');
-    Route::post('/save-service', 'App\Http\Controllers\Api\OrderController@saveService')->name('save-service');
+    Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService')->name('save-service');
     // authentication check for admin
     Route::group(['middleware' => ['admin']], function () {
        

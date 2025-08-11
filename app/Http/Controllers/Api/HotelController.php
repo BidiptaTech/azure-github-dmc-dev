@@ -108,7 +108,7 @@ class HotelController extends Controller
         $query = Hotel::with('category', 'rooms')
             ->where('status', 1)
             ->where('is_active', 1)
-            ->where('is_complete', 1);
+            ->where('is_complete', true);
 
         if ($location) {
             $query->where(function ($q) use ($location) {
