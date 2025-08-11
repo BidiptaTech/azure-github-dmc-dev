@@ -37,13 +37,14 @@ class RestaurantController extends Controller
         }
         
         $restaurants = Restaurant::where('is_active', 1)
-    ->where('country', $country)
-    ->where('city', $city)
-    ->where(function ($query) use ($dmcId) {
-        $query->whereJsonContains('dmc_id', $dmcId)
-              ->orWhereJsonContains('dmc_id', (int)$dmcId);
-    })
-    ->get();
+            ->where('country', $country)
+            ->where('city', $city)
+            ->where(function ($query) use ($dmcId) {
+                $query->whereJsonContains('dmc_id', $dmcId)
+                    ->orWhereJsonContains('dmc_id', (int)$dmcId);
+            })
+            ->orderBy('restaurant_id', 'desc')
+            ->get();
         
         if ($restaurants->isEmpty()) {
             return response()->json(['message' => 'No restaurants found for the selected city'], 404);
@@ -213,6 +214,7 @@ class RestaurantController extends Controller
                     'travClicks_dinner_price' => round((float)$travClicks_dinner_price, 2),
                     'tax_percentage' => $country_tax,
                     'restaurant_base_price' => $minBreakfast ?? $minLunch ?? $minDinner,
+                    'created_at' => $restaurant->created_at,
                 ];
             }
         }
@@ -304,6 +306,7 @@ class RestaurantController extends Controller
             'additional_images' => json_decode($restaurant->images, true),
             'meals' => $meals,
             'tax_percentage' => $country_tax,
+            'created_at' => $restaurant->created_at,
             // 'vehicles' => $vehicle_details,
         ]);
     }

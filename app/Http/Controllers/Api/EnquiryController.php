@@ -190,7 +190,8 @@ class EnquiryController extends Controller
                     'status' => $hotel->status,
                     'is_active' => $hotel->is_active,
                     'is_complete' => $hotel->is_complete,
-                    'dmc_id' => $current_dmc_id
+                    'dmc_id' => $current_dmc_id,
+                    'created_at' => $hotel->created_at,
                 ];
             }
         }
@@ -202,7 +203,7 @@ class EnquiryController extends Controller
         })->where('location', $city)->where('country', $country)->get();
         
         // Fetch packaged attractions for all DMCs
-        $packagedAttractions = PackagedAttraction::whereIn('dmc_id', $request_dmc_ids)
+        $packagedAttractions = PackagedAttraction::orderBy('package_attraction_id', 'desc')->whereIn('dmc_id', $request_dmc_ids)
             ->where('status', 1)
             ->get()
             ->filter(function($package) use ($city, $country) {
@@ -211,7 +212,7 @@ class EnquiryController extends Controller
                     return false;
                 }
                 
-                $matchingAttractions = Attraction::whereIn('attraction_id', $attractionIds)
+                $matchingAttractions = Attraction::orderBy('attraction_id', 'desc')->whereIn('attraction_id', $attractionIds)
                     ->where('location', $city)
                     ->where('country', $country)
                     ->count();
@@ -219,21 +220,21 @@ class EnquiryController extends Controller
                 return $matchingAttractions > 0;
             });
         
-        $restaurants = Restaurant::where(function($query) use ($request_dmc_ids) {
+        $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->where(function($query) use ($request_dmc_ids) {
             foreach ($request_dmc_ids as $dmc_id) {
                 $query->orWhereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id]);
             }
         })->where('city', $city)->where('country', $country)->get();
         
         // For tables with integer dmc_id field
-        $vehicles = Vehicle::whereIn('dmc_id', $request_dmc_ids)
+        $vehicles = Vehicle::orderBy('vehicle_id', 'desc')->whereIn('dmc_id', $request_dmc_ids)
             ->where('city', $city)->get();
         
         $city_id = City::where('name', $city)->first();
         $ports = Port::where('city_id', $city_id->city_id)
             ->where('country', $country)->get();
         
-        $guides = Guide::with('languages')
+        $guides = Guide::orderBy('guide_id', 'desc')->with('languages')
             ->whereIn('dmc_id', $request_dmc_ids)
             ->where('city', $city)
             ->where('country', $country)
@@ -252,6 +253,7 @@ class EnquiryController extends Controller
                 'type' => 'attraction',
                 'child_price' => $attraction->child_price,
                 'description' => $attraction->description,
+                'created_at' => $attraction->created_at,
             ];
         });
         
@@ -286,6 +288,7 @@ class EnquiryController extends Controller
                 'senior_citizen_price' => $package->senior_citizen_price,
                 'description' => $package->description,
                 'attractions' => $attractionDetails,
+                'created_at' => $package->created_at,
             ];
         });
         
@@ -297,6 +300,7 @@ class EnquiryController extends Controller
                 'city' => $restaurant->city,
                 'country' => $restaurant->country,
                 'base-price' => $restaurant->bf_price,
+                'created_at' => $restaurant->created_at,
             ];
         });
         
@@ -310,6 +314,7 @@ class EnquiryController extends Controller
                 'city' => $vehicle->city,
                 'base_price' => $vehicle->base_price,
                 'seating_capacity' => $vehicle->seating_capacity,
+                'created_at' => $vehicle->created_at,
             ];
         });
         
@@ -320,6 +325,7 @@ class EnquiryController extends Controller
                 'type' => $port->type,
                 'country' => $port->country,
                 'distance' => $port->distance,
+                'created_at' => $port->created_at,
             ];
         });
         
@@ -335,6 +341,7 @@ class EnquiryController extends Controller
                 'country' => $guide->country,
                 'base_price' => $guide->hourly_price,
                 'languages' => $guide->languages->pluck('language'),
+                'created_at' => $guide->created_at,
             ];
         });
         

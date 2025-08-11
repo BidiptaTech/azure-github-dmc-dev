@@ -279,7 +279,7 @@ class DriverController extends Controller
                         ->where('country', $country)
                         ->get();
                     
-                    $vehicles_row = Vehicle::where('city', $matchedCity)
+                    $vehicles_row = Vehicle::orderBy('vehicle_id', 'desc')->where('city', $matchedCity)
                         ->whereNotNull('driver_id')
                         ->where('dmc_id', $dmcId)
                         ->skip($start)
@@ -377,6 +377,7 @@ class DriverController extends Controller
                             'city' => $vehicle->city,
                             'country' => $country,
                             'tax_percentage' => $country_tax,
+                            'created_at' => $vehicle->created_at,
                         ];
                     }
                 return response()->json($vehicleList);    
@@ -456,7 +457,7 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)
                 ->where('country', $country)
                 ->get();
-            $vehicles_row = Vehicle::where('city', $matchedCity)
+            $vehicles_row = Vehicle::orderBy('vehicle_id', 'desc')->where('city', $matchedCity)
                 ->whereNotNull('driver_id')
                 ->where('dmc_id', $dmcId)
                 ->skip($start)
@@ -541,6 +542,7 @@ class DriverController extends Controller
                             'city' => $vehicle->city,
                             'country' => $country,
                             'tax_percentage' => $country_tax,
+                            'created_at' => $vehicle->created_at,
                         ];
                     }
                 }
