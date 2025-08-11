@@ -4,10 +4,86 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Tour;
+use App\Models\User;
+use App\Models\Agent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class BookingsController extends Controller
 {
+    /**
+     * Get filtered agents based on logged-in DMC user
+     */
+    private function getFilteredAgents()
+    {
+        $user = Auth::user();
+        
+        // If no user or not a DMC role, return all agents
+        if (!$user || !in_array($user->role_id, [11, 33, 37, 38])) {
+            return Agent::where('status', 1)->get();
+        }
+        
+        $agents = collect();
+        $dmc_id = null;
+        
+        switch ($user->role_id) {
+            case 11: // DMC
+                $dmc_id = $user->userId;
+                break;
+                
+            case 33: // Sales Head
+                $dmc_id = $user->created_by;
+                break;
+                
+            case 37: // Sales Manager
+                // Get parent DMC ID by traversing up the hierarchy
+                $parentUser = User::where('userId', $user->created_by)->first();
+                while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                    $parentUser = User::where('userId', $parentUser->created_by)->first();
+                }
+                if ($parentUser && $parentUser->role_id == 11) {
+                    $dmc_id = $parentUser->userId;
+                }
+                break;
+                
+            case 38: // Assistant Sales Manager
+                // Get parent DMC ID by traversing up the hierarchy
+                $parentUser = User::where('userId', $user->created_by)->first();
+                while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                    $parentUser = User::where('userId', $parentUser->created_by)->first();
+                }
+                if ($parentUser && $parentUser->role_id == 11) {
+                    $dmc_id = $parentUser->userId;
+                }
+                break;
+        }
+        
+        if ($dmc_id) {
+            // Get agents that have this DMC ID in their dmc_id field
+            $agents = Agent::where('status', 1)
+                ->whereRaw("CASE 
+                    WHEN dmc_id IS NOT NULL 
+                    THEN (
+                        CASE 
+                            WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                            THEN dmc_id::jsonb @> ?::jsonb
+                            WHEN dmc_id::text ~ '^\\{.*\\}$'
+                            THEN dmc_id::jsonb @> ?::jsonb
+                            ELSE dmc_id::text LIKE ?
+                        END
+                    )
+                    ELSE false
+                END", [
+                    json_encode([$dmc_id]),
+                    json_encode([$dmc_id]),
+                    "%{$dmc_id}%"
+                ])
+                ->get();
+        }
+        
+        return $agents;
+    }
+
     /**
      * Display New Enquiries (tour_status = 'New Enquiry')
      */
@@ -21,6 +97,12 @@ class BookingsController extends Controller
                 // 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -34,7 +116,10 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
 
-        return view('bookings.new-enquiries', compact('tours'));
+        // Get filtered agents based on logged-in DMC user
+        $filteredAgents = $this->getFilteredAgents();
+
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents'));
     }
 
     /**
@@ -50,6 +135,12 @@ class BookingsController extends Controller
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -79,6 +170,12 @@ class BookingsController extends Controller
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -108,6 +205,12 @@ class BookingsController extends Controller
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -137,6 +240,12 @@ class BookingsController extends Controller
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -166,6 +275,12 @@ class BookingsController extends Controller
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -213,6 +328,12 @@ class BookingsController extends Controller
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -308,5 +429,41 @@ class BookingsController extends Controller
         }
 
         return view('bookings.view-tour', compact('tour'));
+    }
+
+    /**
+     * Export tour details as PDF
+     */
+    public function exportTourPDF($tourId)
+    {
+        $tour = Tour::where('tour_id', $tourId)
+            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->select([
+                'tours.*',
+                'agents.name as agent_name'
+            ])
+            ->firstOrFail();
+        
+        // Parse payment details if exists
+        if ($tour->payment_details) {
+            try {
+                $tour->parsed_payment_details = json_decode($tour->payment_details, true);
+            } catch (\Exception $e) {
+                $tour->parsed_payment_details = [];
+            }
+        } else {
+            $tour->parsed_payment_details = [];
+        }
+
+        // Return the PDF view for download
+        $html = view('bookings.tour-pdf', compact('tour'))->render();
+        
+        // Set proper headers for PDF download
+        $filename = 'tour-details-' . $tour->display_id . '.html';
+        
+        return response($html)
+            ->header('Content-Type', 'text/html; charset=utf-8')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->header('Cache-Control', 'no-store, no-cache');
     }
 }
