@@ -2088,14 +2088,8 @@ class TourController extends Controller
                 // Get the display_id from tours table
                 $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
                 if ($tour && $tour->display_id) {
-                    $orderArray = $order->toArray();
-                    $orderArray['tour_id'] = $tour->display_id;
-                    
-                    // Handle the data array properly
-                    $data = is_string($orderArray['data']) ? json_decode($orderArray['data'], true) : $orderArray['data'];
-                    $orderArray['data'] = $data;
-                    
-                    $order = $orderArray;
+                    // Replace tour_id with display_id in the response
+                    $order->tour_id = $tour->display_id;
                 }
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
