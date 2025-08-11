@@ -459,13 +459,24 @@ class PackageController extends Controller
             return response()->json(['message' => 'Total price is not correct', 'package_price' => $package_price, 'totalPrice' => $totalPrice, 'adult_count' => $adult_count, 'child_count' => $child_count, 'senior_count' => $senior_count], 400);
         }
 
-        $lastBooking = PackageBooking::withTrashed()->orderBy('created_at', 'desc')->first();
-        $booking_max_id = $lastBooking->booking_id ?? 0;
-        $bookingId = CommonHelper::createId($booking_max_id);
-        while (PackageBooking::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
+        // Get last booking record
+        $lastBooking = PackageBooking::orderBy('booking_id', 'desc')->first();
+
+        // If booking exists, extract numeric part and increment
+        if ($lastBooking && preg_match('/\d+$/', $lastBooking->booking_id, $matches)) {
+            $booking_max_id = (int) $matches[0] + 1;
+        } else {
+            // Start from 1 if no record exists
+            $booking_max_id = 1;
         }
 
+        $bookingId = "PKG-ORD-" . $booking_max_id;
+
+        // Ensure uniqueness
+        while (PackageBooking::where('booking_id', $bookingId)->exists()) {
+            $booking_max_id++;
+            $bookingId = "PKG-ORD-" . $booking_max_id;
+        }
                 
         // Extract only IDs from selected services
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
@@ -572,31 +583,30 @@ class PackageController extends Controller
                     
                     // If DMC ID is found, filter bookings by DMC
                     if ($dmc_id) {
-                        
-                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
-                            ->where('dmc_id', $dmc_id)
+                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
+                            ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc')
                             ->get();
                     } else {
                         $agents = Agent::where('sales_manager_dmc', $agent_creator_id)->get();
                         $agent_ids = $agents->pluck('agent_id')->toArray();
 
                         // Fallback to user's own bookings if no DMC ID found
-                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info')
-                            ->whereIn('booked_by', $agent_ids)
+                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
+                            ->whereIn('booked_by', $agent_ids)->orderBy('booking_id', 'desc')
                             ->get();
                     }
                 }
                 else{
-                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id')
-                        ->where('booked_by', $user->agent_id)
+                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
+                        ->where('booked_by', $user->agent_id)->orderBy('booking_id', 'desc')
                         ->get();
                 }
             }
             else{
-                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id');
+                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at');
                 // Only add the where clause if agent_id is not null
                 if ($agent_id !== null) {
-                    $booking = $booking->where('agent_id', $agent_id)->get();
+                    $booking = $booking->where('agent_id', $agent_id)->orderBy('booking_id', 'desc')->get();
                 }
                 else{
                     $booking = [];
@@ -636,18 +646,18 @@ class PackageController extends Controller
                 $hotels = !empty($hotelIds) && is_array($hotelIds) ? Hotel::select(
                     'hotel_unique_id', 'name', 'main_image', 'images', 'address',
                     'phone', 'email', 'latitude', 'longitude'
-                )->whereIn('hotel_unique_id', $hotelIds)->get() : [];
+                )->whereIn('hotel_unique_id', $hotelIds)->orderBy('name', 'asc')->get() : [];
                 
                 $attractions = !empty($attractionIds) && is_array($attractionIds) ? Attraction::select(
                     'attraction_id', 'name', 'master_image', 'additional_image',
                     'location', 'latitude', 'longitude'
-                )->whereIn('attraction_id', $attractionIds)->get() : [];
+                )->whereIn('attraction_id', $attractionIds)->orderBy('name', 'asc')->get() : [];
                 
                 $guides = [];
                 if (!empty($guideIds) && is_array($guideIds)) {
                     $selected_guides = Guide::select(
                         'guide_id', 'name', 'image', 'contact_no', 'email'
-                    )->whereIn('guide_id', $guideIds)->get();
+                    )->whereIn('guide_id', $guideIds)->orderBy('name', 'asc')->get();
                     
                     $guides = $selected_guides->map(function ($guide) {
                         $languages = GuideLanguage::where('guide_id', $guide->guide_id)->pluck('language');
@@ -682,7 +692,7 @@ class PackageController extends Controller
                     'package' => $package,
                     'user_info' => $userInfo,
                     'status' => $b->status,
-                    
+                    'created_at' => $b->created_at,
                 ];
             }
             
@@ -841,14 +851,14 @@ class PackageController extends Controller
 
     public function cancelPackageBooking(Request $request)
     {
-        $package_id = $request->input('booking_id');
-        if (empty($package_id)) {
+        $package_booking_id = $request->input('booking_id');
+        if (empty($package_booking_id)) {
             return response()->json([
                 'status' => false,
                 'message' => 'Package ID is required.',
             ], 400);
         }
-        $updated = PackageBooking::where('booking_id', $package_id)
+        $updated = PackageBooking::where('booking_id', $package_booking_id)
             ->update(['status' => 4]);
         if ($updated) {
             return response()->json([

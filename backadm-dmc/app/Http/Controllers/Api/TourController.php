@@ -834,32 +834,7 @@ class TourController extends Controller
                 }
                 $price = ceil($price);
                 if($price == $totalPrice){
-                    if ($existingOrder) {
-                        $existingOrder->data = $validatedData['data'];
-                        $existingOrder->agent_id = $agent_id;
-                        $existingOrder->status = 1;  // Assuming status 1 means active or confirmed
-                        $existingOrder->bookingType = $bookingType;
-                        $existingOrder->discount = $commission;
-                        $existingOrder->markup_percentage = $markup_percentage;
-                        $existingOrder->save();
-                        $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
-                        if($tourStatus == "Tentative"){
-                            $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "Confirmed",
-                            ]);
-                        }
-                        if($bookingType == 'enquiry'){
-                            $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "New Enquiry",
-                            ]);
-                        }
-                        return response()->json([
-                            'message' => ucfirst($validatedData['type']) . ' order updated successfully.',
-                            'order' => $existingOrder,
-                            'service' => $service
-                        ], 200);
-                    }
-                    else {
+                    
                         $order = new Order();
                         $order->agent_id = $agent_id;
                         $order->tour_id = $validatedData['tour_id'];
@@ -887,7 +862,7 @@ class TourController extends Controller
                             'order' => $order,
                             'service' => $service
                         ], 201);
-                    }
+                    
                 }
                 else{
                     return response()->json(['message' => 'Zone Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice], 409);
@@ -2113,7 +2088,14 @@ class TourController extends Controller
                 // Get the display_id from tours table
                 $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
                 if ($tour && $tour->display_id) {
-                    $order->tour_id = $tour->display_id;
+                    $orderArray = $order->toArray();
+                    $orderArray['tour_id'] = $tour->display_id;
+                    
+                    // Handle the data array properly
+                    $data = is_string($orderArray['data']) ? json_decode($orderArray['data'], true) : $orderArray['data'];
+                    $orderArray['data'] = $data;
+                    
+                    $order = $orderArray;
                 }
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([

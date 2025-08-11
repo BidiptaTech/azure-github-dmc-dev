@@ -38,7 +38,7 @@ class GuideController extends Controller
         $formattedDate = $requestDate->format('Y-m-d');
         $requestDayOfWeek = strtolower($requestDate->format('l'));
     
-        $allGuides = Guide::where('is_active', 1)
+        $allGuides = Guide::orderBy('guide_id', 'desc')->where('is_active', 1)
             ->where('country', $country)
             ->where('status', 1)
             ->where('city', $city)
@@ -230,6 +230,7 @@ class GuideController extends Controller
                 'availability' => $responseData,
                 'tax_percentage' => $country_tax,
                 'guide_base_price' => round((float)$dmc_day_rate, 2),
+                'created_at' => $firstGuide->created_at,
             ];
         }
         return response()->json($guideList);
@@ -247,7 +248,7 @@ class GuideController extends Controller
         if(!$guide_id){
             return response()->json(['error' => 'Guide Id not found.'], 404);
         }
-        $guide = Guide::with('languages')->where('guide_id', $guide_id)->first();
+        $guide = Guide::orderBy('guide_id', 'desc')->with('languages')->where('guide_id', $guide_id)->first();
         $country = $guide->country;
         $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
         $country_tax = $check_country->tax_percentage ?? 0;
