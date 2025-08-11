@@ -153,7 +153,7 @@ class EnquiryController extends Controller
           ->where('country', $country)
           ->where('status', 1)
           ->where('is_active', 1)
-          ->where('is_complete', 1)
+          ->where('is_complete', true)
           ->get();
 
         // Create custom arrays with only necessary data

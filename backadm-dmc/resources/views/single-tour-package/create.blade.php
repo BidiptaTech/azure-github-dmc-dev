@@ -1,5 +1,6 @@
 @extends('layouts.layout')
 @section('content')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         
@@ -131,6 +132,7 @@
                     </div>
                 </div>
             </div>
+
 
             <!-- Hotel Selection Section (Hidden Initially) -->
             <div class="row mb-4" id="hotelSection" style="display: none;">
@@ -277,21 +279,207 @@
                 </div>
             </div>
 
-            <!-- Final Submit Section (Hidden Initially) -->
-            <div class="row mb-5" id="submitSection" style="display: none;">
+            <!-- Hidden Fields for Storing Booking Data -->
+            <input type="hidden" id="tour_id" name="tour_id" value="">
+            <input type="hidden" id="hotelBookings" name="hotel_bookings" value="[]">
+            <input type="hidden" id="guideBookings" name="guide_bookings" value="[]">
+            <input type="hidden" id="vehicleBookings" name="vehicle_bookings" value="[]">
+            <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
+
+            <!-- Customer Information Section -->
+            <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-body text-center">
-                            <button type="submit" class="btn btn-success btn-lg px-5 me-3">
-                                <i class="ri-save-line me-2"></i>Save Tour Package
-                            </button>
-                            <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
-                                <i class="ri-close-line me-2"></i>Cancel
-                            </a>
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h6 class="mb-0 fw-bold">
+                                <i class="ri-user-line me-2"></i>Customer Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Country Code</label>
+                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required>
+                                </div>
+                                <div class="col-md-9">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address Line 1</label>
+                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address Line 2</label>
+                                    <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">State</label>
+                                    <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">ZIP Code</label>
+                                    <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Special Requests</label>
+                                    <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Final Submit Section -->
+            <div class="row mb-5" id="submitSection">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                    <h6 class="mb-1">Current Bookings</h6>
+                                    <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-success btn-lg px-5 me-3" onclick="saveAllBookings()">
+                                        <i class="ri-save-line me-2"></i>Save Tour Package
+                                    </button>
+                                    <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
+                                        <i class="ri-close-line me-2"></i>Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                // Service Management Functions
+                function addPortService(day, portType) {
+                    const data = {
+                        type: portType,
+                        date: document.querySelector(`[name="day${day}_${portType}_port_date"]`).value,
+                        // Add other port service specific data
+                    };
+                    addServiceToPackage('port', data);
+                    updateBookingsSummary();
+                }
+
+                function addAttractionService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_attraction_date"]`).value,
+                        // Add attraction specific data
+                    };
+                    addServiceToPackage('attraction', data);
+                    updateBookingsSummary();
+                }
+
+                function addGuideService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_guide_date"]`).value,
+                        // Add guide specific data
+                    };
+                    addServiceToPackage('guide', data);
+                    updateBookingsSummary();
+                }
+
+                function addRestaurantService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_restaurant_date"]`).value,
+                        // Add restaurant specific data
+                    };
+                    addServiceToPackage('restaurant', data);
+                    updateBookingsSummary();
+                }
+
+                function addTransportService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_transport_date"]`).value,
+                        // Add transport specific data
+                    };
+                    addServiceToPackage('transport', data);
+                    updateBookingsSummary();
+                }
+
+                function addServiceToPackage(type, data) {
+                    // Add customer information to the data
+                    const customerData = getCustomerData();
+                    const serviceData = {
+                        ...data,
+                        ...customerData,
+                        bookingType: 'booking'
+                    };
+
+                    // Store in the appropriate hidden field
+                    const fieldId = `${type}Bookings`;
+                    const bookings = JSON.parse(document.getElementById(fieldId).value || '[]');
+                    bookings.push(serviceData);
+                    document.getElementById(fieldId).value = JSON.stringify(bookings);
+
+                    // Update the summary display
+                    updateBookingsSummary();
+
+                    // Show success message
+                    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} added to package successfully!`);
+                }
+
+                function showToast(message) {
+                    // You can implement a nice toast notification here
+                    alert(message);
+                }
+
+                async function saveAllBookings() {
+                    if (!validateCustomerInfo()) {
+                        return false;
+                    }
+
+                    const hotelBookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
+                    const guideBookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
+                    const vehicleBookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
+                    const attractionBookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+
+                    // Check if at least one booking exists
+                    if (hotelBookings.length === 0 && guideBookings.length === 0 && 
+                        vehicleBookings.length === 0 && attractionBookings.length === 0) {
+                        alert('Please add at least one booking (hotel, guide, vehicle, or attraction)');
+                        return false;
+                    }
+
+                    const agentId = document.getElementById('agent_id').value;
+                    const tourId = document.getElementById('tour_id').value;
+
+                    try {
+                        // Save each type of booking
+                        if (hotelBookings.length > 0) {
+                            await saveServiceOrder('hotel', hotelBookings, agentId, tourId);
+                        }
+                        if (guideBookings.length > 0) {
+                            await saveServiceOrder('guide', guideBookings, agentId, tourId);
+                        }
+                        if (vehicleBookings.length > 0) {
+                            await saveServiceOrder('vehicle', vehicleBookings, agentId, tourId);
+                        }
+                        if (attractionBookings.length > 0) {
+                            await saveServiceOrder('attraction', attractionBookings, agentId, tourId);
+                        }
+
+                        alert('All bookings saved successfully!');
+                        window.location.href = '{{ route('single-tour-package.index') }}';
+                    } catch (error) {
+                        alert('Error saving bookings: ' + error.message);
+                    }
+                }
+            </script>
         </form>
     </div>
 </div>
@@ -623,6 +811,184 @@
 </script>
 
 <script>
+// Function to save customer information
+function saveCustomerInfo() {
+    const customerData = {
+        fullName: document.getElementById('customerFullName').value,
+        email: document.getElementById('customerEmail').value,
+        phone: document.getElementById('customerPhone').value,
+        countryCode: document.getElementById('customerCountryCode').value,
+        address1: document.getElementById('customerAddress1').value,
+        address2: document.getElementById('customerAddress2').value,
+        state: document.getElementById('customerState').value,
+        zip: document.getElementById('customerZip').value,
+        specialRequests: document.getElementById('customerSpecialRequests').value
+    };
+
+    // Validate required fields
+    const requiredFields = ['fullName', 'email', 'phone', 'countryCode', 'address1'];
+    const missingFields = requiredFields.filter(field => !customerData[field]);
+
+    if (missingFields.length > 0) {
+        alert('Please fill in all required fields: ' + missingFields.join(', '));
+        return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerData.email)) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    // Store the customer data in a hidden input for form submission
+    const customerDataInput = document.getElementById('customerDataInput') || document.createElement('input');
+    customerDataInput.type = 'hidden';
+    customerDataInput.name = 'customer_data';
+    customerDataInput.id = 'customerDataInput';
+    customerDataInput.value = JSON.stringify(customerData);
+    document.querySelector('form').appendChild(customerDataInput);
+
+    // Show success message
+    alert('Customer information saved successfully!');
+}
+
+// AJAX handler function
+async function saveServiceOrder(type, data, agentId, tourId) {
+    try {
+        const response = await fetch('/api/save-service', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                agent_id: agentId,
+                tour_id: tourId,
+                type: type,
+                data: data
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to save service');
+        }
+        return result;
+    } catch (error) {
+        console.error('Error saving service:', error);
+        throw error;
+    }
+}
+
+// Booking Data Management Functions
+function addHotelBooking(hotelData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...hotelData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('hotelBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+function addGuideBooking(guideData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...guideData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('guideBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+function addVehicleBooking(vehicleData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...vehicleData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('vehicleBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+function addAttractionBooking(attractionData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...attractionData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('attractionBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+// Function to update bookings summary
+function updateBookingsSummary() {
+    const hotelBookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
+    const guideBookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
+    const vehicleBookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
+    const attractionBookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+
+    const summary = [];
+    if (hotelBookings.length > 0) summary.push(`${hotelBookings.length} Hotel(s)`);
+    if (guideBookings.length > 0) summary.push(`${guideBookings.length} Guide(s)`);
+    if (vehicleBookings.length > 0) summary.push(`${vehicleBookings.length} Vehicle(s)`);
+    if (attractionBookings.length > 0) summary.push(`${attractionBookings.length} Attraction(s)`);
+
+    document.getElementById('bookingsSummary').textContent = summary.length > 0 ? 
+        summary.join(', ') : 'No bookings added yet';
+}
+
+// Helper function to get customer data
+function getCustomerData() {
+    return {
+        fullName: document.getElementById('customerFullName').value,
+        email: document.getElementById('customerEmail').value,
+        phone: document.getElementById('customerPhone').value,
+        countryCode: document.getElementById('customerCountryCode').value,
+        address1: document.getElementById('customerAddress1').value,
+        address2: document.getElementById('customerAddress2').value,
+        state: document.getElementById('customerState').value,
+        zip: document.getElementById('customerZip').value,
+        specialRequests: document.getElementById('customerSpecialRequests').value
+    };
+}
+
+// Function to validate customer information
+function validateCustomerInfo() {
+    const requiredFields = ['customerFullName', 'customerEmail', 'customerPhone', 'customerCountryCode', 'customerAddress1'];
+    const missingFields = requiredFields.filter(field => !document.getElementById(field).value);
+    
+    if (missingFields.length > 0) {
+        alert('Please fill in all required customer information fields');
+        return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(document.getElementById('customerEmail').value)) {
+        alert('Please enter a valid email address');
+        return false;
+    }
+
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Global variables
     let tourStartDate = null;
@@ -1742,8 +2108,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="saveService(${day}, 'entry_port')">
-                                  <i class="ri-save-line me-1"></i>Save and Add Port Service
+                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPortService(${day}, 'entry')">
+                                  <i class="ri-add-line me-1"></i>Add Port Service
                               </button>
                           </div>
                           
@@ -1877,8 +2243,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                      </div>
                                      <div class="col-12 mt-3">
-                                         <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'entry_port')">
-                                             <i class="ri-save-line me-2"></i>Save and Add More
+                                                                                  <button type="button" class="btn btn-success w-100 py-2" onclick="addPortService(${day}, 'entry')">
+                                            <i class="ri-add-line me-2"></i>Add to Package
                                          </button>
                                      </div>
                                  </div>
@@ -1899,8 +2265,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="saveService(${day}, 'exit_port')">
-                                  <i class="ri-save-line me-1"></i>Save and Add Port Service
+                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addPortService(${day}, 'exit')">
+                                  <i class="ri-add-line me-1"></i>Add Port Service
                               </button>
                           </div>
                           
@@ -2125,8 +2491,8 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="saveService(${day}, 'attraction')">
-                                              <i class="ri-save-line me-1"></i>Save and Add Attraction
+                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="addAttractionService(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Attraction
                                           </button>
                              </div>
                          </div>
@@ -2218,8 +2584,8 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="saveService(${day}, 'guide')">
-                                              <i class="ri-save-line me-1"></i>Save and Add Guide
+                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="addGuideService(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Guide
                                           </button>
                              </div>
                          </div>
@@ -2311,8 +2677,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                                  
                                  <div class="mt-3 text-center">
-                              <button type="button" class="btn btn-sm btn-outline-success" onclick="saveService(${day}, 'restaurant')">
-                                              <i class="ri-save-line me-1"></i>Save and Add Restaurant
+                              <button type="button" class="btn btn-sm btn-outline-success" onclick="addRestaurantService(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Restaurant
                                           </button>
                              </div>
                          </div>
@@ -2325,19 +2691,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <i class="ri-car-line me-2"></i>Book Transport Services
                                  <small class="text-muted ms-2">Select professional transport and configure your tour package</small>
                              </h6>
-                             <button type="button" class="btn btn-sm btn-warning" onclick="saveService(${day}, 'transport')">
-                                 <i class="ri-save-line me-1"></i>Save and Add Transport
+                             <button type="button" class="btn btn-sm btn-warning" onclick="addTransportService(${day})">
+                                 <i class="ri-add-line me-1"></i>Add Transport
                              </button>
                          </div>
                          
-                         <div class="card border-warning">
-                             <div class="card-body">
-                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                     <div class="d-flex gap-2">
-                                         <span class="badge bg-danger">Point To Point</span>
-                                         <span class="badge bg-primary">Hourly</span>
-                                     </div>
-                                     <div class="d-flex gap-2">
+                         
+                        <div class="card border-warning">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-danger">Point To Point</span>
+                                        <span class="badge bg-primary">Hourly</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
                                          <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_transport_date">
                                      </div>
                                  </div>
@@ -2455,8 +2822,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </select>
                                     </div>
                                     <div class="col-12 mt-3">
-                                        <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'transport')">
-                                            <i class="ri-save-line me-2"></i>Save and Add More
+                                        <button type="button" class="btn btn-success w-100 py-2" onclick="addTransportToPackage(${day})">
+                                            <i class="ri-add-line me-2"></i>Add to Package
                                         </button>
                                     </div>
                                  </div>

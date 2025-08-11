@@ -1454,7 +1454,7 @@
                                                         </button>
                                                     @endif
     
-                                                    @if(!empty($paymentData) && $tour->is_approve == 0)
+                                                    <!-- @if(!empty($paymentData) && $tour->is_approve == 0)
                                                     <button type="button" 
                                                         class="btn btn-sm btn-success" 
                                                         data-bs-toggle="modal" 
@@ -1466,7 +1466,7 @@
                                                     <span class="btn btn-sm btn-success">
                                                         <i class="fas fa-check-circle me-1"></i> Servicing Started
                                                     </span>
-                                                    @endif
+                                                    @endif -->
                                                 @endif
                                             @endif
                                         </div>
