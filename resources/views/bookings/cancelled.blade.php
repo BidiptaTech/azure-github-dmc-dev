@@ -1,0 +1,456 @@
+@extends('layouts.layout')
+@section('title', 'Cancelled Bookings')
+@extends('layouts.datatablecss')
+
+@section('content')
+<div class="container-xxl flex-grow-1 container-p-y">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold py-3 mb-2">
+                <i class="ri-close-circle-line me-2 text-danger"></i>
+                <span class="text-muted fw-light">Bookings /</span> Cancelled Bookings
+            </h4>
+            <p class="text-muted">Manage cancelled bookings and track cancellation reasons</p>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-danger fs-6">
+                <i class="ri-close-circle-line me-1"></i>
+                {{ $tours->total() }} Cancelled
+            </span>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1">{{ $tours->total() }}</h5>
+                            <p class="text-muted mb-0">Total Cancelled</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-danger rounded">
+                                <i class="ri-close-circle-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1">{{ $tours->where('tour_status', 'LIKE', 'Cancel - Pending')->count() }}</h5>
+                            <p class="text-muted mb-0">Pending Cancellations</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-warning rounded">
+                                <i class="ri-time-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1">{{ $tours->where('tour_status', 'LIKE', 'Cancel - On Hold')->count() }}</h5>
+                            <p class="text-muted mb-0">On Hold Cancellations</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-info rounded">
+                                <i class="ri-pause-circle-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1">{{ $tours->where('tour_status', 'LIKE', 'Cancel - Definite')->count() }}</h5>
+                            <p class="text-muted mb-0">Definite Cancellations</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-secondary rounded">
+                                <i class="ri-checkbox-circle-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filters</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                <i class="ri-refresh-line me-1"></i> Reset
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Cancellation Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="Pending">Cancel - Pending</option>
+                        <option value="On Hold">Cancel - On Hold</option>
+                        <option value="Prospect">Cancel - Prospect</option>
+                        <option value="Tentative">Cancel - Tentative</option>
+                        <option value="New Enquiry">Cancel - New Enquiry</option>
+                        <option value="Definite">Cancel - Definite</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Destination</label>
+                    <select class="form-select" id="destinationFilter">
+                        <option value="">All Destinations</option>
+                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
+                            <option value="{{ $destination }}">{{ $destination }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Agent</label>
+                    <select class="form-select" id="agentFilter">
+                        <option value="">All Agents</option>
+                        @foreach($tours->where('agent_name', '!=', null)->pluck('agent_name', 'agent_id')->unique() as $agentId => $agentName)
+                            <option value="{{ $agentName }}">{{ $agentName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" id="timeFilter">
+                        <option value="">All Time</option>
+                        <option value="this_week">This Week</option>
+                        <option value="last_week">Last Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="last_month">Last Month</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tours Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Cancelled Bookings List</h5>
+            <div class="d-flex gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="datatables-basic table table-bordered" id="toursTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Tour Details</th>
+                            <th>Destination</th>
+                            <th>Guests</th>
+                            <th>Agent</th>
+                            <th>Cancellation Status</th>
+                            <th>Cancelled Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($tours as $key => $tour)
+                        <tr class="table-danger">
+                            <td>{{ $key + 1 }}</td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <strong class="text-danger">{{ $tour->display_id }}</strong>
+                                    <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
+                                    @if($tour->multi_enq_id)
+                                        <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
+                                    @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
+                                    <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    @if($tour->adult > 0)
+                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
+                                    @endif
+                                    @if($tour->child > 0)
+                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
+                                    <small class="text-muted">ID: {{ $tour->agent_id ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                @if(str_contains($tour->tour_status, 'Cancel - Pending'))
+                                    <span class="badge bg-warning">
+                                        <i class="ri-time-line me-1"></i>Pending
+                                    </span>
+                                @elseif(str_contains($tour->tour_status, 'Cancel - On Hold'))
+                                    <span class="badge bg-info">
+                                        <i class="ri-pause-circle-line me-1"></i>On Hold
+                                    </span>
+                                @elseif(str_contains($tour->tour_status, 'Cancel - Prospect'))
+                                    <span class="badge bg-primary">
+                                        <i class="ri-user-line me-1"></i>Prospect
+                                    </span>
+                                @elseif(str_contains($tour->tour_status, 'Cancel - Tentative'))
+                                    <span class="badge bg-secondary">
+                                        <i class="ri-question-line me-1"></i>Tentative
+                                    </span>
+                                @elseif(str_contains($tour->tour_status, 'Cancel - New Enquiry'))
+                                    <span class="badge bg-dark">
+                                        <i class="ri-file-list-line me-1"></i>New Enquiry
+                                    </span>
+                                @elseif(str_contains($tour->tour_status, 'Cancel - Definite'))
+                                    <span class="badge bg-danger">
+                                        <i class="ri-checkbox-circle-line me-1"></i>Definite
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary">
+                                        <i class="ri-close-circle-line me-1"></i>{{ $tour->tour_status }}
+                                    </span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <small><strong>Cancelled:</strong> {{ \Carbon\Carbon::parse($tour->updated_at)->format('D, M d, Y') }}</small>
+                                    <small class="text-muted">{{ \Carbon\Carbon::parse($tour->updated_at)->format('h:i A') }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                   class="btn btn-outline-danger btn-sm rounded-pill">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <div class="d-flex flex-column align-items-center">
+                                    <i class="ri-close-circle-line ri-48px text-muted mb-2"></i>
+                                    <h6 class="text-muted">No cancelled bookings</h6>
+                                    <p class="text-muted mb-0">All bookings are active or in other stages.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const timeFilter = document.getElementById('timeFilter')?.value || '';
+    
+    const rows = document.querySelectorAll('#toursTable tbody tr');
+    
+    rows.forEach(row => {
+        if (row.cells.length === 1) return; // Skip empty state row
+        
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[5]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const cancelledDate = row.cells[6]?.textContent.toLowerCase() || '';
+        
+        let show = true;
+        
+        if (searchTerm && !tourDetails.includes(searchTerm)) {
+            show = false;
+        }
+        
+        if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+            show = false;
+        }
+        
+        if (destinationFilter && destination !== destinationFilter) {
+            show = false;
+        }
+        
+        if (agentFilter && agent !== agentFilter) {
+            show = false;
+        }
+        
+        if (timeFilter) {
+            const cancelledDateMatch = cancelledDate.match(/(\w+), (\w+) (\d+), (\d+)/);
+            if (cancelledDateMatch) {
+                const cancelledDateObj = new Date(cancelledDateMatch[0]);
+                const now = new Date();
+                const diffTime = Math.abs(now - cancelledDateObj);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (timeFilter === 'this_week' && diffDays > 7) {
+                    show = false;
+                } else if (timeFilter === 'last_week' && (diffDays <= 7 || diffDays > 14)) {
+                    show = false;
+                } else if (timeFilter === 'this_month' && diffDays > 30) {
+                    show = false;
+                } else if (timeFilter === 'last_month' && (diffDays <= 30 || diffDays > 60)) {
+                    show = false;
+                }
+            }
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
+    document.getElementById('timeFilter').value = '';
+    filterTable();
+}
+
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const destinationFilter = document.getElementById('destinationFilter');
+    const agentFilter = document.getElementById('agentFilter');
+    const timeFilter = document.getElementById('timeFilter');
+    
+    // Add event listeners
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
+    if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    if (timeFilter) timeFilter.addEventListener('change', filterTable);
+});
+</script>
+@endsection
+
+@section('scripts')
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<script>
+    $(document).ready(function() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
+        // Initialize DataTable with export buttons
+        var table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print' // Keep buttons for functionality but don't show them
+            ],
+            searching: false, // Disable built-in searching since we use custom filters
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            pageLength: 25,
+            order: [[6, 'desc']], // Sort by Cancelled Date column (index 6) in descending order
+            columnDefs: [
+                {
+                    targets: [7], // Actions column (index 7)
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [3], // Guests column (index 3)
+                    orderable: false
+                },
+                {
+                    targets: [5], // Cancellation Status column (index 5)
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Custom export button functionality (for the dropdown)
+        $('#exportCopy').on('click', function() {
+            table.button('.buttons-copy').trigger();
+        });
+
+        $('#exportCSV').on('click', function() {
+            table.button('.buttons-csv').trigger();
+        });
+
+        $('#exportExcel').on('click', function() {
+            table.button('.buttons-excel').trigger();
+        });
+
+        $('#exportPDF').on('click', function() {
+            table.button('.buttons-pdf').trigger();
+        });
+
+        $('#exportPrint').on('click', function() {
+            table.button('.buttons-print').trigger();
+        });
+    });
+</script>
+@endsection
+
+@extends('layouts.datatablejs')

@@ -8,14 +8,14 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="fw-bold py-3 mb-2">
-                <span class="text-muted fw-light">Bookings /</span> Confirmed Bookings
+                <span class="text-muted fw-light">Bookings /</span> On Hold Bookings
             </h4>
             <p class="text-muted">Manage confirmed bookings ready for processing</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
                 <i class="ri-check-double-line me-1"></i>
-                {{ $tours->total() }} Confirmed
+                {{ $tours->total() }} On Hold
             </span>
         </div>
     </div>
@@ -28,7 +28,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-1">{{ $tours->total() }}</h5>
-                            <p class="text-muted mb-0">Total Confirmed</p>
+                            <p class="text-muted mb-0">Total On Hold</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -45,7 +45,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-1">{{ $tours->where('check_in_time', '>=', now())->where('check_in_time', '<=', now()->addDays(7))->count() }}</h5>
-                            <p class="text-muted mb-0">This Week</p>
+                            <p class="text-muted mb-0">Next Week</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-primary rounded">
@@ -73,12 +73,12 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+        {{-- <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">${{ number_format(($tours->where('adult', '>', 0)->sum('adult') + $tours->where('child', '>', 0)->sum('child')) * 2000) }}</h5>
+                            <h5 class="card-title mb-1">${{ number_format(($tours->where('adult', '>', 0)->sum('adult') + $tours->where('child', '>', 0)->sum('child'))) }}</h5>
                             <p class="text-muted mb-0">Confirmed Revenue</p>
                         </div>
                         <div class="avatar">
@@ -89,51 +89,72 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 
-    <!-- Upcoming Tours Alert -->
-    @php
-        $upcomingTours = $tours->where('check_in_time', '>=', now())->where('check_in_time', '<=', now()->addDays(7));
-    @endphp
-    @if($upcomingTours->count() > 0)
-    <div class="alert alert-info mb-4">
-        <div class="d-flex align-items-center">
-            <i class="ri-calendar-event-line ri-24px me-3"></i>
-            <div>
-                <h6 class="alert-heading mb-1">Upcoming Tours This Week</h6>
-                <p class="mb-0">{{ $upcomingTours->count() }} confirmed bookings are scheduled to start within the next 7 days.</p>
-            </div>
-            <button class="btn btn-info ms-auto" onclick="showUpcomingTours()">
-                <i class="ri-eye-line me-1"></i> View All
+         <!-- Upcoming Tours Alert -->
+     @php
+         $upcomingTours = $tours->where('check_in_time', '>=', now())->where('check_in_time', '<=', now()->addDays(7));
+         $upcomingCount = $upcomingTours->count();
+     @endphp
+     @if($upcomingCount > 0)
+     <div class="alert alert-info mb-4">
+         <div class="d-flex align-items-center">
+             <i class="ri-calendar-event-line ri-24px me-3"></i>
+             <div>
+                 <h6 class="alert-heading mb-1">Upcoming Tours Next Week</h6>
+                 <p class="mb-0">{{ $upcomingCount }} {{ $upcomingCount == 1 ? 'on hold booking is' : 'on hold bookings are' }} scheduled to start within the next 7 days.</p>
+             </div>
+             <button class="btn btn-info ms-auto" onclick="showUpcomingTours()">
+                 <i class="ri-eye-line me-1"></i> View All
+             </button>
+         </div>
+     </div>
+     @endif
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filters</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                <i class="ri-refresh-line me-1"></i> Reset
             </button>
         </div>
-    </div>
-    @endif
-
-    <!-- Tours Table -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Confirmed Bookings List</h5>
-            <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary" onclick="bulkMakeDefinite()">
-                    <i class="ri-arrow-right-line me-1"></i> Make Definite
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="generateVouchers()">
-                    <i class="ri-file-text-line me-1"></i> Generate Vouchers
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="exportData()">
-                    <i class="ri-download-line me-1"></i> Export
-                </button>
-            </div>
-        </div>
         <div class="card-body">
-            <!-- Filter Options -->
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search by Tour ID, Display ID, Destination...">
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
                 </div>
-                <div class="col-md-3">
+                {{-- <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="On Hold">On Hold</option>
+                        <option value="Starting Soon">Starting Soon</option>
+                        <option value="In Progress">In Progress</option>
+                    </select>
+                </div> --}}
+                <div class="col-md-2">
+                    <label class="form-label">Destination</label>
+                    <select class="form-select" id="destinationFilter">
+                        <option value="">All Destinations</option>
+                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
+                            <option value="{{ $destination }}">{{ $destination }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Agent</label>
+                    <select class="form-select" id="agentFilter">
+                        <option value="">All Agents</option>
+                        @foreach($tours->where('agent_name', '!=', null)->pluck('agent_name', 'agent_id')->unique() as $agentId => $agentName)
+                            <option value="{{ $agentName }}">{{ $agentName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Time Range</label>
                     <select class="form-select" id="timeFilter">
                         <option value="">All Time</option>
                         <option value="this_week">This Week</option>
@@ -142,28 +163,39 @@
                         <option value="next_month">Next Month</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="destinationFilter">
-                        <option value="">All Destinations</option>
-                        @foreach($tours->pluck('country')->unique()->filter() as $country)
-                            <option value="{{ $country }}">{{ $country }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                        <i class="ri-refresh-line me-1"></i> Reset
+            </div>
+        </div>
+    </div>
+
+    <!-- Tours Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">On Hold Bookings List</h5>
+            <div class="d-flex gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-success btn-sm dropdown-toggle" type="button" id="exportDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export
                     </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPDF">PDF</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" id="exportPrint">Print</a></li>
+                    </ul>
                 </div>
             </div>
+        </div>
+        <div class="card-body">
 
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
                     <thead class="table-light">
                         <tr>
-                            <th>
+                            {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
-                            </th>
+                            </th> --}}
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
@@ -171,16 +203,16 @@
                             <th>Agent</th>
                             <th>Travel Dates</th>
                             <th>Confirmation Date</th>
-                            <th>Status</th>
+                            {{-- <th>Status</th> --}}
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
                         <tr class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0 ? 'table-info' : '' }}">
-                            <td>
+                            {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
-                            </td>
+                            </td> --}}
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -193,7 +225,7 @@
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->country ?? 'N/A' }}</span>
+                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
@@ -241,26 +273,26 @@
                             </td>                                                       
                             <td>
                                 <div class="d-flex flex-column">
-                                    <span>{{ $tour->updated_at->format('M d, Y') }}</span>
+                                    <span>{{ $tour->updated_at->format('D, M d, Y') }}</span>
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
                             </td>
-                            <td>
-                                @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 3 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0)
-                                    <span class="badge bg-warning">
-                                        <i class="ri-time-line me-1"></i>Starting Soon
-                                    </span>
-                                @elseif($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) < 0)
-                                    <span class="badge bg-danger">
-                                        <i class="ri-calendar-event-line me-1"></i>In Progress
-                                    </span>
-                                @else
-                                    <span class="badge bg-success">
-                                        <i class="ri-check-double-line me-1"></i>Confirmed
-                                    </span>
-                                @endif
-                            </td>
-                            <td>
+                            {{-- <td>
+                                 @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 3 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0)
+                                     <span class="badge bg-warning">
+                                         <i class="ri-time-line me-1"></i>Starting Soon
+                                     </span>
+                                 @elseif($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) < 0)
+                                     <span class="badge bg-danger">
+                                         <i class="ri-calendar-event-line me-1"></i>In Progress
+                                     </span>
+                                 @else
+                                     <span class="badge bg-success">
+                                         <i class="ri-check-double-line me-1"></i>On Hold
+                                     </span>
+                                 @endif
+                             </td> --}}
+                            {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         Actions
@@ -305,6 +337,12 @@
                                         </li>
                                     </ul>
                                 </div>
+                            </td> --}}
+                            <td>
+                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                   class="btn btn-outline-primary btn-sm rounded-pill">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
                             </td>
                         </tr>
                         @empty
@@ -323,7 +361,7 @@
             </div>
 
             <!-- Pagination -->
-            <div class="d-flex justify-content-between align-items-center mt-4">
+            {{-- <div class="d-flex justify-content-between align-items-center mt-4">
                 <div>
                     <p class="text-muted mb-0">
                         Showing {{ $tours->firstItem() ?? 0 }} to {{ $tours->lastItem() ?? 0 }} of {{ $tours->total() }} results
@@ -332,7 +370,7 @@
                 <div>
                     {{ $tours->links() }}
                 </div>
-            </div>
+            </div> --}}
         </div>
     </div>
 </div>
@@ -407,264 +445,181 @@ function resetFilters() {
 }
 
 function filterTable() {
-    // Implementation for client-side filtering
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const timeFilter = document.getElementById('timeFilter').value;
-    const destinationFilter = document.getElementById('destinationFilter').value;
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    // const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const timeFilter = document.getElementById('timeFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[5]?.textContent.toLowerCase() || '';
+        
         let show = true;
         
-        // Search filter
-        if (searchTerm) {
-            const tourDetails = row.cells[1].textContent.toLowerCase();
-            const destination = row.cells[2].textContent.toLowerCase();
-            if (!tourDetails.includes(searchTerm) && !destination.includes(searchTerm)) {
-                show = false;
-            }
+        if (searchTerm && !tourDetails.includes(searchTerm)) {
+            show = false;
         }
         
-        // Destination filter
-        if (destinationFilter) {
-            const country = row.cells[2].querySelector('.fw-medium')?.textContent || '';
-            if (country !== destinationFilter) {
-                show = false;
-            }
+        // if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+        //     show = false;
+        // }
+        
+        if (destinationFilter && destination !== destinationFilter) {
+            show = false;
         }
+        
+        if (agentFilter && agent !== agentFilter) {
+            show = false;
+        }
+        
+        if (timeFilter) {
+             const daysToGoMatch = travelDates.match(/(\d+) days to go/);
+             const daysToGo = daysToGoMatch ? parseInt(daysToGoMatch[1]) : null;
+             const isStartingToday = travelDates.includes('starting today');
+             const isInProgress = travelDates.includes('started') || travelDates.includes('days ago');
+             
+             if (timeFilter === 'this_week') {
+                 // Show tours starting within 7 days or starting today
+                 if (!((daysToGo !== null && daysToGo <= 7) || isStartingToday)) {
+                     show = false;
+                 }
+             } else if (timeFilter === 'next_week') {
+                 // Show tours starting in 8-14 days
+                 if (!(daysToGo !== null && daysToGo >= 8 && daysToGo <= 14)) {
+                     show = false;
+                 }
+             } else if (timeFilter === 'this_month') {
+                 // Show tours starting within 30 days
+                 if (!((daysToGo !== null && daysToGo <= 30) || isStartingToday)) {
+                     show = false;
+                 }
+             } else if (timeFilter === 'next_month') {
+                 // Show tours starting in 31-60 days
+                 if (!(daysToGo !== null && daysToGo >= 31 && daysToGo <= 60)) {
+                     show = false;
+                 }
+             }
+         }
         
         row.style.display = show ? '' : 'none';
     });
 }
 
-function exportData() {
-    console.log('Exporting confirmed bookings data...');
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    // document.getElementById('statusFilter').value = '';
+    document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
+    document.getElementById('timeFilter').value = '';
+    filterTable();
 }
 
-// Initialize filters
-document.getElementById('searchInput').addEventListener('input', filterTable);
-document.getElementById('timeFilter').addEventListener('change', filterTable);
-document.getElementById('destinationFilter').addEventListener('change', filterTable);
-
-// Select all functionality
-document.getElementById('selectAll').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-    });
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    // const statusFilter = document.getElementById('statusFilter');
+    const destinationFilter = document.getElementById('destinationFilter');
+    const agentFilter = document.getElementById('agentFilter');
+    const timeFilter = document.getElementById('timeFilter');
+    
+    // Add event listeners
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    // if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
+    if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    if (timeFilter) timeFilter.addEventListener('change', filterTable);
 });
 </script>
 @endsection
 
 @section('scripts')
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
-{{-- <script>
+<script>
     $(document).ready(function() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
         // Initialize DataTable with export buttons
         var table = $('.datatables-basic').DataTable({
             responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
                 'copy',
                 'csv',
                 'excel',
                 'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
+                'print' // Keep buttons for functionality but don't show them
             ],
+            searching: false, // Disable built-in searching since we use custom filters
             language: {
-                search: "_INPUT_",
-                searchPlaceholder: "Search...",
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
-            pageLength: 10, // Default number of entries per page
-            drawCallback: function() {
-                // Reinitialize Select2 for guide and driver dropdowns after each draw
-                $(document).ready(function () {
-                    let currentDeclineBookingId = null;
-                    let currentDeclineRow = null;
-                    
-                    // Open Approve Modal and set booking ID and Tour ID
-                    $(".approve-btn").on("click", function () {
-                        let bookingId = $(this).data("id");
-                        let tourId = $(this).closest("tr").find("td:eq(1)").text(); // Get tour ID from the second column
-                        
-                        // Set values in modal
-                        $("#bookingId").val(bookingId);
-                        $("#modalTourId").text("Tour ID: #" + tourId.trim());
-                        
-                        // Reset the form and hide loader when opening modal
-                        $("#approveForm")[0].reset();
-                        $("#approveLoader").hide();
-                        $("#approveButtonText").show();
-                        $("#approveButtonSpinner").hide();
-                        $("#approveSubmitBtn").prop("disabled", false);
-                    });
-    
-                    // Handle Approve Form Submission
-                    $("#approveForm").on("submit", function (e) {
-                        e.preventDefault();
-    
-                        // Show loading spinner and disable button
-                        $("#approveLoader").show();
-                        $("#approveButtonText").text("Processing...");
-                        $("#approveButtonSpinner").show();
-                        $("#approveSubmitBtn").prop("disabled", true);
-                        
-                        let formData = new FormData(this);
-                        let bookingId = $("#bookingId").val();
-                        let row = $("button[data-id='" + bookingId + "']").closest("tr"); // Get table row
-    
-                        $.ajax({
-                            url: "{{ route('bookings.approve') }}",
-                            type: "POST",
-                            data: formData,
-                            processData: false,
-                            contentType: false,
-                            headers: {
-                                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    // Hide spinner
-                                    $("#approveLoader").hide();
-                                    $("#approveModal").modal("hide"); // Hide modal
-    
-                                    // Apply green background
-                                    row.addClass("row-approved");
-                                    
-                                    // Wait a moment to show the color change, then swipe left
-                                    setTimeout(function() {
-                                        row.addClass("swipe-left");
-                                        
-                                        // Show global loader during refresh
-                                        setTimeout(function() {
-                                            $("#globalLoader").addClass("active");
-                                            
-                                            // Delay and refresh the page
-                                            setTimeout(function () {
-                                                location.reload();
-                                            }, 800);
-                                        }, 700); // After swipe animation is mostly done
-                                    }, 300);
-                                }
-                            },
-                            error: function (xhr) {
-                                // Hide spinner and re-enable button on error
-                                $("#approveLoader").hide();
-                                $("#approveButtonText").text("Approved");
-                                $("#approveButtonSpinner").hide();
-                                $("#approveSubmitBtn").prop("disabled", false);
-                                
-                                alert("Error! " + (xhr.responseJSON ? xhr.responseJSON.message : "Something went wrong."));
-                            }
-                        });
-                    });
-    
-                    // Handle Decline Button Click with custom confirmation
-                    $(".decline-btn").on("click", function () {
-                        currentDeclineBookingId = $(this).data("id");
-                        currentDeclineRow = $(this).closest("tr");
-                        
-                        // Show custom confirmation dialog
-                        $("#declineConfirmDialog").addClass("active");
-                    });
-                    
-                    // Handle Cancel Decline
-                    $("#cancelDecline").on("click", function() {
-                        $("#declineConfirmDialog").removeClass("active");
-                        currentDeclineBookingId = null;
-                        currentDeclineRow = null;
-                    });
-                    
-                    // Handle Confirm Decline
-                    $("#confirmDecline").on("click", function() {
-                        if (!currentDeclineBookingId) return;
-                        
-                        // Hide confirmation dialog
-                        $("#declineConfirmDialog").removeClass("active");
-                        
-                        // Show global loader
-                        $("#globalLoader").addClass("active");
-    
-                        $.ajax({
-                            url: "{{ route('bookings.decline') }}",
-                            type: "POST",
-                            data: {
-                                booking_id: currentDeclineBookingId,
-                                _token: "{{ csrf_token() }}"
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    // Hide global loader
-                                    $("#globalLoader").removeClass("active");
-                                    
-                                    // Apply red background
-                                    currentDeclineRow.addClass("row-declined");
-                                    
-                                    // Wait a moment to show the color change, then swipe left
-                                    setTimeout(function() {
-                                        currentDeclineRow.addClass("swipe-left");
-                                        
-                                        // Show global loader during refresh
-                                        setTimeout(function() {
-                                            $("#globalLoader").addClass("active");
-                                            
-                                            // Delay and refresh the page
-                                            setTimeout(function () {
-                                                location.reload();
-                                            }, 800);
-                                        }, 700); // After swipe animation is mostly done
-                                    }, 300);
-                                }
-                            },
-                            error: function (xhr) {
-                                // Hide global loader on error
-                                $("#globalLoader").removeClass("active");
-                                alert("Error! " + (xhr.responseJSON ? xhr.responseJSON.message : "Something went wrong."));
-                            }
-                        });
-                    });
-                    
-                    // Close confirmation dialog when clicking outside
-                    $(document).on("click", function(e) {
-                        if (
-                            $("#declineConfirmDialog").hasClass("active") && 
-                            !$(e.target).closest(".confirm-content").length && 
-                            !$(e.target).closest(".decline-btn").length
-                        ) {
-                            $("#declineConfirmDialog").removeClass("active");
-                            currentDeclineBookingId = null;
-                            currentDeclineRow = null;
-                        }
-                    });
-                });
+            pageLength: 25,
+            //  order: [[6, 'desc']], // Sort by Confirmation Date column (index 6) in descending order
+            columnDefs: [
+                {
+                    targets: [7], // Actions column (index 8)
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [3], // Guests column (index 3)
+                    orderable: false
+                },
+                {
+                    targets: [7], // Status column (index 7)
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
             }
         });
-    
+
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
             table.button('.buttons-copy').trigger();
         });
-    
+
         $('#exportCSV').on('click', function() {
             table.button('.buttons-csv').trigger();
         });
-    
+
         $('#exportExcel').on('click', function() {
             table.button('.buttons-excel').trigger();
         });
-    
+
         $('#exportPDF').on('click', function() {
             table.button('.buttons-pdf').trigger();
         });
-    
+
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
     });
-</script> --}}
+</script>
 @endsection
 
 @extends('layouts.datatablejs')
