@@ -446,7 +446,7 @@ class TourController extends Controller
         $start = $request->start ?? 0;   // offset
         $limit = $request->limit ?? 10; 
         // Update expired tours to 'Closed'
-        $tours = Tour::where('agent_id', $agent_id)->skip($start)->take($limit)->get();
+        $tours = Tour::where('agent_id', $agent_id)->get();
         foreach ($tours as $tour) {
             if (
                 $tour->check_out_time &&
@@ -461,6 +461,8 @@ class TourController extends Controller
         // Fetch active (not Closed) tours
         $activeTours = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id)
+            ->skip($start)
+            ->take($limit)
             // ->where('tour_status', '!=', 'Closed')
             ->get();
 
