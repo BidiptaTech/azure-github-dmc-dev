@@ -845,7 +845,7 @@ class TourController extends Controller
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                         if($tourStatus == "Tentative"){
                             $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "On Hold",
+                                'tour_status' => "Confirmed",
                             ]);
                         }
                         if($bookingType == 'enquiry'){
@@ -874,7 +874,7 @@ class TourController extends Controller
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                         if($tourStatus == "Tentative"){
                             $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "On Hold",
+                                'tour_status' => "Confirmed",
                             ]);
                         }
                         if($bookingType == 'enquiry'){
@@ -1019,7 +1019,7 @@ class TourController extends Controller
                     $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                     if($tourStatus == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
                     if($bookingType == 'enquiry'){
@@ -1048,7 +1048,7 @@ class TourController extends Controller
                     $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                     if($tourStatus == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
                     if($bookingType == 'enquiry'){
@@ -2111,7 +2111,7 @@ class TourController extends Controller
                 $order->save();
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
+                        'tour_status' => "Confirmed",
                     ]);
                 } 
                 if($bookingType == 'enquiry'){
@@ -2194,7 +2194,7 @@ class TourController extends Controller
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
+                        'tour_status' => "Confirmed",
                     ]);
                 } 
                 if($bookingType == 'enquiry'){
@@ -2324,7 +2324,7 @@ class TourController extends Controller
                     $tourStatus = Tour::where('tour_id',$tour_id)->first();
                     if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
 
