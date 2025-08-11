@@ -9,8 +9,9 @@ use App\Models\User;
 use App\Models\Agent;
 use App\Models\Country;
 use App\Models\OtpVerification;
-use Auth;
-use Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use App\Models\Setting;
 use App\Models\Role;
 use App\Services\CurrencyService;
@@ -112,6 +113,7 @@ class LoginControllerApi extends Controller
                 case 11: // Agent is a DMC
                     $dmc_id = $user->userId; // For DMC, the user itself is the DMC
                     $dmc_users = $user; // DMC is its own reference
+                    $dmc_logo = $user->logo;
                     break;
                     case 33: 
                     case 128: 
@@ -126,6 +128,7 @@ class LoginControllerApi extends Controller
                         $dmc_users = User::where('userId', $creatorId)->first(); // DMC
                         if ($dmc_users && $dmc_users->role_id == 11) {
                             $dmc_id = $dmc_users->userId;
+                            $dmc_logo = $dmc_users->logo;
                         } else {
                             // If creator is not DMC, look for their creator
                             $superiorUser = User::where('userId', $creatorId)->first();
@@ -133,6 +136,7 @@ class LoginControllerApi extends Controller
                                 $dmc_users = User::where('userId', $superiorUser->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
+                                    $dmc_logo = $dmc_users->logo;
                                 }
                             }
                         }
@@ -143,6 +147,7 @@ class LoginControllerApi extends Controller
                             $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
+                                $dmc_logo = $dmc_users->logo;
                             }
                         }
                     }
@@ -157,6 +162,7 @@ class LoginControllerApi extends Controller
                             $dmc_users = User::where('userId', $saleshead->created_by)->first();
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
+                                $dmc_logo = $dmc_users->logo;
                             }
                         }
                     } else {
@@ -168,6 +174,7 @@ class LoginControllerApi extends Controller
                                 $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
+                                    $dmc_logo = $dmc_users->logo;
                                 }
                             }
                         }
@@ -185,6 +192,7 @@ class LoginControllerApi extends Controller
                                 $dmc_users = User::where('userId', $salesHead->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
+                                    $dmc_logo = $dmc_users->logo;
                                 }
                             }
                         }
@@ -198,6 +206,7 @@ class LoginControllerApi extends Controller
                                 if ($saleshead_dmc && $saleshead_dmc->role_id == 11) {
                                     $dmc_users = $saleshead_dmc;
                                     $dmc_id = $saleshead_dmc->userId;
+                                    $dmc_logo = $saleshead_dmc->logo;
                                 }
                             }
                         }
@@ -216,6 +225,7 @@ class LoginControllerApi extends Controller
                     if ($currentUser->role_id == 11) {
                         $dmc_users = $currentUser;
                         $dmc_id = $currentUser->userId;
+                        $dmc_logo = $currentUser->logo;
                         break;
                     }
                     $currentUser = User::where('userId', $currentUser->created_by)->first();
@@ -227,6 +237,7 @@ class LoginControllerApi extends Controller
                     $dmc_users = User::where('userId', $creatorId)->first();
                     if ($dmc_users && $dmc_users->role_id == 11) {
                         $dmc_id = $dmc_users->userId;
+                        $dmc_logo = $dmc_users->logo;
                     }
                 }
             }
@@ -236,6 +247,7 @@ class LoginControllerApi extends Controller
         if (!$dmc_id) {
             // Default fallback if $dmc_id is still not set
             $dmc_id = $user->userId ?? $user->agent_id ?? null;
+            $dmc_logo = $user->logo;
         }
         
         $dmc = User::where('userId', $dmc_id)->first(); //For Dmc Company Name
@@ -308,9 +320,42 @@ class LoginControllerApi extends Controller
         }
 
         $countryInfo = Country::where('name', $country)->first();
-        if($dmc_id){
-            $dmc_company_name = $dmc->company_name;
+        
+        // Handle multiple DMC IDs and company names
+        $dmc_ids = [];
+        $dmc_company_names = [];
+        
+        if ($userModel == 'Agent' && $user->dmc_id) {
+            // Parse the JSON array of DMC IDs from agent table
+            $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
+            
+            if (is_array($agentDmcIds)) {
+                $dmc_ids = $agentDmcIds;
+                
+                // Fetch company names for all DMC IDs
+                $dmcCompanies = User::whereIn('userId', $agentDmcIds)
+                    ->where('role_id', 11) // DMC role
+                    ->select('userId', 'company_name')
+                    ->get();
+                
+                foreach ($dmcCompanies as $dmcCompany) {
+                    $dmc_company_names[] = [
+                        'dmc_id' => $dmcCompany->userId,
+                        'company_name' => $dmcCompany->company_name
+                    ];
+                }
+            }
+        } else {
+            // For User model or single DMC case, use existing logic
+            if($dmc_id){
+                $dmc_ids = [$dmc_id];
+                $dmc_company_names = [[
+                    'dmc_id' => $dmc_id,
+                    'company_name' => $dmc->company_name ?? ''
+                ]];
+            }
         }
+        
         $agent_country_tax = $countryInfo->tax_percentage ?? 0;
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
@@ -323,8 +368,10 @@ class LoginControllerApi extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'agent_address' => $user->agent_address,
-                'profile_picture' => $user->agent_image ?? '',
+                'profile_picture' => $user->image ?? '',
                 'logo' => $master_dmc->logo ?? '', 
+                'dmc_logo' => $dmc_logo ?? '',
+                'agency_logo' => $user->agent_image ?? '',
                 'dmc_name' => $dmc->company_name ?? '', 
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
@@ -345,7 +392,9 @@ class LoginControllerApi extends Controller
                 'price_hide' => $dmc_users->price_hide ?? 0,
                 'user_role' => $userRole,
                 'dmc_id' => $dmc_id ?? '',
-                'dmc_company_name' => $dmc_company_name ?? '',
+                'dmc_company_name' => $dmc->company_name ?? '',
+                'dmc_ids' => $dmc_ids,
+                'dmc_companies' => $dmc_company_names,
                 'zone_on' => $dmc_users->zone_on ?? 0,
             ],
         ]);
@@ -428,14 +477,14 @@ class LoginControllerApi extends Controller
         // Update image if provided
         if ($request->hasFile('image')) {
             // Delete old image if exists
-            if ($user->agent_image) {
-                CommonHelper::deleteAzureImage($user->agent_image);
+            if ($user->image) {
+                CommonHelper::deleteAzureImage($user->image);
             }
             
             // Upload new image using CommonHelper
             $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
             if (!empty($pathData['master_value'])) {
-                $user->agent_image = $pathData['master_value'];
+                $user->image = $pathData['master_value'];
             }
         }
         
@@ -676,7 +725,7 @@ class LoginControllerApi extends Controller
 
         try {
             // Start a database transaction
-            \DB::beginTransaction();
+            DB::beginTransaction();
             
             // Get virtual DMC inside the transaction
             $virtualDmc = User::select('userId', 'logo', 'company_name', 'email', 'phone')
@@ -727,7 +776,7 @@ class LoginControllerApi extends Controller
             $agent->save();
             
             // Clean up any OTP verifications for this email
-            \DB::table('otp_verifications')->where('email', $request->email)->delete();
+            DB::table('otp_verifications')->where('email', $request->email)->delete();
             
             // Commit the transaction
             \DB::commit();

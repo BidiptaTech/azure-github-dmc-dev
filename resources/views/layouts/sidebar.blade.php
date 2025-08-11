@@ -436,11 +436,181 @@
         background: rgba(124, 58, 237, 0.1);
     }
     
+    .ri-car-line {
+        color: #dc2626 !important; /* Red */
+        background: rgba(220, 38, 38, 0.1);
+    }
+    
     .roadmap-icon:hover {
   color: #2ecc71;
   transform: scale(1.1);
   transition: 0.3s;
-}
+ }
+
+    /* Menu Text Truncation and Tooltip Styles */
+    .menu-text-with-tooltip {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        position: relative;
+    }
+
+    /* Tooltip Container */
+    .menu-tooltip {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    /* Tooltip Text */
+    .menu-tooltip .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        background: linear-gradient(135deg, #1f2937, #374151);
+        color: white;
+        text-align: left;
+        border-radius: 8px;
+        padding: 10px 15px;
+        position: fixed;
+        z-index: 999999;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        min-width: max-content;
+        max-width: 350px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        transform: scale(0.8);
+        pointer-events: none;
+        left: 280px;
+        top: 100px;
+    }
+
+    /* Tooltip Arrow */
+    .menu-tooltip .tooltip-text::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: -8px;
+        transform: translateY(-50%);
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid #1f2937;
+        filter: drop-shadow(-2px 0 4px rgba(0, 0, 0, 0.1));
+    }
+
+    /* Show Tooltip on Hover */
+    .menu-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* Prevent tooltip from interfering with menu functionality */
+    .menu-tooltip .tooltip-text {
+        user-select: none;
+    }
+
+    /* Force tooltip visibility on hover - CSS fallback */
+    .menu-tooltip:hover .tooltip-text {
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: scale(1) !important;
+        display: block !important;
+    }
+
+    /* Responsive tooltip positioning */
+    @media (max-width: 768px) {
+        .menu-tooltip .tooltip-text {
+            font-size: 12px;
+            padding: 6px 10px;
+            margin-left: 10px;
+        }
+    }
+
+    /* Better tooltip positioning for smaller screens */
+    @media (max-width: 1200px) {
+        .menu-tooltip .tooltip-text {
+            left: 100%;
+            margin-left: 10px;
+        }
+    }
+
+    /* Special styling for truncated text */
+    .truncated-text {
+        position: relative;
+    }
+
+    .truncated-text:hover {
+        cursor: help;
+    }
+
+    /* Debug styles - add red border to see tooltip areas */
+    .menu-tooltip {
+        position: relative;
+    }
+    
+    /* Ensure proper z-index stacking */
+    .layout-menu .menu-tooltip .tooltip-text {
+        z-index: 99999 !important;
+    }
+
+    /* Booking Count Badge Styling */
+    .menu-link .badge {
+        font-size: 0.65rem !important;
+        padding: 0.25rem 0.5rem !important;
+        font-weight: 600 !important;
+        min-width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1 !important;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        animation: pulseCount 2s infinite;
+    }
+
+    @keyframes pulseCount {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+    }
+
+    /* Active menu item badge styling */
+    .menu-item.active .menu-link .badge {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        color: #dc3545 !important;
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Submenu badge styling */
+    .menu-sub .menu-link .badge {
+        font-size: 0.6rem !important;
+        padding: 0.2rem 0.4rem !important;
+        min-width: 1.2rem;
+        height: 1.2rem;
+    }
+
+    /* Prevent badge from interfering with hover effects */
+    .menu-link .badge {
+        pointer-events: none;
+        flex-shrink: 0;
+    }
+
+    /* Ensure proper spacing in menu items with badges */
+    .menu-link .d-flex {
+        width: 100%;
+        min-height: 1.5rem;
+        align-items: center;
+    }
 </style>
         <body>
             <div class="layout-wrapper layout-content-navbar  ">
@@ -484,7 +654,7 @@
             <!-- Dashboards -->
             <ul class="menu-inner py-1" style="padding-bottom: 100px;">
                 <li class="menu-item" style="height: 8px;"></li>
-                <li class="menu-item @if(Request::is('index')) active @endif">
+                <li class="menu-item @if(Request::is('dashboard')) active @endif">
                     <a href="{{ route('dashboard') }}" class="menu-link">
                         <i class="menu-icon tf-icons ri-dashboard-3-line"></i>
                         <div data-i18n="Dashboard">Dashboard</div>
@@ -509,20 +679,174 @@
                 </li>
                 @endif -->
 
+                <!-- Tour -->
+            @if(hasPermission('view tour'))
+            <li class="menu-header mt-5">
+                <span class="menu-header-text" data-i18n="Tour">Tour</span>
+            </li>
+
+            <li class="menu-item @if(Request::is('tours*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-route-line"></i>
+                    <div data-i18n="Tour">Tour</div>
+                </a>
+                <ul class="menu-sub">
+                    <!-- Show Tour -->
+                    <li class="menu-item @if(Request::is('tours')) active @endif">
+                        <a href="{{ route('tours') }}" class="menu-link">
+                            <div data-i18n="Tour List">Tour List</div>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        @endif
+
+        <!-- End Tour -->
+
+        <!-- Bookings -->
+        {{-- @if(hasPermission('view booking')) --}}
+        <li class="menu-header mt-5">
+            <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
+        </li>
+        
+        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative')) open active @endif">
+            <a href="#" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
+                <div data-i18n="Bookings">Bookings</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
+                    <a href="{{ route('bookings.new-enquiries') }}" class="menu-link" >
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-i18n="Enquiries">Enquiries</span>
+                            @if(isset($bookingCounts) && $bookingCounts['new_enquiries'] > 0)
+                                <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['new_enquiries'] }}</span>
+                            @endif
+                        </div>
+                    </a>
+                </li>
+                <!-- Show Booking -->
+                <li class="menu-item @if(Request::is('bookings/follow-ups')) active @endif">
+                    <a href="{{ route('bookings.follow-ups') }}" class="menu-link" title="Follow Ups">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-i18n="Follow Ups">Follow Ups</span>
+                            @if(isset($bookingCounts) && $bookingCounts['follow_ups'] > 0)
+                                <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['follow_ups'] }}</span>
+                            @endif
+                        </div>
+                    </a>
+                </li>
+
+                <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
+                    <a href="{{ route('bookings.confirmed') }}" class="menu-link" title="On Hold Bookings">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-i18n="On Hold">On Hold</span>
+                            @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0)
+                                <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['confirmed'] }}</span>
+                            @endif
+                        </div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('bookings/definite')) active @endif">
+                    <a href="{{ route('bookings.definite') }}" class="menu-link" title="Definite Bookings">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-i18n="Definite">Definite</span>
+                            @if(isset($bookingCounts) && $bookingCounts['definite'] > 0)
+                                <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['definite'] }}</span>
+                            @endif
+                        </div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('bookings/actual')) active @endif">
+                    <a href="{{ route('bookings.actual') }}" class="menu-link" title="Actual Bookings">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-i18n="Actual">Actual</span>
+                            @if(isset($bookingCounts) && $bookingCounts['actual'] > 0)
+                                <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['actual'] }}</span>
+                            @endif
+                        </div>
+                    </a>
+                </li>
+                {{-- <li class="menu-item @if(Request::is('bookings/cancelled') || Request::is('bookings/refunds')) open active @endif">
+                    <a href="#" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons ri-close-circle-line"></i>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-i18n="Cancellations & Refunds">Cancellations & Refunds</span>
+                            @if(isset($bookingCounts) && ($bookingCounts['cancelled'] > 0 || $bookingCounts['refunds'] > 0))
+                                <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['cancelled'] + $bookingCounts['refunds'] }}</span>
+                            @endif
+                        </div>
+                    </a>
+                    <ul class="menu-sub"> --}}
+                        <li class="menu-item @if(Request::is('bookings/cancelled')) active @endif">
+                            <a href="{{ route('bookings.cancelled') }}" class="menu-link" title="Cancelled Bookings">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span data-i18n="Cancelled">Cancelled</span>
+                                    @if(isset($bookingCounts) && $bookingCounts['cancelled'] > 0)
+                                        <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['cancelled'] }}</span>
+                                    @endif
+                                </div>
+                            </a>
+                        </li>
+                        <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
+                            <a href="{{ route('bookings.refunds') }}" class="menu-link" title="Refunds">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span data-i18n="Refunds">Refunds</span>
+                                    @if(isset($bookingCounts) && $bookingCounts['refunds'] > 0)
+                                        <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['refunds'] }}</span>
+                                    @endif
+                                </div>
+                            </a>
+                        </li>
+                    {{-- </ul>
+                </li> --}}
+            </ul>
+        </li>  
+    {{-- @endif --}}
+    <!-- End Bookings --> 
+
+        <!-- Booking List -->
+        {{-- @if(hasPermission('view booking')) --}}
+            <li class="menu-header mt-5">
+                <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
+            </li>
+            
+            <li class="menu-item @if(Request::is('bookinglist*') || Request::is('enquiries')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
+                    <div data-i18n="Booking List">Booking List</div>
+                </a>
+                <ul class="menu-sub">
+                    <!-- Show Booking -->
+                    <li class="menu-item @if(Request::is('bookinglist')) active @endif">
+                        <a href="{{ route('bookinglist.index') }}" class="menu-link">
+                            <div data-i18n="Booking List">Booking List</div>
+                        </a>
+                    </li>
+                    <li class="menu-item @if(Request::is('enquiries')) active @endif">
+                        <a href="{{ route('bookinglist.enquiry') }}" class="menu-link">
+                            <div data-i18n="Enquiry List">Enquiry List</div>
+                        </a>
+                    </li>
+                </ul>
+            </li>  
+        {{-- @endif --}}
+        <!-- End Booking List --> 
+
                 @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {{-- Dmc = 11, Sales Head(dmc) = 33, Sales Manager(dmc) = [12, 37], Asst. Sales Manager(dmc) = 38 --}}
             {{-- @if(hasPermission('view enquiry')) --}}
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Enquiries">Enquiries</span>
                 </li>
                 
-                <li class="menu-item @if(Request::is('enquirylist*')) open active @endif">
+                <li class="menu-item @if(Request::is('enquirylist*') && !Request::is('enquiries*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-customer-service-2-line" style="color: #3565bd"></i>
                         <div data-i18n="Enquiries">Enquiries</div>
                     </a>
                     <ul class="menu-sub">
                         <!-- Show Tour -->
-                        <li class="menu-item @if(Request::is('enquirylist')) active @endif">
+                        <li class="menu-item @if(Request::is('enquirylist') && !Request::is('enquiries*')) active @endif">
                             <a href="{{ route('enquirylist.index') }}" class="menu-link">
                                 <div data-i18n="Enquiries">Enquiries</div>
                             </a>
@@ -538,13 +862,13 @@
                     <span class="menu-header-text" data-i18n="Negotiation">Negotiation</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('enquiry*')) open active @endif">
+                <li class="menu-item @if(Request::is('enquiry') && !Request::is('enquiries*') && !Request::is('enquirylist*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-questionnaire-line"></i>
                         <div data-i18n="Negotiation">Negotiation</div>
                     </a>
                     <ul class="menu-sub">
-                        <li class="menu-item @if(Request::is('enquiry')) active @endif">
+                        <li class="menu-item @if(Request::is('enquiry') && !Request::is('enquiries*') && !Request::is('enquirylist*')) active @endif">
                             <a href="{{ route('enquiry') }}" class="menu-link">
                                 <div data-i18n="Negotiation List">Negotiation List</div>
                             </a>
@@ -555,103 +879,357 @@
 
             <!-- End Enquiry -->
 
-            <!-- Packages -->
+            <!-- Products Section -->
             <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Packages">Packages</span>
-                </li>
+                <span class="menu-header-text" data-i18n="All Products">All Products</span>
+            </li>
 
-                <li class="menu-item @if(Request::is('package*') || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-gift-line"></i>
-                        <div data-i18n="Packages">Packages</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <li class="menu-item @if(Request::is('packages') || Request::is('package')) active @endif">
-                            <a href="{{ route('packages.index') }}" class="menu-link">
-                                <div data-i18n="Package Management">Predefined Package Management</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('packages/create')) active @endif">
-                            <a href="{{ route('packages.create') }}" class="menu-link">
-                                <div data-i18n="Create Package">Create Predefined Package</div>
-                            </a>
-                        </li>
-                        @if(in_array(auth()->user()->role_id, [33]))
-                        <!-- Single Tour Package for DMCs -->
-                        <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
-                            <a href="{{ route('single-tour-package.create') }}" class="menu-link">
-                                <div data-i18n="Create Single Tour Package">Create Single Tour Package</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
-                            <a href="{{ route('single-tour-package.index') }}" class="menu-link">
-                                <div data-i18n="Single Tour Packages">Single Tour Packages</div>
-                            </a>
-                        </li>
-                        @endif
-                        @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
-                        <!-- Show Booking -->
-                        <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
-                            <a href="{{ route('predefined.package.booking.list') }}" class="menu-link">
-                                <div data-i18n="Predefined Packages Booking List">Predefined Packages Booking List</div>
-                            </a>
-                        </li>
-                        @endif
-                    </ul>
-                </li>
-                <!-- End Packages -->
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
+                    <div data-i18n="All Products">All Products</div>
+                </a>
+                <ul class="menu-sub">
+                    <!-- Packages -->
+            {{-- <li class="menu-item @if((Request::is('packages*') && !Request::is('packaged-attractions*')) || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-gift-line"></i>
+                    <div data-i18n="Packages">Packages</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
+                        <a href="{{ route('packages.index') }}" class="menu-link" title="Packages List">
+                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                            <div data-i18n="Packages List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Packages List</span>
+                                <span class="tooltip-text">Packages List</span>
+                            </div>
+                        </a>
+                    </li>
+                    {{-- <li class="menu-item @if(Request::is('packages/create')) active @endif">
+                        <a href="{{ route('packages.create') }}" class="menu-link">
+                            <div data-i18n="Create Package" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Create Predefined Package</span>
+                                <span class="tooltip-text">Create Predefined Package</span>
+                            </div>
+                        </a>
+                    </li> --}}
+                    @if(in_array(auth()->user()->role_id, [33]))
+                    <!-- Single Tour Package for DMCs -->
+                    <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+                        <a href="{{ route('single-tour-package.create') }}" class="menu-link" title="Create Single Tour Package">
+                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                            <div data-i18n="Create Single Tour Package" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Create Single Tour Package</span>
+                                <span class="tooltip-text">Create Single Tour Package</span>
+                            </div>
+                        </a>
+                    </li>
+                    {{-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
+                        <a href="{{ route('single-tour-package.index') }}" class="menu-link">
+                            <div data-i18n="Single Tour Packages" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Single Tour Packages</span>
+                                <span class="tooltip-text">Single Tour Packages</span>
+                            </div>
+                        </a>
+                    </li> --}}
+                    @endif
+                    @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
+                    <!-- Show Booking -->
+                    <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                        <a href="{{ route('predefined.package.booking.list') }}" class="menu-link" title="Predefined Packages Booking List">
+                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                            <div data-i18n="Predefined Packages Booking List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Predefined Packages Booking List</span>
+                                <span class="tooltip-text">Predefined Packages Booking List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                {{-- </ul>
+            </li> --}}
 
-            <!-- Tour -->
-            @if(hasPermission('view tour'))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Tour">Tour</span>
-                </li>
- 
-                <li class="menu-item @if(Request::is('tours*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-route-line"></i>
-                        <div data-i18n="Tour">Tour</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- Show Tour -->
-                        <li class="menu-item @if(Request::is('tours')) active @endif">
-                            <a href="{{ route('tours') }}" class="menu-link">
-                                <div data-i18n="Tour List">Tour List</div>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+            <!-- Packaged Attractions -->
+            {{-- <li class="menu-item @if(Request::is('packaged-attractions*') && !Request::is('packaged-attractions/packaged-attraction-approval*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-stack-line"></i>
+                    <div data-i18n="Attraction Package">Attraction Package</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    <li class="menu-item @if(Request::is('packaged-attractions')) active @endif">
+                        <a href="{{ route('packaged-attractions.index') }}" class="menu-link" title="Packaged Attractions List & Create Tab">
+                            {{-- <i class="menu-icon tf-icons ri-stack-line"></i> --}}
+                            <div data-i18n="Packaged Attractions List & Create Tab" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Packaged Attractions List & Create Tab</span>
+                                <span class="tooltip-text">Packaged Attractions List & Create Tab</span>
+                            </div>
+                        </a>
+                    </li>
+                    {{-- <li class="menu-item @if(Request::is('packaged-attractions/create')) active @endif">
+                        <a href="{{ route('packaged-attractions.create') }}" class="menu-link">
+                            <div data-i18n="Create Attraction Package" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Create Packaged Attraction</span>
+                                <span class="tooltip-text">Create Packaged Attraction</span>
+                            </div>
+                        </a>
+                    </li> --}}
+                {{-- </ul>
+            </li> --}}
+
+            <!-- Hotels & Accommodations -->
+            {{-- @if(hasPermission('view hotel') || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || hasPermission('create hotel'))
+            <li class="menu-item @if(Request::is('hotels') || Request::is('hotels/create')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-hotel-line"></i>
+                    <div data-i18n="Hotels & Accommodations">Hotels & Accommodations</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view hotel') || auth()->user()->role_id == 1 || auth()->user()->role_id == 2)
+                    <li class="menu-item @if(Request::is('hotels')) active @endif">
+                        <a href="{{ route('hotels.index') }}" class="menu-link" title="Hotels List">
+                            {{-- <i class="menu-icon tf-icons ri-hotel-line"></i> --}}
+                            <div data-i18n="Hotels List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Hotels List</span>
+                                <span class="tooltip-text">Hotels List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
+                    @if(hasPermission('create hotel'))
+                    <li class="menu-item @if(Request::is('hotels/create')) active @endif">
+                        <a href=" {{ route('hotels.create') }}" class="menu-link">
+                        <div data-i18n="Create Hotels">Create Hotels</div>
+                        </a>
+                    </li>
+                    @endif
+                    @endif
+                </ul>
+            </li>
+            @endif --}}
+
+            <!-- Attractions & Experiences -->
+            {{-- @if(hasPermission('view attraction') || hasPermission('create attraction'))
+            <li class="menu-item @if(Request::is('attraction*') && !Request::is('attractions/attraction-approval*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-camera-3-line"></i>
+                    <div data-i18n="Attractions & Experiences">Attractions & Experiences</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view attraction'))
+                    <li class="menu-item @if(Request::is('attraction')) active @endif">
+                        <a href="{{ route('attraction.index') }}" class="menu-link" title="Attractions List">
+                            {{-- <i class="menu-icon tf-icons ri-camera-3-line"></i> --}}
+                            <div data-i18n="Attractions List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Attractions List</span>
+                                <span class="tooltip-text">Attractions List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
+                    @if(hasPermission('create attraction'))
+                    <li class="menu-item @if(Request::is('attraction/create')) active @endif">
+                        <a href="{{ route('attraction.create') }}" class="menu-link">
+                            <div data-i18n="Create Attractions & Experiences" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Create Attractions & Experiences</span>
+                                <span class="tooltip-text">Create Attractions & Experiences</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    @endif
+                </ul>
+            </li>
+            @endif --}}
+
+            <!-- Restaurant & Dining -->
+            {{-- @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
+            <li class="menu-item @if(Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) open active @endif">
+                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-restaurant-2-line"></i>
+                    <div data-i18n="Restaurant & Dining">Restaurant & Dining</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view restaurant'))
+                    <li class="menu-item @if(Request::is('restaurant')) active @endif">
+                        <a href="{{ route('restaurant.index') }}" class="menu-link" title="Restaurant List" >
+                            {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
+                            <div data-i18n="Restaurant List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Restaurant List</span>
+                                <span class="tooltip-text">Restaurant List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
+                    @if(hasPermission('create restaurant'))
+                    <li class="menu-item @if(Request::is('restaurant/create')) active @endif">
+                        <a href="{{ route('restaurant.create') }}" class="menu-link">
+                            <div data-i18n="Create Restaurant">Create Restaurant</div>
+                        </a>
+                    </li>
+                    @endif
+                    @endif
+                </ul>
+            </li>
+            @endif --}}
+
+            <!-- Tour Guides -->
+            {{-- @if(hasPermission('view guide') || hasPermission('create guide'))
+            <li class="menu-item @if(Request::is('guide*') && !Request::is('guide/guide-approval*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-compass-3-line"></i>
+                    <div data-i18n="Guide">Tour Guides</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view guide'))
+                    <li class="menu-item @if(Request::is('guide')) active @endif">
+                        <a href="{{ route('guide.index') }}" class="menu-link" title="Tour Guides List">
+                            {{-- <i class="menu-icon tf-icons ri-compass-3-line"></i> --}}
+                            <div data-i18n="Tour Guides List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Tour Guides List</span>
+                                <span class="tooltip-text">Tour Guides List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    {{-- @if(hasPermission('create guide'))
+                    <li class="menu-item @if(Request::is('guide/create')) active @endif">
+                        <a href="{{ route('guide.create') }}" class="menu-link">
+                            <div data-i18n="Create Tour Guide">Create Tour Guide</div>
+                        </a>
+                    </li>
+                    @endif
+                </ul>
+            </li>
+            @endif --}}
+
+            <!-- Vehicles -->
+            {{-- @if(hasPermission('view vehicle') || hasPermission('create vehicle'))
+            <li class="menu-item @if(Request::is('vehicle*')) open active @endif">
+                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-car-line"></i>
+                    <div data-i18n="Vehicles">Vehicles</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view vehicle'))
+                    <li class="menu-item @if(Request::is('vehicle')) active @endif">
+                        <a href="{{ route('vehicle.index') }}" class="menu-link" title="Vehicles List">
+                            {{-- <i class="menu-icon tf-icons ri-car-line"></i> --}}
+                            <div data-i18n="Vehicles List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Vehicles List</span>
+                                <span class="tooltip-text">Vehicles List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    {{-- @if(hasPermission('create vehicle'))
+                    <li class="menu-item @if(Request::is('vehicle/create')) active @endif">
+                        <a href="{{ route('vehicle.create') }}" class="menu-link">
+                            <div data-i18n="Create Vehicles">Create Vehicle</div>
+                        </a>
+                    </li>
+                    @endif
+                </ul>
+            </li>
+            @endif --}}
+
+            <!-- Drivers -->
+            {{-- @if(hasPermission('view driver') || hasPermission('create driver'))
+            <li class="menu-item @if(Request::is('driver*') && !Request::is('driver/driver-approval*')) open active @endif">
+                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-steering-2-line"></i>
+                    <div data-i18n="Driver">Drivers</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view driver'))
+                    <li class="menu-item @if(Request::is('driver')) active @endif">
+                        <a href="{{ route('driver.index') }}" class="menu-link" title="Drivers List">
+                            {{-- <i class="menu-icon tf-icons ri-steering-2-line"></i> --}} 
+                            <div data-i18n="Drivers List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Drivers List</span>
+                                <span class="tooltip-text">Drivers List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    {{-- @if(hasPermission('create driver'))
+                    <li class="menu-item @if(Request::is('driver/create')) active @endif">
+                        <a href="{{ route('driver.create') }}" class="menu-link">
+                            <div data-i18n="Create Driver">Create Driver</div>
+                        </a>
+                    </li>
+                    @endif
+                </ul>
+            </li>
+            @endif --}}
+
+            <!-- Product Configuration -->
+            @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
+            {{-- @if(hasPermission('view facility') || hasPermission('view category'))
+            <li class="menu-item @if(Request::is('category*', 'facility*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-function-line"></i>
+                    <div data-i18n="Facility">Product Configuration</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(hasPermission('view category'))
+                    <li class="menu-item @if(Request::is('category')) active @endif">
+                        <a href="{{ route('category.index') }}" class="menu-link" title="Facility Category List">
+                            <div data-i18n="Facility Category List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Facility Category List</span>
+                                <span class="tooltip-text">Facility Category List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                    @if(hasPermission('view facility'))
+                    <li class="menu-item @if(Request::is('facility')) active @endif">
+                        <a href="{{ route('facility.index') }}" class="menu-link" title="Facility List">
+                            <div data-i18n="Facility List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Facility List</span>
+                                <span class="tooltip-text">Facility List</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
+                {{-- </ul>
+            </li>
+            @endif --}}
             @endif
 
-            <!-- End Tour -->
-
-            <!-- Booking List -->
-            {{-- @if(hasPermission('view booking')) --}}
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
-                </li>
-                
-                <li class="menu-item @if(Request::is('bookinglist*') || Request::is('enquiries')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
-                        <div data-i18n="Booking List">Booking List</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- Show Booking -->
-                        <li class="menu-item @if(Request::is('bookinglist')) active @endif">
-                            <a href="{{ route('bookinglist.index') }}" class="menu-link">
-                                <div data-i18n="Booking List">Booking List</div>
-                            </a>
-                        </li>
-                        <li class="menu-item @if(Request::is('enquiries')) active @endif">
-                            <a href="{{ route('bookinglist.enquiry') }}" class="menu-link">
-                                <div data-i18n="Enquiry List">Enquiry List</div>
-                            </a>
-                        </li>
-                    </ul>
-                </li>  
-            {{-- @endif --}}
-            <!-- End Booking List -->
+            <!-- Ports -->
+            {{-- @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
+            <li class="menu-item @if(Request::is('ports*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-ship-line"></i>
+                    <div data-i18n="Ports">Ports</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
+                    <!-- Show Port -->
+                    <li class="menu-item @if(Request::is('ports')) active @endif">
+                        <a href="{{ route('ports.index') }}" class="menu-link">
+                            {{-- <i class="menu-icon tf-icons ri-ship-line"></i> --}}
+                            <div data-i18n="Ports List" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Ports List</span>
+                                <span class="tooltip-text">Ports List</span>
+                            </div>
+                        </a>
+                    </li> 
+                    @endif
+                    {{-- <!-- Add Port -->
+                    <li class="menu-item @if(Request::is('ports/create')) active @endif">
+                        <a href="{{ route('ports.create') }}" class="menu-link">
+                            <div data-i18n="Create Port">Create Port</div>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            @endif --}}
+                </ul>
+            </li>
 
             <!-- Predefined Packages Booking List -->
             {{-- @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
@@ -836,34 +1414,7 @@
                 @endif
                 <!-- End JobSheet -->
                 
-            <!-- Port -->
-            @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Port">Port</span>
-                </li>
 
-                <li class="menu-item @if(Request::is('ports*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-ship-line"></i>
-                        <div data-i18n="Port">Port</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- Show Port -->
-                        <li class="menu-item @if(Request::is('ports')) active @endif">
-                            <a href="{{ route('ports.index') }}" class="menu-link">
-                                <div data-i18n="Port List">Port List</div>
-                            </a>
-                        </li>
-                        <!-- Add Port -->
-                        <li class="menu-item @if(Request::is('ports/create')) active @endif">
-                            <a href="{{ route('ports.create') }}" class="menu-link">
-                                <div data-i18n="Add Port">Add Port</div>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-            @endif
-            <!-- End Port -->
 
             @if(Auth::user()->role_id == 11)
             <li class="menu-header mt-5">
@@ -1031,359 +1582,18 @@
                 </li>
             @endif --}}
 
-                <!-- Facility -->
-                @if(hasPermission('view facility') || hasPermission('view category'))
-                    <li class="menu-header mt-5">
-                        <span class="menu-header-text" data-i18n="Facility">Facility</span>
-                    </li>
 
-                <li class="menu-item @if(Request::is('category*', 'facility*')) open active @endif">
-                    
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-function-line"></i>
-                        <div data-i18n="Facility">Facility</div>
-                    </a>
-                    <ul class="menu-sub">
-                        @if(hasPermission('view category'))
-                        <li class="menu-item @if(Request::is('category')) active @endif">
-                            <a href="{{ route('category.index') }}" class="menu-link">
-                                <div data-i18n="Facility Category">Facility Category</div>
-                            </a>
-                        </li>
-                        @endif
-                        @if(hasPermission('view facility'))
-                        <li class="menu-item @if(Request::is('facility')) active @endif">
-                            <a href="{{ route('facility.index') }}" class="menu-link">
-                                <div data-i18n="Facility">Facility</div>
-                            </a>
-                        </li>
-                        @endif
-                    </ul>
-                </li>
-                @endif
 
-                <!-- End Facility -->
 
-                <!-- Hotels -->
-                @if(hasPermission('view hotel') || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || hasPermission('create hotel'))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Hotels">Hotels</span>
-                </li>
-                <li class="menu-item @if(Request::is('hotels') || Request::is('hotels/create')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-hotel-line"></i>
-                        <div data-i18n="Hotels">Hotels</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- <li class="menu-item @if(Request::is('hotel-category')) active @endif">
-                            <a href="{{ route('hotel-category.index') }}" class="menu-link">
-                                <div data-i18n="Hotel Category">Hotel Category</div>
-                            </a>
-                        </li> -->
-                        {{-- @if(in_array(Auth::user()->role_id, [1, 2, 3, 4]))
-                            <li class="menu-item @if(Request::is('hotels/hotel-approval')) active @endif">
-                                <a href="{{ route('hotels.approval') }}" class="menu-link">
-                                    <div data-i18n="Hotel Approval">Hotel Approval</div>
-                                </a>
-                            </li>
-                        @endif --}}
 
-                        @if(hasPermission('view hotel'))
-                        <li class="menu-item @if(Request::is('hotels')) active @endif">
-                            <a href="{{ route('hotels.index') }}" class="menu-link">
-                                <div data-i18n="List Hotels">List Hotels</div>
-                            </a>
-                        </li>
-                        @endif
-                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                        @if(hasPermission('create hotel'))
-                        <li class="menu-item @if(Request::is('hotels/create')) active @endif">
-                            <a href=" {{ route('hotels.create') }}" class="menu-link">
-                            <div data-i18n="Create Hotels">Create Hotels</div>
-                            </a>
-                        </li>
-                        @endif
-                        @endif
-                        <!--  Comment out for now create room form here  -->
-                        {{-- 
-                        @if(hasPermission('view room'))
-                        <li class="menu-item @if(Request::is('hotel/rooms')) active @endif">
-                            <a href="{{ route('hotels.room') }}" class="menu-link">
-                                <div data-i18n="List Room Category">List Room Category</div>
-                            </a>
-                        </li>
-                        @endif
-                        @if(hasPermission('create room'))
-                        <li class="menu-item @if(Request::is('hotel/create/rooms')) active @endif">
-                            <a href="{{ route('hotels.createroom') }}" class="menu-link">
-                                <div data-i18n="Create Room Category">Create Room Category</div>
-                            </a>
-                        </li>
-                        @endif
-                        --}}
-                        {{-- @if(hasPermission('view bed')) --}}
-                        {{--
-                        <li class="menu-item @if(Request::is('beds/index')) active @endif">
-                            <a href="{{ route('beds.index') }}" class="menu-link">
-                                <div data-i18n="List Bed Type">Bed Types List</div>
-                            </a>
-                        </li>
-                        --}}
-                        {{-- @endif --}}
-                        {{-- @if(hasPermission('create bed'))
-                        <li class="menu-item @if(Request::is('beds/create')) active @endif">
-                            <a href="{{ route('beds.create') }}" class="menu-link">
-                                <div data-i18n="Create Bed Type">Create Bed Type</div>
-                            </a>
-                        </li>
-                        @endif --}}
-                        <!-- @if(hasPermission('view meal'))
-                        <li class="menu-item @if(Request::is('meals')) active @endif">
-                            <a href="{{ route('meals.index') }}" class="menu-link">
-                                <div data-i18n="List Meals">List Meals</div>
-                            </a>
-                        </li>
-                        @endif -->
-                        <!-- @if(hasPermission('create meal'))
-                        <li class="menu-item @if(Request::is('meals/create')) active @endif">
-                            <a href="{{ route('meals.create') }}" class="menu-link">
-                                <div data-i18n="Create Meals">Create Meals</div>
-                            </a>
-                        </li>
-                        @endif -->
-                    </ul>
-                </li>
-                @endif
 
-                <!-- End Hotels -->
 
-                <!-- Attraction -->
-                @if(hasPermission('view attraction') || hasPermission('create attraction'))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Attractions & Experiences">Attractions & Experiences</span>
-                </li>
 
-                <li class="menu-item @if(Request::is('attraction*') && !Request::is('attractions/attraction-approval*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-camera-3-line"></i>
-                        <div data-i18n="Attractions & Experiences">Attractions & Experiences</div>
-                    </a>
-                    <ul class="menu-sub">
-                        {{-- @if(in_array(Auth::user()->role_id, [1, 2, 3, 4]))
-                            <!--- Pending Attraction -->
-                            <li class="menu-item @if(Request::is('attractions/attraction-approval')) active @endif">
-                                <a href="{{ route('attractions.approval') }}" class="menu-link">
-                                    <div data-i18n="Attraction Approval">Attraction Approval</div>
-                                </a>
-                            </li>
-                        @endif --}}
 
-                        <!-- Show Attraction -->
-                        @if(hasPermission('view attraction'))
-                        <li class="menu-item @if(Request::is('attraction')) active @endif">
-                            <a href="{{ route('attraction.index') }}" class="menu-link">
-                                <div data-i18n="List Attractions & Experiences">List Attractions & Experiences</div>
-                            </a>
-                        </li>
-                        @endif
-                        <!-- Create Attraction -->
-                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                        @if(hasPermission('create attraction'))
-                        <li class="menu-item @if(Request::is('attraction/create')) active @endif">
-                            <a href="{{ route('attraction.create') }}" class="menu-link">
-                                <div data-i18n="Create Attractions & Experiences">Create Attractions & Experiences</div>
-                            </a>
-                        </li>
-                        @endif
-                        @endif
-                    </ul>
-                </li>
-                @endif
-                <!-- End Attraction -->
 
-                <!-- Packaged Attraction -->
-                
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Attraction Package">Attraction Package</span>
-                </li>
 
-                <li class="menu-item @if(Request::is('packaged-attractions*') && !Request::is('packaged-attractions/packaged-attraction-approval*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-stack-line"></i>
-                        <div data-i18n="Attraction Package">Attraction Package</div>
-                    </a>
-                    <ul class="menu-sub">
 
-                        <!-- Show Attraction -->
-                        
-                        <li class="menu-item @if(Request::is('packaged-attractions')) active @endif">
-                            <a href="{{ route('packaged-attractions.index') }}" class="menu-link">
-                                <div data-i18n="List Attraction Package">List Attraction Package</div>
-                            </a>
-                        </li>
-                        
-                        <!-- Create Packaged Attraction -->
-                        
-                        <li class="menu-item @if(Request::is('packaged-attractions/create')) active @endif">
-                            <a href="{{ route('packaged-attractions.create') }}" class="menu-link">
-                                <div data-i18n="Create Attraction Package">Create Attraction Package</div>
-                            </a>
-                        </li>
-                        
-                    </ul>
-                </li>
-                
-                <!-- End Packaged Attraction -->
-
-                <!-- Restaurant -->
-                @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Restaurant">Restaurant</span>
-                </li>
-
-                <li class="menu-item @if(Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) open active @endif">
-                    <a href="javascript:void(0);" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-restaurant-2-line"></i>
-                        <div data-i18n="Restaurant">Restaurant</div>
-                    </a>
-                    <ul class="menu-sub">
-                        {{-- @if(in_array(Auth::user()->role_id, [1, 2, 3, 4]))
-                            <!-- Restaurant Approval -->
-                            <li class="menu-item @if(Request::is('restaurants/restaurant-approval')) active @endif">
-                                <a href="{{ route('restaurants.approval') }}" class="menu-link">
-                                    <div data-i18n="Restaurant Approval">Restaurant Approval</div>
-                                </a>
-                            </li>
-                        @endif --}}
-
-                        <!-- List Restaurants -->
-                        @if(hasPermission('view restaurant'))
-                        <li class="menu-item @if(Request::is('restaurant')) active @endif">
-                            <a href="{{ route('restaurant.index') }}" class="menu-link">
-                                <div data-i18n="List Restaurants">List Restaurants</div>
-                            </a>
-                        </li>
-                        @endif
-
-                        <!-- Create Restaurant -->
-                        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                        @if(hasPermission('create restaurant'))
-                        <li class="menu-item @if(Request::is('restaurant/create')) active @endif">
-                            <a href="{{ route('restaurant.create') }}" class="menu-link">
-                                <div data-i18n="Create Restaurant">Create Restaurant</div>
-                            </a>
-                        </li>
-                        @endif
-                        @endif
-                    </ul>
-                </li>
-                @endif
-
-                <!-- End Restaurant -->
-
-                <!-- Guide -->
-                @if(hasPermission('view guide') || hasPermission('create guide'))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Guide">Guide</span>
-                </li>
-
-                <li class="menu-item @if(Request::is('guide*') && !Request::is('guide/guide-approval*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-compass-3-line"></i>
-                        <div data-i18n="Guide">Guide</div>
-                    </a>
-                    <ul class="menu-sub">
-                        {{-- @if(in_array(Auth::user()->role_id, [1, 2, 3, 4]))
-                            <!-- Guide Approval -->
-                            <li class="menu-item @if(Request::is('guide/guide-approval')) active @endif">
-                                <a href="{{ route('guide.approval') }}" class="menu-link">
-                                    <div data-i18n="Guide Approval">Guide Approval</div>
-                                </a>
-                            </li>
-                        @endif --}}
-                        <!-- Show Guide -->
-                        @if(hasPermission('view guide'))
-                        <li class="menu-item @if(Request::is('guide')) active @endif">
-                            <a href="{{ route('guide.index') }}" class="menu-link">
-                                <div data-i18n="List Guides">List Guides</div>
-                            </a>
-                        </li>
-                        @endif
-
-                        <!-- Create Guide -->
-                        @if(hasPermission('create guide'))
-                        <li class="menu-item @if(Request::is('guide/create')) active @endif">
-                            <a href="{{ route('guide.create') }}" class="menu-link">
-                                <div data-i18n="Create Guide">Create Guide</div>
-                            </a>
-                        </li>
-                        @endif
-                    </ul>
-                </li>
-                @endif
-
-                <!-- End Guide -->
-
-                <!-- Driver -->
-                @if(hasPermission('view driver') || hasPermission('create driver') || hasPermission('view vehicle') || hasPermission('create vehicle'))
-                <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Driver">Driver</span>
-                </li>
-
-                <li class="menu-item @if((Request::is('driver*') || Request::is('vehicle*')) && !Request::is('driver/driver-approval*')) open active @endif">
-                    <a href="javascript:void(0);" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-steering-2-line"></i>
-                        <div data-i18n="Driver">Driver</div>
-                    </a>
-                    <ul class="menu-sub">
-                        {{-- @if(in_array(Auth::user()->role_id, [1, 2, 3, 4]))
-                            <!-- Driver Approval -->
-                            <li class="menu-item @if(Request::is('driver/driver-approval')) active @endif">
-                                <a href="{{ route('driver.approval') }}" class="menu-link">
-                                    <div data-i18n="Driver Approval">Driver Approval</div>
-                                </a>
-                            </li>
-                        @endif --}}
-                        
-                        <!-- List Drivers -->
-                        @if(hasPermission('view driver'))
-                        <li class="menu-item @if(Request::is('driver')) active @endif">
-                            <a href="{{ route('driver.index') }}" class="menu-link">
-                                <div data-i18n="List Driver">List Drivers</div>
-                            </a>
-                        </li>
-                        @endif
-
-                        <!-- Create Driver -->
-                        @if(hasPermission('create driver'))
-                        <li class="menu-item @if(Request::is('driver/create')) active @endif">
-                            <a href="{{ route('driver.create') }}" class="menu-link">
-                                <div data-i18n="Create Driver">Create Driver</div>
-                            </a>
-                        </li>
-                        @endif
-                        <!--Vehicles List-->
-                        @if(hasPermission('view vehicle'))
-                        <li class="menu-item @if(Request::is('vehicle')) active @endif">
-                            <a href="{{ route('vehicle.index') }}" class="menu-link">
-                                <div>Vehicles List</div>
-                            </a>
-                        </li>
-                        @endif
-                        <!--Create Vehicles-->
-                        @if(hasPermission('create vehicle'))
-                        <li class="menu-item @if(Request::is('vehicle/create')) active @endif">
-                            <a href="{{ route('vehicle.create') }}" class="menu-link">
-                                <div data-i18n="Create Vehicles">Create Vehicles</div>
-                            </a>
-                        </li>
-                        @endif
-                    </ul>
-                </li>
-                @endif
-
-                <!-- End Driver -->
-
+                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 20)
                 <!-- Agency Management -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
@@ -1396,27 +1606,21 @@
                     </a>
                     <ul class="menu-sub">
                         <!-- List Agencies -->
-                        {{-- @if(hasPermission('view agency')) --}}
                         <li class="menu-item @if(Request::is('agencies')) active @endif">
                             <a href="{{ route('agencies.index') }}" class="menu-link">
                                 <div data-i18n="List Agencies">List Agencies</div>
                             </a>
                         </li>
-                        {{-- @endif --}}
 
                         <!-- Create Agency -->
-                        {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20) --}}
-                        {{-- @if(hasPermission('create agency')) --}}
                         <li class="menu-item @if(Request::is('agencies/create')) active @endif">
                             <a href="{{ route('agencies.create') }}" class="menu-link">
                                 <div data-i18n="Create Agency">Create Agency</div>
                             </a>
                         </li>
-                        {{-- @endif --}}
-                        {{-- @endif --}}
                     </ul>
                 </li>
-
+                @endif
                 <!-- Operation Country -->
                 {{-- @if(hasPermission('view country'))
                 <li class="menu-header mt-5">
@@ -1716,5 +1920,83 @@
             <!-- Add this right before the closing </ul> tag at the end of the menu -->
            
         </aside>
-        </body>
-        </html>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Enhanced tooltip functionality
+            const tooltips = document.querySelectorAll('.menu-tooltip');
+            
+            tooltips.forEach((tooltip, index) => {
+                const tooltipText = tooltip.querySelector('.tooltip-text');
+                const menuText = tooltip.querySelector('.menu-text-with-tooltip');
+                
+                if (tooltipText && menuText) {
+                    // Always show tooltip on hover
+                    tooltipText.style.display = 'block';
+                    
+                    // Add hover events for dynamic positioning
+                    tooltip.addEventListener('mouseenter', function(e) {
+                        // Get the position of the hovered menu item
+                        const rect = this.getBoundingClientRect();
+                        
+                        // Position tooltip to the right of the menu item
+                        tooltipText.style.left = (rect.right + 10) + 'px';
+                        tooltipText.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
+                        
+                        // Show tooltip
+                        tooltipText.style.visibility = 'visible';
+                        tooltipText.style.opacity = '1';
+                        tooltipText.style.transform = 'scale(1)';
+                        tooltipText.style.display = 'block';
+                    });
+                    
+                    tooltip.addEventListener('mouseleave', function() {
+                        tooltipText.style.visibility = 'hidden';
+                        tooltipText.style.opacity = '0';
+                        tooltipText.style.transform = 'scale(0.8)';
+                    });
+                    
+                    // Ensure tooltip positioning works on different screen sizes
+                    function adjustTooltipPosition() {
+                        const rect = tooltip.getBoundingClientRect();
+                        const tooltipRect = tooltipText.getBoundingClientRect();
+                        
+                        // If tooltip would go off screen, position it to the left
+                        if (rect.right + tooltipRect.width + 20 > window.innerWidth) {
+                            tooltipText.style.left = 'auto';
+                            tooltipText.style.right = '100%';
+                            tooltipText.style.marginLeft = '0';
+                            tooltipText.style.marginRight = '15px';
+                            
+                            // Update arrow direction
+                            const arrow = tooltipText.querySelector('::before');
+                            if (arrow) {
+                                tooltipText.style.setProperty('--arrow-direction', 'right');
+                            }
+                        }
+                    }
+                    
+                    // Adjust position on window resize
+                    window.addEventListener('resize', adjustTooltipPosition);
+                    adjustTooltipPosition();
+                }
+            });
+            
+            // Enhanced menu interactions
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateX(2px)';
+                    }
+                });
+                
+                item.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.transform = 'translateX(0)';
+                    }
+                });
+            });
+        });
+        </script>        
+        

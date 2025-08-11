@@ -49,7 +49,20 @@ use Illuminate\Support\Facades\Auth;
                         <div>
                             <div class="fw-bold text-muted small">Total Amount</div>
                             <div class="fs-5 fw-semibold">
-                                ₹{{ is_array($results) ? number_format(array_sum(array_column($results, 'amount')), 2) : '0.00' }}
+                                @php
+                                    $selectedCurrency = request('currency', 'SGD');
+                                    $totalAmount = is_array($results) ? array_sum(array_column($results, 'amount')) : 0;
+                                    
+                                    if ($selectedCurrency == 'INR') {
+                                        $defaultRate = request('currency', 'SGD') == 'INR' ? '67.50' : '1.00';
+                                        $exchangeRate = floatval(request('custom_exchange_rate', $defaultRate));
+                                        $totalAmount *= $exchangeRate;
+                                        $currencySymbol = '₹';
+                                    } else {
+                                        $currencySymbol = 'S$';
+                                    }
+                                @endphp
+                                {{ $currencySymbol }}{{ number_format($totalAmount, 2) }}
                             </div>
                         </div>
                     </div>
@@ -91,6 +104,11 @@ use Illuminate\Support\Facades\Auth;
                     </div>
                     <div class="card-body">
                         <form method="GET" action="{{ route('reports.ledger') }}" id="ledgerFilterForm">
+                            <!-- Hidden field for custom exchange rate -->
+                            @php
+                                $defaultCustomRate = request('currency', 'SGD') == 'INR' ? '67.50' : '1.00';
+                            @endphp
+                            <input type="hidden" id="customExchangeRateField" name="custom_exchange_rate" value="{{ request('custom_exchange_rate', $defaultCustomRate) }}">
                             <!-- First Row: Date Range & Currency -->
                             <div class="row g-3 mb-3">
                                 <div class="col-md-2">
@@ -123,7 +141,32 @@ use Illuminate\Support\Facades\Auth;
                                         <span class="input-group-text bg-info text-white">
                                             <i class="ri-exchange-line"></i>
                                         </span>
-                                        <input type="text" class="form-control bg-light" id="exchangeRate" readonly value="1 SGD = 67.50 INR" placeholder="Loading...">
+                                        @php
+                                            $currentCurrency = request('currency', 'SGD');
+                                            if ($currentCurrency == 'INR') {
+                                                $currentRate = request('custom_exchange_rate', '67.50');
+                                                $displayText = "1 SGD = {$currentRate} INR";
+                                            } else {
+                                                $displayText = "1 SGD = 1.00 SGD";
+                                            }
+                                        @endphp
+                                        <input type="text" class="form-control bg-light" id="exchangeRate" readonly value="{{ $displayText }}" placeholder="Loading...">
+                                        <button type="button" class="btn btn-outline-info btn-sm" id="editRateBtn" onclick="toggleRateEdit()" style="display: {{ request('currency', 'SGD') == 'INR' ? 'inline-block' : 'none' }};" title="Edit Exchange Rate">
+                                            <i class="ri-edit-line"></i>
+                                        </button>
+                                    </div>
+                                    <div id="rateEditSection" style="display: none;" class="mt-2">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">1 SGD =</span>
+                                            <input type="number" class="form-control" id="customRate" step="0.01" min="0" value="{{ request('custom_exchange_rate', request('currency', 'SGD') == 'INR' ? '67.50' : '1.00') }}" placeholder="Enter rate">
+                                            <span class="input-group-text">INR</span>
+                                            <button type="button" class="btn btn-success btn-sm" onclick="updateCustomRate()" title="Save Rate">
+                                                <i class="ri-check-line"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="cancelRateEdit()" title="Cancel">
+                                                <i class="ri-close-line"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
@@ -138,7 +181,7 @@ use Illuminate\Support\Facades\Auth;
 
                             <!-- Second Row: Hierarchy Selectors -->
                             <div class="row g-3 mb-3">
-                                @if(Auth::user()->role_id == 1)
+                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                                     {{-- Show Master DMC dropdown for Admin only --}}
                                     <div class="col-md-3">
                                         <label for="master_dmc_id" class="form-label fw-semibold">Master DMC</label>
@@ -149,7 +192,7 @@ use Illuminate\Support\Facades\Auth;
                                                 @if(isset($masterDmcsForDropdown) && $masterDmcsForDropdown->isNotEmpty())
                                                     @foreach($masterDmcsForDropdown as $masterDmc)
                                                         <option value="{{ $masterDmc->userId }}" {{ ($masterDmcId ?? request('master_dmc_id')) == $masterDmc->userId ? 'selected' : '' }}>
-                                                            {{ $masterDmc->name }}
+                                                            {{ $masterDmc->company_name ?? $masterDmc->name }}
                                                         </option>
                                                     @endforeach
                                                 @endif
@@ -165,7 +208,7 @@ use Illuminate\Support\Facades\Auth;
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="ri-store-line"></i></span>
                                             <select name="dmc_id" id="dmc_id" class="form-select" aria-label="DMC">
-                                                @if(Auth::user()->role_id == 1)
+                                                @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                                                     <option value="">All DMCs</option>
                                                 @else
                                                     <option value="">Select DMC</option>
@@ -173,7 +216,7 @@ use Illuminate\Support\Facades\Auth;
                                                 @if(isset($dmcsForDropdown) && $dmcsForDropdown->isNotEmpty())
                                                     @foreach($dmcsForDropdown as $dmc)
                                                         <option value="{{ $dmc->userId }}" data-master="{{ $dmc->master_dmc_id ?? '' }}" {{ ($dmcId ?? request('dmc_id')) == $dmc->userId ? 'selected' : '' }}>
-                                                            {{ $dmc->name }}
+                                                            {{ $dmc->company_name ?? $dmc->name }}
                                                         </option>
                                                     @endforeach
                                                 @endif
@@ -288,7 +331,9 @@ use Illuminate\Support\Facades\Auth;
                                     @php 
                                         $runningBalance = 0;
                                         $selectedCurrency = request('currency', 'SGD');
-                                        $exchangeRate = 67.50; // Default SGD to INR rate
+                                        // Use custom exchange rate, default to 67.50 for INR, 1.00 for SGD
+                                        $defaultRate = $selectedCurrency == 'INR' ? '67.50' : '1.00';
+                                        $exchangeRate = floatval(request('custom_exchange_rate', $defaultRate));
                                     @endphp
                                     @if(isset($results) && (is_array($results) || is_countable($results)))
                                         @foreach($results as $index => $row)
@@ -399,9 +444,9 @@ use Illuminate\Support\Facades\Auth;
                                             </td>
                                         </tr>
                                         @endforeach
-                                    @endif
+                                    @endif 
                                     
-                                    @if(!isset($results) || empty($results) || count($results) == 0)
+                                    {{-- @if(!isset($results) || empty($results) || count($results) == 0)
                                         <tr>
                                             <td colspan="10" class="text-center py-5">
                                                 <div class="d-flex flex-column align-items-center">
@@ -411,7 +456,7 @@ use Illuminate\Support\Facades\Auth;
                                                 </div>
                                             </td>
                                         </tr>
-                                    @endif
+                                    @endif --}}
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
@@ -634,6 +679,93 @@ use Illuminate\Support\Facades\Auth;
 </script>
 <!-- End DataTable JS -->
 <script>
+    // Global variable to store custom exchange rate (must be outside DOMContentLoaded)
+    // This always stores the INR rate (67.50 default), regardless of current currency
+    @php
+        $jsCustomRate = request('custom_exchange_rate', '67.50');
+        // If current currency is SGD, still keep the INR rate for when user switches back
+        if (request('currency', 'SGD') == 'SGD' && !request('custom_exchange_rate')) {
+            $jsCustomRate = '67.50'; // Default INR rate
+        }
+    @endphp
+    let customExchangeRate = {{ $jsCustomRate }};
+    
+    // Debug: Log the initial values for troubleshooting
+    console.log('Initial customExchangeRate:', customExchangeRate);
+    console.log('Current currency from URL:', '{{ request("currency", "SGD") }}');
+    console.log('User role:', '{{ Auth::user()->role_id ?? "unknown" }}');
+    
+    // Immediate fix for exchange rate display based on URL parameters
+    @if(request('currency') == 'INR')
+        // Force set INR display immediately if INR is selected in URL
+        setTimeout(function() {
+            const exchangeRateInput = document.getElementById('exchangeRate');
+            const editRateBtn = document.getElementById('editRateBtn');
+            const customExchangeRateField = document.getElementById('customExchangeRateField');
+            
+            if (exchangeRateInput) {
+                const currentRate = {{ request('custom_exchange_rate', '67.50') }};
+                exchangeRateInput.value = `1 SGD = ${currentRate} INR`;
+                console.log('Immediate INR fix applied:', exchangeRateInput.value);
+            }
+            
+            if (editRateBtn) {
+                editRateBtn.style.display = 'inline-block';
+            }
+            
+            if (customExchangeRateField) {
+                customExchangeRateField.value = '{{ request('custom_exchange_rate', '67.50') }}';
+            }
+        }, 100);
+    @endif
+    
+    // Global function to update exchange rate (can be called from anywhere)
+    function forceUpdateExchangeRate() {
+        const currencyElement = document.getElementById('currency');
+        const exchangeRateInput = document.getElementById('exchangeRate');
+        const editRateBtn = document.getElementById('editRateBtn');
+        
+        if (!currencyElement || !exchangeRateInput) {
+            console.error('Required elements not found for exchange rate update');
+            return;
+        }
+        
+        const currency = currencyElement.value;
+        console.log('forceUpdateExchangeRate called with currency:', currency);
+        
+        if (currency === 'INR') {
+            if (!customExchangeRate || customExchangeRate <= 0) {
+                customExchangeRate = 67.50;
+            }
+            const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+            exchangeRateInput.value = displayValue;
+            
+            if (editRateBtn) {
+                editRateBtn.style.display = 'inline-block';
+            }
+            
+            const customExchangeRateField = document.getElementById('customExchangeRateField');
+            if (customExchangeRateField) {
+                customExchangeRateField.value = customExchangeRate.toFixed(2);
+            }
+            
+            console.log('Forced INR display update:', displayValue);
+        } else {
+            exchangeRateInput.value = '1 SGD = 1.00 SGD';
+            
+            if (editRateBtn) {
+                editRateBtn.style.display = 'none';
+            }
+            
+            const customExchangeRateField = document.getElementById('customExchangeRateField');
+            if (customExchangeRateField) {
+                customExchangeRateField.value = '1.00';
+            }
+            
+            console.log('Forced SGD display update');
+        }
+    }
+
     // Enhanced functionality for the ledger
     document.addEventListener('DOMContentLoaded', function() {
         const startInput = document.getElementById('start_date');
@@ -711,13 +843,68 @@ use Illuminate\Support\Facades\Auth;
 
         // Currency change handler
         function updateExchangeRate() {
-            const currency = currencySelect.value;
+            // Get currency value - try multiple ways
+            let currency;
+            if (currencySelect && currencySelect.value) {
+                currency = currencySelect.value;
+            } else {
+                const currencyElement = document.getElementById('currency');
+                currency = currencyElement ? currencyElement.value : 'SGD';
+            }
+            
             const exchangeRateInput = document.getElementById('exchangeRate');
+            const editRateBtn = document.getElementById('editRateBtn');
+            
+            // Debug logging
+            console.log('updateExchangeRate called with currency:', currency);
+            console.log('Current customExchangeRate:', customExchangeRate);
+            console.log('exchangeRateInput element:', exchangeRateInput);
+            console.log('editRateBtn element:', editRateBtn);
+            
+            if (!exchangeRateInput) {
+                console.error('exchangeRate input element not found!');
+                return;
+            }
             
             if (currency === 'INR') {
-                exchangeRateInput.value = '1 SGD = 67.50 INR';
+                // Ensure we have a valid rate, default to 67.50 if not set
+                if (!customExchangeRate || customExchangeRate <= 0) {
+                    customExchangeRate = 67.50;
+                    console.log('Reset customExchangeRate to default:', customExchangeRate);
+                }
+                const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                exchangeRateInput.value = displayValue;
+                
+                if (editRateBtn) {
+                    editRateBtn.style.display = 'inline-block';
+                }
+                
+                const customExchangeRateField = document.getElementById('customExchangeRateField');
+                if (customExchangeRateField) {
+                    customExchangeRateField.value = customExchangeRate.toFixed(2);
+                }
+                
+                console.log('Set INR display:', displayValue);
             } else {
                 exchangeRateInput.value = '1 SGD = 1.00 SGD';
+                
+                if (editRateBtn) {
+                    editRateBtn.style.display = 'none';
+                }
+                
+                // Hide edit section if visible
+                const rateEditSection = document.getElementById('rateEditSection');
+                if (rateEditSection) {
+                    rateEditSection.style.display = 'none';
+                }
+                
+                // For SGD, set exchange rate to 1.00 (no conversion needed)
+                const customExchangeRateField = document.getElementById('customExchangeRateField');
+                if (customExchangeRateField) {
+                    customExchangeRateField.value = '1.00';
+                }
+                
+                console.log('Set SGD display: 1 SGD = 1.00 SGD');
             }
         }
 
@@ -731,11 +918,61 @@ use Illuminate\Support\Facades\Auth;
         setEndDateLimits();
         filterDmcsByMaster();
         filterAgentsByDmc();
+        
+        // Debug: Check if elements exist before calling updateExchangeRate
+        console.log('currencySelect element:', currencySelect);
+        console.log('exchangeRate element:', document.getElementById('exchangeRate'));
+        console.log('editRateBtn element:', document.getElementById('editRateBtn'));
+        
         updateExchangeRate();
     });
+    
+    // Also call the force update after a short delay to ensure everything is loaded
+    setTimeout(function() {
+        console.log('Calling forceUpdateExchangeRate after page load');
+        forceUpdateExchangeRate();
+    }, 500);
+    
+    // Additional fallback - force update on window load
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            console.log('Window loaded - calling forceUpdateExchangeRate again');
+            forceUpdateExchangeRate();
+        }, 1000);
+    });
+    
+    // Add additional currency change listener for all users
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'currency') {
+            console.log('Currency changed via document listener:', e.target.value);
+            setTimeout(function() {
+                forceUpdateExchangeRate();
+            }, 100);
+        }
+    });
+    
+    // Manual trigger function for testing (can be called from browser console)
+    window.fixExchangeRate = function() {
+        console.log('Manual exchange rate fix triggered');
+        forceUpdateExchangeRate();
+    };
 
     // Filter functions
     function applyFilters() {
+        // Ensure the custom exchange rate is set in the hidden field based on currency
+        const currency = document.getElementById('currency').value;
+        if (currency === 'INR') {
+            // Use custom rate, default to 67.50 if not set
+            const rateToUse = customExchangeRate || 67.50;
+            document.getElementById('customExchangeRateField').value = rateToUse.toFixed(2);
+        } else {
+            document.getElementById('customExchangeRateField').value = '1.00';
+        }
+        
+        // Debug: Log the form data before submission
+        console.log('Submitting form with currency:', currency);
+        console.log('Exchange rate:', document.getElementById('customExchangeRateField').value);
+        
         document.getElementById('ledgerFilterForm').submit();
     }
 
@@ -749,6 +986,10 @@ use Illuminate\Support\Facades\Auth;
         document.getElementById('service_type').value = '';
         document.getElementById('currency').value = 'SGD';
         document.getElementById('view_type').value = 'summary';
+        
+        // Reset custom exchange rate to default
+        customExchangeRate = 67.50;
+        document.getElementById('customExchangeRateField').value = '1.00'; // Default for SGD
         
         // Reset filters and submit
         setTimeout(() => {
@@ -768,11 +1009,89 @@ use Illuminate\Support\Facades\Auth;
             if (currency === 'INR') {
                 // You can replace this with actual API call
                 const rate = (67.50 + Math.random() * 0.1).toFixed(2);
-                exchangeRateInput.value = `1 SGD = ${rate} INR`;
+                customExchangeRate = parseFloat(rate);
+                exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
             } else {
                 exchangeRateInput.value = '1 SGD = 1.00 SGD';
             }
         }, 1000);
+    }
+
+    // Exchange rate editing functions
+    function toggleRateEdit() {
+        const rateEditSection = document.getElementById('rateEditSection');
+        const customRateInput = document.getElementById('customRate');
+        const editRateBtn = document.getElementById('editRateBtn');
+        
+        if (rateEditSection.style.display === 'none') {
+            rateEditSection.style.display = 'block';
+            customRateInput.value = customExchangeRate.toFixed(2);
+            editRateBtn.innerHTML = '<i class="ri-eye-line"></i>';
+            editRateBtn.classList.remove('btn-outline-info');
+            editRateBtn.classList.add('btn-outline-secondary');
+        } else {
+            rateEditSection.style.display = 'none';
+            editRateBtn.innerHTML = '<i class="ri-edit-line"></i>';
+            editRateBtn.classList.remove('btn-outline-secondary');
+            editRateBtn.classList.add('btn-outline-info');
+        }
+    }
+
+    function updateCustomRate() {
+        const customRateInput = document.getElementById('customRate');
+        const newRate = parseFloat(customRateInput.value);
+        
+        if (isNaN(newRate) || newRate <= 0) {
+            alert('Please enter a valid positive number for the exchange rate.');
+            return;
+        }
+        
+        customExchangeRate = newRate;
+        document.getElementById('exchangeRate').value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+        
+        // Update the hidden field
+        document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
+        
+        // Hide the edit section
+        document.getElementById('rateEditSection').style.display = 'none';
+        const editRateBtn = document.getElementById('editRateBtn');
+        editRateBtn.innerHTML = '<i class="ri-edit-line"></i>';
+        editRateBtn.classList.remove('btn-outline-secondary');
+        editRateBtn.classList.add('btn-outline-info');
+        
+        // Show success message
+        showRateUpdateMessage('Exchange rate updated successfully!');
+    }
+
+    function cancelRateEdit() {
+        const rateEditSection = document.getElementById('rateEditSection');
+        const editRateBtn = document.getElementById('editRateBtn');
+        
+        rateEditSection.style.display = 'none';
+        editRateBtn.innerHTML = '<i class="ri-edit-line"></i>';
+        editRateBtn.classList.remove('btn-outline-secondary');
+        editRateBtn.classList.add('btn-outline-info');
+    }
+
+    function showRateUpdateMessage(message) {
+        // Create a simple alert notification
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            <i class="ri-check-circle-line me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 3000);
     }
 
     // Transaction detail functions
@@ -1391,6 +1710,23 @@ use Illuminate\Support\Facades\Auth;
     .dropdown-item:hover {
         background-color: rgba(102, 126, 234, 0.1);
         color: #667eea;
+    }
+    
+    /* Exchange rate editing styles */
+    #rateEditSection {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+    }
+    
+    #customRate {
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    #editRateBtn {
+        border-left: 1px solid #dee2e6;
     }
     
     /* Responsive adjustments */

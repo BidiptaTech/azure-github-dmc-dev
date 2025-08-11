@@ -95,4 +95,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     Route::get('/get-dmcs', 'App\Http\Controllers\Api\CountryController@getDmcs');
     Route::get('/dmc-count', 'App\Http\Controllers\Api\CountryController@dmcCount');
+    
+     // Order routes
+    Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService');
 });

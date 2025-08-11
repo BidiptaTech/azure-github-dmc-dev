@@ -363,7 +363,7 @@ fieldset legend {
                     <div class="col-md-3 mb-3" id="room_type" style="display: none;">
                         <label for="room_type_input" class="form-label"><strong>Room Category</strong><span
                                 class="text-danger">*</span></label>
-                        <input id="room_type_input" name="room_type" class="form-control" placeholder="Enter Room Category" required>
+                        <input id="room_type_input" name="room_type" class="form-control" placeholder="Enter Room Category">
                         <div class="form-text">Enter name for this room variant (e.g. Deluxe, Premium)</div>
                         @error('room_type')
                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -1289,6 +1289,23 @@ $(document).ready(function() {
         console.log("Base room found:", baseRoom);
         console.log("Has base room:", hasBaseRoom);
         
+        // Function to toggle required fields
+        function toggleRequiredFields(isBaseRoom) {
+            const baseRoomInput = $('#base_room_type_input');
+            const roomTypeInput = $('#room_type_input');
+            const variantPriceInput = $('#varient_price_input');
+            
+            if (isBaseRoom) {
+                baseRoomInput.prop('required', true);
+                roomTypeInput.prop('required', false);
+                variantPriceInput.prop('required', false);
+            } else {
+                baseRoomInput.prop('required', false);
+                roomTypeInput.prop('required', true);
+                variantPriceInput.prop('required', true);
+            }
+        }
+        
         if (!hasRoomsForHotel) {
             // No rooms exist for this hotel - show base room fields
             $('#base_room_type_input').val('').prop('readonly', false);
@@ -1296,8 +1313,8 @@ $(document).ready(function() {
             $('#single_price, #double_price').hide();
             $('#base_single_price, #base_double_price').show();
             
-            // Make sure the base_room_type input is required
-            $('#base_room_type_input').prop('required', true);
+            // Set required fields for base room
+            toggleRequiredFields(true);
             
             // Show message indicating this will be the base room
             $('<div class="alert alert-info mb-3">This will be the base room for price calculations.</div>')
@@ -1311,11 +1328,8 @@ $(document).ready(function() {
             
             console.log('Showing variant room sections - Single visible:', $('#single_price').is(':visible'), 'Double visible:', $('#double_price').is(':visible'));
 
-            // Remove required from hidden field
-            $('#base_room_type_input').prop('required', false);
-            
-            // Set room type field as required
-            $('input[name="room_type"]').attr('required', true);
+            // Set required fields for variant room
+            toggleRequiredFields(false);
 
             // Extract base room prices and display them
             if (baseRoom) {

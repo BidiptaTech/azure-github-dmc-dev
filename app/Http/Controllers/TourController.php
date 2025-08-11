@@ -154,7 +154,7 @@ class TourController extends Controller
             $query->whereNotNull('payment_details');
         } elseif (in_array($role_id, [124, 125])) {
             // Specific roles that only see approved tours
-            $query->where('is_approve', 1);
+            $query->whereIn('tour_status', ['Confirmed', 'Definite','Actual']);
         }
         
         // Step 4: Execute the query with pagination
@@ -685,7 +685,7 @@ class TourController extends Controller
             // Save updated payment details
             $tour->payment_details = json_encode($paymentDetails);
             $tour->save();
-            if($tour->tour_status = "On Hold"){
+            if($tour->tour_status = "Confirmed"){
                 $tour_status = Tour::where('tour_id', $tourId)->update([
                             'tour_status' => "Definite",
                         ]);

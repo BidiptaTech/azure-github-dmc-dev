@@ -233,7 +233,7 @@ class HotelController extends Controller
     public function details(Request $request)
     {
         $get_tour_id = $request->query('tour-id');
-        $dmcs_id = $request->query('dmc-id');
+        $dmcs_id = $request->query('dmc_id');
         $price_mode = $request->query('price-mode');
         if(!$get_tour_id){
             return response()->json(['message' => 'Tour Id required'], 404);
@@ -247,9 +247,15 @@ class HotelController extends Controller
         }
         $agent_id = Auth::user()->id;
         $id = $request->query('id');
-        // Fetch the hotel with its relationships
-        $hotel = Hotel::with('hotelPolicy','category', 'rooms.beds')->where('hotel_unique_id', $id)
-        ->orderBy('id', 'desc')
+        // Fetch the hotel with its relationships, filtering rooms by DMC ID
+        $hotel = Hotel::with([
+            'hotelPolicy',
+            'category', 
+            'rooms' => function($query) use ($dmcs_id) {
+                $query->where('created_by', $dmcs_id);
+            },
+            'rooms.beds'
+        ])->where('hotel_unique_id', $id)
         ->first();
         if (!$hotel) {
             return response()->json(['message' => 'No hotels found'], 404);
@@ -320,8 +326,8 @@ class HotelController extends Controller
         // $dinner_price = $restaurant ? $restaurant->dinner_price : 0; // Fetch dinner price
 
         // Apply DMC markup to breakfast price if applicable
-        $users = User::where('userId', $dmcs_id)->first();
-        $dmc = User::where('userId', $users->dmcId)->first();
+        // $users = User::where('userId', $dmcs_id)->first();
+        // $dmc = User::where('userId', $users->dmcId)->first();
         // if ($users) {
         //     if ($dmc) {
         //         $bf_price += ($dmc->markup_type == 0) 
@@ -435,16 +441,16 @@ class HotelController extends Controller
                 $extra_bed_price = $bed->extra_bed_price;
                 $baby_cot_price = $bed->baby_cot_price;
                 
-                if ($users) {
-                    if ($dmc) {
-                        $extra_bed_price += ($dmc->markup_type == 0)
-                            ? $dmc->markup_price
-                            : ($bed->extra_bed_price * $dmc->markup_price / 100);
-                        $baby_cot_price += ($dmc->markup_type == 0)
-                            ? $dmc->markup_price
-                            : ($bed->baby_cot_price * $dmc->markup_price / 100);
-                    }
-                }
+                // if ($users) {
+                //     if ($dmc) {
+                //         $extra_bed_price += ($dmc->markup_type == 0)
+                //             ? $dmc->markup_price
+                //             : ($bed->extra_bed_price * $dmc->markup_price / 100);
+                //         $baby_cot_price += ($dmc->markup_type == 0)
+                //             ? $dmc->markup_price
+                //             : ($bed->baby_cot_price * $dmc->markup_price / 100);
+                //     }
+                // }
                 
                 $bed_data[] = [
                     'bed_id' => $bed->bed_id,

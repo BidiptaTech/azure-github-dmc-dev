@@ -10,18 +10,19 @@
             <div class="card-datatable table-responsive pt-0">
                 <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                     <div class="d-flex align-items-center">
-                        <h5 class="card-title mb-0">Hotel Listing</h5>
+                        <h5 class="card-title mb-0">Hotels & Accommodations</h5>
                     </div>
 
                     <div class="d-flex justify-content-between gap-3">
                         <!-- Add New Hotel Button -->
                         @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
+                        @if(hasPermission('create hotel'))
                         <a href="{{ route('hotels.create') }}"
                             class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                             <i class="fas fa-plus"></i> Add New Hotel
                         </a>
                         @endif
-
+                        @endif
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
                             <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"

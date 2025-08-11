@@ -384,6 +384,10 @@ class TourController extends Controller
                 ];
             }
 
+            $dmc_company_name = '';
+            if($tour->dmc_id){
+                $dmc_company_name = User::where('userId', $tour->dmc_id)->first();
+            }
             $service = CommonHelper::CommonResponse($agent_id, $tour_id);
             // LogActivityService::log('fetch_tour', 'App\Models\Tour', $tour_id, $tour);
             return response()->json([
@@ -408,6 +412,8 @@ class TourController extends Controller
                     'cities' => $cities,
                     'bookingType' => $booking_type,
                     'dmc_id' => $tour->dmc_id,
+                    'dmc_company_name' => $dmc_company_name->company_name ?? '',
+                    'dmc_logo' => $dmc_company_name->logo ?? '',
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -828,32 +834,7 @@ class TourController extends Controller
                 }
                 $price = ceil($price);
                 if($price == $totalPrice){
-                    if ($existingOrder) {
-                        $existingOrder->data = $validatedData['data'];
-                        $existingOrder->agent_id = $agent_id;
-                        $existingOrder->status = 1;  // Assuming status 1 means active or confirmed
-                        $existingOrder->bookingType = $bookingType;
-                        $existingOrder->discount = $commission;
-                        $existingOrder->markup_percentage = $markup_percentage;
-                        $existingOrder->save();
-                        $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
-                        if($tourStatus == "Tentative"){
-                            $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "On Hold",
-                            ]);
-                        }
-                        if($bookingType == 'enquiry'){
-                            $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "New Enquiry",
-                            ]);
-                        }
-                        return response()->json([
-                            'message' => ucfirst($validatedData['type']) . ' order updated successfully.',
-                            'order' => $existingOrder,
-                            'service' => $service
-                        ], 200);
-                    }
-                    else {
+                    
                         $order = new Order();
                         $order->agent_id = $agent_id;
                         $order->tour_id = $validatedData['tour_id'];
@@ -868,7 +849,7 @@ class TourController extends Controller
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                         if($tourStatus == "Tentative"){
                             $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "On Hold",
+                                'tour_status' => "Confirmed",
                             ]);
                         }
                         if($bookingType == 'enquiry'){
@@ -881,7 +862,7 @@ class TourController extends Controller
                             'order' => $order,
                             'service' => $service
                         ], 201);
-                    }
+                    
                 }
                 else{
                     return response()->json(['message' => 'Zone Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice], 409);
@@ -1002,35 +983,60 @@ class TourController extends Controller
                 return response()->json(['message' => 'Travel Point Price missmatch occur!', 'actual price'=>$finalPrice, 'incoming price'=>$totalPrice], 409);
             }
             if($flag == 1){
-                
-                $order = new Order();
-                $order->agent_id = $agent_id;
-                $order->tour_id = $validatedData['tour_id'];
-                $order->data = $validatedData['data'];
-                $order->type = $validatedData['type'];
-                $order->booking_id = $bookId;
-                $order->status = 1; // Assuming status 1 means active or confirmed
-                $order->bookingType = $bookingType;
-                $order->discount = $commission;
-                $order->markup_percentage = $markup_percentage;
-                $order->save();
-                $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
-                if($tourStatus == "Tentative"){
-                    $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
-                    ]);
+                if ($existingOrder) {
+                    $existingOrder->data = $validatedData['data'];
+                    $existingOrder->agent_id = $agent_id;
+                    $existingOrder->status = 1;  // Assuming status 1 means active or confirmed
+                    $existingOrder->bookingType = $bookingType;
+                    $existingOrder->discount = $commission;
+                    $existingOrder->markup_percentage = $markup_percentage;
+                    $existingOrder->save();
+                    $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
+                    if($tourStatus == "Tentative"){
+                        $tour = Tour::where('tour_id', $tour_id)->update([
+                            'tour_status' => "Confirmed",
+                        ]);
+                    }
+                    if($bookingType == 'enquiry'){
+                        $tour = Tour::where('tour_id', $tour_id)->update([
+                            'tour_status' => "New Enquiry",
+                        ]);
+                    }
+                    return response()->json([
+                        'message' => ucfirst($validatedData['type']) . ' order updated successfully.',
+                        'order' => $existingOrder,
+                        'service' => $service
+                    ], 200);
                 }
-                if($bookingType == 'enquiry'){
-                    $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "New Enquiry",
-                    ]);
+                else {
+                    $order = new Order();
+                    $order->agent_id = $agent_id;
+                    $order->tour_id = $validatedData['tour_id'];
+                    $order->data = $validatedData['data'];
+                    $order->type = $validatedData['type'];
+                    $order->booking_id = $bookId;
+                    $order->status = 1; // Assuming status 1 means active or confirmed
+                    $order->bookingType = $bookingType;
+                    $order->discount = $commission;
+                    $order->markup_percentage = $markup_percentage;
+                    $order->save();
+                    $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
+                    if($tourStatus == "Tentative"){
+                        $tour = Tour::where('tour_id', $tour_id)->update([
+                            'tour_status' => "Confirmed",
+                        ]);
+                    }
+                    if($bookingType == 'enquiry'){
+                        $tour = Tour::where('tour_id', $tour_id)->update([
+                            'tour_status' => "New Enquiry",
+                        ]);
+                    }
+                    return response()->json([
+                        'message' => ucfirst($validatedData['type']) . ' order created successfully.',
+                        'order' => $order,
+                        'service' => $service
+                    ], 201);
                 }
-                return response()->json([
-                    'message' => ucfirst($validatedData['type']) . ' order created successfully.',
-                    'order' => $order,
-                    'service' => $service
-                ], 201);
-                
             }
             else{
                 return response()->json(['message' => 'Travel Point Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice], 409);
@@ -2078,9 +2084,15 @@ class TourController extends Controller
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                
+                // Get the display_id from tours table
+                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
+                if ($tour && $tour->display_id) {
+                    $order->tour_id = $tour->display_id;
+                }
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
+                        'tour_status' => "Confirmed",
                     ]);
                 } 
                 if($bookingType == 'enquiry'){
@@ -2163,7 +2175,7 @@ class TourController extends Controller
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
+                        'tour_status' => "Confirmed",
                     ]);
                 } 
                 if($bookingType == 'enquiry'){
@@ -2171,9 +2183,25 @@ class TourController extends Controller
                         'tour_status' => "New Enquiry",
                     ]);
                 }
+                // Get tour details
+                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
+                
+                // Convert order to array and modify it
+                $orderData = $order->toArray();
+                $orderData['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
+                
+                // Also update the data array
+                $data = json_decode($orderData['data'], true);
+                if (is_array($data)) {
+                    foreach ($data as &$item) {
+                        $item['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
+                    }
+                    $orderData['data'] = $data;
+                }
+                
                 return response()->json([
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
-                    'order' => $order,
+                    'order' => $orderData,
                     'service' => $service,
                 ], 201);
             }
@@ -2211,65 +2239,7 @@ class TourController extends Controller
         $tour = Tour::where('tour_id', $tour_id)->first();
         $user = auth()->user();
         $salesManagerId = $user->sales_manager_dmc;
-
-
-        // if ($user) {
-        //     switch ($user->role_id) {
-        //         case 11: // Agent is a DMC
-        //             $dmc_id = $user->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
-        //             $dmc_users = User::where('userId', $dmc_id)->first();
-        //             break;
-        //             case 33: 
-        //             case 128: 
-        //             case 129: 
-        //             case 130: 
-        //             case 134: 
-        //             case 135: 
-        //             case 136: 
-        //             case 138: // Sales Head
-        //             $salesManagerId = $user->sales_manager_dmc;
-        //                 $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SH
-        //                 if ( $saleshead_dmc) {
-        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-        //                     if ($dmc_users && $dmc_users->role_id == 11) {
-        //                         $dmc_id = $dmc_users->userId;
-        //                     }
-        //                 }
-        //             break;
-        //         case 12:
-        //         case 37: // Sales Manager
-        //             $salesManagerId = $user->sales_manager_dmc;
-        //             $salesmng_dmc= User::where('userId', $user->sales_manager_dmc)->first(); // SM
-                    
-        //             if ($salesmng_dmc) {
-        //                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-        //                 if ( $saleshead_dmc) {
-        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-        //                     if ($dmc_users && $dmc_users->role_id == 11) {
-        //                         $dmc_id = $dmc_users->userId;
-        //                     }
-        //                 }
-        //             }
-        //             break;
-        //         case 38: // Assistant Manager
-        //             $salesManagerId = $user->sales_manager_dmc;
-        //             $asmng_dmc = User::where('userId', $user->sales_manager_dmc)->first(); // SM
-        //             if($asmng_dmc){
-        //                 $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-        //             }
-        //             if ($salesmng_dmc) {
-        //                 $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-        //                 if ( $saleshead_dmc) {
-        //                     $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-        //                     if ($dmc_users && $dmc_users->role_id == 11) {
-        //                         $dmc_id = $dmc_users->userId;
-        //                     }
-        //                 }
-        //             }
-        //             break;
-        //     }
-        // }
-        
+ 
         $userId = $user->agent_id;
         switch ($type) {
             case 'enquiry':
@@ -2326,9 +2296,10 @@ class TourController extends Controller
             case 'cancel':
                 if ($currentEnquiry) {
                     $currentEnquiry->update(['status' => 3]);
-
+                }
+                if($tour){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "Cancelled",
+                        'tour_status' => "Cancel - " . $tour->tour_status,
                     ]);
 
                     return response()->json([
@@ -2344,25 +2315,27 @@ class TourController extends Controller
             case 'accept':
                 if ($currentEnquiry) {
                     $currentEnquiry->update(['status' => 2]);
+                }
+                if($tour){
                     Order::where('tour_id', $tour_id)->update(['bookingType' => 'booking']);
                     $tourStatus = Tour::where('tour_id',$tour_id)->first();
                     if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
 
-                    $formEnquiry = EnquiryForm::where('multi_enq_id', $currentEnquiry->multi_enq_id)->first();
-                    if ($formEnquiry->multi_enq_id) {
+                    $formEnquiry = EnquiryForm::where('multi_enq_id', (string)$tour->multi_enq_id)->first();
+                    if ($formEnquiry && $formEnquiry->multi_enq_id) {
                         // Cancel other enquiry forms with same multi_enq_id
-                        EnquiryForm::where('multi_enq_id', $formEnquiry->multi_enq_id)
+                        EnquiryForm::where('multi_enq_id', (string)$formEnquiry->multi_enq_id)
                             ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
                             ->update([
                                 'status' => 'cancelled',
                             ]);
                         
                     }
-                    Tour::where('multi_enq_id', $tour->multi_enq_id)
+                    Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
                             ->where('tour_id', '!=', $tour_id)
                             ->update(['deleted_at' => now()]);
                             
@@ -2595,13 +2568,12 @@ class TourController extends Controller
         $tour = Tour::where('tour_id', $tour_id)->first();
 
         if ($tour) {
-            $tour->status = 4; //cancel tour
+            $previous_status = $tour->tour_status;
+            $tour->tour_status = 'Cancel - ' . $previous_status;            
             $tour->save();
-            // Soft delete associated orders if Order model also uses SoftDeletes
-            // Order::where('tour_id', $tour_id)->update(['deleted_at' => now()]);
             return response()->json([
                 'success' => true,
-                'message' => 'Tour has been soft deleted successfully.',
+                'message' => 'Tour has been cancelled successfully.',
             ], 200);
         } else {
             return response()->json([

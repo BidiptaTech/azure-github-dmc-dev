@@ -36,6 +36,21 @@
         padding: 8px 12px;
     }
 
+    .select2-container .select2-selection--single {
+    height: 46px !important;
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 24px;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+    right: 10px;
+}
+
+
 </style>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <div class="content-wrapper">
@@ -107,8 +122,13 @@
                 <input type="hidden" name="dmc_ids" id="dmc_ids" value="">
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label for="company_name" class="form-label"><strong>Agency Company</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('company_name') is-invalid @enderror" name="company_name" value="{{ old('company_name') }}" placeholder="Enter Company Name">
+                        <label for="company_name" class="form-label"><strong>Select Agency Company</strong><span class="text-danger">*</span></label>
+                        <select class="form-control select2" id="agency_id" name="company_name">
+                            <option value="">Select Agency</option>
+                            @foreach($agency as $a)
+                                <option value="{{ $a->agency_name }}">{{ $a->agency_name }}</option>
+                            @endforeach
+                        </select>
                         @error('company_name')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -229,17 +249,21 @@
                     </div>
 
                     <div class="col-md-3 mb-3">
-                        <label for="id_card" class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>
-                        <select class="form-control select2" id="id_card" name="id_card">
+                        <label for="id_card" class="form-label">
+                            <strong>ID Card</strong><span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select select2" id="id_card" name="id_card">
                             <option value="">Select ID Card Type...</option>
                             @foreach($card as $cardType)
-                                <option value="{{ $cardType->card_type }}" {{ old('id_card') == $cardType->card_type ? 'selected' : '' }}>{{ $cardType->card_type }}</option>
+                                <option value="{{ $cardType->card_type }}" {{ old('id_card') == $cardType->card_type ? 'selected' : '' }}>
+                                    {{ $cardType->card_type }}
+                                </option>
                             @endforeach
                         </select>
                         @error('id_card')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div>                    
 
                     <div class="col-md-3 mb-3">
                         <label for="card_number" class="form-label"><strong>Card Number</strong><span class="text-danger">*</span></label>
@@ -735,7 +759,7 @@ $(document).ready(function() {
         $('#searchResults').hide();
 
         $.ajax({
-            url: '/search-agents',
+            url: `${APP_URL}/search-agents`,
             method: 'GET',
             data: searchData,
             success: function(response) {

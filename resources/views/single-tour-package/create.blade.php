@@ -1,6 +1,6 @@
 @extends('layouts.layout')
-
 @section('content')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         
@@ -78,18 +78,34 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
-                                    <div class="guest-selector-main">
-                                        <button class="btn btn-outline-secondary w-100 text-start" type="button" id="mainGuestSelectorBtn">
-                                            <span id="guestSummary">4 adults (2 male, 2 female) - 0 children - 0 infants</span>
-                                            <i class="ri-edit-line float-end mt-1"></i>
+                                    <div class="guest-selector">
+                                        <div class="guest-display p-2 border rounded bg-light">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <div class="guest-info">
+                                                    <span id="mainGuestSummary" class="text-muted small">
+                                                        1 adults (0 male, 0 female), 0 children - 0 infants
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()">
+                                                    <i class="ri-edit-line"></i>
                                         </button>
                                     </div>
+                                            <div class="guest-badges mt-1">
+                                                <span class="badge bg-primary">1</span>
+                                                <span class="badge bg-success">0</span>
+                                                <span class="badge bg-warning text-dark">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    
                                     <!-- Hidden Fields -->
-                                    <input type="hidden" name="adults" id="adults" value="4">
-                                    <input type="hidden" name="male" id="male" value="2">
-                                    <input type="hidden" name="female" id="female" value="2">
+                                    <input type="hidden" name="adults" id="adults" value="1">
+                                    <input type="hidden" name="male" id="male" value="0">
+                                    <input type="hidden" name="female" id="female" value="0">
                                     <input type="hidden" name="children" id="children" value="0">
                                     <input type="hidden" name="infants" id="infants" value="0">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
                                 </div>
 
                                 <!-- Agent Selection -->
@@ -117,6 +133,7 @@
                 </div>
             </div>
 
+
             <!-- Hotel Selection Section (Hidden Initially) -->
             <div class="row mb-4" id="hotelSection" style="display: none;">
                 <div class="col-12">
@@ -136,10 +153,13 @@
                             <!-- Hotel Selection Controls -->
                             <div class="row mb-3">
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Select Hotel</label>
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-hotel-line me-1"></i>Select Hotel
+                                    </label>
                                     <select class="form-select" id="hotelSelect">
-                                        <option value="">Search hotels</option>
+                                        <option value="">Select a city first to load hotels</option>
                                     </select>
+                                    <small class="text-muted" id="hotelLoadingStatus"></small>
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">Room Type</label>
@@ -160,8 +180,8 @@
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Number of Rooms</label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1">
+                                    <label class="form-label fw-semibold" hidden>Number of Rooms</label>
+                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" hidden> 
                                 </div>
                                 <div class="col-md-1 d-flex align-items-end">
                                     <button type="button" class="btn btn-success w-100" onclick="addHotel()">
@@ -236,55 +256,7 @@
                 </div>
             </div>
 
-            <!-- Package Details Section (Hidden Initially) -->
-            <div class="row mb-4" id="packageDetailsSection" style="display: none;">
-                <div class="col-12">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0 fw-bold text-secondary">
-                                <i class="ri-file-text-line me-2"></i>Package Details
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="package_name" class="form-label fw-semibold">
-                                        <i class="ri-bookmark-line me-1"></i>Package Name
-                                    </label>
-                                    <input type="text" name="package_name" id="package_name" class="form-control" placeholder="Enter package name..." required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="estimated_budget" class="form-label fw-semibold">
-                                        <i class="ri-money-dollar-circle-line me-1"></i>Estimated Budget (SGD)
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">S$</span>
-                                        <input type="number" name="estimated_budget" id="estimated_budget" class="form-control" placeholder="0.00" step="0.01" min="0">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <label for="package_description" class="form-label fw-semibold">
-                                        <i class="ri-file-list-line me-1"></i>Package Description
-                                    </label>
-                                    <textarea name="package_description" id="package_description" rows="4" class="form-control" placeholder="Describe the tour package details, inclusions, and highlights..."></textarea>
-                                </div>
-                            </div>
-                            <div class="row mt-3">
-                                <div class="col-md-4">
-                                    <div class="form-check form-switch form-check-lg">
-                                        <input class="form-check-input" type="checkbox" name="is_premium" id="is_premium">
-                                        <label class="form-check-label fw-semibold text-warning" for="is_premium">
-                                            <i class="ri-vip-crown-line me-1"></i>Premium Package
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             <!-- Transports and Other Services Section (Hidden Initially) -->
             <div class="row mb-4" id="transportSection" style="display: none;">
@@ -307,26 +279,208 @@
                 </div>
             </div>
 
-            <!-- Final Submit Section (Hidden Initially) -->
-            <div class="row mb-5" id="submitSection" style="display: none;">
+            <!-- Hidden Fields for Storing Booking Data -->
+            <input type="hidden" id="tour_id" name="tour_id" value="">
+            <input type="hidden" id="hotelBookings" name="hotel_bookings" value="[]">
+            <input type="hidden" id="guideBookings" name="guide_bookings" value="[]">
+            <input type="hidden" id="vehicleBookings" name="vehicle_bookings" value="[]">
+            <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
+
+            <!-- Customer Information Section -->
+            <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-body text-center">
-                            <button type="submit" class="btn btn-success btn-lg px-5 me-3">
-                                <i class="ri-save-line me-2"></i>Save Tour Package
-                            </button>
-                            <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
-                                <i class="ri-close-line me-2"></i>Cancel
-                            </a>
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h6 class="mb-0 fw-bold">
+                                <i class="ri-user-line me-2"></i>Customer Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Country Code</label>
+                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required>
+                                </div>
+                                <div class="col-md-9">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address Line 1</label>
+                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address Line 2</label>
+                                    <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">State</label>
+                                    <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">ZIP Code</label>
+                                    <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Special Requests</label>
+                                    <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Final Submit Section -->
+            <div class="row mb-5" id="submitSection">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                    <h6 class="mb-1">Current Bookings</h6>
+                                    <p class="text-muted mb-0" id="bookingsSummary">No bookings added yet</p>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-success btn-lg px-5 me-3" onclick="saveAllBookings()">
+                                        <i class="ri-save-line me-2"></i>Save Tour Package
+                                    </button>
+                                    <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-secondary btn-lg px-5">
+                                        <i class="ri-close-line me-2"></i>Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
+            <script>
+                // Service Management Functions
+                function addPortService(day, portType) {
+                    const data = {
+                        type: portType,
+                        date: document.querySelector(`[name="day${day}_${portType}_port_date"]`).value,
+                        // Add other port service specific data
+                    };
+                    addServiceToPackage('port', data);
+                    updateBookingsSummary();
+                }
 
+                function addAttractionService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_attraction_date"]`).value,
+                        // Add attraction specific data
+                    };
+                    addServiceToPackage('attraction', data);
+                    updateBookingsSummary();
+                }
+
+                function addGuideService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_guide_date"]`).value,
+                        // Add guide specific data
+                    };
+                    addServiceToPackage('guide', data);
+                    updateBookingsSummary();
+                }
+
+                function addRestaurantService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_restaurant_date"]`).value,
+                        // Add restaurant specific data
+                    };
+                    addServiceToPackage('restaurant', data);
+                    updateBookingsSummary();
+                }
+
+                function addTransportService(day) {
+                    const data = {
+                        date: document.querySelector(`[name="day${day}_transport_date"]`).value,
+                        // Add transport specific data
+                    };
+                    addServiceToPackage('transport', data);
+                    updateBookingsSummary();
+                }
+
+                function addServiceToPackage(type, data) {
+                    // Add customer information to the data
+                    const customerData = getCustomerData();
+                    const serviceData = {
+                        ...data,
+                        ...customerData,
+                        bookingType: 'booking'
+                    };
+
+                    // Store in the appropriate hidden field
+                    const fieldId = `${type}Bookings`;
+                    const bookings = JSON.parse(document.getElementById(fieldId).value || '[]');
+                    bookings.push(serviceData);
+                    document.getElementById(fieldId).value = JSON.stringify(bookings);
+
+                    // Update the summary display
+                    updateBookingsSummary();
+
+                    // Show success message
+                    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} added to package successfully!`);
+                }
+
+                function showToast(message) {
+                    // You can implement a nice toast notification here
+                    alert(message);
+                }
+
+                async function saveAllBookings() {
+                    if (!validateCustomerInfo()) {
+                        return false;
+                    }
+
+                    const hotelBookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
+                    const guideBookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
+                    const vehicleBookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
+                    const attractionBookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+
+                    // Check if at least one booking exists
+                    if (hotelBookings.length === 0 && guideBookings.length === 0 && 
+                        vehicleBookings.length === 0 && attractionBookings.length === 0) {
+                        alert('Please add at least one booking (hotel, guide, vehicle, or attraction)');
+                        return false;
+                    }
+
+                    const agentId = document.getElementById('agent_id').value;
+                    const tourId = document.getElementById('tour_id').value;
+
+                    try {
+                        // Save each type of booking
+                        if (hotelBookings.length > 0) {
+                            await saveServiceOrder('hotel', hotelBookings, agentId, tourId);
+                        }
+                        if (guideBookings.length > 0) {
+                            await saveServiceOrder('guide', guideBookings, agentId, tourId);
+                        }
+                        if (vehicleBookings.length > 0) {
+                            await saveServiceOrder('vehicle', vehicleBookings, agentId, tourId);
+                        }
+                        if (attractionBookings.length > 0) {
+                            await saveServiceOrder('attraction', attractionBookings, agentId, tourId);
+                        }
+
+                        alert('All bookings saved successfully!');
+                        window.location.href = '{{ route('single-tour-package.index') }}';
+                    } catch (error) {
+                        alert('Error saving bookings: ' + error.message);
+                    }
+                }
+            </script>
         </form>
-
     </div>
 </div>
 @endsection
@@ -345,59 +499,311 @@
 <!-- Bootstrap 5 JS (for dropdown functionality) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // Guest Dropdown Functions - Define them globally first
+
+    
+    // Main Guest Selector - Uses the same modal pattern as attraction booking
+    window.openMainGuestSelector = function() {
+        console.log('openMainGuestSelector called');
+        
+        // Get current values from hidden inputs
+        const male = parseInt(document.getElementById('male').value) || 0;
+        const female = parseInt(document.getElementById('female').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const infants = parseInt(document.getElementById('infants').value) || 0;
+        const adults = male + female;
+        
+        console.log('Current guest values:', {adults, male, female, children, infants});
+        
+        // Create modal if it doesn't exist
+        if (!document.getElementById('mainGuestSelectorModal')) {
+            createMainGuestSelectorModal();
+        }
+        
+        // Set modal values
+        document.getElementById('mainModalMale').textContent = male;
+        document.getElementById('mainModalFemale').textContent = female;
+        document.getElementById('mainModalChildren').textContent = children;
+        document.getElementById('mainModalInfants').textContent = infants;
+        
+        // Show modal
+        const modal = document.getElementById('mainGuestSelectorModal');
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+    };
+    
+    function createMainGuestSelectorModal() {
+        const modalHTML = `
+            <div class="modal fade" id="mainGuestSelectorModal" tabindex="-1" aria-labelledby="mainGuestSelectorModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="mainGuestSelectorModalLabel">
+                                <i class="ri-group-line me-2"></i>Select Tour Guests
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-4">
+                                <!-- Adults Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Male -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-primary">
+                                                    <i class="ri-user-3-line me-1"></i>Male
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateMainGuest('male', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalMale">0</span>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateMainGuest('male', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <!-- Female -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-danger">
+                                                    <i class="ri-user-4-line me-1"></i>Female
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateMainGuest('female', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalFemale">0</span>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateMainGuest('female', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Children & Infants Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Children -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-success">
+                                                    <i class="ri-user-smile-line me-1"></i>Children
+                                                    <small class="text-muted">(Ages 1-17)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateMainGuest('children', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalChildren">0</span>
+                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateMainGuest('children', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                                <!-- Child Ages Section -->
+                                                <div id="childAgesSection" class="mt-3" style="display: none;">
+                                                    <label class="form-label fw-semibold text-success mb-2">
+                                                        <i class="ri-user-settings-line me-1"></i>Select Ages for Children
+                                                    </label>
+                                                    <div id="childAgeDropdowns" class="d-flex flex-column gap-2">
+                                                        <!-- Child age dropdowns will be added here dynamically -->
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Infants -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-warning">
+                                                    <i class="ri-user-heart-line me-1"></i>Infants
+                                                    <small class="text-muted">(Under 1 year)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateMainGuest('infants', -1)">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="mainModalInfants">0</span>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateMainGuest('infants', 1)">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applyMainGuestSelection()">
+                                <i class="ri-check-line me-1"></i>Apply Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    window.updateMainGuest = function(type, change) {
+        const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
+        const currentValue = parseInt(element.textContent) || 0;
+        let newValue = Math.max(0, currentValue + change);
+        
+        // For adults, ensure at least 1 adult is selected in total
+        if ((type === 'male' || type === 'female') && change < 0) {
+            const maleEl = document.getElementById('mainModalMale');
+            const femaleEl = document.getElementById('mainModalFemale');
+            const maleCount = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
+            const femaleCount = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
+            
+            const totalAdults = (type === 'male' ? newValue : maleCount) + (type === 'female' ? newValue : femaleCount);
+            
+            if (totalAdults < 1) {
+                return; // Don't allow reducing to 0 adults
+            }
+        }
+        
+        element.textContent = newValue;
+        
+        // Handle child age dropdowns
+        if (type === 'children') {
+            updateChildAgeDropdowns(newValue);
+        }
+    };
+    
+    // Function to create/update child age dropdowns
+    function updateChildAgeDropdowns(childCount) {
+        const childAgesSection = document.getElementById('childAgesSection');
+        const childAgeDropdowns = document.getElementById('childAgeDropdowns');
+        
+        if (!childAgesSection || !childAgeDropdowns) return;
+        
+        // Show/hide the child ages section
+        if (childCount > 0) {
+            childAgesSection.style.display = 'block';
+        } else {
+            childAgesSection.style.display = 'none';
+            childAgeDropdowns.innerHTML = '';
+            return;
+        }
+        
+        // Clear existing dropdowns
+        childAgeDropdowns.innerHTML = '';
+        
+        // Create age options (1-17 years)
+        const ageOptions = [];
+        for (let i = 1; i <= 17; i++) {
+            ageOptions.push(`<option value="${i}">${i} year${i > 1 ? 's' : ''}</option>`);
+        }
+        
+        // Create dropdowns for each child
+        for (let i = 1; i <= childCount; i++) {
+            const dropdownHTML = `
+                <div class="d-flex align-items-center mb-2">
+                    <label class="me-2 text-success fw-semibold" style="min-width: 80px;">Child ${i}:</label>
+                    <select class="form-select form-select-sm child-age-select" data-child-index="${i}">
+                        <option value="">Select age</option>
+                        ${ageOptions.join('')}
+                    </select>
+                </div>
+            `;
+            childAgeDropdowns.insertAdjacentHTML('beforeend', dropdownHTML);
+        }
+    }
+    
+    window.applyMainGuestSelection = function() {
+        console.log('applyMainGuestSelection called');
+        
+        const male = parseInt(document.getElementById('mainModalMale').textContent) || 0;
+        const female = parseInt(document.getElementById('mainModalFemale').textContent) || 0;
+        const children = parseInt(document.getElementById('mainModalChildren').textContent) || 0;
+        const infants = parseInt(document.getElementById('mainModalInfants').textContent) || 0;
+        const adults = male + female;
+        
+        // Collect child ages
+        const childAges = [];
+        const childAgeSelects = document.querySelectorAll('.child-age-select');
+        childAgeSelects.forEach(select => {
+            if (select.value) {
+                childAges.push(parseInt(select.value));
+            }
+        });
+        
+        console.log('Modal values:', {adults, male, female, children, infants, childAges});
+        
+        // Validate child ages if children are selected
+        if (children > 0 && childAges.length !== children) {
+            alert('Please select ages for all children before applying.');
+            return;
+        }
+        
+        // Update hidden inputs
+        const adultsInput = document.getElementById('adults');
+        const maleInput = document.getElementById('male');
+        const femaleInput = document.getElementById('female');
+        const childrenInput = document.getElementById('children');
+        const infantsInput = document.getElementById('infants');
+        const childAgesInput = document.getElementById('child_ages');
+        
+        if (adultsInput) adultsInput.value = adults;
+        if (maleInput) maleInput.value = male;
+        if (femaleInput) femaleInput.value = female;
+        if (childrenInput) childrenInput.value = children;
+        if (infantsInput) infantsInput.value = infants;
+        if (childAgesInput) childAgesInput.value = JSON.stringify(childAges);
+        
+        // Update summary display with child ages
+        const guestSummary = document.getElementById('mainGuestSummary');
+        console.log('Guest summary element:', guestSummary);
+        
+        if (guestSummary) {
+            let summaryText = `${adults} adults (${male} male, ${female} female), ${children} children`;
+            if (children > 0 && childAges.length > 0) {
+                summaryText += ` (ages: ${childAges.join(', ')})`;
+            }
+            summaryText += ` - ${infants} infants`;
+            guestSummary.textContent = summaryText;
+            console.log('Updated guest summary text');
+        }
+        
+        // Update badges
+        const badgeContainer = guestSummary.closest('.guest-display').querySelector('.guest-badges');
+        if (badgeContainer) {
+            const badges = badgeContainer.querySelectorAll('.badge');
+            if (badges.length >= 3) {
+                badges[0].textContent = adults; // Total adults
+                badges[1].textContent = children; // Children
+                badges[2].textContent = infants; // Infants
+            }
+        }
+        
+        // Refresh meal plans if a hotel is already selected
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (hotelSelect && hotelSelect.value) {
+            updateHotelDependentDropdowns(hotelSelect.value);
+        }
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
+        modal.hide();
+        
+        console.log('applyMainGuestSelection completed successfully');
+    };
+
     // Ensure Bootstrap is properly loaded
     document.addEventListener('DOMContentLoaded', function() {
-        // Add a direct test button for the modal
-        const testButton = document.createElement('button');
-        testButton.textContent = 'Test Modal';
-        testButton.className = 'btn btn-sm btn-warning position-fixed';
-        testButton.style.bottom = '20px';
-        testButton.style.right = '20px';
-        testButton.style.zIndex = '9999';
-        testButton.onclick = function() {
-            const modalElement = document.getElementById('mainGuestSelectorModal');
-            if (modalElement) {
-                try {
-                    // Try different methods to open the modal
-                    console.log('Trying to open modal...');
-                    
-                    // Method 1: Bootstrap 5 way
-                    try {
-                        const bsModal = new bootstrap.Modal(modalElement);
-                        bsModal.show();
-                        console.log('Modal opened with Bootstrap 5 method');
-                        return;
-                    } catch (e) {
-                        console.error('Bootstrap 5 method failed:', e);
-                    }
-                    
-                    // Method 2: Direct attribute setting
-                    modalElement.classList.add('show');
-                    modalElement.style.display = 'block';
-                    document.body.classList.add('modal-open');
-                    console.log('Modal opened with direct DOM manipulation');
-                    
-                } catch (error) {
-                    console.error('All methods to open modal failed:', error);
-                    alert('Failed to open modal. See console for details.');
-                }
-            } else {
-                console.error('Modal element not found!');
-                alert('Modal element not found!');
-            }
-        };
-        document.body.appendChild(testButton);
-        
         // Check if Bootstrap is properly loaded
         if (typeof bootstrap === 'undefined') {
             console.error('Bootstrap JS is not loaded properly!');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-danger position-fixed';
-            alertDiv.style.top = '20px';
-            alertDiv.style.right = '20px';
-            alertDiv.style.zIndex = '9999';
-            alertDiv.innerHTML = '<strong>Error:</strong> Bootstrap JS is not loaded properly!';
-            document.body.appendChild(alertDiv);
         } else {
             console.log('Bootstrap version:', bootstrap.Modal.VERSION);
         }
@@ -405,6 +811,184 @@
 </script>
 
 <script>
+// Function to save customer information
+function saveCustomerInfo() {
+    const customerData = {
+        fullName: document.getElementById('customerFullName').value,
+        email: document.getElementById('customerEmail').value,
+        phone: document.getElementById('customerPhone').value,
+        countryCode: document.getElementById('customerCountryCode').value,
+        address1: document.getElementById('customerAddress1').value,
+        address2: document.getElementById('customerAddress2').value,
+        state: document.getElementById('customerState').value,
+        zip: document.getElementById('customerZip').value,
+        specialRequests: document.getElementById('customerSpecialRequests').value
+    };
+
+    // Validate required fields
+    const requiredFields = ['fullName', 'email', 'phone', 'countryCode', 'address1'];
+    const missingFields = requiredFields.filter(field => !customerData[field]);
+
+    if (missingFields.length > 0) {
+        alert('Please fill in all required fields: ' + missingFields.join(', '));
+        return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerData.email)) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    // Store the customer data in a hidden input for form submission
+    const customerDataInput = document.getElementById('customerDataInput') || document.createElement('input');
+    customerDataInput.type = 'hidden';
+    customerDataInput.name = 'customer_data';
+    customerDataInput.id = 'customerDataInput';
+    customerDataInput.value = JSON.stringify(customerData);
+    document.querySelector('form').appendChild(customerDataInput);
+
+    // Show success message
+    alert('Customer information saved successfully!');
+}
+
+// AJAX handler function
+async function saveServiceOrder(type, data, agentId, tourId) {
+    try {
+        const response = await fetch('/api/save-service', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                agent_id: agentId,
+                tour_id: tourId,
+                type: type,
+                data: data
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to save service');
+        }
+        return result;
+    } catch (error) {
+        console.error('Error saving service:', error);
+        throw error;
+    }
+}
+
+// Booking Data Management Functions
+function addHotelBooking(hotelData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...hotelData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('hotelBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+function addGuideBooking(guideData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...guideData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('guideBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+function addVehicleBooking(vehicleData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...vehicleData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('vehicleBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+function addAttractionBooking(attractionData) {
+    const customerData = getCustomerData();
+    const bookingData = {
+        ...attractionData,
+        ...customerData,
+        bookingType: 'booking'
+    };
+
+    const bookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+    bookings.push(bookingData);
+    document.getElementById('attractionBookings').value = JSON.stringify(bookings);
+    updateBookingsSummary();
+}
+
+// Function to update bookings summary
+function updateBookingsSummary() {
+    const hotelBookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
+    const guideBookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
+    const vehicleBookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
+    const attractionBookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+
+    const summary = [];
+    if (hotelBookings.length > 0) summary.push(`${hotelBookings.length} Hotel(s)`);
+    if (guideBookings.length > 0) summary.push(`${guideBookings.length} Guide(s)`);
+    if (vehicleBookings.length > 0) summary.push(`${vehicleBookings.length} Vehicle(s)`);
+    if (attractionBookings.length > 0) summary.push(`${attractionBookings.length} Attraction(s)`);
+
+    document.getElementById('bookingsSummary').textContent = summary.length > 0 ? 
+        summary.join(', ') : 'No bookings added yet';
+}
+
+// Helper function to get customer data
+function getCustomerData() {
+    return {
+        fullName: document.getElementById('customerFullName').value,
+        email: document.getElementById('customerEmail').value,
+        phone: document.getElementById('customerPhone').value,
+        countryCode: document.getElementById('customerCountryCode').value,
+        address1: document.getElementById('customerAddress1').value,
+        address2: document.getElementById('customerAddress2').value,
+        state: document.getElementById('customerState').value,
+        zip: document.getElementById('customerZip').value,
+        specialRequests: document.getElementById('customerSpecialRequests').value
+    };
+}
+
+// Function to validate customer information
+function validateCustomerInfo() {
+    const requiredFields = ['customerFullName', 'customerEmail', 'customerPhone', 'customerCountryCode', 'customerAddress1'];
+    const missingFields = requiredFields.filter(field => !document.getElementById(field).value);
+    
+    if (missingFields.length > 0) {
+        alert('Please fill in all required customer information fields');
+        return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(document.getElementById('customerEmail').value)) {
+        alert('Please enter a valid email address');
+        return false;
+    }
+
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Global variables
     let tourStartDate = null;
@@ -426,37 +1010,37 @@ document.addEventListener('DOMContentLoaded', function() {
             citySelect.innerHTML = '<option value="">Loading cities...</option>';
             
                          // Use jQuery AJAX for country-city loading
-             setTimeout(function() {
-                 $.ajax({
-                     url: "{{ route('fetch-cities-by-country-single-tour') }}",
-                     type: "GET",
-                     data: { country: selectedCountry },
-                     dataType: 'json',
-                     success: function(response) {
-                         citySelect.innerHTML = '<option value="">Select city...</option>';
-                         
-                         if (response.cities && response.cities.length > 0) {
-                             // Set country_id for the hidden field (we'll use country name for now)
-                             document.getElementById('country_id').value = selectedCountry;
-                             
-                             response.cities.forEach(function(city) {
-                                 citySelect.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
-                             });
-                         } else {
-                             citySelect.innerHTML += '<option disabled>No cities found</option>';
-                         }
-                         
-                         citySelect.disabled = false;
-                         cityLoader.style.display = 'none';
-                     },
-                     error: function(xhr, status, error) {
-                         console.error('Error loading cities:', error);
-                         citySelect.innerHTML = '<option disabled>Error loading cities</option>';
-                         citySelect.disabled = false;
-                         cityLoader.style.display = 'none';
-                     }
-                 });
-             }, 300); // Small delay to ensure smooth UX
+            setTimeout(function() {
+                $.ajax({
+                    url: "{{ route('fetch-cities-by-country-single-tour') }}",
+                    type: "GET",
+                    data: { country: selectedCountry },
+                    dataType: 'json',
+                    success: function(response) {
+                    citySelect.innerHTML = '<option value="">Select city...</option>';
+                        
+                    if (response.cities && response.cities.length > 0) {
+                        // Set country_id for the hidden field (we'll use country name for now)
+                        document.getElementById('country_id').value = selectedCountry;
+                        
+                        response.cities.forEach(function(city) {
+                            citySelect.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
+                        });
+                    } else {
+                        citySelect.innerHTML += '<option disabled>No cities found</option>';
+                    }
+                        
+                        citySelect.disabled = false;
+                        cityLoader.style.display = 'none';
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading cities:', error);
+                        citySelect.innerHTML = '<option disabled>Error loading cities</option>';
+                        citySelect.disabled = false;
+                        cityLoader.style.display = 'none';
+                    }
+                });
+            }, 300); // Small delay to ensure smooth UX
         } else {
             citySelect.innerHTML = '<option value="">Select country first</option>';
             citySelect.disabled = true;
@@ -469,155 +1053,99 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedOption && selectedOption.dataset.id) {
             document.getElementById('city_id').value = selectedOption.dataset.id;
         }
+        
+        // Load hotels for the selected city
+        const selectedCity = this.value;
+        if (selectedCity) {
+            loadHotelsForCity(selectedCity);
+        } else {
+            // Clear hotel selection if no city is selected
+            const hotelSelect = document.getElementById('hotelSelect');
+            const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+            hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
+            hotelLoadingStatus.innerHTML = '';
+        }
     });
 
          // Wait for all dependencies to load
-     $(document).ready(function() {
-         // Date Range Picker Initialization
-         $('#travel_dates').daterangepicker({
-             opens: 'left',
-             autoUpdateInput: false,
-             minDate: moment(),
-             locale: {
-                 format: 'MMM DD, YYYY',
-                 cancelLabel: 'Clear'
-             }
-         });
-
-         $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
-             $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
-             
-             // Set hidden date fields
-             document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
-             document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
-             
-             // Update global variables
-             tourStartDate = picker.startDate;
-             tourEndDate = picker.endDate;
-             tourNights = picker.endDate.diff(picker.startDate, 'days');
-             
-             // Update the hotel section date display
-             document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
-             document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
-             
-                      // Generate night selection buttons
-         generateNightSelection();
-         // Initialize night display
-         updateNightDisplay();
-         });
-
-         $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
-             $(this).val('');
-             document.getElementById('start_date').value = '';
-             document.getElementById('end_date').value = '';
-             tourStartDate = null;
-             tourEndDate = null;
-             tourNights = 0;
-         });
-     });
-
-            // Guest Counter Functionality
-        const updateGuestCounter = (target, action) => {
-            if (target === 'adults-auto') {
-                // Handle auto adults counter (increases both male and female equally)
-                const maleCount = parseInt(document.getElementById('male-count').textContent);
-                const femaleCount = parseInt(document.getElementById('female-count').textContent);
-                const currentTotal = maleCount + femaleCount;
-                
-                if (action === 'increase' && currentTotal < 20) {
-                    // Add 1 to male or female alternately to keep balance
-                    if (maleCount <= femaleCount) {
-                        updateGuestCounter('male', 'increase');
-                    } else {
-                        updateGuestCounter('female', 'increase');
-                    }
-                } else if (action === 'decrease' && currentTotal > 1) {
-                    // Remove 1 from male or female alternately
-                    if (maleCount >= femaleCount && maleCount > 0) {
-                        updateGuestCounter('male', 'decrease');
-                    } else if (femaleCount > 0) {
-                        updateGuestCounter('female', 'decrease');
-                    }
-                }
-                return;
+    $(document).ready(function() {
+        // Date Range Picker Initialization
+        $('#travel_dates').daterangepicker({
+            opens: 'left',
+            autoUpdateInput: false,
+            minDate: moment(),
+            locale: {
+                format: 'MMM DD, YYYY',
+                cancelLabel: 'Clear'
             }
+        });
+
+        $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
+            $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
             
-            const countElement = document.getElementById(target + '-count');
-            const hiddenInput = document.getElementById(target);
-            let currentValue = parseInt(countElement.textContent);
+            // Set hidden date fields
+            document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
+            document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
             
-            if (target === 'male' || target === 'female') {
-                // Handle individual male/female counters
-                let minValue = 0;
-                let maxValue = 20;
-                
-                // Ensure at least 1 total adult
-                const maleCount = parseInt(document.getElementById('male-count').textContent);
-                const femaleCount = parseInt(document.getElementById('female-count').textContent);
-                const totalAdults = maleCount + femaleCount;
-                
-                if (action === 'decrease' && totalAdults <= 1) {
-                    // Don't allow decreasing if it would result in 0 total adults
-                    return;
-                }
-                
-                if (action === 'increase' && currentValue < maxValue) {
-                    currentValue++;
-                } else if (action === 'decrease' && currentValue > minValue) {
-                    currentValue--;
-                }
-                
-                countElement.textContent = currentValue;
-                hiddenInput.value = currentValue;
-                
-                // Update total adults count
-                updateAdultsCount();
-                
-            } else {
-                // Handle children and infants
-                let minValue = 0;
-                let maxValue = 10;
-                
-                if (action === 'increase' && currentValue < maxValue) {
-                currentValue++;
-            } else if (action === 'decrease' && currentValue > minValue) {
-                currentValue--;
-            }
+            // Update global variables
+            tourStartDate = picker.startDate;
+            tourEndDate = picker.endDate;
+            tourNights = picker.endDate.diff(picker.startDate, 'days');
             
-            countElement.textContent = currentValue;
-            hiddenInput.value = currentValue;
-            }
+            // Update the hotel section date display
+            document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
+            document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
             
-            updateGuestSummary();
-        };
+                    // Generate night selection buttons
+            generateNightSelection();
+            // Initialize night display
+            updateNightDisplay();
+        });
+
+        $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
+            $(this).val('');
+            document.getElementById('start_date').value = '';
+            document.getElementById('end_date').value = '';
+            tourStartDate = null;
+            tourEndDate = null;
+            tourNights = 0;
+        });
+    });
 
         // Update total adults count and hidden field
         const updateAdultsCount = () => {
-            const maleCount = parseInt(document.getElementById('male-count').textContent);
-            const femaleCount = parseInt(document.getElementById('female-count').textContent);
-            const totalAdults = maleCount + femaleCount;
+            const maleInput = document.getElementById('male');
+            const femaleInput = document.getElementById('female');
+            const adultsInput = document.getElementById('adults');
             
-            document.getElementById('adults-count').textContent = totalAdults;
-            document.getElementById('adults').value = totalAdults;
+            if (maleInput && femaleInput && adultsInput) {
+                const maleCount = parseInt(maleInput.value) || 0;
+                const femaleCount = parseInt(femaleInput.value) || 0;
+                const totalAdults = maleCount + femaleCount;
+                
+                adultsInput.value = totalAdults;
+            }
         };
 
         const updateGuestSummary = () => {
-            const male = parseInt(document.getElementById('male').value);
-            const female = parseInt(document.getElementById('female').value);
-            const children = parseInt(document.getElementById('children').value);
-            const infants = parseInt(document.getElementById('infants').value);
+            const male = parseInt(document.getElementById('male').value) || 0;
+            const female = parseInt(document.getElementById('female').value) || 0;
+            const children = parseInt(document.getElementById('children').value) || 0;
+            const infants = parseInt(document.getElementById('infants').value) || 0;
             
             // Calculate total adults
             const totalAdults = male + female;
-            document.getElementById('adults').value = totalAdults;
+            const adultsInput = document.getElementById('adults');
+            if (adultsInput) {
+                adultsInput.value = totalAdults;
+            }
             
             // Main summary text for button
+            const guestSummary = document.getElementById('guestSummary');
+            if (guestSummary) {
             let summaryText = `${totalAdults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-            document.getElementById('guestSummary').textContent = summaryText;
-            
-            // Detailed summary in dropdown
-            let detailSummary = `${totalAdults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-            document.getElementById('guestDetailSummary').textContent = detailSummary;
+                guestSummary.textContent = summaryText;
+            }
         };
 
     // Prevent dropdown from closing when clicking inside
@@ -628,25 +1156,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Attach guest counter events
-    document.querySelectorAll('.guest-btn-plus').forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.stopPropagation(); // Prevent dropdown from closing
-            const target = this.dataset.target;
-            updateGuestCounter(target, 'increase');
-        });
-    });
-
-    document.querySelectorAll('.guest-btn-minus').forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.stopPropagation(); // Prevent dropdown from closing
-            const target = this.dataset.target;
-            updateGuestCounter(target, 'decrease');
-        });
-    });
-
          // Generate night selection based on date range
-     function generateNightSelection() {
+    function generateNightSelection() {
          const nightSelectionDiv = document.getElementById('nightSelection');
          nightSelectionDiv.innerHTML = '';
          
@@ -674,10 +1185,10 @@ document.addEventListener('DOMContentLoaded', function() {
                  nightSelectionDiv.appendChild(nightButton);
              }
          }
-     }
+    }
 
      // Handle night selection with automatic consecutive filling
-     function handleNightSelection(selectedNight) {
+    function handleNightSelection(selectedNight) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          let manuallySelectedNights = [];
          
@@ -701,10 +1212,10 @@ document.addEventListener('DOMContentLoaded', function() {
          const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
          updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
          updateNightDisplay();
-     }
+    }
 
      // Fill gaps to make consecutive nights
-     function fillConsecutiveNights(nights) {
+    function fillConsecutiveNights(nights) {
          if (nights.length === 0) return nights;
          
          nights.sort((a, b) => a - b);
@@ -717,10 +1228,10 @@ document.addEventListener('DOMContentLoaded', function() {
          }
          
          return consecutiveNights;
-     }
+    }
 
      // Update visual selection of nights with color coding
-     function updateConsecutiveSelectionWithColors(manuallySelected, allConsecutive) {
+    function updateConsecutiveSelectionWithColors(manuallySelected, allConsecutive) {
          const allNightButtons = document.querySelectorAll('.night-btn');
          
          allNightButtons.forEach(btn => {
@@ -743,15 +1254,15 @@ document.addEventListener('DOMContentLoaded', function() {
                  }
              }
          });
-     }
+    }
 
      // Legacy function for backward compatibility
-     function updateConsecutiveSelection(selectedNights) {
+    function updateConsecutiveSelection(selectedNights) {
          updateConsecutiveSelectionWithColors(selectedNights, selectedNights);
-     }
+    }
 
      // Update night display summary
-     function updateNightDisplay() {
+    function updateNightDisplay() {
          const selectedNights = [];
          const manualNights = [];
          const autoNights = [];
@@ -812,7 +1323,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  </div>
              `;
          }
-     }
+    }
 
     // Create Tour Package Function
     window.createTourPackage = function() {
@@ -834,6 +1345,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const female = parseInt(document.getElementById('female').value) || 0;
         const children = parseInt(document.getElementById('children').value) || 0;
         const infants = parseInt(document.getElementById('infants').value) || 0;
+        const childAgesData = document.getElementById('child_ages').value;
         
         if (adults < 1) {
             alert('At least 1 adult is required for the tour package.');
@@ -843,6 +1355,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if ((male + female) !== adults) {
             alert('Total male and female count must equal total adults.');
             return;
+        }
+        
+        // Validate child ages if children are selected
+        if (children > 0) {
+            try {
+                const childAges = JSON.parse(childAgesData);
+                if (childAges.length !== children) {
+                    alert('Please select ages for all children in the guest selector.');
+                    return;
+                }
+            } catch (e) {
+                alert('Invalid child ages data. Please reselect children ages.');
+                return;
+            }
         }
         
         // Show loading state
@@ -863,6 +1389,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('female', female);
         formData.append('children', children);
         formData.append('infants', infants);
+        formData.append('child_ages', childAgesData);
         formData.append('agent_id', agent);
         
         // Send AJAX request to create tour
@@ -907,6 +1434,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Generate daily services based on tour dates
         generateDailyServices();
         
+        // Load zones for the newly created transport sections
+        const selectedCity = document.getElementById('city').value;
+        if (selectedCity) {
+            fetchZonesForAllTransportSections(selectedCity);
+        }
+        
         // Scroll to hotel section
         document.getElementById('hotelSection').scrollIntoView({ 
             behavior: 'smooth' 
@@ -920,6 +1453,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 createButton.classList.remove('btn-primary');
                 createButton.classList.add('btn-success');
                 createButton.disabled = true;
+                
+                // Disable main configuration fields after successful tour creation
+                disableMainConfigurationFields();
                 
             } else {
                 // Reset button state
@@ -941,42 +1477,435 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('Failed to create tour package. Please try again.', 'error');
         });
     };
+    
+    // Function to disable main configuration fields after tour creation
+    function disableMainConfigurationFields() {
+        console.log('Disabling main configuration fields after tour creation');
+        
+        // Disable country selection
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect) {
+            countrySelect.disabled = true;
+            countrySelect.style.backgroundColor = '#f8f9fa';
+            countrySelect.style.cursor = 'not-allowed';
+            countrySelect.style.opacity = '0.7';
+        }
+        
+        // Disable city selection
+        const citySelect = document.getElementById('city');
+        if (citySelect) {
+            citySelect.disabled = true;
+            citySelect.style.backgroundColor = '#f8f9fa';
+            citySelect.style.cursor = 'not-allowed';
+            citySelect.style.opacity = '0.7';
+        }
+        
+        // Disable travel dates
+        const travelDates = document.getElementById('travel_dates');
+        if (travelDates) {
+            travelDates.disabled = true;
+            travelDates.style.backgroundColor = '#f8f9fa';
+            travelDates.style.cursor = 'not-allowed';
+            travelDates.style.opacity = '0.7';
+        }
+        
+        // Disable agent selection
+        const agentSelect = document.getElementById('agent_id');
+        if (agentSelect) {
+            agentSelect.disabled = true;
+            agentSelect.style.backgroundColor = '#f8f9fa';
+            agentSelect.style.cursor = 'not-allowed';
+            agentSelect.style.opacity = '0.7';
+        }
+        
+        // Disable guest selector
+        const guestEditButton = document.querySelector('.guest-display .btn-outline-primary');
+        if (guestEditButton) {
+            guestEditButton.disabled = true;
+            guestEditButton.classList.remove('btn-outline-primary');
+            guestEditButton.classList.add('btn-outline-secondary');
+            guestEditButton.innerHTML = '<i class="ri-lock-line"></i>';
+            guestEditButton.style.cursor = 'not-allowed';
+            guestEditButton.style.opacity = '0.7';
+            guestEditButton.onclick = null; // Remove click handler
+        }
+        
+        // Add readonly styling to guest display
+        const guestDisplay = document.querySelector('.guest-display');
+        if (guestDisplay) {
+            guestDisplay.classList.add('disabled');
+        }
+        
+        // Add visual indicator
+        addConfigurationLockedAlert();
+        
+        console.log('Main configuration fields disabled successfully');
+    }
+    
+    // Function to add configuration locked alert
+    function addConfigurationLockedAlert() {
+        const mainFormCard = document.querySelector('.card-body');
+        if (mainFormCard) {
+            // Create lock indicator
+            const lockAlert = document.createElement('div');
+            lockAlert.className = 'alert alert-warning alert-dismissible fade show mt-3';
+            lockAlert.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-lock-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Configuration Locked!</strong>
+                        <br>
+                        <small>The core tour configuration (Country, City, Dates, Guests, Agent) is now locked to maintain data integrity. You can still modify hotels, attractions, guides, and other services.</small>
+                    </div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Insert after the form row
+            const formRow = mainFormCard.querySelector('.row');
+            if (formRow) {
+                formRow.parentNode.insertBefore(lockAlert, formRow.nextSibling);
+            }
+        }
+    }
 
+    // Store hotel data globally for reference
+    let hotelData = [];
+    
     // Load hotels for city
     function loadHotelsForCity(cityName) {
         const hotelSelect = document.getElementById('hotelSelect');
-        hotelSelect.innerHTML = '<option value="">Search hotels in ' + cityName + '</option>';
+        const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
         
-        // For now, show placeholder options until hotel API is implemented
-        const placeholderHotels = [
-            { id: 1, name: 'Hotel Example 1 - ' + cityName },
-            { id: 2, name: 'Hotel Example 2 - ' + cityName },
-            { id: 3, name: 'Hotel Example 3 - ' + cityName }
-        ];
+        // Show loading state
+        hotelSelect.innerHTML = '<option value="">Loading hotels in ' + cityName + '...</option>';
+        hotelSelect.disabled = true;
+        hotelLoadingStatus.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Loading comprehensive hotel data...';
+        hotelLoadingStatus.style.color = '#0d6efd';
         
-        placeholderHotels.forEach(hotel => {
-                    hotelSelect.innerHTML += `<option value="${hotel.id}">${hotel.name}</option>`;
-                });
+        // Clear dependent dropdowns
+        roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+        bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+        mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
         
-        // TODO: Implement actual hotel API endpoint
-        // fetch(`/api/hotels-by-city?city=${encodeURIComponent(cityName)}`)
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         hotelSelect.innerHTML = '<option value="">Search hotels</option>';
-        //         if (data.hotels && data.hotels.length > 0) {
-        //             data.hotels.forEach(hotel => {
-        //                 hotelSelect.innerHTML += `<option value="${hotel.id}">${hotel.name}</option>`;
-        //             });
-        //         }
-        //     })
-        //     .catch(error => {
-        //         console.error('Error loading hotels:', error);
-        //         hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
-        //     });
+        // Fetch hotels from API using DMC-specific endpoint
+        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Hotel API Response:', response);
+                
+                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                hotelSelect.disabled = false;
+                
+                // Handle response format
+                if (response.success && response.hotels && response.hotels.length > 0) {
+                    // Store hotel data globally
+                    hotelData = response.hotels;
+                    
+                    response.hotels.forEach(hotel => {
+                        const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating}⭐)` : '';
+                        hotelSelect.innerHTML += `<option value="${hotel.hotel_unique_id}">${hotel.name}${starInfo}</option>`;
+                    });
+                    
+                    hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${response.hotels.length} hotels found in ${cityName}`;
+                    hotelLoadingStatus.style.color = '#198754';
+                    console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
+                    
+                    // Add change event listener to hotel select
+                    hotelSelect.onchange = function() {
+                        updateHotelDependentDropdowns(this.value);
+                    };
+                } 
+                else {
+                    hotelData = [];
+                    hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
+                    hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
+                    hotelLoadingStatus.style.color = '#fd7e14';
+                    console.log(`No hotels found for ${cityName}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading hotels:', error);
+                hotelData = [];
+                hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
+                hotelSelect.disabled = true;
+                hotelLoadingStatus.innerHTML = '<i class="ri-error-warning-line me-1 text-danger"></i>Error loading hotels';
+                hotelLoadingStatus.style.color = '#dc3545';
+            });
+    }
+    
+    // Update hotel dependent dropdowns by fetching rooms
+    function updateHotelDependentDropdowns(hotelId) {
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+        
+        if (!hotelId) {
+            // Clear dropdowns if no hotel selected
+            if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+            if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+            if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+            return;
+        }
+        
+        // Find selected hotel
+        const selectedHotel = hotelData.find(h => h.hotel_unique_id == hotelId);
+        if (!selectedHotel) {
+            console.error('Selected hotel not found in hotel data');
+            return;
+        }
+        
+        console.log('Selected hotel data:', selectedHotel);
+        
+        // Show loading state
+        if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        
+        // Fetch rooms for the selected hotel
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Rooms API Response:', response);
+                
+                // Clear dropdowns
+                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+                
+                if (response.success && response.rooms && response.rooms.length > 0) {
+                    // Extract unique values from rooms
+                    const roomTypes = [...new Set(response.rooms.map(room => room.room_type).filter(Boolean))];
+                    
+                    // Create meal plan options based on room types and meal availability
+                    const mealPlans = new Set();
+                    
+                    // Get current guest count
+                    const adults = parseInt(document.getElementById('adults').value) || 0;
+                    const children = parseInt(document.getElementById('children').value) || 0;
+                    const infants = parseInt(document.getElementById('infants').value) || 0;
+                    const totalGuests = adults + children; // Infants usually don't count for meals
+                    
+                    // Group rooms by room type (star rating)
+                    const roomsByType = {};
+                    response.rooms.forEach(room => {
+                        if (!roomsByType[room.room_type]) {
+                            roomsByType[room.room_type] = [];
+                        }
+                        roomsByType[room.room_type].push(room);
+                    });
+                    
+                    // Filter rooms based on guest count if needed (example: 3 guests = show only 1* rooms)
+                    let availableRoomTypes = Object.keys(roomsByType);
+                    if (totalGuests >= 3) {
+                        // For 3+ guests, filter to show only rooms that can accommodate them
+                        availableRoomTypes = availableRoomTypes.filter(roomType => {
+                            const rooms = roomsByType[roomType];
+                            return rooms.some(room => {
+                                // Check if room can accommodate the guests (you may need to adjust this logic)
+                                const maxCapacity = room.max_occupancy || room.adult_count || 4; // fallback to 4
+                                return maxCapacity >= totalGuests;
+                            });
+                        });
+                        
+                        // If guest count is exactly 3 and 1* rooms exist, prioritize them
+                        if (totalGuests === 3 && availableRoomTypes.some(type => type.includes('1'))) {
+                            availableRoomTypes = availableRoomTypes.filter(type => type.includes('1'));
+                        }
+                    }
+                    
+                    // Check what meals are available across all room types
+                    const hasBreakfast = response.rooms.some(room => room.breakfast);
+                    const hasLunch = response.rooms.some(room => room.lunch);
+                    const hasDinner = response.rooms.some(room => room.dinner);
+                    
+                    // Generate room quantity options based on guest count
+                    // For 3 guests: show 1, 2, 3 rooms options
+                    const maxRooms = Math.min(totalGuests, 3); // Max 3 rooms shown, or guest count if less
+                    const minRooms = 1;
+                    
+                    for (let roomCount = minRooms; roomCount <= maxRooms; roomCount++) {
+                        const roomText = roomCount === 1 ? `${roomCount} room` : `${roomCount} rooms`;
+                        
+                        // Add "Room Only" option first
+                        mealPlans.add(`${roomText} only`);
+                        
+                        // Add specific meal options
+                        if (hasBreakfast) {
+                            mealPlans.add(`${roomText} with breakfast`);
+                        }
+                        if (hasLunch) {
+                            mealPlans.add(`${roomText} with lunch`);
+                        }
+                        if (hasDinner) {
+                            mealPlans.add(`${roomText} with dinner`);
+                        }
+                        
+                        // Add combination meal options
+                        if (hasBreakfast && hasLunch) {
+                            mealPlans.add(`${roomText} with breakfast + lunch`);
+                        }
+                        if (hasBreakfast && hasDinner) {
+                            mealPlans.add(`${roomText} with breakfast + dinner`);
+                        }
+                        if (hasLunch && hasDinner) {
+                            mealPlans.add(`${roomText} with lunch + dinner`);
+                        }
+                        if (hasBreakfast && hasLunch && hasDinner) {
+                            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
+                        }
+                        
+                        // Add abbreviated versions for common combinations
+                        if (hasBreakfast) {
+                            mealPlans.add(`${roomText} with bf`);
+                        }
+                    }
+                    
+                    // Populate room types
+                    roomTypes.forEach(roomType => {
+                        if (roomTypeSelect) {
+                            roomTypeSelect.innerHTML += `<option value="${roomType}">${roomType}</option>`;
+                        }
+                    });
+                    
+                    // Add event listener for room type selection
+                    if (roomTypeSelect) {
+                        roomTypeSelect.onchange = function() {
+                            updateBedTypesForRoom(this.value);
+                        };
+                    }
+                    
+                    // Store room data globally for bed fetching
+                    window.roomData = response.rooms;
+                    
+                    // For bed types, we'll populate them when a room type is selected
+                    if (bedTypeSelect) {
+                        bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+                    }
+                    
+                    // Populate meal plans
+                    [...mealPlans].forEach(mealPlan => {
+                        if (mealPlanSelect) {
+                            mealPlanSelect.innerHTML += `<option value="${mealPlan}">${mealPlan}</option>`;
+                        }
+                    });
+                    
+                    console.log(`Loaded ${response.rooms.length} rooms for hotel ${hotelId}`);
+                } else {
+                    console.log('No rooms found for hotel:', hotelId);
+                    if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                    if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                    if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">No rooms available</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Error loading rooms</option>';
+            });
+        
+        // Display hotel information
+        displayHotelInfo(selectedHotel);
+    }
+    
+    // Display hotel information
+    function displayHotelInfo(hotel) {
+        const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+        
+        if (hotelLoadingStatus) {
+            let infoHTML = `<div class="mt-2 p-2 bg-light rounded">
+                <strong>${hotel.name}</strong> - ${hotel.category || 'Standard'} Category<br>
+                <small class="text-muted">
+                    📍 ${hotel.address || hotel.city}<br>
+                    🏨 ${hotel.total_rooms || 0} rooms available<br>
+                    💰 From $${hotel.base_price || 0} per night<br>
+                    ⭐ ${hotel.hotel_star_rating || 3} star rating
+                </small>
+            </div>`;
+            
+            hotelLoadingStatus.innerHTML = infoHTML;
+        }
+    }
+    
+    // Update bed types for selected room type
+    function updateBedTypesForRoom(roomType) {
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        
+        if (!roomType || !window.roomData) {
+            if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+            return;
+        }
+        
+        // Find rooms of the selected type
+        const selectedRooms = window.roomData.filter(room => room.room_type === roomType);
+        
+        if (selectedRooms.length === 0) {
+            if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No rooms of this type</option>';
+            return;
+        }
+        
+        // Show loading state
+        if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Loading beds...</option>';
+        
+        // Get the first room of this type to fetch beds
+        const roomId = selectedRooms[0].room_id;
+        
+        // Fetch beds for the selected room
+        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${encodeURIComponent(roomId)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Beds API Response:', response);
+                
+                // Clear dropdown
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                
+                if (response.success && response.beds && response.beds.length > 0) {
+                    // Populate bed types
+                    response.beds.forEach(bed => {
+                        if (bedTypeSelect) {
+                            const roomInfo = bed.no_of_rooms > 1 ? ` (${bed.no_of_rooms} rooms)` : '';
+                            const occupancyInfo = bed.max_occupancy ? ` - Max ${bed.max_occupancy} guests` : '';
+                            const adultChild = bed.adult_count && bed.child_count ? ` (${bed.adult_count}A+${bed.child_count}C)` : '';
+                            const extraBed = bed.extra_bed ? ' + Extra Bed Available' : '';
+                            const babyCot = bed.baby_cot ? ' + Baby Cot Available' : '';
+                            
+                            bedTypeSelect.innerHTML += `<option value="${bed.bed_id}">${bed.room_type}${roomInfo}${occupancyInfo}${adultChild}${extraBed}${babyCot}</option>`;
+                        }
+                    });
+                    
+                    console.log(`Loaded ${response.beds.length} beds for room type ${roomType}`);
+                } else {
+                    console.log('No beds found for room type:', roomType);
+                    if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No beds available</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading beds:', error);
+                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Error loading beds</option>';
+            });
     }
 
          // Add Hotel Function
-     window.addHotel = function() {
+    window.addHotel = function() {
          const hotelSelect = document.getElementById('hotelSelect');
          const roomType = document.getElementById('roomTypeSelect').value;
          const bedType = document.getElementById('bedTypeSelect').value;
@@ -984,13 +1913,13 @@ document.addEventListener('DOMContentLoaded', function() {
          const numberOfRooms = document.getElementById('numberOfRooms').value;
          
          if (!hotelSelect.value) {
-             alert('Please select a hotel first.');
+             showNotification('Please select a hotel first.', 'warning');
              return;
          }
          
          const selectedNights = document.querySelectorAll('.night-btn.active');
          if (selectedNights.length === 0) {
-             alert('Please select at least one night for this hotel.');
+             showNotification('Please select at least one night for this hotel.', 'warning');
              return;
          }
          
@@ -1019,12 +1948,21 @@ document.addEventListener('DOMContentLoaded', function() {
          selectedHotels.push(hotelData);
          displaySelectedHotels();
          
+         // Show success notification
+         showNotification(`Hotel "${hotelData.name}" added successfully for ${hotelData.totalNights} nights!`, 'success');
+         
          // Reset form
          hotelSelect.value = '';
          document.getElementById('roomTypeSelect').value = '';
          document.getElementById('bedTypeSelect').value = '';
          document.getElementById('mealPlanSelect').value = '';
          document.getElementById('numberOfRooms').value = '1';
+         
+         // Clear hotel loading status
+         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+         if (hotelLoadingStatus) {
+             hotelLoadingStatus.innerHTML = '';
+         }
          
          // Clear night selection
          updateConsecutiveSelection([]);
@@ -1039,12 +1977,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (document.getElementById('transportSection').style.display !== 'block') {
                 document.getElementById('transportSection').style.display = 'block';
                 generateDailyServices();
+                
+                // Load zones for transport sections if city is selected
+                const selectedCity = document.getElementById('city').value;
+                if (selectedCity) {
+                    fetchZonesForAllTransportSections(selectedCity);
+                }
             }
         }
-     };
+
+        
+    };
 
          // Display selected hotels
-     function displaySelectedHotels() {
+    function displaySelectedHotels() {
          const container = document.getElementById('selectedHotels');
          
          if (selectedHotels.length === 0) {
@@ -1105,10 +2051,10 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('totalHotels').textContent = selectedHotels.length;
          const totalNights = selectedHotels.reduce((sum, hotel) => sum + hotel.totalNights, 0);
          document.getElementById('totalNights').textContent = totalNights + ' Nights';
-     }
+    }
 
          // Generate daily services based on tour dates
-     function generateDailyServices() {
+    function generateDailyServices() {
          const container = document.getElementById('dailyServicesContainer');
          
          // Ensure we have valid tour dates
@@ -1151,7 +2097,7 @@ document.addEventListener('DOMContentLoaded', function() {
                      <div class="day-content p-4 bg-light">
              `;
              
-                           // Entry Port Services (Only on Day 1)
+            // Entry Port Services (Only on Day 1)
               if (day === 1) {
                                    servicesHTML += `
                       <div class="service-card mb-4">
@@ -1162,7 +2108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPortService(${day})">
+                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPortService(${day}, 'entry')">
                                   <i class="ri-add-line me-1"></i>Add Port Service
                               </button>
                           </div>
@@ -1184,54 +2130,123 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                               <div class="card-body bg-white">
                                  
-                                 <div class="row g-3">
+                                 <div class="row g-4 align-items-end">
                                      <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pick Up Location</label>
-                                         <input type="text" class="form-control" placeholder="Suntec City" name="day${day}_pickup_location">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_entry_pickup_zone_id" style="padding-left: 45px;">
+                                                     <option value="">Select pickup zone</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
                                      <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Drop Off Location</label>
-                                         <input type="text" class="form-control" placeholder="Serangoon MRT Station (CC13)" name="day${day}_dropoff_location">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_entry_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                     <option value="">Select pickup zone first</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'entry')">
+                                                     <i class="ri-close-line text-muted"></i>
+                                                 </button>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pick Up Time</label>
-                                         <select class="form-select" name="day${day}_pickup_time">
-                                             <option value="12:00 AM">12:00 AM</option>
-                                             <option value="01:00 AM">01:00 AM</option>
-                                             <option value="02:00 AM">02:00 AM</option>
-                                             <option value="03:00 AM">03:00 AM</option>
-                                             <option value="04:00 AM">04:00 AM</option>
-                                             <option value="05:00 AM">05:00 AM</option>
-                                             <option value="06:00 AM">06:00 AM</option>
-                                             <option value="07:00 AM">07:00 AM</option>
-                                             <option value="08:00 AM">08:00 AM</option>
-                                             <option value="09:00 AM">09:00 AM</option>
-                                             <option value="10:00 AM">10:00 AM</option>
-                                             <option value="11:00 AM">11:00 AM</option>
-                                             <option value="12:00 PM" selected>12:00 PM</option>
-                                             <option value="01:00 PM">01:00 PM</option>
-                                             <option value="02:00 PM">02:00 PM</option>
-                                             <option value="03:00 PM">03:00 PM</option>
-                                             <option value="04:00 PM">04:00 PM</option>
-                                             <option value="05:00 PM">05:00 PM</option>
-                                             <option value="06:00 PM">06:00 PM</option>
-                                             <option value="07:00 PM">07:00 PM</option>
-                                             <option value="08:00 PM">08:00 PM</option>
-                                             <option value="09:00 PM">09:00 PM</option>
-                                             <option value="10:00 PM">10:00 PM</option>
-                                             <option value="11:00 PM">11:00 PM</option>
-                                         </select>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select border-2" name="day${day}_entry_pickup_time" style="padding-left: 45px;">
+                                                     <option value="">Select The Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pick Up Date</label>
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_pickup_date">
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                             </label>
+                                             <div class="position-relative">
+                                                 <input type="date" class="form-control border-2" name="day${day}_entry_pickup_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'entry')" id="day${day}_entry_search_btn" disabled>
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                         </button>
                                      </div>
                                  </div>
                                  
-                                 <div class="mt-3 text-center">
-                                     <button type="button" class="btn btn-primary">
-                                         <i class="ri-search-line me-1"></i>Search
-                                     </button>
+                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                 <div class="row mt-4" id="day${day}_entry_vehicle_results" style="display: none;">
+                                     <div class="col-12">
+                                         <div class="alert alert-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-car-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Available Vehicles</strong>
+                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select vehicle-select" name="day${day}_entry_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry')">
+                                             <option value="">Choose vehicle</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Service Type</label>
+                                         <select class="form-select service-type-select" name="day${day}_entry_service_type" onchange="updatePricing(${day}, 'entry')">
+                                             <option value="">Select service type</option>
+                                             <option value="Shared">Shared</option>
+                                             <option value="Private">Private</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-12 mt-3">
+                                                                                  <button type="button" class="btn btn-success w-100 py-2" onclick="addPortService(${day}, 'entry')">
+                                            <i class="ri-add-line me-2"></i>Add to Package
+                                         </button>
+                                     </div>
                                  </div>
                              </div>
                          </div>
@@ -1250,7 +2265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addPortService(${day})">
+                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addPortService(${day}, 'exit')">
                                   <i class="ri-add-line me-1"></i>Add Port Service
                               </button>
                           </div>
@@ -1272,58 +2287,123 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                               <div class="card-body bg-white">
                                  
-                                 <div class="row g-3">
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Pick Up Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your pick up?" name="day${day}_exit_pickup_location">
+                                 <div class="row g-4 align-items-end">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" style="padding-left: 45px;">
+                                                     <option value="">Select pickup zone</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Drop Off Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your drop off?" name="day${day}_exit_dropoff_location">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                     <option value="">Select pickup zone first</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'exit')">
+                                                     <i class="ri-close-line text-muted"></i>
+                                                 </button>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Exit Time</label>
-                                         <select class="form-select" name="day${day}_exit_time">
-                                             <option value="">Select The Time</option>
-                                             <option value="12:00 AM">12:00 AM</option>
-                                             <option value="01:00 AM">01:00 AM</option>
-                                             <option value="02:00 AM">02:00 AM</option>
-                                             <option value="03:00 AM">03:00 AM</option>
-                                             <option value="04:00 AM">04:00 AM</option>
-                                             <option value="05:00 AM">05:00 AM</option>
-                                             <option value="06:00 AM">06:00 AM</option>
-                                             <option value="07:00 AM">07:00 AM</option>
-                                             <option value="08:00 AM">08:00 AM</option>
-                                             <option value="09:00 AM">09:00 AM</option>
-                                             <option value="10:00 AM">10:00 AM</option>
-                                             <option value="11:00 AM">11:00 AM</option>
-                                             <option value="12:00 PM">12:00 PM</option>
-                                             <option value="01:00 PM">01:00 PM</option>
-                                             <option value="02:00 PM">02:00 PM</option>
-                                             <option value="03:00 PM">03:00 PM</option>
-                                             <option value="04:00 PM">04:00 PM</option>
-                                             <option value="05:00 PM">05:00 PM</option>
-                                             <option value="06:00 PM">06:00 PM</option>
-                                             <option value="07:00 PM">07:00 PM</option>
-                                             <option value="08:00 PM">08:00 PM</option>
-                                             <option value="09:00 PM">09:00 PM</option>
-                                             <option value="10:00 PM">10:00 PM</option>
-                                             <option value="11:00 PM">11:00 PM</option>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-time-line text-warning me-2"></i>Exit Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select border-2" name="day${day}_exit_time" style="padding-left: 45px;">
+                                                     <option value="">Select The Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-calendar-line text-primary me-2"></i>Exit Date
+                                             </label>
+                                             <div class="position-relative">
+                                                 <input type="date" class="form-control border-2" name="day${day}_exit_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'exit')" id="day${day}_exit_search_btn" disabled>
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                         </button>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
+                                     <div class="col-12">
+                                         <div class="alert alert-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-car-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Available Vehicles</strong>
+                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select vehicle-select" name="day${day}_exit_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit')">
+                                             <option value="">Choose vehicle</option>
                                          </select>
                                      </div>
-                                 </div>
-                                 
-                                 <div class="row mt-3">
-                                     <div class="col-md-12">
-                                         <label class="form-label fw-semibold">Exit Date</label>
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_exit_date">
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Service Type</label>
+                                         <select class="form-select service-type-select" name="day${day}_exit_service_type" onchange="updatePricing(${day}, 'exit')">
+                                             <option value="">Select service type</option>
+                                             <option value="Shared">Shared</option>
+                                             <option value="Private">Private</option>
+                                         </select>
                                      </div>
-                                 </div>
-                                 
-                                 <div class="mt-3 text-center">
-                                     <button type="button" class="btn btn-primary">
-                                         <i class="ri-search-line me-1"></i>Search
-                                     </button>
+                                     <div class="col-12 mt-3">
+                                         <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'exit_port')">
+                                             <i class="ri-save-line me-2"></i>Save and Add More
+                                         </button>
+                                     </div>
                                  </div>
                              </div>
                          </div>
@@ -1411,8 +2491,8 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="addMoreAttractions(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Another Attraction
+                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="addAttractionService(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Attraction
                                           </button>
                              </div>
                          </div>
@@ -1504,8 +2584,8 @@ document.addEventListener('DOMContentLoaded', function() {
                           </div>
                           
                           <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="addMoreGuides(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Another Guide
+                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="addGuideService(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Guide
                                           </button>
                              </div>
                          </div>
@@ -1597,9 +2677,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                                  
                                  <div class="mt-3 text-center">
-                              <button type="button" class="btn btn-sm btn-outline-success" onclick="addMoreRestaurants(${day})">
-                                  <i class="ri-add-line me-1"></i>Add Another Restaurant
-                                     </button>
+                              <button type="button" class="btn btn-sm btn-outline-success" onclick="addRestaurantService(${day})">
+                                              <i class="ri-add-line me-1"></i>Add Restaurant
+                                          </button>
                              </div>
                          </div>
                      </div>
@@ -1611,68 +2691,141 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <i class="ri-car-line me-2"></i>Book Transport Services
                                  <small class="text-muted ms-2">Select professional transport and configure your tour package</small>
                              </h6>
-                             <button type="button" class="btn btn-sm btn-warning" onclick="addTransport(${day})">
-                                 <i class="ri-add-line me-1"></i>Search Transport
+                             <button type="button" class="btn btn-sm btn-warning" onclick="addTransportService(${day})">
+                                 <i class="ri-add-line me-1"></i>Add Transport
                              </button>
                          </div>
                          
-                         <div class="card border-warning">
-                             <div class="card-body">
-                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                     <div class="d-flex gap-2">
-                                         <span class="badge bg-danger">Point To Point</span>
-                                         <span class="badge bg-primary">Hourly</span>
-                                     </div>
-                                     <div class="d-flex gap-2">
+                         
+                        <div class="card border-warning">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-danger">Point To Point</span>
+                                        <span class="badge bg-primary">Hourly</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
                                          <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_transport_date">
                                      </div>
                                  </div>
                                  
-                                 <div class="row g-3">
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Pick Up Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your pick up?" name="day${day}_transport_pickup">
+                                 <div class="row g-4 align-items-end">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;">
+                                                     <option value="">Select pickup zone</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Drop Off Location</label>
-                                         <input type="text" class="form-control" placeholder="Where is your drop off?" name="day${day}_transport_dropoff">
+                                     <div class="col-md-3">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                     <option value="">Select pickup zone first</option>
+                                                 </select>
+                                                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'transport')">
+                                                     <i class="ri-close-line text-muted"></i>
+                                                 </button>
+                                             </div>
+                                         </div>
                                      </div>
-                                     <div class="col-md-4">
-                                         <label class="form-label fw-semibold">Select the Pick up Time</label>
-                                         <select class="form-select" name="day${day}_transport_pickup_time">
-                                             <option value="">Select The Time</option>
-                                             <option value="12:00 AM">12:00 AM</option>
-                                             <option value="01:00 AM">01:00 AM</option>
-                                             <option value="02:00 AM">02:00 AM</option>
-                                             <option value="03:00 AM">03:00 AM</option>
-                                             <option value="04:00 AM">04:00 AM</option>
-                                             <option value="05:00 AM">05:00 AM</option>
-                                             <option value="06:00 AM">06:00 AM</option>
-                                             <option value="07:00 AM">07:00 AM</option>
-                                             <option value="08:00 AM">08:00 AM</option>
-                                             <option value="09:00 AM">09:00 AM</option>
-                                             <option value="10:00 AM">10:00 AM</option>
-                                             <option value="11:00 AM">11:00 AM</option>
-                                             <option value="12:00 PM">12:00 PM</option>
-                                             <option value="01:00 PM">01:00 PM</option>
-                                             <option value="02:00 PM">02:00 PM</option>
-                                             <option value="03:00 PM">03:00 PM</option>
-                                             <option value="04:00 PM">04:00 PM</option>
-                                             <option value="05:00 PM">05:00 PM</option>
-                                             <option value="06:00 PM">06:00 PM</option>
-                                             <option value="07:00 PM">07:00 PM</option>
-                                             <option value="08:00 PM">08:00 PM</option>
-                                             <option value="09:00 PM">09:00 PM</option>
-                                             <option value="10:00 PM">10:00 PM</option>
-                                             <option value="11:00 PM">11:00 PM</option>
-                                         </select>
+                                     <div class="col-md-2">
+                                         <div class="form-group">
+                                             <label class="form-label fw-semibold text-muted mb-2">
+                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                             </label>
+                                             <div class="position-relative">
+                                                 <select class="form-select border-2" name="day${day}_transport_pickup_time" style="padding-left: 45px;">
+                                                     <option value="">Select The Time</option>
+                                                     <option value="12:00 AM">12:00 AM</option>
+                                                     <option value="01:00 AM">01:00 AM</option>
+                                                     <option value="02:00 AM">02:00 AM</option>
+                                                     <option value="03:00 AM">03:00 AM</option>
+                                                     <option value="04:00 AM">04:00 AM</option>
+                                                     <option value="05:00 AM">05:00 AM</option>
+                                                     <option value="06:00 AM">06:00 AM</option>
+                                                     <option value="07:00 AM">07:00 AM</option>
+                                                     <option value="08:00 AM">08:00 AM</option>
+                                                     <option value="09:00 AM">09:00 AM</option>
+                                                     <option value="10:00 AM">10:00 AM</option>
+                                                     <option value="11:00 AM">11:00 AM</option>
+                                                     <option value="12:00 PM">12:00 PM</option>
+                                                     <option value="01:00 PM">01:00 PM</option>
+                                                     <option value="02:00 PM">02:00 PM</option>
+                                                     <option value="03:00 PM">03:00 PM</option>
+                                                     <option value="04:00 PM">04:00 PM</option>
+                                                     <option value="05:00 PM">05:00 PM</option>
+                                                     <option value="06:00 PM">06:00 PM</option>
+                                                     <option value="07:00 PM">07:00 PM</option>
+                                                     <option value="08:00 PM">08:00 PM</option>
+                                                     <option value="09:00 PM">09:00 PM</option>
+                                                     <option value="10:00 PM">10:00 PM</option>
+                                                     <option value="11:00 PM">11:00 PM</option>
+                                                 </select>
+                                                 <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-calendar-line text-primary me-2"></i>Transport Date
+                                            </label>
+                                            <div class="position-relative">
+                                                <input type="date" class="form-control border-2" name="day${day}_transport_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
+                                                <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            </div>
+                                        </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport')" id="day${day}_transport_search_btn" disabled>
+                                             <i class="ri-search-line me-2"></i>Search Vehicles
+                                         </button>
                                      </div>
                                  </div>
                                  
-                                 <div class="mt-3 text-center">
-                                     <button type="button" class="btn btn-warning">
-                                         <i class="ri-search-line me-1"></i>Search
-                                     </button>
+                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                 <div class="row mt-4" id="day${day}_transport_vehicle_results" style="display: none;">
+                                     <div class="col-12">
+                                         <div class="alert alert-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-car-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Available Vehicles</strong>
+                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-6">
+                                         <label class="form-label fw-semibold">Vehicle</label>
+                                         <select class="form-select vehicle-select" name="day${day}_transport_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport')">
+                                             <option value="">Choose vehicle</option>
+                                         </select>
+                                     </div>
+                                    <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Service Type</label>
+                                    <select class="form-select" name="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
+                                        <option value="">Select service type</option>
+                                        <option value="Shared">Shared</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        <button type="button" class="btn btn-success w-100 py-2" onclick="addTransportToPackage(${day})">
+                                            <i class="ri-add-line me-2"></i>Add to Package
+                                        </button>
+                                    </div>
                                  </div>
                              </div>
                          </div>
@@ -1805,9 +2958,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading tickets:', error);
                 ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
             });
-     }
+    }
      
-     function initializeServiceGuestSummaries() {
+    function initializeServiceGuestSummaries() {
          // Get current guest values from main form
          const male = parseInt(document.getElementById('male').value) || 0;
          const female = parseInt(document.getElementById('female').value) || 0;
@@ -1835,10 +2988,10 @@ document.addEventListener('DOMContentLoaded', function() {
                  badges[2].textContent = infants; // Infants
              }
          });
-     }
+    }
 
      // Remove hotel function
-     window.removeHotel = function(index) {
+    window.removeHotel = function(index) {
          selectedHotels.splice(index, 1);
          displaySelectedHotels();
          
@@ -1847,22 +3000,22 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('transportSection').style.display = 'none';
             document.getElementById('submitSection').style.display = 'none';
         }
-     };
+    };
 
          // Service management functions with improved UI feedback
-     window.addPortService = function(day) {
+    window.addPortService = function(day) {
          showNotification(`Port service added for Day ${day}`, 'success');
          console.log('Add port service for day', day);
          // Future implementation: Add dynamic form for port services
-     };
+    };
      
-     window.addAttractionService = function(day) {
+    window.addAttractionService = function(day) {
          showNotification(`Attraction service added for Day ${day}`, 'success');
          console.log('Add attraction service for day', day);
          // Future implementation: Add dynamic form for attractions
-     };
+    };
      
-     window.addMoreAttractions = function(day) {
+    window.addMoreAttractions = function(day) {
         const container = document.getElementById(`day${day}_attractions_container`);
         const existingAttractions = container.querySelectorAll('.attraction-item');
         const newIndex = existingAttractions.length + 1;
@@ -2542,217 +3695,62 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
          // Quantity update function for Set Menu
-     window.updateQuantity = function(change) {
-         const currentData = window.currentDishData;
-         if (!currentData) return;
-         
-         currentData.quantity = Math.max(0, currentData.quantity + change);
-         
-         const quantityDisplay = document.getElementById('quantityDisplay');
-         const priceDisplay = document.getElementById('priceDisplay');
-         const totalPriceDisplay = document.getElementById('totalPriceDisplay');
-         const quantityInfo = document.getElementById('quantityInfo');
-         const confirmBtn = document.getElementById('confirmBtn');
-         
-         const totalPrice = currentData.unitPrice * currentData.quantity;
-         
-         if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
-         if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
-         if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
-         if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
-         
-         // Enable/disable confirm button based on quantity
-         if (confirmBtn) {
-             confirmBtn.disabled = currentData.quantity === 0;
-             // Update onclick with current total price
-             confirmBtn.setAttribute('onclick', `confirmDishSelection(${currentData.meal.meal_id}, '${currentData.meal.display_name}', ${currentData.day}, ${currentData.index}, ${totalPrice.toFixed(2)})`);
-         }
-     };
+    window.updateQuantity = function(change) {
+        const currentData = window.currentDishData;
+        if (!currentData) return;
+        
+        currentData.quantity = Math.max(0, currentData.quantity + change);
+        
+        const quantityDisplay = document.getElementById('quantityDisplay');
+        const priceDisplay = document.getElementById('priceDisplay');
+        const totalPriceDisplay = document.getElementById('totalPriceDisplay');
+        const quantityInfo = document.getElementById('quantityInfo');
+        const confirmBtn = document.getElementById('confirmBtn');
+        
+        const totalPrice = currentData.unitPrice * currentData.quantity;
+        
+        if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
+        if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
+        if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+        if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
+        
+        // Enable/disable confirm button based on quantity
+        if (confirmBtn) {
+            confirmBtn.disabled = currentData.quantity === 0;
+            // Update onclick with current total price
+            confirmBtn.setAttribute('onclick', `confirmDishSelection(${currentData.meal.meal_id}, '${currentData.meal.display_name}', ${currentData.day}, ${currentData.index}, ${totalPrice.toFixed(2)})`);
+        }
+    };
     
          // Confirm selection function
-     window.confirmDishSelection = function(mealId, dishName, day, index, totalPrice) {
-         console.log('Dish confirmed:', dishName, 'Price:', totalPrice);
-         
-         // Mark the selected dish button as selected and show price
-         const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
-         if (dishContainer) {
-             dishContainer.querySelectorAll('.dish-option-btn').forEach(btn => {
-                 btn.classList.remove('selected');
-                 if (btn.dataset.mealId == mealId) {
-                     btn.classList.add('selected');
-                     // Update button text to show price
-                     const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
-                     btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
-                 }
-             });
-         }
-         
-         // Close modal
-         const modal = bootstrap.Modal.getInstance(document.getElementById('tempDishModal'));
-         if (modal) modal.hide();
-         
-         // Remove temp modal
-         const tempModal = document.getElementById('tempDishModal');
-         if (tempModal) tempModal.remove();
-     };
-    
-    // Main guest selection modal functions
-    window.openMainGuestSelector = function() {
-        console.log('Opening main guest selector modal');
+    window.confirmDishSelection = function(mealId, dishName, day, index, totalPrice) {
+        console.log('Dish confirmed:', dishName, 'Price:', totalPrice);
         
-        try {
-            // Initialize modal with current values
-            const maleInput = document.getElementById('male');
-            const femaleInput = document.getElementById('female');
-            const childrenInput = document.getElementById('children');
-            const infantsInput = document.getElementById('infants');
-            
-            const male = maleInput ? parseInt(maleInput.value) || 0 : 2;
-            const female = femaleInput ? parseInt(femaleInput.value) || 0 : 2;
-            const children = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-            const infants = infantsInput ? parseInt(infantsInput.value) || 0 : 0;
-            
-            console.log('Current values:', {male, female, children, infants});
-            
-            // Update modal elements with null checks
-            const mainModalMale = document.getElementById('mainModalMale');
-            const mainModalFemale = document.getElementById('mainModalFemale');
-            const mainModalChildren = document.getElementById('mainModalChildren');
-            const mainModalInfants = document.getElementById('mainModalInfants');
-            
-            if (mainModalMale) mainModalMale.textContent = male;
-            if (mainModalFemale) mainModalFemale.textContent = female;
-            if (mainModalChildren) mainModalChildren.textContent = children;
-            if (mainModalInfants) mainModalInfants.textContent = infants;
-            
-            updateMainModalSummary();
-            
-            const modalElement = document.getElementById('mainGuestSelectorModal');
-            if (modalElement) {
-                try {
-                    // Try to get existing modal instance first
-                    let modal = bootstrap.Modal.getInstance(modalElement);
-                    if (!modal) {
-                        // Create new modal if one doesn't exist
-                        modal = new bootstrap.Modal(modalElement);
-                    }
-                    modal.show();
-                } catch (modalError) {
-                    console.error('Error showing modal:', modalError);
-                    // Fallback to jQuery if available
-                    if (typeof $ !== 'undefined') {
-                        $(modalElement).modal('show');
-                    }
+        // Mark the selected dish button as selected and show price
+        const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
+        if (dishContainer) {
+            dishContainer.querySelectorAll('.dish-option-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.dataset.mealId == mealId) {
+                    btn.classList.add('selected');
+                    // Update button text to show price
+                    const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
+                    btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
                 }
-            } else {
-                console.error('Modal element not found!');
-            }
-        } catch (error) {
-            console.error('Error opening main guest selector:', error);
+            });
         }
-    };
-    
-    window.updateMainGuest = function(type, change) {
-        const element = document.getElementById('mainModal' + type.charAt(0).toUpperCase() + type.slice(1));
-        if (!element) return;
-        
-        const currentValue = parseInt(element.textContent) || 0;
-        let newValue = Math.max(0, currentValue + change);
-        
-        // Validation rules
-        if (type === 'male' || type === 'female') {
-            // Ensure at least 1 adult total
-            const maleCount = type === 'male' ? newValue : parseInt(document.getElementById('mainModalMale').textContent) || 0;
-            const femaleCount = type === 'female' ? newValue : parseInt(document.getElementById('mainModalFemale').textContent) || 0;
-            
-            if (maleCount + femaleCount < 1) {
-                return; // Don't allow 0 adults
-            }
-        }
-        
-        element.textContent = newValue;
-        updateMainModalSummary();
-    };
-    
-    function updateMainModalSummary() {
-        try {
-            const maleEl = document.getElementById('mainModalMale');
-            const femaleEl = document.getElementById('mainModalFemale');
-            const childrenEl = document.getElementById('mainModalChildren');
-            const infantsEl = document.getElementById('mainModalInfants');
-            
-            const male = maleEl ? parseInt(maleEl.textContent) || 0 : 0;
-            const female = femaleEl ? parseInt(femaleEl.textContent) || 0 : 0;
-            const children = childrenEl ? parseInt(childrenEl.textContent) || 0 : 0;
-            const infants = infantsEl ? parseInt(infantsEl.textContent) || 0 : 0;
-            
-            const adults = male + female;
-            const total = adults + children + infants;
-            
-            // Update summary displays with null checks
-            const totalGuestsEl = document.getElementById('mainModalTotalGuests');
-            const summaryEl = document.getElementById('mainModalSummary');
-            const guestInfoEl = document.getElementById('mainModalGuestInfo');
-            
-            if (totalGuestsEl) totalGuestsEl.textContent = `${total} guests`;
-            if (summaryEl) summaryEl.textContent = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-            if (guestInfoEl) guestInfoEl.textContent = `Adults: ${adults} (${male}M + ${female}F), Children: ${children}, Infants: ${infants}`;
-            
-            console.log('Updated summary:', {male, female, children, infants, adults, total});
-        } catch (error) {
-            console.error('Error updating modal summary:', error);
-        }
-    }
-    
-    window.applyMainGuestSelection = function() {
-        const male = parseInt(document.getElementById('mainModalMale').textContent) || 0;
-        const female = parseInt(document.getElementById('mainModalFemale').textContent) || 0;
-        const children = parseInt(document.getElementById('mainModalChildren').textContent) || 0;
-        const infants = parseInt(document.getElementById('mainModalInfants').textContent) || 0;
-        
-        const adults = male + female;
-        
-        // Update hidden form fields
-        document.getElementById('adults').value = adults;
-        document.getElementById('male').value = male;
-        document.getElementById('female').value = female;
-        document.getElementById('children').value = children;
-        document.getElementById('infants').value = infants;
-        
-        // Update display elements
-        document.getElementById('male-count').textContent = male;
-        document.getElementById('female-count').textContent = female;
-        document.getElementById('children-count').textContent = children;
-        document.getElementById('infants-count').textContent = infants;
-        
-        // Update main summary
-        const summaryText = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-        document.getElementById('guestSummary').textContent = summaryText;
-        
-        // Update all service guest summaries
-        updateAllServiceGuestSummaries(male, female, children, infants);
         
         // Close modal
-        try {
-            const modalElement = document.getElementById('mainGuestSelectorModal');
-            if (modalElement) {
-                // Try to get existing modal instance first
-                const modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                    modal.hide();
-                } else {
-                    // If no instance found, try jQuery fallback
-                    if (typeof $ !== 'undefined') {
-                        $(modalElement).modal('hide');
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error closing modal:', error);
-        }
+        const modal = bootstrap.Modal.getInstance(document.getElementById('tempDishModal'));
+        if (modal) modal.hide();
         
-        console.log('Applied guest selection:', {male, female, children, infants, adults});
+        // Remove temp modal
+        const tempModal = document.getElementById('tempDishModal');
+        if (tempModal) tempModal.remove();
     };
+    
+    // Main guest selection modal functions
+
 
     // Function to update all service guest summaries
     function updateAllServiceGuestSummaries(male, female, children, infants) {
@@ -3389,13 +4387,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
      
-     window.addGuideService = function(day) {
-         showNotification(`Tour guide service added for Day ${day}`, 'success');
-         console.log('Add guide service for day', day);
-         // Future implementation: Add dynamic form for tour guides
-     };
+    window.addGuideService = function(day) {
+        showNotification(`Tour guide service added for Day ${day}`, 'success');
+        console.log('Add guide service for day', day);
+        // Future implementation: Add dynamic form for tour guides
+    };
      
-     window.addMoreGuides = function(day) {
+    window.addMoreGuides = function(day) {
         const container = document.getElementById(`day${day}_guides_container`);
         const existingGuides = container.querySelectorAll('.guide-item');
         const newIndex = existingGuides.length + 1;
@@ -3528,9 +4526,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-
-     
-     function createGuestSelectorModal(serviceId) {
+    function createGuestSelectorModal(serviceId) {
         // Get limits from main form
         const maxMale = parseInt(document.getElementById('male').value) || 0;
         const maxFemale = parseInt(document.getElementById('female').value) || 0;
@@ -3538,147 +4534,147 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxInfants = parseInt(document.getElementById('infants').value) || 0;
         const maxAdults = maxMale + maxFemale;
         
-         const modalHTML = `
-             <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel" aria-hidden="true">
-                 <div class="modal-dialog modal-lg">
-                     <div class="modal-content">
-                         <div class="modal-header bg-primary text-white">
-                             <h5 class="modal-title" id="guestSelectorModalLabel">
-                                 <i class="ri-group-line me-2"></i>Select Guests for Service
-                             </h5>
-                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                         </div>
-                         <div class="modal-body">
-                            <!-- Service Limits Notice -->
-                            <div class="alert alert-info mb-4">
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <h6 class="alert-heading mb-2">
-                                            <i class="ri-information-line me-2"></i>Available Guests (Based on main selection)
-                                        </h6>
-                                        <div class="d-flex gap-3 flex-wrap">
-                                            <span class="badge bg-primary">Adults: ${maxAdults} (${maxMale}M + ${maxFemale}F)</span>
-                                            <span class="badge bg-success">Children: ${maxChildren}</span>
-                                            <span class="badge bg-warning text-dark">Infants: ${maxInfants}</span>
+        const modalHTML = `
+            <div class="modal fade" id="guestSelectorModal" tabindex="-1" aria-labelledby="guestSelectorModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="guestSelectorModalLabel">
+                                <i class="ri-group-line me-2"></i>Select Guests for Service
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                        <!-- Service Limits Notice -->
+                        <div class="alert alert-info mb-4">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="ri-information-line me-2"></i>Available Guests (Based on main selection)
+                                    </h6>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <span class="badge bg-primary">Adults: ${maxAdults} (${maxMale}M + ${maxFemale}F)</span>
+                                        <span class="badge bg-success">Children: ${maxChildren}</span>
+                                        <span class="badge bg-warning text-dark">Infants: ${maxInfants}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                            <div class="row g-4">
+                                <!-- Adults Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults (Max: ${maxAdults})</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Male -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-primary">
+                                                <i class="ri-user-3-line me-1"></i>Male (Max: ${maxMale})
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxMale === 0 ? '<small class="text-muted">No male adults selected in main form</small>' : ''}
+                                            </div>
+                                            <!-- Female -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-danger">
+                                                <i class="ri-user-4-line me-1"></i>Female (Max: ${maxFemale})
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxFemale === 0 ? '<small class="text-muted">No female adults selected in main form</small>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Children & Infants Section -->
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Children -->
+                                            <div class="guest-counter mb-3">
+                                                <label class="form-label fw-semibold text-success">
+                                                <i class="ri-user-smile-line me-1"></i>Children (Max: ${maxChildren})
+                                                    <small class="text-muted">(Ages 1-17)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
+                                                <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxChildren === 0 ? '<small class="text-muted">No children selected in main form</small>' : ''}
+                                            </div>
+                                            <!-- Infants -->
+                                            <div class="guest-counter">
+                                                <label class="form-label fw-semibold text-warning">
+                                                <i class="ri-user-heart-line me-1"></i>Infants (Max: ${maxInfants})
+                                                    <small class="text-muted">(Under 1 year)</small>
+                                                </label>
+                                                <div class="d-flex align-items-center">
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
+                                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''}>
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            ${maxInfants === 0 ? '<small class="text-muted">No infants selected in main form</small>' : ''}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                             <div class="row g-4">
-                                 <!-- Adults Section -->
-                                 <div class="col-md-6">
-                                     <div class="card border-primary">
-                                         <div class="card-header bg-primary text-white">
-                                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Adults (Max: ${maxAdults})</h6>
-                                         </div>
-                                         <div class="card-body">
-                                             <!-- Male -->
-                                             <div class="guest-counter mb-3">
-                                                 <label class="form-label fw-semibold text-primary">
-                                                    <i class="ri-user-3-line me-1"></i>Male (Max: ${maxMale})
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', -1)" ${maxMale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalMale">0</span>
-                                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateServiceGuest('male', 1)" ${maxMale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxMale === 0 ? '<small class="text-muted">No male adults selected in main form</small>' : ''}
-                                             </div>
-                                             <!-- Female -->
-                                             <div class="guest-counter">
-                                                 <label class="form-label fw-semibold text-danger">
-                                                    <i class="ri-user-4-line me-1"></i>Female (Max: ${maxFemale})
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', -1)" ${maxFemale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalFemale">0</span>
-                                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateServiceGuest('female', 1)" ${maxFemale === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxFemale === 0 ? '<small class="text-muted">No female adults selected in main form</small>' : ''}
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Children & Infants Section -->
-                                 <div class="col-md-6">
-                                     <div class="card border-success">
-                                         <div class="card-header bg-success text-white">
-                                             <h6 class="mb-0"><i class="ri-user-smile-line me-2"></i>Children & Infants</h6>
-                                         </div>
-                                         <div class="card-body">
-                                             <!-- Children -->
-                                             <div class="guest-counter mb-3">
-                                                 <label class="form-label fw-semibold text-success">
-                                                    <i class="ri-user-smile-line me-1"></i>Children (Max: ${maxChildren})
-                                                     <small class="text-muted">(Ages 1-17)</small>
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', -1)" ${maxChildren === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalChildren">0</span>
-                                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="updateServiceGuest('children', 1)" ${maxChildren === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxChildren === 0 ? '<small class="text-muted">No children selected in main form</small>' : ''}
-                                             </div>
-                                             <!-- Infants -->
-                                             <div class="guest-counter">
-                                                 <label class="form-label fw-semibold text-warning">
-                                                    <i class="ri-user-heart-line me-1"></i>Infants (Max: ${maxInfants})
-                                                     <small class="text-muted">(Under 1 year)</small>
-                                                 </label>
-                                                 <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', -1)" ${maxInfants === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-subtract-line"></i>
-                                                     </button>
-                                                     <span class="mx-3 fw-bold fs-5" id="serviceModalInfants">0</span>
-                                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="updateServiceGuest('infants', 1)" ${maxInfants === 0 ? 'disabled' : ''}>
-                                                         <i class="ri-add-line"></i>
-                                                     </button>
-                                                 </div>
-                                                ${maxInfants === 0 ? '<small class="text-muted">No infants selected in main form</small>' : ''}
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                         <div class="modal-footer">
-                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                             <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
-                                 <i class="ri-check-line me-1"></i>Apply Selection
-                             </button>
-                         </div>
-                     </div>
-                 </div>
-             </div>
-         `;
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="applyGuestSelection()">
+                                <i class="ri-check-line me-1"></i>Apply Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
          
-         document.body.insertAdjacentHTML('beforeend', modalHTML);
-         
-         // Initialize modal values from main form
-         initializeModalGuestValues();
-         
-         // Show modal
-         const modal = document.getElementById('guestSelectorModal');
-         modal.setAttribute('data-service-id', serviceId);
-         const modalInstance = new bootstrap.Modal(modal);
-         modalInstance.show();
-     }
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Initialize modal values from main form
+        initializeModalGuestValues();
+        
+        // Show modal
+        const modal = document.getElementById('guestSelectorModal');
+        modal.setAttribute('data-service-id', serviceId);
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+    }
      
-     function initializeModalGuestValues() {
+    function initializeModalGuestValues() {
          // Get values from main form
          const male = parseInt(document.getElementById('male').value) || 0;
          const female = parseInt(document.getElementById('female').value) || 0;
@@ -3690,9 +4686,9 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('serviceModalFemale').textContent = female;
          document.getElementById('serviceModalChildren').textContent = children;
          document.getElementById('serviceModalInfants').textContent = infants;
-     }
+    }
      
-     window.updateServiceGuest = function(type, change) {
+    window.updateServiceGuest = function(type, change) {
          const element = document.getElementById('serviceModal' + type.charAt(0).toUpperCase() + type.slice(1));
          const currentValue = parseInt(element.textContent) || 0;
         
@@ -3727,9 +4723,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
          element.textContent = newValue;
-     };
+    };
      
-     window.applyGuestSelection = function() {
+    window.applyGuestSelection = function() {
          const serviceId = document.getElementById('guestSelectorModal').getAttribute('data-service-id');
          const male = parseInt(document.getElementById('serviceModalMale').textContent) || 0;
          const female = parseInt(document.getElementById('serviceModalFemale').textContent) || 0;
@@ -3761,10 +4757,10 @@ document.addEventListener('DOMContentLoaded', function() {
          modal.hide();
          
          showNotification(`Guest selection updated: ${total} total guests`, 'success');
-     };
+    };
      
      // Notification helper function
-     function showNotification(message, type = 'info') {
+    window.showNotification = function(message, type = 'info') {
          const alertClass = type === 'success' ? 'alert-success' : 
                            type === 'error' ? 'alert-danger' : 'alert-info';
          
@@ -3785,12 +4781,817 @@ document.addEventListener('DOMContentLoaded', function() {
                  alert.remove();
              }
          }, 3000);
+    }
+
+     // Initialize main guest summary
+    function updateMainGuestSummary() {
+        const male = parseInt(document.getElementById('male').value) || 0;
+        const female = parseInt(document.getElementById('female').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const infants = parseInt(document.getElementById('infants').value) || 0;
+        const adults = male + female;
+        
+        const guestSummary = document.getElementById('mainGuestSummary');
+        if (guestSummary) {
+            guestSummary.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
+        }
+        
+        // Update badges
+        const badgeContainer = guestSummary?.closest('.guest-display')?.querySelector('.guest-badges');
+        if (badgeContainer) {
+            const badges = badgeContainer.querySelectorAll('.badge');
+            if (badges.length >= 3) {
+                badges[0].textContent = adults; // Total adults
+                badges[1].textContent = children; // Children
+                badges[2].textContent = infants; // Infants
+            }
+        }
+        
+        // Refresh meal plans if a hotel is already selected
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (hotelSelect && hotelSelect.value) {
+            updateHotelDependentDropdowns(hotelSelect.value);
+        }
+    }
+    //Initialize
+    updateMainGuestSummary();
+    updateGuestSummary();
+    updateAdultsCount();
+    
+    // Load zones when city is selected
+    loadZonesForCity();
+    
+    // Setup new transportation handlers
+    setupNewTransportationHandlers();
+    
+    // Setup search button listeners
+    setupSearchButtonListeners();
+ });
+
+ // Zone and Vehicle Management Functions
+ function loadZonesForCity() {
+     const citySelect = document.getElementById('city');
+     if (citySelect) {
+         citySelect.addEventListener('change', function() {
+             const selectedCity = this.value;
+             if (selectedCity) {
+                 fetchZonesForAllTransportSections(selectedCity);
+             }
+         });
+     }
+ }
+ 
+ // Function to enable search button when pickup time changes
+ function enableSearchButton(day, section) {
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     if (searchBtn) {
+         searchBtn.disabled = false;
+         searchBtn.classList.remove('btn-secondary');
+         searchBtn.classList.add('btn-primary');
+     }
+ }
+ 
+ // Add event listeners to pickup time fields for entry port and transport sections
+ function setupSearchButtonListeners() {
+     // For each day, set up listeners for pickup time fields
+     for (let day = 1; day <= 7; day++) {
+         // Entry port pickup time
+         const entryPickupTime = document.querySelector(`select[name="day${day}_entry_pickup_time"]`);
+         const entrySearchBtn = document.getElementById(`day${day}_entry_search_btn`);
+         
+         // Transport pickup time
+         const transportPickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`);
+         const transportSearchBtn = document.getElementById(`day${day}_transport_search_btn`);
+         
+         // Add event listener for entry port pickup time
+         if (entryPickupTime) {
+             entryPickupTime.addEventListener('change', () => enableSearchButton(day, 'entry'));
+         }
+         
+         // Add event listener for transport pickup time
+         if (transportPickupTime) {
+             transportPickupTime.addEventListener('change', () => enableSearchButton(day, 'transport'));
+         }
+         
+         // Initially disable search buttons
+         if (entrySearchBtn) {
+             entrySearchBtn.disabled = true;
+             entrySearchBtn.classList.remove('btn-primary');
+             entrySearchBtn.classList.add('btn-secondary');
+         }
+         if (transportSearchBtn) {
+             transportSearchBtn.disabled = true;
+             transportSearchBtn.classList.remove('btn-primary');
+             transportSearchBtn.classList.add('btn-secondary');
+         }
+     }
+ }
+
+ function fetchZonesForAllTransportSections(city) {
+     console.log('Fetching zones for city:', city);
+     fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
+         .then(response => response.json())
+         .then(data => {
+             console.log('Zones data received:', data);
+             if (data.success && data.zones) {
+                 // Store zones data globally for use in other functions
+                 window.allZonesData = data.zones;
+                 
+                 // Update all pickup zone selects
+                 const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
+                 console.log('Found pickup zone selects:', pickupZoneSelects.length);
+                 
+                 pickupZoneSelects.forEach((select, index) => {
+                     console.log(`Updating pickup zone select ${index}:`, select.name);
+                     select.innerHTML = '<option value="">Select pickup zone</option>';
+                     data.zones.forEach(zone => {
+                         select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                     });
+                     select.disabled = false;
+                 });
+                 
+                 // Update all dropoff zone selects with all zones initially
+                 const dropoffZoneSelects = document.querySelectorAll('.dropoff-zone-select');
+                 console.log('Found dropoff zone selects:', dropoffZoneSelects.length);
+                 
+                 dropoffZoneSelects.forEach((select, index) => {
+                     console.log(`Updating dropoff zone select ${index}:`, select.name);
+                     select.innerHTML = '<option value="">Select pickup zone first</option>';
+                     data.zones.forEach(zone => {
+                         select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                     });
+                     select.disabled = true;
+                     console.log(`Dropoff select ${index} has ${data.zones.length} zones but is disabled`);
+                 });
+                 
+                const vehicleSelects = document.querySelectorAll('.vehicle-select');
+                vehicleSelects.forEach(select => {
+                    select.innerHTML = '<option value="">Select zones first</option>';
+                    select.disabled = true;
+                });
+                 
+                const serviceTypeSelects = document.querySelectorAll('.service-type-select');
+                serviceTypeSelects.forEach(select => {
+                    // Keep hardcoded options, just disable and reset selection
+                    select.disabled = true;
+                    select.value = "";
+                });
+             }
+         })
+         .catch(error => {
+             console.error('Error fetching zones:', error);
+         });
+ }
+
+ function loadDropoffZones(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+     
+     const pickupZoneId = pickupZoneSelect.value;
+     
+     if (pickupZoneId) {
+         const citySelect = document.getElementById('city');
+         const city = citySelect ? citySelect.value : '';
+         
+         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.zones) {
+                    dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+                    // Show all zones except the selected pickup zone
+                    data.zones.forEach(zone => {
+                        if (zone.zone_id !== pickupZoneId) {
+                            dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                        }
+                    });
+                    dropoffZoneSelect.disabled = false;
+                }
+            })
+             .catch(error => {
+                 console.error('Error fetching dropoff zones:', error);
+             });
+     } else {
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+     }
+     
+     // Reset vehicle and service type selects
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (vehicleSelect) {
+         vehicleSelect.innerHTML = '<option value="">Select zones first</option>';
+         vehicleSelect.disabled = true;
+     }
+     
+     if (serviceTypeSelect) {
+         // Keep the hardcoded options, just disable and reset selection
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
+         serviceTypeSelect.disabled = true;
+     }
+ }
+
+ // New function to handle pickup zone changes with section-specific exclusion
+ function handlePickupZoneChange(day, section) {
+     console.log(`handlePickupZoneChange called for day ${day}, section ${section}`);
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     
+     console.log('Pickup zone select found:', !!pickupZoneSelect);
+     console.log('Dropoff zone select found:', !!dropoffZoneSelect);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+     
+     const pickupZoneId = pickupZoneSelect.value;
+     console.log('Selected pickup zone ID:', pickupZoneId);
+     
+     if (pickupZoneId) {
+         // Use the stored zones data instead of reading from dropdown
+         const allZones = window.allZonesData || [];
+         console.log('Using stored zones data:', allZones.length, 'zones');
+         console.log('Zones to exclude:', pickupZoneId);
+         
+         // Update dropoff select with all zones except the selected pickup zone
+         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+         allZones.forEach(zone => {
+             if (zone.zone_id != pickupZoneId) {
+                 dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+             }
+         });
+         
+         dropoffZoneSelect.disabled = false;
+         console.log('Dropoff select enabled and updated with', allZones.length - 1, 'zones');
+     } else {
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+     }
+     
+     // Reset vehicle and service type selects
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (vehicleSelect) {
+         vehicleSelect.innerHTML = '<option value="">Select zones first</option>';
+         vehicleSelect.disabled = true;
+     }
+     
+     if (serviceTypeSelect) {
+         // Keep the hardcoded options, just disable and reset selection
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
+         serviceTypeSelect.disabled = true;
+     }
+     
+     // Reset search button and hide vehicle results
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+     
+     if (searchBtn) {
+         searchBtn.disabled = true;
+         searchBtn.classList.remove('btn-primary');
+         searchBtn.classList.add('btn-secondary');
+     }
+     if (vehicleResultsDiv) {
+         vehicleResultsDiv.style.display = 'none';
+     }
+     
+     // Check if search button should be enabled after zone selection
+     setTimeout(() => enableSearchButton(day, section), 100);
+ }
+
+ function loadVehiclesForZones(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect || !vehicleSelect) return;
+     
+     const fromZoneId = pickupZoneSelect.value;
+     const toZoneId = dropoffZoneSelect.value;
+     
+     if (fromZoneId && toZoneId) {
+         vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+         vehicleSelect.disabled = true;
+         
+         fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.vehicles && data.vehicles.length > 0) {
+                     vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+                     
+                     data.vehicles.forEach(vehicle => {
+                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                             data-private-price="${vehicle.private_price}" 
+                             data-shared-price="${vehicle.shared_price}"
+                             data-service-type="${vehicle.service_type}"
+                             data-mapping-id="${vehicle.mapping_id}">
+                             ${vehicleInfo}
+                         </option>`;
+                     });
+                     
+                     vehicleSelect.disabled = false;
+                 } else {
+                     vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
+                     vehicleSelect.disabled = true;
+                 }
+             })
+             .catch(error => {
+                 console.error('Error fetching vehicles:', error);
+                 vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                 vehicleSelect.disabled = true;
+             });
+     } else {
+         vehicleSelect.innerHTML = '<option value="">Select zones first</option>';
+         vehicleSelect.disabled = true;
+     }
+     
+     // Reset service type select
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     if (serviceTypeSelect) {
+         // Keep the hardcoded options, just disable and reset selection
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
+         serviceTypeSelect.disabled = true;
+     }
+ }
+
+ function updateVehicleDetails(day, section) {
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     
+     if (!vehicleSelect || !serviceTypeSelect) return;
+     
+     const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+     
+     if (selectedOption.value) {
+         // Just enable the service type select, don't modify its content
+         serviceTypeSelect.disabled = false;
+     } else {
+         // Reset to default state but keep the hardcoded options
+         serviceTypeSelect.disabled = true;
+         serviceTypeSelect.value = "";
+     }
+ }
+
+ function updatePricing(day, section) {
+    const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+    
+    if (serviceTypeSelect) {
+        const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+        const price = selectedOption.getAttribute('data-price');
+        
+        if (price) {
+            console.log(`Selected ${selectedOption.value} service for day ${day}: $${price}`);
+            // You can add price display or calculation logic here
+        }
+    }
+}
+
+// Save service data to the backend
+window.saveService = function(day, type) {
+    // Get tour ID
+    const tourId = window.currentTourId;
+    if (!tourId) {
+        showNotification('Tour ID not found. Please create a tour first.', 'error');
+        return;
+    }
+    
+    // Get agent ID
+    const agentId = document.getElementById('agent_id').value;
+    if (!agentId) {
+        showNotification('Agent ID not found.', 'error');
+        return;
+    }
+    
+    // Prepare data based on service type
+    let data = {};
+    let section = '';
+    
+    if (type === 'entry_port') {
+        section = 'entry';
+        const pickupZoneId = document.querySelector(`select[name="day${day}_entry_pickup_zone_id"]`).value;
+        const dropoffZoneId = document.querySelector(`select[name="day${day}_entry_dropoff_zone_id"]`).value;
+        const pickupTime = document.querySelector(`select[name="day${day}_entry_pickup_time"]`).value;
+        const pickupDate = document.querySelector(`input[name="day${day}_entry_pickup_date"]`).value;
+        const vehicleId = document.querySelector(`select[name="day${day}_entry_vehicle_id"]`).value;
+        const serviceType = document.querySelector(`select[name="day${day}_entry_service_type"]`).value;
+        
+        // Validate required fields
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please fill in all required fields for entry port service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            from_zone_id: pickupZoneId,
+            to_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            day: day
+        };
+    } 
+    else if (type === 'exit_port') {
+        section = 'exit';
+        const pickupZoneId = document.querySelector(`select[name="day${day}_exit_pickup_zone_id"]`).value;
+        const dropoffZoneId = document.querySelector(`select[name="day${day}_exit_dropoff_zone_id"]`).value;
+        const pickupTime = document.querySelector(`select[name="day${day}_exit_time"]`).value;
+        const pickupDate = document.querySelector(`input[name="day${day}_exit_date"]`).value;
+        const vehicleId = document.querySelector(`select[name="day${day}_exit_vehicle_id"]`).value;
+        const serviceType = document.querySelector(`select[name="day${day}_exit_service_type"]`).value;
+        
+        // Validate required fields
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please fill in all required fields for exit port service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            from_zone_id: pickupZoneId,
+            to_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            day: day
+        };
+    }
+    else if (type === 'transport') {
+        section = 'transport';
+        const pickupZoneId = document.querySelector(`select[name="day${day}_transport_pickup_zone_id"]`).value;
+        const dropoffZoneId = document.querySelector(`select[name="day${day}_transport_dropoff_zone_id"]`).value;
+        const pickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`).value;
+        const pickupDate = document.querySelector(`input[name="day${day}_transport_date"]`).value;
+        const vehicleId = document.querySelector(`select[name="day${day}_transport_vehicle_id"]`).value;
+        const serviceType = document.querySelector(`select[name="day${day}_transport_service_type"]`).value;
+        
+        // Validate required fields
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please fill in all required fields for transport service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            from_zone_id: pickupZoneId,
+            to_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            day: day
+        };
+    }
+    else if (type === 'guide') {
+        section = 'guide';
+        const guideId = document.querySelector(`select[name="day${day}_guide_1"]`).value;
+        const packageType = document.querySelector(`select[name="day${day}_guide_1_package"]`).value;
+        const pickupTime = document.querySelector(`input[name="day${day}_guide_1_pickup_time"]`).value;
+        
+        // Validate required fields
+        if (!guideId || !packageType || !pickupTime) {
+            showNotification('Please fill in all required fields for guide service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            guide_id: guideId,
+            package_type: packageType,
+            pickup_time: pickupTime,
+            day: day
+        };
+    }
+    else if (type === 'attraction') {
+        section = 'attraction';
+        const attractionId = document.querySelector(`select[name="day${day}_attraction_1"]`).value;
+        const ticketId = document.querySelector(`select[name="day${day}_attraction_1_ticket"]`).value;
+        const timeSlot = document.querySelector(`select[name="day${day}_attraction_1_time"]`).value;
+        
+        // Validate required fields
+        if (!attractionId || !ticketId || !timeSlot) {
+            showNotification('Please fill in all required fields for attraction service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            attraction_id: attractionId,
+            ticket_id: ticketId,
+            time_slot: timeSlot,
+            day: day
+        };
+    }
+    else if (type === 'restaurant') {
+        section = 'restaurant';
+        const restaurantId = document.querySelector(`select[name="day${day}_restaurant_1"]`).value;
+        const mealType = document.querySelector(`select[name="day${day}_restaurant_1_meal_type"]`).value;
+        const mealTime = document.querySelector(`select[name="day${day}_restaurant_1_time"]`).value;
+        
+        // Validate required fields
+        if (!restaurantId || !mealType || !mealTime) {
+            showNotification('Please fill in all required fields for restaurant service.', 'error');
+            return;
+        }
+        
+        // Create data object
+        data = {
+            restaurant_id: restaurantId,
+            meal_type: mealType,
+            meal_time: mealTime,
+            day: day
+        };
+    }
+    
+    // Prepare request data
+    const requestData = {
+        agent_id: agentId,
+        tour_id: tourId,
+        type: type,
+        data: data
+    };
+    
+    // Show loading state
+    const saveBtn = document.querySelector(`button[onclick="saveService(${day}, '${type}')"]`);
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Saving...';
+    saveBtn.disabled = true;
+    
+         // Send data to backend
+     fetch('{{ route("save-service") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`${type.replace('_', ' ').toUpperCase()} service saved successfully!`, 'success');
+            
+            // Reset form fields
+            if (type === 'entry_port' || type === 'exit_port' || type === 'transport') {
+                // Reset dropoff zone
+                const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+                if (dropoffZoneSelect) {
+                    dropoffZoneSelect.value = '';
+                    dropoffZoneSelect.disabled = true;
+                }
+                
+                // Reset vehicle and service type
+                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+                
+                if (vehicleSelect) {
+                    vehicleSelect.value = '';
+                }
+                
+                if (serviceTypeSelect) {
+                    serviceTypeSelect.value = '';
+                }
+                
+                // Hide vehicle results
+                const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+                if (vehicleResultsDiv) {
+                    vehicleResultsDiv.style.display = 'none';
+                }
+            }
+        } else {
+            showNotification(data.message || 'Failed to save service.', 'error');
+        }
+        
+        // Reset button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    })
+    .catch(error => {
+        console.error('Error saving service:', error);
+        showNotification('An error occurred while saving the service.', 'error');
+        
+        // Reset button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    });
+}
+
+// New functions for the search-based interface
+ function searchVehicles(day, section) {
+     console.log(`Searching vehicles for day ${day}, section ${section}`);
+     
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     
+     console.log('Elements found:', {
+         pickupZoneSelect: !!pickupZoneSelect,
+         dropoffZoneSelect: !!dropoffZoneSelect,
+         vehicleResultsDiv: !!vehicleResultsDiv,
+         vehicleSelect: !!vehicleSelect,
+         serviceTypeSelect: !!serviceTypeSelect,
+         searchBtn: !!searchBtn
+     });
+     
+     if (vehicleSelect) {
+         console.log('Vehicle select element:', vehicleSelect.name, vehicleSelect.id);
+     } else {
+         console.error('Vehicle select not found for day', day, 'section', section);
+         console.log('Looking for selector: select[name="day${day}_${section}_vehicle_id"]');
      }
 
-     // Initialize
-     updateGuestSummary();
-    updateAdultsCount();
- });
+     // Check if search button is enabled
+     if (!searchBtn || searchBtn.disabled) {
+         alert('Please fill in all required fields before searching for vehicles');
+         return;
+     }
+
+     if (!pickupZoneSelect || !dropoffZoneSelect || !pickupZoneSelect.value || !dropoffZoneSelect.value) {
+         alert('Please select both pickup and dropoff zones');
+         return;
+     }
+
+     const fromZoneId = pickupZoneSelect.value;
+     const toZoneId = dropoffZoneSelect.value;
+
+     // Show loading state
+     searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+     searchBtn.disabled = true;
+
+     fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+         .then(response => response.json())
+         .then(data => {
+             console.log('Vehicle search response:', data);
+             if (data.success && data.vehicles && data.vehicles.length > 0) {
+                 // Populate vehicle dropdown
+                 if (vehicleSelect) {
+                     vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                     data.vehicles.forEach(vehicle => {
+                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                             data-private-price="${vehicle.private_price || ''}" 
+                             data-shared-price="${vehicle.shared_price || ''}"
+                             data-service-type="${vehicle.service_type || ''}"
+                             data-mapping-id="${vehicle.mapping_id || ''}">
+                             ${vehicleInfo}
+                         </option>`;
+                     });
+                     
+                     // Enable the vehicle select
+                     vehicleSelect.disabled = false;
+                     console.log('Vehicle dropdown populated successfully');
+                 } else {
+                     console.error('Vehicle select element not found!');
+                 }
+
+                 // Show results section
+                 vehicleResultsDiv.style.display = 'block';
+                 vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                 // Reset search button
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.disabled = false;
+                 
+                 console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
+             } else {
+                 alert('No vehicles available for this route. Please try different zones.');
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.disabled = false;
+             }
+         })
+         .catch(error => {
+             console.error('Error searching vehicles:', error);
+             alert('Error searching vehicles. Please try again.');
+             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+             searchBtn.disabled = false;
+         });
+ }
+
+  function clearDropoffZone(day, section) {
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+
+     if (dropoffZoneSelect) {
+         dropoffZoneSelect.value = '';
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+     }
+
+     if (vehicleResultsDiv) {
+         vehicleResultsDiv.style.display = 'none';
+     }
+
+     if (searchBtn) {
+         searchBtn.disabled = true;
+         searchBtn.classList.remove('btn-primary');
+         searchBtn.classList.add('btn-secondary');
+     }
+     
+     // Check if search button should be enabled
+     enableSearchButton(day, section);
+ }
+
+ // Update the existing loadDropoffZones function for the new interface
+ function loadDropoffZonesNew(day, section) {
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+
+     const pickupZoneId = pickupZoneSelect.value;
+
+     if (pickupZoneId) {
+         const citySelect = document.getElementById('city');
+         const city = citySelect ? citySelect.value : '';
+
+         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.zones) {
+                     dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+
+                     // Show all zones except the selected pickup zone
+                     data.zones.forEach(zone => {
+                         if (zone.zone_id !== pickupZoneId) {
+                             dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                         }
+                     });
+
+                     dropoffZoneSelect.disabled = false;
+                 }
+             })
+             .catch(error => {
+                 console.error('Error fetching dropoff zones:', error);
+             });
+     } else {
+         dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
+         dropoffZoneSelect.disabled = true;
+         if (searchBtn) searchBtn.disabled = true;
+         if (vehicleResultsDiv) vehicleResultsDiv.style.display = 'none';
+     }
+ }
+
+ // Update dropdown change handlers for new interface
+ function setupNewTransportationHandlers() {
+     console.log('Setting up transportation handlers');
+     
+     // Setup pickup zone change handlers using event delegation
+     document.addEventListener('change', function(event) {
+         if (event.target.classList.contains('pickup-zone-select')) {
+             console.log('Pickup zone change detected:', event.target.name);
+             const [day, section] = extractDayAndSection(event.target.name);
+             console.log('Extracted day:', day, 'section:', section);
+             if (day && section) {
+                 handlePickupZoneChange(day, section);
+             }
+         }
+     });
+
+     // Setup dropoff zone change handlers
+     const dropoffZoneSelects = document.querySelectorAll('.dropoff-zone-select');
+     dropoffZoneSelects.forEach(select => {
+         select.addEventListener('change', function() {
+             const [day, section] = extractDayAndSection(this.name);
+             const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+             
+             if (this.value && searchBtn) {
+                 searchBtn.disabled = false;
+             } else if (searchBtn) {
+                 searchBtn.disabled = true;
+             }
+         });
+     });
+ }
+
+ function extractDayAndSection(fieldName) {
+     // Extract day and section from field names like "day1_entry_pickup_zone_id"
+     // We want to extract: day=1, section=entry from "day1_entry_pickup_zone_id"
+     const match = fieldName.match(/day(\d+)_(\w+)_/);
+     if (match) {
+         const day = match[1];
+         // Extract the section (entry, exit, transport) from the field name
+         // Use a more specific regex to get just the section part
+         const sectionMatch = fieldName.match(/day\d+_([^_]+)_/);
+         const section = sectionMatch ? sectionMatch[1] : null;
+         console.log(`Extracted from "${fieldName}": day=${day}, section=${section}`);
+         return [day, section];
+     }
+     console.log(`No match found for field name: "${fieldName}"`);
+     return [null, null];
+ }
 </script>
 @endsection
 
@@ -3893,6 +5694,10 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* Guest counter alignment */
+
+
+
+
 .guest-btn-plus:hover, .guest-btn-minus:hover {
     transform: scale(1.1);
     transition: transform 0.2s ease;
@@ -4196,11 +6001,7 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 8px;
 }
 
-/* Guest selector styling */
-#adults-count {
-    font-size: 1.1rem;
-    color: #007bff;
-}
+
 
 /* Loading spinner animation */
         .spin {
@@ -4249,9 +6050,103 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         .dish-option-btn.selected {
-            background-color: #0d6efd;
-            color: white;
-            border-color: #0d6efd;
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* Disabled field styles */
+.form-select:disabled,
+.form-control:disabled {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+    border-color: #dee2e6 !important;
+}
+
+.form-select:disabled option {
+    color: #6c757d;
+}
+
+/* Disabled button styles */
+.btn:disabled {
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+}
+
+.btn-outline-secondary:disabled {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    color: #6c757d !important;
+}
+
+/* Guest display disabled state */
+.guest-display.disabled {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+/* Loading spinner animation */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* New transportation section styles */
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.form-select.border-2,
+.form-control.border-2 {
+    border-width: 2px !important;
+    border-color: #e0e0e0 !important;
+    transition: all 0.3s ease;
+}
+
+.form-select.border-2:focus,
+.form-control.border-2:focus {
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+}
+
+.form-select:disabled.border-2 {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    opacity: 0.7;
+}
+
+.position-relative .ri-map-pin-fill,
+.position-relative .ri-time-fill,
+.position-relative .ri-calendar-fill {
+    pointer-events: none;
+}
+
+.alert-info {
+    background-color: #e7f3ff !important;
+    border-color: #b8daff !important;
+    color: #0c63e4 !important;
+}
+
+/* Hotel loading status styles */
+#hotelLoadingStatus {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+#hotelLoadingStatus i {
+    font-size: 1rem;
 }
 </style>
 
@@ -4290,329 +6185,11 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
-<!-- Main Guest Selection Modal -->
-<div class="modal fade" id="mainGuestSelectorModal" tabindex="-1" aria-labelledby="mainGuestSelectorModalLabel" aria-hidden="true" data-bs-backdrop="static">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="mainGuestSelectorModalLabel">
-                        <i class="ri-group-line me-2"></i>Select Guests for Tour
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Available Guests Info -->
-                    <div class="alert alert-info">
-                        <i class="ri-information-line me-2"></i>
-                        <strong>Available Guests (Based on main selection):</strong>
-                        <br>
-                        <span id="mainModalGuestInfo">Adults: 4 (2M + 2F), Children: 0, Infants: 0</span>
-                    </div>
 
-                    <div class="row">
-                        <!-- Adults Section -->
-                        <div class="col-md-6">
-                            <div class="card border-primary h-100">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0">
-                                        <i class="ri-user-line me-2"></i>Adults (Max: 4)
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <!-- Male -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center mb-3">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-3-line text-primary me-3 fs-5"></i>
-                                            <span class="fw-semibold">Male</span>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateMainGuest('male', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalMale" style="min-width: 30px; text-align: center;">2</span>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateMainGuest('male', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
                                     </div>
 
-                                    <!-- Female -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-4-line me-3 fs-5" style="color: #e91e63;"></i>
-                                            <span class="fw-semibold">Female</span>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateMainGuest('female', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalFemale" style="min-width: 30px; text-align: center;">2</span>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateMainGuest('female', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Children & Infants Section -->
-                        <div class="col-md-6">
-                            <div class="card border-success h-100">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0">
-                                        <i class="ri-team-line me-2"></i>Children & Infants
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <!-- Children -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center mb-3">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-smile-line text-success me-3 fs-5"></i>
-                                            <div>
-                                                <span class="fw-semibold d-block">Children</span>
-                                                <small class="text-muted">Ages 1-17</small>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="updateMainGuest('children', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalChildren" style="min-width: 30px; text-align: center;">0</span>
-                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="updateMainGuest('children', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                    <!-- Infants -->
-                                    <div class="guest-item d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ri-user-baby-line text-warning me-3 fs-5"></i>
-                                            <div>
-                                                <span class="fw-semibold d-block">Infants</span>
-                                                <small class="text-muted">Under 1 year</small>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateMainGuest('infants', -1)">
-                                                <i class="ri-subtract-line"></i>
-                                            </button>
-                                            <span class="mx-3 fw-bold fs-5" id="mainModalInfants" style="min-width: 30px; text-align: center;">0</span>
-                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateMainGuest('infants', 1)">
-                                                <i class="ri-add-line"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Total Summary -->
-                    <div class="mt-4 p-3 bg-light rounded">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-bold text-dark">Total Guests:</span>
-                            <span class="fw-bold text-primary fs-5" id="mainModalTotalGuests">4 guests</span>
-                        </div>
-                        <div class="mt-2">
-                            <small class="text-muted" id="mainModalSummary">4 adults (2 male, 2 female) - 0 children - 0 infants</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="applyMainGuestSelection()">
-                        <i class="ri-check-line me-1"></i>Apply Selection
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Simple Test Modal -->
-<div class="modal fade" id="testSimpleModal" tabindex="-1" aria-labelledby="testSimpleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="testSimpleModalLabel">Test Modal</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>This is a simple test modal to verify Bootstrap modal functionality.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Initialize modals when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize all modals on the page
-        const allModals = document.querySelectorAll('.modal');
-        console.log('Found', allModals.length, 'modals on the page');
-        
-        // Pre-initialize all modals to ensure they're ready
-        allModals.forEach(modalEl => {
-            try {
-                new bootstrap.Modal(modalEl);
-                console.log('Pre-initialized modal:', modalEl.id);
-            } catch (e) {
-                console.error('Failed to pre-initialize modal:', modalEl.id, e);
-            }
-        });
-        
-        // Ensure the main guest selector modal is properly set up
-        const mainGuestModal = document.getElementById('mainGuestSelectorModal');
-        if (mainGuestModal) {
-            console.log('Found main guest modal, setting up...');
-            
-            // Initialize modal values
-            const maleInput = document.getElementById('male');
-            const femaleInput = document.getElementById('female');
-            const childrenInput = document.getElementById('children');
-            const infantsInput = document.getElementById('infants');
-            
-            const male = maleInput ? parseInt(maleInput.value) || 0 : 2;
-            const female = femaleInput ? parseInt(femaleInput.value) || 0 : 2;
-            const children = childrenInput ? parseInt(childrenInput.value) || 0 : 0;
-            const infants = infantsInput ? parseInt(infantsInput.value) || 0 : 0;
-            
-            // Update modal elements with null checks
-            const mainModalMale = document.getElementById('mainModalMale');
-            const mainModalFemale = document.getElementById('mainModalFemale');
-            const mainModalChildren = document.getElementById('mainModalChildren');
-            const mainModalInfants = document.getElementById('mainModalInfants');
-            
-            if (mainModalMale) mainModalMale.textContent = male;
-            if (mainModalFemale) mainModalFemale.textContent = female;
-            if (mainModalChildren) mainModalChildren.textContent = children;
-            if (mainModalInfants) mainModalInfants.textContent = infants;
-            
-            // Update summary
-            const totalGuestsEl = document.getElementById('mainModalTotalGuests');
-            const summaryEl = document.getElementById('mainModalSummary');
-            const adults = male + female;
-            const total = adults + children + infants;
-            
-            if (totalGuestsEl) totalGuestsEl.textContent = `${total} guests`;
-            if (summaryEl) summaryEl.textContent = `${adults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
-        }
-        // Add event listener for the main guest selector button
-        const mainGuestBtn = document.getElementById('mainGuestSelectorBtn');
-        if (mainGuestBtn) {
-            mainGuestBtn.addEventListener('click', function() {
-                const modalElement = document.getElementById('mainGuestSelectorModal');
-                if (modalElement) {
-                    try {
-                        console.log('Opening main guest modal from button click...');
-                        
-                        // Method 1: Use data-bs-* attributes
-                        modalElement.setAttribute('data-bs-toggle', 'modal');
-                        modalElement.setAttribute('data-bs-target', '#mainGuestSelectorModal');
-                        
-                        // Method 2: Try Bootstrap 5 way with pre-initialized modal
-                        try {
-                            // Get existing instance if available
-                            let bsModal = bootstrap.Modal.getInstance(modalElement);
-                            if (!bsModal) {
-                                // Create new instance if needed
-                                bsModal = new bootstrap.Modal(modalElement, {
-                                    backdrop: 'static',
-                                    keyboard: false
-                                });
-                            }
-                            bsModal.show();
-                            console.log('Main guest modal opened with Bootstrap 5 method');
-                            return;
-                        } catch (e) {
-                            console.error('Bootstrap 5 method failed for main guest modal:', e);
-                        }
-                        
-                        // Method 3: jQuery fallback
-                        if (typeof $ !== 'undefined') {
-                            try {
-                                $(modalElement).modal('show');
-                                console.log('Main guest modal opened with jQuery');
-                                return;
-                            } catch (e) {
-                                console.error('jQuery method failed for main guest modal:', e);
-                            }
-                        }
-                        
-                        // Method 4: Direct DOM manipulation as last resort
-                        modalElement.classList.add('show');
-                        modalElement.style.display = 'block';
-                        modalElement.setAttribute('aria-modal', 'true');
-                        modalElement.setAttribute('role', 'dialog');
-                        modalElement.removeAttribute('aria-hidden');
-                        document.body.classList.add('modal-open');
-                        
-                        // Add backdrop
-                        const backdrop = document.createElement('div');
-                        backdrop.className = 'modal-backdrop fade show';
-                        document.body.appendChild(backdrop);
-                        
-                        console.log('Main guest modal opened with direct DOM manipulation');
-                        
-                    } catch (error) {
-                        console.error('All methods to open main guest modal failed:', error);
-                        alert('Failed to open main guest modal. See console for details.');
-                    }
-                } else {
-                    console.error('Main guest modal element not found!');
-                    alert('Main guest modal element not found!');
-                }
-            });
-        } else {
-            console.error('Main guest selector button not found!');
-        }
-        const simpleTestButton = document.createElement('button');
-        simpleTestButton.textContent = 'Test Simple Modal';
-        simpleTestButton.className = 'btn btn-sm btn-info position-fixed';
-        simpleTestButton.style.bottom = '60px';
-        simpleTestButton.style.right = '20px';
-        simpleTestButton.style.zIndex = '9999';
-        simpleTestButton.onclick = function() {
-            const modalElement = document.getElementById('testSimpleModal');
-            if (modalElement) {
-                try {
-                    const bsModal = new bootstrap.Modal(modalElement);
-                    bsModal.show();
-                } catch (error) {
-                    console.error('Failed to open simple modal:', error);
-                    alert('Failed to open simple modal. See console for details.');
-                }
-            }
-        };
-        document.body.appendChild(simpleTestButton);
-    });
-    
-    // Initialize attraction guest selectors when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize all attraction guest selectors with values from main tour selection
-        const mainMaleInput = document.getElementById('male');
-        const mainFemaleInput = document.getElementById('female');
-        const mainChildrenInput = document.getElementById('children');
-        const mainInfantsInput = document.getElementById('infants');
-        
-        const mainMale = mainMaleInput ? parseInt(mainMaleInput.value) || 0 : 2;
-        const mainFemale = mainFemaleInput ? parseInt(mainFemaleInput.value) || 0 : 2;
-        const mainChildren = mainChildrenInput ? parseInt(mainChildrenInput.value) || 0 : 0;
-        const mainInfants = mainInfantsInput ? parseInt(mainInfantsInput.value) || 0 : 0;
-        
-        const maxAdults = mainMale + mainFemale;
-        const maxChildren = mainChildren + mainInfants;
-        
-        console.log('Guest selectors initialized with limits:', {maxAdults, maxChildren});
-        
-        // Initialize guest summaries for all service sections
-        updateAllServiceGuestSummaries(mainMale, mainFemale, mainChildren, mainInfants);
-    });
-</script>
 
 @endsection 

@@ -440,7 +440,6 @@ class DriverController extends Controller
                             $matchedCity = $component['long_name'];
                         }
                     }
-                    
                 }
             }
             if (!$country) {
@@ -463,7 +462,6 @@ class DriverController extends Controller
                 ->skip($start)
                 ->take($limit)
                 ->get();
-            
             if (!$vehicles_row) {
                 return response()->json(['error' => 'Not Getting vehicles for this city'], 404);
             }
@@ -498,6 +496,7 @@ class DriverController extends Controller
                             $private_price = $vehicle->cost_per_hour;
                             $sharable_price = $vehicle->sharable_cost_per_hour;
                         }
+                        
                         $trav_privatePrice = 0;
                         $trav_sharablePrice = 0;
                         $travclicks_id = 0;
@@ -505,12 +504,12 @@ class DriverController extends Controller
                         $dmcSharablePrice = 0;
                         $dmc_dmc_id = 0;
                         // Fetch DMC Vehicle price
-                        if ($vehicle->dmc_id == $dmc_id){
+                        if ($vehicle->dmc_id == $dmcId){
                             $dmc_result = CommonHelper::calculateDmcModePricehotel(
-                                $private_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
+                                $private_price, $dmcId, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
                             $dmcPrivatePrice = $dmc_result[0] ?? 0;
                             $dmc_night_price = CommonHelper::calculateDmcModePricehotel(
-                                $sharable_price, $dmc_id, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
+                                $sharable_price, $dmcId, $vehicle->vehicle_name, 'vehicle',$vehicle->city);
                             $dmcSharablePrice = $dmc_night_price[0] ?? 0;
                             $dmc_dmc_id = $dmc_night_price[1] ?? 0;
                         }
