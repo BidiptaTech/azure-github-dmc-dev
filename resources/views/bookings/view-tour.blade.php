@@ -21,7 +21,7 @@
                     <i class="ri-settings-line me-1"></i> Actions
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="editTour()"><i class="ri-edit-line me-2"></i> Edit Tour</a></li>
+                    {{-- <li><a class="dropdown-item" href="#" onclick="editTour()"><i class="ri-edit-line me-2"></i> Edit Tour</a></li> --}}
                     <li><a class="dropdown-item" href="#" onclick="printTour()"><i class="ri-printer-line me-2"></i> Print Details</a></li>
                     <li><a class="dropdown-item" href="#" onclick="exportTour()"><i class="ri-download-line me-2"></i> Export PDF</a></li>
                 </ul>
@@ -424,11 +424,11 @@
                             </div>
                         </div>
                     </div>
-                    <div class="text-center mt-3">
+                    {{-- <div class="text-center mt-3">
                         <button class="btn btn-sm btn-outline-secondary" onclick="viewFullHistory()">
                             <i class="ri-history-line me-1"></i> View Full History
                         </button>
-                    </div>
+                    </div> --}}
                 </div>
             </div>
         </div>
@@ -555,7 +555,15 @@ function printTour() {
 
 function exportTour() {
     console.log('Exporting tour to PDF');
-    // Implementation
+    
+    // Get the tour ID from the current page
+    const tourId = {{ $tour->tour_id }};
+    
+    // Create the export URL
+    const exportUrl = '/bookings/export-tour-pdf/' + tourId;
+    
+    // Open the PDF export in a new window to trigger download
+    window.open(exportUrl, '_blank');
 }
 
 function viewFullHistory() {

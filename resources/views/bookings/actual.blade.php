@@ -15,7 +15,7 @@
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
                 <i class="ri-check-circle-line me-1"></i>
-                {{ $tours->total() }} Actual
+                {{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }} {{ date('F') }} Actual
             </span>
         </div>
     </div>
@@ -27,8 +27,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->total() }}</h5>
-                            <p class="text-muted mb-0">Total Actual</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Actual</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -46,7 +46,8 @@
                         <div>
                             @php
                                 $totalRevenue = 0;
-                                foreach($tours as $tour) {
+                                $currentMonthTours = $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth());
+                                foreach($currentMonthTours as $tour) {
                                     if (!empty($tour->parsed_payment_details)) {
                                         foreach($tour->parsed_payment_details as $payment) {
                                             $totalRevenue += floatval($payment['amount'] ?? 0);
@@ -55,7 +56,7 @@
                                 }
                             @endphp
                             <h5 class="card-title mb-1">${{ number_format($totalRevenue) }}</h5>
-                            <p class="text-muted mb-0">Total Revenue</p>
+                            <p class="text-muted mb-0">{{ date('F') }} Revenue</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-primary rounded">
@@ -71,8 +72,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('check_in_time', '<', now())->where('check_out_time', '>', now())->count() }}</h5>
-                            <p class="text-muted mb-0">Currently Active</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('check_in_time', '<', now())->where('check_out_time', '>', now())->count() }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Active</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-warning rounded">
@@ -88,8 +89,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('check_out_time', '<', now())->count() }}</h5>
-                            <p class="text-muted mb-0">Completed</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('check_out_time', '<', now())->count() }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Completed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-info rounded">
@@ -152,7 +153,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
+                {{-- <div class="col-md-2">
                     <label class="form-label">Time Range</label>
                     <select class="form-select" id="timeFilter">
                         <option value="">All Time</option>
@@ -161,6 +162,13 @@
                         <option value="this_month">This Month</option>
                         <option value="next_month">Next Month</option>
                     </select>
+                </div> --}}
+                <div class="col-md-2">
+                    <label class="form-label">Date Range</label>
+                    <input type="date" class="form-control" id="dateFilter" 
+                           value="{{ date('Y-m-d') }}" 
+                           min="{{ date('Y-m-01') }}" 
+                           max="{{ date('Y-m-t') }}">
                 </div>
             </div>
         </div>
@@ -200,6 +208,7 @@
                             <th>Destination</th>
                             <th>Guests</th>
                             <th>Agent</th>
+                            <th>Services</th>
                             <th>Travel Dates</th>
                             <th>Payment Details</th>
                             <th>Status</th>
@@ -237,6 +246,7 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
+                                    <small class="text-muted">Created: {{ \Carbon\Carbon::parse($tour->created_at)->format('D, M d, Y') }}</small>
                                 </div>
                             </td>
                             <td>
@@ -259,6 +269,38 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
                                     <small class="text-muted">ID: {{ $tour->agent_id ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    @php
+                                        $svc = [
+                                            'hotel' => $tour->hotel ?? 0,
+                                            'attraction' => $tour->attraction ?? 0,
+                                            'restaurent' => $tour->restaurent ?? 0,
+                                            'travel' => $tour->travel ?? 0,
+                                            'guide' => $tour->guide ?? 0,
+                                            'port' => $tour->port ?? 0,
+                                        ];
+                                        $icons = [
+                                            'hotel' => 'ri-hotel-line',
+                                            'attraction' => 'ri-building-2-line',
+                                            'restaurent' => 'ri-restaurant-2-line',
+                                            'travel' => 'ri-bus-2-line',
+                                            'guide' => 'ri-user-voice-line',
+                                            'port' => 'ri-ship-line',
+                                        ];
+                                    @endphp
+                                    @foreach($svc as $key=>$count)
+                                        @if(intval($count) > 0)
+                                            <span class="badge bg-light text-dark border">
+                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                    @if(array_sum(array_map('intval', $svc)) === 0)
+                                        <span class="text-muted">No services</span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -473,7 +515,14 @@ window.showPaymentDetails = function(tourId) {
                                 <div class="row">
                                     <div class="col-sm-6">
                                         <strong>Date:</strong><br>
-                                        ${payment.payment_date || 'N/A'}
+                                        ${payment.payment_date
+                                            ? new Date(payment.payment_date).toLocaleDateString('en-US', {
+                                                weekday: 'short', // D
+                                                month: 'short',   // M
+                                                day: '2-digit',   // d
+                                                year: 'numeric'   // Y
+                                            })
+                                            : 'N/A'}
                                     </div>
                                     <div class="col-sm-6">
                                         <strong>Status:</strong><br>
@@ -608,6 +657,7 @@ function filterTable() {
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const timeFilter = document.getElementById('timeFilter')?.value || '';
+    const dateFilter = document.getElementById('dateFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
@@ -622,6 +672,24 @@ function filterTable() {
         const paymentBadges = row.cells[6]?.querySelectorAll('.badge') || [];
         
         let show = true;
+        
+        // Date filtering - using created date for actual bookings
+        if (dateFilter && tourDetails) {
+            const selectedDate = new Date(dateFilter);
+            
+            // Extract the date from tour details - looking for "Created: Mon, Dec 23, 2024" format
+            const dateMatch = tourDetails.match(/created:\s*\w+,\s+\w+\s+\d+,\s+\d+/i);
+            if (dateMatch) {
+                const createdDateText = dateMatch[0].replace(/created:\s*/i, '');
+                const createdDate = new Date(createdDateText);
+                const createdDateOnly = new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate());
+                const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                
+                if (createdDateOnly.getTime() !== selectedDateOnly.getTime()) {
+                    show = false;
+                }
+            }
+        }
         
         if (searchTerm && !tourDetails.includes(searchTerm)) {
             show = false;
@@ -689,6 +757,9 @@ function resetFilters() {
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
     document.getElementById('timeFilter').value = '';
+    // Reset date filter to today's date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateFilter').value = today;
     filterTable();
 }
 
@@ -700,6 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     const timeFilter = document.getElementById('timeFilter');
+    const dateFilter = document.getElementById('dateFilter');
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
@@ -708,6 +780,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (timeFilter) timeFilter.addEventListener('change', filterTable);
+    if (dateFilter) dateFilter.addEventListener('change', filterTable);
+    
+    // Apply initial filter on page load to show today's data
+    filterTable();
 });
 
 // Test function to verify modal works
