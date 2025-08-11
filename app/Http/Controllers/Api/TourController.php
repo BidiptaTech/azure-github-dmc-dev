@@ -443,7 +443,8 @@ class TourController extends Controller
         if (!$currentAgent) {
             return response()->json(['message' => 'Agent not found'], 404);
         }
-
+        $start = $request->start ?? 0;   // offset
+        $limit = $request->limit ?? 10; 
         // Update expired tours to 'Closed'
         $tours = Tour::where('agent_id', $agent_id)->get();
         foreach ($tours as $tour) {
@@ -460,6 +461,8 @@ class TourController extends Controller
         // Fetch active (not Closed) tours
         $activeTours = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id)
+            ->skip($start)
+            ->take($limit)
             // ->where('tour_status', '!=', 'Closed')
             ->get();
 
@@ -2085,18 +2088,7 @@ class TourController extends Controller
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
                 
-                // Get the display_id from tours table
-                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
-                if ($tour && $tour->display_id) {
-                    $orderArray = $order->toArray();
-                    $orderArray['tour_id'] = $tour->display_id;
-                    
-                    // Handle the data array properly
-                    $data = is_string($orderArray['data']) ? json_decode($orderArray['data'], true) : $orderArray['data'];
-                    $orderArray['data'] = $data;
-                    
-                    $order = $orderArray;
-                }
+
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
                         'tour_status' => "Confirmed",
@@ -2190,25 +2182,9 @@ class TourController extends Controller
                         'tour_status' => "New Enquiry",
                     ]);
                 }
-                // Get tour details
-                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
-                
-                // Convert order to array and modify it
-                $orderData = $order->toArray();
-                $orderData['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
-                
-                // Also update the data array
-                $data = json_decode($orderData['data'], true);
-                if (is_array($data)) {
-                    foreach ($data as &$item) {
-                        $item['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
-                    }
-                    $orderData['data'] = $data;
-                }
-                
                 return response()->json([
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
-                    'order' => $orderData,
+                    'order' => $order,
                     'service' => $service,
                 ], 201);
             }

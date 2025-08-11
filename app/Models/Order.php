@@ -18,6 +18,21 @@ class Order extends Model
     ];
     use SoftDeletes;
     
+    // Automatically load the tour relationship when retrieving orders
+    protected $with = ['tour'];
+    
+    public function toArray()
+    {
+        $array = parent::toArray();
+        
+        // Get tour display_id and replace tour_id in the response only
+        if ($this->tour && $this->tour->display_id) {
+            $array['tour_id'] = $this->tour->display_id;
+        }
+        
+        return $array;
+    }
+    
     public function tour()
     {
         return $this->belongsTo(Tour::class, 'tour_id', 'tour_id');
