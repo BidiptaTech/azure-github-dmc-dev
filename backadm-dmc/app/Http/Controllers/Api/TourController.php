@@ -2088,14 +2088,8 @@ class TourController extends Controller
                 // Get the display_id from tours table
                 $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
                 if ($tour && $tour->display_id) {
-                    $orderArray = $order->toArray();
-                    $orderArray['tour_id'] = $tour->display_id;
-                    
-                    // Handle the data array properly
-                    $data = is_string($orderArray['data']) ? json_decode($orderArray['data'], true) : $orderArray['data'];
-                    $orderArray['data'] = $data;
-                    
-                    $order = $orderArray;
+                    // Replace tour_id with display_id in the response
+                    $order->tour_id = $tour->display_id;
                 }
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
@@ -2190,25 +2184,9 @@ class TourController extends Controller
                         'tour_status' => "New Enquiry",
                     ]);
                 }
-                // Get tour details
-                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
-                
-                // Convert order to array and modify it
-                $orderData = $order->toArray();
-                $orderData['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
-                
-                // Also update the data array
-                $data = json_decode($orderData['data'], true);
-                if (is_array($data)) {
-                    foreach ($data as &$item) {
-                        $item['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
-                    }
-                    $orderData['data'] = $data;
-                }
-                
                 return response()->json([
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
-                    'order' => $orderData,
+                    'order' => $order,
                     'service' => $service,
                 ], 201);
             }

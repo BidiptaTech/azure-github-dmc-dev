@@ -18,6 +18,27 @@ class Order extends Model
     ];
     use SoftDeletes;
     
+    protected $appends = ['display_tour_id'];
+    
+    public function getDisplayTourIdAttribute()
+    {
+        $tour = $this->tour;
+        return $tour ? $tour->display_id : $this->tour_id;
+    }
+    
+    public function toArray()
+    {
+        $array = parent::toArray();
+        
+        // Replace tour_id with display_id
+        if (isset($array['display_tour_id'])) {
+            $array['tour_id'] = $array['display_tour_id'];
+            unset($array['display_tour_id']);
+        }
+        
+        return $array;
+    }
+    
     public function tour()
     {
         return $this->belongsTo(Tour::class, 'tour_id', 'tour_id');
