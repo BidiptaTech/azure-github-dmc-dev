@@ -43,7 +43,7 @@ class HomeController extends Controller
         $requestDayOfWeek = strtolower($requestDate->format('l'));
 
         // Query only attractions that are available on the requested date
-        $allAttractions = Attraction::where('is_active', 1)
+        $allAttractions = Attraction::orderBy('attraction_id', 'desc')->where('is_active', 1)
         ->where('country', $country)
         ->where('status', 1)
         ->where('location', $city)
@@ -280,6 +280,7 @@ class HomeController extends Controller
                 'availability' => $responseData,
                 'time_slots' => $time_slots,
                 'tax_percentage' => $country_tax,
+                'created_at' => $firstAttraction->created_at,
             ];
         }
         return response()->json($attractionList);
@@ -442,7 +443,8 @@ class HomeController extends Controller
                 'image' => $package->image,
                 'description' => $package->description,
                 'dmc_id' => $package->dmc_id,
-                'attractions' => $attractionsList
+                'attractions' => $attractionsList,
+                'created_at' => $package->created_at,
             ];
         }
         
