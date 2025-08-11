@@ -15,7 +15,7 @@
         <div class="d-flex gap-2">
             <span class="badge bg-primary fs-6">
                 <i class="ri-file-list-line me-1"></i>
-                {{ $tours->total() }} Total Enquiries
+                {{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->count() }} {{ date('F') }} Enquiries
             </span>
         </div>
     </div>
@@ -27,8 +27,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->total() }}</h5>
-                            <p class="text-muted mb-0">Total Enquiries</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->count() }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Enquiries</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-primary rounded">
@@ -61,8 +61,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('adult', '>', 0)->sum('adult') }}</h5>
-                            <p class="text-muted mb-0">Total Adults</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('adult', '>', 0)->sum('adult') }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Adults</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-info rounded">
@@ -78,8 +78,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('child', '>', 0)->sum('child') }}</h5>
-                            <p class="text-muted mb-0">Total Children</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('child', '>', 0)->sum('child') }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Children</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-warning rounded">
@@ -106,7 +106,7 @@
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID, Destination...">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">Country</label>
                     <select class="form-select" id="countryFilter">
                         <option value="">All Countries</option>
@@ -115,7 +115,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">City</label>
                     <select class="form-select" id="cityFilter">
                         <option value="">All Cities</option>
@@ -133,10 +133,13 @@
                         @endforeach
                     </select>
                 </div>
-                {{-- <div class="col-md-2">
+                <div class="col-md-2">
                     <label class="form-label">Date Range</label>
-                    <input type="date" class="form-control" id="dateFilter">
-                </div> --}}
+                    <input type="date" class="form-control" id="dateFilter" 
+                           value="{{ date('Y-m-d') }}" 
+                           min="{{ date('Y-m-01') }}" 
+                           max="{{ date('Y-m-t') }}">
+                </div>
             </div>
         </div>
     </div>
@@ -175,6 +178,7 @@
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
+                            <th>Services</th>
                             <th>Guests</th>
                             <th>Agent</th>
                             <th>Check-in/Check-out</th>
@@ -202,6 +206,38 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    @php
+                                        $svc = [
+                                            'hotel' => $tour->hotel ?? 0,
+                                            'attraction' => $tour->attraction ?? 0,
+                                            'restaurent' => $tour->restaurent ?? 0,
+                                            'travel' => $tour->travel ?? 0,
+                                            'guide' => $tour->guide ?? 0,
+                                            'port' => $tour->port ?? 0,
+                                        ];
+                                        $icons = [
+                                            'hotel' => 'ri-hotel-line',
+                                            'attraction' => 'ri-building-2-line',
+                                            'restaurent' => 'ri-restaurant-2-line',
+                                            'travel' => 'ri-bus-2-line',
+                                            'guide' => 'ri-user-voice-line',
+                                            'port' => 'ri-ship-line',
+                                        ];
+                                    @endphp
+                                    @foreach($svc as $key=>$count)
+                                        @if(intval($count) > 0)
+                                            <span class="badge bg-light text-dark border">
+                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                    @if(array_sum(array_map('intval', $svc)) === 0)
+                                        <span class="text-muted">No services</span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -321,12 +357,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const countryFilter = document.getElementById('countryFilter');
     const cityFilter = document.getElementById('cityFilter');
     const agentFilter = document.getElementById('agentFilter');
+    const dateFilter = document.getElementById('dateFilter');
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (countryFilter) countryFilter.addEventListener('change', filterTable);
     if (cityFilter) cityFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    if (dateFilter) dateFilter.addEventListener('change', filterTable);
     
     // Select all functionality
     const selectAllCheckbox = document.getElementById('selectAll');
@@ -338,6 +376,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    
+    // Apply initial filter on page load to show today's data
+    filterTable();
 });
 
 function filterTable() {
@@ -345,20 +386,22 @@ function filterTable() {
     const countryFilter = document.getElementById('countryFilter')?.value || '';
     const cityFilter = document.getElementById('cityFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const dateFilter = document.getElementById('dateFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
-        const tourDetails = row.cells[2]?.textContent.toLowerCase() || '';
-        const destination = row.cells[3]?.querySelector('.fw-medium')?.textContent || '';
-        const city = row.cells[3]?.querySelector('.text-muted')?.textContent || '';
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const city = row.cells[2]?.querySelector('.text-muted')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
+        const createdDateText = row.cells[7]?.textContent || '';
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm) && !destination.includes(searchTerm)) {
+        if (searchTerm && !tourDetails.includes(searchTerm) && !destination.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
@@ -374,6 +417,23 @@ function filterTable() {
             show = false;
         }
         
+        // Date filtering
+        if (dateFilter && createdDateText) {
+            const selectedDate = new Date(dateFilter);
+            
+            // Extract the date from "Created Date" cell - assuming format like "Mon, Dec 23, 2024"
+            const dateMatch = createdDateText.match(/\w+,\s+\w+\s+\d+,\s+\d+/);
+            if (dateMatch) {
+                const createdDate = new Date(dateMatch[0]);
+                const createdDateOnly = new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate());
+                const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                
+                if (createdDateOnly.getTime() !== selectedDateOnly.getTime()) {
+                    show = false;
+                }
+            }
+        }
+        
         row.style.display = show ? '' : 'none';
     });
 }
@@ -383,6 +443,9 @@ function resetFilters() {
     document.getElementById('countryFilter').value = '';
     document.getElementById('cityFilter').value = '';
     document.getElementById('agentFilter').value = '';
+    // Reset date filter to today's date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateFilter').value = today;
     filterTable();
 }
 
@@ -464,15 +527,15 @@ function exportData() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            // order: [[7, 'desc']], // Sort by Created Date column (index 7) in descending order
+            // order: [[8, 'desc']], // Sort by Created Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [7], // Actions column
+                    targets: [8], // Actions column
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [4], // Guests column
+                    targets: [5], // Guests column
                     orderable: false
                 }
             ],

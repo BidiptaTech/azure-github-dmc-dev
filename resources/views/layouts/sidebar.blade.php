@@ -740,8 +740,8 @@
                 <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
                     <a href="{{ route('bookings.confirmed') }}" class="menu-link" title="On Hold Bookings">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span data-i18n="On Hold">On Hold</span>
-                            @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0)
+                            <span data-i18n="Confirmed">Confirmed</span>
+                            @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0) 
                                 <span class="badge bg-danger rounded-pill text-white ms-2">{{ $bookingCounts['confirmed'] }}</span>
                             @endif
                         </div>
@@ -788,7 +788,7 @@
                                 </div>
                             </a>
                         </li>
-                        <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
+                        {{-- <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
                             <a href="{{ route('bookings.refunds') }}" class="menu-link" title="Refunds">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span data-i18n="Refunds">Refunds</span>
@@ -797,7 +797,7 @@
                                     @endif
                                 </div>
                             </a>
-                        </li>
+                        </li> --}}
                     {{-- </ul>
                 </li> --}}
             </ul>

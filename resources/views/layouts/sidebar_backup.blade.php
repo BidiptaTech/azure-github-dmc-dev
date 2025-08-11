@@ -580,7 +580,7 @@
                         <!-- Single Tour Package for DMCs -->
                         <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
                             <a href="{{ route('single-tour-package.create') }}" class="menu-link">
-                                <div data-i18n="Create Single Tour Package">Create Single Tour Package</div>
+                                <div data-i18n="Create Tour Package">Create Tour Package</div>
                             </a>
                         </li>
                         <!-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
