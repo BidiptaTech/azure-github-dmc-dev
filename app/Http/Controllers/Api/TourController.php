@@ -2109,6 +2109,12 @@ class TourController extends Controller
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                
+                // Get the display_id from tours table
+                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
+                if ($tour && $tour->display_id) {
+                    $order->tour_id = $tour->display_id;
+                }
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
                         'tour_status' => "Confirmed",
@@ -2202,9 +2208,25 @@ class TourController extends Controller
                         'tour_status' => "New Enquiry",
                     ]);
                 }
+                // Get tour details
+                $tour = Tour::where('tour_id', $validatedData['tour_id'])->first();
+                
+                // Convert order to array and modify it
+                $orderData = $order->toArray();
+                $orderData['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
+                
+                // Also update the data array
+                $data = json_decode($orderData['data'], true);
+                if (is_array($data)) {
+                    foreach ($data as &$item) {
+                        $item['tour_id'] = $tour->display_id ?? $orderData['tour_id'];
+                    }
+                    $orderData['data'] = $data;
+                }
+                
                 return response()->json([
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
-                    'order' => $order,
+                    'order' => $orderData,
                     'service' => $service,
                 ], 201);
             }
