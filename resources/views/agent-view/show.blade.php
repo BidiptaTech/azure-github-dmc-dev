@@ -23,9 +23,7 @@
                 <div>
                   <h4 class="mb-1 text-white fw-bold agent-name-glow">{{ $agentData['name'] ?? 'N/A' }}</h4>
                   <p class="mb-0 text-white-75 fw-medium">{{ $agentData['company_name'] ?? 'N/A' }}</p>
-                  <small class="badge bg-white bg-opacity-25 mt-1">
-                    <i class="fas fa-shield-check me-1"></i> Pending Verification
-                  </small>
+                  
                 </div>
               </div>
               <div class="d-flex gap-2">
@@ -219,13 +217,7 @@
                </div>
               <div class="btn-glow"></div>
             </button>
-            <button id="convertToAgentBtn" class="btn-vibrant btn-primary-vibrant">
-                             <div class="btn-content">
-                 <i class="ri-user-add-line"></i>
-                 <span>Convert to Active Agent</span>
-               </div>
-              <div class="btn-glow"></div>
-            </button>
+            
           </div>
         </div>
 
