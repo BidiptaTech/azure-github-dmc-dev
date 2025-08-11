@@ -18,22 +18,16 @@ class Order extends Model
     ];
     use SoftDeletes;
     
-    protected $appends = ['display_tour_id'];
-    
-    public function getDisplayTourIdAttribute()
-    {
-        $tour = $this->tour;
-        return $tour ? $tour->display_id : $this->tour_id;
-    }
+    // Automatically load the tour relationship when retrieving orders
+    protected $with = ['tour'];
     
     public function toArray()
     {
         $array = parent::toArray();
         
-        // Replace tour_id with display_id
-        if (isset($array['display_tour_id'])) {
-            $array['tour_id'] = $array['display_tour_id'];
-            unset($array['display_tour_id']);
+        // Get tour display_id and replace tour_id in the response only
+        if ($this->tour && $this->tour->display_id) {
+            $array['tour_id'] = $this->tour->display_id;
         }
         
         return $array;
