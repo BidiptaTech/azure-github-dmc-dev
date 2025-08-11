@@ -54,46 +54,48 @@ const Header1 = () => {
                 <Link to="/dashboard/db-dashboard" className="header-logo mr-25">
                   <div
                     style={{
-                      display: "inline-block",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       borderRadius: "8px",
-                      padding: "6px 10px",
-                      background: "rgba(255, 255, 255, 0.95)",
+                      background: "rgba(255, 255, 255, 0.1)",
+                      backdropFilter: "blur(10px)",
                       border: "1px solid rgba(255, 255, 255, 0.2)",
                       transition: "all 0.3s ease",
-                      cursor: "pointer",
-                      position: "relative",
-                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                      height: "50px",
+                      width: "100%",
+                      minHeight: "45px",
+                      minWidth: "140px",
                     }}
                     onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)";
+                      e.currentTarget.style.border = "1px solid rgba(255, 255, 255, 0.3)";
                       e.currentTarget.style.transform = "translateY(-1px)";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
                     }}
                     onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                      e.currentTarget.style.border = "1px solid rgba(255, 255, 255, 0.2)";
                       e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
                     }}
                   >
-                    
                     <img
-                       src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}  
-                      //src={agencyLogo}
+                      src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}  
                       alt="logo icon"
                       style={{
-                        width: "120px",
-                        height: "auto",
-                        maxHeight: "35px",
-                        borderRadius: "4px",
+                        width: "100%",
+                        height: "50px",
+                        objectFit: "cover",
                         transition: "all 0.3s ease",
                         display: "block",
+                        filter: "brightness(1.05) contrast(1.05)",
+                        borderRadius: "6px",
                       }}
                       onLoad={(e) => {
                         e.target.style.opacity = "0";
                         setTimeout(() => {
-                          e.target.style.transition = "opacity 0.3s ease";
+                          e.target.style.transition = "opacity 0.4s ease";
                           e.target.style.opacity = "1";
-                        }, 100);
+                        }, 50);
                       }}
                     />
                   </div>
