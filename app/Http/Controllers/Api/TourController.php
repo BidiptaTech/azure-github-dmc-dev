@@ -443,7 +443,8 @@ class TourController extends Controller
         if (!$currentAgent) {
             return response()->json(['message' => 'Agent not found'], 404);
         }
-
+        $start = $request->start ?? 0;   // offset
+        $limit = $request->limit ?? 10; 
         // Update expired tours to 'Closed'
         $tours = Tour::where('agent_id', $agent_id)->get();
         foreach ($tours as $tour) {
@@ -460,6 +461,8 @@ class TourController extends Controller
         // Fetch active (not Closed) tours
         $activeTours = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id)
+            ->skip($start)
+            ->take($limit)
             // ->where('tour_status', '!=', 'Closed')
             ->get();
 
@@ -834,32 +837,7 @@ class TourController extends Controller
                 }
                 $price = ceil($price);
                 if($price == $totalPrice){
-                    if ($existingOrder) {
-                        $existingOrder->data = $validatedData['data'];
-                        $existingOrder->agent_id = $agent_id;
-                        $existingOrder->status = 1;  // Assuming status 1 means active or confirmed
-                        $existingOrder->bookingType = $bookingType;
-                        $existingOrder->discount = $commission;
-                        $existingOrder->markup_percentage = $markup_percentage;
-                        $existingOrder->save();
-                        $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
-                        if($tourStatus == "Tentative"){
-                            $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "On Hold",
-                            ]);
-                        }
-                        if($bookingType == 'enquiry'){
-                            $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "New Enquiry",
-                            ]);
-                        }
-                        return response()->json([
-                            'message' => ucfirst($validatedData['type']) . ' order updated successfully.',
-                            'order' => $existingOrder,
-                            'service' => $service
-                        ], 200);
-                    }
-                    else {
+                    
                         $order = new Order();
                         $order->agent_id = $agent_id;
                         $order->tour_id = $validatedData['tour_id'];
@@ -874,7 +852,7 @@ class TourController extends Controller
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                         if($tourStatus == "Tentative"){
                             $tour = Tour::where('tour_id', $tour_id)->update([
-                                'tour_status' => "On Hold",
+                                'tour_status' => "Confirmed",
                             ]);
                         }
                         if($bookingType == 'enquiry'){
@@ -887,7 +865,7 @@ class TourController extends Controller
                             'order' => $order,
                             'service' => $service
                         ], 201);
-                    }
+                    
                 }
                 else{
                     return response()->json(['message' => 'Zone Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice], 409);
@@ -1019,7 +997,7 @@ class TourController extends Controller
                     $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                     if($tourStatus == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
                     if($bookingType == 'enquiry'){
@@ -1048,7 +1026,7 @@ class TourController extends Controller
                     $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                     if($tourStatus == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
                     if($bookingType == 'enquiry'){
@@ -2109,9 +2087,11 @@ class TourController extends Controller
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                
+
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
+                        'tour_status' => "Confirmed",
                     ]);
                 } 
                 if($bookingType == 'enquiry'){
@@ -2194,7 +2174,7 @@ class TourController extends Controller
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 if($tourStatus == "Tentative"){
                     $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "On Hold",
+                        'tour_status' => "Confirmed",
                     ]);
                 } 
                 if($bookingType == 'enquiry'){
@@ -2324,7 +2304,7 @@ class TourController extends Controller
                     $tourStatus = Tour::where('tour_id',$tour_id)->first();
                     if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "On Hold",
+                            'tour_status' => "Confirmed",
                         ]);
                     }
 
