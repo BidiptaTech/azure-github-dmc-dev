@@ -580,11 +580,13 @@ const authSlice = createSlice({
       }
       if (image) {
         const cleanImage = image.replace(/\\/g, '');
-        console.log('Updating profile picture from', state.profilePicture, 'to', cleanImage);
-        state.profilePicture = cleanImage;
+        // Cache-bust to force immediate refresh in UI
+        const cacheBusted = cleanImage + (cleanImage.includes('?') ? `&t=${Date.now()}` : `?t=${Date.now()}`);
+        console.log('Updating profile picture from', state.profilePicture, 'to', cacheBusted);
+        state.profilePicture = cacheBusted;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        Cookies.set("profilePicture", cleanImage, {
+        Cookies.set("profilePicture", cacheBusted, {
           expires: expiryDate,
           secure: true,
           sameSite: "Strict",
