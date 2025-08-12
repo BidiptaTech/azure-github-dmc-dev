@@ -1327,7 +1327,7 @@
 
                                 </td>
                                     
-                                    @php
+                                @php
                                     $tourTotalPrice = 0;
                                     foreach ($tour->booking as $booking) {
                                         if (in_array($booking->status, [1,2, 3])) { // Only count approved or declined bookings

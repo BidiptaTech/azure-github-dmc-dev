@@ -598,17 +598,58 @@ class TourController extends Controller
 
     public function addPayment(Request $request, $tourId)
     {
-        $tour = Tour::where('tour_id', $tourId)->first();
-        
-        if (!$tour) {
-            return redirect()->back()->with('error', 'Tour not found!');
+        try {
+            $tour = Tour::where('tour_id', $tourId)->first();
+            
+            if (!$tour) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tour not found!'
+                    ], 404);
+                }
+                return redirect()->back()->with('error', 'Tour not found!');
+            }
+            
+            // Validate the request
+            $request->validate([
+                'payment_amount' => 'required|numeric|min:0.01',
+                'currency' => 'required|string',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An error occurred: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'An error occurred: ' . $e->getMessage());
         }
         
-        // Get currency data from request
-        $selectedCurrency = $request->input('selected_currency', 'SGD');
-        $exchangeRate = $request->input('exchange_rate', 1);
-        $originalAmount = $request->input('original_amount', $request->amount);
-        $sgdAmount = $request->input('sgd_amount', $request->amount);
+        try {
+            // Get currency data from request
+            $selectedCurrency = $request->input('currency', 'SGD');
+            $exchangeRate = $request->input('exchange_rate', 1);
+            $originalAmount = $request->input('payment_amount'); // The amount user entered
+            
+            // Calculate SGD amount based on currency
+            if ($selectedCurrency === 'SGD') {
+                $sgdAmount = $originalAmount;
+            } else {
+                // Convert foreign currency to SGD
+                $sgdAmount = $originalAmount / $exchangeRate;
+            }
         
         $paymentData = [
             'amount' => $sgdAmount, // Store SGD converted amount
@@ -640,7 +681,24 @@ class TourController extends Controller
         }
         $successMessage .= ' has been successfully added to Tour #' . $tourId;
         
-        return redirect()->back()->with('success', $successMessage);
+        // Check if request is AJAX and return JSON response
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMessage
+            ]);
+        }
+        
+            return redirect()->back()->with('success', $successMessage);
+        } catch (\Exception $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to add payment: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Failed to add payment: ' . $e->getMessage());
+        }
     }
 
     public function approveBooking(Request $request, $tourId)
