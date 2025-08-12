@@ -1327,7 +1327,7 @@
 
                                 </td>
                                     
-                                    @php
+                                @php
                                     $tourTotalPrice = 0;
                                     foreach ($tour->booking as $booking) {
                                         if (in_array($booking->status, [1,2, 3])) { // Only count approved or declined bookings
@@ -1678,7 +1678,6 @@
                     <div class="mb-4">
                         <label for="amount{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-dollar-sign text-success me-2"></i>Due Amount (SGD)
-                                <i class="fas fa-dollar-sign text-success me-2"></i>Due Amount (SGD)
                         </label>
                                     
                             @php
@@ -1779,7 +1778,7 @@
                             </div>
                         </div>
                         
-                        <!-- Payment Amount in Selected Currency -->
+                        {{-- <!-- Payment Amount in Selected Currency -->
                         <div class="mb-4">
                             <label for="payment_amount{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
@@ -1809,10 +1808,9 @@
                                     <span id="validationMessage{{ $tour->tour_id }}"></span>
                                 </small>
                             </div>
-                        </div>
-
+                        </div> --}}
                         
-                        <!-- Currency Selection -->
+                        {{-- <!-- Currency Selection -->
                         <div class="mb-4">
                             <label for="currency{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-coins text-warning me-2"></i>Select Currency
@@ -1829,7 +1827,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </div>
+                        </div> --}}
                         
                         <!-- Exchange Rate (Editable) -->
                         <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">

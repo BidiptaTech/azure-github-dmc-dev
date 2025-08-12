@@ -445,6 +445,10 @@ class TourController extends Controller
         }
         $start = $request->start ?? 0;   // offset
         $limit = $request->limit ?? 10; 
+        $type = $request->type; // Filter type: 'past', 'ongoing', 'upcoming'
+        if (!$type) {
+            return response()->json(['message' => 'Type not found'], 404);
+        }
         // Update expired tours to 'Closed'
         $tours = Tour::where('agent_id', $agent_id)->get();
         foreach ($tours as $tour) {
@@ -459,8 +463,26 @@ class TourController extends Controller
         }
 
         // Fetch active (not Closed) tours
-        $activeTours = Tour::with(['booking']) // eager load to prevent N+1
-            ->where('agent_id', $agent_id)->skip($start)->take($limit)
+        $query = Tour::with(['booking']) // eager load to prevent N+1
+            ->where('agent_id', $agent_id);
+            
+        // Apply date filters based on type
+        $today = Carbon::today();
+        
+        if ($type === 'upcoming') {
+            // Upcoming: check_in_time is after today
+            $query->whereDate('check_in_time', '>', $today);
+        } elseif ($type === 'ongoing') {
+            // Ongoing: check_in_time is today or before AND check_out_time is after today
+            $query->whereDate('check_in_time', '<=', $today)
+                  ->whereDate('check_out_time', '>', $today);
+        } elseif ($type === 'past') {
+            // Past: check_out_time is today or before
+            $query->whereDate('check_out_time', '<=', $today);
+        }
+        
+        $activeTours = $query->skip($start)
+            ->take($limit)
             // ->where('tour_status', '!=', 'Closed')
             ->get();
 

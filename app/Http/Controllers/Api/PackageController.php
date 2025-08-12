@@ -460,7 +460,7 @@ class PackageController extends Controller
         }
 
         // Get last booking record
-        $lastBooking = PackageBooking::orderBy('booking_id', 'desc')->first();
+        $lastBooking = PackageBooking::withTrashed()->orderBy('booking_id', 'desc')->first();
 
         // If booking exists, extract numeric part and increment
         if ($lastBooking && preg_match('/\d+$/', $lastBooking->booking_id, $matches)) {
@@ -473,7 +473,7 @@ class PackageController extends Controller
         $bookingId = "PKG-ORD-" . $booking_max_id;
 
         // Ensure uniqueness
-        while (PackageBooking::where('booking_id', $bookingId)->exists()) {
+        while (PackageBooking::withTrashed()->where('booking_id', $bookingId)->exists()) {
             $booking_max_id++;
             $bookingId = "PKG-ORD-" . $booking_max_id;
         }

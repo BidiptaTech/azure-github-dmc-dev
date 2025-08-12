@@ -8,14 +8,14 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="fw-bold py-3 mb-2">
-                <span class="text-muted fw-light">Bookings /</span> On Hold Bookings
+                <span class="text-muted fw-light">Bookings /</span> Confirmed Bookings
             </h4>
             <p class="text-muted">Manage confirmed bookings ready for processing</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
                 <i class="ri-check-double-line me-1"></i>
-                {{ $tours->total() }} On Hold
+                {{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }} {{ date('F') }} On Hold
             </span>
         </div>
     </div>
@@ -27,8 +27,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->total() }}</h5>
-                            <p class="text-muted mb-0">Total On Hold</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Confirmed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -44,12 +44,12 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('check_in_time', '>=', now())->where('check_in_time', '<=', now()->addDays(7))->count() }}</h5>
-                            <p class="text-muted mb-0">Next Week</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->today())->count() }}</h5>
+                            <p class="text-muted mb-0">Today's Confirmed</p>
                         </div>
                         <div class="avatar">
-                            <div class="avatar-initial bg-primary rounded">
-                                <i class="ri-calendar-todo-line ri-24px"></i>
+                            <div class="avatar-initial bg-success rounded">
+                                <i class="ri-calendar-line ri-24px"></i>
                             </div>
                         </div>
                     </div>
@@ -61,18 +61,36 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('check_in_time', '>=', now()->addDays(8))->where('check_in_time', '<=', now()->addDays(30))->count() }}</h5>
-                            <p class="text-muted mb-0">Next Month</p>
+                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('adult', '>', 0)->sum('adult') }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Adults</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-info rounded">
-                                <i class="ri-calendar-line ri-24px"></i>
+                                <i class="ri-user-line ri-24px"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('child', '>', 0)->sum('child') }}</h5>
+                            <p class="text-muted mb-0">{{ date('F') }} Children</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-warning rounded">
+                                <i class="ri-user-smile-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {{-- </div> --}}
         {{-- <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
             <div class="card h-100">
                 <div class="card-body">
@@ -93,7 +111,7 @@
     </div>
 
          <!-- Upcoming Tours Alert -->
-     @php
+     {{-- @php
          $upcomingTours = $tours->where('check_in_time', '>=', now())->where('check_in_time', '<=', now()->addDays(7));
          $upcomingCount = $upcomingTours->count();
      @endphp
@@ -110,7 +128,7 @@
              </button>
          </div>
      </div>
-     @endif
+     @endif --}}
 
     <!-- Filters -->
     <div class="card mb-4">
@@ -153,7 +171,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
+                {{-- <div class="col-md-2">
                     <label class="form-label">Time Range</label>
                     <select class="form-select" id="timeFilter">
                         <option value="">All Time</option>
@@ -162,6 +180,13 @@
                         <option value="this_month">This Month</option>
                         <option value="next_month">Next Month</option>
                     </select>
+                </div> --}}
+                <div class="col-md-2">
+                    <label class="form-label">Date Range</label>
+                    <input type="date" class="form-control" id="dateFilter" 
+                           value="{{ date('Y-m-d') }}" 
+                           min="{{ date('Y-m-01') }}" 
+                           max="{{ date('Y-m-t') }}">
                 </div>
             </div>
         </div>
@@ -170,7 +195,7 @@
     <!-- Tours Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">On Hold Bookings List</h5>
+            <h5 class="mb-0">Confirmed Bookings List</h5>
             <div class="d-flex gap-2">
                 <div class="dropdown">
                     <button class="btn btn-success btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -199,6 +224,7 @@
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
+                            <th>Services</th>
                             <th>Guests</th>
                             <th>Agent</th>
                             <th>Travel Dates</th>
@@ -227,6 +253,38 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    @php
+                                        $svc = [
+                                            'hotel' => $tour->hotel ?? 0,
+                                            'attraction' => $tour->attraction ?? 0,
+                                            'restaurent' => $tour->restaurent ?? 0,
+                                            'travel' => $tour->travel ?? 0,
+                                            'guide' => $tour->guide ?? 0,
+                                            'port' => $tour->port ?? 0,
+                                        ];
+                                        $icons = [
+                                            'hotel' => 'ri-hotel-line',
+                                            'attraction' => 'ri-building-2-line',
+                                            'restaurent' => 'ri-restaurant-2-line',
+                                            'travel' => 'ri-bus-2-line',
+                                            'guide' => 'ri-user-voice-line',
+                                            'port' => 'ri-ship-line',
+                                        ];
+                                    @endphp
+                                    @foreach($svc as $key=>$count)
+                                        @if(intval($count) > 0)
+                                            <span class="badge bg-light text-dark border">
+                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
+                                            </span>
+                                        @endif
+                                    @endforeach
+                                    @if(array_sum(array_map('intval', $svc)) === 0)
+                                        <span class="text-muted">No services</span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -450,6 +508,7 @@ function filterTable() {
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const timeFilter = document.getElementById('timeFilter')?.value || '';
+    const dateFilter = document.getElementById('dateFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
@@ -458,9 +517,10 @@ function filterTable() {
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const travelDates = row.cells[5]?.textContent.toLowerCase() || '';
+        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
+        const confirmationDateText = row.cells[7]?.textContent || '';
         
         let show = true;
         
@@ -478,6 +538,23 @@ function filterTable() {
         
         if (agentFilter && agent !== agentFilter) {
             show = false;
+        }
+        
+        // Date filtering
+        if (dateFilter && confirmationDateText) {
+            const selectedDate = new Date(dateFilter);
+            
+            // Extract the date from "Confirmation Date" cell - assuming format like "Mon, Dec 23, 2024"
+            const dateMatch = confirmationDateText.match(/\w+,\s+\w+\s+\d+,\s+\d+/);
+            if (dateMatch) {
+                const confirmationDate = new Date(dateMatch[0]);
+                const confirmationDateOnly = new Date(confirmationDate.getFullYear(), confirmationDate.getMonth(), confirmationDate.getDate());
+                const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                
+                if (confirmationDateOnly.getTime() !== selectedDateOnly.getTime()) {
+                    show = false;
+                }
+            }
         }
         
         if (timeFilter) {
@@ -519,6 +596,9 @@ function resetFilters() {
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
     document.getElementById('timeFilter').value = '';
+    // Reset date filter to today's date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateFilter').value = today;
     filterTable();
 }
 
@@ -529,6 +609,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     const timeFilter = document.getElementById('timeFilter');
+    const dateFilter = document.getElementById('dateFilter');
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
@@ -536,6 +617,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (timeFilter) timeFilter.addEventListener('change', filterTable);
+    if (dateFilter) dateFilter.addEventListener('change', filterTable);
+    
+    // Apply initial filter on page load to show today's data
+    filterTable();
 });
 </script>
 @endsection
@@ -577,10 +662,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            //  order: [[6, 'desc']], // Sort by Confirmation Date column (index 6) in descending order
+            //  order: [[7, 'desc']], // Sort by Confirmation Date column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [7], // Actions column (index 8)
+                    targets: [8], // Actions column (index 8)
                     orderable: false,
                     searchable: false
                 },
@@ -589,7 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     orderable: false
                 },
                 {
-                    targets: [7], // Status column (index 7)
+                    targets: [8], // Status column (index 8)
                     orderable: false
                 }
             ],
