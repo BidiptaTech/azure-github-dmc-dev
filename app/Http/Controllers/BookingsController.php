@@ -128,8 +128,14 @@ class BookingsController extends Controller
      */
     public function followUps()
     {
-        $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
+        $user = Auth::user();
+        $dmc_id = null;
+        $tours = collect([]);
+
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -150,11 +156,68 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'enquiry_comments.enquiry_id as enquiry_id',
+                'enquiry_comments.comment as enquiry_comment',
+                'enquiry_comments.amount as enquiry_comment_amount',
+                'enquiry_comments.actual_amount as actual_amount',
+                'enquiry_comments.created_at as enquiry_comment_created_at',
+                'enquiry_comments.updated_at as enquiry_comment_updated_at',
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->paginate(105);
 
+        }
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
+                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
+                ->select([
+                    'tours.tour_id',
+                    'tours.display_id',
+                    'tours.multi_enq_id',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.hotel',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.agent_id',
+                    'agents.name as agent_name',
+                    'enquiry_comments.enquiry_id as enquiry_id',
+                    'enquiry_comments.comment as enquiry_comment',
+                    'enquiry_comments.amount as enquiry_comment_amount',
+                    'enquiry_comments.actual_amount as actual_amount',
+                    'enquiry_comments.created_at as enquiry_comment_created_at',
+                    'enquiry_comments.updated_at as enquiry_comment_updated_at',
+                ])
+                ->where('tours.dmc_id', $dmc_id)
+                ->orderBy('tours.created_at', 'desc')
+                ->paginate(15);
+        }
         return view('bookings.follow-ups', compact('tours'));
     }
 
