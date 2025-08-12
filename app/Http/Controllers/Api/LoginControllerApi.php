@@ -50,22 +50,22 @@ class LoginControllerApi extends Controller
     
     public function login(Request $request)
     {
-        // function getCurrencySymbolByCode($currencyCode) {
-        //     $formatter = new NumberFormatter('en', NumberFormatter::CURRENCY);
+        function getCurrencySymbolByCode($currencyCode) {
+            $formatter = new NumberFormatter('en', NumberFormatter::CURRENCY);
             
-        //     try {
-        //         $symbol = $formatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
-        //         // Format 0 amount just to get the symbol from the currency code
-        //         $formatted = $formatter->formatCurrency(0, $currencyCode);
+            try {
+                $symbol = $formatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+                // Format 0 amount just to get the symbol from the currency code
+                $formatted = $formatter->formatCurrency(0, $currencyCode);
                 
-        //         // Extract the symbol from the formatted string
-        //         $symbol = preg_replace('/[0-9,. ]/', '', $formatted);
+                // Extract the symbol from the formatted string
+                $symbol = preg_replace('/[0-9,. ]/', '', $formatted);
                 
-        //         return $symbol ?: $currencyCode; // Fallback to currency code if symbol not found
-        //     } catch (\Exception $e) {
-        //         return $currencyCode; // Return code if formatter fails
-        //     }
-        // }
+                return $symbol ?: $currencyCode; // Fallback to currency code if symbol not found
+            } catch (\Exception $e) {
+                return $currencyCode; // Return code if formatter fails
+            }
+        }
         $request->validate([
             'email' => 'required|email',
             'password' => 'required|string|min:6',
@@ -261,104 +261,104 @@ class LoginControllerApi extends Controller
         $token = $user->createToken('react-login')->plainTextToken;
         $tokenId = explode('|', $token)[0];
         $hashToken = PersonalAccessToken::where('id',$tokenId)->latest()->first();
-        // try {
-        //     $countryName = $request->header('user-country');
+        try {
+            $countryName = $request->header('user-country');
     
-        //     if (!$countryName) {
-        //         return response()->json(['message' => 'Country header is missing'], 400);
-        //     }
-        //     $iso3166 = new ISO3166();
+            if (!$countryName) {
+                return response()->json(['message' => 'Country header is missing'], 400);
+            }
+            $iso3166 = new ISO3166();
     
-        //     // Search country by name
-        //     $country = collect($iso3166->all())->firstWhere('name', $countryName);
+            // Search country by name
+            $country = collect($iso3166->all())->firstWhere('name', $countryName);
     
-        //     if (!$country) {
-        //         $currencyCode = 'Country not found';
-        //     }
+            if (!$country) {
+                $currencyCode = 'Country not found';
+            }
 
-        //     $currencyCode = $country['currency'][0]; // Some countries have multiple currencies
-        //     $symbol = getCurrencySymbolByCode($currencyCode);
+            $currencyCode = $country['currency'][0]; // Some countries have multiple currencies
+            $symbol = getCurrencySymbolByCode($currencyCode);
             
-        // } catch (\Exception $e) {
-        //     $symbol = $e->getMessage();
-        // }
+        } catch (\Exception $e) {
+            $symbol = $e->getMessage();
+        }
 
-        // $setting = Setting::where('name', 'currency')->where('status', 1)->first();
-        // $country_wise_rate = $this->currencyService->getExchangeRate('SGD', $currencyCode);
+        $setting = Setting::where('name', 'currency')->where('status', 1)->first();
+        $country_wise_rate = $this->currencyService->getExchangeRate('SGD', $currencyCode);
 
-        // $inr_rate = $this->currencyService->getExchangeRate('SGD', 'INR');
-        // $usd_rate = $this->currencyService->getExchangeRate('SGD', 'USD');
+        $inr_rate = $this->currencyService->getExchangeRate('SGD', 'INR');
+        $usd_rate = $this->currencyService->getExchangeRate('SGD', 'USD');
         
-        // if ($country_wise_rate) {
-        //     $exchangeRate = $country_wise_rate;
-        // } else {
-        //     $exchangeRate= "Exchange rate unavailable";
-        // }
-        // $country = $country;
-        // $userCountry = $user->country;
-        // $userCountryData = [];
+        if ($country_wise_rate) {
+            $exchangeRate = $country_wise_rate;
+        } else {
+            $exchangeRate= "Exchange rate unavailable";
+        }
+        $country = $country;
+        $userCountry = $user->country;
+        $userCountryData = [];
 
-        // if ($userCountry) {
-        //     // Split by comma and trim whitespace
-        //     $countries = array_map('trim', explode(',', $userCountry));
+        if ($userCountry) {
+            // Split by comma and trim whitespace
+            $countries = array_map('trim', explode(',', $userCountry));
             
-        //     foreach ($countries as $countryName) {
-        //         $countryCode = CountryHelper::getCountryCode($countryName);
-        //         if ($countryCode) {
-        //             $countryInfos = Country::where('name', $countryName)->first();
-        //             $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
-        //             $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
-        //             $userCountryData[] = [
-        //                 'name' => $countryName,
-        //                 'code' => $countryCode,
-        //                 'country_code' => $countryInfos->country_code,
-        //                 'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
-        //                 'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
-        //             ];
-        //         }
-        //     }
-        // }
+            foreach ($countries as $countryName) {
+                $countryCode = CountryHelper::getCountryCode($countryName);
+                if ($countryCode) {
+                    $countryInfos = Country::where('name', $countryName)->first();
+                    $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
+                    $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
+                    $userCountryData[] = [
+                        'name' => $countryName,
+                        'code' => $countryCode,
+                        'country_code' => $countryInfos->country_code,
+                        'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
+                        'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
+                    ];
+                }
+            }
+        }
 
-        // $countryInfo = Country::where('name', $country)->first();
+        $countryInfo = Country::where('name', $country)->first();
         
-        // // Handle multiple DMC IDs and company names
-        // $dmc_ids = [];
-        // $dmc_company_names = [];
+        // Handle multiple DMC IDs and company names
+        $dmc_ids = [];
+        $dmc_company_names = [];
         
-        // if ($userModel == 'Agent' && $user->dmc_id) {
-        //     // Parse the JSON array of DMC IDs from agent table
-        //     $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
+        if ($userModel == 'Agent' && $user->dmc_id) {
+            // Parse the JSON array of DMC IDs from agent table
+            $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
             
-        //     if (is_array($agentDmcIds)) {
-        //         $dmc_ids = $agentDmcIds;
+            if (is_array($agentDmcIds)) {
+                $dmc_ids = $agentDmcIds;
                 
-        //         // Fetch company names for all DMC IDs
-        //         $dmcCompanies = User::whereIn('userId', $agentDmcIds)
-        //             ->where('role_id', 11) // DMC role
-        //             ->select('userId', 'company_name')
-        //             ->get();
+                // Fetch company names for all DMC IDs
+                $dmcCompanies = User::whereIn('userId', $agentDmcIds)
+                    ->where('role_id', 11) // DMC role
+                    ->select('userId', 'company_name')
+                    ->get();
                 
-        //         foreach ($dmcCompanies as $dmcCompany) {
-        //             $dmc_company_names[] = [
-        //                 'dmc_id' => $dmcCompany->userId,
-        //                 'company_name' => $dmcCompany->company_name
-        //             ];
-        //         }
-        //     }
-        // } else {
-        //     // For User model or single DMC case, use existing logic
-        //     if($dmc_id){
-        //         $dmc_ids = [$dmc_id];
-        //         $dmc_company_names = [[
-        //             'dmc_id' => $dmc_id,
-        //             'company_name' => $dmc->company_name ?? ''
-        //         ]];
-        //     }
-        // }
+                foreach ($dmcCompanies as $dmcCompany) {
+                    $dmc_company_names[] = [
+                        'dmc_id' => $dmcCompany->userId,
+                        'company_name' => $dmcCompany->company_name
+                    ];
+                }
+            }
+        } else {
+            // For User model or single DMC case, use existing logic
+            if($dmc_id){
+                $dmc_ids = [$dmc_id];
+                $dmc_company_names = [[
+                    'dmc_id' => $dmc_id,
+                    'company_name' => $dmc->company_name ?? ''
+                ]];
+            }
+        }
         
-        // $agent_country_tax = $countryInfo->tax_percentage ?? 0;
-        // $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
-        // $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
+        $agent_country_tax = $countryInfo->tax_percentage ?? 0;
+        $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
+        $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
@@ -376,26 +376,26 @@ class LoginControllerApi extends Controller
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
                 'token' => $token,
-                // 'current_exchange_rate' => $exchangeRate,
-                // 'current_currency_code' => $currencyCode,
-                // 'current_currency_symbol' => $symbol,
-                // 'inr_exchange_rate' => $inr_rate,
-                // 'inr_currency_code' => 'INR',
-                // 'inr_currency_symbol' => '₹',
-                // 'usd_exchange_rate' => $usd_rate,
-                // 'usd_currency_code' => 'USD',
-                // 'usd_currency_symbol' => '$',
-                // 'usd_tax' => $usd_tax,
-                // 'sgd_tax' => $sgd_tax,
-                // 'agent_country_tax' => $agent_country_tax,
-                // 'phone_no' => $user->phone,
-                // 'price_hide' => $dmc_users->price_hide ?? 0,
-                // 'user_role' => $userRole,
-                // 'dmc_id' => $dmc_id ?? '',
-                // 'dmc_company_name' => $dmc->company_name ?? '',
-                // 'dmc_ids' => $dmc_ids,
-                // 'dmc_companies' => $dmc_company_names,
-                // 'zone_on' => $dmc_users->zone_on ?? 0,
+                'current_exchange_rate' => $exchangeRate,
+                'current_currency_code' => $currencyCode,
+                'current_currency_symbol' => $symbol,
+                'inr_exchange_rate' => $inr_rate,
+                'inr_currency_code' => 'INR',
+                'inr_currency_symbol' => '₹',
+                'usd_exchange_rate' => $usd_rate,
+                'usd_currency_code' => 'USD',
+                'usd_currency_symbol' => '$',
+                'usd_tax' => $usd_tax,
+                'sgd_tax' => $sgd_tax,
+                'agent_country_tax' => $agent_country_tax,
+                'phone_no' => $user->phone,
+                'price_hide' => $dmc_users->price_hide ?? 0,
+                'user_role' => $userRole,
+                'dmc_id' => $dmc_id ?? '',
+                'dmc_company_name' => $dmc->company_name ?? '',
+                'dmc_ids' => $dmc_ids,
+                'dmc_companies' => $dmc_company_names,
+                'zone_on' => $dmc_users->zone_on ?? 0,
             ],
         ]);
     }
