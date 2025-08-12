@@ -51,6 +51,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import LocalActivityIcon from '@mui/icons-material/LocalActivity';
 import FlightIcon from '@mui/icons-material/Flight';
 import CloseIcon from '@mui/icons-material/Close';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { BookPackageEnquiry, UpdateCustomBooking } from '../../../slice/tour-packages/tourPackageSlice';
 import { useNavigate } from 'react-router-dom';
 
@@ -631,7 +632,111 @@ export default function Itinerary({ onBookingSuccess }) {
             
             {/* Day by Day Transportation and Activities */}
             {dates.map((date, index) => (
-              <Box key={index} sx={{ mb: 4 }}>
+              <Box key={index} id={`day-${index + 1}`} sx={{ mb: 4 }}>
+                {/* Day Plan Navigation for this specific day */}
+                <Paper elevation={1} sx={{ p: 2, mb: 2.5, borderRadius: 2, bgcolor: '#fafbfc' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Box 
+                      sx={{ 
+                        bgcolor: '#e3f2fd', 
+                        color: '#1976d2', 
+                        p: 0.6, 
+                        borderRadius: '50%', 
+                        mr: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <CalendarTodayIcon sx={{ fontSize: '1rem' }} />
+                    </Box>
+                    <Typography variant="subtitle1" sx={{ color: '#37474f', fontSize: '0.9rem', fontWeight: 500 }}>Day {index + 1} Navigation</Typography>
+                  </Box>
+                  
+                  {/* Horizontal Day Navigation */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 1.5, 
+                    flexWrap: 'wrap', 
+                    justifyContent: 'center',
+                    mb: 1
+                  }}>
+                    {dates.map((navDate, navIndex) => (
+                      <Box
+                        key={navIndex}
+                        onClick={() => {
+                          // Scroll to the corresponding day section
+                          const dayElement = document.getElementById(`day-${navIndex + 1}`);
+                          if (dayElement) {
+                            dayElement.scrollIntoView({ 
+                              behavior: 'smooth', 
+                              block: 'start' 
+                            });
+                          }
+                        }}
+                        sx={{
+                          minWidth: '80px',
+                          p: 1.5,
+                          textAlign: 'center',
+                          bgcolor: navIndex === index ? '#e8f5e8' : '#f8f9fa',
+                          color: navIndex === index ? '#2e7d32' : '#5f6368',
+                          border: '2px solid',
+                          borderColor: navIndex === index ? '#4caf50' : '#e0e0e0',
+                          borderRadius: 1.5,
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          boxShadow: navIndex === index ? '0 2px 8px rgba(76, 175, 80, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+                          '&:hover': {
+                            bgcolor: navIndex === index ? '#d4edda' : '#e3f2fd',
+                            borderColor: navIndex === index ? '#45a049' : '#2196f3',
+                            transform: 'translateY(-2px)',
+                            boxShadow: navIndex === index ? '0 4px 12px rgba(76, 175, 80, 0.3)' : '0 4px 12px rgba(33, 150, 243, 0.2)'
+                          }
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600, 
+                            display: 'block',
+                            mb: 0.5, 
+                            fontSize: '0.75rem',
+                            lineHeight: 1.2,
+                            color: 'inherit'
+                          }}
+                        >
+                          Day {navIndex + 1}
+                        </Typography>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            display: 'block',
+                            mb: 0.3, 
+                            fontSize: '0.7rem',
+                            lineHeight: 1.1,
+                            opacity: 0.9,
+                            color: 'inherit'
+                          }}
+                        >
+                          {navDate.format('MMM DD')}
+                        </Typography>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            display: 'block',
+                            fontSize: '0.65rem',
+                            lineHeight: 1.1,
+                            opacity: 0.8,
+                            color: 'inherit'
+                          }}
+                        >
+                          {navDate.format('ddd')}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Paper>
+
                 {/* Day Header */}
                 <Box 
                   sx={{ 
