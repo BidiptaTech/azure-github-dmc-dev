@@ -230,6 +230,7 @@
                             <th>Status</th>
                             <th>Follow Up Status</th>
                             <th>Last Contact</th>
+                            <th>Negotiation</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -339,6 +340,20 @@
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
                             </td>
+                            <td>
+                                <button 
+                                    type="button"
+                                    class="btn btn-sm btn-warning"
+                                    data-tour-id="{{ $tour->tour_id }}"
+                                    data-enquiry-id="{{ $tour->enquiry_id ?? '' }}"
+                                    data-price="{{ $tour->enquiry_comment_amount ?? 0 }}"
+                                    data-actual="{{ $tour->actual_amount ?? 0 }}"
+                                    data-comment="{{ $tour->enquiry_comment ?? '' }}"
+                                    onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
+                                >
+                                    Check Negotiation
+                                </button>
+                            </td>
                             {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -426,6 +441,59 @@
                     {{ $tours->links() }}
                 </div>
             </div> --}}
+        </div>
+    </div>
+    
+    <!-- Update Price Modal (Follow Ups) -->
+    <div class="modal fade" id="followupUpdateModal" tabindex="-1" aria-labelledby="followupUpdateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="followupUpdateModalLabel">Update Price & Comment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="followupUpdateForm" method="POST" action="">
+                    @csrf
+                    <div class="modal-body">
+                        <input type="hidden" name="enquiry_id" id="followup_modal_enquiry_id" />
+                        
+                        <!-- Current details display -->
+                        <div class="border rounded p-3 bg-light mb-3">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Actual Amount</small>
+                                    <div class="fw-semibold" id="followup_display_actual">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Previous Negotiated Amount</small>
+                                    <div class="fw-semibold" id="followup_display_price">—</div>
+                                </div>
+                                <div class="col-12">
+                                    <small class="text-muted d-block">Last Comment</small>
+                                    <div class="fw-semibold" id="followup_display_comment">—</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- New update inputs -->
+                        <div class="mb-3">
+                            <label for="followup_current_price" class="form-label">New Price</label>
+                            <input id="followup_current_price" type="number" name="price" class="form-control" placeholder="Enter new price" onkeyup="validateFollowupPrice(this)" required />
+                            <div id="followup-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none">
+                                Enquiry price cannot exceed the actual amount.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="followup_comment" class="form-label">New Comment</label>
+                            <textarea id="followup_comment" name="comment" rows="3" class="form-control" placeholder="Enter new comment" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -640,16 +708,16 @@ function resetFilters() {
             // order: [[7, 'desc']], // Sort by Last Contact column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column (index 8)
+                    targets: [9, 10], // Update Price and Actions columns
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [3], // Guests column (index 3)
+                    targets: [3, 4], // Services and Guests columns
                     orderable: false
                 },
                 {
-                    targets: [5, 6], // Status and Follow Up Status columns (index 5, 6)
+                    targets: [6, 7], // Status and Follow Up Status columns
                     orderable: false
                 }
             ],
@@ -678,6 +746,52 @@ function resetFilters() {
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
+        
+        // Modal helper functions for Update Price
+        window.openFollowupModal = function(button, route) {
+            var modalEl = document.getElementById('followupUpdateModal');
+            var form = document.getElementById('followupUpdateForm');
+            var priceInput = document.getElementById('followup_current_price');
+            var commentInput = document.getElementById('followup_comment');
+            var idInput = document.getElementById('followup_modal_enquiry_id');
+            var displayActual = document.getElementById('followup_display_actual');
+            var displayPrice = document.getElementById('followup_display_price');
+            var displayComment = document.getElementById('followup_display_comment');
+
+            form.action = route || '';
+            idInput.value = button.getAttribute('data-enquiry-id') || '';
+            var actual = button.getAttribute('data-actual') || '';
+            var prevPrice = button.getAttribute('data-price') || '';
+            var prevComment = button.getAttribute('data-comment') || '';
+
+            // Set displays
+            displayActual.textContent = actual !== '' ? actual : '—';
+            displayPrice.textContent = prevPrice !== '' ? prevPrice : '—';
+            displayComment.textContent = prevComment !== '' ? prevComment : '—';
+
+            // Prefill price with previous negotiated amount; comment left blank
+            priceInput.value = prevPrice;
+            commentInput.value = '';
+            if (actual !== '') priceInput.setAttribute('max', actual); else priceInput.removeAttribute('max');
+
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        };
+
+        window.validateFollowupPrice = function(input) {
+            var maxValue = parseFloat(input.getAttribute('max'));
+            var currentValue = parseFloat(input.value);
+            var warningMessage = document.getElementById('followup-warning-message');
+            
+            if (!isNaN(maxValue) && !isNaN(currentValue) && currentValue > maxValue) {
+                input.value = maxValue; // Reset to maximum allowed value
+                warningMessage.classList.remove('d-none');
+                
+                setTimeout(function() {
+                    warningMessage.classList.add('d-none');
+                }, 3000);
+            }
+        };
     });
 </script>
 @endsection
