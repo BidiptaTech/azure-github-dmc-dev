@@ -28,9 +28,21 @@ class RestaurantController extends Controller
         $country = trim($parts[1] ?? '');
         $country = trim($country, '()'); //it gives "India"
         $dmcId = $request->dmc_id;
-        
+        $start = $request->start ?? 0;
+        $limit = $request->limit ?? 10;
 
         $agentId = auth()->user()->agent_id;
+
+        if($start < 0){
+            return response()->json(['message' => 'Start value cannot be negative'], 400);
+        }
+        if($limit < 0){
+            return response()->json(['message' => 'Limit value cannot be negative'], 400);
+        }
+
+        if(!$start && !$limit){
+            return response()->json(['message' => 'Start and limit are required'], 400);
+        }
         
         if (!$city || !$country) {
             return response()->json(['message' => 'City or Country name is missing'], 400);
@@ -44,6 +56,8 @@ class RestaurantController extends Controller
                     ->orWhereJsonContains('dmc_id', (int)$dmcId);
             })
             ->orderBy('restaurant_id', 'desc')
+            ->limit($limit)
+            ->offset($start)
             ->get();
         
         if ($restaurants->isEmpty()) {
