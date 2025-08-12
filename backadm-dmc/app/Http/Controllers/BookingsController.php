@@ -201,6 +201,7 @@ class BookingsController extends Controller
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
                 'tours.tour_id',
+                'tours.unique_tour_id',
                 'tours.display_id',
                 'tours.multi_enq_id',
                 'tours.adult',
@@ -216,6 +217,7 @@ class BookingsController extends Controller
                 'tours.check_in_time',
                 'tours.check_out_time',
                 'tours.tour_status',
+                'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
@@ -233,9 +235,16 @@ class BookingsController extends Controller
     public function definiteBookings()
     {
         $tours = Tour::where('tour_status', 'Definite')
+            ->with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                },
+                'agent'
+            ])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
                 'tours.tour_id',
+                'tours.unique_tour_id',
                 'tours.display_id',
                 'tours.multi_enq_id',
                 'tours.adult',
@@ -251,6 +260,7 @@ class BookingsController extends Controller
                 'tours.check_in_time',
                 'tours.check_out_time',
                 'tours.tour_status',
+                'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
