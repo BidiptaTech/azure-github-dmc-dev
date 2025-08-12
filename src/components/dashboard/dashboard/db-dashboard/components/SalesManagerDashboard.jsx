@@ -63,7 +63,7 @@ const SalesManagerDashboard = () => {
       setSelectedAgent(agentId);
       dispatch(fetchEnquiries(agentId))
       dispatch(setAgentId(agentId))
-      dispatch(fetchLists(agentId))
+      dispatch(fetchLists({ agentId, reset: true }))
       console.log('Selected agent:', event.target.value);
     };
   // useEffect(() => {

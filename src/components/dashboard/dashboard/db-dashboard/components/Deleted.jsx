@@ -41,7 +41,7 @@ import { fetchEditid, setTourId1, deleteTour } from "@/slice/common/EditSlice";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { fetchLists } from "@/slice/common/TourlistSlice";
+import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
@@ -235,17 +235,53 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(setTourType("past"));
+      dispatch(fetchLists({ reset: true, type: "past" }));
+      
+      console.log('Initial data fetch with type: past');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
   // if (status === "loading") return <p>Loading...</p>;
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
+  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
   // Update sortedLists when lists change
   useEffect(() => {
-    setSortedLists(Array.isArray(lists) ? lists : []); // Safely check if lists is an array
-  }, [lists]);
+    const newLists = Array.isArray(lists) ? lists : [];
+    setSortedLists(newLists); // Safely check if lists is an array
+    
+    console.log('Lists updated in Deleted.jsx:', {
+      listsLength: newLists.length,
+      totalPages: Math.ceil(newLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [lists, rowsPerPage, page]);
+  
+  // Auto-fetch more data when reaching the last page
+  // useEffect(() => {
+  //   if (page > 0 && sortedLists.length > 0) {
+  //     const currentPageEnd = (page + 1) * rowsPerPage;
+  //     const dataAvailable = sortedLists.length;
+      
+  //     // If we're on the last page or near the end of available data, fetch more
+  //     if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+  //       const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+  //       console.log('Auto-fetching more data:', {
+  //         currentPage: page + 1,
+  //         totalPages,
+  //         dataAvailable,
+  //         nextStart,
+  //         type: "past"
+  //       });
+        
+  //       // Make sure we're using the correct type
+  //       const currentType = "past"; // For Deleted.jsx, we always use "past"
+  //       dispatch(fetchLists({ start: nextStart, limit: 30, type: currentType, reset: false }));
+  //     }
+  //   }
+  // }, [page, sortedLists.length, rowsPerPage, dispatch, totalPages]);
 
   const handleColumnSort = (column) => {
     // Clone current list to avoid mutation
@@ -342,13 +378,17 @@ export default function Pending() {
   //   setPage(0);
   // };
 
+  // Get the current page's data
   const paginatedLists = sortedLists.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
-  // Calculate total pages
-  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+  // Calculate total pages based on the total data available
+  // Since we're fetching data in chunks of 30, we need to calculate total pages differently
+  
+  
+
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
@@ -2280,6 +2320,8 @@ export default function Pending() {
           setCurrentPage={(newPage) => setPage(newPage - 1)} // Update state to 0-based
           totalPages={totalPages}
         />
+        
+
       </Box>
 
       <Snackbar

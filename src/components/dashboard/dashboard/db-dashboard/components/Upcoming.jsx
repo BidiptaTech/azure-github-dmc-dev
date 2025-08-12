@@ -41,7 +41,7 @@ import { fetchEditid, setTourId1, deleteTour } from "@/slice/common/EditSlice";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { fetchLists } from "@/slice/common/TourlistSlice";
+import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
@@ -66,6 +66,10 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "rgba(33, 150, 243, 0.06)"; // Professional light blue
@@ -83,8 +87,6 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(255, 87, 34, 0.06)"; // Professional light deep orange
     case "Closed":
       return "rgb(237,237,237)"; // Professional light gray
-    case "Cancelled":
-      return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
     default:
       return "transparent";
   }
@@ -92,6 +94,10 @@ const getBackgroundColor = (tour_status) => {
 
 // Text color function for booking status styling
 const getTextColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "#F44336"; // Red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "#2196F3"; // Blue
@@ -100,8 +106,6 @@ const getTextColor = (tour_status) => {
     case "Actual":
       return "#4CAF50"; // Green
     case "Pending":
-      return "#F44336"; // Red
-    case "Cancelled":
       return "#F44336"; // Red
     case "Tentative":
       return "#7E57C2"; // Violet
@@ -339,17 +343,53 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(setTourType("ongoing"));
+      dispatch(fetchLists({ reset: true, type: "ongoing" }));
+      
+      console.log('Initial data fetch with type: ongoing');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
   // if (status === "loading") return <p>Loading...</p>;
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
+  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
   // Update sortedLists when lists change
   useEffect(() => {
-    setSortedLists(Array.isArray(upcomingTours) ? upcomingTours : []); // Safely check if lists is an array
-  }, [upcomingTours]);
+    const newLists = Array.isArray(upcomingTours) ? upcomingTours : [];
+    setSortedLists(newLists);
+    
+    console.log('Lists updated in Upcoming.jsx:', {
+      listsLength: newLists.length,
+      totalPages: Math.ceil(newLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [upcomingTours, rowsPerPage, page]);
+  
+  // Auto-fetch more data when reaching the last page
+  useEffect(() => {
+    if (page > 0 && sortedLists.length > 0) {
+      const currentPageEnd = (page + 1) * rowsPerPage;
+      const dataAvailable = sortedLists.length;
+      
+      // If we're on the last page or near the end of available data, fetch more
+      if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+        const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+        console.log('Auto-fetching more data in Upcoming:', {
+          currentPage: page + 1,
+          totalPages,
+          dataAvailable,
+          nextStart,
+          type: "ongoing"
+        });
+        
+        // Make sure we're using the correct type
+        const currentType = "ongoing"; // For Upcoming.jsx, we always use "ongoing"
+        dispatch(fetchLists({ start: nextStart, limit: 30, type: currentType, reset: false }));
+      }
+    }
+  }, [page, sortedLists.length, rowsPerPage, dispatch, totalPages]);
 
   const steps = useMemo(
     () => [
@@ -593,8 +633,7 @@ export default function Pending() {
     page * rowsPerPage + rowsPerPage
   );
 
-  // Calculate total pages
-  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
@@ -830,7 +869,7 @@ export default function Pending() {
     } else {
       swal("Cancelled", "Your tour is safe!", "info");
     }
-    dispatch(fetchLists());
+    dispatch(fetchLists({ reset: true }));
   };
 
   const handleCloseModal = () => {
@@ -1716,7 +1755,7 @@ export default function Pending() {
         handleCloseEnquiryModal();
 
         // Refresh the list
-        dispatch(fetchLists());
+        dispatch(fetchLists({ reset: true }));
       } else {
         toast.error(
           response.data?.message || "Operation failed. Please try again."
@@ -2401,7 +2440,7 @@ export default function Pending() {
                               </Tooltip>
 
                               {/* Only render Edit button if editOff is not 1 */}
-                              {list.editOff !== 1 && (
+                              {list.editOff !== 1 && list.tour_status?.toLowerCase().startsWith("cancel") && (
                                 <Tooltip title="Add More Services" arrow>
                                   <IconButton
                                     size="small"
