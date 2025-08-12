@@ -11,7 +11,7 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 export const fetchAttractions = createAsyncThunk(
   "attractions/fetchAttractions",
   async (
-    { city, date, adults, children, tour_id, selectedDate, fromMainSearch },
+    { city, date, adults, children, tour_id, selectedDate, fromMainSearch, start = 0, limit = 5 },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
@@ -50,6 +50,10 @@ export const fetchAttractions = createAsyncThunk(
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
       if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Add pagination parameters
+      queryParams.append("start", start);
+      queryParams.append("limit", limit);
       
       // Add DMC ID to query parameters if available
       if (selectedDmcId) {
@@ -260,6 +264,9 @@ const attractionsSlice = createSlice({
         date: action.payload.date
           ? action.payload.date.format("YYYY-MM-DD")
           : null,
+        selectedDate: action.payload.selectedDate
+          ? action.payload.selectedDate.format("YYYY-MM-DD")
+          : null,
       };
       state.searchParams = serializedPayload;
     },
@@ -286,11 +293,26 @@ const attractionsSlice = createSlice({
         state.status = "succeeded";
         // Check if the response is empty or undefined
         if (!action.payload || action.payload.length === 0) {
-          state.attractions = [];
-          state.filteredAttractions = [];
+          // If no data returned and we have existing data, don't clear it
+          // This indicates we've reached the end of available data
+          if (state.attractions.length === 0) {
+            state.attractions = [];
+            state.filteredAttractions = [];
+          }
         } else {
-          state.attractions = action.payload;
-          state.filteredAttractions = action.payload;
+          // For infinite scroll: append new data to existing data
+          // Check if this is the first page (start = 0) or subsequent pages
+          const isFirstPage = action.meta.arg.start === 0;
+          
+          if (isFirstPage) {
+            // First page: replace existing data
+            state.attractions = action.payload;
+            state.filteredAttractions = action.payload;
+          } else {
+            // Subsequent pages: append to existing data
+            state.attractions = [...state.attractions, ...action.payload];
+            state.filteredAttractions = [...state.filteredAttractions, ...action.payload];
+          }
         }
       })
       .addCase(fetchAttractions.rejected, (state, action) => {

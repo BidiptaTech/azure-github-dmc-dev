@@ -541,7 +541,9 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
       children: guestCounts.Children,
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
-      fromMainSearch: false
+      fromMainSearch: false,
+      start: 0,
+      limit: 10
     }));
 
     // Fetch restaurants based on search criteria
@@ -851,7 +853,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       children: guestCounts.Children,
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
-      fromMainSearch: false
+      fromMainSearch: false,
+      start: 0,
+      limit: 10
     }));
 
     // Fetch restaurants based on search criteria
@@ -1131,7 +1135,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       children: guestCounts.Children,
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
-      fromMainSearch: false
+      fromMainSearch: false,
+      start: 0,
+      limit: 10
     }));
 
     // Fetch restaurants based on search criteria
