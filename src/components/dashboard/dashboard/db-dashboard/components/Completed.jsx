@@ -37,6 +37,7 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { fetchLists } from "@/slice/common/TourlistSlice";
 import { fetchViewDetails } from "../../../../././../slice/common/ViewDetails";
 import Pagination from "../../common/Pagination";
+import { Tooltip } from "@mui/material";
 import { setBookingType } from "../../../../../slice/common/commonSlice";
 import {
   setUserInfo as customerInfoSetUserInfo,
@@ -107,6 +108,17 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
+};
+
 export default function Pending() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -127,7 +139,7 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(fetchLists({ reset: true }));
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
@@ -488,7 +500,7 @@ export default function Pending() {
     } else {
       swal("Cancelled", "Your tour is safe!", "info");
     }
-    dispatch(fetchLists());
+    dispatch(fetchLists({ reset: true }));
   };
 
   const handleCloseModal = () => {
@@ -1104,7 +1116,19 @@ export default function Pending() {
                               className="icon-customer"
                               style={{ fontSize: "18px", color: "#F44336" }}
                             ></i>
-                            <span>{list.customer_name || "N/A"}</span>
+                            <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  display: "inline-block",
+                                  maxWidth: "110px",
+                                }}
+                              >
+                                {truncateName(list.customer_name, 10)}
+                              </span>
+                            </Tooltip>
                           </div>
                         </td>
                         <td style={{ padding: "16px 20px" }}>

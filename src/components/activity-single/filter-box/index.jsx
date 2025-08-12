@@ -357,7 +357,7 @@ const Index = () => {
       hours: hour,
       basePrice: basePrice,
       surcharge: surcharge,
-      totalPrice: totalPrice,
+      totalPrice: Math.ceil(totalPrice),
       Tax: guide.guide.tax_percentage,
       Night_Start_Time: guide.guide.night_start_time,
       Night_End_Time: guide.guide.night_end_time,

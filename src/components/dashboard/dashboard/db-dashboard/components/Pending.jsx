@@ -42,12 +42,12 @@ import { fetchEditid, setTourId1, deleteTour } from "@/slice/common/EditSlice";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { fetchLists } from "@/slice/common/TourlistSlice";
+import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import dayjs from "dayjs";
 import { Button, InputAdornment, TextField, Typography, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
 import CustomPaymentTooltip from "./CustomTooltip";
-import { Visibility, Edit, AttachMoney, Update ,Cancel, MoreVert} from "@mui/icons-material";
+import { Visibility, Edit, AttachMoney, Update, Cancel, MoreVert } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -104,6 +104,10 @@ import { resetAllServiceResponses } from "@/slice/common/stepperButtonSlice";
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "rgba(33, 150, 243, 0.06)"; // Professional light blue
@@ -121,8 +125,6 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(255, 87, 34, 0.06)"; // Professional light deep orange
     case "Closed":
       return "rgb(237,237,237)"; // Professional light gray
-    case "Cancelled":
-      return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
     case "On Hold":
       return "#000000"; // Professional light orange
     default:
@@ -132,6 +134,10 @@ const getBackgroundColor = (tour_status) => {
 
 // Text color function for booking status styling
 const getTextColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "#F44336"; // Red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "#2196F3"; // Blue
@@ -140,8 +146,6 @@ const getTextColor = (tour_status) => {
     case "Actual":
       return "#4CAF50"; // Green
     case "Pending":
-      return "#F44336"; // Red
-    case "Cancelled":
       return "#F44336"; // Red
     case "Tentative":
       return "#7E57C2"; // Violet
@@ -236,6 +240,17 @@ const formatDate1 = (dateString) => {
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
 
+// Truncate long customer names with word-aware cutoff
+const truncateName = (name, maxLength = 10) => {
+  if (!name) return "N/A";
+  const trimmed = String(name).trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSpaceIndex = slice.lastIndexOf(" ");
+  const base = lastSpaceIndex > 0 ? slice.slice(0, lastSpaceIndex) : slice;
+  return `${base.trim()}...`;
+};
+
 export default function Pending() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -243,12 +258,12 @@ export default function Pending() {
   const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
   const userRole = useSelector((state) => state.auth.userRole);
   const [isEnquiryModalVisible, setIsEnquiryModalVisible] = useState(false);
-
+  
   // Get the view details from the Redux store BEFORE using it in useState
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
-  const { pendingTours = [], status } = useSelector((state) => state.lists);
+  const { pendingTours = [], status, start, limit } = useSelector((state) => state.lists);
 
   // Get user_country from auth slice
   const user_country = useSelector((state) => {
@@ -437,17 +452,54 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(setTourType("upcoming"));
+      dispatch(fetchLists({ reset: true, type: "upcoming" }));
+      
+      console.log('Initial data fetch with type: upcoming');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
   // if (status === "loading") return <p>Loading...</p>;
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
+  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
   // Update sortedLists when lists change
   useEffect(() => {
-    setSortedLists(Array.isArray(pendingTours) ? pendingTours : []); // Safely check if lists is an array
-  }, [pendingTours]);
+    const newLists = Array.isArray(pendingTours) ? pendingTours : [];
+    setSortedLists(newLists);
+    
+    console.log('Lists updated in Pending.jsx:', {
+      listsLength: newLists.length,
+      totalPages: Math.ceil(newLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [pendingTours, rowsPerPage, page]);
+  
+  // Auto-fetch more data when reaching the last page
+  useEffect(() => {
+    if (page > 0 && sortedLists.length > 0) {
+      const currentPageEnd = (page + 1) * rowsPerPage;
+      const dataAvailable = sortedLists.length;
+      
+      // If we're on the last page or near the end of available data, fetch more
+      if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+        const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+        console.log('Auto-fetching more data in Pending:', {
+          currentPage: page + 1,
+          totalPages,
+          dataAvailable,
+          nextStart,
+          type: "upcoming"
+        });
+        
+        // Make sure we're using the correct type
+        const currentType = "upcoming"; // For Pending.jsx, we always use "upcoming"
+        dispatch(fetchLists({ start: nextStart, limit: 30, type: currentType, reset: false }));
+      }
+    }
+  }, [page, sortedLists.length, rowsPerPage, dispatch, totalPages]);
+ 
 
   const handleSort = () => {
     const sortedData = [...sortedLists].sort((a, b) => {
@@ -588,7 +640,7 @@ export default function Pending() {
   // Dependency array: only recalculate if 'id' changes
 
   // Calculate total pages
-  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+  
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
@@ -803,19 +855,19 @@ export default function Pending() {
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
-    dispatch(resetVehicles1()); 
+    dispatch(resetVehicles1());
     dispatch(resetguide());
     dispatch(UpdateCustomPackage({ tour_id: tourId }))
-    .unwrap()
-    .then((response) => {
-      dispatch(resetPackages());
-      navigate("/dashboard/tour-packages");
-      console.log("Full Response Data:", response);
-      dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
-    })
-    .catch((error) => {
-      console.error("Error fetching booking:", error);
-    });
+      .unwrap()
+      .then((response) => {
+        dispatch(resetPackages());
+        navigate("/dashboard/tour-packages");
+        console.log("Full Response Data:", response);
+        dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
+      })
+      .catch((error) => {
+        console.error("Error fetching booking:", error);
+      });
   };
 
   // Update the handleViewDetails function to properly initialize and persist data
@@ -909,7 +961,7 @@ export default function Pending() {
     } else {
       swal("Cancelled", "Your tour is safe!", "info");
     }
-    dispatch(fetchLists());
+            dispatch(fetchLists({ reset: true }));
   };
 
   const handleCloseModal = () => {
@@ -1476,8 +1528,7 @@ export default function Pending() {
 
         // Save the completed PDF
         pdf.save(
-          `Tour_Details_${
-            bookings.display_id || bookings.data?.display_id || "booking"
+          `Tour_Details_${bookings.display_id || bookings.data?.display_id || "booking"
           }.pdf`
         );
 
@@ -1539,9 +1590,6 @@ export default function Pending() {
     // Set the enquiry amount to the current total price
     setEnquiryAmount(Math.ceil(totalOriginalPrice));
 
-    // Log current state for debugging
-    console.log("Current tourId state:", tourId);
-    console.log("Current bookings data:", bookings);
 
     // Fetch enquiry history data
     try {
@@ -1571,7 +1619,7 @@ export default function Pending() {
         }
       }
 
-      console.log("Using tour_id for enquiry:", currentTourId);
+      
 
       if (!currentTourId) {
         console.error("No tour_id available for fetching enquiry history");
@@ -1591,7 +1639,7 @@ export default function Pending() {
         },
       });
 
-      console.log("Enquiry history response:", response.data);
+      
 
       if (response.data && response.data.data) {
         // For single object response, convert to array
@@ -1600,7 +1648,7 @@ export default function Pending() {
           : [response.data.data];
         setEnquiryHistory(historyData);
         setEnquiryAmount(historyData[0].current_price);
-        console.log("History data:", historyData[0].current_price);
+        
 
         // Check if there's an entry with status 2 (Booked) or 3 (Cancel)
         const hasStatusBookedOrCancel = historyData.some(
@@ -1611,7 +1659,7 @@ export default function Pending() {
             item.status === 3
         );
 
-        console.log("Has status booked or cancel?", hasStatusBookedOrCancel);
+      
 
         // If the status is 2 or 3, close the modal and don't show it
         if (hasStatusBookedOrCancel) {
@@ -1626,21 +1674,19 @@ export default function Pending() {
         const isAssignedToAgent = historyData.some(
           (item) => item.assigned && item.assigned === "Agent"
         );
-        console.log("Enquiry history data:", historyData);
-        console.log("Is assigned to agent?", isAssignedToAgent);
+        
 
         // Check if any entry has assigned as "OM" or other value
         const assignedValue =
           historyData.length > 0 ? historyData[0].assigned : "none";
-        console.log("Assigned value found:", assignedValue);
-        console.log("Is assigned OM?", assignedValue === "OM");
+        
 
         // Set assigned state based on what we found
         if (
           assignedValue === "OM" ||
           (assignedValue && assignedValue !== "Agent")
         ) {
-          console.log("Setting assigned to a non-Agent value:", assignedValue);
+          
           setAssigned(assignedValue);
         } else {
           setAssigned(isAssignedToAgent ? "Agent" : null);
@@ -1813,7 +1859,7 @@ export default function Pending() {
         handleCloseEnquiryModal();
 
         // Refresh the list
-        dispatch(fetchLists());
+        dispatch(fetchLists({ reset: true }));
       } else {
         toast.error(
           response.data?.message || "Operation failed. Please try again."
@@ -2085,7 +2131,7 @@ export default function Pending() {
             }}
           >
             <div className="responsive-table-container">
-              <table className="table-3 -border-bottom col-12 responsive-table">
+              <table className="table-3 -border-bottom col-12 responsive-table" style={{ tableLayout: 'fixed' }}>
                 <thead className="bg-light-2">
                   <tr>
                     <th
@@ -2097,9 +2143,9 @@ export default function Pending() {
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         transition: "background-color 0.3s ease",
-                        width: "120px",
-                        minWidth: "120px",
-                        maxWidth: "120px",
+                        width: "130px",
+                        minWidth: "130px",
+                        maxWidth: "130px",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = "#e6eafb";
@@ -2142,6 +2188,9 @@ export default function Pending() {
                         cursor: "pointer",
                         whiteSpace: "nowrap",
                         transition: "background-color 0.3s ease",
+                        width: "140px",
+                        minWidth: "140px",
+                        maxWidth: "140px",
                       }}
                       onClick={() => handleColumnSort("id")}
                       onMouseEnter={(e) =>
@@ -2150,13 +2199,12 @@ export default function Pending() {
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.backgroundColor = "#f5f7fc")
                       }
-                      title={`Sort by Booking ID (${
-                        sortColumn === "id"
+                      title={`Sort by Booking ID (${sortColumn === "id"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2178,9 +2226,8 @@ export default function Pending() {
                         Booking ID
                         {sortColumn === "id" && (
                           <i
-                            className={`icon-up-down text-blue-1 mr-5 ${
-                              order === "asc" ? "rotate-180" : ""
-                            }`}
+                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2213,13 +2260,12 @@ export default function Pending() {
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1)";
                       }}
-                      title={`Sort by Start Date (${
-                        sortColumn === "startDate"
+                      title={`Sort by Start Date (${sortColumn === "startDate"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2241,9 +2287,8 @@ export default function Pending() {
                         Start Date
                         {sortColumn === "startDate" && (
                           <i
-                            className={`icon-up-down text-blue-1 mr-5 ${
-                              order === "asc" ? "rotate-180" : ""
-                            }`}
+                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2276,13 +2321,12 @@ export default function Pending() {
                         e.currentTarget.querySelector("i").style.transform =
                           "scale(1)";
                       }}
-                      title={`Sort by End Date (${
-                        sortColumn === "endDate"
+                      title={`Sort by End Date (${sortColumn === "endDate"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2304,9 +2348,8 @@ export default function Pending() {
                         End Date
                         {sortColumn === "endDate" && (
                           <i
-                            className={`icon-up-down text-blue-1 mr-5 ${
-                              order === "asc" ? "rotate-180" : ""
-                            }`}
+                            className={`icon-up-down text-blue-1 mr-5 ${order === "asc" ? "rotate-180" : ""
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2342,13 +2385,12 @@ export default function Pending() {
                         e.currentTarget.querySelector("i").style.transform =
                           "rotate(0deg)";
                       }}
-                      title={`Sort by Pax Count (${
-                        sortColumn === "pax"
+                      title={`Sort by Pax Count (${sortColumn === "pax"
                           ? order === "asc"
                             ? "ascending"
                             : "descending"
                           : "click to sort"
-                      })`}
+                        })`}
                     >
                       <div
                         style={{
@@ -2370,9 +2412,8 @@ export default function Pending() {
                         Pax
                         {sortColumn === "pax" && (
                           <i
-                            className={`icon-arrow-${
-                              order === "asc" ? "down" : "up"
-                            }`}
+                            className={`icon-arrow-${order === "asc" ? "down" : "up"
+                              }`}
                             style={{
                               fontSize: "10px",
                               opacity: order === "asc" ? 1 : 0.7,
@@ -2645,8 +2686,9 @@ export default function Pending() {
                         <td
                           style={{
                             padding: "8px 12px",
-                            minWidth: "120px",
-                            maxWidth: "120px",
+                            width: "130px",
+                            minWidth: "130px",
+                            maxWidth: "130px",
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -2677,8 +2719,8 @@ export default function Pending() {
                               </IconButton>
                             </Tooltip>
 
-                            {/* Only render Edit button if editOff is not 1 */}
-                            {list.editOff !== 1 && (
+                            {/* Only render Edit button if editOff is not 1 and status doesn't start with "Cancel" */}
+                            {list.editOff !== 1 && !list.tour_status?.toLowerCase().startsWith("cancel") && (
                               <Tooltip title="Add More Services" arrow>
                                 <IconButton
                                   size="small"
@@ -2698,93 +2740,106 @@ export default function Pending() {
                               </Tooltip>
                             )}
 
-                            {/* Third button - Negotiate for enquiry type, Update for others */}
-                            {list.booking_type === "enquiry" && userRole === "Agent" ? (
-                              <Tooltip title="Negotiate" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDirectEnquiry(list)}
-                                  sx={{
-                                    color: "#7b1fa2",
-                                    width: "28px",
-                                    height: "28px",
-                                    padding: "4px",
-                                    "&:hover": {
-                                      color: "#4a148c",
-                                    },
-                                  }}
-                                >
-                                  <AttachMoney sx={{ fontSize: "14px" }} />
-                                </IconButton>
-                              </Tooltip>
-                            ) : (
-                              <Tooltip title="Update Tour Plan" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleUpdate(list)}
-                                  sx={{
-                                    color: "#f57c00",
-                                    width: "28px",
-                                    height: "28px",
-                                    padding: "4px",
-                                    "&:hover": {
-                                      color: "#e65100",
-                                    },
-                                  }}
-                                >
-                                  <Update sx={{ fontSize: "14px" }} />
-                                </IconButton>
-                              </Tooltip>
+                            {/* Third button - Negotiate for enquiry type, Update for others - Hide if status starts with "Cancel" */}
+                            {!list.tour_status?.toLowerCase().startsWith("cancel") && (
+                              list.booking_type === "enquiry" && userRole === "Agent" ? (
+                                <Tooltip title="Negotiate" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDirectEnquiry(list)}
+                                    sx={{
+                                      color: "#7b1fa2",
+                                      width: "28px",
+                                      height: "28px",
+                                      padding: "4px",
+                                      "&:hover": {
+                                        color: "#4a148c",
+                                      },
+                                    }}
+                                  >
+                                    <AttachMoney sx={{ fontSize: "14px" }} />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="Update Tour Plan" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleUpdate(list)}
+                                    sx={{
+                                      color: "#f57c00",
+                                      width: "28px",
+                                      height: "28px",
+                                      padding: "4px",
+                                      "&:hover": {
+                                        color: "#e65100",
+                                      },
+                                    }}
+                                  >
+                                    <Update sx={{ fontSize: "14px" }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )
                             )}
 
-                            {/* 3 dots menu for additional actions */}
-                            <Tooltip title="More Actions" arrow>
-                              <IconButton
-                                size="small"
-                                onClick={(event) => handleActionMenuOpen(event, list)}
-                                sx={{
-                                  color: "#666",
-                                  width: "28px",
-                                  height: "28px",
-                                  padding: "4px",
-                                  "&:hover": {
-                                    color: "#333",
-                                  },
-                                }}
-                              >
-                                <MoreVert sx={{ fontSize: "14px" }} />
-                              </IconButton>
-                            </Tooltip>
+                            {/* 3 dots menu for additional actions - Hide if status starts with "Cancel" */}
+                            {/* {!list.tour_status?.toLowerCase().startsWith("cancel") && ( */}
+                              <Tooltip title="More Actions" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={(event) => handleActionMenuOpen(event, list)}
+                                  sx={{
+                                    color: "#666",
+                                    width: "28px",
+                                    height: "28px",
+                                    padding: "4px",
+                                    "&:hover": {
+                                      color: "#333",
+                                    },
+                                  }}
+                                >
+                                  <MoreVert sx={{ fontSize: "14px" }} />
+                                </IconButton>
+                              </Tooltip>
+                            {/* )} */}
                           </div>
                           {list.dmc_company_name && (
-                          <Tooltip 
-                            title={list.dmc_company_name }
-                            arrow
-                            placement="top"
-                          >
-                            <div 
-                              style={{ 
-                                fontSize: "10px", 
-                                fontWeight: "600",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                maxWidth: "100%",
-                                marginTop: "10px",
-                                textAlign: "center",
-                                backgroundColor: "#3554D1",
-                                color: "#fff",
-                                padding: "5px 10px",
-                                borderRadius: "50px",
-                                cursor: "pointer",
-                              }}
+                            <Tooltip
+                              title={list.dmc_company_name}
+                              arrow
+                              placement="top"
                             >
-                              {list.dmc_company_name }
-                            </div>
-                          </Tooltip>
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: "600",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "100%",
+                                  marginTop: "10px",
+                                  textAlign: "center",
+                                  backgroundColor: "#3554D1",
+                                  color: "#fff",
+                                  padding: "5px 10px",
+                                  borderRadius: "50px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {list.dmc_company_name}
+                              </div>
+                            </Tooltip>
                           )}
                         </td>
-                        <td className="booking-id-column">
+                        <td 
+                          className="booking-id-column"
+                          style={{
+                            padding: "8px 12px",
+                            width: "140px",
+                            minWidth: "140px",
+                            maxWidth: "140px",
+                            textAlign: "center",
+                          }}
+                        >
                           <div
                             style={{
                               backgroundColor: "rgba(53, 84, 209, 0.1)",
@@ -2797,6 +2852,8 @@ export default function Pending() {
                               flexDirection: "column",
                               alignItems: "center",
                               whiteSpace: "nowrap",
+                              width: "100%",
+                              maxWidth: "120px",
                             }}
                           >
                             {/* Display ID on top */}
@@ -2818,26 +2875,23 @@ export default function Pending() {
                               </span>
                             )}
                             {list.multi_enq_id && (
-                              <div 
-                              style={{ 
-                               
-                                textAlign: "center",
-                                //backgroundColor: "#3554D1",
-                                //color: "#fff",
-                                color: "#3554D1",
-                                padding: "5px 10px",
-                                borderRadius: "50px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              {list.multi_enq_id}
-                            </div>
+                              <div
+                                style={{
+                                  textAlign: "center",
+                                  color: "#3554D1",
+                                  padding: "5px 10px",
+                                  borderRadius: "50px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {list.multi_enq_id}
+                              </div>
                             )}
                           </div>
                         </td>
 
                         <td className="date-column">
-                          <Tooltip 
+                          <Tooltip
                             title={formatDateTooltip(list.check_in_time)}
                             arrow
                             placement="top"
@@ -2862,7 +2916,7 @@ export default function Pending() {
                           </Tooltip>
                         </td>
                         <td className="date-column">
-                          <Tooltip 
+                          <Tooltip
                             title={formatDateTooltip(list.check_out_time)}
                             arrow
                             placement="top"
@@ -2948,46 +3002,57 @@ export default function Pending() {
                             >
                               {list.destination
                                 ? list.destination
-                                    .split(",")
-                                    .map((code) => {
-                                      const trimmedCode = code.trim();
-                                      // First try to get the name from codeToName mapping
-                                      const countryName =
-                                        countryMappings.codeToName[trimmedCode];
-                                      if (countryName) {
-                                        return countryName;
-                                      }
-                                      // If not found in codeToName, check if it's already a name
-                                      if (
-                                        countryMappings.nameToCode[trimmedCode]
-                                      ) {
-                                        return trimmedCode;
-                                      }
-                                      // If neither found, return the original code
+                                  .split(",")
+                                  .map((code) => {
+                                    const trimmedCode = code.trim();
+                                    // First try to get the name from codeToName mapping
+                                    const countryName =
+                                      countryMappings.codeToName[trimmedCode];
+                                    if (countryName) {
+                                      return countryName;
+                                    }
+                                    // If not found in codeToName, check if it's already a name
+                                    if (
+                                      countryMappings.nameToCode[trimmedCode]
+                                    ) {
                                       return trimmedCode;
-                                    })
-                                    .join(", ")
+                                    }
+                                    // If neither found, return the original code
+                                    return trimmedCode;
+                                  })
+                                  .join(", ")
                                 : "N/A"}
                             </span>
                           </div>
                         </td>
-                        <td className="customer-column">
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            <i
-                              className="icon-customer"
-                              style={{ fontSize: "18px", color: "#F44336" }}
-                            ></i>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {list.customer_name || "N/A"}
-                            </span>
-                          </div>
-                        </td>
+                          <td className="customer-column">
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                maxWidth: "150px",
+                              }}
+                            >
+                              <i
+                                className="icon-customer"
+                                style={{ fontSize: "18px", color: "#F44336" }}
+                              ></i>
+                              <Tooltip title={list.customer_name || "N/A"} placement="top" arrow>
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    maxWidth: "110px",
+                                  }}
+                                >
+                                  {truncateName(list.customer_name, 10)}
+                                </span>
+                              </Tooltip>
+                            </div>
+                          </td>
                         <td className="status-column">
                           <div
                             style={{
@@ -3147,42 +3212,41 @@ export default function Pending() {
                                     list.payment_status === "Not Paid"
                                       ? "rgba(253, 236, 234, 0.9)"
                                       : list.payment_status === "Partially Paid"
-                                      ? "rgba(227, 242, 253, 0.9)"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "rgba(232, 245, 233, 0.9)"
-                                      : "rgba(224, 224, 224, 0.9)",
+                                        ? "rgba(227, 242, 253, 0.9)"
+                                        : list.payment_status === "Completely Paid"
+                                          ? "rgba(232, 245, 233, 0.9)"
+                                          : "rgba(224, 224, 224, 0.9)",
                                   borderRadius: "6px",
-                                  border: `1px solid ${
-                                    list.payment_status === "Not Paid"
+                                  border: `1px solid ${list.payment_status === "Not Paid"
                                       ? "rgba(211, 47, 47, 0.3)"
                                       : list.payment_status === "Partially Paid"
-                                      ? "rgba(25, 118, 210, 0.3)"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "rgba(56, 142, 60, 0.3)"
-                                      : "rgba(97, 97, 97, 0.3)"
-                                  }`,
+                                        ? "rgba(25, 118, 210, 0.3)"
+                                        : list.payment_status === "Completely Paid"
+                                          ? "rgba(56, 142, 60, 0.3)"
+                                          : "rgba(97, 97, 97, 0.3)"
+                                    }`,
                                 }}
                               >
-                                <i 
+                                <i
                                   className={
                                     list.payment_status === "Not Paid"
                                       ? "icon-x-circle"
                                       : list.payment_status === "Partially Paid"
-                                      ? "icon-clock"
-                                      : list.payment_status === "Completely Paid"
-                                      ? "icon-check-circle"
-                                      : "icon-help-circle"
+                                        ? "icon-clock"
+                                        : list.payment_status === "Completely Paid"
+                                          ? "icon-check-circle"
+                                          : "icon-help-circle"
                                   }
-                                  style={{ 
-                                    fontSize: "10px", 
+                                  style={{
+                                    fontSize: "10px",
                                     color:
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
                                         : list.payment_status === "Partially Paid"
-                                        ? "#1976d2"
-                                        : list.payment_status === "Completely Paid"
-                                        ? "#388e3c"
-                                        : "#616161"
+                                          ? "#1976d2"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "#388e3c"
+                                            : "#616161"
                                   }}
                                 ></i>
                                 <span
@@ -3193,10 +3257,10 @@ export default function Pending() {
                                       list.payment_status === "Not Paid"
                                         ? "#d32f2f"
                                         : list.payment_status === "Partially Paid"
-                                        ? "#1976d2"
-                                        : list.payment_status === "Completely Paid"
-                                        ? "#388e3c"
-                                        : "#616161",
+                                          ? "#1976d2"
+                                          : list.payment_status === "Completely Paid"
+                                            ? "#388e3c"
+                                            : "#616161",
                                   }}
                                 >
                                   {list.payment_status}
@@ -3236,10 +3300,10 @@ export default function Pending() {
                     ))
                   ) : (
                     <tr>
-                                              <td
-                          colSpan="11"
-                          style={{ textAlign: "center", padding: "40px 20px" }}
-                        >
+                      <td
+                        colSpan="11"
+                        style={{ textAlign: "center", padding: "40px 20px" }}
+                      >
                         <div
                           style={{
                             display: "flex",
@@ -3376,35 +3440,38 @@ export default function Pending() {
           View Details
         </MenuItem>
 
-        {/* Show Edit if not already in first 3 buttons and editOff is not 1 */}
-        {selectedListItem && selectedListItem.editOff !== 1 && (
+        {/* Show Edit if not already in first 3 buttons and editOff is not 1 and status doesn't start with "Cancel" */}
+        {selectedListItem && selectedListItem.editOff !== 1 && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('edit')} sx={{ fontSize: "14px", py: 1 }}>
             <Edit sx={{ fontSize: "10px", mr: 1, color: "#2e7d32" }} />
             Add More Services
           </MenuItem>
         )}
 
-        {/* Show Negotiate if not already in first 3 buttons */}
-        {selectedListItem && selectedListItem.booking_type === "enquiry" && userRole === "Agent" && (
+        {/* Show Negotiate if not already in first 3 buttons and status doesn't start with "Cancel" */}
+        {selectedListItem && selectedListItem.booking_type === "enquiry" && userRole === "Agent" && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('negotiate')} sx={{ fontSize: "14px", py: 1 }}>
             <AttachMoney sx={{ fontSize: "10px", mr: 1, color: "#7b1fa2" }} />
             Negotiate
           </MenuItem>
         )}
 
-        {/* Show Update if not already in first 3 buttons */}
-        
+        {/* Show Update if not already in first 3 buttons and status doesn't start with "Cancel" */}
+        {selectedListItem && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
             <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
             Update Tour Plan
           </MenuItem>
-        
+        )}
+
 
         {/* Always show Delete in menu */}
+        {selectedListItem && (
         <MenuItem onClick={() => handleMenuAction('delete')} sx={{ fontSize: "14px", py: 1, color: "#f44336" }}>
           <Cancel sx={{ fontSize: "10px", mr: 1, color: "#f44336" }} />
           Cancel
         </MenuItem>
+        )}
       </Menu>
     </div>
   );

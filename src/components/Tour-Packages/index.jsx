@@ -64,7 +64,10 @@ export default function TourPackages() {
 
 
   const handleNext = () => {
+     // Scroll to top when moving to next step to prevent unwanted scroll down
+     window.scrollTo(0,300);
     setCurrentStep(currentStep + 1);
+    
   };
 
   const handleBookingSuccess = () => {

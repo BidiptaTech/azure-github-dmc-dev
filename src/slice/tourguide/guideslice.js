@@ -201,7 +201,7 @@ export const guideslice = createAsyncThunk(
         children !== undefined
       ) {
         formData = {
-          data: [...details, { dmc_id: dmcId }],
+          data: details.map(item => ({ ...item, dmc_id: dmcId })),
           type: type1,
           agent_id: AgentId,
           tour_id: tourid,

@@ -57,12 +57,10 @@ import {
     Attractions,
     Restaurant,
     EmojiPeople,
-    
+    Badge as BadgeIcon,
+    ConfirmationNumber,
     DateRange,
-    
-    
     FilterAltOff,
-    
     ClearAll
 } from "@mui/icons-material";
 import { TabPanel, a11yProps } from "./TabPanel";
@@ -95,6 +93,10 @@ const PreDefinePackages = () => {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [showSearchInput, setShowSearchInput] = useState(false);
+    const [dmcFilterTerm, setDmcFilterTerm] = useState('');
+    const [showDmcFilter, setShowDmcFilter] = useState(false);
+    const [bookingIdFilterTerm, setBookingIdFilterTerm] = useState('');
+    const [showBookingIdFilter, setShowBookingIdFilter] = useState(false);
     const [showDateFilter, setShowDateFilter] = useState(false);
     const [dateRange, setDateRange] = useState(null);
     const [isDateFilterActive, setIsDateFilterActive] = useState(false);
@@ -296,6 +298,38 @@ const PreDefinePackages = () => {
             return formatted;
         } catch (error) {
             console.error("Error formatting date:", error, dateString);
+            return 'Not specified';
+        }
+    };
+
+    // Helper function to format date and time strings
+    const formatDateTime = (dateString) => {
+        if (!dateString) return 'Not specified';
+        try {
+            // console.log("Formatting date time string:", dateString);
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                // console.log("Invalid date from string:", dateString);
+                return 'Not specified';
+            }
+
+            const formatted = date.toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+
+            const time = date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+
+            const result = `${formatted} ${time}`;
+            // console.log("Formatted date time result:", result);
+            return result;
+        } catch (error) {
+            console.error("Error formatting date time:", error, dateString);
             return 'Not specified';
         }
     };
@@ -596,6 +630,21 @@ const PreDefinePackages = () => {
                 if (bookingDetails && bookingDetails.status) return bookingDetails.status;
                 return 'Unpaid'; // Default payment status
             })(),
+            createdAt: (() => {
+                // Priority order for created_at extraction
+                if (booking.created_at) return formatDateTime(booking.created_at);
+                if (booking.createdAt) return formatDateTime(booking.createdAt);
+                if (booking.created_date) return formatDateTime(booking.created_date);
+                if (booking.createdDate) return formatDateTime(booking.createdDate);
+                if (booking.date_created) return formatDateTime(booking.date_created);
+                if (booking.dateCreated) return formatDateTime(booking.dateCreated);
+                if (booking.booking_date) return formatDateTime(booking.booking_date);
+                if (booking.bookingDate) return formatDateTime(booking.bookingDate);
+                if (booking.timestamp) return formatDateTime(booking.timestamp);
+                if (booking.updated_at) return formatDateTime(booking.updated_at);
+                if (booking.updatedAt) return formatDateTime(booking.updatedAt);
+                return 'Not specified'; // Default fallback
+            })(),
 
             // Preserve original data for modal
             booking_id: booking.booking_id || booking.id,
@@ -683,6 +732,40 @@ const PreDefinePackages = () => {
             );
         }
 
+        // Filter by DMC ID if DMC filter term exists
+        if (dmcFilterTerm) {
+            filteredData = filteredData.filter(item => {
+                // Check if item has dmc_data and dmc_company_name
+                if (item.dmc_data && item.dmc_data.dmc_company_name) {
+                    return item.dmc_data.dmc_company_name.toLowerCase().includes(dmcFilterTerm.toLowerCase());
+                }
+                // Also check if there's a direct dmc_id field
+                if (item.dmc_id) {
+                    return item.dmc_id.toString().toLowerCase().includes(dmcFilterTerm.toLowerCase());
+                }
+                return false;
+            });
+        }
+
+        // Filter by Booking ID if Booking ID filter term exists
+        if (bookingIdFilterTerm) {
+            filteredData = filteredData.filter(item => {
+                // Check bookingId field
+                if (item.bookingId) {
+                    return item.bookingId.toString().toLowerCase().includes(bookingIdFilterTerm.toLowerCase());
+                }
+                // Also check booking_id field
+                if (item.booking_id) {
+                    return item.booking_id.toString().toLowerCase().includes(bookingIdFilterTerm.toLowerCase());
+                }
+                // Check id field as fallback
+                if (item.id) {
+                    return item.id.toString().toLowerCase().includes(bookingIdFilterTerm.toLowerCase());
+                }
+                return false;
+            });
+        }
+
         // Filter by date range if date range exists
         if (hasValidDateRange()) {
             filteredData = filteredData.filter(item => {
@@ -728,16 +811,42 @@ const PreDefinePackages = () => {
         setTabValue(newValue);
         setSearchTerm('');
         setShowSearchInput(false);
+        setDmcFilterTerm('');
+        setShowDmcFilter(false);
+        setBookingIdFilterTerm('');
+        setShowBookingIdFilter(false);
     };
 
     const handleSearchChange = (event) => {
         setSearchTerm(event.target.value);
     };
 
+    const handleDmcFilterChange = (event) => {
+        setDmcFilterTerm(event.target.value);
+    };
+
+    const handleBookingIdFilterChange = (event) => {
+        setBookingIdFilterTerm(event.target.value);
+    };
+
     const toggleSearch = () => {
         setShowSearchInput(!showSearchInput);
         if (showSearchInput) {
             setSearchTerm('');
+        }
+    };
+
+    const toggleDmcFilter = () => {
+        setShowDmcFilter(!showDmcFilter);
+        if (showDmcFilter) {
+            setDmcFilterTerm('');
+        }
+    };
+
+    const toggleBookingIdFilter = () => {
+        setShowBookingIdFilter(!showBookingIdFilter);
+        if (showBookingIdFilter) {
+            setBookingIdFilterTerm('');
         }
     };
 
@@ -1074,6 +1183,40 @@ const PreDefinePackages = () => {
                                     autoFocus
                                 />
                             ) : null}
+                            {showDmcFilter ? (
+                                <TextField
+                                    size="small"
+                                    placeholder="Filter by DMC company name..."
+                                    value={dmcFilterTerm}
+                                    onChange={handleDmcFilterChange}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <Badge fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ minWidth: '250px' }}
+                                    autoFocus
+                                />
+                            ) : null}
+                            {showBookingIdFilter ? (
+                                <TextField
+                                    size="small"
+                                    placeholder="Filter by Booking ID..."
+                                    value={bookingIdFilterTerm}
+                                    onChange={handleBookingIdFilterChange}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <ConfirmationNumber fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ minWidth: '250px' }}
+                                    autoFocus
+                                />
+                            ) : null}
                             <Button
                                 startIcon={<Search />}
                                 variant="outlined"
@@ -1083,7 +1226,25 @@ const PreDefinePackages = () => {
                             >
                                 {showSearchInput ? "Close" : "Search"}
                             </Button>
-                            <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button>
+                            <Button
+                                startIcon={<Badge />}
+                                variant="outlined"
+                                size="small"
+                                onClick={toggleDmcFilter}
+                                color={showDmcFilter ? "primary" : "inherit"}
+                            >
+                                {showDmcFilter ? "Close" : "DMC Filter"}
+                            </Button>
+                            <Button
+                                startIcon={<ConfirmationNumber />}
+                                variant="outlined"
+                                size="small"
+                                onClick={toggleBookingIdFilter}
+                                color={showBookingIdFilter ? "primary" : "inherit"}
+                            >
+                                {showBookingIdFilter ? "Close" : "Booking ID"}
+                            </Button>
+                            {/* <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button> */}
                             <DateFilter
                                 key={`date-filter-${filterKey}`}
                                 onDateChange={handleDateChange}
@@ -1156,6 +1317,40 @@ const PreDefinePackages = () => {
                                     autoFocus
                                 />
                             ) : null}
+                            {showDmcFilter ? (
+                                <TextField
+                                    size="small"
+                                    placeholder="Filter by DMC company name..."
+                                    value={dmcFilterTerm}
+                                    onChange={handleDmcFilterChange}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <Badge fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ minWidth: '250px' }}
+                                    autoFocus
+                                />
+                            ) : null}
+                            {showBookingIdFilter ? (
+                                <TextField
+                                    size="small"
+                                    placeholder="Filter by Booking ID..."
+                                    value={bookingIdFilterTerm}
+                                    onChange={handleBookingIdFilterChange}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <ConfirmationNumber fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ minWidth: '250px' }}
+                                    autoFocus
+                                />
+                            ) : null}
                             <Button
                                 startIcon={<Search />}
                                 variant="outlined"
@@ -1165,7 +1360,25 @@ const PreDefinePackages = () => {
                             >
                                 {showSearchInput ? "Close" : "Search"}
                             </Button>
-                            <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button>
+                            <Button
+                                startIcon={<Badge />}
+                                variant="outlined"
+                                size="small"
+                                onClick={toggleDmcFilter}
+                                color={showDmcFilter ? "primary" : "inherit"}
+                            >
+                                {showDmcFilter ? "Close" : "DMC Filter"}
+                            </Button>
+                            <Button
+                                startIcon={<ConfirmationNumber />}
+                                variant="outlined"
+                                size="small"
+                                onClick={toggleBookingIdFilter}
+                                color={showBookingIdFilter ? "primary" : "inherit"}
+                            >
+                                {showBookingIdFilter ? "Close" : "Booking ID"}
+                            </Button>
+                            {/* <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button> */}
                             <DateFilter
                                 key={`date-filter-${filterKey}`}
                                 onDateChange={handleDateChange}
@@ -1238,6 +1451,40 @@ const PreDefinePackages = () => {
                                     autoFocus
                                 />
                             ) : null}
+                            {showDmcFilter ? (
+                                <TextField
+                                    size="small"
+                                    placeholder="Filter by DMC company name..."
+                                    value={dmcFilterTerm}
+                                    onChange={handleDmcFilterChange}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <Badge fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ minWidth: '250px' }}
+                                    autoFocus
+                                />
+                            ) : null}
+                            {showBookingIdFilter ? (
+                                <TextField
+                                    size="small"
+                                    placeholder="Filter by Booking ID..."
+                                    value={bookingIdFilterTerm}
+                                    onChange={handleBookingIdFilterChange}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <ConfirmationNumber fontSize="small" />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ minWidth: '250px' }}
+                                    autoFocus
+                                />
+                            ) : null}
                             <Button
                                 startIcon={<Search />}
                                 variant="outlined"
@@ -1247,7 +1494,25 @@ const PreDefinePackages = () => {
                             >
                                 {showSearchInput ? "Close" : "Search"}
                             </Button>
-                            <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button>
+                            <Button
+                                startIcon={<Badge />}
+                                variant="outlined"
+                                size="small"
+                                onClick={toggleDmcFilter}
+                                color={showDmcFilter ? "primary" : "inherit"}
+                            >
+                                {showDmcFilter ? "Close" : "DMC Filter"}
+                            </Button>
+                            <Button
+                                startIcon={<ConfirmationNumber />}
+                                variant="outlined"
+                                size="small"
+                                onClick={toggleBookingIdFilter}
+                                color={showBookingIdFilter ? "primary" : "inherit"}
+                            >
+                                {showBookingIdFilter ? "Close" : "Booking ID"}
+                            </Button>
+                            {/* <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button> */}
                             <DateFilter
                                 key={`date-filter-${filterKey}`}
                                 onDateChange={handleDateChange}
