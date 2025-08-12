@@ -100,6 +100,7 @@ class RestaurantController extends Controller
                 return response()->json(['message' => 'Unable to fetch this restaurant details!'], 404);
             }
 
+            dd($dmcId);
             $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->where('dmc_id', $dmcId)->get();
 
             $minBreakfast = $meals->filter(fn($meal) => $meal->meal_period == 1)
