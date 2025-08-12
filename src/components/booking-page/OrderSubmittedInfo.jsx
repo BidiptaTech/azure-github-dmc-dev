@@ -131,8 +131,8 @@ const OrderSubmittedInfo = () => {
               <div className="row">
                 <div className="col-lg-2 col-md-6">
                   <div className="text-15 lh-12">Booking Number</div>
-                  <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
-                    {order?.booking_id}
+                  <div className="text-12 lh-12 fw-500 text-blue-1 mt-10">
+                    {order?.tour_id}
                   </div>
                 </div>
                 {/* <div className="col-lg-3 col-md-6">

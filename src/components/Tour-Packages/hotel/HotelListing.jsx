@@ -262,7 +262,9 @@ const TooltipContent = ({ hotel }) => {
                 DMC Prices
               </Typography>
               <Stack spacing={0.5} mt={1}>
-                <Typography variant="body2">Base Price: ${hotel.dmc_price || hotel.price || 'N/A'}</Typography>
+                <Typography variant="body2">
+                  Base Price: ${hotel.formatted_price || hotel.dmc_price || hotel.price || 'N/A'}
+                </Typography>
                 {hotel.dmc_tax_amount > 0 && (
                   <Typography variant="body2">Tax: ${hotel.dmc_tax_amount}</Typography>
                 )}
@@ -271,7 +273,9 @@ const TooltipContent = ({ hotel }) => {
                 )}
                 {(hotel.dmc_price > 0 && hotel.dmc_tax_amount > 0) && (
                   <Typography variant="body2" fontWeight={500}>
-                    Total: ${(parseFloat(hotel.dmc_price) + parseFloat(hotel.dmc_tax_amount)).toFixed(2)}
+                    Total: ${hotel.formatted_price ? 
+                      (parseFloat(hotel.dmc_price) + parseFloat(hotel.dmc_tax_amount)).toFixed(1) + 'k' :
+                      (parseFloat(hotel.dmc_price) + parseFloat(hotel.dmc_tax_amount)).toFixed(2)}
                   </Typography>
                 )}
               </Stack>
@@ -293,27 +297,66 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
  
   // Removed hotels.length from the dependency array to prevent repeated calls
 
+  // Format number to a readable price
+  const formatPrice = (price) => {
+    if (!price) return '';
+    // Handle extremely large prices (reduce by thousands)
+    if (price >= 1000) {
+      return (price / 1000).toFixed(1) + 'k';
+    }
+    return price;
+  };
+  
+  // Debug the raw hotel data to verify what we're receiving
+  useEffect(() => {
+    if (hotels.length > 0) {
+      console.log("Raw hotel data from redux:", 
+        hotels.map(h => ({id: h.id, name: h.hotel_name, price: h.dmc_price}))
+      );
+    }
+  }, [hotels]);
+
   // Filter hotels to show only DMC hotels and format them for display
   const formattedHotels = useMemo(() => {
-    return hotels.length > 0 
+    console.log(`Processing hotels: ${hotels.length} hotels available`);
+    
+    if (hotels.length === 0 && initialHotels.length === 0) {
+      console.log("No hotels available to display");
+      return [];
+    }
+    
+    const filteredHotels = hotels.length > 0 
       ? hotels
-          .filter(hotel => hotel.dmc_id === 4)
-          .map(hotel => ({
-            id: hotel.id,
-            name: hotel.hotel_name,
-            location: hotel.location,
-            hotel_star_rating: hotel.category || "3",
-            address: hotel.location,
-            description: hotel.description,
-            main_image: hotel.image || (hotel.site_image && hotel.site_image.length > 0 ? hotel.site_image[0] : null),
-            dmc_price: hotel.dmc_price,
-            dmc_tax_amount: hotel.dmc_tax_amount,
-            site_image: hotel.site_image,
-            price: hotel.price,
-            category: hotel.category,
-            dmc_id: hotel.dmc_id || 4
-          }))
+          // Make sure we include ALL hotels regardless of dmc_id
+          .map(hotel => {
+            // Ensure all required properties exist and have proper values
+            const formattedHotel = {
+              id: hotel.id,
+              name: hotel.hotel_name || 'Unnamed Hotel',
+              location: hotel.location || 'Location not specified',
+              hotel_star_rating: hotel.category || "3",
+              address: hotel.location || 'Address not available',
+              description: hotel.description || '',
+              main_image: hotel.image || (hotel.site_image && hotel.site_image.length > 0 ? hotel.site_image[0] : null),
+              // Convert price strings to numbers if needed
+              dmc_price: typeof hotel.dmc_price === 'string' ? parseFloat(hotel.dmc_price) : hotel.dmc_price,
+              dmc_tax_amount: hotel.dmc_tax_amount || 0,
+              site_image: hotel.site_image || [],
+              price: hotel.price || 0,
+              category: hotel.category || '',
+              dmc_id: hotel.dmc_id || 4,
+              // Add formatted price for display
+              formatted_price: formatPrice(hotel.dmc_price || hotel.price || 0)
+            };
+            
+            return formattedHotel;
+          })
       : initialHotels;
+      
+    console.log(`Formatted ${filteredHotels.length} hotels for display:`, 
+      filteredHotels.map(h => ({id: h.id, name: h.name, price: h.dmc_price, formatted: h.formatted_price}))
+    );
+    return filteredHotels;
   }, [hotels, initialHotels]);
 
   // Update selected hotel when prop changes
@@ -338,9 +381,11 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
     if (!hotel) {
       setSelectedHotel(null);
       if (onSelect) onSelect(null);
+      console.log("Hotel selection cleared");
       return;
     }
     
+    console.log("Selected hotel:", hotel);
     setSelectedHotel(hotel);
 
     // Fetch hotel details using the HotelAvailabilitySlice
@@ -348,15 +393,28 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
     const tourId = tourDetails?.data?.tour_id || tourDetails?.tour_id || 0;
     console.log("Using tour ID for hotel fetch:", tourId);
     
-    dispatch(fetchRoomData({
+    // Log the request parameters we're sending
+    const requestParams = {
       id: hotel.id,
       tour_id: tourId,
-      priceMode: "dmc", // Default to DMC mode
-     // priceModeId: hotel.dmc_id || 4,
+      priceMode: "dmc",
       dmc_id: hotel.dmc_id || 4
-    }));
+    };
     
-    if (onSelect) onSelect(hotel);
+    console.log("Fetching room data with params:", requestParams);
+    
+    dispatch(fetchRoomData(requestParams))
+      .then((response) => {
+        console.log("Room data fetch successful:", response);
+      })
+      .catch((error) => {
+        console.error("Error fetching room data:", error);
+      });
+    
+    if (onSelect) {
+      console.log("Notifying parent component of hotel selection:", hotel);
+      onSelect(hotel);
+    }
   };
 
   return (
@@ -377,6 +435,12 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
           getOptionLabel={(option) => option.name || ''}
           noOptionsText={status === "loading" ? "Loading hotels..." : "No hotels available"}
           loading={status === "loading"}
+          disableListWrap
+          ListboxProps={{
+            style: { maxHeight: 350, overflow: 'auto' }
+          }}
+          disableClearable={false}
+          autoHighlight
           renderOption={(props, option) => (
             <CustomTooltip
               title={<TooltipContent hotel={option} />}
@@ -400,12 +464,13 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
                   {(option.dmc_price > 0 || option.price > 0) && (
                     <Chip 
                       size="small" 
-                      label={`$${option.dmc_price || option.price}`}
+                      label={`$${option.formatted_price || option.dmc_price || option.price}`}
                       sx={{ 
                         height: 20,
                         fontSize: '0.7rem',
                         bgcolor: 'rgba(25, 118, 210, 0.08)',
-                        color: 'primary.main'
+                        color: 'primary.main',
+                        minWidth: '40px'
                       }}
                     />
                   )}
@@ -480,9 +545,9 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
                     ))}
                   </StarRating>
                   
-                  {selectedHotel.dmc_price > 0 && (
+                  {(selectedHotel.dmc_price > 0 || selectedHotel.price > 0) && (
                     <Typography variant="body2" fontWeight={500} sx={{ ml: 2 }}>
-                      ${selectedHotel.dmc_price}
+                      ${selectedHotel.formatted_price || selectedHotel.dmc_price || selectedHotel.price}
                       {selectedHotel.dmc_tax_amount > 0 && ` + $${selectedHotel.dmc_tax_amount} tax`}
                     </Typography>
                   )}

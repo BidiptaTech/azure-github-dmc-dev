@@ -92,7 +92,7 @@ const PreferredHotelsDropdown = ({ onSelect }) => {
   const inputRef = useRef(null);
 
   const { hotels = [], loading, error } = useSelector((state) => state.enquiryList || {});
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Helper function to format price
   const formatPrice = (price) => {
     const actualPrice = parseFloat(price) || 0;
@@ -239,12 +239,17 @@ const PreferredHotelsDropdown = ({ onSelect }) => {
                           <Typography variant="caption" color="text.secondary">
                             {getDescriptionSnippet(hotel.description)}
                           </Typography>
-                          {hotel.single_base_price && (
+                          {PriceHide === "0" ? (
+                          hotel.single_base_price && (
                             <PriceChip 
                               label={`${formatPrice(hotel.single_base_price)}/night`}
                               size="small"
                             />
-                          )}
+                          )):(
+                            <div className="text-12 text-dark-1 fw-500">
+                              Price available on request
+                            </div>
+                            )}
                         </>
                       }
                     />
@@ -266,7 +271,7 @@ const PreferredHotelsDropdown = ({ onSelect }) => {
         {showOthersInput && (
           <OthersInputContainer>
             <TextField
-              fullWidth
+              fullWidth 
               size="small"
               placeholder="Enter hotel name..."
               value={otherHotelName}

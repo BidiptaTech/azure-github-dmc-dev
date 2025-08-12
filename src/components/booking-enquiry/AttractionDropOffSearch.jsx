@@ -125,6 +125,14 @@ const SelectedItem = styled(ListItem)(({ theme }) => ({
   },
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+  marginTop: theme.spacing(0.5),
+}));
+
 const AttractionDropOffSearch = ({ onSelect }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
@@ -138,7 +146,7 @@ const AttractionDropOffSearch = ({ onSelect }) => {
   // Get attractions from Redux store
   const { attractions = [], loading, error } = useSelector(state => state.enquiryList || { attractions: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Filter attractions based on search term
   const filteredAttractions = attractions ? attractions.filter((attraction) =>
     attraction && attraction.name && attraction.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -272,6 +280,17 @@ const AttractionDropOffSearch = ({ onSelect }) => {
                         {getDescriptionSnippet(attraction.description)}
                       </Typography>
                     )}
+                    {PriceHide === "0" ? (
+                      attraction.base_price && (
+                        <PriceChip 
+                          label={`${formatPrice(attraction.base_price)}/person`}
+                          size="small"
+                        />
+                      )):(
+                        <div className="text-12 text-dark-1 fw-500">
+                          Price available on request
+                        </div>
+                      )}
                   </AttractionInfo>
                   {attraction.master_image && (
                     <AttractionImage>

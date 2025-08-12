@@ -34,6 +34,8 @@ const Index = () => {
 
   const [responseData, setResponseData] = useState(null);
   const [formData, setFormData] = useState({});
+  const [isEnquirySubmitting, setIsEnquirySubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Add enquiry-related state
   // const [enquiryAmount, setEnquiryAmount] = useState(() => {
   //   return totalPrice || 0;
@@ -73,7 +75,12 @@ const Index = () => {
 
   const customerInfoRef = useRef(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     if (!customerInfoRef.current?.isFormValid()) {
       toast.error("Please fill all required fields correctly");
       return;
@@ -83,6 +90,8 @@ const Index = () => {
       toast.error("Customer information is missing");
       return;
     }
+    
+    setIsSubmitting(true);
     dispatch(setIsNavigating(true));
     const payload = {
       ...formData,
@@ -133,15 +142,24 @@ const Index = () => {
       .catch((error) => {
         console.error("API call failed:", error);
         dispatch(setIsNavigating(false));
+        setIsSubmitting(false);
         toast.error("Something went wrong. Please try again later.", {
           position: "top-center",
           autoClose: 3000,
         });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
   };
 
   // Add a separate function for handling enquiry submission
   const handleEnquirySubmit = () => {
+    // Prevent multiple submissions
+    if (isEnquirySubmitting) {
+      return;
+    }
+
     if (!customerInfoRef.current?.isFormValid()) {
       toast.error("Please fill all required fields correctly");
       return;
@@ -156,6 +174,8 @@ const Index = () => {
     //   toast.error("Please enter a comment for your enquiry");
     //   return;
     // }
+    
+    setIsEnquirySubmitting(true);
     dispatch(setIsNavigating(true));
     // Create a payload with enquiry-specific data
     const payload = {
@@ -219,10 +239,14 @@ const Index = () => {
       .catch((error) => {
         console.error("API call failed:", error);
         dispatch(setIsNavigating(false));
+        setIsEnquirySubmitting(false);
         toast.error("Something went wrong. Please try again later.", {
           position: "top-center",
           autoClose: 3000,
         });
+      })
+      .finally(() => {
+        setIsEnquirySubmitting(false);
       });
   };
 
@@ -240,20 +264,22 @@ const Index = () => {
           ← Back To Details
         </button>
         <div className="row x-gap-40">
-          <CustomerInfo
-            ref={customerInfoRef}
-            roomDetails={rooms}
-            tourDetails={tourDetails}
-            totalPrice={totalPrice}
-            onFormChange={handleFormChange}
-            responseData={responseData}
-            handleSubmit={handleSubmit}
-            handleEnquirySubmit={handleEnquirySubmit}
-            //enquiryAmount={enquiryAmount}
-            //enquiryComment={enquiryComment}
-            // onEnquiryAmountChange={handleEnquiryAmountChange}
-            // onEnquiryCommentChange={handleEnquiryCommentChange}
-          />
+                     <CustomerInfo
+             ref={customerInfoRef}
+             roomDetails={rooms}
+             tourDetails={tourDetails}
+             totalPrice={totalPrice}
+             onFormChange={handleFormChange}
+             responseData={responseData}
+             handleSubmit={handleSubmit}
+             handleEnquirySubmit={handleEnquirySubmit}
+             isEnquirySubmitting={isEnquirySubmitting}
+             isSubmitting={isSubmitting}
+             //enquiryAmount={enquiryAmount}
+             //enquiryComment={enquiryComment}
+             // onEnquiryAmountChange={handleEnquiryAmountChange}
+             // onEnquiryCommentChange={handleEnquiryCommentChange}
+           />
         </div>
       </section>
 
