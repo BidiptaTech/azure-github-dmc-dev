@@ -323,7 +323,7 @@
                             $tourNumber = $startingNumber + $loop->iteration;
                             
                             // Calculate total pax
-                            $totalPax = ($tour['infant'] ?? 0) + ($tour['child'] ?? 0) + ($tour['male_count'] ?? 0) + ($tour['female_count'] ?? 0);
+                            $totalPax = ($tour['child'] ?? 0) + ($tour['male_count'] ?? 0) + ($tour['female_count'] ?? 0);
                             
                             // Extract country from destination
                             $destinationParts = explode(',', $tour['destination']);
