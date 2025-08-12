@@ -29,6 +29,8 @@ class HomeController extends Controller
         $country = trim($parts[1] ?? '');
         $country = trim($country, '()');
         $dmcId = $request->dmc_id;
+        $start = $request->start ?? 0;
+        $limit = $request->limit ?? 10;
         
         // Ensure dmcId is properly typed for JSON comparison
         if (is_string($dmcId) && is_numeric($dmcId)) {
@@ -36,6 +38,15 @@ class HomeController extends Controller
         }
 
         $agentId = auth()->user()->agent_id;
+
+        if ($start < 0) {
+            return response()->json(['message' => 'Start value cannot be negative'], 400);
+        }
+        
+        if ($limit < 0) {
+            return response()->json(['message' => 'Limit value cannot be negative'], 400);
+        }
+        
         
         if (!$city || !$country) {
             return response()->json(['message' => 'City or Country is missing'], 400);
@@ -49,14 +60,15 @@ class HomeController extends Controller
 
         // Query attractions without dmc_id filter (will filter in application)
         $queryAttractions = Attraction::orderBy('attraction_id', 'desc')
-            ->where('is_active', 1)
-            ->where('country', $country)
-            ->where('status', 1)
-            ->where('location', $city)
-            ->get();
+        ->where('is_active', 1)
+        ->where('country', $country)
+        ->where('status', 1)
+        ->where('location', $city)
+        ->orderBy('attraction_id', 'desc')
+        ->get();
 
         // Filter by DMC ID at application level to handle JSON column properly
-        $allAttractions = $queryAttractions->filter(function ($attraction) use ($dmcId) {
+        $filteredAttractions = $queryAttractions->filter(function ($attraction) use ($dmcId) {
             $attractionDmcIds = $attraction->dmc_id;
             
             // Handle different JSON formats
@@ -74,6 +86,9 @@ class HomeController extends Controller
                    in_array((string) $dmcId, $attractionDmcIds) || 
                    in_array((int) $dmcId, $attractionDmcIds);
         });
+
+        // Apply pagination after DMC filtering
+        $allAttractions = $filteredAttractions->slice($start, $limit);
 
         // Filter out attractions where the date is in close_dates
         $availableAttractions = $allAttractions->filter(function ($attraction) use ($formattedDate, $requestDayOfWeek) {
