@@ -149,7 +149,7 @@ class BookingListController extends Controller
             ->when($agent_ids->isNotEmpty(), function ($query) use ($agent_ids) {
                 $query->whereIn('orders.agent_id', $agent_ids);
             })
-            ->orderBy('orders.id', 'desc')
+            ->orderBy('orders.updated_at', 'desc')
             ->get();
 
         // Format and decode bookings
@@ -459,7 +459,7 @@ class BookingListController extends Controller
             ->when($agent_ids->isNotEmpty(), function ($query) use ($agent_ids) {
                 $query->whereIn('orders.agent_id', $agent_ids);
             })
-            ->orderBy('orders.id', 'desc')
+            ->orderBy('orders.updated_at', 'desc')
             ->get();
 
         // Format and decode bookings
