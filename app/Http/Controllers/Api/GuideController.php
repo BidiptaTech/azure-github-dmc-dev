@@ -27,7 +27,16 @@ class GuideController extends Controller
     
         $agentId = auth()->user()->agent_id;
         $dmcId = $request->dmc_id;
+        $start = $request->start ?? 0;
+        $limit = $request->limit ?? 10;
 
+        if($start < 0){
+            return response()->json(['message' => 'Start value cannot be negative'], 400);
+        }
+        if($limit < 0){
+            return response()->json(['message' => 'Limit value cannot be negative'], 400);
+        }
+        
         if (!$city || !$country) {
             return response()->json(['message' => 'City or Country is missing'], 400);
         }
@@ -43,6 +52,8 @@ class GuideController extends Controller
             ->where('status', 1)
             ->where('city', $city)
             ->where('dmc_id', $dmcId)
+            ->limit($limit)
+            ->offset($start)
             ->get();
 
          // Filter out guides that are not available on the requested date

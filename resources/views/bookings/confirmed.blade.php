@@ -2,6 +2,9 @@
 @section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
 
+<!-- Date Range Picker CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <!-- Header -->
@@ -15,7 +18,8 @@
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
                 <i class="ri-check-double-line me-1"></i>
-                {{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }} {{ date('F') }} On Hold
+                <span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span>
+                <span id="rangeLabel">{{ date('F') }}</span> Confirmed
             </span>
         </div>
     </div>
@@ -27,8 +31,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} Confirmed</p>
+                            <h5 class="card-title mb-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
+                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Confirmed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -44,7 +48,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->today())->count() }}</h5>
+                            <h5 class="card-title mb-1" id="statTodayCount">{{ $tours->where('created_at', '>=', now()->today())->count() }}</h5>
                             <p class="text-muted mb-0">Today's Confirmed</p>
                         </div>
                         <div class="avatar">
@@ -61,8 +65,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('adult', '>', 0)->sum('adult') }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} Adults</p>
+                            <h5 class="card-title mb-1" id="statAdultsCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('adult', '>', 0)->sum('adult') }}</h5>
+                            <p class="text-muted mb-0" id="statAdultsLabel">{{ date('F') }} Adults</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-info rounded">
@@ -78,8 +82,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('child', '>', 0)->sum('child') }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} Children</p>
+                            <h5 class="card-title mb-1" id="statChildrenCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('child', '>', 0)->sum('child') }}</h5>
+                            <p class="text-muted mb-0" id="statChildrenLabel">{{ date('F') }} Children</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-warning rounded">
@@ -132,7 +136,7 @@
 
     <!-- Filters -->
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Filters</h5>
             <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
                 <i class="ri-refresh-line me-1"></i> Reset
@@ -181,12 +185,11 @@
                         <option value="next_month">Next Month</option>
                     </select>
                 </div> --}}
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">Date Range</label>
-                    <input type="date" class="form-control" id="dateFilter" 
-                           value="{{ date('Y-m-d') }}" 
-                           min="{{ date('Y-m-01') }}" 
-                           max="{{ date('Y-m-t') }}">
+                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
+                    <input type="hidden" id="dateRangeStart">
+                    <input type="hidden" id="dateRangeEnd">
                 </div>
             </div>
         </div>
@@ -235,7 +238,13 @@
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
-                        <tr class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0 ? 'table-info' : '' }}">
+                        <tr 
+                            class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0 ? 'table-info' : '' }}"
+                            data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-adult="{{ (int)($tour->adult ?? 0) }}"
+                            data-child="{{ (int)($tour->child ?? 0) }}"
+                        >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
                             </td> --}}
@@ -499,6 +508,12 @@ function resetFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('timeFilter').value = '';
     document.getElementById('destinationFilter').value = '';
+    const dr = document.getElementById('dateRange');
+    const ds = document.getElementById('dateRangeStart');
+    const de = document.getElementById('dateRangeEnd');
+    if (dr) dr.value = '';
+    if (ds) ds.value = '';
+    if (de) de.value = '';
     filterTable();
 }
 
@@ -508,7 +523,8 @@ function filterTable() {
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const timeFilter = document.getElementById('timeFilter')?.value || '';
-    const dateFilter = document.getElementById('dateFilter')?.value || '';
+    const dateStart = document.getElementById('dateRangeStart')?.value || '';
+    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
@@ -521,6 +537,7 @@ function filterTable() {
         const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
         const confirmationDateText = row.cells[7]?.textContent || '';
+        const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
         
@@ -540,20 +557,31 @@ function filterTable() {
             show = false;
         }
         
-        // Date filtering
-        if (dateFilter && confirmationDateText) {
-            const selectedDate = new Date(dateFilter);
+        // Date range filtering (check both created_at and updated_at)
+        if (dateStart && dateEnd && (updatedAt || row.getAttribute('data-created-at'))) {
+            const createdAt = row.getAttribute('data-created-at');
+            const s = new Date(dateStart + 'T00:00:00');
+            const e = new Date(dateEnd + 'T23:59:59');
+            let dateInRange = false;
             
-            // Extract the date from "Confirmation Date" cell - assuming format like "Mon, Dec 23, 2024"
-            const dateMatch = confirmationDateText.match(/\w+,\s+\w+\s+\d+,\s+\d+/);
-            if (dateMatch) {
-                const confirmationDate = new Date(dateMatch[0]);
-                const confirmationDateOnly = new Date(confirmationDate.getFullYear(), confirmationDate.getMonth(), confirmationDate.getDate());
-                const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                
-                if (confirmationDateOnly.getTime() !== selectedDateOnly.getTime()) {
-                    show = false;
+            // Check updated_at if available
+            if (updatedAt) {
+                const updatedDate = new Date(updatedAt + 'T00:00:00');
+                if (updatedDate >= s && updatedDate <= e) {
+                    dateInRange = true;
                 }
+            }
+            
+            // Check created_at if available and updated_at didn't match
+            if (!dateInRange && createdAt) {
+                const createdDate = new Date(createdAt + 'T00:00:00');
+                if (createdDate >= s && createdDate <= e) {
+                    dateInRange = true;
+                }
+            }
+            
+            if (!dateInRange) {
+                show = false;
             }
         }
         
@@ -588,6 +616,65 @@ function filterTable() {
         
         row.style.display = show ? '' : 'none';
     });
+
+    // Update header/cards counts based on visible rows
+    const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    const rangeCount = visibleRows.length;
+    const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
+    const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
+    
+    // Count today's bookings from visible rows
+    const today = new Date().toISOString().split('T')[0];
+    const todayCount = visibleRows.filter(r => {
+        const createdAt = r.getAttribute('data-created-at');
+        return createdAt === today;
+    }).length;
+
+    const countEl = document.getElementById('rangeCount');
+    const labelEl = document.getElementById('rangeLabel');
+    const statConfirmed = document.getElementById('statConfirmedCount');
+    const statConfirmedLabel = document.getElementById('statConfirmedLabel');
+    const statAdults = document.getElementById('statAdultsCount');
+    const statAdultsLabel = document.getElementById('statAdultsLabel');
+    const statChildren = document.getElementById('statChildrenCount');
+    const statChildrenLabel = document.getElementById('statChildrenLabel');
+    const statToday = document.getElementById('statTodayCount');
+
+    if (countEl) countEl.textContent = rangeCount;
+    if (statConfirmed) statConfirmed.textContent = rangeCount;
+    if (statAdults) statAdults.textContent = adults;
+    if (statChildren) statChildren.textContent = children;
+    if (statToday) statToday.textContent = todayCount;
+
+    if (dateStart && dateEnd) {
+        const start = new Date(dateStart);
+        const end = new Date(dateEnd);
+        
+        // Format the date range label
+        let label;
+        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+            // Same month
+            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                // Full month
+                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+            } else {
+                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+            }
+        } else {
+            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        }
+        
+        if (labelEl) labelEl.textContent = label;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `Confirmed - ${label}`;
+        if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
+        if (statChildrenLabel) statChildrenLabel.textContent = `Childrens - ${label}`;
+    } else {
+        const month = new Date().toLocaleString('default', { month: 'long' });
+        if (labelEl) labelEl.textContent = month;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Confirmed`;
+        if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
+        if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
+    }
 }
 
 function resetFilters() {
@@ -596,9 +683,12 @@ function resetFilters() {
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
     document.getElementById('timeFilter').value = '';
-    // Reset date filter to today's date
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('dateFilter').value = today;
+    const dr = document.getElementById('dateRange');
+    const ds = document.getElementById('dateRangeStart');
+    const de = document.getElementById('dateRangeEnd');
+    if (dr) dr.value = '';
+    if (ds) ds.value = '';
+    if (de) de.value = '';
     filterTable();
 }
 
@@ -609,7 +699,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     const timeFilter = document.getElementById('timeFilter');
-    const dateFilter = document.getElementById('dateFilter');
+    const dateRange = document.getElementById('dateRange');
+    const dateRangeStart = document.getElementById('dateRangeStart');
+    const dateRangeEnd = document.getElementById('dateRangeEnd');
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
@@ -617,7 +709,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (timeFilter) timeFilter.addEventListener('change', filterTable);
-    if (dateFilter) dateFilter.addEventListener('change', filterTable);
+    // Date range picker will be initialized in scripts section where jQuery is available
     
     // Apply initial filter on page load to show today's data
     filterTable();
@@ -626,9 +718,90 @@ document.addEventListener('DOMContentLoaded', function() {
 @endsection
 
 @section('scripts')
+<!-- Date Range Picker JS - Load after jQuery -->
+<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
+    // Wait for all scripts to load before initializing
     $(document).ready(function() {
+        // Small delay to ensure all scripts are loaded
+        setTimeout(function() {
+            initializeDateRangePicker();
+            initializeDataTable();
+        }, 200);
+    });
+    
+    function initializeDateRangePicker() {
+        // Initialize date range picker first
+        const dateRange = document.getElementById('dateRange');
+        const dateRangeStart = document.getElementById('dateRangeStart');
+        const dateRangeEnd = document.getElementById('dateRangeEnd');
+        
+        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
+            // Set default to current month
+            const startOfMonth = moment().startOf('month');
+            const endOfMonth = moment().endOf('month');
+            
+            $(dateRange).daterangepicker({
+                opens: 'left',
+                autoUpdateInput: true,
+                maxDate: moment(), // No future dates
+                startDate: startOfMonth,
+                endDate: endOfMonth,
+                locale: {
+                    cancelLabel: 'Clear',
+                    format: 'MMM DD, YYYY'
+                }
+            });
+
+            // Set initial values for current month
+            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
+            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
+            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+
+            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
+                const start = picker.startDate.clone().startOf('day');
+                const end = picker.endDate.clone().endOf('day');
+                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
+                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
+                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
+                filterTable();
+            });
+
+            $(dateRange).on('cancel.daterangepicker', function() {
+                $(this).val('');
+                if (dateRangeStart) dateRangeStart.value = '';
+                if (dateRangeEnd) dateRangeEnd.value = '';
+                filterTable();
+            });
+            
+            // Apply initial filter with current month data
+            setTimeout(function() {
+                filterTable();
+            }, 100);
+        } else {
+            console.error('Date range picker could not be initialized. Missing dependencies:', {
+                dateRange: !!dateRange,
+                moment: typeof moment !== 'undefined',
+                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
+                jquery: typeof $ !== 'undefined'
+            });
+            
+            // Fallback: still set initial date values for current month
+            if (dateRange && typeof moment !== 'undefined') {
+                const startOfMonth = moment().startOf('month');
+                const endOfMonth = moment().endOf('month');
+                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
+                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+                setTimeout(function() {
+                    filterTable();
+                }, 100);
+            }
+        }
+    }
+    
+    function initializeDataTable() {
         // Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('.datatables-basic')) {
             $('.datatables-basic').DataTable().destroy();
@@ -703,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
-    });
+    }
 </script>
 @endsection
 
