@@ -35,7 +35,7 @@ class BookingCountServiceProvider extends ServiceProvider
                     ->where('created_at', '>=', $currentMonthStart)
                     ->where('created_at', '<=', $currentMonthEnd)
                     ->count(),
-                'confirmed' => Tour::where('tour_status', 'On Hold')
+                'confirmed' => Tour::where('tour_status', 'Confirmed')
                     ->where('created_at', '>=', $currentMonthStart)
                     ->where('created_at', '<=', $currentMonthEnd)
                     ->count(),
