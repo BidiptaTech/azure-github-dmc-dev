@@ -29,6 +29,11 @@ class HomeController extends Controller
         $country = trim($parts[1] ?? '');
         $country = trim($country, '()');
         $dmcId = $request->dmc_id;
+        
+        // Ensure dmcId is properly typed for JSON comparison
+        if (is_string($dmcId) && is_numeric($dmcId)) {
+            $dmcId = (int) $dmcId;
+        }
 
         $agentId = auth()->user()->agent_id;
         
@@ -42,19 +47,40 @@ class HomeController extends Controller
         $formattedDate = $requestDate->format('Y-m-d');
         $requestDayOfWeek = strtolower($requestDate->format('l'));
 
-        // Query only attractions that are available on the requested date
-        $allAttractions = Attraction::orderBy('attraction_id', 'desc')->where('is_active', 1)
-        ->where('country', $country)
-        ->where('status', 1)
-        ->where('location', $city)
-        ->get();
+        // Query attractions without dmc_id filter (will filter in application)
+        $queryAttractions = Attraction::orderBy('attraction_id', 'desc')
+            ->where('is_active', 1)
+            ->where('country', $country)
+            ->where('status', 1)
+            ->where('location', $city)
+            ->get();
+
+        // Filter by DMC ID at application level to handle JSON column properly
+        $allAttractions = $queryAttractions->filter(function ($attraction) use ($dmcId) {
+            $attractionDmcIds = $attraction->dmc_id;
+            
+            // Handle different JSON formats
+            if (is_string($attractionDmcIds)) {
+                $attractionDmcIds = json_decode($attractionDmcIds, true);
+            }
+            
+            // Ensure we have an array
+            if (!is_array($attractionDmcIds)) {
+                $attractionDmcIds = [$attractionDmcIds];
+            }
+            
+            // Check if requested DMC ID is in the attraction's DMC list
+            return in_array($dmcId, $attractionDmcIds) || 
+                   in_array((string) $dmcId, $attractionDmcIds) || 
+                   in_array((int) $dmcId, $attractionDmcIds);
+        });
 
         // Filter out attractions where the date is in close_dates
         $availableAttractions = $allAttractions->filter(function ($attraction) use ($formattedDate, $requestDayOfWeek) {
             // Check for specific dates first
             if (!empty($attraction->close_dates)) {
                 $closeDates = array_map('trim', explode(',', $attraction->close_dates));
-                if (in_array($requestDate, $closeDates)) {
+                if (in_array($formattedDate, $closeDates)) {
                     return false; // Exclude if the date is in close_dates
                 }
             }
@@ -78,84 +104,10 @@ class HomeController extends Controller
         $agent = Agent::where('agent_id', $agentId)->first();
         
         $dmc_id = null;
-        if ($agent) {
-            $salesManagerId = $agent->sales_manager_dmc;
-            switch ($agent->role_id) {
-                case 11: // Agent is a DMC
-                    $dmc_id = $salesManagerId; // Assuming `userId` in agent or fallback to agent_id
-                    break;
-                    case 33: 
-                    case 128: 
-                    case 129: 
-                    case 130: 
-                    case 134: 
-                    case 135: 
-                    case 136: 
-                    case 138: // Sales Head
-                         $saleshead_dmc = User::where('userId', $salesManagerId)->first(); 
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    break;
-                case 12:
-                case 37: // Sales Manager
-                    $salesmng_dmc= User::where('userId', $agent->sales_manager_dmc)->first(); // SM
-                    
-                    if ($salesmng_dmc) {
-                         $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-                case 38: // Assistant Manager
-                    $salesManagerId = $agent->sales_manager_dmc;
-                    $asmng_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SM
-                    if($asmng_dmc){
-                        $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-                    }
-                    if ($salesmng_dmc) {
-                         $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-            }
-        }
-        elseif(Auth::user()->userId){
-            $currentUser = Auth::user();
-            
-            if($currentUser->role_id == 33 || $currentUser->role_id == 128 || $currentUser->role_id == 129 || $currentUser->role_id == 130 || $currentUser->role_id == 134 || $currentUser->role_id == 135 || $currentUser->role_id == 136 || $currentUser->role_id == 138){
-                $dmcId = $currentUser->created_by;
-            }
-            elseif($currentUser->role_id == 37){
-                $sales_head_id = $currentUser->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmcId = $sales_head->created_by;
-            }
-            elseif($currentUser->role_id == 38){
-                $sales_manager_id = $currentUser->created_by;
-                $sales_manager = User::where('userId', $sales_manager_id)->first();
-                $sales_head_id = $sales_manager->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmcId = $sales_head->created_by;
-            }
-        }
         
         if (!$dmcId) {
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
-
         // Group attractions by name
         $groupedAttractions = $availableAttractions->groupBy('name');
         $attractionList = [];
@@ -216,9 +168,9 @@ class HomeController extends Controller
                     $lowestSeniorAdultPrice = $tickets->min('senior_adult_price') ?? 0;
                     
                     // Calculate DMC-specific prices
-                    list($dmc_adult_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestAdultPrice, $dmc_id, $name, 'attraction', $city);
-                    list($dmc_child_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestChildPrice, $dmc_id, $name, 'attraction', $city);
-                    list($dmc_senior_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestSeniorAdultPrice, $dmc_id, $name, 'attraction', $city);
+                    list($dmc_adult_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestAdultPrice, $dmcId, $name, 'attraction', $city);
+                    list($dmc_child_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestChildPrice, $dmcId, $name, 'attraction', $city);
+                    list($dmc_senior_price, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($lowestSeniorAdultPrice, $dmcId, $name, 'attraction', $city);
                 }
             }
 
@@ -227,7 +179,6 @@ class HomeController extends Controller
                 // Get all tickets for this attraction regardless of DMC
                 $allTickets = Ticket::where('attraction_id', $firstAttraction->attraction_id)
                     ->where('status', 1)
-                    ->where('dmc_id', $dmcId)
                     ->get();
 
                 if ($allTickets->isNotEmpty()) {
@@ -235,9 +186,9 @@ class HomeController extends Controller
                     $generalLowestAdultPrice = $allTickets->min('adult_price') ?? 0;
                     $generalLowestSeniorPrice = $allTickets->min('senior_adult_price') ?? 0;
                     
-                    list($travClicks_adult_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestAdultPrice, $dmc_id, $name, 'attraction', $city);
-                    list($travClicks_child_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestChildPrice, $dmc_id, $name, 'attraction', $city);
-                    list($travClicks_senior_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestSeniorPrice, $dmc_id, $name, 'attraction', $city);
+                    list($travClicks_adult_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestAdultPrice, $dmcId, $name, 'attraction', $city);
+                    list($travClicks_child_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestChildPrice, $dmcId, $name, 'attraction', $city);
+                    list($travClicks_senior_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($generalLowestSeniorPrice, $dmcId, $name, 'attraction', $city);
                 }
             }
 

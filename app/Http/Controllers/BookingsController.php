@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Agent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class BookingsController extends Controller
 {
@@ -197,7 +198,12 @@ class BookingsController extends Controller
      */
     public function confirmedBookings()
     {
-        $tours = Tour::where('tour_status', 'Confirmed')
+        $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+            ->where('tour_status', 'Confirmed')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
                 'tours.tour_id',
@@ -234,8 +240,9 @@ class BookingsController extends Controller
      */
     public function definiteBookings()
     {
-        $tours = Tour::where('tour_status', 'Definite')
-            ->with([
+        $today = Carbon::today();
+
+        $tours = Tour::with([
                 'booking' => function ($query) {
                     $query->where('bookingType', 'booking');
                 },
@@ -266,9 +273,12 @@ class BookingsController extends Controller
                 'tours.agent_id',
                 'agents.name as agent_name'
             ])
+            ->where(function ($query) use ($today) {
+                $query->where('tours.tour_status', 'Definite')
+                    ->orWhereDate('tours.updated_at', $today);
+            })
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
-
         return view('bookings.definite', compact('tours'));
     }
 
