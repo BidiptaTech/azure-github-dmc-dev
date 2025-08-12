@@ -131,6 +131,7 @@ const AttractionSearch = ({ onSelect }) => {
   // Get attractions from Redux store
   const { attractions = [], loading, error } = useSelector(state => state.enquiryList || { attractions: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   // Helper function to format price
   const formatPrice = (price) => {
@@ -302,12 +303,17 @@ const AttractionSearch = ({ onSelect }) => {
                           {getDescriptionSnippet(attraction.description)}
                         </Typography>
                       )}
-                      {attraction.base_price && (
+                          {PriceHide === "0" ? (
+                      attraction.base_price && (
                         <PriceChip 
                           label={`${formatPrice(attraction.base_price)}/person`}
                           size="small"
                           sx={{ mt: 1 }}
                         />
+                      )):(
+                        <div className="text-12 text-dark-1 fw-500">
+                          Price available on request
+                        </div>
                       )}
                     </AttractionInfo>
                     {attraction.master_image && (

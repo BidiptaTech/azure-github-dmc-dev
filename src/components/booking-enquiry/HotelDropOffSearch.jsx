@@ -22,7 +22,13 @@ const SearchContainer = styled(Box)(({ theme }) => ({
   position: "relative",
   marginBottom: theme.spacing(2),
 }));
-
+const PriceChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: theme.palette.success.light,
+  color: theme.palette.success.contrastText,
+  fontWeight: 600,
+  flexShrink: 0,
+  marginTop: theme.spacing(0.5),
+}));
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
@@ -120,8 +126,12 @@ const HotelDropOffSearch = ({ onSelect }) => {
   // Get hotels from Redux store
   const { hotels = [], loading, error } = useSelector(state => state.enquiryList || { hotels: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Manual fetch button for testing
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
   const handleManualFetch = () => {
     if (searchLocation && searchLocation.country && searchLocation.city) {
       dispatch(fetchEnquiryList({
@@ -258,6 +268,18 @@ const HotelDropOffSearch = ({ onSelect }) => {
                           {getDescriptionSnippet(hotel.description)}
                         </Typography>
                       )}
+                         {PriceHide === "0" ? (
+                          hotel.single_base_price && (
+                            <PriceChip 
+                              label={`${formatPrice(hotel.single_base_price)}/night`}
+                              size="small"
+                            />
+                          )):(
+                            <div className="text-12 text-dark-1 fw-500">
+                              Price available on request
+                            </div>
+                            )}
+
                     </HotelInfo>
                     {hotel.main_image && (
                       <HotelImage>

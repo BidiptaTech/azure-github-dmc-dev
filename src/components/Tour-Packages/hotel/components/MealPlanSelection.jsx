@@ -10,6 +10,7 @@ import FreeBreakfastIcon from '@mui/icons-material/FreeBreakfast';
 import LunchDiningIcon from '@mui/icons-material/LunchDining';
 import DinnerDiningIcon from '@mui/icons-material/DinnerDining';
 import { IoPersonSharp } from "react-icons/io5";
+import { useSelector } from 'react-redux';
 
 /**
  * Meal Plan Selection component
@@ -29,7 +30,7 @@ const MealPlanSelection = ({
 }) => {
   const [guestMealAnchorEl, setGuestMealAnchorEl] = useState(null);
   const isGuestMealMenuOpen = Boolean(guestMealAnchorEl);
-  
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Helper function to get icon for meal plans based on plan ID
   const getMealPlanIcon = (planId) => {
     switch(planId) {
@@ -49,16 +50,7 @@ const MealPlanSelection = ({
     }
   };
   
-  // Calculate max occupancy from bed type or search criteria
-  const maxOccupancy = useMemo(() => {
-    // Try multiple possible property names for guest data
-    const adults = parseInt(searchCriteria?.guests?.Adults || searchCriteria?.guests?.adults || 1);
-    const children = parseInt(searchCriteria?.guests?.Children || searchCriteria?.guests?.children || 0);
-    const totalTourGuests = adults + children;
-    const bedMaxOccupancy = bedType?.max_occupancy || totalTourGuests;
-    
-    return Math.min(totalTourGuests, bedMaxOccupancy);
-  }, [bedType, searchCriteria]);
+
   
   // Check if loading or missing essential data
   if (isLoading) {
@@ -119,15 +111,15 @@ const MealPlanSelection = ({
           const totalTourGuests = adults + children;
           const maxBedOccupancy = bedType?.max_occupancy || totalTourGuests;
           
-          console.log("MealPlanSelection - Guest calculation:", {
-            searchCriteria: searchCriteria?.guests,
-            adults,
-            children,
-            infants,
-            totalTourGuests,
-            maxBedOccupancy,
-            selectedGuests
-          });
+          // console.log("MealPlanSelection - Guest calculation:", {
+          //   searchCriteria: searchCriteria?.guests,
+          //   adults,
+          //   children,
+          //   infants,
+          //   totalTourGuests,
+          //   maxBedOccupancy,
+          //   selectedGuests
+          // });
           
           if (selectedGuests === 0) {
             return <Typography variant="body2" color="text.secondary">
@@ -300,7 +292,9 @@ const MealPlanSelection = ({
                     {getMealPlanIcon(plan.id)}
                     <Box sx={{ ml: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>{plan.title}</Typography>
-                      {plan.description && (
+
+                      
+                      {plan.description && PriceHide === "0" && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                           {plan.description}
                         </Typography>
@@ -312,9 +306,16 @@ const MealPlanSelection = ({
                   </Box>
                   <Box>
                     <Typography variant="body2" fontWeight="500" color="primary.main">
-                      {plan.price > 0 ? `$${parseFloat(plan.price).toFixed(2)}` : 'Free'}
+                            {PriceHide === "0" ? (
+                        plan.price > 0 ? `$${parseFloat(plan.price).toFixed(2)}` : 'Free'
+                     ):(
+                      <Typography variant="caption" color="text.secondary">
+                        Price hide
+                      </Typography>
+                     )}
                     </Typography>
-                    {plan.personCount > 1 && plan.price > 0 && (
+                    
+                    {PriceHide === "0" && plan.personCount > 1 && plan.price > 0 && (
                       <Typography variant="caption" color="text.secondary">
                         ${(plan.price / plan.personCount).toFixed(2)} per person
                       </Typography>
@@ -333,66 +334,7 @@ const MealPlanSelection = ({
           </Box>
         ))}
       </Menu>
-      
-      {/* Enhanced Summary with base price + meal plan price display */}
-      {/* {guestMealPlans.length > 0 && (
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(53, 84, 209, 0.05)', borderRadius: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Meal Plan Summary
-          </Typography>
-          
-        
-          {guestMealPlans.map((mealPlanData, idx) => {
-            // Handle both old format (string) and new format (object)
-            const planId = mealPlanData?.id || mealPlanData;
-            const plan = mealPlans.find(p => p.id === planId);
-            const planPrice = mealPlanData?.price !== undefined ? mealPlanData.price : (plan?.price || 0);
-            
-            if (!plan) return null;
-            
-            return (
-              <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" component="span">
-                    Guest {idx + 1}:
-                  </Typography>
-                  <Chip 
-                    size="small" 
-                    label={plan.title} 
-                    icon={getMealPlanIcon(planId)}
-                    sx={{ ml: 1, height: 20, fontSize: '0.75rem' }} 
-                    variant="outlined" 
-                    color={planId === 'self' ? 'default' : 'primary'}
-                  />
-                </Box>
-                <Typography variant="body2" fontWeight="500">
-                  ${planPrice.toFixed(2)}
-                </Typography>
-              </Box>
-            );
-          })}
-          
-          <Divider sx={{ my: 1 }} />
-          
      
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-            <Typography variant="subtitle2">
-              Total Cost:
-            </Typography>
-            <Typography variant="subtitle1" fontWeight="bold" color="primary.main">
-              ${guestMealPlans.reduce((total, mealPlanData) => {
-                // Handle both old format (string) and new format (object)
-                if (mealPlanData?.price !== undefined) {
-                  return total + mealPlanData.price;
-                } else {
-                  const plan = mealPlans.find(p => p.id === mealPlanData);
-                  return total + (plan?.price || 0);
-                }
-              }, 0).toFixed(2)}
-            </Typography>
-          </Box>
-        </Box>
-      )} */}
     </Box>
   );
 };

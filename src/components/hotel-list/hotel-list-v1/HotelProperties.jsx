@@ -155,64 +155,83 @@ export default function HotelProperties() {
 
       // Ensure data has not been fetched and prevent fetching if the limit has been reached
       if (!isDataFetched && hotels.length < start + limit) {
+        console.log(`Fetching hotels with start=${start}, limit=${limit}, hasMore=${hasMore}`);
+        
         dispatch(fetchHotels({ start, limit }))
-          .then(() => {
+          .unwrap() // Use unwrap to handle the promise correctly
+          .then((data) => {
             setLoading(false);
-            dispatch({
-              type: "hotels",
-              payload: { start: start + limit }, // Properly increment the start value
-            });
+            
+            // Check if we got back any data
+            const gotResults = Array.isArray(data) && data.length > 0;
+            
+            if (gotResults) {
+              console.log(`Successfully fetched ${data.length} hotels`);
+              // Only update start if we received data
+              dispatch({
+                type: "hotels/updatePaginationState",
+                payload: { 
+                  start: start + data.length,
+                  // Set hasMore to false if we got fewer items than requested
+                  hasMore: data.length === limit
+                }
+              });
+            } else {
+              console.log("No more hotels available, stopping pagination");
+              dispatch({
+                type: "hotels/updatePaginationState",
+                payload: { hasMore: false }
+              });
+            }
           })
           .catch((error) => {
             setLoading(false);
-            //console.error("API Error:", error); // Log errors to track issues
+            console.log("Error fetching hotels:", error.message);
+            
+            // If we get a 404, mark hasMore as false to prevent more requests
+            if (error.message?.includes('404')) {
+              console.log("Received 404 error - no more hotels available");
+              dispatch({
+                type: "hotels/updatePaginationState",
+                payload: { hasMore: false }
+              });
+            }
           });
-        // } else {
-        //   setLoading(false);
-        // }
+      } else {
+        setLoading(false);
       }
     }
   }, [status, hasMore, loading, start, hotels, limit, dispatch]);
 
   // Infinite scroll logic
   const handleScroll = debounce(() => {
+    // Don't do anything if we already know there are no more hotels
+    if (!hasMore) {
+      console.log("No more hotels to fetch, skipping scroll handler");
+      return;
+    }
+    
+    // Don't do anything if we're currently loading
+    if (loading) {
+      return;
+    }
+    
     const displayedItems = hotels.length; // Total currently fetched items
-    const triggerThreshold = Math.floor(displayedItems / 2); // Half of displayed items
-    // const heightThreshold = window.innerHeight + window.scrollY;
-    // const earlyTriggerOffset = window.innerHeight * 0.6; // 30% of viewport height
-    const remainingItems = hasMore ? displayedItems % limit : 0; // Remaining items to load
-
-    // Trigger fetch when halfway through displayed items or nearing the end
-    if (
-      (displayedItems >= triggerThreshold && !loading) ||
-      (remainingItems <= limit && !loading)
-      // (heightThreshold >=
-      //   document.documentElement.scrollHeight - earlyTriggerOffset &&
-      //   !loading &&
-      //   hasMore)
-    ) {
+    
+    // Only trigger fetch when we have some items and we're not already loading
+    if (displayedItems > 0 && !loading) {
+      console.log("Scroll triggered, fetching more hotels");
       fetchData(); // Fetch more data
     }
-  }, [hotels.length, loading, hasMore, fetchData, limit]);
+  }, [hotels.length, loading, hasMore, fetchData]);
 
   useEffect(() => {
-    if (status === "succeeded") {
+    if (status === "succeeded" && hasMore) {
+      // Only trigger scroll handler if we have more hotels to fetch
+      console.log("Status changed to succeeded, checking for more hotels");
       handleScroll();
-      // .then(() => {
-      //   setLoading(false);
-      //   dispatch({
-      //     type: "hotels",
-      //     payload: { start: start + limit },
-      //   });
-      // })
-      // .catch((error) => {
-      //   console.error("Error in fetchHotels:", error);
-      // });
     }
-    // } else {
-    //   setLoading(false);
-    // }
-  }, [dispatch, status, handleScroll]);
+  }, [dispatch, status, handleScroll, hasMore]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -286,14 +305,83 @@ export default function HotelProperties() {
   // };
   //console.log(filteredHotels,"filteredHotels");
 
-  console.log(hotels, "hotels");
+  // Log all hotels to help debug filtering issues
+  useEffect(() => {
+    if (hotels && hotels.length > 0) {
+      console.log("All hotels from API:", hotels.map(h => ({
+        id: h.id,
+        name: h.hotel_name,
+        dmc_price: h.dmc_price,
+        travclicks_price: h.travclicks_price
+      })));
+      
+      // Check specifically for St. Regis
+      const stRegis = hotels.find(h => 
+        h.hotel_name && h.hotel_name.toLowerCase().includes('regis'));
+      
+      if (stRegis) {
+        console.log("FOUND ST. REGIS:", {
+          id: stRegis.id,
+          name: stRegis.hotel_name,
+          price: stRegis.dmc_price,
+          location: stRegis.location
+        });
+      } else {
+        console.log("ST. REGIS NOT FOUND IN API RESPONSE!");
+      }
+    }
+  }, [hotels]);
 
+  // Will log the filtered hotels count after filtering is done
+
+  // TEMPORARY DEBUG VERSION - SHOW ALL HOTELS WITHOUT FILTERING
+  console.log("*** DEBUG MODE: All hotels will be shown without price filtering ***");
+  
+  // Instead of filtering, just map all hotels to see them
+  const allHotelsWithPrices = hotels.map(hotel => {
+    const dmcPrice = typeof hotel.dmc_price === 'string' 
+      ? parseFloat(hotel.dmc_price) 
+      : (hotel.dmc_price || 0);
+      
+    const travclicksPrice = typeof hotel.travclicks_price === 'string'
+      ? parseFloat(hotel.travclicks_price)
+      : (hotel.travclicks_price || 0);
+      
+    console.log(`DEBUG: Hotel ${hotel.hotel_name}, DMC price: ${dmcPrice}, Travclicks price: ${travclicksPrice}`);
+    
+    return {
+      ...hotel,
+      parsed_dmc_price: dmcPrice,
+      parsed_travclicks_price: travclicksPrice
+    };
+  });
+  
+  // This will show ALL hotels in the console for debugging
+  console.log("All hotels before filtering:", allHotelsWithPrices);
+  
+  // For this debug version, don't filter at all - just show all hotels
   const filteredHotels = hotels.filter((hotel) => {
+    // Show every hotel, regardless of price
+    return true;
+    
+    /* Original filtering code - commented out for debugging
+    console.log(`Filtering hotel: ${hotel.hotel_name}, DMC price: ${hotel.dmc_price}, Travclicks price: ${hotel.travclicks_price}`);
+    
+    // Make sure we have numerical prices to work with
+    const dmcPrice = typeof hotel.dmc_price === 'string' 
+      ? parseFloat(hotel.dmc_price) 
+      : (hotel.dmc_price || 0);
+      
+    const travclicksPrice = typeof hotel.travclicks_price === 'string'
+      ? parseFloat(hotel.travclicks_price)
+      : (hotel.travclicks_price || 0);
+      
     // Remove hotels where both prices are not available
     if (
-      (hotel.dmc_price <= 0 && hotel.travclicks_price <= 0) ||
-      (bookingType === "enquiry" && hotel.dmc_price <= 0)
+      (dmcPrice <= 0 && travclicksPrice <= 0) ||
+      (bookingType === "enquiry" && dmcPrice <= 0)
     ) {
+      console.log(`Filtered out ${hotel.hotel_name}: No valid prices available`);
       return false; // Filter out hotels with no prices
     }
 
@@ -308,16 +396,25 @@ export default function HotelProperties() {
     // If DMC checkbox is checked (globalPriceMode is DMC-only)
     if (isDmcOnlyMode) {
       // Show the hotel only if DMC price is available
-      hasValidPrice = hotel.dmc_price > 0; // Only show hotels with DMC price
+      hasValidPrice = dmcPrice > 0; // Only show hotels with DMC price
     } else {
       // If DMC checkbox is unchecked (globalPriceMode includes both)
       // Show hotels with either DMC or Travclick price > 0
-      hasValidPrice = hotel.dmc_price > 0 || hotel.travclicks_price > 0; // Show hotels with either price
+      hasValidPrice = dmcPrice > 0 || travclicksPrice > 0; // Show hotels with either price
     }
 
     // If hotel doesn't pass the price mode filter, return false immediately
-    if (!hasValidPrice) return false;
+    if (!hasValidPrice) {
+      console.log(`Filtered out ${hotel.hotel_name}: Failed price mode filter`);
+      return false;
+    }
+    */
 
+    // PRICE RANGE FILTER TEMPORARILY COMMENTED OUT TO DEBUG HOTEL DISPLAY
+    // Commenting out all price range filtering to check if hotels appear
+    console.log(`PRICE FILTER DISABLED - Hotel ${hotel.hotel_name} will be shown regardless of price`);
+    
+    /*
     // Price Range Filter
     if (
       filters.priceRange &&
@@ -327,31 +424,47 @@ export default function HotelProperties() {
     ) {
       // Get the appropriate price based on selected mode and availability
       let hotelPrice = 0;
+      
+      // First make sure we have a valid price to work with
       if (isDmcOnlyMode && hotel.dmc_price > 0) {
         // Use DMC price when in DMC-only mode
-        hotelPrice = parseFloat(hotel.dmc_price);
+        hotelPrice = typeof hotel.dmc_price === 'string' 
+          ? parseFloat(hotel.dmc_price) 
+          : hotel.dmc_price;
       } else {
         // Otherwise use the lower of available prices (or whichever is available)
         const dmcPrice =
-          hotel.dmc_price > 0 ? parseFloat(hotel.dmc_price) : Number.MAX_VALUE;
+          hotel.dmc_price > 0 
+            ? (typeof hotel.dmc_price === 'string' ? parseFloat(hotel.dmc_price) : hotel.dmc_price)
+            : Number.MAX_VALUE;
+            
         const travclicksPrice =
           hotel.travclicks_price > 0
-            ? parseFloat(hotel.travclicks_price)
+            ? (typeof hotel.travclicks_price === 'string' ? parseFloat(hotel.travclicks_price) : hotel.travclicks_price)
             : Number.MAX_VALUE;
+            
         hotelPrice = Math.min(dmcPrice, travclicksPrice);
       }
 
       // Apply exchange rate if needed
       const convertedPrice = hotelPrice * exchangeRate;
+      
+      // Log the price details for debugging
+      console.log(`Hotel ${hotel.hotel_name} - Price: ${hotelPrice}, Converted: ${convertedPrice}, Range: ${filters.priceRange.min} - ${filters.priceRange.max}`);
 
-      // Check if price is within range
+      // Check if price is within range - use inclusive comparisons
       if (
         convertedPrice < filters.priceRange.min ||
         convertedPrice > filters.priceRange.max
       ) {
+        console.log(`Hotel ${hotel.hotel_name} filtered out: price ${convertedPrice} outside range ${filters.priceRange.min} - ${filters.priceRange.max}`);
         return false; // Filter out hotels outside price range
       }
+      
+      // Log if the hotel passed the price filter
+      console.log(`Hotel ${hotel.hotel_name} passed price filter`);
     }
+    */
 
     // If hotel passes all filters, return true
     return true;
@@ -399,6 +512,17 @@ export default function HotelProperties() {
 
   // const sortedFilteredHotels = sortHotels(filteredHotels);
   //console.log("sorthotel", sortedFilteredHotels);
+  
+  // Log the final filtered hotels count
+  useEffect(() => {
+    console.log(`Final hotels count: ${hotels.length} total, ${filteredHotels.length} after filtering`);
+    if (filteredHotels.length > 0) {
+      console.log("Filtered hotels:", filteredHotels.map(h => ({
+        name: h.hotel_name,
+        dmc_price: h.dmc_price
+      })));
+    }
+  }, [filteredHotels.length, hotels.length]);
 
   // const totalItems = sortedFilteredHotels.length;
   // const totalPages = Math.ceil(totalItems / itemsPerPage);

@@ -108,7 +108,7 @@ const PreferredCarsSearch = ({ onSelect }) => {
   // Get vehicles from Redux store
   const { vehicles = [], loading, error } = useSelector(state => state.enquiryList || { vehicles: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Helper function to format price
   const formatPrice = (price) => {
     const actualPrice = parseFloat(price) || 0;
@@ -247,12 +247,17 @@ const PreferredCarsSearch = ({ onSelect }) => {
                           Capacity: {car.seating_capacity}
                         </Box>
                       )}
-                      {car.base_price && (
+                      {PriceHide === "0" ? (
+                      car.base_price && (
                         <PriceChip 
                           label={`${formatPrice(car.base_price)}/hour`}
                           size="small"
                           sx={{ mt: 1 }}
                         />
+                      )):(
+                        <div className="text-12 text-dark-1 fw-500">
+                          Price available on request
+                        </div>
                       )}
                     </CarInfo>
                     {car.image && (
