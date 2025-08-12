@@ -42,7 +42,7 @@ import { fetchEditid, setTourId1, deleteTour } from "@/slice/common/EditSlice";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { fetchLists } from "@/slice/common/TourlistSlice";
+import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import dayjs from "dayjs";
 import { Button, InputAdornment, TextField, Typography, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
@@ -104,6 +104,10 @@ import { resetAllServiceResponses } from "@/slice/common/stepperButtonSlice";
 
 // Color functions for booking status styling
 const getBackgroundColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "rgba(33, 150, 243, 0.06)"; // Professional light blue
@@ -121,8 +125,6 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(255, 87, 34, 0.06)"; // Professional light deep orange
     case "Closed":
       return "rgb(237,237,237)"; // Professional light gray
-    case "Cancelled":
-      return "rgba(200, 50, 40, 0.06)"; // Professional light darker red
     case "On Hold":
       return "#000000"; // Professional light orange
     default:
@@ -132,6 +134,10 @@ const getBackgroundColor = (tour_status) => {
 
 // Text color function for booking status styling
 const getTextColor = (tour_status) => {
+  if (tour_status?.toLowerCase().startsWith("cancel")) {
+    return "#F44336"; // Red
+  }
+  
   switch (tour_status) {
     case "Confirmed":
       return "#2196F3"; // Blue
@@ -140,8 +146,6 @@ const getTextColor = (tour_status) => {
     case "Actual":
       return "#4CAF50"; // Green
     case "Pending":
-      return "#F44336"; // Red
-    case "Cancelled":
       return "#F44336"; // Red
     case "Tentative":
       return "#7E57C2"; // Violet
@@ -254,12 +258,12 @@ export default function Pending() {
   const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
   const userRole = useSelector((state) => state.auth.userRole);
   const [isEnquiryModalVisible, setIsEnquiryModalVisible] = useState(false);
-
+  
   // Get the view details from the Redux store BEFORE using it in useState
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
-  const { pendingTours = [], status } = useSelector((state) => state.lists);
+  const { pendingTours = [], status, start, limit } = useSelector((state) => state.lists);
 
   // Get user_country from auth slice
   const user_country = useSelector((state) => {
@@ -448,17 +452,54 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(setTourType("upcoming"));
+      dispatch(fetchLists({ reset: true, type: "upcoming" }));
+      
+      console.log('Initial data fetch with type: upcoming');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
   // if (status === "loading") return <p>Loading...</p>;
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
+  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
   // Update sortedLists when lists change
   useEffect(() => {
-    setSortedLists(Array.isArray(pendingTours) ? pendingTours : []); // Safely check if lists is an array
-  }, [pendingTours]);
+    const newLists = Array.isArray(pendingTours) ? pendingTours : [];
+    setSortedLists(newLists);
+    
+    console.log('Lists updated in Pending.jsx:', {
+      listsLength: newLists.length,
+      totalPages: Math.ceil(newLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [pendingTours, rowsPerPage, page]);
+  
+  // Auto-fetch more data when reaching the last page
+  useEffect(() => {
+    if (page > 0 && sortedLists.length > 0) {
+      const currentPageEnd = (page + 1) * rowsPerPage;
+      const dataAvailable = sortedLists.length;
+      
+      // If we're on the last page or near the end of available data, fetch more
+      if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+        const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+        console.log('Auto-fetching more data in Pending:', {
+          currentPage: page + 1,
+          totalPages,
+          dataAvailable,
+          nextStart,
+          type: "upcoming"
+        });
+        
+        // Make sure we're using the correct type
+        const currentType = "upcoming"; // For Pending.jsx, we always use "upcoming"
+        dispatch(fetchLists({ start: nextStart, limit: 30, type: currentType, reset: false }));
+      }
+    }
+  }, [page, sortedLists.length, rowsPerPage, dispatch, totalPages]);
+ 
 
   const handleSort = () => {
     const sortedData = [...sortedLists].sort((a, b) => {
@@ -599,7 +640,7 @@ export default function Pending() {
   // Dependency array: only recalculate if 'id' changes
 
   // Calculate total pages
-  const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
+  
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
@@ -920,7 +961,7 @@ export default function Pending() {
     } else {
       swal("Cancelled", "Your tour is safe!", "info");
     }
-    dispatch(fetchLists());
+            dispatch(fetchLists({ reset: true }));
   };
 
   const handleCloseModal = () => {
@@ -1818,7 +1859,7 @@ export default function Pending() {
         handleCloseEnquiryModal();
 
         // Refresh the list
-        dispatch(fetchLists());
+        dispatch(fetchLists({ reset: true }));
       } else {
         toast.error(
           response.data?.message || "Operation failed. Please try again."
@@ -2678,8 +2719,8 @@ export default function Pending() {
                               </IconButton>
                             </Tooltip>
 
-                            {/* Only render Edit button if editOff is not 1 */}
-                            {list.editOff !== 1 && (
+                            {/* Only render Edit button if editOff is not 1 and status doesn't start with "Cancel" */}
+                            {list.editOff !== 1 && !list.tour_status?.toLowerCase().startsWith("cancel") && (
                               <Tooltip title="Add More Services" arrow>
                                 <IconButton
                                   size="small"
@@ -2699,63 +2740,67 @@ export default function Pending() {
                               </Tooltip>
                             )}
 
-                            {/* Third button - Negotiate for enquiry type, Update for others */}
-                            {list.booking_type === "enquiry" && userRole === "Agent" ? (
-                              <Tooltip title="Negotiate" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDirectEnquiry(list)}
-                                  sx={{
-                                    color: "#7b1fa2",
-                                    width: "28px",
-                                    height: "28px",
-                                    padding: "4px",
-                                    "&:hover": {
-                                      color: "#4a148c",
-                                    },
-                                  }}
-                                >
-                                  <AttachMoney sx={{ fontSize: "14px" }} />
-                                </IconButton>
-                              </Tooltip>
-                            ) : (
-                              <Tooltip title="Update Tour Plan" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleUpdate(list)}
-                                  sx={{
-                                    color: "#f57c00",
-                                    width: "28px",
-                                    height: "28px",
-                                    padding: "4px",
-                                    "&:hover": {
-                                      color: "#e65100",
-                                    },
-                                  }}
-                                >
-                                  <Update sx={{ fontSize: "14px" }} />
-                                </IconButton>
-                              </Tooltip>
+                            {/* Third button - Negotiate for enquiry type, Update for others - Hide if status starts with "Cancel" */}
+                            {!list.tour_status?.toLowerCase().startsWith("cancel") && (
+                              list.booking_type === "enquiry" && userRole === "Agent" ? (
+                                <Tooltip title="Negotiate" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDirectEnquiry(list)}
+                                    sx={{
+                                      color: "#7b1fa2",
+                                      width: "28px",
+                                      height: "28px",
+                                      padding: "4px",
+                                      "&:hover": {
+                                        color: "#4a148c",
+                                      },
+                                    }}
+                                  >
+                                    <AttachMoney sx={{ fontSize: "14px" }} />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="Update Tour Plan" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleUpdate(list)}
+                                    sx={{
+                                      color: "#f57c00",
+                                      width: "28px",
+                                      height: "28px",
+                                      padding: "4px",
+                                      "&:hover": {
+                                        color: "#e65100",
+                                      },
+                                    }}
+                                  >
+                                    <Update sx={{ fontSize: "14px" }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )
                             )}
 
-                            {/* 3 dots menu for additional actions */}
-                            <Tooltip title="More Actions" arrow>
-                              <IconButton
-                                size="small"
-                                onClick={(event) => handleActionMenuOpen(event, list)}
-                                sx={{
-                                  color: "#666",
-                                  width: "28px",
-                                  height: "28px",
-                                  padding: "4px",
-                                  "&:hover": {
-                                    color: "#333",
-                                  },
-                                }}
-                              >
-                                <MoreVert sx={{ fontSize: "14px" }} />
-                              </IconButton>
-                            </Tooltip>
+                            {/* 3 dots menu for additional actions - Hide if status starts with "Cancel" */}
+                            {/* {!list.tour_status?.toLowerCase().startsWith("cancel") && ( */}
+                              <Tooltip title="More Actions" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={(event) => handleActionMenuOpen(event, list)}
+                                  sx={{
+                                    color: "#666",
+                                    width: "28px",
+                                    height: "28px",
+                                    padding: "4px",
+                                    "&:hover": {
+                                      color: "#333",
+                                    },
+                                  }}
+                                >
+                                  <MoreVert sx={{ fontSize: "14px" }} />
+                                </IconButton>
+                              </Tooltip>
+                            {/* )} */}
                           </div>
                           {list.dmc_company_name && (
                             <Tooltip
@@ -3395,35 +3440,38 @@ export default function Pending() {
           View Details
         </MenuItem>
 
-        {/* Show Edit if not already in first 3 buttons and editOff is not 1 */}
-        {selectedListItem && selectedListItem.editOff !== 1 && (
+        {/* Show Edit if not already in first 3 buttons and editOff is not 1 and status doesn't start with "Cancel" */}
+        {selectedListItem && selectedListItem.editOff !== 1 && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('edit')} sx={{ fontSize: "14px", py: 1 }}>
             <Edit sx={{ fontSize: "10px", mr: 1, color: "#2e7d32" }} />
             Add More Services
           </MenuItem>
         )}
 
-        {/* Show Negotiate if not already in first 3 buttons */}
-        {selectedListItem && selectedListItem.booking_type === "enquiry" && userRole === "Agent" && (
+        {/* Show Negotiate if not already in first 3 buttons and status doesn't start with "Cancel" */}
+        {selectedListItem && selectedListItem.booking_type === "enquiry" && userRole === "Agent" && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('negotiate')} sx={{ fontSize: "14px", py: 1 }}>
             <AttachMoney sx={{ fontSize: "10px", mr: 1, color: "#7b1fa2" }} />
             Negotiate
           </MenuItem>
         )}
 
-        {/* Show Update if not already in first 3 buttons */}
-
-        <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
-          <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
-          Update Tour Plan
-        </MenuItem>
+        {/* Show Update if not already in first 3 buttons and status doesn't start with "Cancel" */}
+        {selectedListItem && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
+          <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
+            <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
+            Update Tour Plan
+          </MenuItem>
+        )}
 
 
         {/* Always show Delete in menu */}
+        {selectedListItem && (
         <MenuItem onClick={() => handleMenuAction('delete')} sx={{ fontSize: "14px", py: 1, color: "#f44336" }}>
           <Cancel sx={{ fontSize: "10px", mr: 1, color: "#f44336" }} />
           Cancel
         </MenuItem>
+        )}
       </Menu>
     </div>
   );

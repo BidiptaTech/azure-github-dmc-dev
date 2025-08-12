@@ -720,7 +720,11 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   const handleSearch = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Show the button again if validation fails
+      setIsButtonHidden(false);
+      return;
+    }
 
     console.log("=== SEARCH START ===");
     console.log("Before clearing packageData - Redux:", reduxPackageData);
@@ -955,6 +959,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         
         console.log("=== SEARCH COMPLETE ===");
         console.log("Search completed successfully, packageData should be null");
+        
+        // Show the button again after successful API call
+        setIsButtonHidden(true);
       })
       .catch((error) => {
         console.error("Error fetching tour packages:", error);
@@ -963,6 +970,9 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
         );
         setSnackbarSeverity("error");
         setOpenSnackbar(true);
+        
+        // Show the button again after error
+        setIsButtonHidden(false);
       });
 
     // For backward compatibility, also create a booking ID
@@ -997,7 +1007,13 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
   const handleUpdate = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Show the button again if validation fails
+      setIsButtonHidden(false);
+      return;
+    }
+
+    try {
 
     // Clear previous customer info when starting update
     dispatch(clearUserInfo());
@@ -1200,6 +1216,21 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     }
 
     console.log("Tour package updated successfully with tour_id:", tourId);
+    
+    // Show the button again after successful update
+    setIsButtonHidden(true);
+    
+    } catch (error) {
+      console.error("Error updating tour package:", error);
+      setSnackbarMessage(
+        "Failed to update tour package. Please try again."
+      );
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      
+      // Show the button again after error
+      setIsButtonHidden(false);
+    }
   };
 
  

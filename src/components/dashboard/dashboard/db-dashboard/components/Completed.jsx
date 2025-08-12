@@ -139,7 +139,7 @@ export default function Pending() {
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
     if (location.pathname === "/dashboard/db-dashboard") {
-      dispatch(fetchLists());
+      dispatch(fetchLists({ reset: true }));
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
@@ -500,7 +500,7 @@ export default function Pending() {
     } else {
       swal("Cancelled", "Your tour is safe!", "info");
     }
-    dispatch(fetchLists());
+    dispatch(fetchLists({ reset: true }));
   };
 
   const handleCloseModal = () => {
