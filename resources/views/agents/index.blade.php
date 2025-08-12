@@ -95,7 +95,7 @@
                       $modalId = 'dmcModal' . $loop->index;
                   @endphp
               
-                  @if ($firstDmc)
+                  @if ($firstDmc && ($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19 || $user->role_id == 20))
                       <span class="badge bg-primary text-white me-1">
                           {{ \Illuminate\Support\Str::limit($firstDmc, 20) }}
                       </span>
@@ -130,6 +130,10 @@
                               </div>
                           </div>
                       @endif
+                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138))
+                      <span class="badge bg-primary text-white me-1">
+                          {{ $user->company_name }}
+                      </span>
                   @else
                       <span class="text-muted">No DMC assigned</span>
                   @endif
