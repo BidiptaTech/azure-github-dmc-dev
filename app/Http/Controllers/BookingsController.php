@@ -197,13 +197,7 @@ class BookingsController extends Controller
      */
     public function confirmedBookings()
     {
-        $tours = Tour::where('tour_status', 'On Hold')
-            ->with([
-                'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
-                },
-                'agent'
-            ])
+        $tours = Tour::where('tour_status', 'Confirmed')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
                 'tours.tour_id',
@@ -417,7 +411,7 @@ class BookingsController extends Controller
             'new_enquiries' => Tour::where('tour_status', 'New Enquiry')->count(),
             'follow_ups' => Tour::where('tour_status', 'Prospect')->count(),
             'tentative' => Tour::where('tour_status', 'Tentative')->count(),
-            'confirmed' => Tour::where('tour_status', 'On Hold')->count(),
+            'confirmed' => Tour::where('tour_status', 'Confirmed')->count(),
             'definite' => Tour::where('tour_status', 'Definite')->count(),
             'actual' => Tour::where('tour_status', 'Actual')->count(),
             'cancelled' => Tour::where('tour_status', 'Cancelled')->count(),
