@@ -37,7 +37,7 @@ const HotelConfigSummary = ({
   tourDateRange 
 }) => {
   const [expandedAccordions, setExpandedAccordions] = useState(new Set());
-  
+  const PriceHide = useSelector((state) => state.auth.PriceHide);   
   // Get tour dates from Redux state to check for date conflicts
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria);
   const tourDates = searchCriteria?.dates || [];
@@ -684,7 +684,7 @@ const HotelConfigSummary = ({
                 </Box>
                 
                 {/* Price Display - Compact */}
-                {hotelSummary.totalMealPlanCost > 0 && (
+                {hotelSummary.totalMealPlanCost > 0 && PriceHide === "0" ? (
                   <Chip
                     label={`$${hotelSummary.totalMealPlanCost.toFixed(2)}`}
                     size="small"
@@ -692,7 +692,15 @@ const HotelConfigSummary = ({
                     variant="filled"
                     sx={{ fontWeight: 600 }}
                   />
-                )}
+                ):(
+                  <Chip
+                    label="Price hide"
+                    size="small"
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 600 }}
+                  />
+                  )}
               </Box>
             </AccordionSummary>
 
@@ -812,13 +820,21 @@ const HotelConfigSummary = ({
                                         }}>
                                           Guest {mealIndex + 1}: {mealPlan?.name || 'Room Only'}
                                         </Typography>
-                                        {mealPlan?.price > 0 && (
+                                        {mealPlan?.price > 0 && PriceHide === "0" ? (
                                           <Typography variant="caption" sx={{ 
                                             color: 'success.main',
                                             fontSize: '0.65rem',
                                             fontWeight: 600
                                           }}>
                                             ${mealPlan.price.toFixed(2)}
+                                          </Typography>
+                                        ):(
+                                          <Typography variant="caption" sx={{ 
+                                            color: 'success.main',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 600
+                                          }}>
+                                            Price hide
                                           </Typography>
                                         )}
                                       </Box>
@@ -843,6 +859,7 @@ const HotelConfigSummary = ({
                                         }}>
                                           Room Total:
                                         </Typography>
+                                        {PriceHide === "0" ? (
                                         <Chip 
                                           label={`$${roomMealTotal.toFixed(2)}`}
                                           size="small" 
@@ -854,6 +871,15 @@ const HotelConfigSummary = ({
                                             fontWeight: 600
                                           }}
                                         />
+                                        ):(
+                                          <Chip 
+                                            label="Price hide"
+                                            size="small"
+                                            color="success"
+                                            variant="filled"
+                                            sx={{ fontWeight: 600 }}
+                                          />
+                                        )}
                                       </Box>
                                     );
                                   })()}

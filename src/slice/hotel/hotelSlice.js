@@ -200,6 +200,16 @@ const hotelSlice = createSlice({
   },
 
   reducers: {
+    updatePaginationState: (state, action) => {
+      // Allow direct updates to pagination-related state
+      if (action.payload.hasMore !== undefined) {
+        state.hasMore = action.payload.hasMore;
+      }
+      if (action.payload.start !== undefined) {
+        state.start = action.payload.start;
+      }
+      console.log(`Updated pagination state: hasMore=${state.hasMore}, start=${state.start}`);
+    },
     setSelectedPriceMode: (state, action) => {
       state.selectedPriceMode = action.payload; // Just store the selected mode directly as a string
     },
@@ -263,28 +273,43 @@ const hotelSlice = createSlice({
       })
       .addCase(fetchHotels.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Avoid duplicate hotels
-        const existingIds = state.hotels.map((hotel) => hotel.id);
-        const newHotels = action.payload.filter(
-          (hotel) => !existingIds.includes(hotel.id)
-        );
+        
+        // Check if response is an array (has data) or empty (no more data)
+        if (Array.isArray(action.payload) && action.payload.length > 0) {
+          // Avoid duplicate hotels
+          const existingIds = state.hotels.map((hotel) => hotel.id);
+          const newHotels = action.payload.filter(
+            (hotel) => !existingIds.includes(hotel.id)
+          );
 
-        state.hotels = [...state.hotels, ...newHotels];
-        state.hasMore = newHotels.length > 0;
-
-        // Increment the start value
-        const previousStart = state.start;
-        if (newHotels.length > 0) {
-          state.start += newHotels.length;
+          state.hotels = [...state.hotels, ...newHotels];
+          
+          // Only set hasMore to true if we received the full amount requested
+          // This prevents additional calls if we receive fewer items than requested
+          state.hasMore = newHotels.length === 5; // Assuming limit is 5
+          
+          // Increment the start value
+          if (newHotels.length > 0) {
+            state.start += newHotels.length;
+          }
+        } else {
+          // No more data available, stop pagination
+          state.hasMore = false;
         }
-
-        // console.log(`Start updated: ${previousStart} -> ${state.start}`);
-        // console.log("Fetched hotels:", state.hotels);
+        
+        console.log(`Hotels after update: ${state.hotels.length}, hasMore: ${state.hasMore}`);
       })
       .addCase(fetchHotels.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || action.error.message;
-      }) // ❌ Removed extra semicolon here
+        
+        // If we get a 404 error, it means there are no more hotels to fetch
+        if (action.error && (action.error.message.includes('404') || 
+            (action.payload && action.payload.status === 404))) {
+          state.hasMore = false;
+          console.log("No more hotels available, stopping pagination");
+        }
+      })
       .addCase(hottelBookingDataSubmit.pending, (state) => {
         state.status = "loading";
       })
@@ -301,6 +326,7 @@ const hotelSlice = createSlice({
 });
 
 export const {
+  updatePaginationState,
   setSelectedPriceMode,
   selectedPriceMode,
   setLocations,
