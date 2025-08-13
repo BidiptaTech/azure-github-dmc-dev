@@ -319,8 +319,7 @@ class BookingsController extends Controller
                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(105);
-
+            ->paginate(10);
         }
         
         if($user->role_id == 11){
