@@ -91,7 +91,7 @@ class GuideController extends Controller
         });
 
         if ($availableGuides->isEmpty()) {
-            return response()->json(['message' => 'No guides found for the selected city'], 404);
+            return response()->json(['message' => 'No guides found for the selected city'], 200);
         }
     
         $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
