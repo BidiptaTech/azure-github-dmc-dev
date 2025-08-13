@@ -323,7 +323,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr>
+                        {{-- <tr>
                             <td colspan="8" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-close-circle-line ri-48px text-muted mb-2"></i>
@@ -331,7 +331,7 @@
                                     <p class="text-muted mb-0">All bookings are active or in other stages.</p>
                                 </div>
                             </td>
-                        </tr>
+                        </tr> --}}
                         @endforelse
                     </tbody>
                 </table>
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            order: [[6, 'desc']], // Sort by Cancelled Date column (index 6) in descending order
+            // order: [[6, 'desc']], // Sort by Cancelled Date column (index 6) in descending order
             columnDefs: [
                 {
                     targets: [7], // Actions column (index 7)

@@ -703,6 +703,7 @@
 
         <!-- End Tour -->
 
+        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 20, 21, 22, 11, 33, 34, 36, 37, 38, 128, 129, 130, 134, 135, 136, 138, ]))
         <!-- Bookings -->
         {{-- @if(hasPermission('view booking')) --}}
         <li class="menu-header mt-5">
@@ -802,7 +803,7 @@
                 </li> --}}
             </ul>
         </li>  
-    {{-- @endif --}}
+    @endif
     <!-- End Bookings --> 
 
         <!-- Booking List -->
@@ -916,15 +917,15 @@
                     </li> --}}
                     @if(in_array(auth()->user()->role_id, [33]))
                     <!-- Single Tour Package for DMCs -->
-                    <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+                    {{-- <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
                         <a href="{{ route('single-tour-package.create') }}" class="menu-link" title="Create Tour Package">
-                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                            <i class="menu-icon tf-icons ri-gift-line"></i>
                             <div data-i18n="Create Tour Package" class="menu-tooltip">
                                 <span class="menu-text-with-tooltip">Create Tour Package</span>
                                 <span class="tooltip-text">Create Tour Package</span>
                             </div>
                         </a>
-                    </li>
+                    </li> --}}
                     {{-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
                         <a href="{{ route('single-tour-package.index') }}" class="menu-link">
                             <div data-i18n="Single Tour Packages" class="menu-tooltip">
@@ -1300,7 +1301,7 @@
             <!-- End Reports -->
             
             <!-- Bulk Upload -->
-            @if(in_array(auth()->user()->role_id, [11, 20]))
+            {{-- @if(in_array(auth()->user()->role_id, [11, 20]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Bulk Upload">Bulk Upload</span>
                 </li>
@@ -1310,13 +1311,13 @@
                         <i class="menu-icon tf-icons ri-upload-cloud-2-line" style="color: #10b981 !important; background: rgba(16, 185, 129, 0.1);"></i>
                         <div data-i18n="Bulk Upload">Bulk Upload</div>
                     </a>
-                    <ul class="menu-sub">
+                    <ul class="menu-sub"> --}}
                         {{-- <li class="menu-item @if(Request::is('bulk-upload/hotels')) active @endif">
                             <a href="{{ route('bulk-upload.hotels') }}" class="menu-link">
                                 <div data-i18n="Hotels">Hotels</div>
                             </a>
                         </li> --}}
-                        <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
+                        {{-- <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
                             <a href="{{ route('bulk-upload.guides') }}" class="menu-link">
                                 <div data-i18n="Guides">Guides</div>
                             </a>
@@ -1342,7 +1343,7 @@
                                 <div data-i18n="Attractions">Attractions</div>
                             </a>
                         </li>
-                        @endif
+                        @endif --}}
                         {{-- @if(auth()->user()->role_id == '11')
                         <li class="menu-item @if(Request::is('bulk-upload/tickets')) active @endif">
                             <a href="{{ route('bulk-upload.tickets') }}" class="menu-link">
@@ -1355,9 +1356,9 @@
                             </a>
                         </li>
                         @endif --}}
-                    </ul>
+                    {{-- </ul>
                 </li>
-            @endif
+            @endif --}}
             <!-- End Bulk Upload -->
 
                 <!-- Jobsheets -->
@@ -1797,7 +1798,7 @@
                 @endif
                 <!-- End Settings -->
 
-                <!-- Mail -->
+                {{-- <!-- Mail -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Mail Center">Mail Center</span>
                 </li>
@@ -1912,7 +1913,7 @@
                             </ul>
                         </li>
                     </ul>
-                </li>
+                </li> --}}
                 <!-- End Mail -->
                 
                 <!-- Tranasaction -->
