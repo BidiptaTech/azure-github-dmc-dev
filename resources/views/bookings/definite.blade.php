@@ -213,24 +213,6 @@
     </div>
 
     <!-- Action Required Alert -->
-    @php
-        $readyToExecute = $tours->where('check_in_time', '<', now());
-    @endphp
-    @if($readyToExecute->count() > 0)
-    <div class="alert alert-success mb-4">
-        <div class="d-flex align-items-center">
-            <i class="ri-play-circle-line ri-24px me-3"></i>
-            <div>
-                <h6 class="alert-heading mb-1">Ready for Execution</h6>
-                <p class="mb-0">{{ $readyToExecute->count() }} definite bookings are ready to be moved to actual status.</p>
-            </div>
-            <button class="btn btn-success ms-auto" onclick="bulkMakeActual()">
-                <i class="ri-arrow-right-line me-1"></i> Execute All
-            </button>
-        </div>
-    </div>
-    @endif
-
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">

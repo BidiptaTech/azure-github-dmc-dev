@@ -48,17 +48,35 @@ class RestaurantController extends Controller
             return response()->json(['message' => 'City or Country name is missing'], 400);
         }
         
-        $restaurants = Restaurant::where('is_active', 1)
+        // Query restaurants without dmc_id filter (will filter in application)
+        $queryRestaurants = Restaurant::where('is_active', 1)
             ->where('country', $country)
             ->where('city', $city)
-            ->where(function ($query) use ($dmcId) {
-                $query->whereJsonContains('dmc_id', $dmcId)
-                    ->orWhereJsonContains('dmc_id', (int)$dmcId);
-            })
             ->orderBy('restaurant_id', 'desc')
-            ->limit($limit)
-            ->offset($start)
             ->get();
+
+        // Filter by DMC ID at application level to handle JSON column properly
+        $filteredRestaurants = $queryRestaurants->filter(function ($restaurant) use ($dmcId) {
+            $restaurantDmcIds = $restaurant->dmc_id;
+            
+            // Handle different JSON formats
+            if (is_string($restaurantDmcIds)) {
+                $restaurantDmcIds = json_decode($restaurantDmcIds, true);
+            }
+            
+            // Ensure we have an array
+            if (!is_array($restaurantDmcIds)) {
+                $restaurantDmcIds = [$restaurantDmcIds];
+            }
+            
+            // Check if requested DMC ID is in the restaurant's DMC list
+            return in_array($dmcId, $restaurantDmcIds) || 
+                   in_array((string) $dmcId, $restaurantDmcIds) || 
+                   in_array((int) $dmcId, $restaurantDmcIds);
+        });
+
+        // Apply pagination after DMC filtering
+        $restaurants = $filteredRestaurants->slice($start, $limit);
         
         if ($restaurants->isEmpty()) {
             return response()->json(['message' => 'No restaurants found for the selected city'], 404);
@@ -67,82 +85,6 @@ class RestaurantController extends Controller
         $agent = Agent::where('agent_id', $agentId)->first();
         
         $dmc_id = null;
-        if ($agent) {
-            $salesManagerId = $agent->sales_manager_dmc;
-            switch ($agent->role_id) {
-                case 11: // Agent is a DMC
-                    $dmc_id = $agent->sales_manager_dmc; // Assuming `userId` in agent or fallback to agent_id
-                    break;
-                    case 33: 
-                    case 128: 
-                    case 129: 
-                    case 130: 
-                    case 134: 
-                    case 135: 
-                    case 136: 
-                    case 138: // Sales Head
-                    $salesManagerId = $agent->sales_manager_dmc;
-                         $saleshead_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    break;
-                case 12:
-                case 37: // Sales Manager
-                    $salesManagerId = $agent->sales_manager_dmc;
-                    $salesmng_dmc= User::where('userId', $agent->sales_manager_dmc)->first(); // SM
-                    
-                    if ($salesmng_dmc) {
-                         $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-                case 38: // Assistant Manager
-                    $salesManagerId = $agent->sales_manager_dmc;
-                    $asmng_dmc = User::where('userId', $agent->sales_manager_dmc)->first(); // SM
-                    if($asmng_dmc){
-                        $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-                    }
-                    if ($salesmng_dmc) {
-                         $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-            }
-        }
-        elseif(Auth::user()->userId){
-            $currentUser = Auth::user();
-            
-            if($currentUser->role_id == 33 || $currentUser->role_id == 128 || $currentUser->role_id == 129 || $currentUser->role_id == 130 || $currentUser->role_id == 134 || $currentUser->role_id == 135 || $currentUser->role_id == 136 || $currentUser->role_id == 138){
-                $dmcId = $currentUser->created_by;
-            }
-            elseif($currentUser->role_id == 37){
-                $sales_head_id = $currentUser->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmcId = $sales_head->created_by;
-            }
-            elseif($currentUser->role_id == 38){
-                $sales_manager_id = $currentUser->created_by;
-                $sales_manager = User::where('userId', $sales_manager_id)->first();
-                $sales_head_id = $sales_manager->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmcId = $sales_head->created_by;
-            }
-        }
-        
         if (!$dmcId) {
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
