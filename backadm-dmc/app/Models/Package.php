@@ -80,7 +80,8 @@ class Package extends Model
         'created_by',
         'updated_by',
         'itinerary',
-        'dmc_id'
+        'dmc_id',
+        'child_max_age'
     ];
 
     const CATEGORIES = [
