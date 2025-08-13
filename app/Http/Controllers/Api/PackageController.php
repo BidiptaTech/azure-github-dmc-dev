@@ -458,7 +458,13 @@ class PackageController extends Controller
 
 
         // Verify price calculation
-        $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
+        $package_price = 0;
+        if($package->package_type == 'single'){
+            $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
+        }
+        elseif($package->package_type == 'couple'){
+            $package_price = $package->price_adult;
+        }
 
         if($package_price != $totalPrice){
             return response()->json(['message' => 'Total price is not correct', 'package_price' => $package_price, 'totalPrice' => $totalPrice, 'adult_count' => $adult_count, 'child_count' => $child_count, 'senior_count' => $senior_count], 400);

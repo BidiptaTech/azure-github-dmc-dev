@@ -2,6 +2,9 @@
 @section('title', 'Cancelled Bookings')
 @extends('layouts.datatablecss')
 
+<!-- Date Range Picker CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <!-- Header -->
@@ -16,7 +19,8 @@
         <div class="d-flex gap-2">
             <span class="badge bg-danger fs-6">
                 <i class="ri-close-circle-line me-1"></i>
-                {{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }} {{ date('F') }} Cancelled
+                <span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span>
+                <span id="rangeLabel">{{ date('F') }}</span> Cancelled
             </span>
         </div>
     </div>
@@ -28,8 +32,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} Cancelled</p>
+                            <h5 class="card-title mb-1" id="statCancelledCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
+                            <p class="text-muted mb-0" id="statCancelledLabel">{{ date('F') }} Cancelled</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-danger rounded">
@@ -45,8 +49,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Pending')->count() }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} Pending</p>
+                            <h5 class="card-title mb-1" id="statPendingCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Pending')->count() }}</h5>
+                            <p class="text-muted mb-0" id="statPendingLabel">{{ date('F') }} Pending</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-warning rounded">
@@ -62,8 +66,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - On Hold')->count() }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} On Hold</p>
+                            <h5 class="card-title mb-1" id="statOnHoldCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - On Hold')->count() }}</h5>
+                            <p class="text-muted mb-0" id="statOnHoldLabel">{{ date('F') }} On Hold</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-info rounded">
@@ -79,8 +83,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Definite')->count() }}</h5>
-                            <p class="text-muted mb-0">{{ date('F') }} Definite</p>
+                            <h5 class="card-title mb-1" id="statDefiniteCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Definite')->count() }}</h5>
+                            <p class="text-muted mb-0" id="statDefiniteLabel">{{ date('F') }} Definite</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-secondary rounded">
@@ -147,12 +151,11 @@
                         <option value="last_month">Last Month</option>
                     </select>
                 </div> --}}
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">Date Range</label>
-                    <input type="date" class="form-control" id="dateFilter" 
-                           value="{{ date('Y-m-d') }}" 
-                           min="{{ date('Y-m-01') }}" 
-                           max="{{ date('Y-m-t') }}">
+                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
+                    <input type="hidden" id="dateRangeStart">
+                    <input type="hidden" id="dateRangeEnd">
                 </div>
             </div>
         </div>
@@ -196,7 +199,21 @@
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
-                        <tr class="table-danger">
+                        <tr 
+                            class="table-danger"
+                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
+                            data-adult="{{ $tour->adult ?? 0 }}"
+                            data-child="{{ $tour->child ?? 0 }}"
+                            data-cancellation-status="{{ 
+                                str_contains($tour->tour_status, 'Cancel - Pending') ? 'Pending' : 
+                                (str_contains($tour->tour_status, 'Cancel - On Hold') ? 'On Hold' : 
+                                (str_contains($tour->tour_status, 'Cancel - Definite') ? 'Definite' : 
+                                (str_contains($tour->tour_status, 'Cancel - Prospect') ? 'Prospect' : 
+                                (str_contains($tour->tour_status, 'Cancel - Tentative') ? 'Tentative' : 
+                                (str_contains($tour->tour_status, 'Cancel - New Enquiry') ? 'New Enquiry' : 'Other')))))
+                            }}"
+                        >
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -330,7 +347,8 @@ function filterTable() {
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const timeFilter = document.getElementById('timeFilter')?.value || '';
-    const dateFilter = document.getElementById('dateFilter')?.value || '';
+    const dateStart = document.getElementById('dateRangeStart')?.value || '';
+    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
@@ -342,8 +360,37 @@ function filterTable() {
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
         const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const cancelledDate = row.cells[7]?.textContent.toLowerCase() || '';
+        const createdAt = row.getAttribute('data-created-at');
+        const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
+        
+        // Date range filtering (check both created_at and updated_at)
+        if (dateStart && dateEnd && (createdAt || updatedAt)) {
+            const s = new Date(dateStart + 'T00:00:00');
+            const e = new Date(dateEnd + 'T23:59:59');
+            let dateInRange = false;
+            
+            // Check created_at if available
+            if (createdAt) {
+                const createdDate = new Date(createdAt + 'T00:00:00');
+                if (createdDate >= s && createdDate <= e) {
+                    dateInRange = true;
+                }
+            }
+            
+            // Check updated_at if available and created_at didn't match
+            if (!dateInRange && updatedAt) {
+                const updatedDate = new Date(updatedAt + 'T00:00:00');
+                if (updatedDate >= s && updatedDate <= e) {
+                    dateInRange = true;
+                }
+            }
+            
+            if (!dateInRange) {
+                show = false;
+            }
+        }
         
         if (searchTerm && !tourDetails.includes(searchTerm)) {
             show = false;
@@ -359,23 +406,6 @@ function filterTable() {
         
         if (agentFilter && agent !== agentFilter) {
             show = false;
-        }
-        
-        // Date filtering - using cancelled date for cancelled bookings
-        if (dateFilter && cancelledDate) {
-            const selectedDate = new Date(dateFilter);
-            
-            // Extract the date from cancelled dates - assuming format like "Mon, Dec 23, 2024"
-            const dateMatch = cancelledDate.match(/\w+,\s+\w+\s+\d+,\s+\d+/);
-            if (dateMatch) {
-                const cancelDate = new Date(dateMatch[0]);
-                const cancelDateOnly = new Date(cancelDate.getFullYear(), cancelDate.getMonth(), cancelDate.getDate());
-                const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                
-                if (cancelDateOnly.getTime() !== selectedDateOnly.getTime()) {
-                    show = false;
-                }
-            }
         }
         
         if (timeFilter) {
@@ -400,6 +430,63 @@ function filterTable() {
         
         row.style.display = show ? '' : 'none';
     });
+
+    // Update header/cards counts based on visible rows
+    const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    const rangeCount = visibleRows.length;
+    const pendingCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Pending').length;
+    const onHoldCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'On Hold').length;
+    const definiteCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Definite').length;
+
+    // Update counts and labels
+    const countEl = document.getElementById('rangeCount');
+    const labelEl = document.getElementById('rangeLabel');
+    const statCancelled = document.getElementById('statCancelledCount');
+    const statCancelledLabel = document.getElementById('statCancelledLabel');
+    const statPending = document.getElementById('statPendingCount');
+    const statPendingLabel = document.getElementById('statPendingLabel');
+    const statOnHold = document.getElementById('statOnHoldCount');
+    const statOnHoldLabel = document.getElementById('statOnHoldLabel');
+    const statDefinite = document.getElementById('statDefiniteCount');
+    const statDefiniteLabel = document.getElementById('statDefiniteLabel');
+
+    if (countEl) countEl.textContent = rangeCount;
+    if (statCancelled) statCancelled.textContent = rangeCount;
+    if (statPending) statPending.textContent = pendingCount;
+    if (statOnHold) statOnHold.textContent = onHoldCount;
+    if (statDefinite) statDefinite.textContent = definiteCount;
+
+    if (dateStart && dateEnd) {
+        const start = new Date(dateStart);
+        const end = new Date(dateEnd);
+        
+        // Format the date range label
+        let label;
+        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+            // Same month
+            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                // Full month
+                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+            } else {
+                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+            }
+        } else {
+            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        }
+        
+        if (labelEl) labelEl.textContent = label;
+        if (statCancelledLabel) statCancelledLabel.textContent = `Cancelled - ${label}`;
+        if (statPendingLabel) statPendingLabel.textContent = `Pending - ${label}`;
+        if (statOnHoldLabel) statOnHoldLabel.textContent = `On Hold - ${label}`;
+        if (statDefiniteLabel) statDefiniteLabel.textContent = `Definite - ${label}`;
+    } else {
+        const month = new Date().toLocaleString('default', { month: 'long' });
+        if (labelEl) labelEl.textContent = month;
+        if (statCancelledLabel) statCancelledLabel.textContent = `${month} Cancelled`;
+        if (statPendingLabel) statPendingLabel.textContent = `${month} Pending`;
+        if (statOnHoldLabel) statOnHoldLabel.textContent = `${month} On Hold`;
+        if (statDefiniteLabel) statDefiniteLabel.textContent = `${month} Definite`;
+    }
 }
 
 function resetFilters() {
@@ -408,9 +495,12 @@ function resetFilters() {
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
     document.getElementById('timeFilter').value = '';
-    // Reset date filter to today's date
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('dateFilter').value = today;
+    const dr = document.getElementById('dateRange');
+    const ds = document.getElementById('dateRangeStart');
+    const de = document.getElementById('dateRangeEnd');
+    if (dr) dr.value = '';
+    if (ds) ds.value = '';
+    if (de) de.value = '';
     filterTable();
 }
 
@@ -421,7 +511,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     const timeFilter = document.getElementById('timeFilter');
-    const dateFilter = document.getElementById('dateFilter');
+    const dateRange = document.getElementById('dateRange');
+    const dateRangeStart = document.getElementById('dateRangeStart');
+    const dateRangeEnd = document.getElementById('dateRangeEnd');
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
@@ -429,7 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (timeFilter) timeFilter.addEventListener('change', filterTable);
-    if (dateFilter) dateFilter.addEventListener('change', filterTable);
+    // Date range picker will be initialized in scripts section where jQuery is available
     
     // Apply initial filter on page load to show today's data
     filterTable();
@@ -438,9 +530,90 @@ document.addEventListener('DOMContentLoaded', function() {
 @endsection
 
 @section('scripts')
+<!-- Date Range Picker JS - Load after jQuery -->
+<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
+    // Wait for all scripts to load before initializing
     $(document).ready(function() {
+        // Small delay to ensure all scripts are loaded
+        setTimeout(function() {
+            initializeDateRangePicker();
+            initializeDataTable();
+        }, 200);
+    });
+    
+    function initializeDateRangePicker() {
+        // Initialize date range picker first
+        const dateRange = document.getElementById('dateRange');
+        const dateRangeStart = document.getElementById('dateRangeStart');
+        const dateRangeEnd = document.getElementById('dateRangeEnd');
+        
+        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
+            // Set default to current month
+            const startOfMonth = moment().startOf('month');
+            const endOfMonth = moment().endOf('month');
+            
+            $(dateRange).daterangepicker({
+                opens: 'left',
+                autoUpdateInput: true,
+                maxDate: moment(), // No future dates
+                startDate: startOfMonth,
+                endDate: endOfMonth,
+                locale: {
+                    cancelLabel: 'Clear',
+                    format: 'MMM DD, YYYY'
+                }
+            });
+
+            // Set initial values for current month
+            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
+            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
+            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+
+            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
+                const start = picker.startDate.clone().startOf('day');
+                const end = picker.endDate.clone().endOf('day');
+                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
+                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
+                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
+                filterTable();
+            });
+
+            $(dateRange).on('cancel.daterangepicker', function() {
+                $(this).val('');
+                if (dateRangeStart) dateRangeStart.value = '';
+                if (dateRangeEnd) dateRangeEnd.value = '';
+                filterTable();
+            });
+            
+            // Apply initial filter with current month data
+            setTimeout(function() {
+                filterTable();
+            }, 100);
+        } else {
+            console.error('Date range picker could not be initialized. Missing dependencies:', {
+                dateRange: !!dateRange,
+                moment: typeof moment !== 'undefined',
+                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
+                jquery: typeof $ !== 'undefined'
+            });
+            
+            // Fallback: still set initial date values for current month
+            if (dateRange && typeof moment !== 'undefined') {
+                const startOfMonth = moment().startOf('month');
+                const endOfMonth = moment().endOf('month');
+                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
+                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+                setTimeout(function() {
+                    filterTable();
+                }, 100);
+            }
+        }
+    }
+    
+    function initializeDataTable() {
         // Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('.datatables-basic')) {
             $('.datatables-basic').DataTable().destroy();
@@ -515,7 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
-    });
+    }
 </script>
 @endsection
 
