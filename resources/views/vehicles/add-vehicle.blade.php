@@ -515,7 +515,19 @@
                             <option value="">-- Select Hotel --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Hotel')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get hotels assigned to this zone by the current DMC
+                                        $assignedHotels = App\Models\Hotel::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($hotel) use ($zone) {
+                                                return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $hotelCount = $assignedHotels->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-hotel-count="{{ $hotelCount }}">
+                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>
@@ -528,7 +540,19 @@
                             <option value="">-- Select Hotel --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Hotel')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get hotels assigned to this zone by the current DMC
+                                        $assignedHotels = App\Models\Hotel::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($hotel) use ($zone) {
+                                                return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $hotelCount = $assignedHotels->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-hotel-count="{{ $hotelCount }}">
+                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>
@@ -540,7 +564,19 @@
                             <option value="">-- Select Attraction --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Attraction')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get attractions assigned to this zone by the current DMC
+                                        $assignedAttractions = App\Models\Attraction::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($attraction) use ($zone) {
+                                                return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $attractionCount = $assignedAttractions->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-attraction-count="{{ $attractionCount }}">
+                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>
@@ -553,7 +589,19 @@
                             <option value="">-- Select Hotel --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Hotel')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get hotels assigned to this zone by the current DMC
+                                        $assignedHotels = App\Models\Hotel::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($hotel) use ($zone) {
+                                                return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $hotelCount = $assignedHotels->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-hotel-count="{{ $hotelCount }}">
+                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>
@@ -565,7 +613,19 @@
                             <option value="">-- Select Restaurant --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Restaurant')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get restaurants assigned to this zone by the current DMC
+                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($restaurant) use ($zone) {
+                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $restaurantCount = $assignedRestaurants->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-restaurant-count="{{ $restaurantCount }}">
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>
@@ -578,7 +638,19 @@
                             <option value="">-- Select Attraction --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Attraction')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get attractions assigned to this zone by the current DMC
+                                        $assignedAttractions = App\Models\Attraction::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($attraction) use ($zone) {
+                                                return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $attractionCount = $assignedAttractions->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-attraction-count="{{ $attractionCount }}">
+                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>
@@ -590,7 +662,19 @@
                             <option value="">-- Select Restaurant --</option>
                             @foreach($zones ?? [] as $zone)
                                 @if($zone->zone_type == 'Restaurant')
-                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}">{{ $zone->zone_name }}</option>
+                                    @php
+                                        // Get restaurants assigned to this zone by the current DMC
+                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($restaurant) use ($zone) {
+                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $restaurantCount = $assignedRestaurants->count();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}" data-type="{{ $zone->zone_type }}" data-restaurant-count="{{ $restaurantCount }}">
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants)
+                                    </option>
                                 @endif
                             @endforeach
                         </select>

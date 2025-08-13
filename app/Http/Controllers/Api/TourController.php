@@ -2197,6 +2197,12 @@ class TourController extends Controller
                         'tour_status' => "Confirmed",
                     ]);
                 } 
+                $order_count = Order::where('tour_id', $tour_id)->where('bookingType', 'booking')->count();
+                if($order_count == 1){
+                    $tour = Tour::where('tour_id', $tour_id)->update([
+                        'tour_status' => "Confirmed", 
+                    ]);
+                }
                 if($bookingType == 'enquiry'){
                     $tour = Tour::where('tour_id', $tour_id)->update([
                         'tour_status' => "New Enquiry",
