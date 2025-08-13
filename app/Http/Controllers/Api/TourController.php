@@ -483,6 +483,7 @@ class TourController extends Controller
         
         $activeTours = $query->skip($start)
             ->take($limit)
+            ->orderBy('created_at', 'desc')
             // ->where('tour_status', '!=', 'Closed')
             ->get();
 
