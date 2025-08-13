@@ -132,23 +132,36 @@
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeHotels as $hotel)
-                                                                    @if($hotel->zone_id == $zone->zone_id || $hotel->zone_id == null)
+                                                                    @php
+                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($user->userId);
+                                                                        $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
+                                                                    @endphp
+                                                                    @if($isAvailable)
                                                                     <div class="col-md-6 mb-2">
                                                                         <div class="form-check custom-checkbox">
                                                                             <input class="form-check-input border-success" type="checkbox" name="hotels[]" 
                                                                                 value="{{ $hotel->hotel_unique_id }}" id="hotel-{{ $hotel->id }}-{{ $zone->zone_id }}"
-                                                                                {{ $hotel->zone_id == $zone->zone_id ? 'checked' : '' }}>
+                                                                                {{ $currentZoneForThisDmc == $zone->zone_id ? 'checked' : '' }}>
                                                                             <label class="form-check-label text-truncate ms-1" for="hotel-{{ $hotel->hotel_unique_id }}-{{ $zone->zone_id }}" 
                                                                                 style="max-width: 100%; overflow: hidden; white-space: nowrap;" 
                                                                                 title="{{ $hotel->name }}">
                                                                                 {{ $hotel->name }}
+                                                                                @if($currentZoneForThisDmc && $currentZoneForThisDmc == $zone->zone_id)
+                                                                                    <span class="badge bg-success ms-1">Assigned</span>
+                                                                                @endif
                                                                             </label>
                                                                         </div>
                                                                     </div>
                                                                     @endif
                                                                 @endforeach
                                                                 
-                                                                @if($activeHotels->filter(function($h) use ($zone) { return $h->zone_id == $zone->zone_id || $h->zone_id == null; })->count() == 0)
+                                                                @php
+                                                                    $availableHotels = $activeHotels->filter(function($h) use ($zone, $user) { 
+                                                                        $currentZone = $h->getZoneForDmc($user->userId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    });
+                                                                @endphp
+                                                                @if($availableHotels->count() == 0)
                                                                     <div class="col-12">
                                                                         <div class="alert bg-success-subtle border border-success-subtle text-success rounded-3 d-flex align-items-center" role="alert">
                                                                             <i class="ri-information-line me-2 fs-5"></i>
@@ -176,23 +189,36 @@
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeAttractions as $attraction)
-                                                                    @if($attraction->zone_id == $zone->zone_id || $attraction->zone_id == null)
+                                                                    @php
+                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($user->userId);
+                                                                        $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
+                                                                    @endphp
+                                                                    @if($isAvailable)
                                                                     <div class="col-md-6 mb-2">
                                                                         <div class="form-check custom-checkbox">
                                                                             <input class="form-check-input border-info" type="checkbox" name="attractions[]" 
                                                                                 value="{{ $attraction->attraction_id }}" id="attraction-{{ $attraction->id }}-{{ $zone->zone_id }}"
-                                                                                {{ $attraction->zone_id == $zone->zone_id ? 'checked' : '' }}>
+                                                                                {{ $currentZoneForThisDmc == $zone->zone_id ? 'checked' : '' }}>
                                                                             <label class="form-check-label text-truncate ms-1" for="attraction-{{ $attraction->attraction_id }}-{{ $zone->zone_id }}"
                                                                                 style="max-width: 100%; overflow: hidden; white-space: nowrap;" 
                                                                                 title="{{ $attraction->name }}">
                                                                                 {{ $attraction->name }}
+                                                                                @if($currentZoneForThisDmc && $currentZoneForThisDmc == $zone->zone_id)
+                                                                                    <span class="badge bg-info ms-1">Assigned</span>
+                                                                                @endif
                                                                             </label>
                                                                         </div>
                                                                     </div>
                                                                     @endif
                                                                 @endforeach
                                                                 
-                                                                @if($activeAttractions->filter(function($a) use ($zone) { return $a->zone_id == $zone->zone_id || $a->zone_id == null; })->count() == 0)
+                                                                @php
+                                                                    $availableAttractions = $activeAttractions->filter(function($a) use ($zone, $user) { 
+                                                                        $currentZone = $a->getZoneForDmc($user->userId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    });
+                                                                @endphp
+                                                                @if($availableAttractions->count() == 0)
                                                                     <div class="col-12">
                                                                         <div class="alert alert-light border border-info-subtle text-info rounded-3 d-flex align-items-center" role="alert">
                                                                             <i class="ri-information-line me-2 fs-5"></i>
@@ -220,23 +246,36 @@
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeRestaurants as $restaurant)
-                                                                    @if($restaurant->zone_id == $zone->zone_id || $restaurant->zone_id == null)
+                                                                    @php
+                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($user->userId);
+                                                                        $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
+                                                                    @endphp
+                                                                    @if($isAvailable)
                                                                     <div class="col-md-6 mb-2">
                                                                         <div class="form-check custom-checkbox">
                                                                             <input class="form-check-input border-warning" type="checkbox" name="restaurants[]" 
                                                                                 value="{{ $restaurant->restaurant_id }}" id="restaurant-{{ $restaurant->id }}-{{ $zone->zone_id }}"
-                                                                                {{ $restaurant->zone_id == $zone->zone_id ? 'checked' : '' }}>
+                                                                                {{ $currentZoneForThisDmc == $zone->zone_id ? 'checked' : '' }}>
                                                                             <label class="form-check-label text-truncate ms-1" for="restaurant-{{ $restaurant->restaurant_id }}-{{ $zone->zone_id }}"
                                                                                 style="max-width: 100%; overflow: hidden; white-space: nowrap;" 
                                                                                 title="{{ $restaurant->name }}">
                                                                                 {{ $restaurant->name }}
+                                                                                @if($currentZoneForThisDmc && $currentZoneForThisDmc == $zone->zone_id)
+                                                                                    <span class="badge bg-warning ms-1">Assigned</span>
+                                                                                @endif
                                                                             </label>
                                                                         </div>
                                                                     </div>
                                                                     @endif
                                                                 @endforeach
                                                                 
-                                                                @if($activeRestaurants->filter(function($r) use ($zone) { return $r->zone_id == $zone->zone_id || $r->zone_id == null; })->count() == 0)
+                                                                @php
+                                                                    $availableRestaurants = $activeRestaurants->filter(function($r) use ($zone, $user) { 
+                                                                        $currentZone = $r->getZoneForDmc($user->userId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    });
+                                                                @endphp
+                                                                @if($availableRestaurants->count() == 0)
                                                                     <div class="col-12">
                                                                         <div class="alert alert-light border border-warning-subtle text-warning rounded-3 d-flex align-items-center" role="alert">
                                                                             <i class="ri-information-line me-2 fs-5"></i>

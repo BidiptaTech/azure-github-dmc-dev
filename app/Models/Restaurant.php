@@ -36,6 +36,7 @@ class Restaurant extends Model
         'close_days' => 'array',
         'close_dates' => 'array',
         'dmc_id' => 'array',
+        'zone_assignments' => 'array', // Will store DMC-zone mappings like [{"dmc_id": 4, "zone_id": "zone1"}, {"dmc_id": 17, "zone_id": "zone2"}]
     ];
 
     /**
@@ -110,5 +111,64 @@ class Restaurant extends Model
         }
         
         return [];
+    }
+
+    /**
+     * Get zone assignment for a specific DMC
+     */
+    public function getZoneForDmc($dmcId)
+    {
+        $assignments = $this->zone_assignments ?? [];
+        
+        foreach ($assignments as $assignment) {
+            if (isset($assignment['dmc_id']) && $assignment['dmc_id'] == $dmcId) {
+                return $assignment['zone_id'] ?? null;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Set zone assignment for a specific DMC
+     */
+    public function setZoneForDmc($dmcId, $zoneId = null)
+    {
+        $assignments = $this->zone_assignments ?? [];
+        
+        // Remove existing assignment for this DMC
+        $assignments = array_filter($assignments, function($assignment) use ($dmcId) {
+            return !isset($assignment['dmc_id']) || $assignment['dmc_id'] != $dmcId;
+        });
+        
+        // Add new assignment if zoneId is provided
+        if ($zoneId) {
+            $assignments[] = [
+                'dmc_id' => $dmcId,
+                'zone_id' => $zoneId
+            ];
+        }
+        
+        $this->zone_assignments = array_values($assignments);
+        $this->save();
+        
+        return $this;
+    }
+
+    /**
+     * Check if restaurant is assigned to any zone by a specific DMC
+     */
+    public function isAssignedToZoneByDmc($dmcId)
+    {
+        return !is_null($this->getZoneForDmc($dmcId));
+    }
+
+    /**
+     * Get all DMCs that have assigned this restaurant to zones
+     */
+    public function getAssignedDmcs()
+    {
+        $assignments = $this->zone_assignments ?? [];
+        return array_column($assignments, 'dmc_id');
     }
 }
