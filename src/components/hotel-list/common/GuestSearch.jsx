@@ -7,7 +7,7 @@ const counters = [
   { name: "infant", label: "Infant", minValue: 0 },
 ];
 
-const Counter = ({ name, label, value, minValue, maxValue, onCounterChange }) => {
+const Counter = ({ name, label, value, minValue, maxValue, initialValue, onCounterChange }) => {
   const [count, setCount] = useState(value);
 
   useEffect(() => {
@@ -15,7 +15,13 @@ const Counter = ({ name, label, value, minValue, maxValue, onCounterChange }) =>
   }, [value]);
 
   const incrementCount = () => {
-    if (count < maxValue) {
+    if (name === "children" || name === "infant") {
+      // Prevent exceeding the initial value for Children and Infant
+      if (count < initialValue) {
+        setCount(count + 1);
+        onCounterChange(name, count + 1);
+      }
+    } else if (count < maxValue) {
       setCount(count + 1);
       onCounterChange(name, count + 1);
     }
@@ -55,7 +61,7 @@ const Counter = ({ name, label, value, minValue, maxValue, onCounterChange }) =>
             <button
               className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-up"
               onClick={incrementCount}
-              disabled={count >= maxValue}
+              disabled={name === "children" || name === "infant" ? count >= initialValue : count >= maxValue}
             >
               <i className="icon-plus text-12" />
             </button>
@@ -69,6 +75,11 @@ const Counter = ({ name, label, value, minValue, maxValue, onCounterChange }) =>
 
 const GuestSearch = ({ guests, setGuests, maxValues, showDropdown, setShowDropdown, dropdownRef }) => {
   const tourDetails = useSelector((state) => state.hotels.tourdetails);
+
+  // Get default values from tourDetails
+  const defaultAdults = tourDetails?.adult > 0 ? tourDetails.adult : 1;
+  const defaultChildren = tourDetails?.child ?? 0;
+  const defaultInfant = tourDetails?.infant ?? 0;
 
   const handleCounterChange = (name, value) => {
     setGuests((prev) => ({ ...prev, [name]: value }));
@@ -118,7 +129,11 @@ const GuestSearch = ({ guests, setGuests, maxValues, showDropdown, setShowDropdo
                 label={counter.label}
                 value={guests[counter.name]}
                 minValue={counter.minValue}
-                maxValue={maxValues[counter.name] || 10}
+                maxValue={counter.name === "adults" ? defaultAdults : 10}
+                initialValue={
+                  counter.name === "children" ? defaultChildren :
+                  counter.name === "infant" ? defaultInfant : null
+                }
                 onCounterChange={handleCounterChange}
               />
             ))}

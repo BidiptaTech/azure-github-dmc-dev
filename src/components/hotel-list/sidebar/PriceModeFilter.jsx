@@ -40,11 +40,11 @@ const PriceModeFilter = ({ showDmcOnly, onChange }) => {
           </Box>
         }
       />
-      <Typography variant="caption" sx={{ ml: 4, color: 'text.secondary' }}>
+      {/* <Typography variant="caption" sx={{ ml: 4, color: 'text.secondary' }}>
         {showDmcOnly 
-          ? `Only show hotels available in ${dmcCompanyName}'s mode` 
-          : `Show all available hotels`}
-      </Typography>
+          ? ` ${dmcCompanyName}'s mode` 
+          : ``}
+      </Typography> */}
     </FormControl>
   );
 };
