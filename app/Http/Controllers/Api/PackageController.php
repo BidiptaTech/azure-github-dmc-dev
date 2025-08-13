@@ -30,6 +30,7 @@ class PackageController extends Controller
         $dmcId = $request->query('dmc_id');
         $start = $request->start ?? 0;
         $limit = $request->limit ?? 10;
+        $children = $request->query('children');
 
         if(!$dmcId){
             return response()->json(['message' => 'Dmc ID is required'], 400);
@@ -84,9 +85,21 @@ class PackageController extends Controller
             }
         }
 
+
+        if($children){
+            $pax = $pax + $children;
+        }
+
+        if($pax != 2){
+            $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('expire_date', '>=', $date)->where('package_type', '!=', 'couple');
+        }
+        else{
         $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
             ->whereDate('start_date', '<=', $date)
             ->whereDate('expire_date', '>=', $date);
+        }
         if (!empty($city)) {
             $query->where('city', $city);
         }
@@ -95,7 +108,7 @@ class PackageController extends Controller
             $query->where('destination', $country);
         }
 
-        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type', 'itinerary')
+        $packages = $query->select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'max_pax', 'main_image', 'city', 'start_date', 'expire_date', 'package_type', 'itinerary', 'child_max_age')
         ->skip($start)
         ->take($limit)
         ->get();
@@ -181,7 +194,7 @@ class PackageController extends Controller
                 'max_attractions', 'main_image', 'gallery_images', 'inclusions', 
                 'exclusions', 'terms_conditions', 'views_count', 
                 'rating', 'reviews_count', 'city', 'expire_date', 'start_date', 
-                'selected_guide', 'selected_restaurants', 'max_restaurants','package_type','attraction_with_transfer','entry_port', 'exit_port', 'status', 'itinerary'
+                'selected_guide', 'selected_restaurants', 'max_restaurants','package_type','attraction_with_transfer','entry_port', 'exit_port', 'status', 'itinerary', 'child_max_age'
             )
             ->first();
         if (!$package) {

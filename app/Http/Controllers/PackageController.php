@@ -159,7 +159,9 @@ class PackageController extends Controller
             'terms_conditions' => 'nullable|string',
             'status' => 'required',
             'package_type' => 'required|string',
+            'child_max_age' => 'nullable|integer',
         ]);
+
 
         try {
             DB::beginTransaction();
@@ -358,7 +360,8 @@ class PackageController extends Controller
                 'created_by' => auth()->user()->userId,
                 'updated_by' => auth()->user()->userId,
                 'itinerary' => $request->day_wise_itinerary,
-                'dmc_id' => $dmc_id
+                'dmc_id' => $dmc_id,
+                'child_max_age' => $validated['child_max_age']
             ]);
             
             DB::commit();
