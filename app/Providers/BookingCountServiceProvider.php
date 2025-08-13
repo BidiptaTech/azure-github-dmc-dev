@@ -35,7 +35,7 @@ class BookingCountServiceProvider extends ServiceProvider
                 // Determine DMC ID based on user role
                 if ($user->role_id == 11) { // DMC
                     $dmc_id = $user->userId;
-                } else if (in_array($user->role_id, [33, 37, 38])) { // Sales Head, Sales Manager, Assistant Sales Manager
+                } else if (in_array($user->role_id, [33, 34, 36, 37, 38, 128, 129, 130, 134, 135, 136, 138])) { // Sales Head, Sales Manager, Assistant Sales Manager
                     $dmc_id = $user->created_by;
                 }
             }
