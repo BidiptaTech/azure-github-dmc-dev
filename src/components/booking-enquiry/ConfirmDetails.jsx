@@ -45,7 +45,7 @@ import {
   Error as ErrorIcon,
   AttachMoney as AttachMoneyIcon
 } from "@mui/icons-material";
-import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice } from "@/slice/common/EnquirySlice";
+import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice, clearServiceDetails, clearSpecificService } from "@/slice/common/EnquirySlice";
 import axios from "axios";
 import Cookies from "js-cookie";  
 import { BASE_URL } from '@/services/api';
@@ -187,6 +187,18 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       enquiryStatus
     });
     
+    // Debug service details structure
+    console.log("Service Details Debug:", {
+      hotel: serviceDetails.hotel,
+      entryExitPort: serviceDetails.entryExitPort,
+      attraction: serviceDetails.attraction,
+      localTour: serviceDetails.localTour,
+      tourGuide: serviceDetails.tourGuide,
+      restaurant: serviceDetails.restaurant,
+      packagedAttractions: serviceDetails.packagedAttractions,
+      undefined: serviceDetails["undefined"] // Check for data stored under "undefined" key
+    });
+    
     // If we found an enquiryId, store it locally
     if (enquiryId) {
       setLocalEnquiryId(enquiryId);
@@ -203,6 +215,12 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       setLocalEnquiryId(enquiryId);
     }
   }, [enquiryId]);
+
+  // Watch for changes in serviceDetails for debugging
+  useEffect(() => {
+    console.log("Service Details changed:", serviceDetails);
+    console.log("Selected Services:", selectedServices);
+  }, [serviceDetails, selectedServices]);
 
   // Calculate and update price when service details change
   useEffect(() => {
@@ -1230,6 +1248,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         console.log("Form submitted successfully:", resultAction.payload);
         setSubmitSuccess(true);
         
+        // Clear Redux service details after successful submission
+        dispatch(clearServiceDetails());
+        console.log("Cleared service details from Redux after successful submission");
+        
         // Reset booking options
         if (resetBookingOptions && typeof resetBookingOptions === 'function') {
           resetBookingOptions();
@@ -1316,7 +1338,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     fullWidth
                     label="Country"
                     value={countryValue}
-                    onChange={handleCountryChange}
+                    readOnly
                     size="small"
                     variant="outlined"
                     InputProps={{
@@ -1329,7 +1351,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     fullWidth
                     label="City"
                     value={cityValue}
-                    onChange={handleCityChange}
+                    readOnly
                     size="small"
                     variant="outlined"
                     InputProps={{

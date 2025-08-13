@@ -126,15 +126,20 @@ const PriceChip = styled(Chip)(({ theme }) => ({
   flexShrink: 0,
 }));
 
-const RestaurantSearch = ({ onSelect }) => {
+const RestaurantSearch = ({ onSelect, value = [] }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedRestaurants, setSelectedRestaurants] = useState([]);
+  const [selectedRestaurants, setSelectedRestaurants] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherRestaurantName, setOtherRestaurantName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedRestaurants(value);
+  }, [value]);
 
   // Get restaurants from Redux store
   const { restaurants = [], loading, error } = useSelector(state => state.enquiryList || { restaurants: [], loading: false });

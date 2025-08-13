@@ -133,15 +133,20 @@ const PriceChip = styled(Chip)(({ theme }) => ({
   marginTop: theme.spacing(0.5),
 }));
 
-const AttractionDropOffSearch = ({ onSelect }) => {
+const AttractionDropOffSearch = ({ onSelect, value = null }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedAttraction, setSelectedAttraction] = useState(null);
+  const [selectedAttraction, setSelectedAttraction] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherAttractionName, setOtherAttractionName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedAttraction(value);
+  }, [value]);
 
   // Get attractions from Redux store
   const { attractions = [], loading, error } = useSelector(state => state.enquiryList || { attractions: [], loading: false });

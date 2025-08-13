@@ -792,6 +792,17 @@ const EnquirySlice = createSlice({
     setSelectedServices: (state, action) => {
       state.selectedServices = action.payload;
       console.log("Selected services:", state.selectedServices);
+    },
+    clearServiceDetails: (state) => {
+      state.serviceDetails = {};
+      console.log("Cleared all service details");
+    },
+    clearSpecificService: (state, action) => {
+      const serviceToClear = action.payload;
+      if (state.serviceDetails[serviceToClear]) {
+        delete state.serviceDetails[serviceToClear];
+        console.log(`Cleared service details for: ${serviceToClear}`);
+      }
     }
   },
   extraReducers: (builder) => {
@@ -861,7 +872,9 @@ export const {
   setGuest,
   updateServiceDetails,
   updateCalculatedPrice,
-  setSelectedServices
+  setSelectedServices,
+  clearServiceDetails,
+  clearSpecificService
 } = EnquirySlice.actions;
 
 export default EnquirySlice.reducer;
