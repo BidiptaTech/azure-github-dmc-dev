@@ -179,6 +179,16 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
+
+                        <div class="col-md-3" id="child-max-age-section">
+                            <label class="form-label">Child Max Age <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control @error('child_max_age') is-invalid @enderror" 
+                                   name="child_max_age" value="{{ old('child_max_age') }}" min="1" required id="child-max-age-input">
+                                   <span class="text-muted"> <i class="ri-information-line me-1"></i> Child below this age will be free of charge</span>
+                            @error('child_max_age')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
                     </div>
                 </div>
             </div>
@@ -194,7 +204,7 @@
                             <label class="form-label">Start Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control @error('start_date') is-invalid @enderror" 
                                    name="start_date" value="{{ old('start_date') }}" required 
-                                   min="{{ date('Y-m-d') }}">
+                                   min="{{ date('Y-m-d') }}" id="start-date-input">
                             @error('start_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -203,7 +213,7 @@
                             <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control @error('expiry_date') is-invalid @enderror" 
                                    name="expiry_date" value="{{ old('expiry_date') }}" required 
-                                   min="{{ date('Y-m-d') }}">
+                                   min="{{ date('Y-m-d') }}" id="expiry-date-input">
                             @error('expiry_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -436,7 +446,8 @@ $(document).ready(function() {
         const seniorPriceSection = $('#senior-price-section');
         const childPriceSection = $('#child-price-section');
         const maxPaxInput = $('#max-pax-input');
-        
+        const childMaxAgeInput = $('#child-max-age-input');
+        const childMaxAgeSection = $('#child-max-age-section');
         if (packageType === 'couple') {
             // Show couple price note
             couplePriceNote.removeClass('d-none');
@@ -447,7 +458,9 @@ $(document).ready(function() {
             // Hide senior and child price sections
             seniorPriceSection.addClass('d-none');
             childPriceSection.addClass('d-none');
-            
+            childMaxAgeInput.removeAttr('required');
+            childMaxAgeInput.addClass('d-none');
+            childMaxAgeSection.addClass('d-none');
             // Set max pax to 2 and make readonly
             maxPaxInput.val(2).prop('readonly', true);
             
@@ -465,7 +478,9 @@ $(document).ready(function() {
             // Show senior and child price sections
             seniorPriceSection.removeClass('d-none');
             childPriceSection.removeClass('d-none');
-            
+            childMaxAgeInput.attr('required', true);
+            childMaxAgeInput.removeClass('d-none');
+            childMaxAgeSection.removeClass('d-none');
             // Reset max pax and make editable
             maxPaxInput.val('').prop('readonly', false);
             
@@ -475,7 +490,10 @@ $(document).ready(function() {
             adultPriceLabel.html('Adult Price (SGD) <span class="text-danger">*</span>');
             seniorPriceSection.removeClass('d-none');
             childPriceSection.removeClass('d-none');
+            childMaxAgeInput.removeClass('d-none');
+            childMaxAgeInput.attr('required', true);
             maxPaxInput.val('').prop('readonly', false);
+            childMaxAgeSection.removeClass('d-none');
         }
     }
     
@@ -483,6 +501,87 @@ $(document).ready(function() {
     const initialPackageType = $('select[name="package_type"]').val();
     if (initialPackageType) {
         handlePackageTypeChange(initialPackageType);
+    }
+    
+    // Date validation handlers
+    $('#start-date-input').on('change', function() {
+        validateAndUpdateExpiryDate();
+    });
+    
+    $('#expiry-date-input').on('change', function() {
+        validateExpiryDate();
+    });
+    
+    // Function to validate and update expiry date based on start date
+    function validateAndUpdateExpiryDate() {
+        const startDate = $('#start-date-input').val();
+        const expiryDateInput = $('#expiry-date-input');
+        
+        if (startDate) {
+            // Set minimum date for expiry date to be the day after start date
+            const minExpiryDate = new Date(startDate);
+            minExpiryDate.setDate(minExpiryDate.getDate() + 1);
+            
+            // Format the date for the min attribute (YYYY-MM-DD)
+            const minExpiryDateStr = minExpiryDate.toISOString().split('T')[0];
+            
+            // Update the min attribute of expiry date input
+            expiryDateInput.attr('min', minExpiryDateStr);
+            
+            // If current expiry date is before the new start date, clear it
+            const currentExpiryDate = expiryDateInput.val();
+            if (currentExpiryDate && currentExpiryDate <= startDate) {
+                expiryDateInput.val('');
+                showDateValidationMessage('Please select an expiry date after the start date.', 'warning');
+            }
+            
+            // Show success message
+            showDateValidationMessage('Expiry date range updated. Please select a date after ' + startDate, 'success');
+        }
+    }
+    
+    // Function to validate expiry date
+    function validateExpiryDate() {
+        const startDate = $('#start-date-input').val();
+        const expiryDate = $('#expiry-date-input').val();
+        
+        if (startDate && expiryDate) {
+            if (expiryDate <= startDate) {
+                showDateValidationMessage('Expiry date must be after the start date.', 'danger');
+                $('#expiry-date-input').addClass('is-invalid');
+                return false;
+            } else {
+                $('#expiry-date-input').removeClass('is-invalid');
+                showDateValidationMessage('Date range is valid.', 'success');
+                return true;
+            }
+        }
+        return true;
+    }
+    
+    // Function to show date validation messages
+    function showDateValidationMessage(message, type) {
+        // Remove existing messages
+        $('.date-validation-message').remove();
+        
+        // Create and show new message
+        const messageHtml = `
+            <div class="date-validation-message alert alert-${type} alert-dismissible fade show mt-2" role="alert">
+                <i class="ri-${type === 'success' ? 'check-line' : type === 'warning' ? 'alert-line' : 'close-line'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Insert message after the expiry date field
+        $('#expiry-date-input').closest('.col-md-6').after(messageHtml);
+        
+        // Auto-hide success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                $('.date-validation-message.alert-success').fadeOut();
+            }, 3000);
+        }
     }
 
     // Store selected hotels with their day assignments
@@ -1437,6 +1536,13 @@ $(document).ready(function() {
     
     // Form submission handler to compile all day-wise itinerary data
     $('form').on('submit', function(e) {
+        // Validate dates before submission
+        if (!validateExpiryDate()) {
+            e.preventDefault();
+            showDateValidationMessage('Please fix the date validation errors before submitting.', 'danger');
+            return false;
+        }
+        
         // Prevent default form submission
         e.preventDefault();
         
@@ -2481,6 +2587,31 @@ $(document).ready(function() {
 /* Hidden sections styling */
 .d-none {
     display: none !important;
+}
+
+/* Date validation message styling */
+.date-validation-message {
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.date-validation-message.alert-success {
+    background-color: rgba(32, 201, 151, 0.1);
+    border-color: rgba(32, 201, 151, 0.2);
+    color: #18a47c;
+}
+
+.date-validation-message.alert-warning {
+    background-color: rgba(253, 126, 20, 0.1);
+    border-color: rgba(253, 126, 20, 0.2);
+    color: #cc6510;
+}
+
+.date-validation-message.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.2);
+    color: #b02a37;
 }
 
 /* Day-wise select field styling */
