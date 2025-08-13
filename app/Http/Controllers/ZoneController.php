@@ -195,30 +195,63 @@ class ZoneController extends Controller
             return redirect()->route('zones.index')->with('error', 'Zone not found');
         }
         
-        // Clear previous assignments for this zone
+        $currentDmcId = Auth::user()->userId;
+        
+        if (!$currentDmcId) {
+            return redirect()->route('zones.index')->with('error', 'Unable to determine your DMC association');
+        }
+        
+        // Handle DMC-specific zone assignments
         if ($zone->zone_type == 'Hotel') {
-            Hotel::where('zone_id', $zone_id)->update(['zone_id' => null]);
+            // Clear previous assignments for this DMC and zone
+            $allHotels = Hotel::whereJsonContains('dmc_id', $currentDmcId)->get();
+            foreach ($allHotels as $hotel) {
+                if ($hotel->getZoneForDmc($currentDmcId) == $zone_id) {
+                    $hotel->setZoneForDmc($currentDmcId, null); // Remove assignment
+                }
+            }
             
-            // Update selected hotels
+            // Set new assignments for selected hotels
             if ($request->has('hotels')) {
-                Hotel::whereIn('hotel_unique_id', $request->hotels)->update(['zone_id' => $zone_id]);
+                $selectedHotels = Hotel::whereIn('hotel_unique_id', $request->hotels)->get();
+                foreach ($selectedHotels as $hotel) {
+                    $hotel->setZoneForDmc($currentDmcId, $zone_id);
+                }
             }
         } elseif ($zone->zone_type == 'Attraction') {
-            Attraction::where('zone_id', $zone_id)->update(['zone_id' => null]);
+            // Clear previous assignments for this DMC and zone
+            $allAttractions = Attraction::whereJsonContains('dmc_id', $currentDmcId)->get();
+            foreach ($allAttractions as $attraction) {
+                if ($attraction->getZoneForDmc($currentDmcId) == $zone_id) {
+                    $attraction->setZoneForDmc($currentDmcId, null); // Remove assignment
+                }
+            }
             
-            // Update selected attractions
+            // Set new assignments for selected attractions
             if ($request->has('attractions')) {
-                Attraction::whereIn('attraction_id', $request->attractions)->update(['zone_id' => $zone_id]);
+                $selectedAttractions = Attraction::whereIn('attraction_id', $request->attractions)->get();
+                foreach ($selectedAttractions as $attraction) {
+                    $attraction->setZoneForDmc($currentDmcId, $zone_id);
+                }
             }
         } elseif ($zone->zone_type == 'Restaurant') {
-            Restaurant::where('zone_id', $zone_id)->update(['zone_id' => null]);
+            // Clear previous assignments for this DMC and zone
+            $allRestaurants = Restaurant::whereJsonContains('dmc_id', $currentDmcId)->get();
+            foreach ($allRestaurants as $restaurant) {
+                if ($restaurant->getZoneForDmc($currentDmcId) == $zone_id) {
+                    $restaurant->setZoneForDmc($currentDmcId, null); // Remove assignment
+                }
+            }
             
-            // Update selected restaurants
+            // Set new assignments for selected restaurants
             if ($request->has('restaurants')) {
-                Restaurant::whereIn('restaurant_id', $request->restaurants)->update(['zone_id' => $zone_id]);
+                $selectedRestaurants = Restaurant::whereIn('restaurant_id', $request->restaurants)->get();
+                foreach ($selectedRestaurants as $restaurant) {
+                    $restaurant->setZoneForDmc($currentDmcId, $zone_id);
+                }
             }
         }
         
-        return redirect()->route('zones.index')->with('success', 'Zone settings updated successfully');
+        return redirect()->route('zones.index')->with('success', 'Zone settings updated successfully for your DMC');
     }
 }
