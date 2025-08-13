@@ -95,15 +95,20 @@ const PriceChip = styled(Chip)(({ theme }) => ({
   flexShrink: 0,
 }));
 
-const PreferredCarsSearch = ({ onSelect }) => {
+const PreferredCarsSearch = ({ onSelect, value = [] }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedCars, setSelectedCars] = useState([]);
+  const [selectedCars, setSelectedCars] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherCarName, setOtherCarName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedCars(value);
+  }, [value]);
 
   // Get vehicles from Redux store
   const { vehicles = [], loading, error } = useSelector(state => state.enquiryList || { vehicles: [], loading: false });
