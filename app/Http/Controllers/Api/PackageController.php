@@ -85,7 +85,6 @@ class PackageController extends Controller
             }
         }
 
-
         if($children){
             $pax = $pax + $children;
         }
@@ -96,9 +95,9 @@ class PackageController extends Controller
             ->whereDate('expire_date', '>=', $date)->where('package_type', '!=', 'couple');
         }
         else{
-        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
-            ->whereDate('start_date', '<=', $date)
-            ->whereDate('expire_date', '>=', $date);
+            $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
+                ->whereDate('start_date', '<=', $date)
+                ->whereDate('expire_date', '>=', $date);
         }
         if (!empty($city)) {
             $query->where('city', $city);
@@ -458,7 +457,7 @@ class PackageController extends Controller
         $totalPax = $adult_count + $child_count + $senior_count;
         
         // Validate package exists
-        $package = Package::select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'price_senior', 'price_child', 'max_pax', 'main_image', 'city')->where('package_id', $package_id)->first();
+        $package = Package::select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'price_senior', 'price_child', 'max_pax', 'main_image', 'city', 'package_type', 'child_max_age')->where('package_id', $package_id)->first();
         if (!$package) {
             return response()->json(['message' => 'Package not found'], 404);
         }
