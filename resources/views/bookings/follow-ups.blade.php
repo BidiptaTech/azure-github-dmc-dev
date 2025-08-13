@@ -961,7 +961,7 @@ function resetFilters() {
                 }, 3000);
             }
         };
-    });
+    };
 </script>
 @endsection
 
