@@ -103,7 +103,7 @@
             
             @if($auth_user->role_id == 11)
             <!-- Tab Navigation for DMC Users -->
-            <div class="card-body pb-0">
+            {{-- <div class="card-body pb-0">
                 <ul class="nav nav-tabs nav-fill" role="tablist">
                     <li class="nav-item">
                         <button
@@ -132,7 +132,7 @@
                         </button>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
             
             <div class="tab-content">
                 <!-- Single Season Tab -->

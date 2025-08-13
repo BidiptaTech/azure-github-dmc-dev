@@ -40,12 +40,12 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Add New Meal
                 <div class="d-flex gap-2">
-                    @if(auth()->user()->role_id == '11')
+                    {{-- @if(auth()->user()->role_id == '11')
                         <a href="{{ route('meals.bulk_upload_for_restaurant', $current_restaurant->restaurant_id) }}" 
                            class="btn btn-warning btn-sm">
                             <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Meals
                         </a>
-                    @endif
+                    @endif --}}
                     {{-- <a href="{{ route('meals.restaurant_create', $current_restaurant->restaurant_id) }}" class="btn btn-sm btn-outline-danger">
                         <i class="mdi mdi-arrow-left"></i> Back
                     </a> --}}
