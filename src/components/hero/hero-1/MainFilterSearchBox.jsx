@@ -248,6 +248,8 @@ const MainFilterSearchBox = () => {
         adults: guestCounts.Adults,
         children: guestCounts.Children,
         fromMainSearch: true,
+        start: 0,
+        limit: 5,
       })
     );
 

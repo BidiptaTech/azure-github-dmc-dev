@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Swiper } from "swiper/react";
-import { Navigation, Pagination } from "swiper";
+import { Navigation, Pagination as SwiperPagination } from "swiper";
+import moment from "moment";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
@@ -33,67 +34,160 @@ const getOpeningTimes = (item) => {
   return times;
 };
 
-// Create a Skeleton component
+// Enhanced Skeleton Components with better visualizations
+const SkeletonBox = ({ 
+  width, 
+  height, 
+  borderRadius = "4px", 
+  marginBottom = "8px",
+  delay = "0s",
+  variant = "default" 
+}) => {
+  const getBackground = () => {
+    switch (variant) {
+      case "image":
+        return "linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 25%, #f0f0f0 50%, #e8e8e8 75%, #f5f5f5 100%)";
+      case "text":
+        return "linear-gradient(90deg, #f8f9fa 0%, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%, #f8f9fa 100%)";
+      case "button":
+        return "linear-gradient(90deg, #e3f2fd 0%, #bbdefb 25%, #e3f2fd 50%, #bbdefb 75%, #e3f2fd 100%)";
+      case "price":
+        return "linear-gradient(135deg, #f3e5f5 0%, #e1bee7 25%, #f3e5f5 50%, #e1bee7 75%, #f3e5f5 100%)";
+      default:
+        return "linear-gradient(90deg, #f8f9fa 0%, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%, #f8f9fa 100%)";
+    }
+  };
+
+  return (
+    <div
+      className="skeleton-box"
+      data-variant={variant}
+      style={{
+        width: width || "100%",
+        height: height || "20px",
+        borderRadius,
+        marginBottom,
+        background: getBackground(),
+        backgroundSize: "200% 100%",
+        animation: `skeleton-loading 2s ease-in-out infinite`,
+        animationDelay: delay,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div className="skeleton-shimmer" />
+    </div>
+  );
+};
+
 const AttractionSkeleton = () => (
   <div className="col-12">
     <div className="border-top-light pt-30">
       <div className="row x-gap-20 y-gap-20">
+        {/* Image Skeleton */}
         <div className="col-md-auto">
           <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
-            <div
-              style={{
-                background: "#f0f0f0",
-                height: "200px",
-                animation: "pulse 1.5s infinite",
-              }}
-            />
+            <div className="cardImage__content custom_inside-slider">
+              <SkeletonBox 
+                height="200px" 
+                borderRadius="8px"
+                marginBottom="0"
+                variant="image"
+                delay="0s"
+              />
+            </div>
           </div>
         </div>
+        
+        {/* Content Skeleton */}
         <div className="col-md">
-          <div
-            style={{
-              background: "#f0f0f0",
-              height: "24px",
-              width: "70%",
-              marginBottom: "10px",
-              animation: "pulse 1.5s infinite",
-            }}
+          {/* Title */}
+          <SkeletonBox 
+            width="80%" 
+            height="24px" 
+            marginBottom="12px" 
+            variant="text"
+            delay="0.1s"
           />
-          <div
-            style={{
-              background: "#f0f0f0",
-              height: "18px",
-              width: "40%",
-              marginBottom: "10px",
-              animation: "pulse 1.5s infinite",
-            }}
+          
+          {/* Location */}
+          <SkeletonBox 
+            width="60%" 
+            height="18px" 
+            marginBottom="8px" 
+            variant="text"
+            delay="0.2s"
           />
-          <div
-            style={{
-              background: "#f0f0f0",
-              height: "18px",
-              width: "60%",
-              animation: "pulse 1.5s infinite",
-            }}
+          
+          {/* Opening Times */}
+          <SkeletonBox 
+            width="50%" 
+            height="18px" 
+            marginBottom="12px" 
+            variant="text"
+            delay="0.3s"
           />
         </div>
-        <div className="col-md-auto">
-          <div
-            style={{
-              background: "#f0f0f0",
-              height: "150px",
-              width: "160px",
-              marginBottom: "10px",
-              animation: "pulse 1.5s infinite",
-            }}
-          />
-          <div
-            style={{
-              background: "#f0f0f0",
-              height: "40px",
-              width: "160px",
-              animation: "pulse 1.5s infinite",
-            }}
+        
+        {/* Price and Button Skeleton */}
+        <div className="col-md-auto text-right md:text-left">
+          <Box sx={{ mt: 1, fontSize: "14px" }}>
+            {/* Price Card */}
+            <div className="skeleton-price-card" style={{ 
+              textAlign: "left",
+              border: "2px solid #ccc",
+              borderRadius: "12px", 
+              padding: "16px", 
+              margin: "8px",
+              width: "180px",
+              minHeight: "180px",
+              height: "auto",
+              background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}>
+              <SkeletonBox 
+                width="100%" 
+                height="20px" 
+                marginBottom="8px" 
+                variant="price"
+                delay="0.2s"
+              />
+              <SkeletonBox 
+                width="70%" 
+                height="16px" 
+                marginBottom="8px" 
+                variant="price"
+                delay="0.3s"
+              />
+              <SkeletonBox 
+                width="60%" 
+                height="16px" 
+                marginBottom="12px" 
+                variant="price"
+                delay="0.4s"
+              />
+              <SkeletonBox 
+                width="100%" 
+                height="32px" 
+                borderRadius="6px" 
+                marginBottom="0" 
+                variant="button"
+                delay="0.5s"
+              />
+            </div>
+          </Box>
+          
+          {/* View Detail Button */}
+          <SkeletonBox 
+            width="160px" 
+            height="40px" 
+            borderRadius="6px" 
+            marginBottom="0" 
+            variant="button"
+            delay="0.6s"
           />
         </div>
       </div>
@@ -101,12 +195,286 @@ const AttractionSkeleton = () => (
   </div>
 );
 
-// Add CSS for skeleton animation
+
+
+// Compact Skeleton for Infinite Scroll (shows fewer items for faster feel)
+const CompactAttractionSkeleton = () => (
+  <div className="col-12">
+    <div className="border-top-light pt-20">
+      <div className="row x-gap-15 y-gap-15">
+        {/* Image Skeleton */}
+        <div className="col-md-auto">
+          <div className="cardImage ratio ratio-1:1 w-200 md:w-1/1 rounded-4">
+            <div className="cardImage__content custom_inside-slider">
+              <SkeletonBox 
+                height="160px" 
+                borderRadius="6px"
+                marginBottom="0"
+                variant="image"
+                delay="0s"
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Content Skeleton */}
+        <div className="col-md">
+          {/* Title */}
+          <SkeletonBox 
+            width="70%" 
+            height="20px" 
+            marginBottom="8px" 
+            variant="text"
+            delay="0.1s"
+          />
+          
+          {/* Location */}
+          <SkeletonBox 
+            width="50%" 
+            height="16px" 
+            marginBottom="6px" 
+            variant="text"
+            delay="0.2s"
+          />
+          
+          {/* Opening Times */}
+          <SkeletonBox 
+            width="40%" 
+            height="16px" 
+            marginBottom="8px" 
+            variant="text"
+            delay="0.3s"
+          />
+        </div>
+        
+        {/* Price and Button Skeleton */}
+        <div className="col-md-auto text-right md:text-left">
+          <Box sx={{ mt: 1, fontSize: "14px" }}>
+            {/* Price Card */}
+            <div className="skeleton-price-card" style={{ 
+              textAlign: "left",
+              border: "1px solid #ccc", 
+              borderRadius: "8px", 
+              padding: "12px", 
+              margin: "6px",
+              width: "160px",
+              minHeight: "140px",
+              height: "auto",
+              background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}>
+              <SkeletonBox 
+                width="100%" 
+                height="16px" 
+                marginBottom="6px" 
+                variant="price"
+                delay="0.2s"
+              />
+              <SkeletonBox 
+                width="60%" 
+                height="14px" 
+                marginBottom="6px" 
+                variant="price"
+                delay="0.3s"
+              />
+              <SkeletonBox 
+                width="100%" 
+                height="28px" 
+                borderRadius="4px" 
+                marginBottom="0" 
+                variant="button"
+                delay="0.4s"
+              />
+            </div>
+          </Box>
+          
+          {/* View Detail Button */}
+          <SkeletonBox 
+            width="140px" 
+            height="36px" 
+            borderRadius="4px" 
+            marginBottom="0" 
+            variant="button"
+            delay="0.5s"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Loading More Skeleton (for infinite scroll)
+const LoadingMoreSkeleton = () => (
+  <>
+    {/* Show 2 compact skeleton cards while loading more */}
+    {Array(2)
+      .fill(null)
+      .map((_, index) => (
+        <CompactAttractionSkeleton key={`loading-more-${index}`} />
+      ))}
+    
+    {/* Loading indicator at the bottom */}
+    <div className="col-12 text-center py-15">
+      <div className="d-flex justify-content-center align-items-center gap-12">
+        <div className="skeleton-spinner" style={{
+          width: "18px",
+          height: "18px",
+          border: "2px solid #e0e0e0",
+          borderTop: "2px solid #007bff",
+          borderRadius: "50%",
+          animation: "skeleton-spin 1s linear infinite"
+        }} />
+        <span style={{ color: "#666", fontSize: "13px" }}>Loading more attractions...</span>
+      </div>
+    </div>
+  </>
+);
+
+// Search Loading Skeleton (when performing new search)
+const SearchLoadingSkeleton = () => (
+  <>
+    {Array(5)
+      .fill(null)
+      .map((_, index) => (
+        <AttractionSkeleton key={index} />
+      ))}
+  </>
+);
+
+// Initial Page Load Skeleton (when page first loads)
+const InitialLoadSkeleton = () => (
+  <>
+    {Array(3)
+      .fill(null)
+      .map((_, index) => (
+        <AttractionSkeleton key={index} />
+      ))}
+  </>
+);
+
+// Enhanced CSS for skeleton animations
 const skeletonStyles = `
-  @keyframes pulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
+  @keyframes skeleton-loading {
+    0% {
+      background-position: -200% 0;
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      background-position: 200% 0;
+      opacity: 0.8;
+    }
+  }
+  
+  @keyframes skeleton-spin {
+    0% { 
+      transform: rotate(0deg); 
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% { 
+      transform: rotate(360deg); 
+      opacity: 0.7;
+    }
+  }
+  
+  .skeleton-box {
+    position: relative;
+    overflow: hidden;
+    border-radius: inherit;
+  }
+  
+  .skeleton-shimmer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg, 
+      transparent 0%, 
+      rgba(255,255,255,0.6) 50%, 
+      transparent 100%
+    );
+    animation: skeleton-shimmer 2s ease-in-out infinite;
+    transform: translateX(-100%);
+  }
+  
+  @keyframes skeleton-shimmer {
+    0% { 
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% { 
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  
+  .skeleton-price-card {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .skeleton-price-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg, 
+      transparent 0%, 
+      rgba(255,255,255,0.3) 50%, 
+      transparent 100%
+    );
+    animation: skeleton-card-shimmer 3s ease-in-out infinite;
+  }
+  
+  @keyframes skeleton-card-shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+  
+  .skeleton-price-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  }
+  
+  /* Pulse effect for different skeleton types */
+  .skeleton-box[data-variant="image"] {
+    animation: skeleton-loading 2.5s ease-in-out infinite;
+  }
+  
+  .skeleton-box[data-variant="text"] {
+    animation: skeleton-loading 2s ease-in-out infinite;
+  }
+  
+  .skeleton-box[data-variant="button"] {
+    animation: skeleton-loading 1.8s ease-in-out infinite;
+  }
+  
+  .skeleton-box[data-variant="price"] {
+    animation: skeleton-loading 2.2s ease-in-out infinite;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .skeleton-box {
+      animation-duration: 1.5s !important;
+    }
   }
 `;
 
@@ -122,6 +490,9 @@ const TourProperties = () => {
   const bookingMode = useSelector((state) => state.common.bookingMode);
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  
+  // Get search parameters from Redux state for API calls
+  const searchParamsFromRedux = useSelector((state) => state.attractions.searchParams);
 
   // Add status selector to detect when attraction data is loading
   const attractionStatus = useSelector((state) => state.attractions.status);
@@ -129,9 +500,11 @@ const TourProperties = () => {
   const [sortedAttractions, setSortedAttractions] = useState([]);
   const [selectedModes, setSelectedModes] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 5; // Changed to 5 for infinite scroll
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Add these selectors at the top with other useSelector calls
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -145,21 +518,57 @@ const TourProperties = () => {
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
+  // Initial load effect
   useEffect(() => {
-    dispatch(fetchAttractions());
-  }, [dispatch]);
+    if (currentPage === 1 && searchParamsFromRedux?.location?.address) {
+      dispatch(fetchAttractions({
+        city: searchParamsFromRedux?.location?.address,
+        date: searchParamsFromRedux?.date,
+        adults: searchParamsFromRedux?.adults,
+        children: searchParamsFromRedux?.children,
+        tour_id: searchParamsFromRedux?.tour_id,
+        selectedDate: searchParamsFromRedux?.selectedDate ? moment(searchParamsFromRedux.selectedDate) : null,
+        start: 0,
+        limit: itemsPerPage,
+      }));
+    }
+  }, [dispatch, itemsPerPage, searchParamsFromRedux]);
+
+  // Load more effect for infinite scroll
+  useEffect(() => {
+    if (currentPage > 1 && searchParamsFromRedux?.location?.address) {
+      setIsLoadingMore(true);
+      const start = (currentPage - 1) * itemsPerPage;
+      dispatch(fetchAttractions({
+        city: searchParamsFromRedux?.location?.address,
+        date: searchParamsFromRedux?.date,
+        adults: searchParamsFromRedux?.adults,
+        children: searchParamsFromRedux?.children,
+        tour_id: searchParamsFromRedux?.tour_id,
+        selectedDate: searchParamsFromRedux?.selectedDate ? moment(searchParamsFromRedux.selectedDate) : null,
+        start: start,
+        limit: itemsPerPage,
+      }));
+    }
+  }, [currentPage, itemsPerPage, dispatch, searchParamsFromRedux]);
 
   // Update the useEffect to handle search loading based on Redux state
   useEffect(() => {
     if (attractionStatus === "loading") {
-      // Show skeleton loader when attractions are loading
-      setIsLoading(true);
-      setIsSearching(true);
+      if (currentPage === 1) {
+        // Show skeleton loader when attractions are loading for first page
+        setIsLoading(true);
+        setIsSearching(true);
+      } else {
+        // Show loading more indicator for subsequent pages
+        setIsLoadingMore(true);
+      }
 
       // Set a maximum timeout for the loading state (5 seconds)
       const maxLoadingTimer = setTimeout(() => {
         setIsLoading(false);
         setIsSearching(false);
+        setIsLoadingMore(false);
       }, 5000); // Maximum 5 seconds of loading, then show "no results" if needed
 
       return () => clearTimeout(maxLoadingTimer);
@@ -171,11 +580,20 @@ const TourProperties = () => {
       const timer = setTimeout(() => {
         setIsLoading(false);
         setIsSearching(false);
+        setIsLoadingMore(false);
+        
+        // Check if we've reached the end of data
+        if (attractionStatus === "succeeded" && attractions.length > 0) {
+          const lastResponseLength = attractions.length % itemsPerPage;
+          if (lastResponseLength < itemsPerPage && currentPage > 1) {
+            setHasMore(false);
+          }
+        }
       }, 1500); // 1.5 seconds delay
 
       return () => clearTimeout(timer);
     }
-  }, [attractionStatus]);
+  }, [attractionStatus, currentPage, attractions.length, itemsPerPage]);
 
   // Modify the useEffect for initial loading to only run once
   useEffect(() => {
@@ -375,6 +793,8 @@ const TourProperties = () => {
     setSortedAttractions(sorted);
   };
 
+
+
   useEffect(() => {
     const isTravclicks =
       searchParams.get("source") === "travclicks" ||
@@ -390,7 +810,35 @@ const TourProperties = () => {
     }
   }, [dispatch, location, searchParams]);
 
-  // Add a useEffect to ensure bookingMode is consistently set to the selected mode
+
+
+  // Reset current page when attractions are cleared (new search)
+  useEffect(() => {
+    if (attractions.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true);
+    }
+  }, [attractions.length]);
+
+  // Scroll detection for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        !isLoadingMore &&
+        hasMore &&
+        attractionStatus !== "loading" &&
+        searchParamsFromRedux?.location?.address // Only load more if we have search parameters
+      ) {
+        setCurrentPage(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, attractionStatus, searchParamsFromRedux]);
+
   useEffect(() => {
     // Check if any attraction has been selected
     if (sortedAttractions.length > 0 && Object.keys(selectedModes).length > 0) {
@@ -411,15 +859,8 @@ const TourProperties = () => {
     if (isLoading || attractionStatus === "loading") {
       return (
         <>
-          <style>{skeletonStyles}</style>
           <TopHeaderFilter onSort={handleSort} />
-          <br />
-          {/* Show skeleton loading */}
-          {Array(5)
-            .fill(null)
-            .map((_, index) => (
-              <AttractionSkeleton key={index} />
-            ))}
+          <SearchLoadingSkeleton />
         </>
       );
     }
@@ -459,9 +900,7 @@ const TourProperties = () => {
 
       {isLoading ? (
         // Show skeleton loading for initial load
-        Array(5)
-          .fill(null)
-          .map((_, index) => <AttractionSkeleton key={index} />)
+        <InitialLoadSkeleton />
       ) : sortedAttractions.length > 0 ? (
         <>
           {sortedAttractions
@@ -478,7 +917,7 @@ const TourProperties = () => {
                           <div className="cardImage__content custom_inside-slider">
                             <Swiper
                               className="mySwiper"
-                              modules={[Pagination, Navigation]}
+                              modules={[SwiperPagination, Navigation]}
                               pagination={{ clickable: true }}
                               navigation={true}
                             >
@@ -1380,6 +1819,35 @@ const TourProperties = () => {
                 : "No attractions found. Please try a different search."}
             </h5>
           </div>
+        </div>
+      )}
+
+      {/* Infinite Scroll Loading Indicator */}
+      {isLoadingMore && (
+        <>
+          <style>{skeletonStyles}</style>
+          <LoadingMoreSkeleton />
+        </>
+      )}
+
+      {/* End of results indicator */}
+      {!hasMore && sortedAttractions.length > 0 && (
+        <div className="text-center py-20">
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#6c757d',
+              fontSize: '14px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1
+            }}
+          >
+            <span style={{ fontSize: '16px' }}>✓</span>
+            End of results • {sortedAttractions.length} attractions found
+          </Typography>
         </div>
       )}
     </>
