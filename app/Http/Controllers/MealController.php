@@ -63,6 +63,21 @@ class MealController extends Controller
             // Catch Validation Errors
             dd($e->errors());
         }
+
+        $auth_user = Auth::user();
+        if($auth_user->role_id == 11){
+            $dmc_id = $auth_user->userId;
+        }else if($auth_user->role_id == 33 || $auth_user->role_id == 128 || $auth_user->role_id == 129 || $auth_user->role_id == 130 || $auth_user->role_id == 134 || $auth_user->role_id == 135 || $auth_user->role_id == 136 || $auth_user->role_id == 138){
+            $dmc_id = $auth_user->created_by;
+        }else if($auth_user->role_id == 37){
+            $sales_head = User::where('userId', $auth_user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($auth_user->role_id == 38){
+            $sales_manager = User::where('userId', $auth_user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
         $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
         $meal_max_id = $lastMeal->meal_id ?? 0;
         $mealId = CommonHelper::createId($meal_max_id);
@@ -100,6 +115,7 @@ class MealController extends Controller
         $meal->item_type = $request->input('item_type');
         $meal->is_active = $request->input('meal_status') == 1 ? 1 : 0;
         $meal->created_by = $auth_user->userId;
+        $meal->dmc_id = $dmc_id;
 
         $meal->save();
 

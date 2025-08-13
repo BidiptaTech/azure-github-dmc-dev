@@ -200,7 +200,7 @@
                                         <!-- Cost per KM Below 10 -->
                                         <div class="col-md-3 mb-3">
                                             <label for="cost_per_km_below_10" class="form-label"><strong>Cost per KM
-                                                    Below 10</strong><span class="text-danger">*</span></label>
+                                                    Below 10km</strong><span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control"
                                                 name="cost_per_km_below_10" placeholder="Enter Cost" value="{{ old('cost_per_km_below_10') }}">
                                             @error('cost_per_km_below_10')
@@ -210,7 +210,7 @@
 
                                         <!-- Cost per KM 10 to 25 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10 to 25)</strong><span class="text-danger">*</span></label>
+                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10km to 25km)</strong><span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control"
                                                 name="cost_per_km_10_to_25" placeholder="Enter Cost" value="{{ old('cost_per_km_10_to_25') }}">
                                             @error('cost_per_km_10_to_25')

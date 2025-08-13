@@ -675,7 +675,7 @@ class PackageController extends Controller
 
             // Include the package relationship to access package details
         $bookings = PackageBooking::with('package')
-        
+        ->where('dmc_id', $dmc_id)
         ->orderBy('created_at', 'desc')
         ->get();
         }else{
