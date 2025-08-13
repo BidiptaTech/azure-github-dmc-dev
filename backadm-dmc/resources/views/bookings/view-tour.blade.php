@@ -23,7 +23,7 @@
                 <ul class="dropdown-menu">
                     {{-- <li><a class="dropdown-item" href="#" onclick="editTour()"><i class="ri-edit-line me-2"></i> Edit Tour</a></li> --}}
                     <li><a class="dropdown-item" href="#" onclick="printTour()"><i class="ri-printer-line me-2"></i> Print Details</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="exportTour()"><i class="ri-download-line me-2"></i> Export PDF</a></li>
+                    {{-- <li><a class="dropdown-item" href="#" onclick="exportTour()"><i class="ri-download-line me-2"></i> Export PDF</a></li> --}}
                 </ul>
             </div>
         </div>

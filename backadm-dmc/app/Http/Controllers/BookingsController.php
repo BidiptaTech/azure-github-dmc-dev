@@ -517,36 +517,102 @@ class BookingsController extends Controller
     /**
      * Export tour details as PDF
      */
-    public function exportTourPDF($tourId)
+    public function exportTourPDF(Request $request, $tourId)
     {
-        $tour = Tour::where('tour_id', $tourId)
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-            ->select([
-                'tours.*',
-                'agents.name as agent_name'
-            ])
-            ->firstOrFail();
-        
-        // Parse payment details if exists
-        if ($tour->payment_details) {
-            try {
-                $tour->parsed_payment_details = json_decode($tour->payment_details, true);
-            } catch (\Exception $e) {
+        try {
+            $tour = Tour::where('tour_id', $tourId)
+                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->select([
+                    'tours.*',
+                    'agents.name as agent_name'
+                ])
+                ->firstOrFail();
+            
+            // Parse payment details if exists
+            if ($tour->payment_details) {
+                try {
+                    $tour->parsed_payment_details = json_decode($tour->payment_details, true);
+                } catch (\Exception $e) {
+                    $tour->parsed_payment_details = [];
+                }
+            } else {
                 $tour->parsed_payment_details = [];
             }
-        } else {
-            $tour->parsed_payment_details = [];
-        }
 
-        // Return the PDF view for download
-        $html = view('bookings.tour-pdf', compact('tour'))->render();
-        
-        // Set proper headers for PDF download
-        $filename = 'tour-details-' . $tour->display_id . '.html';
-        
-        return response($html)
-            ->header('Content-Type', 'text/html; charset=utf-8')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
-            ->header('Cache-Control', 'no-store, no-cache');
+            // Check if this is a POST request with HTML content (from JavaScript)
+            if ($request->isMethod('post') && $request->has('html_content')) {
+                // Use the HTML content sent from JavaScript
+                $html = $request->input('html_content');
+                $tourTitle = $request->input('tour_title', $tour->display_id);
+                
+                // Try to generate PDF using dompdf (if available)
+                if (class_exists('\Dompdf\Dompdf')) {
+                    $dompdf = new \Dompdf\Dompdf([
+                        'isHtml5ParserEnabled' => true,
+                        'isRemoteEnabled' => true,
+                        'chroot' => public_path(),
+                        'enable_php' => false
+                    ]);
+                    
+                    $dompdf->loadHtml($html);
+                    $dompdf->setPaper('A4', 'portrait');
+                    $dompdf->render();
+                    
+                    $filename = 'Tour_Details_' . preg_replace('/[^a-zA-Z0-9]/', '_', $tourTitle) . '.pdf';
+                    
+                    return response($dompdf->output())
+                        ->header('Content-Type', 'application/pdf')
+                        ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                        ->header('Cache-Control', 'no-store, no-cache');
+                }
+                
+                // Fallback: return HTML with PDF-optimized styling
+                $filename = 'Tour_Details_' . preg_replace('/[^a-zA-Z0-9]/', '_', $tourTitle) . '.html';
+                
+                return response($html)
+                    ->header('Content-Type', 'text/html; charset=utf-8')
+                    ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                    ->header('Cache-Control', 'no-store, no-cache');
+            }
+
+            // Default behavior: Generate PDF view
+            $html = view('bookings.tour-pdf', compact('tour'))->render();
+            
+            // Try to generate PDF using dompdf (if available)
+            if (class_exists('\Dompdf\Dompdf')) {
+                $dompdf = new \Dompdf\Dompdf([
+                    'isHtml5ParserEnabled' => true,
+                    'isRemoteEnabled' => true,
+                    'chroot' => public_path(),
+                    'enable_php' => false
+                ]);
+                
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                
+                $filename = 'Tour_Details_' . $tour->display_id . '.pdf';
+                
+                return response($dompdf->output())
+                    ->header('Content-Type', 'application/pdf')
+                    ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                    ->header('Cache-Control', 'no-store, no-cache');
+            }
+            
+            // Fallback: return HTML file
+            $filename = 'Tour_Details_' . $tour->display_id . '.html';
+            
+            return response($html)
+                ->header('Content-Type', 'text/html; charset=utf-8')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->header('Cache-Control', 'no-store, no-cache');
+                
+        } catch (\Exception $e) {
+            \Log::error('PDF Export Error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to generate PDF',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }
