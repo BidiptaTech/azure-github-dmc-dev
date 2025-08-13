@@ -127,7 +127,7 @@ class BookingsController extends Controller
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
@@ -284,8 +284,8 @@ class BookingsController extends Controller
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('enquiry_comments', function($join) {
                 $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
-                     ->whereRaw('enquiry_comments.id = (
-                         SELECT MAX(ec2.id) 
+                     ->whereRaw('enquiry_comments.enquiry_id = (
+                         SELECT MAX(ec2.enquiry_id) 
                          FROM enquiry_comments ec2 
                          WHERE ec2.tour_id = tours.tour_id
                      )');
@@ -324,7 +324,7 @@ class BookingsController extends Controller
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
@@ -340,8 +340,8 @@ class BookingsController extends Controller
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('enquiry_comments', function($join) {
                     $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
-                         ->whereRaw('enquiry_comments.id = (
-                             SELECT MAX(ec2.id) 
+                         ->whereRaw('enquiry_comments.enquiry_id = (
+                             SELECT MAX(ec2.enquiry_id) 
                              FROM enquiry_comments ec2 
                              WHERE ec2.tour_id = tours.tour_id
                          )');
@@ -463,7 +463,7 @@ class BookingsController extends Controller
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
@@ -566,7 +566,7 @@ class BookingsController extends Controller
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
@@ -662,7 +662,7 @@ class BookingsController extends Controller
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
@@ -765,7 +765,7 @@ class BookingsController extends Controller
 
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
