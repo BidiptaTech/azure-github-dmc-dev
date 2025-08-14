@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\Agent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
 
 class BookingsController extends Controller
 {
@@ -90,6 +92,10 @@ class BookingsController extends Controller
      */
     public function newEnquiries()
     {
+        $user = Auth::user();
+        $dmc_id = null;
+        $tours = collect([]);
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
         $tours = Tour::where('tour_status', 'New Enquiry')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
@@ -113,9 +119,54 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.agent_id',
                 'agents.name as agent_name'
-            ])
-            ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+                ])
+                ->orderBy('tours.created_at', 'desc')
+                ->paginate(15);
+        }
+
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::where('tour_status', 'New Enquiry')
+                ->where('tours.dmc_id', $dmc_id)
+                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->select([
+                    'tours.tour_id',
+                    'tours.display_id',
+                    // 'tours.multi_enq_id',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.hotel',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.agent_id',
+                    'agents.name as agent_name'
+                    ])
+                ->orderBy('tours.created_at', 'desc')
+                ->paginate(15);
+        }
 
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
@@ -126,6 +177,102 @@ class BookingsController extends Controller
     /**
      * Display Follow Ups (tour_status = 'Prospect' and 'Tentative')
      */
+    // public function followUps()
+    // {
+    //     $user = Auth::user();
+    //     $dmc_id = null;
+    //     $tours = collect([]);
+
+    //     if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+    //         $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
+    //         ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+    //         ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
+    //         ->select([
+    //             'tours.tour_id',
+    //             'tours.display_id',
+    //             'tours.multi_enq_id',
+    //             'tours.adult',
+    //             'tours.child',
+    //             'tours.hotel',
+    //             'tours.attraction',
+    //             'tours.travel',
+    //             'tours.restaurent',
+    //             'tours.guide',
+    //             'tours.port',
+    //             'tours.destination',
+    //             'tours.city',
+    //             'tours.check_in_time',
+    //             'tours.check_out_time',
+    //             'tours.tour_status',
+    //             'tours.created_at',
+    //             'tours.updated_at',
+    //             'tours.agent_id',
+    //             'agents.name as agent_name',
+    //             'enquiry_comments.enquiry_id as enquiry_id',
+    //             'enquiry_comments.comment as enquiry_comment',
+    //             'enquiry_comments.amount as enquiry_comment_amount',
+    //             'enquiry_comments.actual_amount as actual_amount',
+    //             'enquiry_comments.created_at as enquiry_comment_created_at',
+    //             'enquiry_comments.updated_at as enquiry_comment_updated_at',
+    //         ])
+    //         ->orderBy('tours.created_at', 'desc')
+    //         ->paginate(105);
+
+    //     }
+        
+    //     if($user->role_id == 11){
+    //         $dmc_id = $user->userId;
+    //     }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+    //         $dmc_id = $user->created_by;
+    //     }else if($user->role_id == 37){
+    //         $sales_head = User::where('userId', $user->created_by)->first();
+    //         $dmc_id = $sales_head->created_by;
+    //     }else if($user->role_id == 38){
+    //         $sales_manager = User::where('userId', $user->created_by)->first();
+    //         $sales_head = User::where('userId', $sales_manager->created_by)->first();
+    //         $dmc_id = $sales_head->created_by;
+    //     }
+
+    //     if($dmc_id){
+    //         $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
+    //             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+    //             ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
+    //             ->select([
+    //                 'tours.tour_id',
+    //                 'tours.display_id',
+    //                 'tours.multi_enq_id',
+    //                 'tours.adult',
+    //                 'tours.child',
+    //                 'tours.hotel',
+    //                 'tours.attraction',
+    //                 'tours.travel',
+    //                 'tours.restaurent',
+    //                 'tours.guide',
+    //                 'tours.port',
+    //                 'tours.destination',
+    //                 'tours.city',
+    //                 'tours.check_in_time',
+    //                 'tours.check_out_time',
+    //                 'tours.tour_status',
+    //                 'tours.created_at',
+    //                 'tours.updated_at',
+    //                 'tours.agent_id',
+    //                 'agents.name as agent_name',
+    //                 'enquiry_comments.enquiry_id as enquiry_id',
+    //                 'enquiry_comments.comment as enquiry_comment',
+    //                 'enquiry_comments.amount as enquiry_comment_amount',
+    //                 'enquiry_comments.actual_amount as actual_amount',
+    //                 'enquiry_comments.created_at as enquiry_comment_created_at',
+    //                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
+    //             ])
+    //             ->where('tours.dmc_id', $dmc_id)
+    //             ->orderBy('tours.created_at', 'desc')
+    //             ->paginate(15);
+
+    //     }
+    //     return view('bookings.follow-ups', compact('tours'));
+    // }
+
     public function followUps()
     {
         $user = Auth::user();
@@ -135,7 +282,14 @@ class BookingsController extends Controller
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-            ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
+            ->leftJoin('enquiry_comments', function($join) {
+                $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
+                     ->whereRaw('enquiry_comments.enquiry_id = (
+                         SELECT MAX(ec2.enquiry_id) 
+                         FROM enquiry_comments ec2 
+                         WHERE ec2.tour_id = tours.tour_id
+                     )');
+            })
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
@@ -165,13 +319,12 @@ class BookingsController extends Controller
                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(105);
-
+            ->paginate(10);
         }
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 37){
             $sales_head = User::where('userId', $user->created_by)->first();
@@ -185,7 +338,14 @@ class BookingsController extends Controller
         if($dmc_id){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-                ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
+                ->leftJoin('enquiry_comments', function($join) {
+                    $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
+                         ->whereRaw('enquiry_comments.enquiry_id = (
+                             SELECT MAX(ec2.enquiry_id) 
+                             FROM enquiry_comments ec2 
+                             WHERE ec2.tour_id = tours.tour_id
+                         )');
+                })
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
@@ -261,7 +421,12 @@ class BookingsController extends Controller
      */
     public function confirmedBookings()
     {
-        $tours = Tour::with([
+        $user = Auth::user();
+        $dmc_id = null;
+        $tours = collect([]);
+
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $tours = Tour::with([
                 'booking' => function ($query) {
                     $query->where('bookingType', 'booking');
                 }
@@ -294,6 +459,57 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
+        }
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+            ->where('tour_status', 'Confirmed')
+            ->where('tours.dmc_id', $dmc_id)
+            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->select([
+                'tours.tour_id',
+                'tours.unique_tour_id',
+                'tours.display_id',
+                'tours.multi_enq_id',
+                'tours.adult',
+                'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
+                'tours.destination',
+                'tours.city',
+                'tours.check_in_time',
+                'tours.check_out_time',
+                'tours.tour_status',
+                'tours.payment_details',
+                'tours.created_at',
+                'tours.updated_at',
+                'tours.agent_id',
+                'agents.name as agent_name'
+            ])
+            ->orderBy('tours.created_at', 'desc')
+            ->paginate(15);
+        }
 
         return view('bookings.confirmed', compact('tours'));
     }
@@ -304,8 +520,12 @@ class BookingsController extends Controller
     public function definiteBookings()
     {
         $today = Carbon::today();
+        $user = Auth::user();
+        $dmc_id = null;
+        $tours = collect([]);
 
-        $tours = Tour::with([
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $tours = Tour::with([
                 'booking' => function ($query) {
                     $query->where('bookingType', 'booking');
                 },
@@ -337,23 +557,42 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->where(function ($query) use ($today) {
-                $query->where('tours.tour_status', 'Definite')
-                    ->orWhereDate('tours.updated_at', $today);
+                $query->where('tours.tour_status', 'Definite');
+                    // ->orWhereDate('tours.updated_at', $today);
             })
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
-        return view('bookings.definite', compact('tours'));
-    }
+        }
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
 
-    /**
-     * Display Actual Bookings (tour_status = 'Actual')
-     */
-    public function actualBookings()
-    {
-        $tours = Tour::where('tour_status', 'Actual')
+        if($dmc_id){
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                },
+                'agent'
+            ])
+            ->where(function ($query) use ($today) {
+                $query->where('tours.tour_status', 'Definite');
+                    // ->orWhereDate('tours.updated_at', $today);
+            })
+            ->where('tours.dmc_id', $dmc_id)
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
                 'tours.tour_id',
+                'tours.unique_tour_id',
                 'tours.display_id',
                 'tours.multi_enq_id',
                 'tours.adult',
@@ -377,6 +616,93 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
+        }
+
+        return view('bookings.definite', compact('tours'));
+    }
+
+    /**
+     * Display Actual Bookings (tour_status = 'Actual')
+     */
+    public function actualBookings()
+    {
+        $user = Auth::user();
+        $dmc_id = null;
+        $tours = collect([]);
+
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $tours = Tour::where('tour_status', 'Actual')
+                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->select([
+                    'tours.tour_id',
+                    'tours.display_id',
+                    'tours.multi_enq_id',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.hotel',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.payment_details',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.agent_id',
+                    'agents.name as agent_name'
+                ])
+                ->orderBy('tours.created_at', 'desc')
+                ->paginate(15);
+        }
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::where('tour_status', 'Actual')
+                ->where('tours.dmc_id', $dmc_id)
+                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->select([
+                    'tours.tour_id',
+                    'tours.display_id',
+                    'tours.multi_enq_id',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.hotel',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.payment_details',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.agent_id',
+                    'agents.name as agent_name'
+                ])
+                ->orderBy('tours.created_at', 'desc')
+                ->paginate(15);
+        }
 
         // Parse payment details for each tour
         $tours->getCollection()->transform(function ($tour) {
@@ -400,6 +726,11 @@ class BookingsController extends Controller
      */
     public function cancelledBookings()
     {
+        $user = Auth::user();
+        $dmc_id = null;
+        $tours = collect([]);
+
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
         $tours = Tour::where(function($query) {
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
@@ -430,6 +761,48 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::where(function($query) {
+                $query->where('tour_status', 'LIKE', 'Cancel%')
+                      ->orWhere('tour_status', 'LIKE', '%Cancel%');
+            })
+            ->where('tours.dmc_id', $dmc_id)
+            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->select([
+                'tours.tour_id',
+                'tours.display_id',
+                'tours.multi_enq_id',
+                'tours.adult',
+                'tours.child',
+                'tours.destination',
+                'tours.city',
+                'tours.check_in_time',
+                'tours.check_out_time',
+                'tours.tour_status',
+                'tours.payment_details',
+                'tours.created_at',
+                'tours.updated_at',
+                'tours.agent_id',
+                'agents.name as agent_name'
+            ])
+            ->orderBy('tours.created_at', 'desc')
+            ->paginate(15);
+        }
 
         return view('bookings.cancelled', compact('tours'));
     }
@@ -546,8 +919,8 @@ class BookingsController extends Controller
                 $tourTitle = $request->input('tour_title', $tour->display_id);
                 
                 // Try to generate PDF using dompdf (if available)
-                if (class_exists('\Dompdf\Dompdf')) {
-                    $dompdf = new \Dompdf\Dompdf([
+                if (class_exists('Dompdf\Dompdf')) {
+                    $dompdf = new Dompdf([
                         'isHtml5ParserEnabled' => true,
                         'isRemoteEnabled' => true,
                         'chroot' => public_path(),
@@ -579,8 +952,8 @@ class BookingsController extends Controller
             $html = view('bookings.tour-pdf', compact('tour'))->render();
             
             // Try to generate PDF using dompdf (if available)
-            if (class_exists('\Dompdf\Dompdf')) {
-                $dompdf = new \Dompdf\Dompdf([
+            if (class_exists('Dompdf\Dompdf')) {
+                $dompdf = new Dompdf([
                     'isHtml5ParserEnabled' => true,
                     'isRemoteEnabled' => true,
                     'chroot' => public_path(),
@@ -608,7 +981,7 @@ class BookingsController extends Controller
                 ->header('Cache-Control', 'no-store, no-cache');
                 
         } catch (\Exception $e) {
-            \Log::error('PDF Export Error: ' . $e->getMessage());
+            Log::error('PDF Export Error: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Failed to generate PDF',
                 'message' => $e->getMessage()

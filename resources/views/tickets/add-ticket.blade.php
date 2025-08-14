@@ -33,12 +33,12 @@
                         <div class="card-header">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h4 class="card-title mb-0">Create New Ticket</h4>
-                                @if(auth()->user()->role_id == '11')
+                                {{-- @if(auth()->user()->role_id == '11')
                                     <a href="{{ route('tickets.bulk_upload_for_attraction', $attraction->attraction_id) }}" 
                                        class="btn btn-warning btn-sm">
                                         <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Tickets
                                     </a>
-                                @endif
+                                @endif --}}
                             </div>
                         </div>
                         <div class="card-body">

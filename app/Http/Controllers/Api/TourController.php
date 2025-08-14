@@ -1007,60 +1007,34 @@ class TourController extends Controller
                 return response()->json(['message' => 'Travel Point Price missmatch occur!', 'actual price'=>$finalPrice, 'incoming price'=>$totalPrice], 409);
             }
             if($flag == 1){
-                if ($existingOrder) {
-                    $existingOrder->data = $validatedData['data'];
-                    $existingOrder->agent_id = $agent_id;
-                    $existingOrder->status = 1;  // Assuming status 1 means active or confirmed
-                    $existingOrder->bookingType = $bookingType;
-                    $existingOrder->discount = $commission;
-                    $existingOrder->markup_percentage = $markup_percentage;
-                    $existingOrder->save();
-                    $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
-                    if($tourStatus == "Tentative"){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "Confirmed",
-                        ]);
-                    }
-                    if($bookingType == 'enquiry'){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "New Enquiry",
-                        ]);
-                    }
-                    return response()->json([
-                        'message' => ucfirst($validatedData['type']) . ' order updated successfully.',
-                        'order' => $existingOrder,
-                        'service' => $service
-                    ], 200);
+                $order = new Order();
+                $order->agent_id = $agent_id;
+                $order->tour_id = $validatedData['tour_id'];
+                $order->data = $validatedData['data'];
+                $order->type = $validatedData['type'];
+                $order->booking_id = $bookId;
+                $order->status = 1; // Assuming status 1 means active or confirmed
+                $order->bookingType = $bookingType;
+                $order->discount = $commission;
+                $order->markup_percentage = $markup_percentage;
+                $order->save();
+                $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
+                if($tourStatus == "Tentative"){
+                    $tour = Tour::where('tour_id', $tour_id)->update([
+                        'tour_status' => "Confirmed",
+                    ]);
                 }
-                else {
-                    $order = new Order();
-                    $order->agent_id = $agent_id;
-                    $order->tour_id = $validatedData['tour_id'];
-                    $order->data = $validatedData['data'];
-                    $order->type = $validatedData['type'];
-                    $order->booking_id = $bookId;
-                    $order->status = 1; // Assuming status 1 means active or confirmed
-                    $order->bookingType = $bookingType;
-                    $order->discount = $commission;
-                    $order->markup_percentage = $markup_percentage;
-                    $order->save();
-                    $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
-                    if($tourStatus == "Tentative"){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "Confirmed",
-                        ]);
-                    }
-                    if($bookingType == 'enquiry'){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "New Enquiry",
-                        ]);
-                    }
-                    return response()->json([
-                        'message' => ucfirst($validatedData['type']) . ' order created successfully.',
-                        'order' => $order,
-                        'service' => $service
-                    ], 201);
+                if($bookingType == 'enquiry'){
+                    $tour = Tour::where('tour_id', $tour_id)->update([
+                        'tour_status' => "New Enquiry",
+                    ]);
                 }
+                return response()->json([
+                    'message' => ucfirst($validatedData['type']) . ' order created successfully.',
+                    'order' => $order,
+                    'service' => $service
+                ], 201);
+                
             }
             else{
                 return response()->json(['message' => 'Travel Point Price missmatch occur!', 'actual price='=>$price, 'incoming price='=>$totalPrice], 409);

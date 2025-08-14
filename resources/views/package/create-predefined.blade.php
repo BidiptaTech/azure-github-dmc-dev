@@ -104,9 +104,8 @@
                             <label class="form-label">Package Type <span class="text-danger">*</span></label>
                             <select class="form-select @error('package_type') is-invalid @enderror" name="package_type" required>
                                 <option value="">Select Package Type</option>
-                                <option value="single" {{ old('package_type') == 'single' ? 'selected' : '' }}>Single Person</option>
-                                <option value="double" {{ old('package_type') == 'double' ? 'selected' : '' }}>Two Person</option>
-                                
+                                <option value="single" {{ old('package_type') == 'single' ? 'selected' : '' }}>Single</option>
+                                <option value="couple" {{ old('package_type') == 'couple' ? 'selected' : '' }}>Couple</option>
                             </select>
                             @error('package_type')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -134,17 +133,23 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label">Adult Price (SGD) <span class="text-danger">*</span></label>
+                            <label class="form-label" id="adult-price-label">Adult Price (SGD) <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">SGD</span>
                                 <input type="number" class="form-control @error('price_adult') is-invalid @enderror" 
                                        name="price_adult" value="{{ old('price_adult') }}" min="0" step="0.01" required>
                             </div>
+                            <div id="couple-price-note" class="mt-2 d-none">
+                                <small class="text-info fw-medium">
+                                    <i class="ri-information-line me-1"></i>
+                                    Price is for two persons
+                                </small>
+                            </div>
                             @error('price_adult')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3" id="senior-price-section">
                             <label class="form-label">Senior Price (SGD)</label>
                             <div class="input-group">
                                 <span class="input-group-text">SGD</span>
@@ -155,7 +160,7 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3" id="child-price-section">
                             <label class="form-label">Child Price (SGD)</label>
                             <div class="input-group">
                                 <span class="input-group-text">SGD</span>
@@ -169,8 +174,18 @@
                         <div class="col-md-3">
                             <label class="form-label">Maximum PAX <span class="text-danger">*</span></label>
                             <input type="number" class="form-control @error('max_pax') is-invalid @enderror" 
-                                   name="max_pax" value="{{ old('max_pax') }}" min="1" required>
+                                   name="max_pax" value="{{ old('max_pax') }}" min="1" required id="max-pax-input">
                             @error('max_pax')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-3" id="child-max-age-section">
+                            <label class="form-label">Child Max Age <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control @error('child_max_age') is-invalid @enderror" 
+                                   name="child_max_age" value="{{ old('child_max_age') }}" min="1" required id="child-max-age-input">
+                                   <span class="text-muted"> <i class="ri-information-line me-1"></i> Child below this age will be free of charge</span>
+                            @error('child_max_age')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
@@ -189,7 +204,7 @@
                             <label class="form-label">Start Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control @error('start_date') is-invalid @enderror" 
                                    name="start_date" value="{{ old('start_date') }}" required 
-                                   min="{{ date('Y-m-d') }}">
+                                   min="{{ date('Y-m-d') }}" id="start-date-input">
                             @error('start_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -198,7 +213,7 @@
                             <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control @error('expiry_date') is-invalid @enderror" 
                                    name="expiry_date" value="{{ old('expiry_date') }}" required 
-                                   min="{{ date('Y-m-d') }}">
+                                   min="{{ date('Y-m-d') }}" id="expiry-date-input">
                             @error('expiry_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -417,6 +432,157 @@ $(document).ready(function() {
     $('#guide-select').select2({
         placeholder: 'Select guide'
     });
+    
+    // Package type change handler
+    $('select[name="package_type"]').on('change', function() {
+        const packageType = $(this).val();
+        handlePackageTypeChange(packageType);
+    });
+    
+    // Function to handle package type changes
+    function handlePackageTypeChange(packageType) {
+        const couplePriceNote = $('#couple-price-note');
+        const adultPriceLabel = $('#adult-price-label');
+        const seniorPriceSection = $('#senior-price-section');
+        const childPriceSection = $('#child-price-section');
+        const maxPaxInput = $('#max-pax-input');
+        const childMaxAgeInput = $('#child-max-age-input');
+        const childMaxAgeSection = $('#child-max-age-section');
+        if (packageType === 'couple') {
+            // Show couple price note
+            couplePriceNote.removeClass('d-none');
+            
+            // Update adult price label
+            adultPriceLabel.html('Price (SGD) <span class="text-danger">*</span>');
+            
+            // Hide senior and child price sections
+            seniorPriceSection.addClass('d-none');
+            childPriceSection.addClass('d-none');
+            childMaxAgeInput.removeAttr('required');
+            childMaxAgeInput.addClass('d-none');
+            childMaxAgeSection.addClass('d-none');
+            // Set max pax to 2 and make readonly
+            maxPaxInput.val(2).prop('readonly', true);
+            
+            // Clear senior and child price values
+            $('input[name="price_senior"]').val('');
+            $('input[name="price_child"]').val('');
+            
+        } else if (packageType === 'single') {
+            // Hide couple price note
+            couplePriceNote.addClass('d-none');
+            
+            // Reset adult price label
+            adultPriceLabel.html('Adult Price (SGD) <span class="text-danger">*</span>');
+            
+            // Show senior and child price sections
+            seniorPriceSection.removeClass('d-none');
+            childPriceSection.removeClass('d-none');
+            childMaxAgeInput.attr('required', true);
+            childMaxAgeInput.removeClass('d-none');
+            childMaxAgeSection.removeClass('d-none');
+            // Reset max pax and make editable
+            maxPaxInput.val('').prop('readonly', false);
+            
+        } else {
+            // Default state - hide all notes and reset labels
+            couplePriceNote.addClass('d-none');
+            adultPriceLabel.html('Adult Price (SGD) <span class="text-danger">*</span>');
+            seniorPriceSection.removeClass('d-none');
+            childPriceSection.removeClass('d-none');
+            childMaxAgeInput.removeClass('d-none');
+            childMaxAgeInput.attr('required', true);
+            maxPaxInput.val('').prop('readonly', false);
+            childMaxAgeSection.removeClass('d-none');
+        }
+    }
+    
+    // Initialize package type handling on page load
+    const initialPackageType = $('select[name="package_type"]').val();
+    if (initialPackageType) {
+        handlePackageTypeChange(initialPackageType);
+    }
+    
+    // Date validation handlers
+    $('#start-date-input').on('change', function() {
+        validateAndUpdateExpiryDate();
+    });
+    
+    $('#expiry-date-input').on('change', function() {
+        validateExpiryDate();
+    });
+    
+    // Function to validate and update expiry date based on start date
+    function validateAndUpdateExpiryDate() {
+        const startDate = $('#start-date-input').val();
+        const expiryDateInput = $('#expiry-date-input');
+        
+        if (startDate) {
+            // Set minimum date for expiry date to be the day after start date
+            const minExpiryDate = new Date(startDate);
+            minExpiryDate.setDate(minExpiryDate.getDate() + 1);
+            
+            // Format the date for the min attribute (YYYY-MM-DD)
+            const minExpiryDateStr = minExpiryDate.toISOString().split('T')[0];
+            
+            // Update the min attribute of expiry date input
+            expiryDateInput.attr('min', minExpiryDateStr);
+            
+            // If current expiry date is before the new start date, clear it
+            const currentExpiryDate = expiryDateInput.val();
+            if (currentExpiryDate && currentExpiryDate <= startDate) {
+                expiryDateInput.val('');
+                showDateValidationMessage('Please select an expiry date after the start date.', 'warning');
+            }
+            
+            // Show success message
+            showDateValidationMessage('Expiry date range updated. Please select a date after ' + startDate, 'success');
+        }
+    }
+    
+    // Function to validate expiry date
+    function validateExpiryDate() {
+        const startDate = $('#start-date-input').val();
+        const expiryDate = $('#expiry-date-input').val();
+        
+        if (startDate && expiryDate) {
+            if (expiryDate <= startDate) {
+                showDateValidationMessage('Expiry date must be after the start date.', 'danger');
+                $('#expiry-date-input').addClass('is-invalid');
+                return false;
+            } else {
+                $('#expiry-date-input').removeClass('is-invalid');
+                showDateValidationMessage('Date range is valid.', 'success');
+                return true;
+            }
+        }
+        return true;
+    }
+    
+    // Function to show date validation messages
+    function showDateValidationMessage(message, type) {
+        // Remove existing messages
+        $('.date-validation-message').remove();
+        
+        // Create and show new message
+        const messageHtml = `
+            <div class="date-validation-message alert alert-${type} alert-dismissible fade show mt-2" role="alert">
+                <i class="ri-${type === 'success' ? 'check-line' : type === 'warning' ? 'alert-line' : 'close-line'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Insert message after the expiry date field
+        $('#expiry-date-input').closest('.col-md-6').after(messageHtml);
+        
+        // Auto-hide success messages after 3 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                $('.date-validation-message.alert-success').fadeOut();
+            }, 3000);
+        }
+    }
 
     // Store selected hotels with their day assignments
     let selectedHotelsWithDays = [];
@@ -584,6 +750,15 @@ $(document).ready(function() {
                                                 <option value="">Select Attractions</option>
                                             </select>
                                             <input type="hidden" name="day_${day}_attractions" id="day-${day}-attractions-input">
+                                            <div class="attractions-note">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="ri-information-line text-primary me-2 mt-1"></i>
+                                                    <div>
+                                                        <small class="text-muted fw-medium">Multiple Selection Allowed</small>
+                                                        
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -605,9 +780,13 @@ $(document).ready(function() {
                                             </div>
                                         </div>
                                         <div class="card-body">
-                                            <select class="form-select day-guide-select" id="guide-select-day-${day}" data-day="${day}">
-                                                <option value="">Select Guide (Optional)</option>
-                                            </select>
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <select class="form-select day-guide-select" id="guide-select-day-${day}" data-day="${day}">
+                                                        <option value="">Select Guide (Optional)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                             <input type="hidden" name="day_${day}_guide" id="day-${day}-guide-input">
                                         </div>
                                     </div>
@@ -623,16 +802,21 @@ $(document).ready(function() {
             // Initialize Select2 for the day's attraction and guide selects
             $(`#attraction-select-day-${day}`).select2({
                 placeholder: 'Select attractions for Day ' + day,
-                multiple: true
+                multiple: true,
+                width: '100%'
             });
             
             $(`#guide-select-day-${day}`).select2({
-                placeholder: 'Select guide for Day ' + day
+                placeholder: 'Select guide for Day ' + day,
+                width: '100%'
             });
         }
         
         // Bind event handlers for day-wise elements
         bindDayWiseEventHandlers();
+        
+        // Bind accordion expand event to ensure Select2 works properly
+        bindAccordionEvents();
         
         // Log the initialized dayWiseItinerary for debugging
         console.log('Initialized dayWiseItinerary:', dayWiseItinerary);
@@ -847,8 +1031,38 @@ $(document).ready(function() {
         console.log('Updated hotel JSON data:', hotelJsonString);
     }
     
-    // Function to bind event handlers for day-wise elements
-    function bindDayWiseEventHandlers() {
+            // Function to bind accordion events for proper Select2 initialization
+        function bindAccordionEvents() {
+            // Handle accordion expand events to ensure Select2 works properly
+            $('#day-itinerary-accordion').on('shown.bs.collapse', function (e) {
+                const dayId = $(e.target).attr('id');
+                const day = dayId.replace('collapse-day-', '');
+                
+                // Small delay to ensure accordion animation completes
+                setTimeout(() => {
+                    // Reinitialize Select2 for the expanded day to ensure proper width
+                    if ($(`#attraction-select-day-${day}`).length) {
+                        $(`#attraction-select-day-${day}`).select2('destroy');
+                        $(`#attraction-select-day-${day}`).select2({
+                            placeholder: 'Select attractions for Day ' + day,
+                            multiple: true,
+                            width: '100%'
+                        });
+                    }
+                    
+                    if ($(`#guide-select-day-${day}`).length) {
+                        $(`#guide-select-day-${day}`).select2('destroy');
+                        $(`#guide-select-day-${day}`).select2({
+                            placeholder: 'Select guide for Day ' + day,
+                            width: '100%'
+                        });
+                    }
+                }, 150);
+            });
+        }
+        
+        // Function to bind event handlers for day-wise elements
+        function bindDayWiseEventHandlers() {
         // Arrival pickup toggle
         $('.arrival-pickup-toggle').on('change', function() {
             const day = parseInt($(this).data('day'));
@@ -1322,6 +1536,13 @@ $(document).ready(function() {
     
     // Form submission handler to compile all day-wise itinerary data
     $('form').on('submit', function(e) {
+        // Validate dates before submission
+        if (!validateExpiryDate()) {
+            e.preventDefault();
+            showDateValidationMessage('Please fix the date validation errors before submitting.', 'danger');
+            return false;
+        }
+        
         // Prevent default form submission
         e.preventDefault();
         
@@ -2349,6 +2570,75 @@ $(document).ready(function() {
 
 .bg-light-subtle {
     background-color: #f9fafb !important;
+}
+
+/* Couple package styling */
+#couple-price-note {
+    background-color: rgba(13, 202, 240, 0.1);
+    border-left: 3px solid #0dcaf0;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+}
+
+#couple-price-note .text-info {
+    color: #0aa2c0 !important;
+}
+
+/* Hidden sections styling */
+.d-none {
+    display: none !important;
+}
+
+/* Date validation message styling */
+.date-validation-message {
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.date-validation-message.alert-success {
+    background-color: rgba(32, 201, 151, 0.1);
+    border-color: rgba(32, 201, 151, 0.2);
+    color: #18a47c;
+}
+
+.date-validation-message.alert-warning {
+    background-color: rgba(253, 126, 20, 0.1);
+    border-color: rgba(253, 126, 20, 0.2);
+    color: #cc6510;
+}
+
+.date-validation-message.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.2);
+    color: #b02a37;
+}
+
+/* Day-wise select field styling */
+.day-guide-select,
+.day-attraction-select {
+    width: 100% !important;
+    min-width: 300px;
+}
+
+/* Ensure Select2 containers have consistent width */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    width: 100% !important;
+}
+
+/* Attractions selection note styling */
+.attractions-note {
+    background-color: rgba(105, 108, 255, 0.05);
+    border-left: 3px solid #696cff;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    margin-top: 0.75rem;
+}
+
+.attractions-note .text-muted {
+    color: #6c757d !important;
+    font-weight: 500;
 }
 </style>
 @endsection 

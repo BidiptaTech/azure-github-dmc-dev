@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Tour;
 
 class BookingCountServiceProvider extends ServiceProvider
@@ -26,37 +27,73 @@ class BookingCountServiceProvider extends ServiceProvider
             $currentMonthStart = now()->startOfMonth();
             $currentMonthEnd = now()->endOfMonth();
             
+            // Get current user and determine DMC ID
+            $user = Auth::user();
+            $dmc_id = null;
+            
+            if ($user) {
+                // Determine DMC ID based on user role
+                if ($user->role_id == 11) { // DMC
+                    $dmc_id = $user->userId;
+                } else if (in_array($user->role_id, [33, 34, 36, 37, 38, 128, 129, 130, 134, 135, 136, 138])) { // Sales Head, Sales Manager, Assistant Sales Manager
+                    $dmc_id = $user->created_by;
+                }
+            }
+            
             $bookingCounts = [
-                'new_enquiries' => Tour::where('tour_status', 'New Enquiry')
-                    ->where('created_at', '>=', $currentMonthStart)
-                    ->where('created_at', '<=', $currentMonthEnd)
-                    ->count(),
-                'follow_ups' => Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-                    ->where('created_at', '>=', $currentMonthStart)
-                    ->where('created_at', '<=', $currentMonthEnd)
-                    ->count(),
-                'confirmed' => Tour::where('tour_status', 'Confirmed')
-                    ->where('created_at', '>=', $currentMonthStart)
-                    ->where('created_at', '<=', $currentMonthEnd)
-                    ->count(),
-                'definite' => Tour::where('tour_status', 'Definite')
-                    ->where('created_at', '>=', $currentMonthStart)
-                    ->where('created_at', '<=', $currentMonthEnd)
-                    ->count(),
-                'actual' => Tour::where('tour_status', 'Actual')
-                    ->where('created_at', '>=', $currentMonthStart)
-                    ->where('created_at', '<=', $currentMonthEnd)
-                    ->count(),
-                'cancelled' => Tour::where(function($query) {
-                    $query->where('tour_status', 'LIKE', 'Cancel%')
-                          ->orWhere('tour_status', 'LIKE', '%Cancel%');
-                })->where('created_at', '>=', $currentMonthStart)
-                  ->where('created_at', '<=', $currentMonthEnd)
-                  ->count(),
+                'new_enquiries' => $this->getTourCountWithDmcFilter('New Enquiry', $currentMonthStart, $currentMonthEnd, $dmc_id),
+                'follow_ups' => $this->getTourCountWithDmcFilter(['Prospect', 'Tentative'], $currentMonthStart, $currentMonthEnd, $dmc_id),
+                'confirmed' => $this->getTourCountWithDmcFilter('Confirmed', $currentMonthStart, $currentMonthEnd, $dmc_id),
+                'definite' => $this->getTourCountWithDmcFilter('Definite', $currentMonthStart, $currentMonthEnd, $dmc_id),
+                'actual' => $this->getTourCountWithDmcFilter('Actual', $currentMonthStart, $currentMonthEnd, $dmc_id),
+                'cancelled' => $this->getCancelledTourCount($currentMonthStart, $currentMonthEnd, $dmc_id),
                 'refunds' => 0, // Placeholder since refunds section is not implemented yet
             ];
 
             $view->with('bookingCounts', $bookingCounts);
         });
+    }
+
+    /**
+     * Get tour count with DMC filter
+     */
+    private function getTourCountWithDmcFilter($status, $startDate, $endDate, $dmc_id)
+    {
+        $query = Tour::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate);
+
+        // Apply status filter
+        if (is_array($status)) {
+            $query->whereIn('tour_status', $status);
+        } else {
+            $query->where('tour_status', $status);
+        }
+
+        // Apply DMC filter if DMC ID is available
+        if ($dmc_id) {
+            $query->where('dmc_id', $dmc_id);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Get cancelled tour count with DMC filter
+     */
+    private function getCancelledTourCount($startDate, $endDate, $dmc_id)
+    {
+        $query = Tour::where(function($query) {
+                $query->where('tour_status', 'LIKE', 'Cancel%')
+                      ->orWhere('tour_status', 'LIKE', '%Cancel%');
+            })
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate);
+
+        // Apply DMC filter if DMC ID is available
+        if ($dmc_id) {
+            $query->where('dmc_id', $dmc_id);
+        }
+
+        return $query->count();
     }
 }
