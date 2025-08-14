@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FormControl,
   InputLabel,
@@ -51,9 +51,26 @@ const MenuProps = {
 
 const starOptions = ["3", "4", "5"];
 
-const StarCategorySelect = ({ onChange }) => {
-  const [selectedStars, setSelectedStars] = useState([]);
+const StarCategorySelect = ({ onChange, value = "" }) => {
+  // Initialize selectedStars from the value prop
+  const [selectedStars, setSelectedStars] = useState(() => {
+    // Parse the value string into an array
+    if (value && typeof value === 'string') {
+      return value.split(',').map(star => star.trim()).filter(star => star);
+    }
+    return [];
+  });
   const theme = useTheme();
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    if (value && typeof value === 'string') {
+      const newSelectedStars = value.split(',').map(star => star.trim()).filter(star => star);
+      setSelectedStars(newSelectedStars);
+    } else {
+      setSelectedStars([]);
+    }
+  }, [value]);
 
   const handleChange = (event) => {
     const {

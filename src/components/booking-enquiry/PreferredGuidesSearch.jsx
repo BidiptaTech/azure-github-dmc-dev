@@ -87,15 +87,20 @@ const PriceChip = styled(Chip)(({ theme }) => ({
   flexShrink: 0,
 }));
 
-const PreferredGuidesSearch = ({ onSelect }) => {
+const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedGuides, setSelectedGuides] = useState([]);
+  const [selectedGuides, setSelectedGuides] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherGuideName, setOtherGuideName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedGuides(value);
+  }, [value]);
 
   // Get guides from Redux store
   const { guides = [], loading, error } = useSelector(state => state.enquiryList || { guides: [], loading: false });

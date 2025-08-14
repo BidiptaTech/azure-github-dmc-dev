@@ -67,15 +67,20 @@ const CountBadge = styled(Chip)(({ theme }) => ({
   fontSize: 12,
 }));
 
-const PortAddressSearch = ({ onSelect }) => {
+const PortAddressSearch = ({ onSelect, value = null }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedPort, setSelectedPort] = useState(null);
+  const [selectedPort, setSelectedPort] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherPortName, setOtherPortName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedPort(value);
+  }, [value]);
 
   // Get ports from Redux store
   const { ports = [], loading, error } = useSelector(state => state.enquiryList || { ports: [], loading: false });
