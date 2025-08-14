@@ -803,7 +803,7 @@
 
         <!-- Booking List -->
         {{-- @if(hasPermission('view booking')) --}}
-            <li class="menu-header mt-5">
+           {{-- <li class="menu-header mt-5">
                 <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
             </li>
             
@@ -825,7 +825,7 @@
                         </a>
                     </li>
                 </ul>
-            </li>  
+            </li>  --}}
         {{-- @endif --}}
         <!-- End Booking List --> 
 
