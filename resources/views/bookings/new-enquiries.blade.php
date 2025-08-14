@@ -186,6 +186,7 @@
                             <th>Agent</th>
                             <th>Check-in/Check-out</th>
                             <th>Created Date</th>
+                            <th>Negotiation</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -196,6 +197,7 @@
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
+                            data-tour-status="{{ $tour->tour_status ?? '' }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
@@ -290,6 +292,27 @@
                                     <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
                                 </div>
                             </td>
+                            <td>
+                            @php 
+                                $enquiryComment = $enquary_comments->where('tour_id', $tour->tour_id)->first();
+                            @endphp
+                                @if($enquiryComment && $tour->tour_status == "New Enquiry")
+                                    <button 
+                                        type="button"
+                                        class="btn btn-sm btn-warning"
+                                        data-tour-id="{{ $tour->tour_id }}"
+                                        data-enquiry-id="{{ $enquiryComment->enquiry_id ?? '' }}"
+                                        data-price="{{ $enquiryComment->amount ?? 0 }}"
+                                        data-actual="{{ $enquiryComment->actual_amount ?? 0 }}"
+                                        data-comment="{{ $enquiryComment->comment ?? '' }}"
+                                        onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
+                                    >
+                                        Check Negotiation
+                                    </button>
+                                @else
+                                    <span class="text-muted">No negotiation</span>
+                                @endif
+                            </td>
                             {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -329,15 +352,15 @@
                             
                         </tr>
                         @empty
-                        {{-- <tr>
-                            <td colspan="8" class="text-center py-4">
+                        <tr>
+                            <td colspan="10" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-inbox-line ri-48px text-muted mb-2"></i>
                                     <h6 class="text-muted">No new enquiries found</h6>
                                     <p class="text-muted mb-0">All enquiries have been processed or there are no new enquiries yet.</p>
                                 </div>
                             </td>
-                        </tr> --}}
+                        </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -354,6 +377,59 @@
                     {{ $tours->links() }}
                 </div>
             </div> --}}
+        </div>
+    </div>
+    
+    <!-- Update Price Modal (New Enquiries) -->
+    <div class="modal fade" id="newEnquiryUpdateModal" tabindex="-1" aria-labelledby="newEnquiryUpdateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newEnquiryUpdateModalLabel">Update Price & Comment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="newEnquiryUpdateForm" method="POST" action="">
+                    @csrf
+                    <div class="modal-body">
+                        <input type="hidden" name="enquiry_id" id="new_enquiry_modal_enquiry_id" />
+                        
+                        <!-- Current details display -->
+                        <div class="border rounded p-3 bg-light mb-3">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Actual Amount</small>
+                                    <div class="fw-semibold" id="new_enquiry_display_actual">—</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Previous Negotiated Amount</small>
+                                    <div class="fw-semibold" id="new_enquiry_display_price">—</div>
+                                </div>
+                                <div class="col-12">
+                                    <small class="text-muted d-block">Last Comment</small>
+                                    <div class="fw-semibold" id="new_enquiry_display_comment">—</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- New update inputs -->
+                        <div class="mb-3">
+                            <label for="new_enquiry_current_price" class="form-label">New Price</label>
+                            <input id="new_enquiry_current_price" type="number" name="price" class="form-control" placeholder="Enter new price" onkeyup="validateNewEnquiryPrice(this)" required />
+                            <div id="new-enquiry-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none">
+                                Enquiry price cannot exceed the actual amount.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_enquiry_comment" class="form-label">New Comment</label>
+                            <textarea id="new_enquiry_comment" name="comment" rows="3" class="form-control" placeholder="Enter new comment" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -696,12 +772,12 @@ function exportData() {
             // order: [[8, 'desc']], // Sort by Created Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column
+                    targets: [8, 9], // Negotiation and Actions columns
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [5], // Guests column
+                    targets: [4], // Guests column
                     orderable: false
                 }
             ],
@@ -730,6 +806,52 @@ function exportData() {
         $('#exportPrint').on('click', function() {
             table.button('.buttons-print').trigger();
         });
+        
+        // Modal helper functions for Update Price (New Enquiries)
+        window.openNewEnquiryModal = function(button, route) {
+            var modalEl = document.getElementById('newEnquiryUpdateModal');
+            var form = document.getElementById('newEnquiryUpdateForm');
+            var priceInput = document.getElementById('new_enquiry_current_price');
+            var commentInput = document.getElementById('new_enquiry_comment');
+            var idInput = document.getElementById('new_enquiry_modal_enquiry_id');
+            var displayActual = document.getElementById('new_enquiry_display_actual');
+            var displayPrice = document.getElementById('new_enquiry_display_price');
+            var displayComment = document.getElementById('new_enquiry_display_comment');
+
+            form.action = route || '';
+            idInput.value = button.getAttribute('data-enquiry-id') || '';
+            var actual = button.getAttribute('data-actual') || '';
+            var prevPrice = button.getAttribute('data-price') || '';
+            var prevComment = button.getAttribute('data-comment') || '';
+
+            // Set displays
+            displayActual.textContent = actual !== '' ? actual : '—';
+            displayPrice.textContent = prevPrice !== '' ? prevPrice : '—';
+            displayComment.textContent = prevComment !== '' ? prevComment : '—';
+
+            // Prefill price with previous negotiated amount; comment left blank
+            priceInput.value = prevPrice;
+            commentInput.value = '';
+            if (actual !== '') priceInput.setAttribute('max', actual); else priceInput.removeAttribute('max');
+
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        };
+
+        window.validateNewEnquiryPrice = function(input) {
+            var maxValue = parseFloat(input.getAttribute('max'));
+            var currentValue = parseFloat(input.value);
+            var warningMessage = document.getElementById('new-enquiry-warning-message');
+            
+            if (!isNaN(maxValue) && !isNaN(currentValue) && currentValue > maxValue) {
+                input.value = maxValue; // Reset to maximum allowed value
+                warningMessage.classList.remove('d-none');
+                
+                setTimeout(function() {
+                    warningMessage.classList.add('d-none');
+                }, 3000);
+            }
+        };
     }
 </script>
 @endsection
