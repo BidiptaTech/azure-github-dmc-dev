@@ -17,8 +17,8 @@ import { useSelector } from 'react-redux';
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
   '&:hover': {
-    boxShadow: theme.shadows[4],
-    transform: 'translateY(-2px)',
+    boxShadow: theme.shadows[2],
+    transform: 'translateY(-1px)',
     transition: 'all 0.3s ease'
   },
   transition: 'all 0.3s ease',
@@ -28,17 +28,17 @@ const StyledCard = styled(Card)(({ theme }) => ({
 const PackageButton = styled(Button)(({ theme, isSelected }) => ({
   width: '100%',
   justifyContent: 'space-between',
-  padding: '12px',
-  marginBottom: '8px',
+  padding: '8px',
+  marginBottom: '6px',
   backgroundColor: isSelected 
     ? 'rgba(219, 234, 254, 1)'
     : 'rgba(237, 242, 255, 0.85)',
   color: '#1E3A8A',
   '&:hover': {
     backgroundColor: 'rgba(191, 219, 254, 1)',
-    transform: 'translateY(-2px)',
+    transform: 'translateY(-1px)',
   },
-  borderRadius: '8px',
+  borderRadius: '6px',
   textTransform: 'none'
 }));
 
@@ -219,19 +219,19 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
           opacity: disabled ? 0.5 : 1
         }}
       >
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TimerIcon sx={{ color: 'primary.main' }} />
-            <Typography>
+        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+            <TimerIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+            <Typography sx={{ fontSize: '0.8rem' }}>
               {selectedPackage 
                 ? `${selectedPackage.hours} Hour Package`
                 : 'Select Duration'}
             </Typography>
           </Box>
           {currentPriceBreakdown?.nightHours > 0 && (
-            <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <NightsStayIcon fontSize="small" sx={{ color: '#B45309' }} />
-              <Typography variant="caption" color="#B45309">
+            <Box sx={{ mt: 0.8, display: 'flex', alignItems: 'center', gap: 0.8 }}>
+              <NightsStayIcon fontSize="small" sx={{ color: '#B45309', fontSize: 16 }} />
+              <Typography variant="caption" color="#B45309" sx={{ fontSize: '0.7rem' }}>
                 Includes {currentPriceBreakdown.nightHours} night hour{currentPriceBreakdown.nightHours > 1 ? 's' : ''}
               </Typography>
             </Box>
@@ -254,9 +254,9 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
         }}
         PaperProps={{
           sx: {
-            width: '350px',
+            width: '320px',
             mt: 1,
-            p: 3,
+            p: 2.5,
             overflow: 'visible',
             '&:before': {
               content: '""',
@@ -264,8 +264,8 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
               position: 'absolute',
               top: 0,
               left: 32,
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               bgcolor: 'background.paper',
               transform: 'translateY(-50%) rotate(45deg)',
               zIndex: 0,
@@ -273,17 +273,17 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
           }
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600, fontSize: '0.9rem' }}>
           Select Duration Package
         </Typography>
 
         {!pickUpTime && (
-          <Typography variant="body2" sx={{ mb: 2, color: 'warning.main' }}>
+          <Typography variant="body2" sx={{ mb: 1.5, color: 'warning.main', fontSize: '0.8rem' }}>
             Please select pick-up time first to see price breakdown
           </Typography>
         )}
 
-        <Box sx={{ maxHeight: '400px', overflow: 'auto', pr: 1 }}>
+        <Box sx={{ maxHeight: '300px', overflow: 'auto', pr: 0.8 }}>
           {packages.map((pkg) => {
             const isSelected = value === pkg.hours;
             const priceBreakdown = pickUpTime ? calculatePackagePriceBreakdown(pkg.hours) : null;
@@ -300,15 +300,15 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <TimerIcon sx={{ mr: 1, fontSize: 20 }} />
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    <TimerIcon sx={{ mr: 0.8, fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                       {pkg.hours} Hour Package
                     </Typography>
                   </Box>
                   {hasNightHours && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                      <NightsStayIcon sx={{ mr: 1, fontSize: 16, color: '#B45309' }} />
-                      <Typography variant="caption" color="#B45309">
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.4 }}>
+                      <NightsStayIcon sx={{ mr: 0.8, fontSize: 14, color: '#B45309' }} />
+                      <Typography variant="caption" color="#B45309" sx={{ fontSize: '0.7rem' }}>
                         Includes {priceBreakdown.nightHours} night hour{priceBreakdown.nightHours > 1 ? 's' : ''}
                       </Typography>
                     </Box>
@@ -320,7 +320,9 @@ const PackageSelection = ({ value, onChange, disabled, pickUpTime, bookingDate, 
                     sx={{ 
                       backgroundColor: 'rgba(25, 118, 210, 0.08)',
                       color: 'primary.main',
-                      fontWeight: 600
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                      height: 20
                     }}
                   />
                 )}

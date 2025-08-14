@@ -111,7 +111,12 @@ const HourlyPackage = ({
         sx={{ 
           cursor: 'pointer',
           border: '1px solid',
-          borderColor: 'divider'
+          borderColor: 'divider',
+          height: '42px',
+          '& .MuiCardContent-root': {
+            paddingTop: '7px',
+            paddingBottom: '0px'
+          }
         }}
       >
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>

@@ -135,13 +135,13 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
           component="li" 
           {...props}
           sx={{
-            p: 2,
+            p: 1.5,
             bgcolor: alpha(getHeaderColor(), 0.1),
             color: getHeaderColor(),
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
-            gap: 1,
+            gap: 0.8,
             cursor: 'default !important',
             '&:hover': {
               bgcolor: alpha(getHeaderColor(), 0.1) + ' !important',
@@ -149,7 +149,7 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
           }}
         >
           {getHeaderIcon()}
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: getHeaderColor() }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: getHeaderColor(), fontSize: '0.85rem' }}>
             {option.name}
           </Typography>
         </Box>
@@ -181,9 +181,9 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
           borderBottom: `1px solid ${alpha('#000', 0.05)}`,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1, pl: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 0.8, pl: 1.5 }}>
           {getIcon()}
-          <Typography noWrap>{option.name}</Typography>
+          <Typography noWrap sx={{ fontSize: '0.85rem' }}>{option.name}</Typography>
         </Box>
       </Box>
     );
@@ -225,12 +225,12 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
               bgcolor: '#1565c0',
               color: 'white',
               fontWeight: 600,
-              fontSize: '1rem',
-              lineHeight: 1.4,
-              borderRadius: '12px',
-              padding: '12px 16px',
-              maxWidth: '320px',
-              boxShadow: '0 8px 32px rgba(21, 101, 192, 0.3)',
+              fontSize: '0.9rem',
+              lineHeight: 1.3,
+              borderRadius: '10px',
+              padding: '10px 14px',
+              maxWidth: '300px',
+              boxShadow: '0 6px 24px rgba(21, 101, 192, 0.3)',
               border: '1px solid rgba(255, 255, 255, 0.2)',
               backdropFilter: 'blur(10px)',
             },
@@ -312,12 +312,15 @@ const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabl
                     '& .MuiInputLabel-root.Mui-focused': {
                       color: '#2196f3',
                     },
+                    '& .MuiOutlinedInput-root': {
+                      height: '47px',
+                    },
                   }}
                 />
               )}
               ListboxProps={{
                 style: {
-                  maxHeight: '300px'
+                  maxHeight: '250px'
                 }
               }}
               slotProps={{
@@ -385,11 +388,11 @@ const SearchZone = ({
   return (
     <Box sx={{ width: '100%' }}>
       {/* Location Input Fields in Horizontal Layout */}
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
       
         {/* Pick-up Location */}
         <Grid item xs={12} md={6}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+          <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Pick Up Location
           </Typography>
           <AttractionRestaurantSearch 
@@ -421,7 +424,7 @@ const SearchZone = ({
 
         {/* Drop-off Location */}
         <Grid item xs={12} md={6}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+          <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Drop Off Location
           </Typography>
             <DropOffLocationSearch 

@@ -1389,27 +1389,27 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   // Show search form if no search performed yet
   if (!anySearchPerformed) {
     return (
-      <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
+      <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
         {/* Header Card with Gradient Background */}
         <Card 
           elevation={3}
           sx={{
-            borderRadius: 3,
+            borderRadius: 2,
             background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
             color: 'white',
-            mb: 3,
+            mb: 0.1,
             mx: 'auto',
           }}
         >
-          <CardContent sx={{ py: 1}}>
+          <CardContent sx={{height: '52px', py: 0.1}}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               <Box display="flex" alignItems="center">
-                <DirectionsCarIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+                <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 28, color: '#FFD700' }} />
                 <Box>
-                  <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                  <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                     Book Transport Services
                   </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.7rem' }}>
                     Select professional transport and configure your tour package
                   </Typography>
                 </Box>
@@ -1420,7 +1420,9 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                   bgcolor: 'rgba(255, 255, 255, 0.2)',
                   color: 'white',
                   fontWeight: 600,
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  fontSize: '0.75rem',
+                  height: '20px'
                 }}
               />
             </Box>
@@ -1431,17 +1433,17 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         <Card 
           elevation={2}
           sx={{ 
-            borderRadius: 3,
+            borderRadius: 2,
             border: `2px solid ${alpha('#ff6b6b', 0.2)}`,
-            mb: 3,
+            mb: 2,
             transition: 'all 0.3s ease',
             '&:hover': {
-              boxShadow: `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-              transform: 'translateY(-2px)',
+              boxShadow: `0 6px 20px ${alpha('#ff6b6b', 0.15)}`,
+              transform: 'translateY(-1px)',
             }
           }}
         >
-          <CardContent sx={{ p: 2 }}>
+          <CardContent sx={{ p: 0.5 }}>
             <SearchLocationTransport Location={Location} dayIndex={dayIndex} date={date}/>
           </CardContent>
         </Card>
@@ -1450,27 +1452,27 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
+    <Container maxWidth="xl" sx={{ py: 0.9, position: 'relative' }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}
         sx={{
-          borderRadius: 3,
+          borderRadius: 2,
           background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
           color: 'white',
-          mb: 3,
+          mb: 0.5,
           mx: 'auto',
         }}
       >
-        <CardContent sx={{ py: 1}}>
+        <CardContent sx={{ py: 0.5}}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center">
-              <DirectionsCarIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+              <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 24, color: '#FFD700' }} />
               <Box>
-                <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                   Book Transport Services
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.7rem' }}>
                   Select professional transport and configure your tour package
                 </Typography>
               </Box>
@@ -1481,7 +1483,9 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                 bgcolor: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 fontWeight: 600,
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                fontSize: '0.75rem',
+                height: '24px'
               }}
             />
           </Box>
@@ -1489,7 +1493,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       </Card>
 
       {/* Search Section */}
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: 2 }}>
         <SearchLocationTransport Location={Location} dayIndex={dayIndex} date={date} />
       </Box>
 
@@ -1497,7 +1501,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       <Fade in={validationError} timeout={300}>
         <Box>
           {validationError && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               {validationError}
             </Alert>
           )}
@@ -1507,7 +1511,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       <Fade in={bookingSuccess} timeout={300}>
         <Box>
           {bookingSuccess && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="success" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               Transport booking information saved successfully to the tour package data!
             </Alert>
           )}
@@ -1515,7 +1519,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       </Fade>
 
       {/* Multiple Booking Cards */}
-      <Grid container spacing={3}>
+      <Grid container spacing={1}>
         {allBookings.map((booking, bookingIndex) => {
           const isExpanded = expandedSections.includes(bookingIndex);
           const completionStatus = isBookingValid(booking) ? 4 : 
@@ -1528,40 +1532,37 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
               <Card 
                 elevation={2}
                 sx={{ 
-                  borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
-                  background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
+                  borderRadius: 2,
                   border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#ff6b6b', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-                    boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#ff6b6b', 0.15)}`,
-                    transform: 'translateY(-2px)',
+                      ? `0 6px 20px ${alpha('#e53935', 0.15)}`
+                      : `0 6px 20px ${alpha('#ff6b6b', 0.15)}`,
+                    transform: 'translateY(-1px)',
                   }
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Header */}
                   <Box sx={{ 
-                    p: 2,
+                    p: 1.5,
                     bgcolor: alpha('#ff6b6b', 0.05),
                     borderBottom: `1px solid ${alpha('#ff6b6b', 0.1)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Chip 
                         label={`Transport #${bookingIndex + 1}`}
                         sx={{ 
                           bgcolor: '#ff6b6b',
                           color: 'white',
-                          fontWeight: 600
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          height: '24px'
                         }}
                         size="small"
                       />
@@ -1570,12 +1571,14 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         color={completionStatus === 4 ? "success" : "warning"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.75rem', height: '24px' }}
                       />
                       <Chip 
                         label={booking.transportType || "Unknown"}
                         color={booking.transportType === "Hourly" ? "secondary" : "primary"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.75rem', height: '24px' }}
                       />
                       {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && (
                         <Chip
@@ -1587,18 +1590,21 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                           color="success"
                           size="small"
                           variant="outlined"
+                          sx={{ fontSize: '0.75rem', height: '24px' }}
                         />
                       )}
                     </Box>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                       <Tooltip title={isExpanded ? "Collapse" : "Expand"}>
                         <IconButton 
                           size="small" 
                           onClick={() => toggleExpand(bookingIndex)}
                           sx={{ 
                             bgcolor: alpha('#ff6b6b', 0.1),
-                            '&:hover': { bgcolor: alpha('#ff6b6b', 0.2) }
+                            '&:hover': { bgcolor: alpha('#ff6b6b', 0.2) },
+                            width: 32,
+                            height: 32
                           }}
                         >
                           {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -1612,17 +1618,19 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             onClick={() => handleRemoveBooking(bookingIndex)}
                             sx={{ 
                               bgcolor: alpha('#f44336', 0.1),
-                              '&:hover': { bgcolor: alpha('#f44336', 0.2) }
+                              '&:hover': { bgcolor: alpha('#f44336', 0.2) },
+                              width: 32,
+                              height: 32
                             }}
                           >
-                            <DeleteIcon sx={{ fontSize: 18, color: '#f44336' }} />
+                            <DeleteIcon sx={{ fontSize: 16, color: '#f44336' }} />
                           </IconButton>
                         </Tooltip>
 
 
                       <Button
                         variant="outlined"
-                        size="large"
+                        size="medium"
                         onClick={() => {
                           // Force check if booking is complete
                           if (isBookingValid(booking)) {
@@ -1639,10 +1647,10 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         disabled={!isBookingValid(booking)}
                         startIcon={<VisibilityIcon />}
                         sx={{
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1,
-                          fontSize: '0.875rem',
+                          borderRadius: 1.5,
+                          px: 2.5,
+                          py: 0.8,
+                          fontSize: '0.8rem',
                           fontWeight: 600,
                           textTransform: 'none',
                           borderColor: '#ff6b6b',
@@ -1669,15 +1677,15 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                     <Paper 
                       elevation={0} 
                       sx={{ 
-                        m: 2,
+                        m: 0,
                         p: 0, 
-                        borderRadius: 2,
+                        borderRadius: 1,
                         background: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)'
                       }}
                     >
                       {/* Vehicle Dropdown with Complete Functionality */}
-                      <Box sx={{ p: 3 }}>
+                      <Box sx={{ p: 0.1 }}>
                         {booking.transportType === "Point To Point" && (searchPerformed["Point To Point"] || booking.originalData) && (
                           <VehicleListDropdown
                             key={`point-to-point-${bookingIndex}`}
@@ -1777,8 +1785,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
 
                   {/* Red alert if out of tour dates */}
                   {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                    <Box sx={{ px: 1.5, pt: 0.8 }}>
+                      <Alert severity="error" sx={{ borderRadius: 1.5, mb: 0.8 }}>
                         The {booking.transportType} booking is out of currently updated tour dates
                       </Alert>
                     </Box>
@@ -1793,7 +1801,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         <Grid item xs={12}>
           <Card 
             sx={{ 
-              borderRadius: 3,
+              borderRadius: 2,
               border: `2px dashed ${alpha('#ff6b6b', 0.4)}`,
               bgcolor: alpha('#ff6b6b', 0.02),
               cursor: 'pointer',
@@ -1806,15 +1814,15 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
             }}
             onClick={handleAddMore}
           >
-            <CardContent sx={{ py: 2 }}>
+            <CardContent sx={{ py: 1.5 }}>
               <Box sx={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                gap: 2
+                gap: 1.5
               }}>
-                <AddIcon sx={{ fontSize: 32, color: '#ff6b6b' }} />
-                <Typography variant="h6" color="#ff6b6b" fontWeight={600}>
+                <AddIcon sx={{ fontSize: 28, color: '#ff6b6b' }} />
+                <Typography variant="h6" color="#ff6b6b" fontWeight={600} sx={{ fontSize: '1.1rem' }}>
                   Add More Transport Service
                 </Typography>
               </Box>

@@ -53,7 +53,9 @@ const MainFilterSearchBox = ({ Location }) => {
     // Call the fetchGuides API with the required parameters
     dispatch(fetchGuides({
       city: pickUpLocation,
-      date: formattedDate
+      date: formattedDate,
+      start: 0,
+      limit: 5
     }));
   }, [dispatch, pickUpLocation, selectedDate]);
 

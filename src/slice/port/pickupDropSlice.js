@@ -12,7 +12,7 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 
 export const fetchVehicles = createAsyncThunk(
   "pickupDrop/fetchVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const { 
@@ -60,6 +60,8 @@ export const fetchVehicles = createAsyncThunk(
           date: travelDate, // ✅ Include date
           time: JSON.stringify(entrytime),
           dmc_id: selectedDmcId,
+          start: (params1 && params1.start) || undefined,
+          limit: (params1 && params1.limit) || undefined,
         };
         
         if (DropoffPlaceid) {
@@ -85,6 +87,8 @@ export const fetchVehicles = createAsyncThunk(
           date: travelDate, // ✅ Include date
           time: JSON.stringify(entrytime),
           dmc_id: selectedDmcId,
+          start: (params1 && params1.start) || undefined,
+          limit: (params1 && params1.limit) || undefined,
         };
         
         if (DropoffPlaceid1) {
@@ -371,7 +375,7 @@ export const fetchLocalZone = createAsyncThunk(
 
 export const fetchZoneVehicles = createAsyncThunk(
   "pickupDrop/fetchZoneVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const {
@@ -447,6 +451,8 @@ export const fetchZoneVehicles = createAsyncThunk(
               pickup_type: picktype,
               drop_type: droptype, // Set default to 'hotel' if droptype is missing
               dmc_id: selectedDmcId,
+              start: (params1 && params1.start) || undefined,
+              limit: (params1 && params1.limit) || undefined,
             }
           : {
               pickupid: PickupPlaceid1,
@@ -458,6 +464,8 @@ export const fetchZoneVehicles = createAsyncThunk(
               pickup_type: picktype,
               drop_type: droptype, // Set default to 'hotel' if droptype is missing
               dmc_id: selectedDmcId,
+              start: (params1 && params1.start) || undefined,
+              limit: (params1 && params1.limit) || undefined,
             };
 
       console.log("Zone API parameters:", params);
@@ -1106,14 +1114,34 @@ const pickupDropSlice = createSlice({
             console.log("fetchVehicles - Set Exit Port vehicles to empty array");
           }
         } else {
-          // Normal success response
+          // Normal success response - support infinite scrolling
+          const { start = 0 } = action.meta?.arg || {};
+          
           if(state.selectionType === "Entry Port"){
-            state.vehicles = action.payload;
-            console.log("fetchVehicles - Updated Entry Port vehicles:", state.vehicles);
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles = action.payload;
+              console.log("fetchVehicles - Replaced Entry Port vehicles:", state.vehicles);
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles = [...state.vehicles, ...newVehicles];
+              console.log("fetchVehicles - Accumulated Entry Port vehicles:", state.vehicles);
+            }
           }
           if(state.selectionType === "Exit Port"){
-            state.vehicles1 = action.payload;
-            console.log("fetchVehicles - Updated Exit Port vehicles:", state.vehicles1);
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles1 = action.payload;
+              console.log("fetchVehicles - Replaced Exit Port vehicles:", state.vehicles1);
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles1.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles1 = [...state.vehicles1, ...newVehicles];
+              console.log("fetchVehicles - Accumulated Exit Port vehicles:", state.vehicles1);
+            }
           }
         }
       })
@@ -1156,13 +1184,34 @@ const pickupDropSlice = createSlice({
             console.log("fetchZoneVehicles - Set Exit Port vehicles to empty array");
           }
         } else {
+          // Support infinite scrolling - check if it's initial load or subsequent load
+          const { start = 0 } = action.meta?.arg || {};
+          
           if(state.selectionType === "Entry Port"){
-            state.vehicles = action.payload;
-            console.log("vehicle", state.vehicles);
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles = action.payload;
+              console.log("fetchZoneVehicles - Replaced Entry Port vehicles:", state.vehicles);
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles = [...state.vehicles, ...newVehicles];
+              console.log("fetchZoneVehicles - Accumulated Entry Port vehicles:", state.vehicles);
+            }
           }
           if(state.selectionType === "Exit Port"){
-            state.vehicles1 = action.payload;
-            console.log("vehicle1", state.vehicles1);
+            if (start === 0) {
+              // First page - replace vehicles
+              state.vehicles1 = action.payload;
+              console.log("fetchZoneVehicles - Replaced Exit Port vehicles:", state.vehicles1);
+            } else {
+              // Subsequent pages - accumulate vehicles
+              const existingIds = new Set(state.vehicles1.map(vehicle => vehicle.id));
+              const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+              state.vehicles1 = [...state.vehicles1, ...newVehicles];
+              console.log("fetchZoneVehicles - Accumulated Exit Port vehicles:", state.vehicles1);
+            }
           }
         }
         console.log("vehicles", state.vehicles);

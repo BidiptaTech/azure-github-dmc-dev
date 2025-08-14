@@ -218,15 +218,15 @@ const ExitPortSearch = ({ Location }) => {
     <Paper 
       elevation={0}
       sx={{
-        borderRadius: 3,
+        borderRadius: 2,
         bgcolor: 'white',
-        p: { xs: 2, md: 3 },
-        mt: 2,
+        p: { xs: 1.5, md: 2 },
+        mt: 1,
       }}
     >
       <Box sx={{ width: '100%', maxWidth: 1730 }}>
         {/* Form Fields Row */}
-        <Grid container spacing={2} alignItems="flex-end" sx={{ mb: 3 }}>
+        <Grid container spacing={1.5} alignItems="flex-end" sx={{ mb: 2 }}>
           {/* Location Search */}
           <Grid item xs={12} md={6}>
             <Box>
@@ -251,7 +251,7 @@ const ExitPortSearch = ({ Location }) => {
           {/* Time Selection */}
           <Grid item xs={12} md={3}>
             <Box>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.8, color: 'text.primary', fontSize: '0.85rem' }}>
                 Exit Time
               </Typography>
               <Pickuptime1
@@ -265,7 +265,7 @@ const ExitPortSearch = ({ Location }) => {
           {/* Date Selection */}
           <Grid item xs={12} md={3}>
             <Box>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 1, color: 'text.primary', fontSize: '0.85rem' }}>
                 Exit Date
               </Typography>
               <DateSearch2
@@ -280,22 +280,22 @@ const ExitPortSearch = ({ Location }) => {
         <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
           <Button
             variant="contained"
-            size="large"
+            size="medium"
             startIcon={<SearchIcon />}
             onClick={buttonsearch}
             sx={{
-              minWidth: 200,
-              px: 4,
-              py: 1.5,
-              borderRadius: 2,
+              minWidth: 180,
+              px: 3,
+              py: 1.2,
+              borderRadius: 1.5,
               background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-              fontSize: '1rem',
+              fontSize: '0.9rem',
               fontWeight: 600,
               textTransform: 'none',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-                boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
+                boxShadow: '0 5px 14px rgba(59, 130, 246, 0.4)',
                 transform: 'translateY(-1px)',
               },
               transition: 'all 0.3s ease',

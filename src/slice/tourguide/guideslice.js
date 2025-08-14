@@ -32,6 +32,8 @@ export const fetchGuides = createAsyncThunk(
           city: city,
           date: JSON.stringify({ 0: date }),
           dmc_id: dmcId,
+          start: (params && params.start) || undefined,
+          limit: (params && params.limit) || undefined,
         },
       });
 
@@ -512,12 +514,35 @@ const Localguideslice = createSlice({
       })
       .addCase(fetchGuides.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.Guides = Array.isArray(action.payload) ? action.payload : [];
+        
+        // Check if payload is string or object - store blank array in that case
+        if (typeof action.payload === 'string' || (typeof action.payload === 'object' && !Array.isArray(action.payload))) {
+          state.Guides = [];
+          console.log("fetchGuides - Payload is string/object, storing blank array");
+          return;
+        }
+        
+        // Support infinite scrolling - check if it's initial load or subsequent load
+        const { start = 0 } = action.meta?.arg || {};
+        
+        if (start === 0) {
+          // First page - replace guides
+          state.Guides = Array.isArray(action.payload) ? action.payload : [];
+          console.log("fetchGuides - Replaced guides:", state.Guides);
+        } else {
+          // Subsequent pages - accumulate guides
+          if (Array.isArray(action.payload)) {
+            const existingIds = new Set(state.Guides.map(guide => guide.id));
+            const newGuides = action.payload.filter(guide => !existingIds.has(guide.id));
+            state.Guides = [...state.Guides, ...newGuides];
+            console.log("fetchGuides - Accumulated guides:", state.Guides);
+          }
+        }
+        
         if (state.Guides.length === 0) {
           state.status = "idle";
           state.error = "No guides found for the selected location";
         }
-        console.log("guide", state.Guides);
       })
       .addCase(fetchGuides.rejected, (state, action) => {
         state.status = "failed";

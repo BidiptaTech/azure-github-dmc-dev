@@ -285,20 +285,20 @@ const NightSelection = ({
       )}
 
       {/* Header with Hotel Name */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Hotel sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+          <Hotel sx={{ mr: 0.8, color: 'primary.main', fontSize: 18 }} />
           <Box>
-            <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, lineHeight: 1.2 }}>
+            <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, lineHeight: 1.2, fontSize: '1rem' }}>
               Select Hotel Nights
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
               Choose nights for {currentHotel?.hotelDetails?.hotel_name || 'this hotel'} (applies to all rooms)
             </Typography>
           </Box>
         </Box>
         
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
           {hasDateConflict && (
             <Chip 
               label="Date Issue"
@@ -306,7 +306,7 @@ const NightSelection = ({
               color="error"
               variant="filled"
               icon={<Warning />}
-              sx={{ fontWeight: 600 }}
+              sx={{ fontWeight: 600, height: 20, fontSize: '0.65rem' }}
             />
           )}
           
@@ -318,7 +318,8 @@ const NightSelection = ({
               variant="filled"
               sx={{ 
                 fontWeight: 600,
-                fontSize: '0.75rem'
+                fontSize: '0.65rem',
+                height: 20
               }}
             />
           )}
@@ -326,7 +327,7 @@ const NightSelection = ({
       </Box>
 
       {/* Compact Checkbox Grid */}
-      <Grid container spacing={1} sx={{ mb: 2 }}>
+      <Grid container spacing={0.8} sx={{ mb: 1.5 }}>
         {dates.slice(0, dates.length - 1).map((date, nightIndex) => {
           // Skip if date or nextDate is undefined
           if (!date || !dates[nightIndex + 1]) {
@@ -367,20 +368,20 @@ const NightSelection = ({
                   />
                 }
                 label={
-                  <Box sx={{ ml: 0.5 }}>
+                  <Box sx={{ ml: 0.4 }}>
                     <Typography variant="body2" sx={{ 
                       fontWeight: 600, 
-                      fontSize: '0.875rem',
+                      fontSize: '0.8rem',
                       color: isDisabled ? '#ff9800' : isSelected ? '#2e7d32' : '#666',
                       lineHeight: 1.2
                     }}>
                       Night {nightIndex + 1}
                       {isDisabled && (
                         <Typography component="span" variant="caption" sx={{ 
-                          ml: 0.5, 
+                          ml: 0.4, 
                           color: '#ff9800',
                           fontWeight: 400,
-                          fontSize: '0.7rem'
+                          fontSize: '0.65rem'
                         }}>
                           (Required)
                         </Typography>
@@ -389,7 +390,7 @@ const NightSelection = ({
                     <Typography variant="caption" sx={{ 
                       color: 'text.secondary',
                       display: 'block',
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       lineHeight: 1.1
                     }}>
                       {date && nextDate ? `${date.format('MMM DD')} - ${nextDate.format('MMM DD')}` : 'Date loading...'}
@@ -399,8 +400,8 @@ const NightSelection = ({
                 sx={{
                   width: '100%',
                   margin: 0,
-                  padding: 1,
-                  borderRadius: 2,
+                  padding: 0.8,
+                  borderRadius: 1.5,
                   border: '1px solid',
                   borderColor: isDisabled ? '#ff9800' : isSelected ? '#4caf50' : '#e0e0e0',
                   bgcolor: isDisabled ? 'rgba(255, 152, 0, 0.05)' : isSelected ? 'rgba(76, 175, 80, 0.05)' : '#ffffff',
@@ -422,21 +423,21 @@ const NightSelection = ({
       {/* Compact Summary */}
       {selectedNightIndices.size > 0 && (
         <Box sx={{ 
-          p: 1.5, 
+          p: 1, 
           bgcolor: 'rgba(76, 175, 80, 0.06)', 
-          borderRadius: 2,
+          borderRadius: 1.5,
           border: '1px solid rgba(76, 175, 80, 0.2)'
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-            <CalendarToday sx={{ fontSize: 16, color: 'success.main' }} />
-            <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.8 }}>
+            <CalendarToday sx={{ fontSize: 14, color: 'success.main' }} />
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main', fontSize: '0.8rem' }}>
               Hotel booked for {selectedNightIndices.size} night{selectedNightIndices.size !== 1 ? 's' : ''}
             </Typography>
             
             {dateRange && dateRange.startDate && dateRange.endDate && (
               <>
-                <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-                <Typography variant="body2" sx={{ color: 'success.main' }}>
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.8 }} />
+                <Typography variant="body2" sx={{ color: 'success.main', fontSize: '0.8rem' }}>
                   {dateRange.startDate.format('MMM DD')} - {dateRange.endDate.format('MMM DD, YYYY')}
                 </Typography>
               </>
@@ -446,9 +447,10 @@ const NightSelection = ({
           {selectedNightIndices.size > 1 && (
             <Typography variant="caption" sx={{ 
               display: 'block', 
-              mt: 0.5, 
+              mt: 0.4, 
               color: 'text.secondary',
-              fontStyle: 'italic'
+              fontStyle: 'italic',
+              fontSize: '0.65rem'
             }}>
               💡 Consecutive hotel nights selected - applies to all rooms in this hotel
             </Typography>

@@ -95,7 +95,7 @@ const MainFilterSearchBox = ({ Location }) => {
       // Only fetch vehicles if locations and time are valid
       if (locationsValid && time) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     } else if (selectedPort === "Hourly") {
@@ -114,7 +114,7 @@ const MainFilterSearchBox = ({ Location }) => {
       // Only fetch vehicles if location and time are valid
       if (locationValid && time1) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     } else if (selectedPort === "Local Transfer") {
@@ -139,7 +139,7 @@ const MainFilterSearchBox = ({ Location }) => {
       ) {
         console.log("Local Transfer search with droptype:", droptype);
         setTimeout(() => {
-          dispatch(fetchZoneVehicles());
+          dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
       } else {
         console.log("Missing required fields for Local Transfer search:", {
