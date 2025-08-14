@@ -113,18 +113,24 @@ const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, 
   }, [onChange]);
 
   return (
-    <FormControl fullWidth disabled={!selectedMealType || disabled}>
-      <InputLabel>Time Slot</InputLabel>
+    <FormControl fullWidth disabled={!selectedMealType || disabled} size="small">
+      <InputLabel sx={{ fontSize: '0.8rem' }}>Time Slot</InputLabel>
       <Select
         value={value}
         label="Time Slot"
         onChange={handleTimeSlotChange}
+        sx={{
+          height: '42px',
+          '& .MuiSelect-select': {
+            fontSize: '0.8rem'
+          }
+        }}
       >
         {availableSlots.map((slot) => (
-          <MenuItem key={slot} value={slot}>
+          <MenuItem key={slot} value={slot} sx={{ fontSize: '0.8rem' }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: '#4caf50' }} />
-              <Typography>{slot}</Typography>
+              <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: '#4caf50', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>{slot}</Typography>
             </Box>
           </MenuItem>
         ))}

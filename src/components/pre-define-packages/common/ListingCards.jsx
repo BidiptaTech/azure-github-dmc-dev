@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchPackageDetails } from '../../../slice/tour-packages/prePackagesSlice';
+import { fetchPackageDetails, fetchPackages } from '../../../slice/tour-packages/prePackagesSlice';
 import { 
   Box, 
   Card, 
@@ -45,6 +45,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import FlightIcon from '@mui/icons-material/Flight';
+import PersonIcon from '@mui/icons-material/Person';
+import GroupIcon from '@mui/icons-material/Group';
 
 // Styled components for blur effect
 const BlurOverlay = ({ children, active, hasSearched }) => {
@@ -188,68 +190,114 @@ const PackageCard = ({ packageData }) => {
           py: 0.5,
           fontSize: '12px',
           fontWeight: 'bold',
-          // zIndex: 2
+          zIndex: 1
         }}
       >
         {packageData.duration_days} Days
       </Box>
       
-      {/* Active Tag */}
-      {packageData.status === 'active' && (
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            top: 10, 
-            right: 10, 
-            bgcolor: '#4CAF50', 
-            color: 'white', 
-            borderRadius: '4px',
-            px: 1.5,
-            py: 0.5,
-            fontSize: '12px',
-            fontWeight: 'bold',
-            zIndex: 2
-          }}
-        >
-          Active
-        </Box>
-      )}
+
       
-      <CardMedia
-        component="img"
-        sx={{ 
-          width: '100%',
-          height: 160,
-          objectFit: 'cover'
-        }}
-        image={packageData.main_image}
-        alt={packageData.title}
-      />
+      <Box sx={{ position: 'relative' }}>
+        <CardMedia
+          component="img"
+          sx={{ 
+            width: '100%',
+            height: 160,
+            objectFit: 'cover'
+          }}
+          image={packageData.main_image}
+          alt={packageData.title}
+        />
+        
+        {/* Overlay for title and location */}
+        <Box sx={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+          color: 'white',
+          p: 1.5,
+          pb: 1
+        }}>
+          {/* Title */}
+          <Typography 
+            component="div" 
+            variant="subtitle1" 
+            fontWeight="bold" 
+            sx={{ 
+              mb: 0.5,
+              color: 'white',
+              textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              fontSize: '0.9rem',
+              lineHeight: 1.2
+            }}
+          >
+            {packageData.title}
+          </Typography>
+          
+          {/* Location */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <LocationOnIcon sx={{ color: 'white', fontSize: 14, mr: 0.5 }} />
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'white',
+                fontSize: '0.75rem',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                opacity: 0.9
+              }}
+            >
+              {packageData.country || 'Singapore'} - {packageData.city || 'Singapore'}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
 
       <CardContent sx={{ flex: '1 0 auto', p: 2, pb: 1 }}>
-        {/* Title and Location Row */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Box>
-            {/* Title */}
-            <Typography component="div" variant="subtitle1" fontWeight="bold" sx={{ mb: 0.5 }}>
-              {packageData.title}
+        {/* Price and Status Row */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 1,
+          p: 1.5,
+          bgcolor: '#f8f9fa',
+          borderRadius: '8px',
+          border: '1px solid #e9ecef'
+        }}>
+          {/* Price Section */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              From SGD
             </Typography>
-            
-            {/* Location */}
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <LocationOnIcon sx={{ color: '#666', fontSize: 16, mr: 0.5 }} />
-              <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-                {packageData.country || 'Singapore'} - {packageData.city || 'Singapore'}
-              </Typography>
-            </Box>
-          </Box>
-          
-          {/* Price */}
-          <Box sx={{ textAlign: 'right' }}>
-            <Typography variant="caption" color="text.secondary">From SGD</Typography>
-            <Typography variant="subtitle1" color="primary" fontWeight="bold">
+            <Typography variant="h6" color="primary" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
               ${packageData.price_adult || '343.00'}
             </Typography>
+          </Box>
+          
+          {/* Category Section */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            ml: 2
+          }}>
+            <Chip 
+              label={packageData.category || 'Standard'} 
+              size="small" 
+              sx={{ 
+                height: 24,
+                fontSize: '0.65rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                bgcolor: '#e3f2fd',
+                color: '#1565c0',
+                border: '1px solid #bbdefb'
+              }} 
+            />
           </Box>
         </Box>
         
@@ -374,6 +422,8 @@ const PackageCard = ({ packageData }) => {
             </Box>
           </Box>
         </Box>
+        
+     
         
         {/* Services */}
         <Box sx={{ mt: 1 }}>
@@ -608,89 +658,123 @@ const LoadMoreIndicator = () => (
 const ListingCards = ({ hasSearched = false }) => {
   const { packages, loading, error, searchParams } = useSelector(state => state.prePackages);
   const dispatch = useDispatch();
-  const [visiblePackages, setVisiblePackages] = useState([]);
-  const [pageNumber, setPageNumber] = useState(1);
+  
+  // Infinite scroll states
+  const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const loaderRef = useRef(null); // Reference for the loader element
-  const itemsPerPage = 15;
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loaderRef = useRef(null);
 
   // Debug logging
   console.log('🎯 ListingCards - Redux state:', { packages, loading, error, searchParams });
   console.log('🎯 ListingCards - packages type:', typeof packages);
   console.log('🎯 ListingCards - packages length:', packages?.length);
   console.log('🎯 ListingCards - packages data:', packages);
+  console.log('🎯 ListingCards - currentPage:', currentPage);
+  console.log('🎯 ListingCards - hasMore:', hasMore);
+  console.log('🎯 ListingCards - isLoadingMore:', isLoadingMore);
+  console.log('🎯 ListingCards - Should show "No more data":', !hasMore && packages.length > 0);
 
-  // Reset everything when packages change
+  // Log when hasMore changes
   useEffect(() => {
-    if (packages && packages.length > 0) {
-      setPageNumber(1);
-      setVisiblePackages(packages.slice(0, itemsPerPage));
-      setHasMore(packages.length > itemsPerPage);
-      setLoadingMore(false);
-    } else {
-      setVisiblePackages([]);
-      setHasMore(false);
+    console.log(`🔄 hasMore changed to: ${hasMore}`);
+  }, [hasMore]);
+
+  // Reset pagination when packages array becomes empty (new search)
+  useEffect(() => {
+    if (packages.length === 0) {
+      console.log(`🔄 Resetting pagination - packages array is empty`);
+      setCurrentPage(1);
+      setHasMore(true);
+      setIsLoadingMore(false);
     }
-  }, [packages]);
+  }, [packages.length]);
 
-  // Setup intersection observer for infinite scrolling
+  // Reset pagination when searchParams change (new search)
   useEffect(() => {
-    const options = {
-      root: null, // viewport
-      rootMargin: '0px 0px 200px 0px', // Start loading before user reaches the end (200px margin)
-      threshold: 0.1 // Trigger when 10% of the element is visible
-    };
+    if (searchParams) {
+      console.log(`🔄 Resetting pagination - searchParams changed`);
+      setCurrentPage(1);
+      setHasMore(true);
+      setIsLoadingMore(false);
+    }
+  }, [searchParams]);
 
-    const observer = new IntersectionObserver((entries) => {
-      const [entry] = entries;
+  // Infinite scroll effect - load more packages when scrolling
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.innerHeight + document.documentElement.scrollTop;
+      const documentHeight = document.documentElement.offsetHeight;
+      const threshold = documentHeight - 500;
       
-      if (entry?.isIntersecting && hasMore && !loadingMore && !loading) {
-        loadMorePackages();
-      }
-    }, options);
-
-    // Observe loader element
-    if (loaderRef.current) {
-      observer.observe(loaderRef.current);
-    }
-
-    // Cleanup
-    return () => {
-      if (loaderRef.current) {
-        observer.unobserve(loaderRef.current);
+      console.log(`🔄 Scroll check: ${scrollPosition} >= ${threshold}`, {
+        hasMore,
+        isLoadingMore,
+        searchParams: !!searchParams
+      });
+      
+      if (
+        scrollPosition >= threshold &&
+        hasMore &&
+        !isLoadingMore &&
+        searchParams
+      ) {
+        console.log('🎯 Triggering load more packages');
+        setIsLoadingMore(true);
+        setCurrentPage(prev => prev + 1);
+      } else if (scrollPosition >= threshold && !hasMore) {
+        console.log('🛑 Scroll detected but hasMore is false - no API call will be made');
       }
     };
-  }, [hasMore, loadingMore, loading, packages]);
 
-  // Function to load more packages
-  const loadMorePackages = () => {
-    if (!hasMore || loadingMore || !packages || loading) return;
-    
-    setLoadingMore(true);
-    
-    // Small delay to prevent multiple loads
-    setTimeout(() => {
-      try {
-        const nextPage = pageNumber + 1;
-        const startIndex = 0;
-        const endIndex = nextPage * itemsPerPage;
-        
-        if (packages.length > (pageNumber * itemsPerPage)) {
-          const nextBatch = packages.slice(startIndex, endIndex);
-          setVisiblePackages(nextBatch);
-          setPageNumber(nextPage);
-          setHasMore(packages.length > endIndex);
-        } else {
-          setHasMore(false);
-        }
-      } catch (error) {
-        console.error("Error loading more packages:", error);
-      } finally {
-        setLoadingMore(false);
-      }
-    }, 800);
-  };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [hasMore, isLoadingMore, searchParams]);
+
+  // Effect to load more packages when currentPage changes
+  useEffect(() => {
+    if (currentPage > 1 && searchParams) {
+      const start = (currentPage - 1) * 5;
+      
+      console.log(`🔄 Loading more packages: page ${currentPage}, start: ${start}`);
+      console.log(`🎯 Current packages count: ${packages.length}`);
+      
+      dispatch(fetchPackages({ searchParams, start, limit: 5 }))
+        .then((response) => {
+          setIsLoadingMore(false);
+          
+          console.log(`📊 Received response for page ${currentPage}:`, response.payload);
+          console.log(`📊 Response type:`, typeof response.payload);
+          console.log(`📊 Response length:`, response.payload?.length || 0);
+          
+          // Check for empty response in different formats
+          const isEmptyResponse = 
+            !response.payload || 
+            response.payload.length === 0 ||
+            (response.payload.packages && response.payload.packages.length === 0) ||
+            (response.payload.data && response.payload.data.length === 0) ||
+            (typeof response.payload === 'object' && Object.keys(response.payload).length === 0);
+          
+          console.log(`🔍 Is empty response:`, isEmptyResponse);
+          
+          if (isEmptyResponse) {
+            setHasMore(false);
+            console.log(`🏁 No more data available. Total packages: ${packages.length}`);
+            console.log(`🛑 Stopping further API calls on scroll`);
+            return; // Stop here, don't make confirmation call
+          } else if (response.payload.length < 5) {
+            setHasMore(false);
+            console.log(`🏁 Reached end of packages. Total: ${packages.length + response.payload.length}`);
+          }
+        })
+        .catch((error) => {
+          setIsLoadingMore(false);
+          console.error('Error loading more packages:', error);
+        });
+    }
+  }, [currentPage, searchParams, dispatch, packages.length]);
+
+
 
   // Show empty space if no search has been performed yet
   if (!searchParams) {
@@ -701,7 +785,7 @@ const ListingCards = ({ hasSearched = false }) => {
     );
   }
   
-  if (loading && !loadingMore) {
+  if (loading && !isLoadingMore) {
     return (
       <BlurOverlay active={true} hasSearched={hasSearched}>
         <Box sx={{ mt: 4 }}>
@@ -901,33 +985,63 @@ const ListingCards = ({ hasSearched = false }) => {
         
         <Box sx={{ position: 'relative' }}>
           <Grid container spacing={3}>
-            {visiblePackages.map((packageItem, index) => (
+            {packages.map((packageItem, index) => (
               <Grid item xs={12} sm={6} md={4} key={packageItem.package_id || index}>
                 <PackageCard packageData={packageItem} />
               </Grid>
             ))}
           </Grid>
           
-          {/* Loader reference element - this is what triggers loading more */}
-          <Box ref={loaderRef} sx={{ width: '100%', height: '10px', mt: 1 }} />
+          {/* Loading more skeleton */}
+          {isLoadingMore && <LoadMoreIndicator />}
           
-          {/* Loading indicator at bottom */}
-          {loadingMore && <LoadMoreIndicator />}
+          {/* Debug button for testing */}
+          {packages.length > 0 && (
+            <div className="text-center py-4">
+              <Button 
+                variant="outlined" 
+                size="small"
+                onClick={() => {
+                  console.log('🎯 Manual test: Setting hasMore to false');
+                  setHasMore(false);
+                }}
+                sx={{ mr: 2 }}
+              >
+                Test "No More Data"
+              </Button>
+              <Button 
+                variant="outlined" 
+                size="small"
+                onClick={() => {
+                  console.log('🎯 Manual test: Setting hasMore to true');
+                  setHasMore(true);
+                }}
+              >
+                Test "Has More"
+              </Button>
+            </div>
+          )}
           
-          {/* No more packages message */}
-          {!hasMore && visiblePackages.length > 0 && packages.length > itemsPerPage && (
-            <Box sx={{ 
-              textAlign: 'center', 
-              mt: 4, 
-              mb: 2, 
-              py: 2,
-              borderTop: '1px dashed #e0e0e0',
-              borderRadius: 1
-            }}>
-              <Typography variant="body1" color="text.secondary" fontWeight={500}>
-                You've reached the end of the list
+          {/* No more data indicator */}
+          {!hasMore && packages.length > 0 && (
+            <div className="text-center py-20">
+              {console.log('🎯 Rendering "No more data" indicator')}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#6c757d',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>📭</span>
+                No more data • {packages.length} packages found
               </Typography>
-            </Box>
+            </div>
           )}
         </Box>
       </Box>

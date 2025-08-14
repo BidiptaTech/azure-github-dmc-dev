@@ -305,7 +305,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
       // Only fetch vehicles if both locations are valid
       if (pickid && dropid) {
         setTimeout(() => {
-          dispatch(fetchZoneVehicles());
+          dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     } else if (selectedPort === "Exit Port") {
@@ -323,7 +323,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
       // Only fetch vehicles if both locations are valid
       if (pickid && dropid) {
         setTimeout(() => {
-          dispatch(fetchZoneVehicles());
+          dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     }

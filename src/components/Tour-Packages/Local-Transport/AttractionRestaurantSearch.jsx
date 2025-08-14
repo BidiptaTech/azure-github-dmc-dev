@@ -240,6 +240,7 @@ const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur })
                   borderColor: '#4caf50',
                   borderWidth: 2,
                 },
+                
               },
             },
           }}
@@ -249,6 +250,9 @@ const AttractionRestaurantSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur })
             },
             '& .MuiInputLabel-root.Mui-focused': {
               color: '#4caf50',
+            },
+            '& .MuiOutlinedInput-root': {
+              height: '47px',
             },
           }}
         />

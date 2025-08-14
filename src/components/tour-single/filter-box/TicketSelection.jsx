@@ -209,6 +209,8 @@ const TicketSelection = ({
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate =
     useSelector((state) => state.auth.usdExchangeRate) || 1;
+  // Add PriceHide selector
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -546,43 +548,59 @@ const TicketSelection = ({
                         {capitalizeWords(item.ticket_name)}
                       </Typography>
                     </Box>
-                    <Box display="flex" alignItems="center" mt={0.5}>
-                      <Box mr={1}>
-                        <Typography
-                          variant="caption"
-                          color="primary"
-                          sx={{ fontWeight: 500 }}
+                    {/* Price display - only show if PriceHide is "0" */}
+                    {PriceHide === "0" && (
+                      <Box display="flex" alignItems="center" mt={0.5}>
+                        <Box mr={1}>
+                          <Typography
+                            variant="caption"
+                            color="primary"
+                            sx={{ fontWeight: 500 }}
+                          >
+                            Adult: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
+                              (item.dmc_adult_price_nri !== null ? item.dmc_adult_price_nri : 0) : 
+                              item.dmc_adult_price, "main")}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ mx: 0.5 }}>|</Typography>
+                        <Box mr={1}>
+                          <Typography
+                            variant="caption"
+                            color="success.main"
+                            sx={{ fontWeight: 500 }}
+                          >
+                            Child: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
+                              (item.dmc_child_price_nri !== null ? item.dmc_child_price_nri : 0) : 
+                              item.dmc_child_price, "main")}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ mx: 0.5 }}>|</Typography>
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="warning.main"
+                            sx={{ fontWeight: 500 }}
+                          >
+                            Senior: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
+                              (item.dmc_senior_price_nri !== null ? item.dmc_senior_price_nri : 0) : 
+                              item.dmc_senior_price, "main")}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                    
+                    {/* Show message when prices are hidden in dropdown */}
+                    {PriceHide !== "0" && (
+                      <Box mt={0.5}>
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary"
+                          sx={{ fontStyle: 'italic', fontSize: '11px' }}
                         >
-                          Adult: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
-                            (item.dmc_adult_price_nri !== null ? item.dmc_adult_price_nri : 0) : 
-                            item.dmc_adult_price, "main")}
+                          Price Hide
                         </Typography>
                       </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mx: 0.5 }}>|</Typography>
-                      <Box mr={1}>
-                        <Typography
-                          variant="caption"
-                          color="success.main"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Child: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
-                            (item.dmc_child_price_nri !== null ? item.dmc_child_price_nri : 0) : 
-                            item.dmc_child_price, "main")}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mx: 0.5 }}>|</Typography>
-                      <Box>
-                        <Typography
-                          variant="caption"
-                          color="warning.main"
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Senior: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
-                            (item.dmc_senior_price_nri !== null ? item.dmc_senior_price_nri : 0) : 
-                            item.dmc_senior_price, "main")}
-                        </Typography>
-                      </Box>
-                    </Box>
+                    )}
                   </Box>
                 </TicketItem>
               ))}
@@ -780,57 +798,76 @@ const TicketSelection = ({
                         </PriceCardHeader>
                         
                         <CardContent>                          
-                          <Typography 
-                            variant="h5" 
-                            component="div" 
-                            fontWeight={600}
-                            color={`${getPriceColor(priceType)}.main`}
-                            textAlign="center"
-                            mb={1.5}
-                          >
-                              {isPackage(selectedTicket) ?
-                                (priceType === 'adult' ? 
-                                  formatPrice(selectedTicket.dmc_adult_price, "main") :
-                                priceType === 'child' ? 
-                                  formatPrice(selectedTicket.dmc_child_price, "main") :
-                                  formatPrice(selectedTicket.dmc_senior_price, "main")) :
-                                formatPrice(getPrice(priceType), "main")
-                              }
-                          </Typography>
-                          
-                          <Divider sx={{ mb: 1.5 }} />
-                          
-                          <Box>
-                            {currencyCode !== "USD" && (
-                              <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-                                <Typography variant="body2" fontWeight={500}>
-                                    {isPackage(selectedTicket) ?
-                                      (priceType === 'adult' ? 
-                                        formatPrice(selectedTicket.dmc_adult_price, "usd") :
-                                      priceType === 'child' ? 
-                                        formatPrice(selectedTicket.dmc_child_price, "usd") :
-                                        formatPrice(selectedTicket.dmc_senior_price, "usd")) :
-                                      formatPrice(getPrice(priceType), "usd")
-                                    }
-                                </Typography>
-                              </Box>
-                            )}
+                          {/* Main price display - only show if PriceHide is "0" */}
+                          {PriceHide === "0" && (
+                            <>
+                              <Typography 
+                                variant="h5" 
+                                component="div" 
+                                fontWeight={600}
+                                color={`${getPriceColor(priceType)}.main`}
+                                textAlign="center"
+                                mb={1.5}
+                              >
+                                  {isPackage(selectedTicket) ?
+                                    (priceType === 'adult' ? 
+                                      formatPrice(selectedTicket.dmc_adult_price, "main") :
+                                    priceType === 'child' ? 
+                                      formatPrice(selectedTicket.dmc_child_price, "main") :
+                                      formatPrice(selectedTicket.dmc_senior_price, "main")) :
+                                    formatPrice(getPrice(priceType), "main")
+                                  }
+                              </Typography>
+                              
+                              <Divider sx={{ mb: 1.5 }} />
+                              
+                              {/* Alternative currencies - only display if PriceHide is "0" */}
+                              <Box>
+                                {currencyCode !== "USD" && (
+                                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+                                    <Typography variant="body2" fontWeight={500}>
+                                        {isPackage(selectedTicket) ?
+                                          (priceType === 'adult' ? 
+                                            formatPrice(selectedTicket.dmc_adult_price, "usd") :
+                                          priceType === 'child' ? 
+                                            formatPrice(selectedTicket.dmc_child_price, "usd") :
+                                            formatPrice(selectedTicket.dmc_senior_price, "usd")) :
+                                          formatPrice(getPrice(priceType), "usd")
+                                        }
+                                    </Typography>
+                                  </Box>
+                                )}
 
-                            {currencyCode !== "SGD" && (
-                              <Box display="flex" alignItems="center" justifyContent="space-between">
-                                <Typography variant="body2" fontWeight={500}>
-                                    {isPackage(selectedTicket) ?
-                                      (priceType === 'adult' ? 
-                                        formatPrice(selectedTicket.dmc_adult_price, "sgd") :
-                                      priceType === 'child' ? 
-                                        formatPrice(selectedTicket.dmc_child_price, "sgd") :
-                                        formatPrice(selectedTicket.dmc_senior_price, "sgd")) :
-                                      formatPrice(getPrice(priceType), "sgd")
-                                    }
-                                </Typography>
+                                {currencyCode !== "SGD" && (
+                                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                                    <Typography variant="body2" fontWeight={500}>
+                                        {isPackage(selectedTicket) ?
+                                          (priceType === 'adult' ? 
+                                            formatPrice(selectedTicket.dmc_adult_price, "sgd") :
+                                          priceType === 'child' ? 
+                                            formatPrice(selectedTicket.dmc_child_price, "sgd") :
+                                            formatPrice(selectedTicket.dmc_senior_price, "sgd")) :
+                                          formatPrice(getPrice(priceType), "sgd")
+                                        }
+                                    </Typography>
+                                  </Box>
+                                )}
                               </Box>
-                            )}
-                          </Box>
+                            </>
+                          )}
+                          
+                          {/* Show message when prices are hidden */}
+                          {PriceHide !== "0" && (
+                            <Box textAlign="center" py={2}>
+                              <Typography 
+                                variant="body2" 
+                                color="text.secondary"
+                                sx={{ fontStyle: 'italic' }}
+                              >
+                                Price Hide
+                              </Typography>
+                            </Box>
+                          )}
                         </CardContent>
                       </PriceCard>
                     </Fade>
@@ -986,28 +1023,44 @@ const TicketSelection = ({
                         </Typography>
                       </Box>
                       
-                      <Box display="flex" flexDirection="column" mt={1}>
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                          <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'primary.main', fontSize: 14 }} />
-                          Adult: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
-                            (item.dmc_adult_price_nri !== null ? item.dmc_adult_price_nri : 0) : 
-                            item.dmc_adult_price, "main")}
-                        </Typography>
-                        
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                          <ChildCareIcon fontSize="small" sx={{ mr: 0.5, color: 'success.main', fontSize: 14 }} />
-                          Child: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
-                            (item.dmc_child_price_nri !== null ? item.dmc_child_price_nri : 0) : 
-                            item.dmc_child_price, "main")}
-                        </Typography>
-                        
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <AccessibilityNewIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main', fontSize: 14 }} />
-                          Senior: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
-                            (item.dmc_senior_price_nri !== null ? item.dmc_senior_price_nri : 0) : 
-                            item.dmc_senior_price, "main")}
-                        </Typography>
-                      </Box>
+                      {/* Price display in sidebar - only show if PriceHide is "0" */}
+                      {PriceHide === "0" && (
+                        <Box display="flex" flexDirection="column" mt={1}>
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                            <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'primary.main', fontSize: 14 }} />
+                            Adult: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
+                              (item.dmc_adult_price_nri !== null ? item.dmc_adult_price_nri : 0) : 
+                              item.dmc_adult_price, "main")}
+                          </Typography>
+                          
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                            <ChildCareIcon fontSize="small" sx={{ mr: 0.5, color: 'success.main', fontSize: 14 }} />
+                            Child: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
+                              (item.dmc_child_price_nri !== null ? item.dmc_child_price_nri : 0) : 
+                              item.dmc_child_price, "main")}
+                          </Typography>
+                          
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center' }}>
+                            <AccessibilityNewIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main', fontSize: 14 }} />
+                            Senior: {formatPrice(nriStatus === "nri" && !isPackage(item) ? 
+                              (item.dmc_senior_price_nri !== null ? item.dmc_senior_price_nri : 0) : 
+                              item.dmc_senior_price, "main")}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {/* Show message when prices are hidden in sidebar */}
+                      {PriceHide !== "0" && (
+                        <Box mt={1}>
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary"
+                            sx={{ fontStyle: 'italic', fontSize: '11px' }}
+                          >
+                            Price Hide
+                          </Typography>
+                        </Box>
+                      )}
                       
                       {item.type === 'attraction_package' && item.attractions && (
                         <Box mt={1}>

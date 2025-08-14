@@ -11,7 +11,7 @@ import DropOffLocation from "@/components/hero/hero-8/DropOffLocation";
 //import { format } from "date-fns";
 export const fetchVehicles = createAsyncThunk(
   "localtour/fetchVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const { PickupPlaceid, DropoffPlaceid, pickdate, entrytime } =
@@ -34,6 +34,8 @@ export const fetchVehicles = createAsyncThunk(
         time: JSON.stringify(entrytime),
         date: travelDate, // ✅ Include formatted date
         dmc_id: selectedDmcId,
+        start: (params1 && params1.start) || undefined,
+        limit: (params1 && params1.limit) || undefined,
       };
 
       if (DropoffPlaceid) {
@@ -61,7 +63,7 @@ export const fetchVehicles = createAsyncThunk(
 );
 export const fetchZoneVehicles = createAsyncThunk(
   "localtour/fetchZoneVehicles",
-  async (_, { rejectWithValue, getState }) => {
+  async (params1 = {}, { rejectWithValue, getState }) => {
     try {
       const state = getState(); // ✅ Get Redux state
       const {
@@ -100,6 +102,8 @@ export const fetchZoneVehicles = createAsyncThunk(
         pickup_type: picktype,
         drop_type: droptype, // Set default to 'hotel' if droptype is missing
         dmc_id: selectedDmcId,
+        start: (params1 && params1.start) || undefined,
+        limit: (params1 && params1.limit) || undefined,
       };
 
       console.log("Zone API parameters:", params);
@@ -866,8 +870,20 @@ const LocalSlice = createSlice({
           state.vehicles = [];
           console.log("fetchVehicles - Set Entry Port vehicles to empty array");
         } else {
-        state.vehicles = action.payload;
-          console.log("vehicles", state.vehicles);
+          // Support infinite scrolling - check if it's initial load or subsequent load
+          const { start = 0 } = action.meta?.arg || {};
+          
+          if (start === 0) {
+            // First page - replace vehicles
+            state.vehicles = action.payload;
+            console.log("fetchVehicles - Replaced vehicles:", state.vehicles);
+          } else {
+            // Subsequent pages - accumulate vehicles
+            const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+            const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+            state.vehicles = [...state.vehicles, ...newVehicles];
+            console.log("fetchVehicles - Accumulated vehicles:", state.vehicles);
+          }
         }
         // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
         //state.PickupPlaceid = null;
@@ -893,8 +909,20 @@ const LocalSlice = createSlice({
           state.vehicles = [];
           console.log("fetchZoneVehicles - Set Entry Port vehicles to empty array");
         } else {
-          state.vehicles = action.payload;
-          console.log("vehicles", state.vehicles);
+          // Support infinite scrolling - check if it's initial load or subsequent load
+          const { start = 0 } = action.meta?.arg || {};
+          
+          if (start === 0) {
+            // First page - replace vehicles
+            state.vehicles = action.payload;
+            console.log("fetchZoneVehicles - Replaced vehicles:", state.vehicles);
+          } else {
+            // Subsequent pages - accumulate vehicles
+            const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
+            const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
+            state.vehicles = [...state.vehicles, ...newVehicles];
+            console.log("fetchZoneVehicles - Accumulated vehicles:", state.vehicles);
+          }
         }
 
         // ✅ Reset PickupPlaceid & DropoffPlaceid after API success

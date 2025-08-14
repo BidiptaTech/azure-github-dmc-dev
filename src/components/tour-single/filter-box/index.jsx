@@ -472,9 +472,20 @@ const index = () => {
           <div className="py-15 px-20 border-light rounded-4 bg-blue-1-05">
             <div className="d-flex justify-content-between align-items-center">
               <h5 className="text-16 fw-500 text-blue-1 mb-0">Total Price {nriStatus === "nri" ? "(Foreigner)" : "(Local)"}</h5>
-              <div className="text-18 fw-500" key={`price-${nriStatus}-${priceUpdateTrigger}`}>
-                {formatPrice(calculateTotalPrice(), "main")}
-              </div>
+              
+              {/* Main price display - only show if PriceHide is "0" */}
+              {PriceHide === "0" && (
+                <div className="text-18 fw-500" key={`price-${nriStatus}-${priceUpdateTrigger}`}>
+                  {formatPrice(calculateTotalPrice(), "main")}
+                </div>
+              )}
+              
+              {/* Show message when prices are hidden */}
+              {PriceHide !== "0" && (
+                <div className="text-16 fw-500 text-light-1" style={{ fontStyle: 'italic' }}>
+                  Price Hide
+                </div>
+              )}
             </div>
             
             {/* Alternative currencies - only display if PriceHide is "0" */}

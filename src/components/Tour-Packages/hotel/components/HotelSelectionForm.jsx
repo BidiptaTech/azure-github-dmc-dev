@@ -63,9 +63,9 @@ const HotelSelectionForm = ({
   return (
     <Box>
       {/* Main Selection Row */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
         {/* Hotel Selection */}
-        <Grid item xs={12} md={2.5} mt={1}>
+        <Grid item xs={12} md={2.5} mt={0.5}>
           <HotelListing 
             onSelect={(hotel) => setSelectedHotel(hotel)}
             searchParams={searchCriteria}
@@ -76,18 +76,19 @@ const HotelSelectionForm = ({
         
         {/* Room Type Selection */}
         <Grid item xs={12} md={2}>
-          <Typography variant="subtitle1" fontWeight={500}>Select Room Type</Typography>
-          <FormControl fullWidth sx={{ mt: 1.5 }} disabled={!selectedHotel || roomDataStatus === 'loading'}>
-            <InputLabel id="room-type-select-label">Room Type</InputLabel>
+          <Typography variant="subtitle2" fontWeight={500} sx={{ fontSize: '0.8rem' }}>Select Room Type</Typography>
+          <FormControl fullWidth sx={{ mt: 1 }} disabled={!selectedHotel || roomDataStatus === 'loading'}>
+            <InputLabel id="room-type-select-label" sx={{ fontSize: '0.8rem' }}>Room Type</InputLabel>
             <Select
               labelId="room-type-select-label"
               id="room-type-select"
               value={roomType}
               label="Room Type"
               onChange={handleRoomTypeChange}
+              sx={{ fontSize: '0.8rem' }}
               endAdornment={
                 roomType && (
-                  <Box sx={{ mr: 1 }}>
+                  <Box sx={{ mr: 0.8 }}>
                     <IconButton
                       size="small"
                       onClick={(e) => {

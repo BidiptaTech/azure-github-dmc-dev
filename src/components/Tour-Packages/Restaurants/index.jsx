@@ -940,26 +940,26 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const totalBookings = formSections.length;
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 6 }}>
+    <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
       <Card
-        elevation={4}
+        elevation={3}
         sx={{
-          mb: 3,
-          borderRadius: 3,
+          mb: 1.5,
+          borderRadius: 2,
           background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
           color: 'white',
-          boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
+          boxShadow: '0 4px 16px rgba(76, 175, 80, 0.3)',
         }}
       >
-        <CardContent sx={{ py: 1}}>
+        <CardContent sx={{ py: 0.5, height: '52px' }}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center">
-              <RestaurantIcon sx={{ mr: 2, fontSize: 32, color: '#FFD700' }} />
+              <RestaurantIcon sx={{ mr: 1.5, fontSize: 28, color: '#FFD700' }} />
               <Box>
-                <Typography variant="h5" fontWeight="600" sx={{ color: 'white' }}>
+                <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                   Book Restaurant Services
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.7rem' }}>
                   Select restaurants and configure your dining experience
                 </Typography>
               </Box>
@@ -970,7 +970,9 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                 bgcolor: 'rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 fontWeight: 600,
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                fontSize: '0.75rem',
+                height: '20px'
               }}
             />
           </Box>
@@ -980,7 +982,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       <Fade in={validationError} timeout={300}>
         <Box>
           {validationError && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               {validationError}
             </Alert>
           )}
@@ -990,14 +992,14 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       <Fade in={bookingSuccess} timeout={300}>
         <Box>
           {bookingSuccess && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="success" sx={{ mb: 1.5, borderRadius: 1.5 }}>
               Restaurant enquiry information saved successfully to the tour package data!
             </Alert>
           )}
         </Box>
       </Fade>
       
-      <Grid container spacing={2}>
+      <Grid container spacing={1.5}>
         {formSections.map((section, sectionIndex) => {
           const selectedRestaurantDetails = getSelectedRestaurant(section.restaurant);
           const completionStatus = getSectionCompletion(section);
@@ -1009,35 +1011,37 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
               <Card 
                 elevation={2}
                 sx={{ 
-                  borderRadius: 3,
-                  border: outOfTourDates ? '2px solid #e53935' : `2px solid ${alpha('#4caf50', 0.2)}`,
+                  borderRadius: 2,
+                  border: outOfTourDates ? '1px solid #e53935' : `1px solid ${alpha('#4caf50', 0.2)}`,
                   background: outOfTourDates ? 'rgba(229,57,53,0.08)' : undefined,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     boxShadow: outOfTourDates
-                      ? `0 8px 24px ${alpha('#e53935', 0.15)}`
-                      : `0 8px 24px ${alpha('#4caf50', 0.15)}`,
-                    transform: 'translateY(-2px)',
+                      ? `0 4px 12px ${alpha('#e53935', 0.15)}`
+                      : `0 4px 12px ${alpha('#4caf50', 0.15)}`,
+                    transform: 'translateY(-1px)',
                   }
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Header */}
                   <Box sx={{ 
-                    p: 2,
+                    p: 1.5,
                     bgcolor: alpha('#4caf50', 0.05),
                     borderBottom: `1px solid ${alpha('#4caf50', 0.1)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Chip 
                         label={`Booking ${sectionIndex + 1}`}
                         sx={{ 
                           bgcolor: '#4caf50',
                           color: 'white',
-                          fontWeight: 600
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: '20px'
                         }}
                         size="small"
                       />
@@ -1046,16 +1050,19 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                         color={completionStatus === 4 ? "success" : "warning"}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: '0.7rem', height: '20px' }}
                       />
                       {selectedRestaurantDetails && (
                         <Chip 
-                          icon={<LocationOnIcon sx={{ fontSize: 16 }} />}
+                          icon={<LocationOnIcon sx={{ fontSize: 14 }} />}
                           label={selectedRestaurantDetails.city}
                           size="small"
                           variant="outlined"
                           sx={{ 
                             borderColor: '#4caf50',
-                            color: '#4caf50'
+                            color: '#4caf50',
+                            fontSize: '0.7rem',
+                            height: '20px'
                           }}
                         />
                       )}
@@ -1078,15 +1085,15 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                       {section.restaurant && (
                         <Button
                           variant="outlined"
-                          size="large"
+                          size="medium"
                           onClick={() => handleOpenModal(sectionIndex)}
                           disabled={!section.restaurant}
                           startIcon={<VisibilityIcon />}
                           sx={{
-                            borderRadius: 2,
-                            px: 4,
-                            py: 1,
-                            fontSize: '0.875rem',
+                            borderRadius: 1.5,
+                            px: 3,
+                            py: 0.8,
+                            fontSize: '0.8rem',
                             fontWeight: 600,
                             textTransform: 'none',
                             borderColor: '#4caf50',
@@ -1113,7 +1120,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                             '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.2) }
                           }}
                         >
-                          <DeleteIcon sx={{ fontSize: 18 }} />
+                          <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -1121,58 +1128,64 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
                   {/* Summary when collapsed */}
                   {!isExpanded && selectedRestaurantDetails && (
-                    <Box sx={{ p: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ p: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Box 
                           component="img"
                           src={selectedRestaurantDetails.image || '/placeholder-restaurant.jpg'}
                           alt={selectedRestaurantDetails.restaurant_name}
                           sx={{ 
-                            width: 60, 
-                            height: 60, 
-                            borderRadius: 2,
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: 1.5,
                             objectFit: 'cover',
-                            border: `2px solid ${alpha('#4caf50', 0.2)}`
+                            border: `1px solid ${alpha('#4caf50', 0.2)}`
                           }}
                         />
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
+                          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5, fontSize: '0.9rem' }}>
                             {selectedRestaurantDetails.restaurant_name}
                           </Typography>
-                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                             {section.pax.Adults + section.pax.Children > 0 && (
                               <Chip 
-                                icon={<PeopleIcon sx={{ fontSize: 16 }} />}
+                                icon={<PeopleIcon sx={{ fontSize: 14 }} />}
                                 label={`${section.pax.Adults + section.pax.Children} Pax`}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#4caf50',
-                                  color: '#4caf50'
+                                  color: '#4caf50',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
                             {section.mealType && (
                               <Chip 
-                                icon={<RestaurantMenuIcon sx={{ fontSize: 16 }} />}
+                                icon={<RestaurantMenuIcon sx={{ fontSize: 14 }} />}
                                 label={section.mealType}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#4caf50',
-                                  color: '#4caf50'
+                                  color: '#4caf50',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
                             {section.timeSlot && (
                               <Chip 
-                                icon={<AccessTimeIcon sx={{ fontSize: 16 }} />}
+                                icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
                                 label={section.timeSlot}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   borderColor: '#4caf50',
-                                  color: '#4caf50'
+                                  color: '#4caf50',
+                                  fontSize: '0.7rem',
+                                  height: '20px'
                                 }}
                               />
                             )}
@@ -1187,24 +1200,24 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                     <Paper 
                       elevation={0} 
                       sx={{ 
-                        m: 2,
+                        m: 1.5,
                         p: 0, 
-                        borderRadius: 2,
+                        borderRadius: 1.5,
                         background: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)'
                       }}
                     >
-                      <Grid container spacing={2} alignItems="flex-end">
+                      <Grid container spacing={1.5} alignItems="flex-end">
                         {/* Restaurant Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <RestaurantIcon sx={{ mr: 1, color: '#4caf50', fontSize: 20 }} />
-                              <Typography variant="subtitle2" fontWeight="600" color="text.primary">
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <RestaurantIcon sx={{ mr: 0.8, color: '#4caf50', fontSize: 18 }} />
+                              <Typography variant="body2" fontWeight="600" color="text.primary" sx={{ fontSize: '0.8rem' }}>
                                 Select Restaurant
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <RestaurantListing 
                                 restaurants={restaurants} 
                                 selectedRestaurant={section.restaurant}
@@ -1217,17 +1230,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                         {/* Guests Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <PeopleIcon sx={{ mr: 1, color: '#2e7d32', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <PeopleIcon sx={{ mr: 0.8, color: '#2e7d32', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.restaurant ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Guests
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <PaxSelector
                                 selectedPax={section.pax}
                                 onPaxChange={(value) => handlePaxChange(sectionIndex, value)}
@@ -1242,17 +1256,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                         {/* Meal Type Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <RestaurantMenuIcon sx={{ mr: 1, color: '#ff9800', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <RestaurantMenuIcon sx={{ mr: 0.8, color: '#ff9800', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.restaurant ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Meal Type
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <MealTypeSelect
                                 value={section.mealType}
                                 onChange={(e) => handleFieldChange(sectionIndex, 'mealType', e.target.value)}
@@ -1266,17 +1281,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                         {/* Specific Meal Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <DinnerDiningIcon sx={{ mr: 1, color: '#9c27b0', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <DinnerDiningIcon sx={{ mr: 0.8, color: '#9c27b0', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.restaurant || !section.mealType ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Select Dish
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <SpecificMealSelect
                                 value={section.specificMeal}
                                 onChange={(e) => handleFieldChange(sectionIndex, 'specificMeal', e.target.value)}
@@ -1291,17 +1307,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                         {/* Time Slot Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                              <AccessTimeIcon sx={{ mr: 1, color: '#e91e63', fontSize: 20 }} />
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <AccessTimeIcon sx={{ mr: 0.8, color: '#e91e63', fontSize: 18 }} />
                               <Typography 
-                                variant="subtitle2" 
+                                variant="body2" 
                                 fontWeight="600"
                                 color={!section.restaurant || !section.mealType || !section.specificMeal ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
                               >
                                 Time Slot
                               </Typography>
                             </Box>
-                            <Box sx={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <TimeSlotSelect
                                 value={section.timeSlot}
                                 onChange={(e) => handleFieldChange(sectionIndex, 'timeSlot', e.target.value)}
@@ -1320,8 +1337,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
                   {/* Red alert if out of tour dates */}
                   {outOfTourDates && (
-                    <Box sx={{ px: 2, pt: 1 }}>
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                    <Box sx={{ px: 1.5, pt: 0.5 }}>
+                      <Alert severity="error" sx={{ borderRadius: 1.5, mb: 0.5 }}>
                         The booking is out of currently updated tour dates
                       </Alert>
                     </Box>
@@ -1336,8 +1353,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         <Grid item xs={12}>
           <Card 
             sx={{ 
-              borderRadius: 3,
-              border: `2px dashed ${alpha('#4caf50', 0.4)}`,
+              borderRadius: 2,
+              border: `1px dashed ${alpha('#4caf50', 0.4)}`,
               bgcolor: alpha('#4caf50', 0.02),
               cursor: 'pointer',
               transition: 'all 0.3s ease',
@@ -1354,10 +1371,10 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                gap: 2
+                gap: 1.5
               }}>
-                <AddIcon sx={{ fontSize: 32, color: '#4caf50' }} />
-                <Typography variant="h6" color="#4caf50" fontWeight={600}>
+                <AddIcon sx={{ fontSize: 28, color: '#4caf50' }} />
+                <Typography variant="subtitle1" color="#4caf50" fontWeight={600} sx={{ fontSize: '0.9rem' }}>
                   Add More
                 </Typography>
               </Box>

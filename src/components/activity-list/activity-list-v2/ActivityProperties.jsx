@@ -10,7 +10,7 @@ import {
   Avatar,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import Pagination from "../common/Pagination";
+
 import { useSelector } from "react-redux";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PeopleIcon from "@mui/icons-material/People";
@@ -20,13 +20,12 @@ import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "@/slice/dmc
 const ActivityProperties = ({
   vehicles,
   status,
-  currentPage,
-  itemsPerPage,
-  onPageChange,
   onVehicleClick,
   selectedModes,
   setSelectedModes,
   priceMode,
+  hasMore,
+  isLoadingMore,
 }) => {
   const navigate = useNavigate();
   const DmcName = useSelector(selectSelectedDmcCompanyName);
@@ -44,12 +43,8 @@ const ActivityProperties = ({
     (state) => state.auth.usdCurrencySymbol
   );
   const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
-  const totalItems = vehicles.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const paginatedVehicles = vehicles.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+
+
 
   return (
     <>
@@ -123,7 +118,7 @@ const ActivityProperties = ({
           </div>
         </div>
       )}
-      {status === "succeeded" && paginatedVehicles.length === 0 && (
+      {status === "succeeded" && vehicles.length === 0 && (
         <div
           className="no-hotels-message"
           style={{ textAlign: "center", marginTop: "2rem" }}
@@ -168,7 +163,7 @@ const ActivityProperties = ({
 
       {/* Render Vehicles */}
       {status === "succeeded" &&
-        paginatedVehicles.map((vehicle) => {
+        vehicles.map((vehicle) => {
           const dmcPrice = vehicle.dmc_sharable_price
             ? parseFloat(vehicle.dmc_sharable_price) * exchangeRate
             : vehicle.dmc_private_price
@@ -639,13 +634,35 @@ const ActivityProperties = ({
           );
         })}
 
-      {/* Pagination */}
-      {totalPages > 1 && status === "succeeded" && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
-        />
+      {/* Loading More Indicator */}
+      {isLoadingMore && (
+        <div className="col-12 text-center mt-30">
+          <div className="border-top-light pt-30">
+            <div className="row justify-content-center">
+              <div className="col-md-auto">
+                <div className="d-flex align-items-center justify-content-center">
+                  <div className="spinner-border text-primary me-3" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <span className="text-15 fw-500">Loading more vehicles...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No More Data Indicator */}
+      {!hasMore && vehicles.length > 0 && (
+        <div className="col-12 text-center mt-30">
+          <div className="border-top-light pt-30">
+            <div className="row justify-content-center">
+              <div className="col-md-auto">
+                <span className="text-15 fw-500 text-muted">No more vehicles to load</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

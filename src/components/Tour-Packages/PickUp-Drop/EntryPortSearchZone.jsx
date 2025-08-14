@@ -262,34 +262,35 @@ const EntryPortSearchZone = ({ Location, portType}) => {
 
   return (
     <Card 
-      elevation={3}
+      elevation={2}
 
     >
  
         <Paper 
-          elevation={2} 
+          elevation={1} 
           sx={{ 
-            p: 3, 
+            p: 2, 
             borderRadius: 2,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)'
           }}
         >
-                    <Grid container spacing={2} alignItems="flex-end">
+                    <Grid container spacing={1.5} alignItems="flex-end">
             {/* City Selection */}
             <Grid item xs={12} sm={6} md={2}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                  <Business sx={{ mr: 1, color: '#1976d2', fontSize: 20 }} />
+                <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                  <Business sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
                   <Typography 
-                    variant="subtitle2" 
+                    variant="body2" 
                     fontWeight="600"
                     color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     City
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
                   <PortCity
                     onLocationSelect={handleCitySelect}
                     hasError={cityError}
@@ -303,17 +304,18 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             {/* Pick Up Location */}
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                  <LocationOn sx={{ mr: 1, color: '#2e7d32', fontSize: 20 }} />
+                <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                  <LocationOn sx={{ mr: 0.8, color: '#2e7d32', fontSize: 18 }} />
                   <Typography 
-                    variant="subtitle2" 
+                    variant="body2" 
                     fontWeight="600"
                     color={!isPickupLocationEnabled ? "text.disabled" : "text.primary"}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     Pick Up Location
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
                   <LocationSearch
                     pickUpLocation={pickUpLocation}
                     setPickUpLocation={setPickUpLocation}
@@ -334,17 +336,18 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             {/* Drop Off Location */}
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                  <FlightLand sx={{ mr: 1, color: '#d32f2f', fontSize: 20 }} />
+                <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                  <FlightLand sx={{ mr: 0.8, color: '#d32f2f', fontSize: 18 }} />
                   <Typography 
-                    variant="subtitle2" 
+                    variant="body2" 
                     fontWeight="600"
                     color={!isDropoffLocationEnabled ? "text.disabled" : "text.primary"}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     Drop Off Location
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '40px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
                   <SearchBar
                     exitpickUpLocation={exitpickUpLocation}
                     setexitPickUpLocation={setexitPickUpLocation}
@@ -366,17 +369,18 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             {/* Time Selection */}
             <Grid item xs={12} sm={6} md={2}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                  <Schedule sx={{ mr: 1, color: '#ff9800', fontSize: 20 }} />
+                <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                  <Schedule sx={{ mr: 0.8, color: '#ff9800', fontSize: 18 }} />
                   <Typography 
-                    variant="subtitle2" 
+                    variant="body2" 
                     fontWeight="600"
                     color={!isDropoffLocationEnabled ? "text.disabled" : "text.primary"}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     Pick Up Time
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '48px', height: '48px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15300 }}>
+                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15300 }}>
                   <Pickuptime
                     entryytime={entryytime}
                     setentryytime={setentryytime}
@@ -390,17 +394,18 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             {/* Date Selection */}
             <Grid item xs={12} sm={6} md={2}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <Box display="flex" alignItems="center" mb={1} sx={{ height: '32px' }}>
-                  <CalendarToday sx={{ mr: 1, color: '#9c27b0', fontSize: 20 }} />
+                <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                  <CalendarToday sx={{ mr: 0.8, color: '#9c27b0', fontSize: 18 }} />
                   <Typography 
-                    variant="subtitle2" 
+                    variant="body2" 
                     fontWeight="600"
                     color={!isDropoffLocationEnabled ? "text.disabled" : "text.primary"}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     Pick Up Date
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '48px', height: '48px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15200 }}>
+                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15200 }}>
                   <DateSearch1
                     selectedDate={selectedDate}
                     setSelectedDate={setSelectedDate}
@@ -411,27 +416,27 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Search Button - Separate Row */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
+            <Grid item xs={12} sx={{ mt: 1.5 }}>
               <Box display="flex" justifyContent="center">
                 <Button
                   variant="contained"
-                  size="large"
+                  size="medium"
                   onClick={buttonsearch}
                   disabled={!isSearchButtonEnabled}
                   startIcon={<Search />}
                   sx={{
-                    minWidth: 200,
-                    px: 4,
-                    py: 1.5,
-                    borderRadius: 2,
+                    minWidth: 180,
+                    px: 3,
+                    py: 1.2,
+                    borderRadius: 1.5,
                     background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-                    fontSize: '1rem',
+                    fontSize: '0.9rem',
                     fontWeight: 600,
                     textTransform: 'none',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                    boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
                     '&:hover': {
                       background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-                      boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
+                      boxShadow: '0 5px 14px rgba(59, 130, 246, 0.4)',
                       transform: 'translateY(-1px)',
                     },
                     transition: 'all 0.3s ease',

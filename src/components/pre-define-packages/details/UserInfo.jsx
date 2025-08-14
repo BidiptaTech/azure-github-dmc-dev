@@ -169,6 +169,9 @@ const selectedDate = searchParams?.date ?
         message: bookingError || 'Failed to book package. Please try again.',
         severity: 'error'
       });
+      
+      // Keep the modal open when there's an error so user can retry
+      // Don't close the modal automatically on error
     }
   }, [bookingError]);
 
@@ -327,8 +330,36 @@ const selectedDate = searchParams?.date ?
             }}
           >
             {bookingError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {bookingError}
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 2,
+                  '& .MuiAlert-message': {
+                    fontWeight: 500
+                  }
+                }}
+                action={
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    onClick={() => {
+                      // Clear the error and allow retry
+                      dispatch(resetBookingStatus());
+                    }}
+                  >
+                    Retry
+                  </Button>
+                }
+              >
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  Booking Failed
+                </Typography>
+                <Typography variant="body2">
+                  {bookingError}
+                </Typography>
+                <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                  Please check your information and try again, or contact support if the problem persists.
+                </Typography>
               </Alert>
             )}
             
@@ -618,17 +649,21 @@ const selectedDate = searchParams?.date ?
           <Button 
             onClick={handleSubmit} 
             variant="contained" 
-            color="primary"
+            color={bookingError ? "error" : "primary"}
             disabled={bookingLoading}
             sx={{ 
               px: 4, 
               py: 1.2,
-              background: 'linear-gradient(45deg, #3f51b5 30%, #2196f3 90%)',
-              boxShadow: '0 3px 5px 2px rgba(33, 150, 243, .3)',
+              background: bookingError ? 
+                'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)' :
+                'linear-gradient(45deg, #3f51b5 30%, #2196f3 90%)',
+              boxShadow: bookingError ? 
+                '0 3px 5px 2px rgba(244, 67, 54, .3)' :
+                '0 3px 5px 2px rgba(33, 150, 243, .3)',
             }}
             endIcon={bookingLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
           >
-            {bookingLoading ? 'Processing...' : 'Complete Booking'}
+            {bookingLoading ? 'Processing...' : bookingError ? 'Try Again' : 'Complete Booking'}
           </Button>
         </DialogActions>
       </Dialog>

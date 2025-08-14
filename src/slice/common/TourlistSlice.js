@@ -13,6 +13,8 @@ export const fetchLists = createAsyncThunk(
   async (params = {}, { getState,rejectWithValue, dispatch }) => {
     const { agentId = null, start = 0, limit = 30, reset = false, type: paramType } = params;
     const stateType = getState().lists.type;
+    const agentId1 = getState().editing.agentId;
+    const agent=agentId1 || agentId;
     // Prioritize the type from params over the state type
     const type = paramType || stateType;
     console.log(agentId, "agentIdd", start, limit, reset, "paramType:", paramType, "stateType:", stateType, "finalType:", type);
@@ -47,7 +49,7 @@ export const fetchLists = createAsyncThunk(
           "user-country": userCountry, // Use the updated country
         },
         params: {
-          ...(agentId && { 'agent_id': agentId }),
+          ...(agent && { 'agent_id': agent }),
           ...(start !== undefined && { start }),
           ...(limit !== undefined && { limit }),
           ...(type !== undefined && { type })

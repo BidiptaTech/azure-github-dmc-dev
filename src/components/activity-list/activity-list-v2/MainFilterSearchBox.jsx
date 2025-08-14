@@ -82,7 +82,7 @@ const MainFilterSearchBox = ({ Location }) => {
       // Only fetch vehicles if both locations are valid
       if (locationsValid && time) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     } else if (selectedPort === "Exit Port") {
@@ -103,7 +103,7 @@ const MainFilterSearchBox = ({ Location }) => {
       // Only fetch vehicles if both locations are valid
       if (locationsValid && time1) {
         setTimeout(() => {
-          dispatch(fetchVehicles());
+          dispatch(fetchVehicles({ start: 0, limit: 5 }));
         }, 500);
       }
     }

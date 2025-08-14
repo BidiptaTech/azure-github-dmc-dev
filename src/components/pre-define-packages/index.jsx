@@ -303,7 +303,7 @@ const PreDefinePackages = () => {
     
     // Dispatch actions to fetch packages and store search parameters
     dispatch(setSearchParams(searchParams));
-    dispatch(fetchPackages(searchParams))
+    dispatch(fetchPackages({ searchParams, start: 0, limit: 5 }))
       .unwrap()
       .then(() => {
         setSnackbarMessage("Search successful! Fetching packages...");

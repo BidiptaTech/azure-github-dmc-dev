@@ -265,23 +265,23 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
           opacity: disabled ? 0.5 : 1
         }}
       >
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <PersonIcon sx={{ color: 'primary.main' }} />
-              <Typography>
+        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <PersonIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>
                 {guestCounts.Adults}
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ChildCareIcon sx={{ color: 'primary.main' }} />
-              <Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <ChildCareIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>
                 {guestCounts.Children}
               </Typography>
             </Box>
 
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', fontSize: '0.7rem' }}>
               {remainingSpots > 0 ? `${remainingSpots} spots left` : 'Full'}
             </Typography>
           </Box>
@@ -303,7 +303,7 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
         }}
         PaperProps={{
           sx: {
-            width: '350px',
+            width: '320px',
             mt: 1,
             overflow: 'visible',
             '&:before': {
@@ -312,8 +312,8 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
               position: 'absolute',
               top: 0,
               left: 32,
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               bgcolor: 'background.paper',
               transform: 'translateY(-50%) rotate(45deg)',
               zIndex: 0,
@@ -321,16 +321,16 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
           }
         }}
       >
-        <Paper sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+        <Paper sx={{ p: 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
               Number of guests
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                 {remainingSpots > 0 ? `${remainingSpots} spots left` : 'Full'}
               </Typography>
-              <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
                 {guestCounts.Adults + guestCounts.Children}/{totalAllowed}
               </Typography>
             </Box>

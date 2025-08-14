@@ -18,6 +18,7 @@ import {
   setMode,
   fetchGuideDetails,
   resetguide,
+  fetchGuides,
 } from "@/slice/tourguide/guideslice";
 
 import MetaComponent from "@/components/common/MetaComponent";
@@ -49,6 +50,8 @@ const ActivityListPage1 = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [sortOrder, setSortOrder] = useState("asc");
   const [sortedGuides, setSortedGuides] = useState([]);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -190,6 +193,63 @@ const ActivityListPage1 = () => {
     dispatch(setMode({ [id]: { mode: newMode, dmcId } })); // ✅ Update Redux mode for specific vehicle
   };
 
+  // Reset current page when guides are cleared (new search)
+  useEffect(() => {
+    if (guides.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true);
+    }
+  }, [guides.length]);
+
+  // Scroll detection for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        !isLoadingMore &&
+        hasMore &&
+        status !== "loading" &&
+        guides.length > 0 // Only load more if we have guides
+      ) {
+        setCurrentPage(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, status, guides.length]);
+
+  // Load more effect for infinite scroll
+  useEffect(() => {
+    if (currentPage > 1 && guides.length > 0) {
+      setIsLoadingMore(true);
+      // Dispatch action to fetch more guides
+      const start = (currentPage - 1) * itemsPerPage;
+      
+      // Get the current search parameters from Redux state
+      const currentSearchParams = {
+        start,
+        limit: itemsPerPage
+      };
+      
+      dispatch(fetchGuides(currentSearchParams)).then((result) => {
+        setIsLoadingMore(false);
+        // Check if we have more data based on the response
+        if (result.payload && Array.isArray(result.payload)) {
+          if (result.payload.length < itemsPerPage) {
+            setHasMore(false);
+          }
+        } else {
+          setHasMore(false);
+        }
+      }).catch(() => {
+        setIsLoadingMore(false);
+        setHasMore(false);
+      });
+    }
+  }, [currentPage, guides.length, itemsPerPage, dispatch]);
+
   // Calculate the actual displayed guide count after all conditions
   const displayedGuides = filteredGuides.filter((guide) => {
     const dmcPrice = guide.dmc_day_rate
@@ -306,13 +366,12 @@ const ActivityListPage1 = () => {
                   sortBy={sortBy}
                   status={status}
                   error={error}
-                  currentPage={currentPage}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={handlePageChange}
                   onGuideClick={handleGuideClick}
                   selectedModes={mode} // ✅ Pass selected modes
                   setSelectedModes={handleModeChange} // ✅ Allow child to update mode
                   priceMode={priceMode}
+                  hasMore={hasMore}
+                  isLoadingMore={isLoadingMore}
                 />
               </div>
             </div>

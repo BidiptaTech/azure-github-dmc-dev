@@ -32,39 +32,39 @@ const CustomTooltip = styled(({ className, ...props }) => (
   '& .MuiTooltip-tooltip': {
     backgroundColor: 'white',
     color: 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 400,
+    maxWidth: 350,
     border: '1px solid #dadde9',
-    borderRadius: '12px',
+    borderRadius: '8px',
     padding: 0,
-    boxShadow: theme.shadows[3]
+    boxShadow: theme.shadows[2]
   },
 }));
 
 // Styled components
 const SearchContainer = styled(Box)(({ theme }) => ({
   position: "relative",
-  marginBottom: theme.spacing(2),
+  marginBottom: theme.spacing(1.5),
 }));
 
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 350,
+  maxHeight: 300,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),
-  boxShadow: theme.shadows[3],
+  boxShadow: theme.shadows[2],
 }));
 
 const HotelOption = styled(ListItem)(({ theme }) => ({
-  padding: theme.spacing(1.5, 2),
+  padding: theme.spacing(1, 1.5),
   cursor: "pointer",
   transition: "background-color 0.2s",
   borderBottom: `1px solid ${theme.palette.divider}`,
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
-  gap: theme.spacing(1),
+  gap: theme.spacing(0.8),
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
   },
@@ -78,8 +78,8 @@ const HotelInfo = styled(Box)({
 });
 
 const HotelImage = styled(Box)(({ theme }) => ({
-  width: 60,
-  height: 60,
+  width: 50,
+  height: 50,
   flexShrink: 0,
   borderRadius: theme.shape.borderRadius,
   overflow: "hidden",
@@ -92,36 +92,36 @@ const HotelImage = styled(Box)(({ theme }) => ({
 
 const StarRating = styled(Box)(({ theme }) => ({
   display: "flex",
-  marginBottom: theme.spacing(0.5),
+  marginBottom: theme.spacing(0.3),
   color: "gold",
 }));
 
 const SelectedHotel = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(1),
-  padding: theme.spacing(1, 1.5),
+  marginTop: theme.spacing(0.8),
+  padding: theme.spacing(0.8, 1),
   backgroundColor: theme.palette.grey[50],
   borderRadius: theme.shape.borderRadius,
-  borderLeft: `3px solid ${theme.palette.primary.main}`,
-  fontSize: 13,
+  borderLeft: `2px solid ${theme.palette.primary.main}`,
+  fontSize: 12,
 }));
 
 const SelectedLabel = styled("span")(({ theme }) => ({
   fontWeight: 500,
-  marginRight: theme.spacing(0.5),
+  marginRight: theme.spacing(0.3),
   color: theme.palette.primary.main,
 }));
 
 const HotelDetail = styled(Chip)(({ theme }) => ({
-  marginLeft: theme.spacing(1),
-  height: 22,
-  fontSize: 12,
+  marginLeft: theme.spacing(0.8),
+  height: 20,
+  fontSize: 11,
 }));
 
 const CountBadge = styled(Chip)(({ theme }) => ({
   backgroundColor: theme.palette.grey[200],
-  marginLeft: theme.spacing(1),
-  height: 20,
-  fontSize: 12,
+  marginLeft: theme.spacing(0.8),
+  height: 18,
+  fontSize: 11,
 }));
 
 // Tooltip content component for hotels
@@ -145,31 +145,31 @@ const TooltipContent = ({ hotel }) => {
   return (
     <Box>
       {/* Header Image Section */}
-      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+      <Box sx={{ position: 'relative', width: '100%', height: 150 }}>
         <Box
           component="img"
-          src={hotel.main_image || "https://via.placeholder.com/400x200?text=No+Image"}
+          src={hotel.main_image || "https://via.placeholder.com/400x150?text=No+Image"}
           alt={hotel.name}
           sx={{
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px',
           }}
         />
         {hotel.site_image && hotel.site_image.length > 0 && (
           <Box
             sx={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 6,
+              right: 6,
               bgcolor: 'rgba(0, 0, 0, 0.6)',
               color: 'white',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
+              px: 0.8,
+              py: 0.3,
+              borderRadius: 0.8,
+              fontSize: '0.65rem',
             }}
           >
             +{hotel.site_image.length} photos
@@ -178,35 +178,35 @@ const TooltipContent = ({ hotel }) => {
       </Box>
 
       {/* Content Section */}
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 1.5 }}>
         {/* Title and Location */}
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
           {hotel.name}
         </Typography>
         {renderStarRating(hotel.hotel_star_rating)}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.4 }} />
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
             {hotel.address || hotel.location}
           </Typography>
         </Box>
 
         {/* Room & Amenities Info */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
             Hotel Details
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+          <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap sx={{ mb: 0.8 }}>
             <Chip
               size="small"
-              icon={<BedIcon sx={{ fontSize: '0.8rem !important' }} />}
+              icon={<BedIcon sx={{ fontSize: '0.7rem !important' }} />}
               label={`${hotel.hotel_star_rating} Star Hotel`}
               sx={{
                 backgroundColor: 'rgba(76, 175, 80, 0.1)',
                 color: '#2e7d32',
-                fontSize: '0.75rem',
-                height: 24,
-                '& .MuiChip-label': { px: 1 },
+                fontSize: '0.65rem',
+                height: 20,
+                '& .MuiChip-label': { px: 0.8 },
               }}
             />
             {hotel.category && (
@@ -216,9 +216,9 @@ const TooltipContent = ({ hotel }) => {
                 sx={{
                   backgroundColor: 'rgba(25, 118, 210, 0.1)',
                   color: 'primary.main',
-                  fontSize: '0.75rem',
-                  height: 24,
-                  '& .MuiChip-label': { px: 1 },
+                  fontSize: '0.65rem',
+                  height: 20,
+                  '& .MuiChip-label': { px: 0.8 },
                 }}
               />
             )}
@@ -227,14 +227,14 @@ const TooltipContent = ({ hotel }) => {
 
         {/* Description */}
         {hotel.description && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
               Description
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ 
-              fontSize: '0.875rem',
+              fontSize: '0.75rem',
               display: '-webkit-box',
-              WebkitLineClamp: 4,
+              WebkitLineClamp: 3,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               textOverflow: 'ellipsis'
@@ -246,33 +246,33 @@ const TooltipContent = ({ hotel }) => {
 
         {/* Pricing Section */}
         {(hotel.dmc_price > 0 || hotel.price) && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mt: 1.5 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
               Pricing Details
             </Typography>
             <Paper 
               variant="outlined" 
               sx={{ 
-                p: 1.5,
+                p: 1,
                 bgcolor: 'rgba(25, 118, 210, 0.02)',
                 borderColor: 'rgba(25, 118, 210, 0.1)'
               }}
             >
-              <Typography variant="subtitle2" sx={{ color: 'primary.main', fontWeight: 500 }}>
+              <Typography variant="subtitle2" sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>
                 DMC Prices
               </Typography>
-              <Stack spacing={0.5} mt={1}>
-                <Typography variant="body2">
+              <Stack spacing={0.3} mt={0.8}>
+                <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
                   Base Price: ${hotel.formatted_price || hotel.dmc_price || hotel.price || 'N/A'}
                 </Typography>
                 {hotel.dmc_tax_amount > 0 && (
-                  <Typography variant="body2">Tax: ${hotel.dmc_tax_amount}</Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>Tax: ${hotel.dmc_tax_amount}</Typography>
                 )}
                 {(hotel.dmc_price > 0 && hotel.dmc_tax_amount > 0) && (
-                  <Divider sx={{ my: 0.5 }} />
+                  <Divider sx={{ my: 0.3 }} />
                 )}
                 {(hotel.dmc_price > 0 && hotel.dmc_tax_amount > 0) && (
-                  <Typography variant="body2" fontWeight={500}>
+                  <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.7rem' }}>
                     Total: ${hotel.formatted_price ? 
                       (parseFloat(hotel.dmc_price) + parseFloat(hotel.dmc_tax_amount)).toFixed(1) + 'k' :
                       (parseFloat(hotel.dmc_price) + parseFloat(hotel.dmc_tax_amount)).toFixed(2)}
@@ -419,8 +419,8 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
 
   return (
     <SearchContainer>
-      <Box sx={{ mb: 2 }}>
-        <InputLabel sx={{ mb: 1, fontSize: 16, fontWeight: 500, color: 'text.primary' }}>
+      <Box sx={{ mb: 1.5 }}>
+        <InputLabel sx={{ mb: 0.8, fontSize: 14, fontWeight: 500, color: 'text.primary' }}>
           Select Hotel {formattedHotels.length > 0 && (
             <CountBadge label={formattedHotels.length} size="small" variant="outlined" />
           )}
@@ -450,13 +450,13 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
               <Box component="li" {...props}>
                 {option.name}
                 {/* Add indicators for star rating and price */}
-                <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+                <Box sx={{ ml: 'auto', display: 'flex', gap: 0.4 }}>
                   <Chip 
                     size="small" 
                     label={`${option.hotel_star_rating} ★`}
                     sx={{ 
-                      height: 20,
-                      fontSize: '0.7rem',
+                      height: 18,
+                      fontSize: '0.65rem',
                       bgcolor: 'rgba(255, 193, 7, 0.1)',
                       color: '#F9A825'
                     }}
@@ -466,11 +466,11 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
                       size="small" 
                       label={`$${option.formatted_price || option.dmc_price || option.price}`}
                       sx={{ 
-                        height: 20,
-                        fontSize: '0.7rem',
+                        height: 18,
+                        fontSize: '0.65rem',
                         bgcolor: 'rgba(25, 118, 210, 0.08)',
                         color: 'primary.main',
-                        minWidth: '40px'
+                        minWidth: '36px'
                       }}
                     />
                   )}
@@ -497,17 +497,17 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
         />
         
         {selectedHotel && (
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 1.5 }}>
             <Paper
               variant="outlined"
               sx={{ 
-                p: 1.5,
+                p: 1,
                 borderRadius: 1,
                 borderColor: 'primary.main',
                 borderWidth: 1,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1.5
+                gap: 1
               }}
             >
               {selectedHotel.main_image ? (
@@ -516,37 +516,37 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
                   src={selectedHotel.main_image}
                   alt={selectedHotel.name}
                   sx={{ 
-                    width: 50, 
-                    height: 50, 
-                    borderRadius: 1,
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: 0.8,
                     objectFit: 'cover'
                   }}
                 />
               ) : (
-                <Avatar sx={{ width: 50, height: 50, bgcolor: 'primary.main' }}>
+                <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
                   <HotelIcon />
                 </Avatar>
               )}
               
               <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 0.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 0.3, fontSize: '0.85rem' }}>
                   {selectedHotel.name}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <LocationOnIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
+                  <LocationOnIcon sx={{ fontSize: 12, mr: 0.4, color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     {selectedHotel.address}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.3 }}>
                   <StarRating>
                     {[...Array(parseInt(selectedHotel.hotel_star_rating) || 3)].map((_, i) => (
-                      <StarIcon key={i} sx={{ fontSize: 14 }} />
+                      <StarIcon key={i} sx={{ fontSize: 12 }} />
                     ))}
                   </StarRating>
                   
                   {(selectedHotel.dmc_price > 0 || selectedHotel.price > 0) && (
-                    <Typography variant="body2" fontWeight={500} sx={{ ml: 2 }}>
+                    <Typography variant="body2" fontWeight={500} sx={{ ml: 1.5, fontSize: '0.75rem' }}>
                       ${selectedHotel.formatted_price || selectedHotel.dmc_price || selectedHotel.price}
                       {selectedHotel.dmc_tax_amount > 0 && ` + $${selectedHotel.dmc_tax_amount} tax`}
                     </Typography>
