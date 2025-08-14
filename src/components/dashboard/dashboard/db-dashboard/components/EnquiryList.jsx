@@ -34,7 +34,8 @@ import {
   Tabs,
   Tab,
   Badge,
- 
+  Alert,
+  Snackbar,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -53,6 +54,7 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   DirectionsBoat as DirectionsBoatIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 
 import dayjs from 'dayjs';
@@ -116,12 +118,51 @@ const EnquiryList = () => {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [tabValue, setTabValue] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastEnquiryCount, setLastEnquiryCount] = useState(0);
+  const [showNewEnquiryAlert, setShowNewEnquiryAlert] = useState(false);
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await dispatch(fetchEnquiries()).unwrap();
+    } catch (error) {
+      console.error('Failed to refresh enquiries:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (status === "idle") {
       dispatch(fetchEnquiries());
     }
   }, [status, dispatch]);
+
+  // Add a separate effect to refresh enquiries periodically and on component mount
+  useEffect(() => {
+    // Fetch enquiries on component mount
+    dispatch(fetchEnquiries());
+    
+    // // Set up periodic refresh every 30 seconds
+    // const interval = setInterval(() => {
+    //   dispatch(fetchEnquiries());
+    // }, 30000); // 30 seconds
+    
+    // // Cleanup interval on component unmount
+    // return () => clearInterval(interval);
+  }, [dispatch]);
+
+  // Effect to detect new enquiries
+  useEffect(() => {
+    if (enquiries.length > 0 && lastEnquiryCount > 0 && enquiries.length > lastEnquiryCount) {
+      setShowNewEnquiryAlert(true);
+      // Auto-hide the alert after 5 seconds
+      setTimeout(() => setShowNewEnquiryAlert(false), 5000);
+    }
+    setLastEnquiryCount(enquiries.length);
+  }, [enquiries.length, lastEnquiryCount]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -301,30 +342,7 @@ const EnquiryList = () => {
     return dayjs(dateString).format("MMM DD, YYYY HH:mm");
   };
 
-  const getServiceStatusChip = (status) => {
-    return status ? (
-      <Chip
-        size="small"
-        color="primary"
-        label="Selected"
-        sx={{
-          bgcolor: "rgba(25, 118, 210, 0.08)",
-          color: "#1976d2",
-          fontWeight: 500,
-        }}
-      />
-    ) : (
-      <Chip
-        size="small"
-        color="default"
-        label="Not Selected"
-        sx={{
-          bgcolor: "rgba(97, 97, 97, 0.08)",
-          color: "#616161",
-        }}
-      />
-    );
-  };
+ 
 
   // Custom TableCell header with sorting
   const SortableTableCell = ({ id, label, disableSort = false }) => (
@@ -377,7 +395,7 @@ const EnquiryList = () => {
     }
   };
 
-  if (status === 'loading') {
+  if (status === 'loading' && enquiries.length === 0) {
     return (
       <Box
         sx={{
@@ -661,9 +679,27 @@ const EnquiryList = () => {
           border: `1px solid ${alpha('#1976d2', 0.1)}`
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
-          Search & Filter Enquiries
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
+            Search & Filter Enquiries
+          </Typography>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={isRefreshing || status === 'loading'}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: alpha('#1976d2', 0.08),
+              }
+            }}
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Box>
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
@@ -762,8 +798,29 @@ const EnquiryList = () => {
         borderRadius: 3, 
         mb: 2,
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        border: `1px solid ${alpha('#1976d2', 0.1)}`
+        border: `1px solid ${alpha('#1976d2', 0.1)}`,
+        position: 'relative'
       }}>
+        {/* Loading overlay for refresh */}
+        {status === 'loading' && enquiries.length > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: 'rgba(255, 255, 255, 0.7)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1,
+              borderRadius: 3,
+            }}
+          >
+            <CircularProgress size={24} />
+          </Box>
+        )}
         <TableContainer sx={{ maxHeight: 600 }}>
           <Table stickyHeader aria-label="enquiries table">
             <TableHead>
@@ -1175,6 +1232,22 @@ const EnquiryList = () => {
           </Box>
         </Box>
       </Modal>
+
+      {/* New Enquiry Alert */}
+      <Snackbar
+        open={showNewEnquiryAlert}
+        autoHideDuration={5000}
+        onClose={() => setShowNewEnquiryAlert(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setShowNewEnquiryAlert(false)} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          🎉 New enquiry received! The list has been updated.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
