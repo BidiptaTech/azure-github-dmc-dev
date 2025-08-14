@@ -350,36 +350,36 @@ const DashboardLayout = () => {
 
   const handleUploadProfileImage = async () => {
     const imageToUpload = adjustedImage || previewImage;
-    console.log('=== IMAGE UPLOAD DEBUG ===');
-    console.log('imageToUpload:', imageToUpload);
-    console.log('selectedProfileImage:', selectedProfileImage);
-    console.log('adjustedImage:', adjustedImage);
-    console.log('canvasRef.current:', canvasRef.current);
+    // console.log('=== IMAGE UPLOAD DEBUG ===');
+    // console.log('imageToUpload:', imageToUpload);
+    // console.log('selectedProfileImage:', selectedProfileImage);
+    // console.log('adjustedImage:', adjustedImage);
+    // console.log('canvasRef.current:', canvasRef.current);
 
     if (imageToUpload && selectedProfileImage) {
       try {
         // Convert canvas to blob if we have adjustedImage and canvas is available
         if (adjustedImage && canvasRef.current) {
-          console.log('Using canvas adjusted image');
+          // console.log('Using canvas adjusted image');
           const canvas = canvasRef.current;
           canvas.toBlob(async (blob) => {
-            console.log('Canvas blob created:', blob);
+            // console.log('Canvas blob created:', blob);
             const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-            console.log('File created from canvas:', file);
+            // console.log('File created from canvas:', file);
             const result = await dispatch(updateProfile({ image: file }));
-            console.log('Canvas upload result:', result);
+            // console.log('Canvas upload result:', result);
           }, 'image/jpeg', 0.9);
         } else {
           // Use original selected file
-          console.log('Using original selected file:', selectedProfileImage);
+          // console.log('Using original selected file:', selectedProfileImage);
           const result = await dispatch(updateProfile({ image: selectedProfileImage }));
-          console.log('Original file upload result:', result);
+          // console.log('Original file upload result:', result);
         }
 
         // Don't reset state immediately - let the success handler do it
-        console.log('Image upload initiated successfully');
+        // console.log('Image upload initiated successfully');
       } catch (error) {
-        console.error('Error during image upload:', error);
+        // console.error('Error during image upload:', error);
         // Reset state on error only
         setSelectedProfileImage(null);
         setPreviewImage(null);
@@ -390,7 +390,7 @@ const DashboardLayout = () => {
         setImageOffsetY(0);
       }
     } else {
-      console.log('No image to upload - missing required data');
+      // console.log('No image to upload - missing required data');
     }
   };
 
@@ -439,7 +439,7 @@ const DashboardLayout = () => {
           updateData.image = profileData.data.agent_image;
         }
 
-        console.log('Updating auth state with:', updateData);
+        // console.log('Updating auth state with:', updateData);
         dispatch(updateProfileData(updateData));
       }
 

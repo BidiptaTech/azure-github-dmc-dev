@@ -88,6 +88,8 @@ const handleSearch = () => {
     adults: guestCounts.Adults,
     children: guestCounts.Children,
     tour_id: tourdetails?.tour_id,
+    start: 0,
+    limit: 5,
   }));
 };
 
