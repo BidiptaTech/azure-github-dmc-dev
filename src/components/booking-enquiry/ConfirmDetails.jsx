@@ -43,7 +43,13 @@ import {
   ArrowBack as ArrowBackIcon,
   Send as SendIcon,
   Error as ErrorIcon,
-  AttachMoney as AttachMoneyIcon
+  AttachMoney as AttachMoneyIcon,
+  DirectionsCar as CarIcon,
+  LocalTaxi as TaxiIcon,
+  DirectionsBus as BusIcon,
+  Explore as ExploreIcon,
+  Map as MapIcon,
+  Tour as TourIcon
 } from "@mui/icons-material";
 import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice, clearServiceDetails, clearSpecificService } from "@/slice/common/EnquirySlice";
 import axios from "axios";
@@ -135,11 +141,12 @@ const formatServiceName = (key) => {
 const getServiceIcon = (service) => {
   switch(service) {
     case "hotel": return <HotelIcon />;
-    case "entryExitPort": return <FlightIcon />;
-    case "attraction": return <TicketIcon />;
-    case "localTour": return <PlaceIcon />;
+    case "entryExitPort": return <CarIcon />;
+    case "attraction": return <ExploreIcon />;
+    case "localTour": return <TourIcon />;
     case "tourGuide": return <PersonIcon />;
     case "restaurant": return <RestaurantIcon />;
+    case "packagedAttractions": return <MapIcon />;
     default: return <CheckCircleIcon />;
   }
 };
@@ -793,9 +800,9 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                   <List dense disablePadding>
                     {details.preferredCars.map((car, index) => (
                       <ListItem key={index} dense disableGutters>
-                        <ListItemIcon sx={{ minWidth: 30 }}>
-                          <FlightIcon fontSize="small" color="primary" />
-                        </ListItemIcon>
+                                              <ListItemIcon sx={{ minWidth: 30 }}>
+                        <CarIcon fontSize="small" color="primary" />
+                      </ListItemIcon>
                         <ListItemText primary={
                           typeof car === 'string' 
                             ? car 
@@ -830,7 +837,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     details.selectedAttractions.map((attraction, index) => (
                     <ListItem key={index} dense disableGutters>
                       <ListItemIcon sx={{ minWidth: 30 }}>
-                        <TicketIcon fontSize="small" color="error" />
+                        <ExploreIcon fontSize="small" color="error" />
                       </ListItemIcon>
                       <ListItemText primary={attraction.name || attraction} />
                     </ListItem>
@@ -838,7 +845,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     // Handle when it's an object
                     <ListItem dense disableGutters>
                       <ListItemIcon sx={{ minWidth: 30 }}>
-                        <TicketIcon fontSize="small" color="error" />
+                        <ExploreIcon fontSize="small" color="error" />
                       </ListItemIcon>
                       <ListItemText primary={details.selectedAttractions.name || "Selected Attraction"} />
                     </ListItem>
@@ -858,14 +865,14 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             
             {details.needTransport && (
               <>
-                <DetailItem>
+                {/* <DetailItem>
                   <Typography variant="body2" fontWeight={500}>Destination Type:</Typography>
                   <Chip 
                     size="small" 
                     label={details.destinationType || "Hotel"} 
                     color="primary"
                   />
-                </DetailItem>
+                </DetailItem> */}
                 
                 {details.destination && (
                   <DetailItem>
@@ -910,7 +917,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                   {details.preferredCars.map((car, index) => (
                     <ListItem key={index} dense disableGutters>
                       <ListItemIcon sx={{ minWidth: 30 }}>
-                        <PlaceIcon fontSize="small" color="secondary" />
+                        <TourIcon fontSize="small" color="secondary" />
                       </ListItemIcon>
                       <ListItemText primary={
                         typeof car === 'string' 
@@ -1068,7 +1075,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             
             {details.needTransport && (
               <>
-                <DetailItem>
+                {/* <DetailItem>
                   <Typography variant="body2" fontWeight={500}>Destination Type:</Typography>
                   <Chip 
                     size="small" 
@@ -1086,7 +1093,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                         : details.destination.name || details.destination.hotel_name || details.destination.port_name || "Selected Destination"}
                     </Typography>
                   </DetailItem>
-                )}
+                )} */}
                 
                 <DetailItem>
                   <Typography variant="body2" fontWeight={500}>Car Type:</Typography>
@@ -1121,7 +1128,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     details.selectedPackagedAttractions.map((pkg, idx) => (
                       <ListItem key={idx} dense disableGutters alignItems="flex-start">
                         <ListItemIcon sx={{ minWidth: 30 }}>
-                          <TicketIcon fontSize="small" color="primary" />
+                          <MapIcon fontSize="small" color="primary" />
                         </ListItemIcon>
                         <ListItemText
                           primary={pkg.name || pkg}
@@ -1140,7 +1147,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     )) : (
                       <ListItem dense disableGutters>
                         <ListItemIcon sx={{ minWidth: 30 }}>
-                          <TicketIcon fontSize="small" color="primary" />
+                          <MapIcon fontSize="small" color="primary" />
                         </ListItemIcon>
                         <ListItemText primary={details.selectedPackagedAttractions?.name || "Selected Package"} />
                       </ListItem>
@@ -1274,7 +1281,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             // After showing thank you page, redirect to agent dashboard
             setTimeout(() => {
               window.location.href = '/dashboard/db-dashboard';
-            }, 5000); // Redirect after 5 seconds
+            }, 5000); // Redirect after 5 seconds 
           }, 2000);
         }
       } else {
