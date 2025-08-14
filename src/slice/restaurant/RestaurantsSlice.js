@@ -8,7 +8,7 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
   async (
-    { city, date, adults, children, tour_id, fromMainSearch },
+    { city, date, adults, children, tour_id, fromMainSearch, start = 0, limit = 5 },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
@@ -16,14 +16,6 @@ export const fetchRestaurants = createAsyncThunk(
       if (fromMainSearch) {
         return [];
       }
-
-      // Store the search parameters in Redux
-      dispatch(setSearchParams({
-        location: city,
-        date: date,
-        adults: adults,
-        children: children
-      }));
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
@@ -46,6 +38,10 @@ export const fetchRestaurants = createAsyncThunk(
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
       if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Add pagination parameters
+      queryParams.append("start", start);
+      queryParams.append("limit", limit);
       
       // Add DMC ID to query parameters if available
       if (selectedDmcId) {
@@ -261,11 +257,11 @@ const restaurantsSlice = createSlice({
       state.services = action.payload; // Update the state with the new data
     },
     setSearchParams(state, action) {
-      state.searchParams = {
-        ...state.searchParams,
+      const serializedPayload = {
         ...action.payload,
         date: action.payload.date || "",
       };
+      state.searchParams = serializedPayload;
     },
     updateModeMap: (state, action) => {
       const { restaurantId, mode = "dmc", prices } = action.payload;
@@ -304,11 +300,23 @@ const restaurantsSlice = createSlice({
         state.status = "succeeded";
         // Check if the response is empty or undefined
         if (!action.payload || action.payload.length === 0) {
-          console.log('No restaurants found in response');
-          state.restaurants = [];
+          // If no data returned and we have existing data, don't clear it
+          // This indicates we've reached the end of available data
+          if (state.restaurants.length === 0) {
+            state.restaurants = [];
+          }
         } else {
-          console.log('Setting restaurants in state:', action.payload);
-          state.restaurants = action.payload;
+          // For infinite scroll: append new data to existing data
+          // Check if this is the first page (start = 0) or subsequent pages
+          const isFirstPage = action.meta.arg.start === 0;
+          
+          if (isFirstPage) {
+            // First page: replace existing data
+            state.restaurants = action.payload;
+          } else {
+            // Subsequent pages: append to existing data
+            state.restaurants = [...state.restaurants, ...action.payload];
+          }
         }
       })
       .addCase(fetchRestaurants.rejected, (state, action) => {

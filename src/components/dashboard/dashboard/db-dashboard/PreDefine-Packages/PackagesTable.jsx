@@ -8,10 +8,8 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  
   TableRow,
   Typography,
-  
   Paper,
   IconButton,
   Tooltip,
@@ -25,9 +23,7 @@ import {
   TableSortLabel,
   CircularProgress,
   Alert,
-  Snackbar,
-  TablePagination,
-  Pagination
+  Snackbar
 } from "@mui/material";
 import {
   Visibility,
@@ -80,24 +76,12 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
     severity: 'info'
   });
 
-  // Pagination state
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
-  };
-
-  // Pagination handlers
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
   };
 
   const handleViewClick = (booking) => {
@@ -187,14 +171,8 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
     );
   }
 
-
   // Sort the data
   const sortedData = [...data].sort(getSorting(order, orderBy));
-
-  // Pagination logic
-  const startIndex = page * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const paginatedData = sortedData.slice(startIndex, endIndex);
 
   return (
     <>
@@ -357,7 +335,7 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedData.map((row) => (
+            {sortedData.map((row) => (
               <TableRow
                 key={row.bookingId}
                 sx={{
@@ -535,44 +513,6 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Pagination Controls */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mt: 2, 
-        px: 2,
-        py: 1,
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        border: '1px solid #e0e0e0',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
-      }}>
-        <Typography variant="body2" color="text.secondary">
-          Showing {startIndex + 1} to {Math.min(endIndex, sortedData.length)} of {sortedData.length} entries
-        </Typography>
-        <TablePagination
-          component="div"
-          count={sortedData.length}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          labelRowsPerPage="Rows per page:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-          sx={{
-            '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
-              fontSize: '0.875rem',
-              color: '#666'
-            },
-            '.MuiTablePagination-select': {
-              fontSize: '0.875rem'
-            }
-          }}
-        />
-      </Box>
 
       {/* View Booking Modal */}
       <BookingViewModal
