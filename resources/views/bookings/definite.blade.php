@@ -567,6 +567,13 @@
                                         <i class="ri-eye-line"></i> View
                                     </a>
                                     
+                                    <a href="{{ route('tour.itinerary', ['tourId' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-success btn-sm rounded-pill"
+                                       onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
+                                       style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
+                                        <i class="fas fa-calendar-alt"></i> View Itinerary
+                                    </a>
+                                    
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment History
@@ -1248,8 +1255,82 @@ function updatePaymentStatus(tourId, paymentIndex, status, amount) {
 // Define base URL using Laravel's URL helper
 const BASE_URL = "{{ url('/') }}";
 
+// Helper function to close payment modal
+function closePaymentModal(tourId) {
+    console.log('Closing payment modal for tour:', tourId);
+    
+    // Method 1: Try to find the specific modal
+    const modal = document.getElementById(`showPaymentModal${tourId}`);
+    console.log('Modal element found:', modal);
+    
+    if (modal) {
+        // Method 1a: Bootstrap Modal instance
+        try {
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            console.log('Bootstrap modal instance:', modalInstance);
+            if (modalInstance) {
+                modalInstance.hide();
+                console.log('Bootstrap modal hide called');
+            }
+        } catch (e) {
+            console.log('Bootstrap method failed:', e);
+        }
+        
+        // Method 1b: jQuery modal hide
+        try {
+            if (typeof $ !== 'undefined') {
+                $(`#showPaymentModal${tourId}`).modal('hide');
+                console.log('jQuery modal hide called');
+            }
+        } catch (e) {
+            console.log('jQuery method failed:', e);
+        }
+        
+        // Method 1c: Force hide using CSS
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        console.log('CSS modal hide applied');
+    }
+    
+    // Method 2: Close any open modal as fallback
+    try {
+        const allOpenModals = document.querySelectorAll('.modal.show');
+        console.log('Found open modals:', allOpenModals.length);
+        
+        allOpenModals.forEach(openModal => {
+            try {
+                const instance = bootstrap.Modal.getInstance(openModal);
+                if (instance) {
+                    instance.hide();
+                    console.log('Closed modal:', openModal.id);
+                }
+            } catch (e) {
+                console.log('Error closing modal instance:', e);
+            }
+        });
+    } catch (e) {
+        console.log('Fallback method failed:', e);
+    }
+    
+    // Method 3: Remove backdrop and reset body
+    try {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        console.log('Backdrop and body reset');
+    } catch (e) {
+        console.log('Backdrop reset failed:', e);
+    }
+}
+
 function verifyPayment(tourId, paymentIndex) {
     if (confirm('Are you sure you want to verify this payment?')) {
+        // Close the modal immediately when user confirms
+        closePaymentModal(tourId);
+        
         // Show loading overlay
         const overlay = document.getElementById('paymentProcessingOverlay');
         if (overlay) {
@@ -1335,6 +1416,9 @@ function verifyPayment(tourId, paymentIndex) {
 
 function declinePayment(tourId, paymentIndex) {
     if (confirm('Are you sure you want to decline this payment?')) {
+        // Close the modal immediately when user confirms
+        closePaymentModal(tourId);
+        
         // Show loading overlay
         const overlay = document.getElementById('paymentProcessingOverlay');
         if (overlay) {
