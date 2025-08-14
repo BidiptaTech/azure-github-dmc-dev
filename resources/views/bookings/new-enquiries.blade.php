@@ -352,15 +352,7 @@
                             
                         </tr>
                         @empty
-                        <tr>
-                            <td colspan="10" class="text-center py-4">
-                                <div class="d-flex flex-column align-items-center">
-                                    <i class="ri-inbox-line ri-48px text-muted mb-2"></i>
-                                    <h6 class="text-muted">No new enquiries found</h6>
-                                    <p class="text-muted mb-0">All enquiries have been processed or there are no new enquiries yet.</p>
-                                </div>
-                            </td>
-                        </tr>
+                        <span class="text-muted">No new enquiries found</span>
                         @endforelse
                     </tbody>
                 </table>
