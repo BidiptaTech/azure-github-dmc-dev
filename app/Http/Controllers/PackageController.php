@@ -12,12 +12,14 @@ use App\Models\Guide;
 use App\Models\Restaurant;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Helpers\CommonHelper;
 use Exception;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
 use App\Models\PackageBooking;
-use App\Models\Vehicles;
+use App\Models\Vehicle;
+use App\Models\Agent;
 
 class PackageController extends Controller
 {
@@ -27,7 +29,7 @@ class PackageController extends Controller
     public function index(Request $request)
     {
         $dmc_id = null;
-        $user = auth()->user();
+        $user = Auth::user();
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23){
             $dmc_id = $request->dmc ?? null;
         }
@@ -164,7 +166,7 @@ class PackageController extends Controller
             DB::beginTransaction();
 
             // Log the JSON data for debugging
-            \Log::info('Package Creation JSON Data:', [
+            Log::info('Package Creation JSON Data:', [
                 'itinerary_json_data' => $request->input('itinerary_json_data'),
                 'hotel_json_data' => $request->input('hotel_json_data'),
                 'day_wise_itinerary' => $request->input('day_wise_itinerary')
@@ -195,12 +197,12 @@ class PackageController extends Controller
             $hotelJsonData = $request->input('hotel_json_data');
             
             // Debug the JSON data
-            \Log::debug('Raw itinerary data', ['data' => $itineraryData]);
-            \Log::debug('Raw hotel data', ['data' => $hotelJsonData]);
+            Log::debug('Raw itinerary data', ['data' => $itineraryData]);
+            Log::debug('Raw hotel data', ['data' => $hotelJsonData]);
             
             // Process day-wise itinerary data for backward compatibility
             $dayWiseItineraryRaw = $request->input('day_wise_itinerary');
-            \Log::debug('Day-wise itinerary data', ['data' => $dayWiseItineraryRaw]);
+            Log::debug('Day-wise itinerary data', ['data' => $dayWiseItineraryRaw]);
             
             // Extract data from day_wise_itinerary if JSON data is empty
             if ((empty($itineraryData) || $itineraryData === 'null' || $itineraryData === '[]') && 
@@ -230,7 +232,7 @@ class PackageController extends Controller
                     }
                     
                     $itineraryData = json_encode($extractedItinerary);
-                    \Log::debug('Extracted itinerary data', ['data' => $itineraryData]);
+                    Log::debug('Extracted itinerary data', ['data' => $itineraryData]);
                 }
                 
                 // Extract hotel data from day_wise_itinerary
@@ -246,7 +248,7 @@ class PackageController extends Controller
                     }
                     
                     $hotelJsonData = json_encode($extractedHotels);
-                    \Log::debug('Extracted hotel data', ['data' => $hotelJsonData]);
+                    Log::debug('Extracted hotel data', ['data' => $hotelJsonData]);
                 }
             }
             
@@ -299,7 +301,7 @@ class PackageController extends Controller
             }
 
             $dmc_id = null;
-            $user = auth()->user();
+            $user = Auth::user();
             if ($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 23) {
                 $dmc_id = $request->dmc ?? null;
             } elseif ($user->role_id == 11 || $user->role_id == 20) {
@@ -354,8 +356,8 @@ class PackageController extends Controller
                 'exclusions' => $validated['exclusions'],
                 'terms_conditions' => $validated['terms_conditions'],
                 'status' => $validated['status'],
-                'created_by' => auth()->user()->userId,
-                'updated_by' => auth()->user()->userId,
+                'created_by' => Auth::user()->userId,
+                'updated_by' => Auth::user()->userId,
                 'itinerary' => $request->day_wise_itinerary,
                 'dmc_id' => $dmc_id,
                 'child_max_age' => $validated['child_max_age']
@@ -368,7 +370,7 @@ class PackageController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Package Creation Error:', [
+            Log::error('Package Creation Error:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request_data' => $request->all()
@@ -446,7 +448,7 @@ class PackageController extends Controller
             DB::beginTransaction();
             
             // Log the JSON data for debugging
-            \Log::info('Package Update JSON Data:', [
+            Log::info('Package Update JSON Data:', [
                 'itinerary_json_data' => $request->input('itinerary_json_data'),
                 'hotel_json_data' => $request->input('hotel_json_data'),
                 'day_wise_itinerary' => $request->input('day_wise_itinerary')
@@ -479,7 +481,7 @@ class PackageController extends Controller
                 'status' => $validated['status'],
                 'itinerary' => $request->input('itinerary_json_data'),
                 'hotel_json_data' => $request->input('hotel_json_data'),
-                'updated_by' => auth()->user()->userId
+                'updated_by' => Auth::user()->userId
             ];
 
             // Handle main image upload using CommonHelper
@@ -597,7 +599,7 @@ class PackageController extends Controller
      */
     public function getTransportByCity($city)
     {
-        $transport = Vehicles::where('city', $city)->get(['vehicle_id', 'name', 'city','vehicle_type','vehicle_capacity','vehicle_image','vehicle_description','vehicle_price','vehicle_status']);
+        $transport = Vehicle::where('city', $city)->get(['vehicle_id', 'name', 'city','vehicle_type','vehicle_capacity','vehicle_image','vehicle_description','vehicle_price','vehicle_status']);
         return response()->json($transport);
     }
 
@@ -637,15 +639,14 @@ class PackageController extends Controller
 
     public function predefinedPackageBookingList()
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
         if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             if($user->role_id == 11 || $user->role_id == 20){
                 $dmc_id = $user->userId;
             }
             //sales head
-            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138
-            ){
+            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
                 $dmc_id = $user->created_by;
             }
             //operational head
@@ -673,13 +674,33 @@ class PackageController extends Controller
                 $dmc_id = $sales_head->created_by;
             }
 
-            // Include the package relationship to access package details
-        $bookings = PackageBooking::with('package')
-        ->where('dmc_id', $dmc_id)
-        ->orderBy('created_at', 'desc')
-        ->get();
+            // Include the package and agent relationships to access package and agent details
+            $bookings = PackageBooking::with(['package', 'agent' => function($query) use ($dmc_id) {
+                $query->where(function($q) use ($dmc_id) {
+                    $q->whereRaw("CASE 
+                        WHEN dmc_id IS NOT NULL 
+                        THEN (
+                            CASE 
+                                WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                THEN dmc_id::jsonb @> ?::jsonb
+                                WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                THEN dmc_id::jsonb @> ?::jsonb
+                                ELSE dmc_id::text LIKE ?
+                            END
+                        )
+                        ELSE false
+                    END", [
+                        json_encode([$dmc_id]),
+                        json_encode([$dmc_id]),
+                        "%{$dmc_id}%"
+                    ]);
+                });
+            }])
+            ->where('dmc_id', $dmc_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
         }else{
-            $bookings = PackageBooking::with('package')
+            $bookings = PackageBooking::with(['package', 'agent'])
             ->orderBy('created_at', 'desc')
             ->get();
         }

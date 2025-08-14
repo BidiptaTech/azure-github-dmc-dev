@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
+use App\Models\Enquiry;
 
 class BookingsController extends Controller
 {
@@ -168,10 +169,13 @@ class BookingsController extends Controller
                 ->paginate(15);
         }
 
+        $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
+        
+
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
 
-        return view('bookings.new-enquiries', compact('tours', 'filteredAgents'));
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments'));
     }
 
     /**
