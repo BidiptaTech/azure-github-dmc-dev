@@ -183,7 +183,7 @@ class ZoneController extends Controller
         $drop_id = $request->drop_id;
         $pickup_type = $request->pickup_type;
         $pickup_id = $request->pickup_id;
-
+        $dmc_id = $request->dmc_id;
         if (!$drop_type || !$drop_id || !$pickup_type || !$pickup_id) {
             return response()->json([
                 'success' => false,
@@ -200,15 +200,18 @@ class ZoneController extends Controller
         switch ($pickup_type) {
             case 'hotel':
                 $pickup = Hotel::where('hotel_unique_id', $pickup_id)->first();
-                $from_zone_id = $pickup->zone_id ?? null;
+                // Use zone_assignments to get zone for the specified DMC
+                $from_zone_id = $pickup ? $pickup->getZoneForDmc($dmc_id) : null;
                 break;
             case 'attraction':
                 $pickup = Attraction::where('attraction_id', $pickup_id)->first();
-                $from_zone_id = $pickup->zone_id ?? null;
+                // Use zone_assignments to get zone for the specified DMC
+                $from_zone_id = $pickup ? $pickup->getZoneForDmc($dmc_id) : null;
                 break;
             case 'restaurant':
                 $pickup = Restaurant::where('restaurant_id', $pickup_id)->first();
-                $from_zone_id = $pickup->zone_id ?? null;
+                // Use zone_assignments to get zone for the specified DMC
+                $from_zone_id = $pickup ? $pickup->getZoneForDmc($dmc_id) : null;
                 break;
             case 'port':
                 // port pickup uses zone id directly from pickup_id (assuming it's already a zone_id)
@@ -222,15 +225,18 @@ class ZoneController extends Controller
         switch ($drop_type) {
             case 'hotel':
                 $drop = Hotel::where('hotel_unique_id', $drop_id)->first();
-                $to_zone_id = $drop->zone_id ?? null;
+                // Use zone_assignments to get zone for the specified DMC
+                $to_zone_id = $drop ? $drop->getZoneForDmc($dmc_id) : null;
                 break;
             case 'attraction':
                 $drop = Attraction::where('attraction_id', $drop_id)->first();
-                $to_zone_id = $drop->zone_id ?? null;
+                // Use zone_assignments to get zone for the specified DMC
+                $to_zone_id = $drop ? $drop->getZoneForDmc($dmc_id) : null;
                 break;
             case 'restaurant':
                 $drop = Restaurant::where('restaurant_id', $drop_id)->first();
-                $to_zone_id = $drop->zone_id ?? null;
+                // Use zone_assignments to get zone for the specified DMC
+                $to_zone_id = $drop ? $drop->getZoneForDmc($dmc_id) : null;
                 break;
             default:
                 return response()->json(['success' => false, 'message' => 'Invalid drop type.']);
@@ -329,7 +335,8 @@ class ZoneController extends Controller
                     return response()->json(['message' => 'Pickup Hotel Not Found!'], 400);
                 }
                 $country = $pickup->country;
-                $from_zone_id = $pickup->zone_id ?? null;
+                // Use zone_assignments to get zone for the determined DMC
+                $from_zone_id = $pickup->getZoneForDmc($dmcId);
                 break;
             case 'attraction':
                 $pickup = Attraction::where('attraction_id', $pickup_id)->first();
@@ -337,7 +344,8 @@ class ZoneController extends Controller
                     return response()->json(['message' => 'Pickup Attraction Not Found!'], 400);
                 }
                 $country = $pickup->country;
-                $from_zone_id = $pickup->zone_id ?? null;
+                // Use zone_assignments to get zone for the determined DMC
+                $from_zone_id = $pickup->getZoneForDmc($dmcId);
                 break;
             case 'restaurant':
                 $pickup = Restaurant::where('restaurant_id', $pickup_id)->first();
@@ -346,7 +354,8 @@ class ZoneController extends Controller
                     return response()->json(['message' => 'Pickup Restaurant Not Found!'], 400);
                 }
                 $country = $pickup->country;
-                $from_zone_id = $pickup->zone_id ?? null;
+                // Use zone_assignments to get zone for the determined DMC
+                $from_zone_id = $pickup->getZoneForDmc($dmcId);
                 break;
             case 'port':
                 // port pickup uses zone id directly from pickup_id (assuming it's already a zone_id)
@@ -370,15 +379,15 @@ class ZoneController extends Controller
                     return response()->json(['message' => 'Drop-off Hotel Not Found!'], 400);
                 }
                 $country = $drop->country;
-                $to_zone_id = $drop->zone_id ?? null;
+                // Use zone_assignments to get zone for the determined DMC
+                $to_zone_id = $drop->getZoneForDmc($dmcId);
                 break;
             case 'attraction':
                 $drop = Attraction::where('attraction_id', $drop_id)->first();
                 if(!$drop){
                     return response()->json(['message' => 'Drop-off Attraction Not Found!'], 400);
                 }
-                $country = $drop->country;
-                $to_zone_id = $drop->zone_id ?? null;
+                $to_zone_id = $drop->getZoneForDmc($dmcId);
                 break;
             case 'restaurant':
                 $drop = Restaurant::where('restaurant_id', $drop_id)->first();
@@ -386,7 +395,8 @@ class ZoneController extends Controller
                     return response()->json(['message' => 'Drop-off Restaurant Not Found!'], 400);
                 }
                 $country = $drop->country;
-                $to_zone_id = $drop->zone_id ?? null;
+                // Use zone_assignments to get zone for the determined DMC
+                $to_zone_id = $drop->getZoneForDmc($dmcId);
                 break;
             case 'port':
                 $drop = Port::where('port_id', $drop_id)->first();

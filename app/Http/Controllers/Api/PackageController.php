@@ -32,6 +32,7 @@ class PackageController extends Controller
         $limit = $request->limit ?? 10;
         $children = $request->query('children');
 
+
         if(!$dmcId){
             return response()->json(['message' => 'Dmc ID is required'], 400);
         }
@@ -85,21 +86,10 @@ class PackageController extends Controller
             }
         }
 
-
-        if($children){
-            $pax = $pax + $children;
-        }
-
-        if($pax != 2){
-            $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
-            ->whereDate('start_date', '<=', $date)
-            ->whereDate('expire_date', '>=', $date)->where('package_type', '!=', 'couple');
-        }
-        else{
-        $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
-            ->whereDate('start_date', '<=', $date)
-            ->whereDate('expire_date', '>=', $date);
-        }
+        $query = Package::where('status', 1)->where('dmc_id', $dmcId)
+                ->whereDate('start_date', '<=', $date)
+                ->whereDate('expire_date', '>=', $date);
+        
         if (!empty($city)) {
             $query->where('city', $city);
         }
@@ -458,7 +448,7 @@ class PackageController extends Controller
         $totalPax = $adult_count + $child_count + $senior_count;
         
         // Validate package exists
-        $package = Package::select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'price_senior', 'price_child', 'max_pax', 'main_image', 'city')->where('package_id', $package_id)->first();
+        $package = Package::select('package_id', 'title', 'destination', 'category', 'duration_days', 'description', 'price_adult', 'price_senior', 'price_child', 'max_pax', 'main_image', 'city', 'package_type', 'child_max_age')->where('package_id', $package_id)->first();
         if (!$package) {
             return response()->json(['message' => 'Package not found'], 404);
         }
@@ -472,12 +462,8 @@ class PackageController extends Controller
 
         // Verify price calculation
         $package_price = 0;
-        if($package->package_type == 'single'){
-            $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
-        }
-        elseif($package->package_type == 'couple'){
-            $package_price = $package->price_adult;
-        }
+        $package_price = $package->price_adult * $adult_count + $package->price_senior * $senior_count + $package->price_child * $child_count;
+        
 
         if($package_price != $totalPrice){
             return response()->json(['message' => 'Total price is not correct', 'package_price' => $package_price, 'totalPrice' => $totalPrice, 'adult_count' => $adult_count, 'child_count' => $child_count, 'senior_count' => $senior_count], 400);
@@ -571,17 +557,21 @@ class PackageController extends Controller
     public function getBookingLists(Request $request){
         $user = Auth::user();
         $booking = [];
-        $agent_id = request()->header('agent-id');
+        $agent_id = request()->header('Agent-Id');
         $start = $request->start ?? 0;
         $limit = $request->limit ?? 10;
         $type = $request->type ?? 'all';
+        $status = $request->status;
+        $currentDate = now()->toDateString();
+        $booking = [];
+        $booking_query = collect();
+
         // Convert string "null" to actual null value
         if ($agent_id === 'null') {
             $agent_id = null;
         }
         
         try {
-            
             if(!$agent_id || $agent_id === 'null'){
                 if($user->userId){
                     $dmc_id = null;
@@ -610,44 +600,42 @@ class PackageController extends Controller
                     
                     // If DMC ID is found, filter bookings by DMC
                     if ($dmc_id) {
-                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
-                            ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc')
-                            ->skip($start)
-                            ->take($limit)
-                            ->get();
+                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
+                            ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc');
                     } else {
                         $agents = Agent::where('sales_manager_dmc', $agent_creator_id)->get();
                         $agent_ids = $agents->pluck('agent_id')->toArray();
 
                         // Fallback to user's own bookings if no DMC ID found
-                        $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
-                            ->whereIn('booked_by', $agent_ids)->orderBy('booking_id', 'desc')
-                            ->skip($start)
-                            ->take($limit)
-                            ->get();
+                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
+                            ->whereIn('booked_by', $agent_ids)->orderBy('booking_id', 'desc');
                     }
                 }
                 else{
-                    $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
-                        ->where('booked_by', $user->agent_id)->orderBy('booking_id', 'desc')
-                        ->skip($start)
-                        ->take($limit)
-                        ->get();
+                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
+                        ->where('booked_by', $user->agent_id)->orderBy('booking_id', 'desc');
                 }
             }
             else{
-                $booking = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at');
+                $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at');
                 // Only add the where clause if agent_id is not null
                 if ($agent_id !== null) {
-                    $booking = $booking->where('agent_id', $agent_id)->orderBy('booking_id', 'desc')
-                    ->skip($start)
-                    ->take($limit)
-                    ->get();
+                    $booking_query = $booking_query->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
                 }
                 else{
-                    $booking = [];
+                    $booking_query = collect();
                 }
             }
+
+            if ($status === 'ongoing') {
+                $booking = $booking_query->whereRaw("travel_dates->>'check_in' <= ?", [$currentDate])
+                             ->whereRaw("travel_dates->>'check_out' >= ?", [$currentDate])->skip($start)->take($limit)->get();
+            } elseif ($status === 'upcoming') {
+                $booking = $booking_query->whereRaw("travel_dates->>'check_in' > ?", [$currentDate])->skip($start)->take($limit)->get();
+            } elseif ($status === 'past') {
+                $booking = $booking_query->whereRaw("travel_dates->>'check_out' < ?", [$currentDate])->skip($start)->take($limit)->get();
+            }
+
             if(count($booking) == 0){
                 return response()->json([
                     'booking_lists' => [],

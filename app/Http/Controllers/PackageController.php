@@ -151,7 +151,6 @@ class PackageController extends Controller
             'price_adult' => 'required|numeric|min:0',
             'price_senior' => 'nullable|numeric|min:0',
             'price_child' => 'nullable|numeric|min:0',
-            'max_pax' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'expiry_date' => 'required|date|after:start_date',
             'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
@@ -160,10 +159,8 @@ class PackageController extends Controller
             'exclusions' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
             'status' => 'required',
-            'package_type' => 'required|string',
             'child_max_age' => 'nullable|integer',
         ]);
-
 
         try {
             DB::beginTransaction();
@@ -339,7 +336,7 @@ class PackageController extends Controller
                 'price_adult' => $validated['price_adult'],
                 'price_senior' => $validated['price_senior'],
                 'price_child' => $validated['price_child'],
-                'max_pax' => $validated['max_pax'],
+                'max_pax' => $request->input('max_pax') ?? null,
                 'selected_hotels' => $request->input('selected_hotels'),
                 'selected_attractions' => json_encode($selectedAttractions),
                 'selected_guide' => json_encode($selectedGuides),
