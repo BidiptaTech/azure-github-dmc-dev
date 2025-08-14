@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Package;
 use App\Models\User;
+use App\Models\Agent;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PackageBooking extends Model
@@ -47,6 +48,14 @@ class PackageBooking extends Model
     public function bookedBy()
     {
         return $this->belongsTo(User::class, 'booked_by', 'userId');
+    }
+    
+    /**
+     * Get the agent associated with the booking
+     */
+    public function agent()
+    {
+        return $this->belongsTo(Agent::class, 'agent_id', 'agent_id');
     }
     
     /**
