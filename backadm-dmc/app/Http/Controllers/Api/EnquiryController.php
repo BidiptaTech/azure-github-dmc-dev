@@ -496,6 +496,14 @@ class EnquiryController extends Controller
     {
         $user = auth()->user();
         $agent_id = $request->agent_id;
+        
+        // Pagination parameters with defaults
+        $start = $request->input('start', 0);
+        $limit = $request->input('limit', 10);
+        
+        // Validate pagination parameters
+        $start = max(0, intval($start));
+        $limit = max(1, min(100, intval($limit))); // Limit between 1 and 100
 
         if (!$user) {
             return response()->json([
@@ -561,21 +569,29 @@ class EnquiryController extends Controller
                     ->where('dmc_id', $dmc_id)
                     ->whereNull('unique_tour_id')
                     ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->where('dmc_id', $dmc_id)
                     ->whereNotNull('unique_tour_id')
                     ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
             } else {
                 // For agents, show all their enquiries (no DMC filtering)
                 $enquiries = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNull('unique_tour_id')
                     ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNotNull('unique_tour_id')
                     ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
             }
             if (!$enquiries) {
@@ -622,6 +638,8 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->whereMonth('check_in_time', now()->month)
                     ->whereYear('check_in_time', now()->year)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
 
                 $tour_enquiries_list = EnquiryForm::whereIn('agent_id', $agent_ids)
@@ -629,6 +647,8 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->whereMonth('check_in_time', now()->month)
                     ->whereYear('check_in_time', now()->year)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
             }
             else{
@@ -641,6 +661,8 @@ class EnquiryController extends Controller
                 $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
                     ->whereNull('unique_tour_id')
                     ->where('status', null)
+                    ->skip($start)
+                    ->take($limit)
                     ->get();
             }
         }
@@ -648,8 +670,93 @@ class EnquiryController extends Controller
             $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
                 ->whereNull('unique_tour_id')
                 ->where('status', null)
+                ->skip($start)
+                ->take($limit)
                 ->get();
         }
+        // Get total count for pagination info
+        $totalCount = 0;
+        if ($agent_id && $user->userId) {
+            if (in_array($user->role_id, [33, 37, 38])) {
+                // For DMC roles, count enquiries by both agent_id AND dmc_id
+                $dmc_id = null;
+                if ($user->role_id == 33) {
+                    $dmc_id = $user->created_by;
+                } elseif ($user->role_id == 37) {
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                } elseif ($user->role_id == 38) {
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                }
+                
+                if ($dmc_id) {
+                    $totalCount = EnquiryForm::where('agent_id', $agent_id)
+                        ->where('dmc_id', $dmc_id)
+                        ->whereNull('unique_tour_id')
+                        ->where('status', null)
+                        ->count();
+                }
+            } else {
+                // For agents, count all their enquiries
+                $totalCount = EnquiryForm::where('agent_id', $agent_id)
+                    ->whereNull('unique_tour_id')
+                    ->where('status', null)
+                    ->count();
+            }
+        } elseif ($user->userId && !$agent_id) {
+            if (in_array($user->role_id, [33, 37, 38])) {
+                $currentUser = User::where('userId', $user->userId)->first();
+                if ($currentUser) {
+                    $dmcId = null;
+                    if ($currentUser->role_id == 33) {
+                        $dmcId = $currentUser->created_by;
+                    } elseif ($currentUser->role_id == 37) {
+                        $sales_head_id = $currentUser->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmcId = $sales_head->created_by;
+                    } elseif ($currentUser->role_id == 38) {
+                        $sales_manager_id = $currentUser->created_by;
+                        $sales_manager_createdBy_id = User::where('userId', $sales_manager_id)->first()->value('created_by');
+                        $sales_head = User::where('userId', $sales_manager_createdBy_id)->first();
+                        $dmcId = $sales_head->created_by;
+                    }
+                    
+                    if ($dmcId) {
+                        $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+                        $totalCount = EnquiryForm::whereIn('agent_id', $agent_ids)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
+                            ->whereMonth('check_in_time', now()->month)
+                            ->whereYear('check_in_time', now()->year)
+                            ->count();
+                    }
+                }
+            } else {
+                if (!empty($user?->agent_id)) {
+                    $totalCount = EnquiryForm::where('agent_id', $user->agent_id)
+                        ->whereNull('unique_tour_id')
+                        ->where('status', null)
+                        ->count();
+                }
+            }
+        } elseif ($user->agent_id) {
+            $totalCount = EnquiryForm::where('agent_id', $user->agent_id)
+                ->whereNull('unique_tour_id')
+                ->where('status', null)
+                ->count();
+        }
+        
         $hotelIds = [];
         $restaurantIds = [];
         $attractionIds = [];
@@ -774,7 +881,14 @@ class EnquiryController extends Controller
             'success' => true,
             'message' => 'Successful',
             'enquiries' => $enquiry_lists,
-            
+            'pagination' => [
+                'start' => $start,
+                'limit' => $limit,
+                'total' => $totalCount,
+                'has_more' => ($start + $limit) < $totalCount,
+                'current_page' => floor($start / $limit) + 1,
+                'total_pages' => ceil($totalCount / $limit)
+            ]
         ]);
     }
 
