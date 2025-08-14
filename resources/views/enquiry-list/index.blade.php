@@ -72,14 +72,30 @@
                             </td>
                             
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="d-flex flex-column bg-light shadow-sm rounded px-3 py-2" style="background: linear-gradient(145deg, #ffffff, #e6e6e6); box-shadow: 4px 4px 10px #cfcfcf, -4px -4px 10px #ffffff;">
-                                        <span class="fw-semibold mb-1 text-primary">{{ $enquiry->display_id ?? 'N/A' }}</span>
+                                <div class="d-flex flex-column rounded px-3 py-2" 
+                                    style="background: linear-gradient(145deg, #ffffff, #e6e6e6); 
+                                            box-shadow: 4px 4px 10px #cfcfcf, -4px -4px 10px #ffffff;">
+
+                                    <!-- Display ID -->
+                                    <div class="mb-1">
+                                        <span class="fw-semibold text-primary">
+                                            {{ $enquiry->display_id ?? 'N/A' }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Multi Enquiry ID -->
+                                    <div>
+                                        <span class="text-muted small">Multi Enq ID:</span>
+                                        <span class="fw-semibold small" 
+                                            style="background: linear-gradient(45deg, #6e5b1b, #a89525, #eead35); 
+                                                    -webkit-background-clip: text; 
+                                                    -webkit-text-fill-color: transparent;">
+                                            {{ $enquiry->multi_enq_id ?? 'N/A' }}
+                                        </span>                               
                                     </div>
                                 </div>
                             </td>
 
-                            
                             <!-- Enhanced Agent Details Column -->
                             <td>
                                 <div class="d-flex align-items-center">

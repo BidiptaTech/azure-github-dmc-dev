@@ -140,6 +140,7 @@
                             <th>Pax</th>
                             <th>Total Price</th>
                             <th>Status</th>
+                            <th>Agent Name</th>
                             <th>Action</th>
                             @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
                                 <th>Add Payment</th>
@@ -180,7 +181,11 @@
                             @endphp
                             <tr>
                                 <td>{{ $key + 1 }}</td>
-                                <td>{{ $booking->booking_id }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary rounded-pill px-3 py-2">
+                                        {{ $booking->booking_id }}
+                                    </span>
+                                </td>                                
                                 <td>{{ $travelDates }}</td>
                                 <td>{{ $duration }} days</td>
                                 <td>
@@ -224,6 +229,13 @@
                                             Cancelled
                                         @endif
                                     </span>
+                                </td>
+                                <td>
+                                    @if($booking->agent)
+                                        <span class="badge bg-info">{{ $booking->agent->name }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                                 
                                 <td>

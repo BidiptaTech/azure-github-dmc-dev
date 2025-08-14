@@ -208,6 +208,7 @@
                             </th> --}}
                             <th>#</th>
                             <th>Tour Details</th>
+                            <th>Created At</th>
                             <th>Destination</th>
                             <th>Guests</th>
                             <th>Agent</th>
@@ -255,7 +256,12 @@
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
-                                    <small class="text-muted">Created: {{ \Carbon\Carbon::parse($tour->created_at)->format('D, M d, Y') }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ \Carbon\Carbon::parse($tour->created_at)->format('D, M d, Y') }}</span>
+                                    <small class="text-muted">{{ \Carbon\Carbon::parse($tour->created_at)->format('H:i A') }}</small>
                                 </div>
                             </td>
                             <td>
@@ -433,7 +439,7 @@
                         </tr>
                         @empty
                         {{-- <tr>
-                            <td colspan="10" class="text-center py-4">
+                            <td colspan="11" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-check-circle-line ri-48px text-muted mb-2"></i>
                                     <h6 class="text-muted">No actual bookings</h6>
@@ -675,11 +681,11 @@ function filterTable() {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
-        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const paymentBadges = row.cells[7]?.querySelectorAll('.badge') || [];
+        const destination = row.cells[3]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[9]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const travelDates = row.cells[7]?.textContent.toLowerCase() || '';
+        const paymentBadges = row.cells[8]?.querySelectorAll('.badge') || [];
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
@@ -1011,19 +1017,19 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            // order: [[5, 'desc']], // Sort by Travel Dates column (index 5) in descending order
+            // order: [[7, 'desc']], // Sort by Travel Dates column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column (index 8)
+                    targets: [10], // Actions column (index 10)
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [3], // Guests column (index 3)
+                    targets: [4], // Guests column (index 4)
                     orderable: false
                 },
                 {
-                    targets: [6, 7], // Payment Details and Status columns (index 6, 7)
+                    targets: [8, 9], // Payment Details and Status columns (index 8, 9)
                     orderable: false
                 }
             ],
