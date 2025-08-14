@@ -565,6 +565,32 @@ class PackageController extends Controller
         $currentDate = now()->toDateString();
         $booking = [];
         $booking_query = collect();
+        $dmc_id = null;
+        $agent_creator_id = $user->userId;
+        $agent_ids = [];
+
+        if($user->userId){
+            // Check user role and determine DMC ID based on role hierarchy
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }
+            elseif ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
+                $sales_head = User::where('userId', $user->userId)->first();
+                $dmc_id = $sales_head->created_by;
+            } elseif ($user->role_id == 37) { // Sales Manager
+                $product_head = User::where('userId', $user->userId)->first();
+                $sales_head_id = $product_head->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            } elseif ($user->role_id == 38) { // Assistant Sales Manager
+                $assistant_sales_manager = User::where('userId', $user->userId)->first();
+                $sales_manager_id = $assistant_sales_manager->created_by;
+                $sales_manager = User::where('userId', $sales_manager_id)->first();
+                $sales_head_id = $sales_manager->created_by;
+                $sales_head = User::where('userId', $sales_head_id)->first();
+                $dmc_id = $sales_head->created_by;
+            }
+        }
 
         // Convert string "null" to actual null value
         if ($agent_id === 'null') {
@@ -574,41 +600,17 @@ class PackageController extends Controller
         try {
             if(!$agent_id || $agent_id === 'null'){
                 if($user->userId){
-                    $dmc_id = null;
-                    $agent_creator_id = $user->userId;
-                    $agent_ids = [];
-                    // Check user role and determine DMC ID based on role hierarchy
-                    if($user->role_id == 11){
-                        $dmc_id = $user->userId;
-                    }
-                    elseif ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
-                        $sales_head = User::where('userId', $user->userId)->first();
-                        $dmc_id = $sales_head->created_by;
-                    } elseif ($user->role_id == 37) { // Sales Manager
-                        $product_head = User::where('userId', $user->userId)->first();
-                        $sales_head_id = $product_head->created_by;
-                        $sales_head = User::where('userId', $sales_head_id)->first();
-                        $dmc_id = $sales_head->created_by;
-                    } elseif ($user->role_id == 38) { // Assistant Sales Manager
-                        $assistant_sales_manager = User::where('userId', $user->userId)->first();
-                        $sales_manager_id = $assistant_sales_manager->created_by;
-                        $sales_manager = User::where('userId', $sales_manager_id)->first();
-                        $sales_head_id = $sales_manager->created_by;
-                        $sales_head = User::where('userId', $sales_head_id)->first();
-                        $dmc_id = $sales_head->created_by;
-                    }
-                    
                     // If DMC ID is found, filter bookings by DMC
                     if ($dmc_id) {
                         $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
                             ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc');
+                            
                     } else {
-                        $agents = Agent::where('sales_manager_dmc', $agent_creator_id)->get();
-                        $agent_ids = $agents->pluck('agent_id')->toArray();
-
-                        // Fallback to user's own bookings if no DMC ID found
-                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
-                            ->whereIn('booked_by', $agent_ids)->orderBy('booking_id', 'desc');
+                        return response()->json([
+                            'message' => 'No DMC ID found',
+                            'booking_lists' => [],
+                            'total_bookings' => 0
+                        ], 404);
                     }
                 }
                 else{
@@ -619,8 +621,12 @@ class PackageController extends Controller
             else{
                 $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at');
                 // Only add the where clause if agent_id is not null
-                if ($agent_id !== null) {
+                if ($agent_id !== null && $user->agent_id) {
                     $booking_query = $booking_query->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
+                }
+                elseif($agent_id !== null && $user->userId){
+                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
+                        ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc');
                 }
                 else{
                     $booking_query = collect();
