@@ -50,6 +50,7 @@ const MainFilterSearchBox = () => {
     const searchData = {
       location: selectedLocation,
       date: selectedDate,
+      selectedDate: selectedDate,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
       tour_id: tourdetails?.tour_id,
@@ -60,6 +61,9 @@ const MainFilterSearchBox = () => {
     dispatch(setSearchParams(searchData));
     // Clear previous attractions before new search
     dispatch({ type: "attractions/clearAttractions" });
+    
+    // Reset pagination to first page for new search
+    // Note: This will be handled by the TourProperties component
 
     dispatch(
       fetchAttractions({
@@ -69,6 +73,8 @@ const MainFilterSearchBox = () => {
         children: guestCounts.Children,
         tour_id: tourdetails?.tour_id,
         selectedDate: selectedDate,
+        start: 0,
+        limit: 5,
       })
     );
   };

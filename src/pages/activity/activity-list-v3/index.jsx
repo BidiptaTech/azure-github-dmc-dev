@@ -31,6 +31,8 @@ import {
   setMode,
   fetchVehicleDetails,
   setSelectedPort,
+  fetchVehicles,
+  fetchZoneVehicles,
 } from "@/slice/localtour/Localslice";
 
 import MetaComponent from "@/components/common/MetaComponent";
@@ -197,6 +199,8 @@ const ActivityListPage3 = () => {
   const vehicles = useSelector((state) => state.localtour.vehicles);
   console.log("vehicles69", vehicles);
   const status = useSelector((state) => state.localtour.status);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
+
 
   // Add this to check if vehicles is an array or an error object
   const isVehiclesArray = Array.isArray(vehicles);
@@ -211,6 +215,8 @@ const ActivityListPage3 = () => {
   const id = useSelector((state) => state.hotels.id);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5; // Adjust as needed
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   //const [sortOrder, setSortOrder] = useState("asc");
   const [sortedVehicles, setSortedVehicles] = useState([]);
   //const [filteredVehicles, setFilteredVehicles] = useState([]);
@@ -602,6 +608,77 @@ const ActivityListPage3 = () => {
   const handleModeChange = (id, newMode, dmcId) => {
     dispatch(setMode({ [id]: { mode: newMode, dmcId } })); // ✅ Update Redux mode for specific vehicle
   };
+
+  // Reset current page when vehicles are cleared (new search)
+  useEffect(() => {
+    if (vehicles.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true);
+    }
+  }, [vehicles.length]);
+
+  // Scroll detection for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        !isLoadingMore &&
+        hasMore &&
+        status !== "loading" &&
+        vehicles.length > 0 // Only load more if we have vehicles
+      ) {
+        setCurrentPage(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, status, vehicles.length]);
+
+  // Load more effect for infinite scroll
+  useEffect(() => {
+    if (currentPage > 1 && vehicles.length > 0) {
+      setIsLoadingMore(true);
+      // Dispatch action to fetch more vehicles based on selection type
+      const start = (currentPage - 1) * itemsPerPage;
+      
+      if (selectedPort === "Local Transfer") {
+        // For zone vehicles, use fetchZoneVehicles
+        dispatch(fetchZoneVehicles({ start, limit: itemsPerPage })).then((result) => {
+          setIsLoadingMore(false);
+          // Check if we have more data based on the response
+          if (result.payload && Array.isArray(result.payload)) {
+            if (result.payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+        }).catch(() => {
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+      } else {
+        // For regular vehicles, use fetchVehicles
+        dispatch(fetchVehicles({ start, limit: itemsPerPage })).then((result) => {
+          setIsLoadingMore(false);
+          // Check if we have more data based on the response
+          if (result.payload && Array.isArray(result.payload)) {
+            if (result.payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+        }).catch(() => {
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+      }
+    }
+  }, [currentPage, vehicles.length, itemsPerPage, dispatch, selectedPort]);
+
   const displayedVehicles = filteredVehicles.filter((vehicle) => {
     const dmcPrice = vehicle.dmc_sharable_price
       ? parseFloat(vehicle.dmc_sharable_price) * exchangeRate
@@ -1318,7 +1395,7 @@ const ActivityListPage3 = () => {
                                       justifyContent: "center",
                                     }}
                                   >
-                                    ${booking.price}
+                                    {PriceHide === "0" ? `$${booking.price}` : "Price Hidden"}
                                   </span>
                                 </div>
                               </td>
@@ -1506,13 +1583,12 @@ const ActivityListPage3 = () => {
                     <ActivityProperties1
                       vehicles={filteredVehicles}
                       status={status}
-                      currentPage={currentPage}
-                      itemsPerPage={itemsPerPage}
-                      onPageChange={handlePageChange}
                       onVehicleClick={handleVehicleClick}
                       selectedModes={mode} // ✅ Pass selected modes
                       setSelectedModes={handleModeChange} // ✅ Allow child to update mode
                       priceMode={priceMode}
+                      hasMore={hasMore}
+                      isLoadingMore={isLoadingMore}
                     />
                   </div>
                   {/* End .row */}

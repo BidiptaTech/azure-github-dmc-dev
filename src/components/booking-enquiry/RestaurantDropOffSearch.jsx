@@ -145,7 +145,7 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
   // Get restaurants from Redux store
   const { restaurants = [], loading, error } = useSelector(state => state.enquiryList || { restaurants: [], loading: false });
   const { searchLocation } = useSelector(state => state.enquiry || { searchLocation: {} });
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Filter restaurants based on search term
   const filteredRestaurants = restaurants ? restaurants.filter((restaurant) =>
     restaurant && restaurant.name && restaurant.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -282,6 +282,18 @@ const RestaurantDropOffSearch = ({ onSelect }) => {
                         {getDescriptionSnippet(restaurant.description)}
                       </Typography>
                     )}
+                    {PriceHide === "0" ? (
+                      restaurant['base-price'] && (
+                        <PriceChip 
+                          label={`${formatPrice(restaurant['base-price'])}/person`}
+                          size="small"
+                          sx={{ mt: 1 }}
+                        />
+                      )):(
+                        <div className="text-12 text-dark-1 fw-500">
+                          Price available on request
+                        </div>
+                      )}
                   </RestaurantInfo>
                   {restaurant.master_image && (
                     <RestaurantImage>

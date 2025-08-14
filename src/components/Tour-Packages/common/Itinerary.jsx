@@ -573,36 +573,22 @@ export default function Itinerary({ onBookingSuccess }) {
           width: shouldShowSidebar() ? '75%' : '100%',
         }}>
           {/* Top Level Hotel Section */}
-          <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
               <Box 
                 sx={{ 
                   bgcolor: 'primary.main', 
                   color: 'white', 
-                  p: 0.8, 
+                  p: 0.5, 
                   borderRadius: '50%', 
-                  mr: 1,
+                  mr: 0.8,
                   display: 'flex'
                 }}
               >
-                <HotelIcon />
+                <HotelIcon sx={{ fontSize: '1rem' }} />
               </Box>
-              <Typography variant="h5">Hotels</Typography>
+              <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Hotels</Typography>
             </Box>
-            
-            {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Please add hotels details (if included in package) with services provided for each hotels and the selling cost price.
-            </Typography>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-                Tip: To speed up the process of adding multiple hotels, use
-              </Typography>
-              <Button size="small" variant="text" color="primary">Next Night</Button>
-              <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>or</Typography>
-              <Button size="small" variant="text" color="primary">Duplicate</Button>
-              <Typography variant="body2" color="text.secondary">actions.</Typography>
-            </Box> */}
             
             {/* Hotel Component */}
             <HotelComponent hotels={categorizedServices.hotels} />
@@ -612,54 +598,54 @@ export default function Itinerary({ onBookingSuccess }) {
           
           
           {/* Transports and Activities Section */}
-          <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
               <Box 
                 sx={{ 
                   bgcolor: 'primary.main', 
                   color: 'white', 
-                  p: 0.8, 
+                  p: 0.5, 
                   borderRadius: '50%', 
-                  mr: 1,
+                  mr: 0.8,
                   display: 'flex'
                 }}
               >
-                <DirectionsCarIcon />
+                <DirectionsCarIcon sx={{ fontSize: '1rem' }} />
               </Box>
-              <Typography variant="h5">Transports and Other Services</Typography>
+              <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Transports and Other Services</Typography>
             </Box>
             
             
             {/* Day by Day Transportation and Activities */}
             {dates.map((date, index) => (
-              <Box key={index} id={`day-${index + 1}`} sx={{ mb: 4 }}>
+              <Box key={index} id={`day-${index + 1}`} sx={{ mb: 2 }}>
                 {/* Day Plan Navigation for this specific day */}
-                <Paper elevation={1} sx={{ p: 2, mb: 2.5, borderRadius: 2, bgcolor: '#fafbfc' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Paper elevation={1} sx={{ p: 1.5, mb: 1.5, borderRadius: 1.5, bgcolor: '#fafbfc' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <Box 
                       sx={{ 
                         bgcolor: '#e3f2fd', 
                         color: '#1976d2', 
-                        p: 0.6, 
+                        p: 0.4, 
                         borderRadius: '50%', 
-                        mr: 1.5,
+                        mr: 1,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}
                     >
-                      <CalendarTodayIcon sx={{ fontSize: '1rem' }} />
+                      <CalendarTodayIcon sx={{ fontSize: '0.8rem' }} />
                     </Box>
-                    <Typography variant="subtitle1" sx={{ color: '#37474f', fontSize: '0.9rem', fontWeight: 500 }}>Day {index + 1} Navigation</Typography>
+                    <Typography variant="subtitle2" sx={{ color: '#37474f', fontSize: '0.8rem', fontWeight: 500 }}>Day {index + 1} Navigation</Typography>
                   </Box>
                   
                   {/* Horizontal Day Navigation */}
                   <Box sx={{ 
                     display: 'flex', 
-                    gap: 1.5, 
+                    gap: 1, 
                     flexWrap: 'wrap', 
                     justifyContent: 'center',
-                    mb: 1
+                    mb: 0.5
                   }}>
                     {dates.map((navDate, navIndex) => (
                       <Box
@@ -675,22 +661,22 @@ export default function Itinerary({ onBookingSuccess }) {
                           }
                         }}
                         sx={{
-                          minWidth: '80px',
-                          p: 1.5,
+                          minWidth: '60px',
+                          p: 1,
                           textAlign: 'center',
                           bgcolor: navIndex === index ? '#e8f5e8' : '#f8f9fa',
                           color: navIndex === index ? '#2e7d32' : '#5f6368',
-                          border: '2px solid',
+                          border: '1px solid',
                           borderColor: navIndex === index ? '#4caf50' : '#e0e0e0',
-                          borderRadius: 1.5,
+                          borderRadius: 1,
                           cursor: 'pointer',
                           transition: 'all 0.3s ease',
-                          boxShadow: navIndex === index ? '0 2px 8px rgba(76, 175, 80, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+                          boxShadow: navIndex === index ? '0 1px 4px rgba(76, 175, 80, 0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
                           '&:hover': {
                             bgcolor: navIndex === index ? '#d4edda' : '#e3f2fd',
                             borderColor: navIndex === index ? '#45a049' : '#2196f3',
-                            transform: 'translateY(-2px)',
-                            boxShadow: navIndex === index ? '0 4px 12px rgba(76, 175, 80, 0.3)' : '0 4px 12px rgba(33, 150, 243, 0.2)'
+                            transform: 'translateY(-1px)',
+                            boxShadow: navIndex === index ? '0 2px 8px rgba(76, 175, 80, 0.3)' : '0 2px 8px rgba(33, 150, 243, 0.2)'
                           }
                         }}
                       >
@@ -699,9 +685,9 @@ export default function Itinerary({ onBookingSuccess }) {
                           sx={{ 
                             fontWeight: 600, 
                             display: 'block',
-                            mb: 0.5, 
-                            fontSize: '0.75rem',
-                            lineHeight: 1.2,
+                            mb: 0.3, 
+                            fontSize: '0.65rem',
+                            lineHeight: 1.1,
                             color: 'inherit'
                           }}
                         >
@@ -711,9 +697,9 @@ export default function Itinerary({ onBookingSuccess }) {
                           variant="caption" 
                           sx={{ 
                             display: 'block',
-                            mb: 0.3, 
-                            fontSize: '0.7rem',
-                            lineHeight: 1.1,
+                            mb: 0.2, 
+                            fontSize: '0.6rem',
+                            lineHeight: 1,
                             opacity: 0.9,
                             color: 'inherit'
                           }}
@@ -724,8 +710,8 @@ export default function Itinerary({ onBookingSuccess }) {
                           variant="caption" 
                           sx={{ 
                             display: 'block',
-                            fontSize: '0.65rem',
-                            lineHeight: 1.1,
+                            fontSize: '0.55rem',
+                            lineHeight: 1,
                             opacity: 0.8,
                             color: 'inherit'
                           }}
@@ -742,21 +728,20 @@ export default function Itinerary({ onBookingSuccess }) {
                   sx={{ 
                     bgcolor: 'primary.main', 
                     color: 'white', 
-                    p: 1.5, 
-                    borderRadius: 1,
-                    mb: 2
+                    p: 1, 
+                    borderRadius: 0.8,
+                    mb: 1
                   }}
                 >
-                  <Typography variant="h6">
+                  <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>
                     Day {index + 1}, {date.format('Do MMMM')}, {date.format('dddd')}
                   </Typography>
                 </Box>
 
                 {/* First Day - Place Port Component at the beginning */}
                 {index === 0 && (
-                  <Box sx={{ mb: 2 }}>
-                    <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-                      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Arrival</Typography> */}
+                  <Box sx={{ mb: 1 }}>
+                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #1976d2' }}>
                       <PickupDropComponent 
                         portType={portType} 
                         setPortType={() => setPortType("Entry Port")} 
@@ -770,8 +755,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 )}
 
                 {/* Attraction Component */}
-                <Box sx={{ mb: 2 }}>
-                  <Paper elevation={1} sx={{ p: 0, borderLeft: '4px solid #f44336' }}>
+                <Box sx={{ mb: 1 }}>
+                  <Paper elevation={1} sx={{ p: 0, borderLeft: '3px solid #f44336' }}>
                     
                     <AttractionComponent 
                       date={date}
@@ -783,9 +768,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 </Box>
 
                 {/* Guide Component */}
-                <Box sx={{ mb: 2 }}>
-                  <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
-                    {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Guide</Typography> */}
+                <Box sx={{ mb: 1 }}>
+                  <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #2196f3' }}>
                     <GuideComponent 
                       date={date}
                       dayIndex={index}
@@ -796,9 +780,9 @@ export default function Itinerary({ onBookingSuccess }) {
                 </Box>
 
                 {/* Restaurant Component */}
-                <Box sx={{ mb: 2 }}>
-                  <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #ff9800' }}>
-                    <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Restaurant</Typography>
+                <Box sx={{ mb: 1 }}>
+                  <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #ff9800' }}>
+                    <Typography variant="subtitle2" fontWeight={500} sx={{ mb: 0.5, fontSize: '0.8rem' }}>Restaurant</Typography>
                     <RestaurantComponent 
                       date={date}
                       dayIndex={index}
@@ -809,8 +793,8 @@ export default function Itinerary({ onBookingSuccess }) {
                 </Box>
 
                 {/* Transport Component */}
-                <Box sx={{ mb: 2 }}>
-                  <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #2196f3' }}>
+                <Box sx={{ mb: 1 }}>
+                  <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #2196f3' }}>
                     <TransportComponent 
                       dayIndex={index}
                       date={date}
@@ -824,22 +808,21 @@ export default function Itinerary({ onBookingSuccess }) {
 
                 {/* Last Day - Place Port Component at the end */}
                 {index === dates.length - 1 && (
-  <Box sx={{ mb: 2 }}>
-    <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid #1976d2' }}>
-      {/* <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1 }}>Departure</Typography> */}
-      <PickupDropComponent 
-        portType1={portType1} 
-        setPortType1={() => setPortType1("Exit Port")} 
-        date={date}
-        dayIndex={index}
-        exitPorts={categorizedServices.exitPorts}
-        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-      />
-    </Paper>
-  </Box>
-)}
+                  <Box sx={{ mb: 1 }}>
+                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #1976d2' }}>
+                      <PickupDropComponent 
+                        portType1={portType1} 
+                        setPortType1={() => setPortType1("Exit Port")} 
+                        date={date}
+                        dayIndex={index}
+                        exitPorts={categorizedServices.exitPorts}
+                        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
+                      />
+                    </Paper>
+                  </Box>
+                )}
                 
-                {index < dates.length - 1 && <Divider sx={{ my: 3 }} />}
+                {index < dates.length - 1 && <Divider sx={{ my: 1.5 }} />}
               </Box>
             ))}
           </Paper>
@@ -848,50 +831,48 @@ export default function Itinerary({ onBookingSuccess }) {
           <SimpleCustomerInfo />
           
           {/* Summary section */}
-          <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
-            <Typography variant="h6" gutterBottom>Trip Summary</Typography>
-            <Grid container spacing={2}>
+          <Paper elevation={2} sx={{ mt: 2, p: 2 }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontSize: '0.9rem' }}>Trip Summary</Typography>
+            <Grid container spacing={1.5}>
               <Grid item xs={12} md={8}>
-                <Typography variant="body1">
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                   {dates.length} day{dates.length !== 1 ? 's' : ''} in {selectedCity}, {selectedCountry}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                   {searchCriteria.guests?.adults || 1} Adult{parseInt(searchCriteria.guests?.adults) !== 1 ? 's' : ''} •
                   {searchCriteria.guests?.children > 0 ? ` ${searchCriteria.guests.children} Child${parseInt(searchCriteria.guests.children) !== 1 ? 'ren' : ''} •` : ''}
                   {dates.length - 1} Night{dates.length - 1 !== 1 ? 's' : ''}
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+              <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5 }}>
                 <Button 
                   variant="outlined" 
                   color="primary" 
-                  size="large"
+                  size="small"
                   onClick={() => setSummaryModalOpen(true)}
+                  sx={{ fontSize: '0.75rem' }}
                 >
                   View Summary
                 </Button>
-                {/* <Button variant="contained" color="primary" size="large">
-                  Save Itinerary
-                </Button> */}
               </Grid>
             </Grid>
           </Paper>
           
-          {/* Book Package Button Section - Improved with Validation */}
+          {/* Book Package Button Section - nazwane with Validation */}
           <Paper 
-            elevation={3} 
+            elevation={2} 
             sx={{ 
-              mt: 4, 
-              p: 4, 
+              mt: 2, 
+              p: 2.5, 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 
-              borderRadius: 2,
+              borderRadius: 1.5,
               background: 'linear-gradient(to right, rgba(255,255,255,0.95), rgba(245,245,255,0.95))',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
             }}
           >
-            <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 1.5, fontWeight: 600, fontSize: '1rem' }}>
               Ready to book this amazing package?
             </Typography>
 
@@ -901,16 +882,16 @@ export default function Itinerary({ onBookingSuccess }) {
                 severity="info" 
                 icon={<WarningIcon />}
                 sx={{ 
-                  mb: 3, 
+                  mb: 2, 
                   width: '100%', 
-                  maxWidth: 600,
-                  borderRadius: 2
+                  maxWidth: 500,
+                  borderRadius: 1.5
                 }}
               >
-                <Typography variant="body2" fontWeight={600} gutterBottom>
+                <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.8rem' }}>
                   No services have been added to your package yet
                 </Typography>
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
                   Please add hotels, attractions, restaurants, guides, or transportation services to your itinerary before booking.
                 </Typography>
               </Alert>
@@ -922,23 +903,23 @@ export default function Itinerary({ onBookingSuccess }) {
                 severity="warning" 
                 icon={<WarningIcon />}
                 sx={{ 
-                  mb: 3, 
+                  mb: 2, 
                   width: '100%', 
-                  maxWidth: 600,
-                  borderRadius: 2
+                  maxWidth: 500,
+                  borderRadius: 1.5
                 }}
               >
-                <Typography variant="body2" fontWeight={600} gutterBottom>
+                <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.8rem' }}>
                   {validateServiceDates.message}
                 </Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 0.5, fontSize: '0.75rem' }}>
                   The following services need to be adjusted to fit within your tour dates 
                   ({moment(searchCriteria.checkIn, searchCriteria.checkIn.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')} - {moment(searchCriteria.checkOut, searchCriteria.checkOut.includes('-') ? 'YYYY-MM-DD' : 'DD/MM/YYYY').format('MMM DD, YYYY')}):
                 </Typography>
-                <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+                <Box component="ul" sx={{ pl: 1.5, mt: 0.5 }}>
                   {validateServiceDates.invalidServices.map((service, index) => (
                     <li key={index}>
-                      <Typography variant="caption" display="block">
+                      <Typography variant="caption" display="block" sx={{ fontSize: '0.7rem' }}>
                         <strong>{service.name}</strong> ({service.type}) - {service.bookingDate}
                         <br />
                         <em>{service.reason}</em>
@@ -955,16 +936,16 @@ export default function Itinerary({ onBookingSuccess }) {
                 severity="warning" 
                 icon={<WarningIcon />}
                 sx={{ 
-                  mb: 3, 
+                  mb: 2, 
                   width: '100%', 
-                  maxWidth: 600,
-                  borderRadius: 2
+                  maxWidth: 500,
+                  borderRadius: 1.5
                 }}
               >
-                <Typography variant="body2" fontWeight={600} gutterBottom>
+                <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.8rem' }}>
                   Customer information required
                 </Typography>
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
                   Please complete all mandatory fields in the Customer Information section above to enable booking.
                 </Typography>
               </Alert>
@@ -973,35 +954,35 @@ export default function Itinerary({ onBookingSuccess }) {
             <Button 
               variant="contained" 
               color="primary" 
-              size="large" 
+              size="medium" 
               disabled={isButtonDisabled}
               startIcon={loading ? null : <ShoppingCartIcon />}
               onClick={packageData?.tour?.tour_id > 0 ? handleUpdatePackage : handleBookPackage}
               sx={{
-                py: 1.5,
-                px: 4,
-                fontSize: '1.1rem',
+                py: 1,
+                px: 3,
+                fontSize: '0.9rem',
                 fontWeight: 600,
-                borderRadius: '50px',
+                borderRadius: '25px',
                 background: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
                   ? 'linear-gradient(45deg, #9e9e9e 30%, #bdbdbd 90%)'
                   : 'linear-gradient(45deg, #3554D1 30%, #5672E9 90%)',
                 boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
-                  ? '0 4px 8px rgba(158, 158, 158, 0.3)'
-                  : '0 10px 20px rgba(53, 84, 209, 0.3)',
+                  ? '0 2px 4px rgba(158, 158, 158, 0.3)'
+                  : '0 6px 12px rgba(53, 84, 209, 0.3)',
                 transition: 'all 0.3s ease',
                 textTransform: 'none',
                 '&:hover': {
-                  transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid) ? 'none' : 'translateY(-3px)',
+                  transform: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid) ? 'none' : 'translateY(-2px)',
                   boxShadow: (!validateServiceDates.isValid || !allServices || allServices.length === 0 || !customerInfoValid)
-                    ? '0 4px 8px rgba(158, 158, 158, 0.3)'
-                    : '0 15px 30px rgba(53, 84, 209, 0.4)',
+                    ? '0 2px 4px rgba(158, 158, 158, 0.3)'
+                    : '0 8px 16px rgba(53, 84, 209, 0.4)',
                 },
                 '&:disabled': {
                   color: 'white',
                   cursor: 'not-allowed'
                 },
-                minWidth: 200,
+                minWidth: 180,
               }}
             >
               {loading ? (
@@ -1018,13 +999,13 @@ export default function Itinerary({ onBookingSuccess }) {
             </Button>
 
             {validateServiceDates.isValid && packageEnquiryId && (
-              <Typography variant="body1" sx={{ mt: 2, color: 'success.main', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ mt: 1.5, color: 'success.main', fontWeight: 500, fontSize: '0.8rem' }}>
                 Booking ID: {packageEnquiryId}
               </Typography>
             )}
 
             {((!allServices || allServices.length === 0) || !validateServiceDates.isValid || !customerInfoValid) && (
-              <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary', textAlign: 'center', maxWidth: 400 }}>
+              <Typography variant="caption" sx={{ mt: 1.5, color: 'text.secondary', textAlign: 'center', maxWidth: 350, fontSize: '0.7rem' }}>
                 {(!allServices || allServices.length === 0) 
                   ? 'Add some services to your itinerary to enable booking.'
                   : !validateServiceDates.isValid
@@ -1049,8 +1030,8 @@ export default function Itinerary({ onBookingSuccess }) {
               severity={snackbarSeverity} 
               sx={{ 
                 width: '100%',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                borderRadius: 2
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                borderRadius: 1.5
               }}
             >
               {snackbarMessage}
@@ -1077,8 +1058,8 @@ export default function Itinerary({ onBookingSuccess }) {
            enquiryDetail?.packaged_attraction_on === true) && (
           <Box sx={{
             position: 'fixed',
-            right: 20,
-            top: 600,
+            right: 15,
+            top: 500,
             zIndex: 1001
           }}>
             <Button
@@ -1089,16 +1070,16 @@ export default function Itinerary({ onBookingSuccess }) {
                 color: 'white',
                 borderRadius: '50%',
                 minWidth: 'auto',
-                width: 56,
-                height: 56,
-                boxShadow: '0 4px 12px rgba(53, 84, 209, 0.3)',
+                width: 48,
+                height: 48,
+                boxShadow: '0 2px 8px rgba(53, 84, 209, 0.3)',
                 '&:hover': {
                   bgcolor: '#5672E9',
-                  boxShadow: '0 6px 16px rgba(53, 84, 209, 0.4)',
+                  boxShadow: '0 4px 12px rgba(53, 84, 209, 0.4)',
                 }
               }}
             >
-              <CommentIcon />
+              <CommentIcon sx={{ fontSize: '1.2rem' }} />
             </Button>
           </Box>
         )}
@@ -1108,48 +1089,49 @@ export default function Itinerary({ onBookingSuccess }) {
           <Grid item xs={12} md={5} lg={4} sx={{ 
             position: 'fixed', 
             right: 0,
-            top: 90, // Start where itinerary content begins instead of top
-            height: 'calc(100vh - 120px)', // Adjust height accordingly
+            top: 80, // Start where itinerary content begins instead of top
+            height: 'calc(100vh - 100px)', // Adjust height accordingly
             width: '70%',
             overflowY: 'auto',
             zIndex: 1000,
             bgcolor: 'white',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            boxShadow: '1px 0 6px rgba(0,0,0,0.1)',
             // Custom scrollbar styling for sidebar
             '&::-webkit-scrollbar': {
-              width: '8px',
+              width: '6px',
             },
             '&::-webkit-scrollbar-track': {
               background: '#f1f1f1',
-              borderRadius: '4px',
+              borderRadius: '3px',
             },
             '&::-webkit-scrollbar-thumb': {
               background: '#3554D1',
-              borderRadius: '4px',
+              borderRadius: '3px',
               '&:hover': {
                 background: '#5672E9',
               },
             },
           }}>
             <Paper 
-              elevation={3} 
+              elevation={2} 
               sx={{ 
-                p: 3, 
+                p: 2, 
                 borderRadius: 0,
                 height: '100%', // Changed from 100vh to 100%
                 // Removed overflowY: 'auto' to eliminate duplicate scrollbar
                 bgcolor: 'white',
-                borderRight: '4px solid #3554D1',
+                borderRight: '3px solid #3554D1',
                 display: 'flex',
                 flexDirection: 'column'
               }}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 1.5, borderBottom: '2px solid #3554D1' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, pb: 1, borderBottom: '2px solid #3554D1' }}>
                 <Typography 
-                  variant="h5" 
+                  variant="h6" 
                   sx={{ 
                     fontWeight: 600,
-                    color: '#3554D1' 
+                    color: '#3554D1',
+                    fontSize: '1rem'
                   }}
                 >
                   Enquiry for Services
@@ -1161,22 +1143,22 @@ export default function Itinerary({ onBookingSuccess }) {
                     '&:hover': { bgcolor: 'rgba(53, 84, 209, 0.1)' }
                   }}
                 >
-                  <CloseIcon />
+                  <CloseIcon sx={{ fontSize: '1.2rem' }} />
                 </IconButton>
               </Box>
               
               {/* Hotels */}
               {enquiryDetail.hotel_on && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <HotelIcon sx={{ mr: 1, color: '#3554D1' }} />
-                    <Typography variant="h6">Hotels</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <HotelIcon sx={{ mr: 0.8, color: '#3554D1', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Hotels</Typography>
                   </Box>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {enquiryDetail.hotel?.map((hotel, index) => (
                       <Grid item xs={12} key={index}>
-                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
-                          <Box sx={{ width: 100, height: 80 }}>
+                        <Card sx={{ display: 'flex', borderRadius: 1.5, overflow: 'hidden' }}>
+                          <Box sx={{ width: 80, height: 60 }}>
                             <img 
                               src={hotel.main_image} 
                               alt={hotel.name}
@@ -1184,8 +1166,8 @@ export default function Itinerary({ onBookingSuccess }) {
                               onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
                             />
                           </Box>
-                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                            <Typography variant="subtitle1" fontWeight={500}>{hotel.name}</Typography>
+                          <Box sx={{ p: 1, flexGrow: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={500} sx={{ fontSize: '0.8rem' }}>{hotel.name}</Typography>
                           </Box>
                         </Card>
                       </Grid>
@@ -1196,16 +1178,16 @@ export default function Itinerary({ onBookingSuccess }) {
               
               {/* Attractions */}
               {enquiryDetail.attraction_on && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <AttractionsIcon sx={{ mr: 1, color: '#f44336' }} />
-                    <Typography variant="h6">Attractions</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <AttractionsIcon sx={{ mr: 0.8, color: '#f44336', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Attractions</Typography>
                   </Box>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {enquiryDetail.attraction?.map((attraction, index) => (
                       <Grid item xs={12} sm={6} md={12} lg={6} key={index}>
-                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
-                          <Box sx={{ width: 80, height: 80 }}>
+                        <Card sx={{ display: 'flex', borderRadius: 1.5, overflow: 'hidden' }}>
+                          <Box sx={{ width: 60, height: 60 }}>
                             <img 
                               src={attraction.master_image} 
                               alt={attraction.name}
@@ -1213,8 +1195,8 @@ export default function Itinerary({ onBookingSuccess }) {
                               onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
                             />
                           </Box>
-                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={500}>{attraction.name}</Typography>
+                          <Box sx={{ p: 1, flexGrow: 1 }}>
+                            <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{attraction.name}</Typography>
                           </Box>
                         </Card>
                       </Grid>
@@ -1225,12 +1207,12 @@ export default function Itinerary({ onBookingSuccess }) {
               
               {/* Packaged Attractions */}
               {enquiryDetail.packaged_attraction_on && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <LocalActivityIcon sx={{ mr: 1, color: '#9c27b0' }} />
-                    <Typography variant="h6">Packaged Attractions</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <LocalActivityIcon sx={{ mr: 0.8, color: '#9c27b0', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Packaged Attractions</Typography>
                   </Box>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {enquiryDetail.packaged_attractions?.map((pkg, index) => {
                       // Parse the image JSON if it's a string
                       let imageUrl = null;
@@ -1245,8 +1227,8 @@ export default function Itinerary({ onBookingSuccess }) {
                       
                       return (
                         <Grid item xs={12} key={index}>
-                          <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
-                            <Box sx={{ width: 80, height: 80, bgcolor: imageUrl ? 'transparent' : '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                          <Card sx={{ display: 'flex', borderRadius: 1.5, overflow: 'hidden' }}>
+                            <Box sx={{ width: 60, height: 60, bgcolor: imageUrl ? 'transparent' : '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                               {imageUrl ? (
                                 <img 
                                   src={imageUrl} 
@@ -1255,11 +1237,11 @@ export default function Itinerary({ onBookingSuccess }) {
                                   onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
                                 />
                               ) : (
-                                <LocalActivityIcon sx={{ color: '#9c27b0', fontSize: 40 }} />
+                                <LocalActivityIcon sx={{ color: '#9c27b0', fontSize: 30 }} />
                               )}
                             </Box>
-                            <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                              <Typography variant="subtitle2" fontWeight={500}>{pkg.name}</Typography>
+                            <Box sx={{ p: 1, flexGrow: 1 }}>
+                              <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{pkg.name}</Typography>
                             </Box>
                           </Card>
                         </Grid>
@@ -1271,16 +1253,16 @@ export default function Itinerary({ onBookingSuccess }) {
               
               {/* Restaurants */}
               {enquiryDetail.restaurant_on && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <RestaurantIcon sx={{ mr: 1, color: '#ff9800' }} />
-                    <Typography variant="h6">Restaurants</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <RestaurantIcon sx={{ mr: 0.8, color: '#ff9800', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Restaurants</Typography>
                   </Box>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {enquiryDetail.restaurant?.map((restaurant, index) => (
                       <Grid item xs={12} key={index}>
-                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
-                          <Box sx={{ width: 80, height: 80 }}>
+                        <Card sx={{ display: 'flex', borderRadius: 1.5, overflow: 'hidden' }}>
+                          <Box sx={{ width: 60, height: 60 }}>
                             <img 
                               src={restaurant.master_image} 
                               alt={restaurant.name}
@@ -1288,8 +1270,8 @@ export default function Itinerary({ onBookingSuccess }) {
                               onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
                             />
                           </Box>
-                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={500}>{restaurant.name}</Typography>
+                          <Box sx={{ p: 1, flexGrow: 1 }}>
+                            <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{restaurant.name}</Typography>
                           </Box>
                         </Card>
                       </Grid>
@@ -1300,16 +1282,16 @@ export default function Itinerary({ onBookingSuccess }) {
               
               {/* Guides */}
               {enquiryDetail.guide_on && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <PersonIcon sx={{ mr: 1, color: '#2196f3' }} />
-                    <Typography variant="h6">Guides</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <PersonIcon sx={{ mr: 0.8, color: '#2196f3', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Guides</Typography>
                   </Box>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {enquiryDetail.guide?.map((guide, index) => (
                       <Grid item xs={6} md={12} lg={6} key={index}>
-                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
-                          <Box sx={{ width: 60, height: 60 }}>
+                        <Card sx={{ display: 'flex', borderRadius: 1.5, overflow: 'hidden' }}>
+                          <Box sx={{ width: 50, height: 50 }}>
                             <img 
                               src={guide.image} 
                               alt={guide.name}
@@ -1317,8 +1299,8 @@ export default function Itinerary({ onBookingSuccess }) {
                               onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
                             />
                           </Box>
-                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={500}>{guide.name}</Typography>
+                          <Box sx={{ p: 1, flexGrow: 1 }}>
+                            <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{guide.name}</Typography>
                           </Box>
                         </Card>
                       </Grid>
@@ -1329,16 +1311,16 @@ export default function Itinerary({ onBookingSuccess }) {
               
               {/* Drivers/Vehicles */}
               {enquiryDetail.driver?.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <DirectionsCarIcon sx={{ mr: 1, color: '#4caf50' }} />
-                    <Typography variant="h6">Vehicles</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <DirectionsCarIcon sx={{ mr: 0.8, color: '#4caf50', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Vehicles</Typography>
                   </Box>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {enquiryDetail.driver?.map((vehicle, index) => (
                       <Grid item xs={12} sm={6} md={12} lg={6} key={index}>
-                        <Card sx={{ display: 'flex', borderRadius: 2, overflow: 'hidden' }}>
-                          <Box sx={{ width: 80, height: 80 }}>
+                        <Card sx={{ display: 'flex', borderRadius: 1.5, overflow: 'hidden' }}>
+                          <Box sx={{ width: 60, height: 60 }}>
                             <img 
                               src={vehicle.image} 
                               alt={vehicle.vehicle_name}
@@ -1346,9 +1328,9 @@ export default function Itinerary({ onBookingSuccess }) {
                               onError={(e) => { e.target.src = '/img/general/placeholder.svg' }}
                             />
                           </Box>
-                          <Box sx={{ p: 1.5, flexGrow: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={500}>{vehicle.vehicle_name}</Typography>
-                            <Typography variant="caption" color="text.secondary">
+                          <Box sx={{ p: 1, flexGrow: 1 }}>
+                            <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.75rem' }}>{vehicle.vehicle_name}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                               {vehicle.vehicle_type} • {vehicle.vehicle_model}
                             </Typography>
                           </Box>
@@ -1361,26 +1343,26 @@ export default function Itinerary({ onBookingSuccess }) {
               
               {/* Ports */}
               {(enquiryDetail.entry_port_on || enquiryDetail.exit_port_on) && enquiryDetail.ports?.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                    <FlightIcon sx={{ mr: 1, color: '#795548' }} />
-                    <Typography variant="h6">Ports</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <FlightIcon sx={{ mr: 0.8, color: '#795548', fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>Ports</Typography>
                   </Box>
                   {enquiryDetail.ports?.map((port, index) => (
-                    <Card key={index} sx={{ mb: 2, borderRadius: 2, overflow: 'hidden' }}>
-                      <CardContent sx={{ p: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Card key={index} sx={{ mb: 1.5, borderRadius: 1.5, overflow: 'hidden' }}>
+                      <CardContent sx={{ p: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                           <Chip 
                             label={port.type === 'entry' ? 'Arrival' : 'Departure'} 
                             color={port.type === 'entry' ? 'primary' : 'secondary'}
                             size="small"
-                            sx={{ mr: 1 }}
+                            sx={{ mr: 0.8, fontSize: '0.65rem' }}
                           />
                         </Box>
-                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ mb: 0.3, fontSize: '0.75rem' }}>
                           <strong>Port:</strong> {port.port_address}
                         </Typography>
-                        <Typography variant="body2">
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           <strong>Drop-off:</strong> {port.dropoff_name}
                         </Typography>
                       </CardContent>
@@ -1390,79 +1372,79 @@ export default function Itinerary({ onBookingSuccess }) {
               )}
               
               {/* Service Status Summary */}
-              <Box sx={{ mt: 4, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>Service Status</Typography>
-                <Grid container spacing={1}>
+              <Box sx={{ mt: 3, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+                <Typography variant="subtitle1" sx={{ mb: 1.5, fontSize: '0.9rem' }}>Service Status</Typography>
+                <Grid container spacing={0.8}>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<HotelIcon />} 
+                      icon={<HotelIcon sx={{ fontSize: '1rem' }} />} 
                       label="Hotels" 
                       color={enquiryDetail.hotel_on ? "success" : "default"}
                       variant={enquiryDetail.hotel_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<AttractionsIcon />} 
+                      icon={<AttractionsIcon sx={{ fontSize: '1rem' }} />} 
                       label="Attractions" 
                       color={enquiryDetail.attraction_on ? "success" : "default"}
                       variant={enquiryDetail.attraction_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<RestaurantIcon />} 
+                      icon={<RestaurantIcon sx={{ fontSize: '1rem' }} />} 
                       label="Restaurants" 
                       color={enquiryDetail.restaurant_on ? "success" : "default"}
                       variant={enquiryDetail.restaurant_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<PersonIcon />} 
+                      icon={<PersonIcon sx={{ fontSize: '1rem' }} />} 
                       label="Guides" 
                       color={enquiryDetail.guide_on ? "success" : "default"}
                       variant={enquiryDetail.guide_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<DirectionsCarIcon />} 
+                      icon={<DirectionsCarIcon sx={{ fontSize: '1rem' }} />} 
                       label="Transport" 
                       color={enquiryDetail.pickup_on ? "success" : "default"}
                       variant={enquiryDetail.pickup_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<LocalActivityIcon />} 
+                      icon={<LocalActivityIcon sx={{ fontSize: '1rem' }} />} 
                       label="Packages" 
                       color={enquiryDetail.packaged_attraction_on ? "success" : "default"}
                       variant={enquiryDetail.packaged_attraction_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<FlightIcon />} 
+                      icon={<FlightIcon sx={{ fontSize: '1rem' }} />} 
                       label="Entry Port" 
                       color={enquiryDetail.entry_port_on ? "success" : "default"}
                       variant={enquiryDetail.entry_port_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <Chip 
-                      icon={<FlightIcon />} 
+                      icon={<FlightIcon sx={{ fontSize: '1rem' }} />} 
                       label="Exit Port" 
                       color={enquiryDetail.exit_port_on ? "success" : "default"}
                       variant={enquiryDetail.exit_port_on ? "filled" : "outlined"}
-                      sx={{ width: '100%', justifyContent: 'flex-start' }}
+                      sx={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.7rem', height: '24px' }}
                     />
                   </Grid>
                 </Grid>

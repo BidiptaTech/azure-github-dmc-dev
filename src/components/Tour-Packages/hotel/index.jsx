@@ -988,12 +988,12 @@ export default function HotelComponent({ searchParams }) {
     })));
   }, [hotelConfigurations.length, activeHotelIndex]); // Only log when length or active index changes
   return (
-    <Box sx={{ '& > *': { mb: 1.5 } }}>
+    <Box sx={{ '& > *': { mb: 1 } }}>
       {/* Debug/alert panel */}
       <Collapse in={alert.show}>
         <Alert 
           severity={alert.severity}
-          sx={{ mb: 1 }}
+          sx={{ mb: 0.5 }}
           onClose={() => setAlert({...alert, show: false})}
         >
           {alert.message}

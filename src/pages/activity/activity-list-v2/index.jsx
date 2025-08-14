@@ -12,6 +12,8 @@ import {
   setSelectedVehicle1,
   setMode,
   fetchVehicleDetails,
+  fetchVehicles,
+  fetchZoneVehicles,
 } from "@/slice/port/pickupDropSlice";
 import MainFilterSearchBox from "@/components/activity-list/activity-list-v2/MainFilterSearchBox";
 import MainFilterSearchBox2 from "@/components/activity-list/activity-list-v2/MainFilterSearchBox2";
@@ -57,6 +59,8 @@ const ActivityListPage2 = () => {
   const [sortOrder, setSortOrder] = useState("asc");
   const [sortedVehicles, setSortedVehicles] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const mode = useSelector((state) => state.pickupDrop.mode);
   const priceMode = useSelector((state) => state.pickupDrop.pricemode);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
@@ -180,6 +184,76 @@ const ActivityListPage2 = () => {
   const handleModeChange = (id, newMode, dmcId) => {
     dispatch(setMode({ [id]: { mode: newMode, dmcId } })); // ✅ Update Redux mode for specific vehicle
   };
+
+  // Reset current page when vehicles are cleared (new search)
+  useEffect(() => {
+    if (vehicles.length === 0) {
+      setCurrentPage(1);
+      setHasMore(true);
+    }
+  }, [vehicles.length]);
+
+  // Scroll detection for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        !isLoadingMore &&
+        hasMore &&
+        status !== "loading" &&
+        vehicles.length > 0 // Only load more if we have vehicles
+      ) {
+        setCurrentPage(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, status, vehicles.length]);
+
+  // Load more effect for infinite scroll
+  useEffect(() => {
+    if (currentPage > 1 && vehicles.length > 0) {
+      setIsLoadingMore(true);
+      // Dispatch action to fetch more vehicles based on selection type
+      const start = (currentPage - 1) * itemsPerPage;
+      
+      if (zone_on === 1) {
+        // For zone vehicles, use fetchZoneVehicles
+        dispatch(fetchZoneVehicles({ start, limit: itemsPerPage })).then((result) => {
+          setIsLoadingMore(false);
+          // Check if we have more data based on the response
+          if (result.payload && Array.isArray(result.payload)) {
+            if (result.payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+        }).catch(() => {
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+      } else {
+        // For regular vehicles, use fetchVehicles
+        dispatch(fetchVehicles({ start, limit: itemsPerPage })).then((result) => {
+          setIsLoadingMore(false);
+          // Check if we have more data based on the response
+          if (result.payload && Array.isArray(result.payload)) {
+            if (result.payload.length < itemsPerPage) {
+              setHasMore(false);
+            }
+          } else {
+            setHasMore(false);
+          }
+        }).catch(() => {
+          setIsLoadingMore(false);
+          setHasMore(false);
+        });
+      }
+    }
+  }, [currentPage, vehicles.length, itemsPerPage, dispatch, zone_on]);
 
   // Sync Redux mode when selectedModes changes
   // useEffect(() => {
@@ -355,17 +429,16 @@ const ActivityListPage2 = () => {
               <div className="mt-30"></div>
               {/* End mt--30 */}
               <div className="row y-gap-30" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
-                <ActivityProperties
-                  vehicles={filteredVehicles}
-                  status={status}
-                  currentPage={currentPage}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={handlePageChange}
-                  onVehicleClick={handleVehicleClick}
-                  selectedModes={mode}
-                  setSelectedModes={handleModeChange}
-                  priceMode={priceMode}
-                />
+                              <ActivityProperties
+                vehicles={filteredVehicles}
+                status={status}
+                onVehicleClick={handleVehicleClick}
+                selectedModes={mode}
+                setSelectedModes={handleModeChange}
+                priceMode={priceMode}
+                hasMore={hasMore}
+                isLoadingMore={isLoadingMore}
+              />
               </div>
               {/* End .row */}
               {/* <Pagination /> */}

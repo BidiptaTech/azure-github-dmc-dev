@@ -37,7 +37,7 @@ const HotelConfigSummary = ({
   tourDateRange 
 }) => {
   const [expandedAccordions, setExpandedAccordions] = useState(new Set());
-  
+  const PriceHide = useSelector((state) => state.auth.PriceHide);   
   // Get tour dates from Redux state to check for date conflicts
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria);
   const tourDates = searchCriteria?.dates || [];
@@ -134,11 +134,11 @@ const HotelConfigSummary = ({
       <Paper 
         elevation={0} 
         sx={{ 
-          p: 2.5,
+          p: 1.5,
           textAlign: 'center', 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
-          borderRadius: 2,
+          borderRadius: 1.5,
           position: 'relative',
           overflow: 'hidden'
         }}
@@ -147,10 +147,10 @@ const HotelConfigSummary = ({
         <Box
           sx={{
             position: 'absolute',
-            top: -30,
-            right: -30,
-            width: 120,
-            height: 120,
+            top: -20,
+            right: -20,
+            width: 80,
+            height: 80,
             borderRadius: '50%',
             background: 'rgba(255, 255, 255, 0.1)',
             zIndex: 0
@@ -158,8 +158,8 @@ const HotelConfigSummary = ({
         />
         
         <Box sx={{ position: 'relative', zIndex: 1 }}>
-          <HotelIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.9 }} />
-          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+          <HotelIcon sx={{ fontSize: 36, mb: 1, opacity: 0.9 }} />
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
             Let's Book Your Hotels! 🏨
           </Typography>
           
@@ -167,20 +167,17 @@ const HotelConfigSummary = ({
           {tourDateRange && tourDateRange.startDate && tourDateRange.endDate && (
             <Paper 
               sx={{ 
-                p: 1.5,
-                mb: 2,
+                p: 0.5,
+                mb: 1,
                 bgcolor: 'rgba(255, 255, 255, 0.15)', 
                 backdropFilter: 'blur(10px)',
-                borderRadius: 2,
+                borderRadius: 1.5,
                 display: 'inline-block'
               }}
             >
-              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', color: 'white' }}>
-                <CalendarTodayIcon sx={{ mr: 1, fontSize: 16 }} />
-                Tour Dates: {new Date(tourDateRange.startDate).toLocaleDateString()} - {new Date(tourDateRange.endDate).toLocaleDateString()}
-              </Typography>
-              <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-                Hotels will use these dates by default until you select specific nights
+              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', color: 'white', fontSize: '0.65rem', lineHeight: 1.2 }}>
+                <CalendarTodayIcon sx={{ mr: 0.5, fontSize: 12 }} />
+                Tour Dates: {new Date(tourDateRange.startDate).toLocaleDateString()} - {new Date(tourDateRange.endDate).toLocaleDateString()} | Hotels will use these dates by default until you select specific nights
               </Typography>
             </Paper>
           )}
@@ -221,24 +218,24 @@ const HotelConfigSummary = ({
 
     return (
       <Paper 
-        elevation={2}
+        elevation={1}
         sx={{ 
-          p: 3, 
-          mb: 3, 
+          p: 1.5, 
+          mb: 1.5, 
           bgcolor: config.bgcolor,
-          border: `2px solid ${config.borderColor}`,
-          borderRadius: 2
+          border: `1px solid ${config.borderColor}`,
+          borderRadius: 1.5
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar sx={{ bgcolor: config.borderColor, mr: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Avatar sx={{ bgcolor: config.borderColor, mr: 1, width: 28, height: 28 }}>
             {config.icon}
           </Avatar>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ color: config.borderColor, fontWeight: 600 }}>
+            <Typography variant="subtitle1" sx={{ color: config.borderColor, fontWeight: 600, fontSize: '0.8rem' }}>
               Hotel Booking Status
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
               {completedRooms} of {totalRooms} rooms configured
             </Typography>
           </Box>
@@ -246,7 +243,7 @@ const HotelConfigSummary = ({
             label={`${Math.round(progress)}% Complete`}
             color={config.color}
             variant="filled"
-            sx={{ fontWeight: 600 }}
+            sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
           />
         </Box>
         
@@ -254,11 +251,11 @@ const HotelConfigSummary = ({
           variant="determinate" 
           value={progress} 
           sx={{ 
-            height: 8, 
-            borderRadius: 4,
+            height: 6, 
+            borderRadius: 3,
             bgcolor: 'rgba(0,0,0,0.1)',
             '& .MuiLinearProgress-bar': {
-              borderRadius: 4
+              borderRadius: 3
             }
           }}
         />
@@ -268,31 +265,32 @@ const HotelConfigSummary = ({
 
   // Quick action buttons
   const QuickActions = () => (
-    <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'primary.main' }}>
-        <EditIcon sx={{ mr: 1 }} />
+    <Paper elevation={1} sx={{ p: 1.5, mb: 1.5, borderRadius: 1.5, bgcolor: '#f8f9fa' }}>
+      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontSize: '0.8rem' }}>
+        <EditIcon sx={{ mr: 0.6, fontSize: '1rem' }} />
         Quick Actions
       </Typography>
       
-      <Grid container spacing={2}>
+      <Grid container spacing={1}>
         <Grid item xs={12} sm={6}>
           <Button
             fullWidth
             variant="outlined"
-            size="large"
+            size="small"
             startIcon={<AddIcon />}
             onClick={onAddMoreRooms}
             disabled={!onAddMoreRooms}
             sx={{ 
-              py: 1.5,
+              py: 0.8,
               justifyContent: 'flex-start',
               textTransform: 'none',
-              fontWeight: 500
+              fontWeight: 500,
+              fontSize: '0.75rem'
             }}
           >
-            <Box sx={{ textAlign: 'left', ml: 1 }}>
-              <Typography variant="subtitle2">Add More Rooms</Typography>
-              <Typography variant="caption" color="text.secondary">
+            <Box sx={{ textAlign: 'left', ml: 0.6 }}>
+              <Typography variant="subtitle2" sx={{ fontSize: '0.75rem' }}>Add More Rooms</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                 Same hotel, additional rooms
               </Typography>
             </Box>
@@ -303,19 +301,20 @@ const HotelConfigSummary = ({
           <Button
             fullWidth
             variant="contained"
-            size="large"
+            size="small"
             startIcon={<AddBusinessIcon />}
             onClick={onAddNewHotel}
             sx={{ 
-              py: 1.5,
+              py: 0.8,
               justifyContent: 'flex-start',
               textTransform: 'none',
-              fontWeight: 500
+              fontWeight: 500,
+              fontSize: '0.75rem'
             }}
           >
-            <Box sx={{ textAlign: 'left', ml: 1 }}>
-              <Typography variant="subtitle2" color="white">Add Different Hotel</Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+            <Box sx={{ textAlign: 'left', ml: 0.6 }}>
+              <Typography variant="subtitle2" color="white" sx={{ fontSize: '0.75rem' }}>Add Different Hotel</Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.65rem' }}>
                 New hotel location
               </Typography>
             </Box>
@@ -506,11 +505,11 @@ const HotelConfigSummary = ({
       {/* Quick Actions */}
       <QuickActions />
 
-      {/* Hotel Configurations */}
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-        <HotelIcon sx={{ mr: 1, color: 'primary.main' }} />
-        Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
-      </Typography>
+             {/* Hotel Configurations */}
+       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+         <HotelIcon sx={{ mr: 0.8, color: 'primary.main', fontSize: '1.2rem' }} />
+         Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
+       </Typography>
       
       {Object.entries(groupedConfigurations).map(([hotelId, hotelGroup]) => {
         const hotel = hotelGroup.hotelDetails;
@@ -542,26 +541,26 @@ const HotelConfigSummary = ({
         const isExpanded = expandedAccordions.has(hotelId);
         
         return (
-          <Accordion 
-            key={hotelId}
-            expanded={isExpanded}
-            onChange={() => handleAccordionChange(hotelId)}
-            elevation={isActiveHotel ? 4 : 1}
-            sx={{ 
-              mb: 2,
-              border: hasDateConflicts ? '2px solid #f44336' : isActiveHotel ? '2px solid #3554D1' : hasDateIssues ? '2px solid #ff9800' : '1px solid rgba(0, 0, 0, 0.12)',
-              borderRadius: 2,
-              background: hasDateConflicts
-                ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%)'
-                : isActiveHotel 
-                  ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.05) 0%, rgba(53, 84, 209, 0.02) 100%)'
-                  : 'white',
-              transition: 'all 0.3s ease',
-              '&:before': {
-                display: 'none' // Remove default MUI accordion border
-              }
-            }}
-          >
+                     <Accordion 
+             key={hotelId}
+             expanded={isExpanded}
+             onChange={() => handleAccordionChange(hotelId)}
+             elevation={isActiveHotel ? 2 : 1}
+             sx={{ 
+               mb: 1,
+               border: hasDateConflicts ? '1px solid #f44336' : isActiveHotel ? '1px solid #3554D1' : hasDateIssues ? '1px solid #ff9800' : '1px solid rgba(0, 0, 0, 0.12)',
+               borderRadius: 1.5,
+               background: hasDateConflicts
+                 ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%)'
+                 : isActiveHotel 
+                   ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.05) 0%, rgba(53, 84, 209, 0.02) 100%)'
+                   : 'white',
+               transition: 'all 0.3s ease',
+               '&:before': {
+                 display: 'none' // Remove default MUI accordion border
+               }
+             }}
+           >
             {/* Date Range Warning */}
             {(hasDateIssues || hasDateConflicts) && (
               <Alert 
@@ -587,309 +586,344 @@ const HotelConfigSummary = ({
               </Alert>
             )}
             
-            <AccordionSummary
-              expandIcon={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {hasDateConflicts && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 18 }} />}
-                  {hasDateIssues && !hasDateConflicts && <WarningIcon sx={{ color: 'warning.main', fontSize: 18 }} />}
-                  {isActiveHotel && <EditIcon sx={{ color: 'primary.main', fontSize: 16 }} />}
-                  <ExpandMoreIcon />
-                </Box>
-              }
-              sx={{ 
-                p: 2,
-                minHeight: '64px',
-                '& .MuiAccordionSummary-content': { 
-                  margin: 0,
-                  '&.Mui-expanded': { margin: 0 }
-                },
-                '&:hover': {
-                  bgcolor: 'rgba(0, 0, 0, 0.02)'
-                }
-              }}
-            >
-              {/* Hotel Header - Compact Summary */}
-              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 2 }}>
-                <Avatar 
-                  sx={{
-                    bgcolor: hasDateConflicts ? '#f44336' : hasDateIssues ? '#ff9800' : '#3554D1', 
-                    width: 40,
-                    height: 40,
-                    mr: 1.5
-                  }}
-                >
-                  <HotelIcon fontSize="small" />
-                </Avatar>
-                
-                <Box sx={{ flex: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {hotel.hotel_name || hotel.name || 'Hotel'}
-                    </Typography>
-                    
-                    {isActiveHotel && (
-                      <Chip label="Editing" size="small" color="primary" />
-                    )}
-                    
-                    {hasDateConflicts && (
-                      <Chip 
-                        label="Date Issue" 
-                        size="small" 
-                        color="error" 
-                        icon={<ErrorOutlineIcon />}
-                      />
-                    )}
-                    
-                    {hasDateIssues && !hasDateConflicts && (
-                      <Chip label="Issue" size="small" color="warning" />
-                    )}
-                    
-                    <Chip 
-                      label={`${Math.round(hotelProgress)}% Complete`}
-                      size="small" 
-                      color={hotelProgress === 100 ? 'success' : hotelProgress > 0 ? 'warning' : 'default'}
-                    />
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                    <Chip 
-                      size="small" 
-                      label={`${totalRooms} Room${totalRooms !== 1 ? 's' : ''}`}
-                      variant="outlined"
-                      color="primary"
-                    />
-                    {hotelSummary.hotelNights > 0 ? (
-                      <Chip 
-                        size="small" 
-                        label={`${hotelSummary.hotelNights} Night${hotelSummary.hotelNights !== 1 ? 's' : ''}`}
-                        variant="outlined"
-                        color="secondary"
-                      />
-                    ) : hotelSummary.isUsingTourDates ? (
-                      <Chip 
-                        size="small" 
-                        label="Tour Dates"
-                        variant="outlined"
-                        color="warning"
-                        sx={{ fontStyle: 'italic' }}
-                      />
-                    ) : null}
-                    <Chip 
-                      size="small" 
-                      label={`${hotelSummary.totalGuests} Guest${hotelSummary.totalGuests !== 1 ? 's' : ''}`}
-                      variant="outlined"
-                      color="info"
-                    />
-                  </Box>
-                </Box>
-                
-                {/* Price Display - Compact */}
-                {hotelSummary.totalMealPlanCost > 0 && (
-                  <Chip
-                    label={`$${hotelSummary.totalMealPlanCost.toFixed(2)}`}
-                    size="small"
-                    color="success"
-                    variant="filled"
-                    sx={{ fontWeight: 600 }}
-                  />
-                )}
-              </Box>
+                         <AccordionSummary
+               expandIcon={
+                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                   {hasDateConflicts && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
+                   {hasDateIssues && !hasDateConflicts && <WarningIcon sx={{ color: 'warning.main', fontSize: 14 }} />}
+                   {isActiveHotel && <EditIcon sx={{ color: 'primary.main', fontSize: 12 }} />}
+                   <ExpandMoreIcon />
+                 </Box>
+               }
+               sx={{ 
+                 p: 1,
+                 minHeight: '40px',
+                 '& .MuiAccordionSummary-content': { 
+                   margin: 0,
+                   '&.Mui-expanded': { margin: 0 }
+                 },
+                 '&:hover': {
+                   bgcolor: 'rgba(0, 0, 0, 0.02)'
+                 }
+               }}
+             >
+                             {/* Hotel Header - Compact Summary */}
+               <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 1 }}>
+                 <Avatar 
+                   sx={{
+                     bgcolor: hasDateConflicts ? '#f44336' : hasDateIssues ? '#ff9800' : '#3554D1', 
+                     width: 28,
+                     height: 28,
+                     mr: 0.8
+                   }}
+                 >
+                   <HotelIcon fontSize="small" />
+                 </Avatar>
+                 
+                 <Box sx={{ flex: 1 }}>
+                   <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.6 }}>
+                     <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                       {hotel.hotel_name || hotel.name || 'Hotel'}
+                     </Typography>
+                     
+                     {isActiveHotel && (
+                       <Chip label="Editing" size="small" color="primary" sx={{ fontSize: '0.65rem', height: '20px' }} />
+                     )}
+                     
+                     {hasDateConflicts && (
+                       <Chip 
+                         label="Date Issue" 
+                         size="small" 
+                         color="error" 
+                         icon={<ErrorOutlineIcon />}
+                         sx={{ fontSize: '0.65rem', height: '20px' }}
+                       />
+                     )}
+                     
+                     {hasDateIssues && !hasDateConflicts && (
+                       <Chip label="Issue" size="small" color="warning" sx={{ fontSize: '0.65rem', height: '20px' }} />
+                     )}
+                     
+                     <Chip 
+                       label={`${Math.round(hotelProgress)}% Complete`}
+                       size="small" 
+                       color={hotelProgress === 100 ? 'success' : hotelProgress > 0 ? 'warning' : 'default'}
+                       sx={{ fontSize: '0.65rem', height: '20px' }}
+                     />
+                   </Box>
+                   
+                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.4, mt: 0.4 }}>
+                     <Chip 
+                       size="small" 
+                       label={`${totalRooms} Room${totalRooms !== 1 ? 's' : ''}`}
+                       variant="outlined"
+                       color="primary"
+                       sx={{ fontSize: '0.65rem', height: '20px' }}
+                     />
+                     {hotelSummary.hotelNights > 0 ? (
+                       <Chip 
+                         size="small" 
+                         label={`${hotelSummary.hotelNights} Night${hotelSummary.hotelNights !== 1 ? 's' : ''}`}
+                         variant="outlined"
+                         color="secondary"
+                         sx={{ fontSize: '0.65rem', height: '20px' }}
+                       />
+                     ) : hotelSummary.isUsingTourDates ? (
+                       <Chip 
+                         size="small" 
+                         label="Tour Dates"
+                         variant="outlined"
+                         color="warning"
+                         sx={{ fontStyle: 'italic', fontSize: '0.65rem', height: '20px' }}
+                       />
+                     ) : null}
+                     <Chip 
+                       size="small" 
+                       label={`${hotelSummary.totalGuests} Guest${hotelSummary.totalGuests !== 1 ? 's' : ''}`}
+                       variant="outlined"
+                       color="info"
+                       sx={{ fontSize: '0.65rem', height: '20px' }}
+                     />
+                   </Box>
+                 </Box>
+                 
+                 {/* Price Display - Compact */}
+                 {hotelSummary.totalMealPlanCost > 0 && PriceHide === "0" ? (
+                   <Chip
+                     label={`$${hotelSummary.totalMealPlanCost.toFixed(2)}`}
+                     size="small"
+                     color="success"
+                     variant="filled"
+                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                   />
+                 ):(
+                   <Chip
+                     label="Price hide"
+                     size="small"
+                     color="success"
+                     variant="filled"
+                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                   />
+                   )}
+               </Box>
             </AccordionSummary>
 
-            <AccordionDetails sx={{ p: 1 }}>
-              {/* Full Hotel Details */}
-              <Box sx={{ p: 2 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  📍 {hotel.address || hotel.location || 'Hotel Location'}
-                </Typography>
-                
-                {hotelSummary.overallCheckIn && hotelSummary.overallCheckOut && (
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    📅 {hotelSummary.overallCheckIn} - {hotelSummary.overallCheckOut}
-                    {hotelSummary.isUsingTourDates && (
-                      <Typography component="span" variant="caption" sx={{ 
-                        ml: 1, 
-                        color: 'warning.main', 
-                        fontStyle: 'italic' 
-                      }}>
-                        (Tour dates - select nights to customize)
-                      </Typography>
-                    )}
-                  </Typography>
-                )}
-              </Box>
+                         <AccordionDetails sx={{ p: 1 }}>
+               {/* Full Hotel Details */}
+               <Box sx={{ p: 1.5 }}>
+                 <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: '0.8rem' }}>
+                   📍 {hotel.address || hotel.location || 'Hotel Location'}
+                 </Typography>
+                 
+                 {hotelSummary.overallCheckIn && hotelSummary.overallCheckOut && (
+                   <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: '0.8rem' }}>
+                     📅 {hotelSummary.overallCheckIn} - {hotelSummary.overallCheckOut}
+                     {hotelSummary.isUsingTourDates && (
+                       <Typography component="span" variant="caption" sx={{ 
+                         ml: 0.8, 
+                         color: 'warning.main', 
+                         fontStyle: 'italic',
+                         fontSize: '0.7rem'
+                       }}>
+                         (Tour dates - select nights to customize)
+                       </Typography>
+                     )}
+                   </Typography>
+                 )}
+               </Box>
 
-              {/* Room Cards */}
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
-                Room Configurations
-              </Typography>
+               {/* Room Cards */}
+               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1, fontSize: '0.85rem' }}>
+                 Room Configurations
+               </Typography>
 
-              <Grid container spacing={1.5}>
+               <Grid container spacing={1}>
                 {configurations.map((config, configIndex) => {
                   const isActive = config.originalIndex === activeHotelIndex;
                   const isComplete = config.hotelId && config.roomTypeId && config.bedTypeId;
 
                   return (
                     <Grid item xs={12} sm={6} md={4} key={config.id}>
-                      <Card
-                        elevation={isActive ? 3 : 1}
-                        sx={{
-                          cursor: 'pointer',
-                          border: isActive ? '2px solid #3554D1' : '1px solid rgba(0, 0, 0, 0.12)',
-                          borderRadius: 2,
-                          transition: 'all 0.2s ease',
-                          background: isActive 
-                            ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.08) 0%, rgba(53, 84, 209, 0.02) 100%)'
-                            : 'white',
-                          '&:hover': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: 4
-                          }
-                        }}
-                        onClick={() => selectHotelConfiguration(config.originalIndex)}
-                      >
-                        <CardContent sx={{ p: 1.5 }}>
-                          {/* Room Header */}
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Avatar sx={{ 
-                                bgcolor: isComplete ? '#4caf50' : '#ff9800', 
-                                width: 32, 
-                                height: 32, 
-                                mr: 1 
-                              }}>
-                                {isComplete ? <CheckCircleIcon fontSize="small" /> : <PendingIcon fontSize="small" />}
-                              </Avatar>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                Room {configIndex + 1}
-                              </Typography>
-                            </Box>
-                            
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeHotelConfiguration(config.originalIndex);
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
+                                             <Card
+                         elevation={isActive ? 3 : 1}
+                         sx={{
+                           cursor: 'pointer',
+                           border: isActive ? '2px solid #3554D1' : '1px solid rgba(0, 0, 0, 0.12)',
+                           borderRadius: 1.5,
+                           transition: 'all 0.2s ease',
+                           background: isActive 
+                             ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.08) 0%, rgba(53, 84, 209, 0.02) 100%)'
+                             : 'white',
+                           '&:hover': {
+                             transform: 'translateY(-1px)',
+                             boxShadow: 3
+                           }
+                         }}
+                         onClick={() => selectHotelConfiguration(config.originalIndex)}
+                       >
+                         <CardContent sx={{ p: 0.8 }}>
+                           {/* Room Header */}
+                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                               <Avatar sx={{ 
+                                 bgcolor: isComplete ? '#4caf50' : '#ff9800', 
+                                 width: 24, 
+                                 height: 24, 
+                                 mr: 0.6 
+                               }}>
+                                 {isComplete ? <CheckCircleIcon fontSize="small" /> : <PendingIcon fontSize="small" />}
+                               </Avatar>
+                               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
+                                 Room {configIndex + 1}
+                               </Typography>
+                             </Box>
+                             
+                             <IconButton
+                               size="small"
+                               color="error"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 removeHotelConfiguration(config.originalIndex);
+                               }}
+                               sx={{ width: 24, height: 24 }}
+                             >
+                               <DeleteIcon fontSize="small" />
+                             </IconButton>
+                           </Box>
 
-                          {/* Room Details */}
-                          <Box sx={{ mb: 1.5 }}>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Room:</strong> {config.roomTypeName || 'Not selected'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Bed:</strong> {config.bedTypeName || 'Not selected'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Guests:</strong> {config.selectedGuests || 0} • <strong>Nights:</strong> {config.nights || 0}
-                            </Typography>
-                            
-                            {/* Selected Meal Plans */}
-                            <Box sx={{ mt: 1 }}>
-                              <Typography variant="caption" sx={{ 
-                                fontWeight: 600, 
-                                color: 'primary.main',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}>
-                                <RestaurantMenuIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                                Meal Plans:
-                              </Typography>
-                              
-                              {config.guestMealPlans && config.guestMealPlans.length > 0 ? (
-                                <Box sx={{ mt: 0.5 }}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mb: 0.5 }}>
-                                    {config.guestMealPlans.map((mealPlan, mealIndex) => (
-                                      <Box key={mealIndex} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <Typography variant="caption" sx={{ 
-                                          color: 'text.secondary',
-                                          fontSize: '0.7rem'
-                                        }}>
-                                          Guest {mealIndex + 1}: {mealPlan?.name || 'Room Only'}
-                                        </Typography>
-                                        {mealPlan?.price > 0 && (
-                                          <Typography variant="caption" sx={{ 
-                                            color: 'success.main',
-                                            fontSize: '0.65rem',
-                                            fontWeight: 600
-                                          }}>
-                                            ${mealPlan.price.toFixed(2)}
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    ))}
-                                  </Box>
-                                  
-                                  {/* Room Meal Total */}
-                                  {(() => {
-                                    const roomMealTotal = config.guestMealPlans.reduce((sum, meal) => sum + (meal?.price || 0), 0);
-                                    return roomMealTotal > 0 && (
-                                      <Box sx={{ 
-                                        pt: 0.5, 
-                                        borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
-                                        display: 'flex', 
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center'
-                                      }}>
-                                        <Typography variant="caption" sx={{ 
-                                          fontWeight: 600,
-                                          fontSize: '0.7rem',
-                                          color: 'success.main'
-                                        }}>
-                                          Room Total:
-                                        </Typography>
-                                        <Chip 
-                                          label={`$${roomMealTotal.toFixed(2)}`}
-                                          size="small" 
-                                          color="success"
-                                          variant="filled"
-                                          sx={{ 
-                                            height: 18, 
-                                            fontSize: '0.65rem',
-                                            fontWeight: 600
-                                          }}
-                                        />
-                                      </Box>
-                                    );
-                                  })()}
-                                </Box>
-                              ) : (
-                                <Box sx={{ mt: 0.5 }}>
-                                  <Typography variant="caption" sx={{ 
-                                    color: 'warning.main',
-                                    fontSize: '0.7rem',
-                                    fontStyle: 'italic'
-                                  }}>
-                                    No meal plans selected yet
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          </Box>
+                                                     {/* Room Details */}
+                           <Box sx={{ mb: 0.8 }}>
+                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.4, fontSize: '0.65rem' }}>
+                               <strong>Room:</strong> {config.roomTypeName || 'Not selected'}
+                             </Typography>
+                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.4, fontSize: '0.65rem' }}>
+                               <strong>Bed:</strong> {config.bedTypeName || 'Not selected'}
+                             </Typography>
+                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.4, fontSize: '0.65rem' }}>
+                               <strong>Guests:</strong> {config.selectedGuests || 0} • <strong>Nights:</strong> {config.nights || 0}
+                             </Typography>
+                             
+                             {/* Selected Meal Plans */}
+                             <Box sx={{ mt: 0.6 }}>
+                               <Typography variant="caption" sx={{ 
+                                 fontWeight: 600, 
+                                 color: 'primary.main',
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 fontSize: '0.65rem'
+                               }}>
+                                 <RestaurantMenuIcon sx={{ fontSize: 10, mr: 0.3 }} />
+                                 Meal Plans:
+                               </Typography>
+                               
+                               {config.guestMealPlans && config.guestMealPlans.length > 0 ? (
+                                 <Box sx={{ mt: 0.4 }}>
+                                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, mb: 0.4 }}>
+                                     {config.guestMealPlans.map((mealPlan, mealIndex) => (
+                                       <Box key={mealIndex} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                         <Typography variant="caption" sx={{ 
+                                           color: 'text.secondary',
+                                           fontSize: '0.65rem'
+                                         }}>
+                                           Guest {mealIndex + 1}: {mealPlan?.name || 'Room Only'}
+                                         </Typography>
+                                         {mealPlan?.price > 0 && PriceHide === "0" ? (
+                                           <Typography variant="caption" sx={{ 
+                                             color: 'success.main',
+                                             fontSize: '0.6rem',
+                                             fontWeight: 600
+                                           }}>
+                                             ${mealPlan.price.toFixed(2)}
+                                           </Typography>
+                                         ):(
+                                           <Typography variant="caption" sx={{ 
+                                             color: 'success.main',
+                                             fontSize: '0.6rem',
+                                             fontWeight: 600
+                                           }}>
+                                             Price hide
+                                           </Typography>
+                                         )}
+                                       </Box>
+                                     ))}
+                                   </Box>
+                                   
+                                   {/* Room Meal Total */}
+                                   {(() => {
+                                     const roomMealTotal = config.guestMealPlans.reduce((sum, meal) => sum + (meal?.price || 0), 0);
+                                     return roomMealTotal > 0 && (
+                                       <Box sx={{ 
+                                         pt: 0.4, 
+                                         borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
+                                         display: 'flex', 
+                                         justifyContent: 'space-between',
+                                         alignItems: 'center'
+                                       }}>
+                                         <Typography variant="caption" sx={{ 
+                                           fontWeight: 600,
+                                           fontSize: '0.65rem',
+                                           color: 'success.main'
+                                         }}>
+                                           Room Total:
+                                         </Typography>
+                                         {PriceHide === "0" ? (
+                                         <Chip 
+                                           label={`$${roomMealTotal.toFixed(2)}`}
+                                           size="small" 
+                                           color="success"
+                                           variant="filled"
+                                           sx={{ 
+                                             height: 16, 
+                                             fontSize: '0.6rem',
+                                             fontWeight: 600
+                                           }}
+                                         />
+                                         ):(
+                                           <Chip 
+                                             label="Price hide"
+                                             size="small"
+                                             color="success"
+                                             variant="filled"
+                                             sx={{ fontWeight: 600, fontSize: '0.6rem', height: '16px' }}
+                                           />
+                                         )}
+                                       </Box>
+                                     );
+                                   })()}
+                                 </Box>
+                               ) : (
+                                 <Box sx={{ mt: 0.4 }}>
+                                   <Typography variant="caption" sx={{ 
+                                     color: 'warning.main',
+                                     fontSize: '0.65rem',
+                                     fontStyle: 'italic'
+                                   }}>
+                                     No meal plans selected yet
+                                   </Typography>
+                                 </Box>
+                               )}
+                             </Box>
+                           </Box>
 
-                          {/* Action Indicator */}
-                          <Box sx={{ textAlign: 'center' }}>
-                            {isActive ? (
-                              <Chip 
-                                label="Currently Editing" 
-                                size="small" 
-                                color="primary" 
-                                variant="filled"
-                              />
-                            ) : (
-                              <Chip 
-                                label="Click to Edit" 
-                                size="small" 
-                                variant="outlined"
-                                sx={{ '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
-                              />
-                            )}
-                          </Box>
+                                                     {/* Action Indicator */}
+                           <Box sx={{ textAlign: 'center' }}>
+                             {isActive ? (
+                               <Chip 
+                                 label="Currently Editing" 
+                                 size="small" 
+                                 color="primary" 
+                                 variant="filled"
+                                 sx={{ fontSize: '0.65rem', height: '20px' }}
+                               />
+                             ) : (
+                               <Chip 
+                                 label="Click to Edit" 
+                                 size="small" 
+                                 variant="outlined"
+                                 sx={{ fontSize: '0.65rem', height: '20px', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
+                               />
+                             )}
+                           </Box>
                         </CardContent>
                       </Card>
                     </Grid>
@@ -897,39 +931,41 @@ const HotelConfigSummary = ({
                 })}
               </Grid>
 
-              {/* Hotel-specific Actions */}
-              <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed rgba(0, 0, 0, 0.12)' }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<AddIcon />}
-                      onClick={() => onAddMoreRooms && onAddMoreRooms()}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      Add More Rooms to This Hotel
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Button
-                      fullWidth
-                      variant="text"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => {
-                        // Remove all rooms of this hotel
-                        configurations.forEach(config => {
-                          removeHotelConfiguration(config.originalIndex);
-                        });
-                      }}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      Remove This Hotel
-                    </Button>
-                  </Grid>
-                </Grid>
-              </Box>
+                             {/* Hotel-specific Actions */}
+               <Box sx={{ mt: 1, pt: 0.8, borderTop: '1px dashed rgba(0, 0, 0, 0.12)' }}>
+                 <Grid container spacing={1}>
+                   <Grid item xs={12} sm={6}>
+                     <Button
+                       fullWidth
+                       variant="outlined"
+                       size="small"
+                       startIcon={<AddIcon />}
+                       onClick={() => onAddMoreRooms && onAddMoreRooms()}
+                       sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.6 }}
+                     >
+                       Add More Rooms to This Hotel
+                     </Button>
+                   </Grid>
+                   <Grid item xs={12} sm={6}>
+                     <Button
+                       fullWidth
+                       variant="text"
+                       size="small"
+                       color="error"
+                       startIcon={<DeleteIcon />}
+                       onClick={() => {
+                         // Remove all rooms of this hotel
+                         configurations.forEach(config => {
+                           removeHotelConfiguration(config.originalIndex);
+                         });
+                       }}
+                       sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.6 }}
+                     >
+                       Remove This Hotel
+                     </Button>
+                   </Grid>
+                 </Grid>
+               </Box>
             </AccordionDetails>
           </Accordion>
         );

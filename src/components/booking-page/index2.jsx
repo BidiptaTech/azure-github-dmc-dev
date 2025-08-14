@@ -154,6 +154,10 @@ export default function Index2() {
   // const [commentError, setCommentError] = useState(false);
   const [responseData, setResponseData] = useState(null);
 
+  // Add state for tracking button loading
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEnquiring, setIsEnquiring] = useState(false);
+
   // If no user info, redirect back
   useEffect(() => {
     if (!userInfo || !userInfo.fullName) {
@@ -182,7 +186,14 @@ export default function Index2() {
   }, [rooms, totalPrice, priceMode, priceModeId, dispatch]);
 
   const handleFinalSubmit = async () => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+
       if (!userInfo || !userInfo.fullName) {
         toast.error(
           "Customer information is missing. Please fill out the form first."
@@ -250,6 +261,8 @@ export default function Index2() {
         position: "top-center",
         autoClose: 3000,
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -264,7 +277,14 @@ export default function Index2() {
   // };
 
   const handleEnquirySubmit = async () => {
+    // Prevent multiple submissions
+    if (isEnquiring) {
+      return;
+    }
+
     try {
+      setIsEnquiring(true);
+
       // if (!enquiryComment.trim()) {
       //   setCommentError(true);
       //   toast.error("Please enter a comment");
@@ -338,6 +358,8 @@ export default function Index2() {
         position: "top-center",
         autoClose: 3000,
       });
+    } finally {
+      setIsEnquiring(false);
     }
   };
 
@@ -2438,6 +2460,7 @@ export default function Index2() {
           <Button
             variant="contained"
             onClick={handleFinalSubmit}
+            disabled={isSubmitting}
             startIcon={<Box component="span">✓</Box>}
             size="medium"
             sx={{
@@ -2448,18 +2471,21 @@ export default function Index2() {
               fontWeight: "bold",
               fontSize: "1.05rem",
               textTransform: "none",
+              "&:disabled": {
+                background: "rgba(53, 84, 209, 0.5)",
+                color: "rgba(255, 255, 255, 0.7)",
+              },
             }}
           >
-            Book Now
+            {isSubmitting ? "Booking..." : "Book Now"}
           </Button>
         )}
         {(mode === "dmc" || (Array.isArray(mode) && mode[0] === "dmc")) &&
           bookingType === "enquiry" && (
             <Button
               variant="outlined"
-              onClick={() => {
-                handleEnquirySubmit();
-              }}
+              onClick={handleEnquirySubmit}
+              disabled={isEnquiring}
               size="medium"
               sx={{
                 borderRadius: "6px",
@@ -2474,9 +2500,13 @@ export default function Index2() {
                   borderColor: "#3554D1",
                   backgroundColor: "rgba(53, 84, 209, 0.05)",
                 },
+                "&:disabled": {
+                  borderColor: "rgba(53, 84, 209, 0.3)",
+                  color: "rgba(53, 84, 209, 0.5)",
+                },
               }}
             >
-              Make an Enquiry
+              {isEnquiring ? "Enquiring..." : "Make an Enquiry"}
             </Button>
           )}
       </Box>

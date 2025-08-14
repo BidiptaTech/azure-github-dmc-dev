@@ -115,7 +115,7 @@ const PackageAttractionSearch = ({ onSelect }) => {
 
   // Get packaged attractions from Redux store
   const { packaged_attractions = [], loading, error } = useSelector(state => state.enquiryList || { packaged_attractions: [], loading: false });
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Filter packages based on search term
   const filteredPackages = packaged_attractions.filter(pkg =>
     pkg.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -213,15 +213,23 @@ const PackageAttractionSearch = ({ onSelect }) => {
                           {getDescriptionSnippet(pkg.description)}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 1 }}>
-                          {pkg.base_price && (
+                          {PriceHide === "0" ? (
+                          pkg.base_price && (
                             <PriceChip label={`Adult: ${formatPrice(pkg.base_price)}`} size="small" />
-                          )}
-                          {pkg.child_price && (
+                            )):(
+                            <div className="text-12 text-dark-1 fw-500">
+                              Price available on request
+                            </div>
+                            )}
+                          
+                          {PriceHide === "0" ? (
+                          pkg.child_price && (
                             <PriceChip label={`Child: ${formatPrice(pkg.child_price)}`} size="small" />
-                          )}
-                          {pkg.senior_citizen_price && (
-                            <PriceChip label={`Senior: ${formatPrice(pkg.senior_citizen_price)}`} size="small" />
-                          )}
+                            )):(
+                            <div className="text-12 text-dark-1 fw-500">
+                              Price available on request
+                            </div>
+                            )}
                         </Box>
                         <IncludedAttractions>
                           {pkg.attractions && pkg.attractions.length > 0 && (
