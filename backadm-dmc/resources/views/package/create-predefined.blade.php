@@ -100,17 +100,7 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Package Type <span class="text-danger">*</span></label>
-                            <select class="form-select @error('package_type') is-invalid @enderror" name="package_type" required>
-                                <option value="">Select Package Type</option>
-                                <option value="single" {{ old('package_type') == 'single' ? 'selected' : '' }}>Single</option>
-                                <option value="couple" {{ old('package_type') == 'couple' ? 'selected' : '' }}>Couple</option>
-                            </select>
-                            @error('package_type')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        
                         
                         <div class="col-12">
                             <label class="form-label">Description</label>
@@ -150,7 +140,7 @@
                             @enderror
                         </div>
                         <div class="col-md-3" id="senior-price-section">
-                            <label class="form-label">Senior Price (SGD)</label>
+                            <label class="form-label">Senior Citizen Price (SGD)</label>
                             <div class="input-group">
                                 <span class="input-group-text">SGD</span>
                                 <input type="number" class="form-control @error('price_senior') is-invalid @enderror" 
@@ -171,14 +161,7 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Maximum PAX <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control @error('max_pax') is-invalid @enderror" 
-                                   name="max_pax" value="{{ old('max_pax') }}" min="1" required id="max-pax-input">
-                            @error('max_pax')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        
 
                         <div class="col-md-3" id="child-max-age-section">
                             <label class="form-label">Child Max Age <span class="text-danger">*</span></label>
@@ -434,74 +417,7 @@ $(document).ready(function() {
     });
     
     // Package type change handler
-    $('select[name="package_type"]').on('change', function() {
-        const packageType = $(this).val();
-        handlePackageTypeChange(packageType);
-    });
     
-    // Function to handle package type changes
-    function handlePackageTypeChange(packageType) {
-        const couplePriceNote = $('#couple-price-note');
-        const adultPriceLabel = $('#adult-price-label');
-        const seniorPriceSection = $('#senior-price-section');
-        const childPriceSection = $('#child-price-section');
-        const maxPaxInput = $('#max-pax-input');
-        const childMaxAgeInput = $('#child-max-age-input');
-        const childMaxAgeSection = $('#child-max-age-section');
-        if (packageType === 'couple') {
-            // Show couple price note
-            couplePriceNote.removeClass('d-none');
-            
-            // Update adult price label
-            adultPriceLabel.html('Price (SGD) <span class="text-danger">*</span>');
-            
-            // Hide senior and child price sections
-            seniorPriceSection.addClass('d-none');
-            childPriceSection.addClass('d-none');
-            childMaxAgeInput.removeAttr('required');
-            childMaxAgeInput.addClass('d-none');
-            childMaxAgeSection.addClass('d-none');
-            // Set max pax to 2 and make readonly
-            maxPaxInput.val(2).prop('readonly', true);
-            
-            // Clear senior and child price values
-            $('input[name="price_senior"]').val('');
-            $('input[name="price_child"]').val('');
-            
-        } else if (packageType === 'single') {
-            // Hide couple price note
-            couplePriceNote.addClass('d-none');
-            
-            // Reset adult price label
-            adultPriceLabel.html('Adult Price (SGD) <span class="text-danger">*</span>');
-            
-            // Show senior and child price sections
-            seniorPriceSection.removeClass('d-none');
-            childPriceSection.removeClass('d-none');
-            childMaxAgeInput.attr('required', true);
-            childMaxAgeInput.removeClass('d-none');
-            childMaxAgeSection.removeClass('d-none');
-            // Reset max pax and make editable
-            maxPaxInput.val('').prop('readonly', false);
-            
-        } else {
-            // Default state - hide all notes and reset labels
-            couplePriceNote.addClass('d-none');
-            adultPriceLabel.html('Adult Price (SGD) <span class="text-danger">*</span>');
-            seniorPriceSection.removeClass('d-none');
-            childPriceSection.removeClass('d-none');
-            childMaxAgeInput.removeClass('d-none');
-            childMaxAgeInput.attr('required', true);
-            maxPaxInput.val('').prop('readonly', false);
-            childMaxAgeSection.removeClass('d-none');
-        }
-    }
-    
-    // Initialize package type handling on page load
-    const initialPackageType = $('select[name="package_type"]').val();
-    if (initialPackageType) {
-        handlePackageTypeChange(initialPackageType);
-    }
     
     // Date validation handlers
     $('#start-date-input').on('change', function() {
