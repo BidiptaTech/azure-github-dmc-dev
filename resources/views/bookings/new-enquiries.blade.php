@@ -772,12 +772,12 @@ function exportData() {
             // order: [[8, 'desc']], // Sort by Created Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [8, 9], // Negotiation and Actions columns
+                    targets: [8, 9], // Negotiation and Actions columns (indices 8 and 9)
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [4], // Guests column
+                    targets: [4], // Guests column (index 4)
                     orderable: false
                 }
             ],
