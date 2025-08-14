@@ -169,7 +169,7 @@ class BookingsController extends Controller
                 ->paginate(15);
         }
 
-        $enquary_comments = Enquiry::where('dmcId', 4)->get();
+        $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
         
 
         // Get filtered agents based on logged-in DMC user
