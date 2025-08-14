@@ -86,20 +86,10 @@ class PackageController extends Controller
             }
         }
 
-        if($children){
-            $pax = $pax + $children;
-        }
-
-        if($pax != 2){
-            $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
-            ->whereDate('start_date', '<=', $date)
-            ->whereDate('expire_date', '>=', $date)->where('package_type', '!=', 'couple');
-        }
-        else{
-            $query = Package::where('status', 1)->where('max_pax', '>=', $pax)->where('dmc_id', $dmcId)
+        $query = Package::where('status', 1)->where('dmc_id', $dmcId)
                 ->whereDate('start_date', '<=', $date)
                 ->whereDate('expire_date', '>=', $date);
-        }
+        
         if (!empty($city)) {
             $query->where('city', $city);
         }
