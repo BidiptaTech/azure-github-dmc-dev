@@ -613,9 +613,16 @@ class PackageController extends Controller
                         ], 404);
                     }
                 }
-                else{
+                elseif( $user->agent_id){
                     $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
                         ->where('booked_by', $user->agent_id)->orderBy('booking_id', 'desc');
+                }
+                else{
+                    return response()->json([
+                        'message' => 'No agent ID or DMC Id found',
+                        'booking_lists' => [],
+                        'total_bookings' => 0
+                    ], 404);
                 }
             }
             else{
@@ -626,7 +633,7 @@ class PackageController extends Controller
                 }
                 elseif($agent_id !== null && $user->userId){
                     $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
-                        ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc');
+                        ->where('dmc_id', $dmc_id)->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
                 }
                 else{
                     $booking_query = collect();
