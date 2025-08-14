@@ -607,10 +607,10 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     <Paper 
       elevation={0}
       sx={{
-        borderRadius: 3,
+        borderRadius: 2,
         bgcolor: 'white',
-        p: { xs: 2, md: 3 },
-        mt: 2,
+        p: { xs: 1.5, md: 2 },
+        mt: 0.5,
         overflow: 'visible',
         position: 'relative',
         zIndex: 1,
@@ -618,7 +618,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     >
       <Box sx={{ width: '100%', maxWidth: 1730, overflow: 'visible', position: 'relative', zIndex: 1 }}>
         {/* Radio Button Selection */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 0.5 }}>
           <FormControl component="fieldset">
             <RadioGroup
               row
@@ -629,7 +629,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                 dispatch(clearSearchDayIndex()); // Clear day index on service type change
                 setValidationTriggered(false);
               }}
-              sx={{ gap: 2 }}
+              sx={{ gap: 1.5 }}
             >
               <FormControlLabel
                 value="Point To Point"
@@ -640,6 +640,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                       '&.Mui-checked': {
                         color: '#ff6b6b',
                       },
+                      '& .MuiSvgIcon-root': {
+                        fontSize: '18px',
+                      },
                     }}
                   />
                 }
@@ -648,15 +651,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                     variant="body2" 
                     fontWeight={selectedPort === "Point To Point" ? 600 : 400}
                     color={selectedPort === "Point To Point" ? '#ff6b6b' : 'text.primary'}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     Point To Point
                   </Typography>
                 }
                 sx={{
-                  border: `2px solid ${selectedPort === "Point To Point" ? '#ff6b6b' : '#e0e0e0'}`,
-                  borderRadius: 2,
-                  px: 2,
-                  py: 0.5,
+                  border: `1px solid ${selectedPort === "Point To Point" ? '#ff6b6b' : '#e0e0e0'}`,
+                  borderRadius: 1,
+                  px: 1,
+                  py: 0.3,
                   m: 0,
                   bgcolor: selectedPort === "Point To Point" ? alpha('#ff6b6b', 0.05) : 'transparent',
                   '&:hover': {
@@ -675,6 +679,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                       '&.Mui-checked': {
                         color: '#ff6b6b',
                       },
+                      '& .MuiSvgIcon-root': {
+                        fontSize: '18px',
+                      },
                     }}
                   />
                 }
@@ -683,15 +690,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                     variant="body2" 
                     fontWeight={selectedPort === "Hourly" ? 600 : 400}
                     color={selectedPort === "Hourly" ? '#ff6b6b' : 'text.primary'}
+                    sx={{ fontSize: '0.8rem' }}
                   >
                     Hourly
                   </Typography>
                 }
                 sx={{
-                  border: `2px solid ${selectedPort === "Hourly" ? '#ff6b6b' : '#e0e0e0'}`,
-                  borderRadius: 2,
-                  px: 2,
-                  py: 0.5,
+                  border: `1px solid ${selectedPort === "Hourly" ? '#ff6b6b' : '#e0e0e0'}`,
+                  borderRadius: 1,
+                  px: 1,
+                  py: 0.3,
                   m: 0,
                   bgcolor: selectedPort === "Hourly" ? alpha('#ff6b6b', 0.05) : 'transparent',
                   '&:hover': {
@@ -711,6 +719,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                         '&.Mui-checked': {
                           color: '#ff6b6b',
                         },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '18px',
+                        },
                       }}
                     />
                   }
@@ -719,15 +730,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                       variant="body2" 
                       fontWeight={selectedPort === "Local Transfer" ? 600 : 400}
                       color={selectedPort === "Local Transfer" ? '#ff6b6b' : 'text.primary'}
+                      sx={{ fontSize: '0.8rem' }}
                     >
                       Local Transfer
                     </Typography>
                   }
                   sx={{
-                    border: `2px solid ${selectedPort === "Local Transfer" ? '#ff6b6b' : '#e0e0e0'}`,
-                    borderRadius: 2,
-                    px: 2,
-                    py: 0.5,
+                    border: `1px solid ${selectedPort === "Local Transfer" ? '#ff6b6b' : '#e0e0e0'}`,
+                    borderRadius: 1,
+                    px: 1,
+                    py: 0.3,
                     m: 0,
                     bgcolor: selectedPort === "Local Transfer" ? alpha('#ff6b6b', 0.05) : 'transparent',
                     '&:hover': {
@@ -745,7 +757,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         {selectedPort ? (
           <>
             {/* Form Fields Row */}
-            <Grid container spacing={2} alignItems="flex-end" sx={{ mb: 3 }}>
+            <Grid container spacing={1.5} alignItems="flex-end" sx={{ mb: 2 }}>
               {/* Location Search */}
               <Grid item xs={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 6 : 4}>
                 <Box>
@@ -819,8 +831,8 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               </Grid>
 
               {/* Time Selection */}
-              <Grid item xs={12} md={3}>
-                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -12 : 0 }}>
+              <Grid item xs={12} md={3} sx={{mt: 0.5}}>
+                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -11 : 0 }}>
                   {selectedPort === "Point To Point" ? (
                     <Pickuptime
                       entryytime={entryytime}
@@ -854,8 +866,8 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
 
               {/* Date Selection */}
               <Grid item xs={12} md={3}>
-                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -12 : 0 }}>
-                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -10 : 0 }}>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.8, color: 'text.primary', fontSize: '0.9rem' }}>
                     Pick Up Date
                   </Typography>
                   {selectedPort === "Point To Point" ? (
@@ -907,22 +919,22 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
             <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
               <Button
                 variant="contained"
-                size="large"
+                size="medium"
                 startIcon={<SearchIcon />}
                 onClick={buttonsearch}
                 sx={{
-                  minWidth: 200,
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: 2,
+                  minWidth: 180,
+                  px: 3,
+                  py: 1.2,
+                  borderRadius: 1.5,
                   background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-                  fontSize: '1rem',
+                  fontSize: '0.9rem',
                   fontWeight: 600,
                   textTransform: 'none',
-                  boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+                  boxShadow: '0 3px 10px rgba(255, 107, 107, 0.3)',
                   '&:hover': {
                     background: 'linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%)',
-                    boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
+                    boxShadow: '0 5px 14px rgba(255, 107, 107, 0.4)',
                     transform: 'translateY(-1px)',
                   },
                   transition: 'all 0.3s ease',

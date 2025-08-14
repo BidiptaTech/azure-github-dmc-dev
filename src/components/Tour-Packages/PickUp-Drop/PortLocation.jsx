@@ -198,6 +198,12 @@ const PortLocation = ({
         noOptionsText="No ports available"
         disabled={disabled || options.length === 0}
         renderOption={renderOption}
+        sx={{
+          '& .MuiInputBase-input': {
+            fontSize: '0.75rem',
+            height: '16px',
+          },
+        }}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -227,6 +233,10 @@ const PortLocation = ({
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
                     borderColor: disabled ? 'action.disabled' : 'divider',
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '0.75rem',
+                    height: '16px',
                   },
                 },
               }

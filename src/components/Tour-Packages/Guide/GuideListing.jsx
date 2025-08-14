@@ -32,11 +32,11 @@ const CustomTooltip = styled(({ className, ...props }) => (
   '& .MuiTooltip-tooltip': {
     backgroundColor: 'white',
     color: 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 400,
+    maxWidth: 350,
     border: '1px solid #dadde9',
-    borderRadius: '12px',
+    borderRadius: '8px',
     padding: 0,
-    boxShadow: theme.shadows[3]
+    boxShadow: theme.shadows[2]
   },
 }));
 
@@ -45,7 +45,7 @@ const TooltipContent = ({ guide }) => {
   return (
     <Box>
       {/* Header Image Section */}
-      <Box sx={{ position: 'relative', width: '100%', height: 200 }}>
+      <Box sx={{ position: 'relative', width: '100%', height: 160 }}>
         <Box
           component="img"
           src={guide.guide_image}
@@ -54,69 +54,71 @@ const TooltipContent = ({ guide }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px',
           }}
         />
         {guide.license_image && (
           <Box
             sx={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 6,
+              right: 6,
               bgcolor: 'rgba(0, 0, 0, 0.6)',
               color: 'white',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: '0.75rem',
+              px: 0.8,
+              py: 0.4,
+              borderRadius: 0.8,
+              fontSize: '0.7rem',
               display: 'flex',
               alignItems: 'center',
-              gap: 0.5
+              gap: 0.4
             }}
           >
-            <VerifiedIcon sx={{ fontSize: 16 }} />
+            <VerifiedIcon sx={{ fontSize: 14 }} />
             Licensed Guide
           </Box>
         )}
       </Box>
 
       {/* Content Section */}
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 1.5 }}>
         {/* Title and Location */}
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem', mb: 1 }}>
           {guide.guide_name}
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-          <LocationOnIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 0.5 }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
             {guide.city}, {guide.country}
           </Typography>
         </Box>
 
         {/* Experience and Service Type */}
-        <Box sx={{ mb: 2 }}>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap sx={{ mb: 0.8 }}>
             <Chip
               key="experience"
               size="small"
-              icon={<WorkIcon />}
+              icon={<WorkIcon sx={{ fontSize: 16 }} />}
               label={`${guide.experience_years} years experience`}
               sx={{
                 bgcolor: 'rgba(25, 118, 210, 0.08)',
                 color: 'primary.main',
-                height: 24
+                height: 20,
+                fontSize: '0.7rem'
               }}
             />
             <Chip
               key="service-type"
               size="small"
-              icon={<CategoryIcon />}
+              icon={<CategoryIcon sx={{ fontSize: 16 }} />}
               label={guide.service_type === 1 ? 'General Guide' : 'Specialized Guide'}
               sx={{
                 bgcolor: 'rgba(76, 175, 80, 0.08)',
                 color: '#2e7d32',
-                height: 24
+                height: 20,
+                fontSize: '0.7rem'
               }}
             />
           </Stack>
@@ -124,22 +126,25 @@ const TooltipContent = ({ guide }) => {
 
         {/* Languages */}
         {guide.languages && guide.languages.length > 0 && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 0.8 }}>
               Languages
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
               {guide.languages.map((lang, index) => (
                 <Chip
                   key={`${lang.language}-${index}`}
                   size="small"
-                  icon={<TranslateIcon sx={{ fontSize: 16 }} />}
+                  icon={<TranslateIcon sx={{ fontSize: 14 }} />}
                   label={`${lang.language} (${lang.proficiency})`}
                   sx={{
                     bgcolor: 'rgba(25, 118, 210, 0.08)',
                     color: 'primary.main',
-                    fontSize: '0.75rem',
-                    height: 24
+                    fontSize: '0.7rem',
+                    height: 20,
+                    '& .MuiChip-label': {
+                      px: 0.8,
+                    },
                   }}
                 />
               ))}
@@ -149,15 +154,15 @@ const TooltipContent = ({ guide }) => {
 
         {/* Description */}
         {/* {guide.description && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 0.8 }}>
               About
             </Typography>
             <Typography 
-              variant="body2" 
+              variant="caption" 
               color="text.secondary"
               sx={{ 
-                fontSize: '0.875rem',
+                fontSize: '0.7rem',
                 lineHeight: 1.5,
                 // Remove HTML tags for display
                 '& p': { margin: 0 }
@@ -168,29 +173,29 @@ const TooltipContent = ({ guide }) => {
         )} */}
 
         {/* Pricing Section */}
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
+        <Box sx={{ mt: 1.5 }}>
+          <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
             Pricing Details
           </Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             {/* DMC Prices */}
             {guide.dmc_day_rate > 0 && (
               <Grid item xs={6} key="dmc-price">
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(25, 118, 210, 0.02)',
                     borderColor: 'rgba(25, 118, 210, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 500 }}>
+                  <Typography variant="caption" gutterBottom sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>
                     DMC Rate
                   </Typography>
-                  <Typography variant="body2">
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
                     ${guide.dmc_day_rate}/day
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                     Provider: {guide.dmc_user_name}
                   </Typography>
                 </Paper>
@@ -203,15 +208,15 @@ const TooltipContent = ({ guide }) => {
                 <Paper 
                   variant="outlined" 
                   sx={{ 
-                    p: 1.5,
+                    p: 1,
                     bgcolor: 'rgba(76, 175, 80, 0.02)',
                     borderColor: 'rgba(76, 175, 80, 0.1)'
                   }}
                 >
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500 }}>
+                  <Typography variant="caption" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500, fontSize: '0.75rem' }}>
                     Travclicks Rate
                   </Typography>
-                  <Typography variant="body2">
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
                     ${guide.travClicks_day_rate}/day
                   </Typography>
                 </Paper>
@@ -225,9 +230,10 @@ const TooltipContent = ({ guide }) => {
               variant="caption" 
               sx={{ 
                 display: 'block',
-                mt: 1,
+                mt: 0.8,
                 color: 'text.secondary',
-                fontStyle: 'italic'
+                fontStyle: 'italic',
+                fontSize: '0.65rem'
               }}
             >
               *Prices are subject to {guide.tax_percentage}% tax
@@ -433,6 +439,13 @@ const GuideListing = ({ value, onChange, disabled }) => {
         disabled={disabled || filteredGuides.length === 0}
         renderOption={renderOption}
         renderInput={renderInput}
+        sx={{
+          '& .MuiAutocomplete-input': {
+            height: '12px',
+            paddingBottom: '10px',
+            paddingTop: '0px',
+          },
+        }}
         ListboxProps={{
           style: {
             maxHeight: '300px'

@@ -175,11 +175,11 @@ const SearchBar1 = ({
   const showPickupError = validationTriggered && !isPickupValid;
 
   return (
-    <Box sx={{ width: '100%', px: 2, py: 2 }}>
-      <Grid container spacing={3}>
+    <Box sx={{ width: '100%', px: 1.5, py: 1.5 }}>
+      <Grid container spacing={2}>
         {/* Pick-up Location */}
         <Grid item xs={12}>
-          <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+          <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Pick Up Location
           </Typography>
           <TextField
@@ -191,6 +191,11 @@ const SearchBar1 = ({
             onChange={handlePickupChange}
             disabled={selectedPort !== "Hourly"}
             error={showPickupError}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                height: '47px',
+              },
+            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -200,7 +205,7 @@ const SearchBar1 = ({
             }}
           />
           {showPickupError && (
-            <Alert severity="error" sx={{ mt: 1 }}>
+            <Alert severity="error" sx={{ mt: 0.8, fontSize: '0.8rem' }}>
               Please select location from dropdown suggestions
             </Alert>
           )}

@@ -106,12 +106,17 @@ const AttractionImage = styled(Box)(({ theme }) => ({
   },
 }));
 
-const PackageAttractionSearch = ({ onSelect }) => {
+const PackageAttractionSearch = ({ onSelect, value = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedPackages, setSelectedPackages] = useState([]);
+  const [selectedPackages, setSelectedPackages] = useState(value);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedPackages(value);
+  }, [value]);
 
   // Get packaged attractions from Redux store
   const { packaged_attractions = [], loading, error } = useSelector(state => state.enquiryList || { packaged_attractions: [], loading: false });

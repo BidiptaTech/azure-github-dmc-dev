@@ -34,7 +34,8 @@ const TimeSlotSelector = ({ selectedTimeSlot, onTimeSlotChange, attraction, disa
           id="time-slot-label"
           sx={{
             backgroundColor: 'white',
-            px: 1
+            px: 1,
+            fontSize: '0.8rem'
           }}
         >
           Select Time Slot
@@ -45,19 +46,26 @@ const TimeSlotSelector = ({ selectedTimeSlot, onTimeSlotChange, attraction, disa
           onChange={(e) => onTimeSlotChange(e.target.value)}
           disabled={disabled}
           displayEmpty
+          size="small"
+          sx={{
+            height: '45px',
+            '& .MuiSelect-select': {
+              fontSize: '0.8rem'
+            }
+          }}
           renderValue={(selected) => {
             if (!selected) {
               return (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                  <AccessTimeIcon />
-                  <Typography>Select Time Slot</Typography>
+                  <AccessTimeIcon sx={{ fontSize: 18 }} />
+                  <Typography sx={{ fontSize: '0.8rem' }}>Select Time Slot</Typography>
                 </Box>
               );
             }
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AccessTimeIcon sx={{ color: 'primary.main' }} />
-                <Typography>{selected}</Typography>
+                <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                <Typography sx={{ fontSize: '0.8rem' }}>{selected}</Typography>
               </Box>
             );
           }}
@@ -70,18 +78,19 @@ const TimeSlotSelector = ({ selectedTimeSlot, onTimeSlotChange, attraction, disa
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1
+                  gap: 1,
+                  fontSize: '0.8rem'
                 }}
               >
-                <AccessTimeIcon sx={{ color: 'primary.main' }} />
-                <Typography>{slot}</Typography>
+                <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                <Typography sx={{ fontSize: '0.8rem' }}>{slot}</Typography>
               </MenuItem>
             ))
           ) : (
             <MenuItem disabled>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                <AccessTimeIcon />
-                <Typography>No time slots available</Typography>
+                <AccessTimeIcon sx={{ fontSize: 18 }} />
+                <Typography sx={{ fontSize: '0.8rem' }}>No time slots available</Typography>
               </Box>
             </MenuItem>
           )}

@@ -82,14 +82,19 @@ const PriceChip = styled(Chip)(({ theme }) => ({
   marginTop: theme.spacing(0.5),
 }));
 
-const PreferredHotelsDropdown = ({ onSelect }) => {
+const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedHotels, setSelectedHotels] = useState([]);
+  const [selectedHotels, setSelectedHotels] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherHotelName, setOtherHotelName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedHotels(value);
+  }, [value]);
 
   const { hotels = [], loading, error } = useSelector((state) => state.enquiryList || {});
   const PriceHide = useSelector((state) => state.auth.PriceHide);

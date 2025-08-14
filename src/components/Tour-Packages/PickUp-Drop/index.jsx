@@ -146,7 +146,7 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
     <Box sx={{ width: '100%' }}>
       {/* Only show header if it's not already handled by parent */}
       {!showEntryPort && !showExitPort && (
-        <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
+        <Typography variant="h6" gutterBottom sx={{ mb: 0.5, fontSize: '1.1rem' }}>
           {headerText}
         </Typography>
       )}
@@ -171,7 +171,7 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
       
       {/* Show first vehicle dropdown for Entry Port */}
       {showEntryPort && ((hasVehicles) || (entryPorts && entryPorts.length > 0)) ? (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 1 }}>
           <VehicleListDropdown 
             selectedVehicle={selectedVehicleId} 
             onVehicleChange={handleVehicleChange}
@@ -185,7 +185,7 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
       
       {/* Show second vehicle dropdown for Exit Port */}
       {showExitPort && ((hasVehicles1) || (exitPorts && exitPorts.length > 0)) ? (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 1 }}>
           <VehicleListDropdown1
             selectedVehicle={selectedVehicleId1}
             onVehicleChange={handleVehicleChange1}

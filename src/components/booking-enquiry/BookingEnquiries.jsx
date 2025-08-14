@@ -40,6 +40,8 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   updateServiceDetails,
   setSelectedServices,
+  clearServiceDetails,
+  clearSpecificService,
 } from "@/slice/common/EnquirySlice";
 import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
 import StarCategorySelect from "./StarCategorySelect";
@@ -383,6 +385,76 @@ const BookingEnquiries = ({
     );
   }, [bookingOptions, dispatch]);
 
+  // Effect to sync local state with Redux data when enquiryData changes
+  useEffect(() => {
+    if (enquiryData.serviceDetails) {
+      // Sync hotel data
+      if (enquiryData.serviceDetails.hotel) {
+        setCompareHotels(enquiryData.serviceDetails.hotel.compareHotels || "no");
+        setSelectedPreferredHotels(enquiryData.serviceDetails.hotel.preferredHotels || []);
+        setStarCategory(enquiryData.serviceDetails.hotel.starCategory || "");
+      }
+      
+      // Sync tour guide data
+      if (enquiryData.serviceDetails.tourGuide) {
+        setSelectedGuides(enquiryData.serviceDetails.tourGuide.preferredGuides || []);
+      }
+      
+                     // Sync entry/exit port data
+               if (enquiryData.serviceDetails.entryExitPort) {
+                 setSelectedEntryExitCars(enquiryData.serviceDetails.entryExitPort.preferredCars || []);
+                 setEntryDropoffLocationType(enquiryData.serviceDetails.entryExitPort.entryDropoffLocationType || "hotel");
+                 setExitPickupLocationType(enquiryData.serviceDetails.entryExitPort.exitPickupLocationType || "hotel");
+                 setShowEntryPort(enquiryData.serviceDetails.entryExitPort.showEntryPort !== undefined
+                   ? enquiryData.serviceDetails.entryExitPort.showEntryPort
+                   : true);
+                 setShowExitPort(enquiryData.serviceDetails.entryExitPort.showExitPort || false);
+                 setSelectedEntryPort(enquiryData.serviceDetails.entryExitPort.portAddress || null);
+                 setSelectedExitPort(enquiryData.serviceDetails.entryExitPort.exitPortAddress || null);
+                 setSelectedHotelDropOff(enquiryData.serviceDetails.entryExitPort.hotelDropOff || null);
+                 setSelectedAttractionDropOff(enquiryData.serviceDetails.entryExitPort.attractionDropOff || null);
+                 setSelectedRestaurantDropOff(enquiryData.serviceDetails.entryExitPort.restaurantDropOff || null);
+                 setSelectedExitAttractionPickup(enquiryData.serviceDetails.entryExitPort.exitAttractionPickup || null);
+                 setSelectedExitRestaurantPickup(enquiryData.serviceDetails.entryExitPort.exitRestaurantPickup || null);
+               }
+               
+               // Sync local tour data
+               if (enquiryData.serviceDetails.localTour) {
+                 setSelectedLocalTourCars(enquiryData.serviceDetails.localTour.preferredCars || []);
+               }
+               
+               // Sync attraction data (including cars)
+               if (enquiryData.serviceDetails.attraction) {
+                 setNeedTransport(enquiryData.serviceDetails.attraction.needTransport || false);
+                 setDestinationType(enquiryData.serviceDetails.attraction.destinationType || "hotel");
+                 setSelectedAttractions(enquiryData.serviceDetails.attraction.selectedAttractions || []);
+                 setSelectedDestinations(enquiryData.serviceDetails.attraction.destination || []);
+                 setSelectedAttractionCars(enquiryData.serviceDetails.attraction.preferredCars || []);
+               }
+               
+               // Sync restaurant data (including cars)
+               if (enquiryData.serviceDetails.restaurant) {
+                 setNeedTransportType(enquiryData.serviceDetails.restaurant.needTransport || false);
+                 setSelectedRestaurants(enquiryData.serviceDetails.restaurant.selectedRestaurants || []);
+                 setSelectedRestaurantCars(enquiryData.serviceDetails.restaurant.preferredCars || []);
+               }
+      
+      // Sync packaged attractions data
+      if (enquiryData.serviceDetails.packagedAttractions) {
+        setSelectedPackagedAttractions(enquiryData.serviceDetails.packagedAttractions.selectedPackagedAttractions || []);
+      }
+      
+      // Sync remarks and special requirements
+      setHotelRemarks(enquiryData.serviceDetails?.hotel?.remarks || "");
+      setEntryExitPortRemarks(enquiryData.serviceDetails?.entryExitPort?.remarks || "");
+      setAttractionRemarks(enquiryData.serviceDetails?.attraction?.remarks || "");
+      setLocalTourRemarks(enquiryData.serviceDetails?.localTour?.remarks || "");
+      setRestaurantRemarks(enquiryData.serviceDetails?.restaurant?.remarks || "");
+      setPackagedAttractionsRemarks(enquiryData.serviceDetails?.packagedAttractions?.remarks || "");
+      setTourGuideSpecialRequirements(enquiryData.serviceDetails?.tourGuide?.specialRequirements || "");
+    }
+  }, [enquiryData.serviceDetails]);
+
   const handleToggleChange = (option) => {
     const newValue = !bookingOptions[option];
 
@@ -399,6 +471,65 @@ const BookingEnquiries = ({
       ...prev,
       [option]: newValue, // Auto-expand when turned on, collapse when turned off
     }));
+
+    // If service is being unselected (turned off), clear its data from Redux and local state
+    if (!newValue) {
+      dispatch(clearSpecificService(option));
+      console.log(`Service ${option} unselected - cleared its data from Redux`);
+      
+      // Clear corresponding local state variables based on the service
+      switch (option) {
+        case "hotel":
+          setStarCategory("");
+          setSelectedPreferredHotels([]);
+          setCompareHotels("no");
+          setHotelRemarks("");
+          break;
+        case "entryExitPort":
+          setSelectedEntryExitCars([]);
+          setSelectedEntryPort(null);
+          setSelectedExitPort(null);
+          setSelectedHotelDropOff(null);
+          setSelectedAttractionDropOff(null);
+          setSelectedRestaurantDropOff(null);
+          setSelectedExitAttractionPickup(null);
+          setSelectedExitRestaurantPickup(null);
+          setEntryDropoffLocationType("hotel");
+          setExitPickupLocationType("hotel");
+          setShowEntryPort(true);
+          setShowExitPort(false);
+          setEntryExitPortRemarks("");
+          break;
+        case "attraction":
+          setSelectedAttractions([]);
+          setSelectedDestinations([]);
+          setSelectedAttractionCars([]);
+          setNeedTransport(false);
+          setDestinationType("hotel");
+          setAttractionRemarks("");
+          break;
+        case "packagedAttractions":
+          setSelectedPackagedAttractions([]);
+          setPackagedAttractionsRemarks("");
+          break;
+        case "localTour":
+          setSelectedLocalTourCars([]);
+          setLocalTourRemarks("");
+          break;
+        case "tourGuide":
+          setSelectedGuides([]);
+          setTourGuideSpecialRequirements("");
+          break;
+        case "restaurant":
+          setSelectedRestaurants([]);
+          setSelectedRestaurantCars([]);
+          setNeedTransportType(false);
+          setRestaurantRemarks("");
+          break;
+        default:
+          break;
+      }
+    }
   };
 
   const handleExpandSection = (section) => {
@@ -413,14 +544,24 @@ const BookingEnquiries = ({
     }));
   };
 
-  // Add state for selected cars if needed
-  const [selectedCars, setSelectedCars] = useState([]);
+  // Add separate state for selected cars for each service - initialize with Redux data
+  const [selectedEntryExitCars, setSelectedEntryExitCars] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.preferredCars || []
+  );
+  const [selectedLocalTourCars, setSelectedLocalTourCars] = useState(
+    enquiryData.serviceDetails?.localTour?.preferredCars || []
+  );
+  const [selectedAttractionCars, setSelectedAttractionCars] = useState(
+    enquiryData.serviceDetails?.attraction?.preferredCars || []
+  );
+  const [selectedRestaurantCars, setSelectedRestaurantCars] = useState(
+    enquiryData.serviceDetails?.restaurant?.preferredCars || []
+  );
 
   // Handle car selection
   const handleCarSelect = (cars, service) => {
-    setSelectedCars(cars);
-
     if (service === "entryExitPort") {
+      setSelectedEntryExitCars(cars);
       dispatch(
         updateServiceDetails({
           service: "entryExitPort",
@@ -428,6 +569,7 @@ const BookingEnquiries = ({
         })
       );
     } else if (service === "localTour") {
+      setSelectedLocalTourCars(cars);
       dispatch(
         updateServiceDetails({
           service: "localTour",
@@ -435,6 +577,7 @@ const BookingEnquiries = ({
         })
       );
     } else if (service === "attraction" && needTransport) {
+      setSelectedAttractionCars(cars);
       dispatch(
         updateServiceDetails({
           service: "attraction",
@@ -442,6 +585,7 @@ const BookingEnquiries = ({
         })
       );
     } else if (service === "restaurant" && needTransportType) {
+      setSelectedRestaurantCars(cars);
       dispatch(
         updateServiceDetails({
           service: "restaurant",
@@ -451,16 +595,89 @@ const BookingEnquiries = ({
     }
   };
 
-  // Add state for attraction section
-  const [needTransport, setNeedTransport] = useState(false);
-  const [destinationType, setDestinationType] = useState("hotel");
-  const [selectedAttractions, setSelectedAttractions] = useState([]);
-  const [selectedDestinations, setSelectedDestinations] = useState([]);
-  const [compareHotels, setCompareHotels] = useState("no");
-  const [selectedPreferredHotels, setSelectedPreferredHotels] = useState([]);
-  const [starCategory, setStarCategory] = useState("");
-  const [selectedGuides, setSelectedGuides] = useState([]);
-  const [needTransportType, setNeedTransportType] = useState(false);
+  // Add state for attraction section - initialize with Redux data
+  const [needTransport, setNeedTransport] = useState(
+    enquiryData.serviceDetails?.attraction?.needTransport || false
+  );
+  const [destinationType, setDestinationType] = useState(
+    enquiryData.serviceDetails?.attraction?.destinationType || "hotel"
+  );
+  const [selectedAttractions, setSelectedAttractions] = useState(
+    enquiryData.serviceDetails?.attraction?.selectedAttractions || []
+  );
+  const [selectedDestinations, setSelectedDestinations] = useState(
+    enquiryData.serviceDetails?.attraction?.destination || []
+  );
+  const [compareHotels, setCompareHotels] = useState(
+    enquiryData.serviceDetails?.hotel?.compareHotels || "no"
+  );
+  const [selectedPreferredHotels, setSelectedPreferredHotels] = useState(
+    enquiryData.serviceDetails?.hotel?.preferredHotels || []
+  );
+  const [starCategory, setStarCategory] = useState(
+    enquiryData.serviceDetails?.hotel?.starCategory || ""
+  );
+  const [selectedGuides, setSelectedGuides] = useState(
+    enquiryData.serviceDetails?.tourGuide?.preferredGuides || []
+  );
+  const [needTransportType, setNeedTransportType] = useState(
+    enquiryData.serviceDetails?.restaurant?.needTransport || false
+  );
+
+  // Add state for remarks fields to make TextField components controlled
+  const [hotelRemarks, setHotelRemarks] = useState(
+    enquiryData.serviceDetails?.hotel?.remarks || ""
+  );
+  const [entryExitPortRemarks, setEntryExitPortRemarks] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.remarks || ""
+  );
+  const [attractionRemarks, setAttractionRemarks] = useState(
+    enquiryData.serviceDetails?.attraction?.remarks || ""
+  );
+  const [localTourRemarks, setLocalTourRemarks] = useState(
+    enquiryData.serviceDetails?.localTour?.remarks || ""
+  );
+  const [restaurantRemarks, setRestaurantRemarks] = useState(
+    enquiryData.serviceDetails?.restaurant?.remarks || ""
+  );
+  const [packagedAttractionsRemarks, setPackagedAttractionsRemarks] = useState(
+    enquiryData.serviceDetails?.packagedAttractions?.remarks || ""
+  );
+  const [tourGuideSpecialRequirements, setTourGuideSpecialRequirements] = useState(
+    enquiryData.serviceDetails?.tourGuide?.specialRequirements || ""
+  );
+
+  // Add state for selected restaurants
+  const [selectedRestaurants, setSelectedRestaurants] = useState(
+    enquiryData.serviceDetails?.restaurant?.selectedRestaurants || []
+  );
+
+  // Add state for port addresses
+  const [selectedEntryPort, setSelectedEntryPort] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.portAddress || null
+  );
+  const [selectedExitPort, setSelectedExitPort] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.exitPortAddress || null
+  );
+
+  // Add state for drop-off locations
+  const [selectedHotelDropOff, setSelectedHotelDropOff] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.hotelDropOff || null
+  );
+  const [selectedAttractionDropOff, setSelectedAttractionDropOff] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.attractionDropOff || null
+  );
+  const [selectedRestaurantDropOff, setSelectedRestaurantDropOff] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.restaurantDropOff || null
+  );
+
+  // Add state for exit pickup locations
+  const [selectedExitAttractionPickup, setSelectedExitAttractionPickup] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.exitAttractionPickup || null
+  );
+  const [selectedExitRestaurantPickup, setSelectedExitRestaurantPickup] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.exitRestaurantPickup || null
+  );
 
   // Handle attraction selection
   const handleAttractionSelect = (attractions) => {
@@ -534,6 +751,8 @@ const BookingEnquiries = ({
       })
     );
   };
+
+
 
   // Handle star category change
   const handleStarCategoryChange = (category) => {
@@ -629,6 +848,7 @@ const BookingEnquiries = ({
   // Handle special requirements change
   const handleSpecialRequirementsChange = (e) => {
     const value = e.target.value;
+    setTourGuideSpecialRequirements(value);
     dispatch(
       updateServiceDetails({
         service: "tourGuide",
@@ -639,6 +859,7 @@ const BookingEnquiries = ({
 
   // Handle port address selection
   const handlePortAddressSelect = (port) => {
+    setSelectedEntryPort(port);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -647,8 +868,20 @@ const BookingEnquiries = ({
     );
   };
 
+  // Handle exit port address selection
+  const handleExitPortAddressSelect = (port) => {
+    setSelectedExitPort(port);
+    dispatch(
+      updateServiceDetails({
+        service: "entryExitPort",
+        data: { exitPortAddress: port },
+      })
+    );
+  };
+
   // Handle hotel drop off selection
   const handleHotelDropOffSelect = (hotel) => {
+    setSelectedHotelDropOff(hotel);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -660,6 +893,7 @@ const BookingEnquiries = ({
   // Handle hotel remarks change
   const handleHotelRemarksChange = (e) => {
     const value = e.target.value;
+    setHotelRemarks(value);
     dispatch(
       updateServiceDetails({
         service: "hotel",
@@ -671,6 +905,7 @@ const BookingEnquiries = ({
   // Handle entry/exit port remarks change
   const handleEntryExitPortRemarksChange = (e) => {
     const value = e.target.value;
+    setEntryExitPortRemarks(value);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -682,6 +917,7 @@ const BookingEnquiries = ({
   // Handle attraction remarks change
   const handleAttractionRemarksChange = (e) => {
     const value = e.target.value;
+    setAttractionRemarks(value);
     dispatch(
       updateServiceDetails({
         service: "attraction",
@@ -693,6 +929,7 @@ const BookingEnquiries = ({
   // Handle local tour remarks change
   const handleLocalTourRemarksChange = (e) => {
     const value = e.target.value;
+    setLocalTourRemarks(value);
     dispatch(
       updateServiceDetails({
         service: "localTour",
@@ -704,6 +941,7 @@ const BookingEnquiries = ({
   // Handle restaurant remarks change
   const handleRestaurantRemarksChange = (e) => {
     const value = e.target.value;
+    setRestaurantRemarks(value);
     dispatch(
       updateServiceDetails({
         service: "restaurant",
@@ -714,6 +952,7 @@ const BookingEnquiries = ({
 
   // Handle restaurant selection
   const handleRestaurantSelect = (restaurants) => {
+    setSelectedRestaurants(restaurants);
     dispatch(
       updateServiceDetails({
         service: "restaurant",
@@ -722,14 +961,28 @@ const BookingEnquiries = ({
     );
   };
 
-  // Handle packaged attractions selection
-  const [selectedPackagedAttractions, setSelectedPackagedAttractions] = useState([]);
+  // Handle packaged attractions selection - initialize with Redux data
+  const [selectedPackagedAttractions, setSelectedPackagedAttractions] = useState(
+    enquiryData.serviceDetails?.packagedAttractions?.selectedPackagedAttractions || []
+  );
   const handlePackagedAttractionsSelect = (packages) => {
     setSelectedPackagedAttractions(packages);
     dispatch(
       updateServiceDetails({
         service: "packagedAttractions",
         data: { selectedPackagedAttractions: packages },
+      })
+    );
+  };
+
+  // Handle packaged attractions remarks change
+  const handlePackagedAttractionsRemarksChange = (e) => {
+    const value = e.target.value;
+    setPackagedAttractionsRemarks(value);
+    dispatch(
+      updateServiceDetails({
+        service: "packagedAttractions",
+        data: { remarks: value },
       })
     );
   };
@@ -767,7 +1020,7 @@ const BookingEnquiries = ({
                 portAddress: enquiryData.serviceDetails?.entryExitPort?.portAddress || null,
                 hotelDropOff: enquiryData.serviceDetails?.entryExitPort?.hotelDropOff || null,
                 carType: enquiryData.serviceDetails?.entryExitPort?.carType || "sharable",
-                preferredCars: enquiryData.serviceDetails?.entryExitPort?.preferredCars || [],
+                preferredCars: selectedEntryExitCars || [],
                 remarks: enquiryData.serviceDetails?.entryExitPort?.remarks || ""
               }
             }));
@@ -782,6 +1035,7 @@ const BookingEnquiries = ({
                 destinationType: enquiryData.serviceDetails?.attraction?.destinationType || "hotel",
                 destination: enquiryData.serviceDetails?.attraction?.destination || null,
                 carType: enquiryData.serviceDetails?.attraction?.carType || "sharable",
+                preferredCars: selectedAttractionCars || [],
                 remarks: enquiryData.serviceDetails?.attraction?.remarks || ""
               }
             }));
@@ -800,7 +1054,7 @@ const BookingEnquiries = ({
             dispatch(updateServiceDetails({
               service: 'localTour',
               data: {
-                preferredCars: enquiryData.serviceDetails?.localTour?.preferredCars || [],
+                preferredCars: selectedLocalTourCars || [],
                 remarks: enquiryData.serviceDetails?.localTour?.remarks || ""
               }
             }));
@@ -820,11 +1074,12 @@ const BookingEnquiries = ({
             dispatch(updateServiceDetails({
               service: 'restaurant',
               data: {
-                selectedRestaurants: enquiryData.serviceDetails?.restaurant?.selectedRestaurants || [],
+                selectedRestaurants: selectedRestaurants || [],
                 needTransport: needTransportType || false,
                 destinationType: enquiryData.serviceDetails?.restaurant?.destinationType || "hotel",
                 destination: enquiryData.serviceDetails?.restaurant?.destination || null,
                 carType: enquiryData.serviceDetails?.restaurant?.carType || "sharable",
+                preferredCars: selectedRestaurantCars || [],
                 remarks: enquiryData.serviceDetails?.restaurant?.remarks || ""
               }
             }));
@@ -840,7 +1095,7 @@ const BookingEnquiries = ({
     
     console.log("All data saved to Redux state");
     
-    // Reset all form data
+    // Reset all form data (local state only - keep Redux data for ConfirmDetails)
     setStarCategory("");
     setSelectedPreferredHotels([]);
     setCompareHotels("no");
@@ -850,8 +1105,26 @@ const BookingEnquiries = ({
     setSelectedGuides([]);
     setDestinationType("hotel");
     setSelectedDestinations([]);
-    setSelectedCars([]);
+    setSelectedEntryExitCars([]);
+    setSelectedLocalTourCars([]);
+    setSelectedAttractionCars([]);
+    setSelectedRestaurantCars([]);
     setSelectedPackagedAttractions([]);
+    setSelectedRestaurants([]);
+    setSelectedEntryPort(null);
+    setSelectedExitPort(null);
+    setSelectedHotelDropOff(null);
+    setSelectedAttractionDropOff(null);
+    setSelectedRestaurantDropOff(null);
+    setSelectedExitAttractionPickup(null);
+    setSelectedExitRestaurantPickup(null);
+    setHotelRemarks("");
+    setEntryExitPortRemarks("");
+    setAttractionRemarks("");
+    setLocalTourRemarks("");
+    setRestaurantRemarks("");
+    setPackagedAttractionsRemarks("");
+    setTourGuideSpecialRequirements("");
     
     // Reset form fields by clearing the form input elements
     const inputElements = document.querySelectorAll('input[type="text"], textarea');
@@ -1014,11 +1287,21 @@ const BookingEnquiries = ({
     }
   }, [enquiryListState]);
 
-  // Fix the state variables and handlers
-  const [entryDropoffLocationType, setEntryDropoffLocationType] = useState("hotel");
-  const [exitPickupLocationType, setExitPickupLocationType] = useState("hotel");
-  const [showEntryPort, setShowEntryPort] = useState(true);
-  const [showExitPort, setShowExitPort] = useState(false);
+  // Fix the state variables and handlers - initialize with Redux data
+  const [entryDropoffLocationType, setEntryDropoffLocationType] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.entryDropoffLocationType || "hotel"
+  );
+  const [exitPickupLocationType, setExitPickupLocationType] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.exitPickupLocationType || "hotel"
+  );
+  const [showEntryPort, setShowEntryPort] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.showEntryPort !== undefined 
+      ? enquiryData.serviceDetails.entryExitPort.showEntryPort 
+      : true
+  );
+  const [showExitPort, setShowExitPort] = useState(
+    enquiryData.serviceDetails?.entryExitPort?.showExitPort || false
+  );
 
   // Fix the handlers
   const handleEntryDropoffLocationTypeChange = (e) => {
@@ -1067,6 +1350,7 @@ const BookingEnquiries = ({
 
   // Handle attraction drop off selection
   const handleAttractionDropOffSelect = (attraction) => {
+    setSelectedAttractionDropOff(attraction);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -1077,6 +1361,7 @@ const BookingEnquiries = ({
 
   // Handle restaurant drop off selection
   const handleRestaurantDropOffSelect = (restaurant) => {
+    setSelectedRestaurantDropOff(restaurant);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -1087,6 +1372,7 @@ const BookingEnquiries = ({
 
   // Handle exit port attraction pickup selection
   const handleExitAttractionPickupSelect = (attraction) => {
+    setSelectedExitAttractionPickup(attraction);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -1097,6 +1383,7 @@ const BookingEnquiries = ({
 
   // Handle exit port restaurant pickup selection
   const handleExitRestaurantPickupSelect = (restaurant) => {
+    setSelectedExitRestaurantPickup(restaurant);
     dispatch(
       updateServiceDetails({
         service: "entryExitPort",
@@ -1231,6 +1518,7 @@ const BookingEnquiries = ({
                                 </Typography>
                                 <StarCategorySelect
                                   onChange={handleStarCategoryChange}
+                                  value={starCategory}
                                 />
                               </FormControl>
                             </Grid>
@@ -1292,6 +1580,7 @@ const BookingEnquiries = ({
                             <Grid item xs={12}>
                               <PreferredHotelsDropdown
                                 onSelect={handlePreferredHotelsSelect}
+                                value={selectedPreferredHotels}
                               />
                             </Grid>
                             <Grid item xs={12}>
@@ -1301,6 +1590,7 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Remarks"
                                 variant="outlined"
+                                value={hotelRemarks}
                                 placeholder="Add any special requests or requirements for your hotel stay"
                                 onChange={handleHotelRemarksChange}
                                 sx={{
@@ -1382,6 +1672,7 @@ const BookingEnquiries = ({
                                   </Typography>
                                   <PortAddressSearch
                                     onSelect={handlePortAddressSelect}
+                                    value={selectedEntryPort}
                                   />
                                 </Grid>
 
@@ -1448,20 +1739,23 @@ const BookingEnquiries = ({
                                     Drop-off Location
                                   </Typography>
                                   {entryDropoffLocationType === "hotel" && (
-                                    <HotelDropOffSearch
-                                      onSelect={handleHotelDropOffSelect}
-                                    />
+                                                                    <HotelDropOffSearch
+                                  onSelect={handleHotelDropOffSelect}
+                                  value={selectedHotelDropOff}
+                                />
                                   )}
-                                  {entryDropoffLocationType === "attraction" && (
-                                    <AttractionDropOffSearch
-                                      onSelect={handleAttractionDropOffSelect}
-                                    />
-                                  )}
-                                  {entryDropoffLocationType === "restaurant" && (
-                                    <RestaurantDropOffSearch
-                                      onSelect={handleRestaurantDropOffSelect}
-                                    />
-                                  )}
+                                                                      {entryDropoffLocationType === "attraction" && (
+                                      <AttractionDropOffSearch
+                                        onSelect={handleAttractionDropOffSelect}
+                                        value={selectedAttractionDropOff}
+                                      />
+                                    )}
+                                                                      {entryDropoffLocationType === "restaurant" && (
+                                      <RestaurantDropOffSearch
+                                        onSelect={handleRestaurantDropOffSelect}
+                                        value={selectedRestaurantDropOff}
+                                      />
+                                    )}
                                 </Grid>
                               </>
                             )}
@@ -1548,16 +1842,19 @@ const BookingEnquiries = ({
                                           })
                                         )
                                       }
+                                      value={selectedHotelDropOff}
                                     />
                                   )}
                                   {exitPickupLocationType === "attraction" && (
                                     <AttractionDropOffSearch
                                       onSelect={handleExitAttractionPickupSelect}
+                                      value={selectedExitAttractionPickup}
                                     />
                                   )}
                                   {exitPickupLocationType === "restaurant" && (
                                     <RestaurantDropOffSearch
                                       onSelect={handleExitRestaurantPickupSelect}
+                                      value={selectedExitRestaurantPickup}
                                     />
                                   )}
                                 </Grid>
@@ -1568,14 +1865,8 @@ const BookingEnquiries = ({
                                     Drop-off Location (Port/Airport)
                                   </Typography>
                                   <PortAddressSearch
-                                    onSelect={(port) => 
-                                      dispatch(
-                                        updateServiceDetails({
-                                          service: "entryExitPort",
-                                          data: { exitPortAddress: port },
-                                        })
-                                      )
-                                    }
+                                    onSelect={handleExitPortAddressSelect}
+                                    value={selectedExitPort}
                                   />
                                 </Grid>
                               </>
@@ -1649,6 +1940,7 @@ const BookingEnquiries = ({
                                 onSelect={(cars) =>
                                   handleCarSelect(cars, "entryExitPort")
                                 }
+                                value={selectedEntryExitCars}
                               />
                             </Grid>
 
@@ -1659,6 +1951,7 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Remarks"
                                 variant="outlined"
+                                value={entryExitPortRemarks}
                                 placeholder="Add any special transportation requirements"
                                 onChange={handleEntryExitPortRemarksChange}
                                 sx={{
@@ -1681,6 +1974,7 @@ const BookingEnquiries = ({
                             <Grid item xs={12}>
                               <AttractionSearch
                                 onSelect={handleAttractionSelect}
+                                value={selectedAttractions}
                               />
                             </Grid>
                             <Grid item xs={12}>
@@ -1723,51 +2017,64 @@ const BookingEnquiries = ({
                               </FormControl>
                             </Grid>
 
-                            <Grid item xs={12}>
-                              <FormControl>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                  Car Type
-                                </Typography>
-                                <RadioGroup 
-                                  row 
-                                  defaultValue="sharable"
-                                  onChange={(e) => handleCarTypeChange(e, "attraction")}
-                                >
-                                  <FormControlLabel 
-                                    value="sharable" 
-                                    control={
-                                      <Radio
-                                        sx={{
-                                          color:
-                                            serviceColors[option]?.main,
-                                          "&.Mui-checked": {
+                            {needTransport && (
+                              <Grid item xs={12}>
+                                <FormControl>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                    Car Type
+                                  </Typography>
+                                  <RadioGroup 
+                                    row 
+                                    defaultValue="sharable"
+                                    onChange={(e) => handleCarTypeChange(e, "attraction")}
+                                  >
+                                    <FormControlLabel 
+                                      value="sharable" 
+                                      control={
+                                        <Radio
+                                          sx={{
                                             color:
                                               serviceColors[option]?.main,
-                                          },
-                                        }}
-                                      />
-                                    } 
-                                    label="Sharable" 
-                                  />
-                                  <FormControlLabel 
-                                    value="private" 
-                                    control={
-                                      <Radio
-                                        sx={{
-                                          color:
-                                            serviceColors[option]?.main,
-                                          "&.Mui-checked": {
+                                            "&.Mui-checked": {
+                                              color:
+                                                serviceColors[option]?.main,
+                                            },
+                                          }}
+                                        />
+                                      } 
+                                      label="Sharable" 
+                                    />
+                                    <FormControlLabel 
+                                      value="private" 
+                                      control={
+                                        <Radio
+                                          sx={{
                                             color:
                                               serviceColors[option]?.main,
-                                          },
-                                        }}
-                                      />
-                                    } 
-                                    label="Private" 
-                                  />
-                                </RadioGroup>
-                              </FormControl>
-                            </Grid>
+                                            "&.Mui-checked": {
+                                              color:
+                                                serviceColors[option]?.main,
+                                            },
+                                          }}
+                                        />
+                                      } 
+                                      label="Private" 
+                                    />
+                                  </RadioGroup>
+                                </FormControl>
+                              </Grid>
+                            )}
+
+                            {/* {needTransport && (
+                              <Grid item xs={12}>
+                                <PreferredCarsSearch
+                                  onSelect={(cars) =>
+                                    handleCarSelect(cars, "attraction")
+                                  }
+                                  value={selectedAttractionCars}
+                                />
+                              </Grid>
+                            )} */}
 
                             <Grid item xs={12}>
                               <TextField
@@ -1776,6 +2083,7 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Remarks"
                                 variant="outlined"
+                                value={attractionRemarks}
                                 placeholder="Add any special requests for attractions"
                                 onChange={handleAttractionRemarksChange}
                                 sx={{
@@ -1795,7 +2103,10 @@ const BookingEnquiries = ({
                         {option === "packagedAttractions" && (
                           <>
                             <Grid item xs={12}>
-                              <PackageAttractionSearch onSelect={handlePackagedAttractionsSelect} />
+                              <PackageAttractionSearch 
+                                onSelect={handlePackagedAttractionsSelect}
+                                value={selectedPackagedAttractions}
+                              />
                             </Grid>
                             <Grid item xs={12}>
                               <TextField
@@ -1804,8 +2115,9 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Remarks"
                                 variant="outlined"
+                                value={packagedAttractionsRemarks}
                                 placeholder="Add any special requests for packaged attractions"
-                                onChange={e => dispatch(updateServiceDetails({ service: "packagedAttractions", data: { remarks: e.target.value } }))}
+                                onChange={handlePackagedAttractionsRemarksChange}
                                 sx={{
                                   '& .MuiOutlinedInput-root': {
                                     '&.Mui-focused fieldset': {
@@ -1827,6 +2139,7 @@ const BookingEnquiries = ({
                                 onSelect={(cars) =>
                                   handleCarSelect(cars, "localTour")
                                 }
+                                value={selectedLocalTourCars}
                               />
                             </Grid>
                             <Grid item xs={12}>
@@ -1836,6 +2149,7 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Remarks"
                                 variant="outlined"
+                                value={localTourRemarks}
                                 placeholder="Add any special requests for your local tour"
                                 onChange={handleLocalTourRemarksChange}
                                 sx={{
@@ -1858,6 +2172,7 @@ const BookingEnquiries = ({
                             <Grid item xs={12}>
                               <PreferredGuidesSearch
                                 onSelect={handleGuideSelect}
+                                value={selectedGuides}
                               />
                             </Grid>
                             <Grid item xs={12}>
@@ -1867,6 +2182,7 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Special Requirements"
                                 variant="outlined"
+                                value={tourGuideSpecialRequirements}
                                 placeholder="Describe any specific requirements for your tour guide (language, expertise, etc.)"
                                 onChange={handleSpecialRequirementsChange}
                                 sx={{
@@ -1889,6 +2205,7 @@ const BookingEnquiries = ({
                             <Grid item xs={12}>
                               <RestaurantSearch
                                 onSelect={handleRestaurantSelect}
+                                value={selectedRestaurants}
                               />
                             </Grid>
                             <Grid item xs={12}>
@@ -1930,47 +2247,60 @@ const BookingEnquiries = ({
                                 />
                               </FormControl>
                             </Grid>
-                            <Grid item xs={12}>
-                              <FormControl>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                  Car Type
-                                </Typography>
-                                <RadioGroup 
-                                  row 
-                                  defaultValue="sharable"
-                                  onChange={(e) => handleCarTypeChange(e, "restaurant")}
-                                >
-                                  <FormControlLabel 
-                                    value="sharable" 
-                                    control={
-                                      <Radio 
-                                        sx={{
-                                          color: serviceColors[option]?.main,
-                                          '&.Mui-checked': {
+                            {needTransportType && (
+                              <Grid item xs={12}>
+                                <FormControl>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                    Car Type
+                                  </Typography>
+                                  <RadioGroup 
+                                    row 
+                                    defaultValue="sharable"
+                                    onChange={(e) => handleCarTypeChange(e, "restaurant")}
+                                  >
+                                    <FormControlLabel 
+                                      value="sharable" 
+                                      control={
+                                        <Radio 
+                                          sx={{
                                             color: serviceColors[option]?.main,
-                                          }
-                                        }}
-                                      />
-                                    } 
-                                    label="Sharable" 
-                                  />
-                                  <FormControlLabel 
-                                    value="private" 
-                                    control={
-                                      <Radio 
-                                        sx={{
-                                          color: serviceColors[option]?.main,
-                                          '&.Mui-checked': {
+                                            '&.Mui-checked': {
+                                              color: serviceColors[option]?.main,
+                                            }
+                                          }}
+                                        />
+                                      } 
+                                      label="Sharable" 
+                                    />
+                                    <FormControlLabel 
+                                      value="private" 
+                                      control={
+                                        <Radio 
+                                          sx={{
                                             color: serviceColors[option]?.main,
-                                          }
-                                        }}
-                                      />
-                                    } 
-                                    label="Private" 
-                                  />
-                                </RadioGroup>
-                              </FormControl>
-                            </Grid>
+                                            '&.Mui-checked': {
+                                              color: serviceColors[option]?.main,
+                                            }
+                                          }}
+                                        />
+                                      } 
+                                      label="Private" 
+                                    />
+                                  </RadioGroup>
+                                </FormControl>
+                              </Grid>
+                            )}
+
+                            {/* {needTransportType && (
+                              <Grid item xs={12}>
+                                <PreferredCarsSearch
+                                  onSelect={(cars) =>
+                                    handleCarSelect(cars, "restaurant")
+                                  }
+                                  value={selectedRestaurantCars}
+                                />
+                              </Grid>
+                            )} */}
                             <Grid item xs={12}>
                               <TextField
                                 fullWidth
@@ -1978,6 +2308,7 @@ const BookingEnquiries = ({
                                 rows={3}
                                 label="Remarks"
                                 variant="outlined"
+                                value={restaurantRemarks}
                                 placeholder="Add any dietary restrictions or special dining requirements"
                                 onChange={handleRestaurantRemarksChange}
                                 sx={{

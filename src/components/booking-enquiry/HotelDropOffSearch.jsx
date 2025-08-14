@@ -113,15 +113,20 @@ const OthersInputContainer = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
-const HotelDropOffSearch = ({ onSelect }) => {
+const HotelDropOffSearch = ({ onSelect, value = null }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [selectedHotel, setSelectedHotel] = useState(value);
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [otherHotelName, setOtherHotelName] = useState("");
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    setSelectedHotel(value);
+  }, [value]);
 
   // Get hotels from Redux store
   const { hotels = [], loading, error } = useSelector(state => state.enquiryList || { hotels: [], loading: false });
