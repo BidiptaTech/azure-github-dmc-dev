@@ -227,6 +227,7 @@
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
+                            <th>Travel Dates</th>
                             <th>Services</th>
                             <th>Guests</th>
                             <th>Agent</th>
@@ -262,6 +263,23 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    @if($tour->check_in_time)
+                                        <small><strong>Start:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('D, M d, Y') }}</small>
+                                    @endif
+                                    @if($tour->check_out_time)
+                                        <small><strong>End:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('D, M d, Y') }}</small>
+                                    @endif
+                                    @if($tour->check_in_time && $tour->check_out_time)
+                                        <small class="text-muted">
+                                            Duration: {{ \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(\Carbon\Carbon::parse($tour->check_out_time)) + 1 }} days
+                                        </small>
+                                    @elseif(!$tour->check_in_time && !$tour->check_out_time)
+                                        <span class="text-muted">Not scheduled</span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -425,7 +443,7 @@
                         </tr>
                         @empty
                         {{-- <tr>
-                            <td colspan="10" class="text-center py-4">
+                            <td colspan="12" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-phone-line ri-48px text-muted mb-2"></i>
                                     <h6 class="text-muted">No follow-ups required</h6>
@@ -611,9 +629,9 @@ function filterTable() {
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const followUpStatus = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const agent = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const followUpStatus = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
@@ -874,19 +892,19 @@ function resetFilters() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            // order: [[7, 'desc']], // Sort by Last Contact column (index 7) in descending order
+            // order: [[9, 'desc']], // Sort by Last Contact column (index 9) in descending order
             columnDefs: [
                 {
-                    targets: [9, 10], // Update Price and Actions columns
+                    targets: [10, 11], // Update Price and Actions columns
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [3, 4], // Services and Guests columns
+                    targets: [4, 5], // Services and Guests columns
                     orderable: false
                 },
                 {
-                    targets: [6, 7], // Status and Follow Up Status columns
+                    targets: [7, 8], // Status and Follow Up Status columns
                     orderable: false
                 }
             ],

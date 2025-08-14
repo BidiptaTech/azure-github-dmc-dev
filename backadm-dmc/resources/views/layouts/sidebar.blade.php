@@ -703,14 +703,14 @@
 
         <!-- End Tour -->
 
-        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 20, 21, 22, 11, 33, 34, 36, 37, 38, 128, 129, 130, 134, 135, 136, 138, ]))
+        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 20, 21, 22, 11, 33, 34, 36, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
         <!-- Bookings -->
         {{-- @if(hasPermission('view booking')) --}}
         <li class="menu-header mt-5">
             <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
         </li>
         
-        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative')) open active @endif">
+        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list')) open active @endif">
             <a href="#" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
                 <div data-i18n="Bookings">Bookings</div>
@@ -801,6 +801,18 @@
                         </li> --}}
                     {{-- </ul>
                 </li> --}}
+                @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
+                    <!-- Show Booking -->
+                    <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
+                        <a href="{{ route('predefined.package.booking.list') }}" class="menu-link" title="Packages">
+                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                            <div data-i18n="Packages" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Packages</span>
+                                <span class="tooltip-text">Packages</span>
+                            </div>
+                        </a>
+                    </li>
+                    @endif
             </ul>
         </li>  
     @endif
@@ -885,7 +897,7 @@
                 <span class="menu-header-text" data-i18n="All Products">All Products</span>
             </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
@@ -935,18 +947,7 @@
                         </a>
                     </li> --}}
                     @endif
-                    @if(in_array(auth()->user()->role_id, [1,2,11, 33, 128, 129, 130, 134, 135, 136, 138, 34, 36, 37, 38]))
-                    <!-- Show Booking -->
-                    <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
-                        <a href="{{ route('predefined.package.booking.list') }}" class="menu-link" title="Predefined Packages">
-                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
-                            <div data-i18n="Predefined Packages" class="menu-tooltip">
-                                <span class="menu-text-with-tooltip">Predefined Packages</span>
-                                <span class="tooltip-text">Predefined Packages</span>
-                            </div>
-                        </a>
-                    </li>
-                    @endif
+                    
                 {{-- </ul>
             </li> --}}
 
