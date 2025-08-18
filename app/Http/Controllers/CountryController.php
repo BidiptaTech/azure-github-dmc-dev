@@ -6,7 +6,7 @@ use App\Helpers\CountryHelper;
 use App\Models\Country;
 use Illuminate\Http\Request;
 use App\Helpers\CommonHelper;
-
+use Illuminate\Support\Facades\Crypt;
 class CountryController extends Controller
 {
     /**
@@ -134,7 +134,7 @@ class CountryController extends Controller
         // $countries = Country::all(); // Get all countries for dropdown
 
         // return view('countries.edit-country', compact('country', 'countries'));
-
+        $id = Crypt::decrypt($id);
         $country = Country::findOrFail($id);
 
         if (!$country) {
