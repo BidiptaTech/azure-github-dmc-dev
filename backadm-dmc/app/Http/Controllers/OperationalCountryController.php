@@ -19,7 +19,7 @@ use App\Models\OperationalCountry;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
 use App\Services\LogActivityService;
-
+use Illuminate\Support\Facades\Crypt;
 class OperationalCountryController extends Controller
 {
     /*
@@ -162,6 +162,7 @@ public function getExistingCities(Request $request)
         if (!hasPermission('edit country')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $vehicles = Vehicle::where('is_available', 1)->get();
         $country = OperationalCountry::where('operational_country_id',$id)->first();
         return view('operational_countries.edit-country', compact('country', 'vehicles'));

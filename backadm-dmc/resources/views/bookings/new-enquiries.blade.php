@@ -344,7 +344,7 @@
                                 </div>
                             </td> --}}
                             <td>
-                                <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                    class="btn btn-outline-primary btn-sm rounded-pill">
                                     <i class="ri-eye-line"></i> View
                                 </a>

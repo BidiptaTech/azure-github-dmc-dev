@@ -5,7 +5,7 @@ use App\Helpers\CountryHelper;
 use App\Models\City;
 use App\Models\Country;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Crypt;
 class CityController extends Controller
 {
     /**
@@ -85,7 +85,7 @@ class CityController extends Controller
         // $countries = Country::all(); // Get all countries for dropdown
 
         // return view('countries.edit-country', compact('country', 'countries'));
-
+        $id = Crypt::decrypt($id);
         $city = City::where('city_id', $id)->first();
         $countries = Country::where('is_active', 1)->get();
 
