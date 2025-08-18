@@ -711,24 +711,7 @@
 
                 <!-- Tour -->
             @if(hasPermission('view tour'))
-            <li class="menu-header mt-5">
-                <span class="menu-header-text" data-i18n="Tour">Tour</span>
-            </li>
-
-            <li class="menu-item @if(Request::is('tours*')) open active @endif">
-                <a href="#" class="menu-link menu-toggle">
-                    <i class="menu-icon tf-icons ri-route-line"></i>
-                    <div data-i18n="Tour">Tour</div>
-                </a>
-                <ul class="menu-sub">
-                    <!-- Show Tour -->
-                    <li class="menu-item @if(Request::is('tours')) active @endif">
-                        <a href="{{ route('tours') }}" class="menu-link">
-                            <div data-i18n="Tour List">Tour List</div>
-                        </a>
-                    </li>
-                </ul>
-            </li>
+            
         @endif
 
         <!-- End Tour -->
@@ -857,7 +840,7 @@
 
         <!-- Booking List -->
         {{-- @if(hasPermission('view booking')) --}}
-            <li class="menu-header mt-5">
+           {{-- <li class="menu-header mt-5">
                 <span class="menu-header-text" data-i18n="Booking List">Booking List</span>
             </li>
             
@@ -879,7 +862,7 @@
                         </a>
                     </li>
                 </ul>
-            </li>  
+            </li>  --}}
         {{-- @endif --}}
         <!-- End Booking List --> 
 
@@ -907,7 +890,7 @@
             @endif --}}
 
             <!-- Enquiry -->
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,5,6,7,8,9,10,11,12,13, 14, 15, 16, 17,20,21,22,37, 49, 50, 51, 52, 53, 64, 65, 66, 67, 68, 90, 124, 125, 33, 37, 128, 129, 130, 134, 135, 136, 138]))
+            <!-- @if(in_array(auth()->user()->role_id, [1,2,3,4,5,6,7,8,9,10,11,12,13, 14, 15, 16, 17,20,21,22,37, 49, 50, 51, 52, 53, 64, 65, 66, 67, 68, 90, 124, 125, 33, 37, 128, 129, 130, 134, 135, 136, 138]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Negotiation">Negotiation</span>
                 </li>
@@ -925,7 +908,7 @@
                         </li>
                     </ul>
                 </li>
-            @endif
+            @endif -->
 
             <!-- End Enquiry -->
 
