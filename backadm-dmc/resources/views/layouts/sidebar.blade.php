@@ -319,6 +319,34 @@
         font-weight: bold;
     }
 
+    /* Ensure menu items show full text without truncation */
+    .menu-vertical .menu-item .menu-link > div:not(.badge) {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+        line-height: 1.467;
+        hyphens: auto;
+    }
+
+    /* Additional override for menu text in tooltips */
+    .menu-tooltip div[data-i18n] {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+    }
+
+    /* Override any ellipsis display in menu items */
+    .menu-item .menu-link div,
+    .menu-item .menu-link span.menu-text-with-tooltip {
+        overflow: visible !important;
+        text-overflow: inherit !important;
+        white-space: wrap !important;
+        word-wrap: break-word !important;
+        text-overflow: initial !important;
+    }
+
     #template-customizer .template-customizer-open-btn{
         display: none !important;
     }
@@ -447,13 +475,15 @@
   transition: 0.3s;
  }
 
-    /* Menu Text Truncation and Tooltip Styles */
+    /* Menu Text with Full Display */
     .menu-text-with-tooltip {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: wrap;
+        overflow: visible;
+        text-overflow: inherit;
         max-width: 100%;
         position: relative;
+        word-wrap: break-word;
+        line-height: 1.3;
     }
 
     /* Tooltip Container */
@@ -693,12 +723,19 @@
             <span class="menu-header-text" data-i18n="Bookings">Bookings</span>
         </li>
         
-        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list')) open active @endif">
+        <li class="menu-item @if(Request::is('bookings/*') && !Request::is('bookings/tentative') || Request::is('predefined-package-booking-list') || Request::is('enquirylist')) open active @endif">
             <a href="#" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons ri-bookmark-3-line"></i>
                 <div data-i18n="Bookings">Bookings</div>
             </a>
             <ul class="menu-sub">
+                @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                <li class="menu-item @if(Request::is('enquirylist') && !Request::is('enquiries*')) active @endif">
+                    <a href="{{ route('enquirylist.index') }}" class="menu-link">
+                        <div data-i18n="Quick Enquiry">Quick Enquiry</div>
+                    </a>
+                </li>
+                @endif
                 <li class="menu-item @if(Request::is('bookings/new-enquiries')) active @endif">
                     <a href="{{ route('bookings.new-enquiries') }}" class="menu-link" >
                         <div class="d-flex justify-content-between align-items-center">
@@ -829,8 +866,9 @@
         {{-- @endif --}}
         <!-- End Booking List --> 
 
-                @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {{-- Dmc = 11, Sales Head(dmc) = 33, Sales Manager(dmc) = [12, 37], Asst. Sales Manager(dmc) = 38 --}}
-            {{-- @if(hasPermission('view enquiry')) --}}
+        {{-- Dmc = 11, Sales Head(dmc) = 33, Sales Manager(dmc) = [12, 37], Asst. Sales Manager(dmc) = 38 --}}
+            {{-- @if(in_array(auth()->user()->role_id, [1, 2, 11, 33,  12, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+            @if(hasPermission('view enquiry'))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Enquiries">Enquiries</span>
                 </li>
@@ -841,7 +879,6 @@
                         <div data-i18n="Enquiries">Enquiries</div>
                     </a>
                     <ul class="menu-sub">
-                        <!-- Show Tour -->
                         <li class="menu-item @if(Request::is('enquirylist') && !Request::is('enquiries*')) active @endif">
                             <a href="{{ route('enquirylist.index') }}" class="menu-link">
                                 <div data-i18n="Enquiries">Enquiries</div>
@@ -849,8 +886,8 @@
                         </li>
                     </ul>
                 </li>  
-            {{-- @endif --}}
             @endif
+            @endif --}}
 
             <!-- Enquiry -->
             <!-- @if(in_array(auth()->user()->role_id, [1,2,3,4,5,6,7,8,9,10,11,12,13, 14, 15, 16, 17,20,21,22,37, 49, 50, 51, 52, 53, 64, 65, 66, 67, 68, 90, 124, 125, 33, 37, 128, 129, 130, 134, 135, 136, 138]))
@@ -941,15 +978,15 @@
                     <div data-i18n="Attraction Package">Attraction Package</div>
                 </a>
                 <ul class="menu-sub"> --}}
-                    <li class="menu-item @if(Request::is('packaged-attractions')) active @endif">
+                    {{-- <li class="menu-item @if(Request::is('packaged-attractions')) active @endif">
                         <a href="{{ route('packaged-attractions.index') }}" class="menu-link" title="Packaged Attractions & Create Tab">
-                            {{-- <i class="menu-icon tf-icons ri-stack-line"></i> --}}
+                            <i class="menu-icon tf-icons ri-stack-line"></i>
                             <div data-i18n="Packaged Attractions & Create Tab" class="menu-tooltip">
                                 <span class="menu-text-with-tooltip">Packaged Attractions & Create Tab</span>
                                 <span class="tooltip-text">Packaged Attractions & Create Tab</span>
                             </div>
                         </a>
-                    </li>
+                    </li> --}}
                     {{-- <li class="menu-item @if(Request::is('packaged-attractions/create')) active @endif">
                         <a href="{{ route('packaged-attractions.create') }}" class="menu-link">
                             <div data-i18n="Create Attraction Package" class="menu-tooltip">
@@ -994,13 +1031,13 @@
             @endif --}}
 
             <!-- Attractions & Experiences -->
-            {{-- @if(hasPermission('view attraction') || hasPermission('create attraction'))
-            <li class="menu-item @if(Request::is('attraction*') && !Request::is('attractions/attraction-approval*')) open active @endif">
+            @if(hasPermission('view attraction') || hasPermission('create attraction'))
+            <li class="menu-item @if(Request::is('attraction*') && !Request::is('attractions/attraction-approval*') || Request::is('packaged-attractions')) open @endif">
                 <a href="#" class="menu-link menu-toggle">
-                    <i class="menu-icon tf-icons ri-camera-3-line"></i>
-                    <div data-i18n="Attractions & Experiences">Attractions & Experiences</div>
+                    {{-- <i class="menu-icon tf-icons ri-camera-3-line"></i> --}}
+                    <div data-i18n="Attractions">Attractions</div>
                 </a>
-                <ul class="menu-sub"> --}}
+                <ul class="menu-sub">
                     @if(hasPermission('view attraction'))
                     <li class="menu-item @if(Request::is('attraction')) active @endif">
                         <a href="{{ route('attraction.index') }}" class="menu-link" title="Attractions & Experiences">
@@ -1012,6 +1049,15 @@
                         </a>
                     </li>
                     @endif
+                    <li class="menu-item @if(Request::is('packaged-attractions')) active @endif">
+                        <a href="{{ route('packaged-attractions.index') }}" class="menu-link" title="Bundle Attractions">
+                            {{-- <i class="menu-icon tf-icons ri-stack-line"></i> --}}
+                            <div data-i18n="Bundle Attractions" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Bundle Attractions</span>
+                                <span class="tooltip-text">Bundle Attractions</span>
+                            </div>
+                        </a>
+                    </li>
                     {{-- @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
                     @if(hasPermission('create attraction'))
                     <li class="menu-item @if(Request::is('attraction/create')) active @endif">
@@ -1023,10 +1069,10 @@
                         </a>
                     </li>
                     @endif
-                    @endif
+                    @endif --}}
                 </ul>
             </li>
-            @endif --}}
+            @endif
 
             <!-- Restaurant & Dining -->
             {{-- @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
@@ -1348,15 +1394,22 @@
                 <!-- Jobsheets -->
                 @if(in_array(Auth::user()->role_id, [1, 2, 7, 11 ,34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
                     <li class="menu-header small text-uppercase">
-                        <span class="menu-header-text">View Jobsheets</span>
+                        <span class="menu-header-text">Service Delivery</span>
                     </li>
-                    <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet')) active open @endif">
+                    <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet') || Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-file-list-3-line"></i>
 
-                        <div data-i18n="Jobsheets">Jobsheets</div>
+                        <div data-i18n="Service Delivery">Service Delivery</div>
                         </a>
                         <ul class="menu-sub">
+                            <li class="menu-item @if(Request::is('jobsheet/view') || Request::is('jobsheet/create-guide-jobsheet') || Request::is('jobsheet/create-driver-jobsheet')) open @endif">
+                                <a href="javascript:void(0);" class="menu-link menu-toggle">
+                                {{-- <i class="menu-icon tf-icons ri-file-list-3-line"></i> --}}
+        
+                                <div data-i18n="Jobsheets">Jobsheets</div>
+                                </a>
+                                <ul class="menu-sub">
                             <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
                                 <a href="{{ route('jobsheet.view') }}" class="menu-link">
                                     <div data-i18n="View Jobsheets">View Jobsheets</div>
@@ -1372,6 +1425,40 @@
                                     <div data-i18n="Driver Jobsheet">Driver Jobsheet</div>
                                 </a>
                             </li>
+                            </ul>
+                            </li>
+                            @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
+                    {{-- <li class="menu-header mt-5">
+                        <span class="menu-header-text" data-i18n="Assigned Job">Assigned Job</span>
+                    </li> --}}
+
+                    <li class="menu-item @if(Request::is('jobsheet/drivers') || Request::is('jobsheet/guides')) open @endif">
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            {{-- <i class="menu-icon tf-icons ri-task-line"></i> --}}
+                            <div data-i18n="Assigned Jobs">Assigned Jobs</div>
+                        </a>
+                        <ul class="menu-sub">
+                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97,8,15,106, 10, 11, 26, 51,107, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
+                            <!-- Driver Jobs -->
+                            <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
+                                <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
+                                    <div data-i18n="Driver Jobs">Driver Jobs</div>
+                                </a>
+                            </li>
+                            @endif
+
+                            @if(in_array(Auth::user()->role_id, [1, 2,7,14,97, 10, 11, 26, 50, 98, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
+                            <!-- Guide Jobs -->
+                            <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
+                                <a href="{{ route('jobsheet.guides') }}" class="menu-link">
+                                    <div data-i18n="Guide Jobs">Guide Jobs</div>
+                                </a>
+                            </li>
+
+                            @endif
+                        </ul>
+                    </li>
+                @endif
                         </ul>
                     </li>
                 @endif
@@ -1379,7 +1466,7 @@
                 <!-- End Jobsheets -->
 
                 <!-- JobSheet -->
-                @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
+                {{-- @if(in_array(Auth::user()->role_id, [1 ,7,14,97,8,15,106, 10, 11, 26, 50, 98,51,107, 34,65, 99, 66, 108, 128, 131, 132, 134, 135, 137, 138]))
                     <li class="menu-header mt-5">
                         <span class="menu-header-text" data-i18n="Assigned Job">Assigned Job</span>
                     </li>
@@ -1410,7 +1497,7 @@
                             @endif
                         </ul>
                     </li>
-                @endif
+                @endif --}}
                 <!-- End JobSheet -->
                 
 
@@ -1658,7 +1745,7 @@
                 @if(!(auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123 ))
                 @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent'))
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="User Role Management">User Role Management</span>
+                    <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
                 <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
@@ -1735,6 +1822,7 @@
                 @endif --}}
 
                     <!-- Settings -->
+                    @if(in_array(Auth::user()->role_id, [1]))
                     @if(hasPermission('settings') || hasPermission('edit settings') || hasPermission('view country'))
                     <li class="menu-header mt-5">
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
@@ -1779,6 +1867,7 @@
                         </li>
                     </ul>
                 </li>
+                @endif
                 @endif
                 <!-- End Settings -->
 
