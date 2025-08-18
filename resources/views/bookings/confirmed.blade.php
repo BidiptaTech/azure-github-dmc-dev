@@ -532,12 +532,12 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex flex-column gap-2">
-                                    <a href="{{ route('bookings.view-tour', $tour->tour_id) }}" 
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> View
                                     </a>
                                     
-                                    <a href="{{ route('tour.itinerary', ['tourId' => $tour->tour_id]) }}" 
+                                    <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-success btn-sm rounded-pill"
                                        onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
                                        style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">

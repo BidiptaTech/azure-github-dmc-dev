@@ -814,7 +814,7 @@
                                                                                 </a>
                                                                                 @endif
                                                                                 @endif
-                                                                              @if(in_array(Auth::user()->role_id, $allowedRoles) && $tour['is_approve'] == 1)
+                                                                              @if(in_array(Auth::user()->role_id, $allowedRoles))
                                                                                 <button type="button" class="btn btn-sm btn-outline-warning edit-details" 
                                                                                         data-id="{{ $service->id }}"
                                                                                         data-type="{{ strtolower(str_replace(' ', '_', $service->type)) }}"
