@@ -12,7 +12,7 @@
             <h4 class="fw-bold mb-0 text-white"><i class="fas fa-check-circle me-2"></i> Verify Agent Registrations</h4>
             <p class="mb-0 opacity-75">View and manage agent registration data</p>
           </div>
-          <div class="bg-white bg-opacity-25 p-3 rounded-circle">
+          <div class="bg-opacity-25 p-3 rounded-circle">
             <i class="fas fa-user-check fa-2x text-white"></i>
           </div>
         </div>
