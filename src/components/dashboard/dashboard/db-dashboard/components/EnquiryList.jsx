@@ -9,7 +9,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TablePagination,
   Chip,
   IconButton,
   CircularProgress,
@@ -126,7 +125,7 @@ const EnquiryList = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await dispatch(fetchEnquiries()).unwrap();
+      await dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 })).unwrap();
     } catch (error) {
       console.error('Failed to refresh enquiries:', error);
     } finally {
@@ -134,20 +133,21 @@ const EnquiryList = () => {
     }
   };
 
+  // Initial data fetch
   useEffect(() => {
     if (status === "idle") {
-      dispatch(fetchEnquiries());
+      dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
     }
   }, [status, dispatch]);
 
   // Add a separate effect to refresh enquiries periodically and on component mount
   useEffect(() => {
     // Fetch enquiries on component mount
-    dispatch(fetchEnquiries());
+    dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
     
     // // Set up periodic refresh every 30 seconds
     // const interval = setInterval(() => {
-    //   dispatch(fetchEnquiries());
+    //   dispatch(fetchEnquiries({ reset: false, start: 0, limit: 30 }));
     // }, 30000); // 30 seconds
     
     // // Cleanup interval on component unmount
@@ -164,14 +164,7 @@ const EnquiryList = () => {
     setLastEnquiryCount(enquiries.length);
   }, [enquiries.length, lastEnquiryCount]);
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -204,12 +197,16 @@ const EnquiryList = () => {
 
   // Custom filtering logic
   const filteredEnquiries = enquiries.filter((enquiry) => {
-    // Filter by booking ID (display_id)
-    if (
-      filters.searchId &&
-      !enquiry.display_id.toLowerCase().includes(filters.searchId.toLowerCase())
-    ) {
-      return false;
+    // Filter by booking ID (display_id) or multi_enq_id
+    if (filters.searchId) {
+      const searchTerm = filters.searchId.toLowerCase();
+      const displayId = enquiry.display_id?.toLowerCase() || '';
+      const multiEnqId = enquiry.multi_enq_id?.toLowerCase() || '';
+      
+      // Check if search term matches either display_id or multi_enq_id
+      if (!displayId.includes(searchTerm) && !multiEnqId.includes(searchTerm)) {
+        return false;
+      }
     }
 
     // Filter by country
@@ -331,6 +328,30 @@ const EnquiryList = () => {
   const sortedEnquiries = [...filteredEnquiries].sort(
     getComparator(order, orderBy)
   );
+
+  const totalPages = Math.ceil(sortedEnquiries.length / rowsPerPage);
+  
+  // Auto-fetch more data when reaching the last page
+  useEffect(() => {
+    if (page > 0 && sortedEnquiries.length > 0) {
+      const currentPageEnd = (page + 1) * rowsPerPage;
+      const dataAvailable = sortedEnquiries.length;
+      
+      // If we're on the last page or near the end of available data, fetch more
+      if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+        const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+        // console.log('Auto-fetching more data in EnquiryList:', {
+        //   currentPage: page + 1,
+        //   totalPages,
+        //   dataAvailable,
+        //   nextStart
+        // });
+        
+        dispatch(fetchEnquiries({ start: nextStart, limit: 30, reset: false }));
+      }
+    }
+  }, [page, sortedEnquiries.length, rowsPerPage, dispatch, totalPages]);
 
   const paginatedEnquiries = sortedEnquiries.slice(
     page * rowsPerPage,
@@ -704,7 +725,7 @@ const EnquiryList = () => {
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               name="searchId"
-              label="🔍 Search by Booking ID"
+              label="🔍 Search by Booking ID or Multi-Enquiry ID"
               variant="outlined"
               fullWidth
               value={filters.searchId}
@@ -717,7 +738,7 @@ const EnquiryList = () => {
                   },
                 },
               }}
-              placeholder="Enter booking ID..."
+              placeholder="Enter booking ID or multi-enquiry ID..."
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -781,13 +802,13 @@ const EnquiryList = () => {
         {/* Search Results Info */}
         {(filters.searchId || filters.country || filters.city || filters.dateRange !== 'all') && (
           <Box sx={{ mt: 2, p: 2, bgcolor: alpha('#1976d2', 0.05), borderRadius: 1 }}>
-            <Typography variant="body2" color="primary">
-              📊 Showing {filteredEnquiries.length} of {enquiries.length} enquiries
-              {filters.searchId && ` • Searching for: "${filters.searchId}"`}
-              {filters.country && ` • Country: ${filters.country}`}
-              {filters.city && ` • City: ${filters.city}`}
-              {filters.dateRange !== 'all' && ` • Date: ${filters.dateRange}`}
-            </Typography>
+                          <Typography variant="body2" color="primary">
+                📊 Showing {filteredEnquiries.length} of {enquiries.length} enquiries
+                {filters.searchId && ` • Searching for: "${filters.searchId}" (in Booking ID or Multi-Enquiry ID)`}
+                {filters.country && ` • Country: ${filters.country}`}
+                {filters.city && ` • City: ${filters.city}`}
+                {filters.dateRange !== 'all' && ` • Date: ${filters.dateRange}`}
+              </Typography>
           </Box>
         )}
       </Paper>
@@ -1151,15 +1172,126 @@ const EnquiryList = () => {
             </TableBody>
           </Table>
         </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[10, 25, 50, 100]}
-          component="div"
-          count={filteredEnquiries.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "20px 0",
+            width: "100%",
+          }}
+        >
+          {/* Custom Pagination */}
+          <div className="row y-gap-10 justify-center items-center">
+            <div className="col-auto">
+              <div className="row x-gap-20 y-gap-20 items-center justify-center">
+                {/* Previous Page */}
+                <div className="col-auto">
+                  <button
+                    className="button -blue-1 size-40 rounded-full border-light"
+                    onClick={() => setPage(Math.max(0, page - 1))}
+                    disabled={page === 0}
+                    style={{ opacity: page === 0 ? 0.5 : 1 }}
+                  >
+                    <i className="icon-arrow-left text-14"></i>
+                  </button>
+                </div>
+
+                {/* Page Numbers */}
+                {(() => {
+                  const pages = [];
+                  let startPage = Math.max(1, page + 1 - 2);
+                  let endPage = Math.min(totalPages, startPage + 4);
+
+                  // Ensure we always show exactly 5 pages if possible
+                  if (endPage - startPage < 4 && totalPages > 5) {
+                    startPage = Math.max(1, endPage - 4);
+                  }
+
+                  // Add first page and ellipsis if needed
+                  if (startPage > 1) {
+                    pages.push(
+                      <div key={1} className="col-auto">
+                        <button
+                          className="size-40 flex-center rounded-full cursor-pointer"
+                          onClick={() => setPage(0)}
+                        >
+                          1
+                        </button>
+                      </div>
+                    );
+                    if (startPage > 2) {
+                      pages.push(
+                        <div key="ellipsis1" className="col-auto">
+                          <span className="size-40 flex-center rounded-full text-light-1">...</span>
+                        </div>
+                      );
+                    }
+                  }
+
+                  // Add middle pages
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <div key={i} className="col-auto">
+                        <button
+                          className={`size-40 flex-center rounded-full cursor-pointer ${
+                            page + 1 === i ? "bg-dark-1 text-white" : ""
+                          }`}
+                          onClick={() => setPage(i - 1)}
+                        >
+                          {i}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // Add last page and ellipsis if needed
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(
+                        <div key="ellipsis2" className="col-auto">
+                          <span className="size-40 flex-center rounded-full text-light-1">...</span>
+                        </div>
+                      );
+                    }
+                    pages.push(
+                      <div key={totalPages} className="col-auto">
+                        <button
+                          className="size-40 flex-center rounded-full cursor-pointer"
+                          onClick={() => setPage(totalPages - 1)}
+                        >
+                          {totalPages}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return pages;
+                })()}
+
+                {/* Next Page */}
+                <div className="col-auto">
+                  <button
+                    className="button -blue-1 size-40 rounded-full border-light"
+                    onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                    disabled={page >= totalPages - 1}
+                    style={{ opacity: page >= totalPages - 1 ? 0.5 : 1 }}
+                  >
+                    <i className="icon-arrow-right text-14"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Page Info */}
+            <div className="col-auto">
+              <div className="text-14 text-light-1">
+                Page {page + 1} of {totalPages} • Showing {Math.min(rowsPerPage, paginatedEnquiries.length)} of {sortedEnquiries.length} enquiries
+              </div>
+            </div>
+          </div>
+        </Box>
       </Paper>
 
       {/* Service Details Modal */}
