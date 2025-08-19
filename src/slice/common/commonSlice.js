@@ -24,19 +24,19 @@ const commonSlice = createSlice({
     },
     setSelectedCity: (state, action) => {
       // Log the type of payload to help debug
-      console.log("setSelectedCity called with payload:", action.payload);
-      console.log("Payload type:", typeof action.payload);
+      // console.log("setSelectedCity called with payload:", action.payload);
+      // console.log("Payload type:", typeof action.payload);
       
       // Ensure we handle null correctly
       if (action.payload === null) {
         state.selectedCity = null;
-        console.log("City in commonSlice set to null");
+        // console.log("City in commonSlice set to null");
         return;
       }
       
       // Store the city data
       state.selectedCity = action.payload;
-      console.log("City stored in commonSlice:", state.selectedCity);
+      // console.log("City stored in commonSlice:", state.selectedCity);
     },
   },
 });

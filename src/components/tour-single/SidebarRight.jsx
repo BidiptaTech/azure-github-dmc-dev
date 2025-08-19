@@ -6,7 +6,7 @@ import {  useSelector } from "react-redux";
 const SidebarRight = ({ tour }) => {
    const selectedModeData = useSelector((state) => state.attractions.selectedModeData);
   
-      console.log("selectedModeData from Redux wwe:", selectedModeData);
+      // console.log("selectedModeData from Redux wwe:", selectedModeData);
   return (
     <div className="d-flex justify-end js-pin-content">
       <div className="w-360 lg:w-full d-flex flex-column items-center">

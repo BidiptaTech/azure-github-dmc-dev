@@ -7,7 +7,7 @@ const Pagination = ({ currentPage, setCurrentPage, totalPages }) => {
   const { start, limit, type } = useSelector((state) => state.lists);
   
     const handlePageClick = (pageNumber) => {
-    console.log('Pagination: handlePageClick called with:', { pageNumber, currentPage, totalPages });
+    // console.log('Pagination: handlePageClick called with:', { pageNumber, currentPage, totalPages });
     
     // Calculate how many items we need to skip to reach this page
     // Since UI shows 5 items per page but API fetches 30 at a time
@@ -19,12 +19,12 @@ const Pagination = ({ currentPage, setCurrentPage, totalPages }) => {
     // For example: if we want page 7 (items 30-34), we need to fetch starting from position 30
     const newStart = Math.floor(itemsToSkip / limit) * limit;
     
-    console.log('Pagination: Dispatching fetchLists with:', { newStart, limit, type, reset: false });
+    // console.log('Pagination: Dispatching fetchLists with:', { newStart, limit, type, reset: false });
     
     // Always fetch data when jumping to a new page to ensure we have enough data
     // This handles the case where we jump to the last page and need more data
     dispatch(fetchLists({ start: newStart, limit, type, reset: false })).then(() => {
-      console.log('Pagination: First fetchLists completed successfully');
+      // console.log('Pagination: First fetchLists completed successfully');
       
       // Only update the current page after the data is fetched successfully
       setCurrentPage(pageNumber);
@@ -39,14 +39,14 @@ const Pagination = ({ currentPage, setCurrentPage, totalPages }) => {
         // Make sure we're using the correct type for the current component
         const currentType = type || "past"; // Default to "past" for Deleted.jsx
         
-        console.log('Fetching next chunk of data:', { 
+        // console.log('Fetching next chunk of data:', { 
           currentPage: pageNumber, 
-          totalPages, 
-          nextStart,
-          limit,
-          type,
-          currentType
-        });
+        //   totalPages, 
+        //   nextStart,
+        //   limit,
+        //   type,
+        //   currentType
+        // });
         
         dispatch(fetchLists({ start: nextStart, limit, type: currentType, reset: false }));
       }
