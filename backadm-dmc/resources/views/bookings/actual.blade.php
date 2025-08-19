@@ -289,28 +289,90 @@
                             <td>
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     @php
+                                        // Fetch orders for this tour to get actual service data
+                                        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'booking')->get();
                                         $svc = [
-                                            'hotel' => $tour->hotel ?? 0,
-                                            'attraction' => $tour->attraction ?? 0,
-                                            'restaurent' => $tour->restaurent ?? 0,
-                                            'travel' => $tour->travel ?? 0,
-                                            'guide' => $tour->guide ?? 0,
-                                            'port' => $tour->port ?? 0,
+                                            'hotel' => 0,
+                                            'attraction' => 0,
+                                            'restaurant' => 0,
+                                            'guide' => 0,
+                                            'entry_port' => 0,
+                                            'exit_port' => 0,
+                                            'travel_hourly' => 0,
+                                            'travel_point' => 0,
+                                            'local_transport' => 0,
                                         ];
+                                        $serviceData = [];
+                                        
+                                        foreach($orders as $order) {
+                                            if(isset($svc[$order->type])) {
+                                                $svc[$order->type]++;
+                                                if(!isset($serviceData[$order->type])) {
+                                                    $serviceData[$order->type] = [];
+                                                }
+                                                $serviceData[$order->type][] = $order;
+                                            }
+                                        }
+                                        
                                         $icons = [
                                             'hotel' => 'ri-hotel-line',
                                             'attraction' => 'ri-building-2-line',
-                                            'restaurent' => 'ri-restaurant-2-line',
-                                            'travel' => 'ri-bus-2-line',
+                                            'restaurant' => 'ri-restaurant-2-line',
                                             'guide' => 'ri-user-voice-line',
-                                            'port' => 'ri-ship-line',
+                                            'entry_port' => 'ri-flight-land-line',
+                                            'exit_port' => 'ri-flight-takeoff-line',
+                                            'travel_hourly' => 'ri-time-line',
+                                            'travel_point' => 'ri-route-line',
+                                            'local_transport' => 'ri-car-line',
+                                        ];
+                                        
+                                        // For debugging
+                                        $debugInfo = [
+                                            'tour_id' => $tour->tour_id,
+                                            'orders_count' => $orders->count(),
+                                            'svc' => $svc,
+                                            'serviceData_keys' => array_keys($serviceData)
                                         ];
                                     @endphp
                                     @foreach($svc as $key=>$count)
                                         @if(intval($count) > 0)
-                                            <span class="badge bg-light text-dark border">
-                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
-                                            </span>
+                                            @if(in_array($key, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']))
+                                                <span class="badge bg-light text-dark border" style="cursor: pointer;" 
+                                                      onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
+                                                      data-debug-info="{{ json_encode($debugInfo) }}">
+                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                    @if($key === 'entry_port')
+                                                        Arrival: {{ $count }}
+                                                    @elseif($key === 'exit_port')
+                                                        Departure: {{ $count }}
+                                                    @elseif($key === 'travel_hourly')
+                                                        Local-Tour Hourly: {{ $count }}
+                                                    @elseif($key === 'travel_point')
+                                                        Local-Tour Point to Point: {{ $count }}
+                                                    @elseif($key === 'local_transport')
+                                                        Local Transport: {{ $count }}
+                                                    @else
+                                                        {{ ucfirst($key) }}: {{ $count }}
+                                                    @endif
+                                                </span>
+                                            @else
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                    @if($key === 'entry_port')
+                                                        Arrival: {{ $count }}
+                                                    @elseif($key === 'exit_port')
+                                                        Departure: {{ $count }}
+                                                    @elseif($key === 'travel_hourly')
+                                                        Local-Tour Hourly: {{ $count }}
+                                                    @elseif($key === 'travel_point')
+                                                        Local-Tour Point to Point: {{ $count }}
+                                                    @elseif($key === 'local_transport')
+                                                        Local Transport: {{ $count }}
+                                                    @else
+                                                        {{ ucfirst($key) }}: {{ $count }}
+                                                    @endif
+                                                </span>
+                                            @endif
                                         @endif
                                     @endforeach
                                     @if(array_sum(array_map('intval', $svc)) === 0)
@@ -467,6 +529,2848 @@
     </div>
 </div>
 
+<!-- Service Modals for each tour -->
+@foreach($tours as $tour)
+    @php
+        // Re-fetch orders for this tour for modal rendering
+        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->get();
+        $svc = [
+            'hotel' => 0,
+            'attraction' => 0,
+            'restaurant' => 0,
+            'guide' => 0,
+            'entry_port' => 0,
+            'exit_port' => 0,
+            'travel_hourly' => 0,
+            'travel_point' => 0,
+            'local_transport' => 0,
+        ];
+        $serviceData = [];
+        
+        foreach($orders as $order) {
+            if(isset($svc[$order->type])) {
+                $svc[$order->type]++;
+                if(!isset($serviceData[$order->type])) {
+                    $serviceData[$order->type] = [];
+                }
+                $serviceData[$order->type][] = $order;
+            }
+        }
+    @endphp
+
+    <!-- Hotel Details Modal -->
+    @if(isset($svc['hotel']) && $svc['hotel'] > 0)
+    <div class="modal fade" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
+                    @php
+                        $firstHotelOrder = $serviceData['hotel'][0];
+                        $firstHotelData = is_string($firstHotelOrder->data) ? json_decode($firstHotelOrder->data, true) : $firstHotelOrder->data;
+                        $firstBooking = is_array($firstHotelData) ? $firstHotelData[0] : null;
+                    @endphp
+                    @if($firstBooking)
+                        <!-- Hero Header -->
+                        <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
+                            <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                                <div class="text-white">
+                                    <h3 class="mb-1 fw-bold">
+                                        <i class="ri-hotel-line me-2"></i>Hotel Bookings
+                                    </h3>
+                                    <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Hotel Details</p>
+                                    <div class="mt-2">
+                                        <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
+                                            <i class="ri-calendar-line me-1"></i>
+                                            @if(isset($firstBooking['bookingDate']) && is_array($firstBooking['bookingDate']) && count($firstBooking['bookingDate']) > 0)
+                                                {{ \Carbon\Carbon::parse($firstBooking['bookingDate'][0])->format('M d') }} - 
+                                                {{ \Carbon\Carbon::parse(end($firstBooking['bookingDate']))->format('M d, Y') }}
+                                            @endif
+                                        </span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                            </div>
+                        </div>
+                    @else
+                        <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
+                            <h5 class="modal-title fw-bold text-white">
+                                <i class="ri-hotel-line me-2"></i>
+                                Hotel Booking Details - Tour #{{ $tour->tour_id }}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close"></button>
+                        </div>
+                    @endif
+                @else
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
+                        <h5 class="modal-title fw-bold text-white">
+                            <i class="ri-hotel-line me-2"></i>
+                            Hotel Booking Details - Tour #{{ $tour->tour_id }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close"></button>
+                    </div>
+                @endif
+                <div class="modal-body p-4">
+                    @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
+                        @foreach($serviceData['hotel'] as $index => $hotelOrder)
+                        @php
+                            $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data;
+                        @endphp
+                        
+                        @if(is_array($hotelData))
+                            @foreach($hotelData as $booking)
+                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                    <!-- Booking Header -->
+                                    <div class="card-header border-0" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%); padding: 20px;">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h5 class="mb-1 fw-bold text-white">
+                                                    <i class="ri-hotel-line me-2"></i>{{ $booking['hotelDetails']['hotel_name'] ?? 'Hotel Bookings' }}
+                                                </h5>
+                                                <p class="mb-0 text-white opacity-75">Booking {{ $index + 1 }} • {{ ucfirst($booking['bookingType'] ?? 'Standard') }}</p>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card-body p-4" style="background-color: #f8f9fa;">
+                                        <!-- Guest Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Stay Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-success rounded-circle p-2 me-3">
+                                                            <i class="ri-calendar-check-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Stay Schedule</h6>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Check-in Date</small>
+                                                        <div class="fw-bold text-success fs-5">
+                                                            @if(isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 0)
+                                                                {{ \Carbon\Carbon::parse($booking['bookingDate'][0])->format('D, M d, Y') }}
+                                                            @else
+                                                                N/A
+                                                            @endif
+                                                        </div>
+                                                        @if(isset($booking['hotelDetails']['checkInTime']))
+                                                            <small class="text-primary fw-medium">{{ $booking['hotelDetails']['checkInTime'] }}</small>
+                                                        @endif
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Check-out Date</small>
+                                                        <div class="fw-bold text-danger fs-5">
+                                                            @if(isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1)
+                                                                {{ \Carbon\Carbon::parse(end($booking['bookingDate']))->format('D, M d, Y') }}
+                                                            @else
+                                                                N/A
+                                                            @endif
+                                                        </div>
+                                                        @if(isset($booking['hotelDetails']['checkOutTime']))
+                                                            <small class="text-danger fw-medium">{{ $booking['hotelDetails']['checkOutTime'] }}</small>
+                                                        @endif
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted">Total Nights</small>
+                                                        <div>
+                                                            @if(isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1)
+                                                                @php
+                                                                    $checkIn = \Carbon\Carbon::parse($booking['bookingDate'][0]);
+                                                                    $checkOut = \Carbon\Carbon::parse(end($booking['bookingDate']));
+                                                                    $nights = $checkIn->diffInDays($checkOut);
+                                                                @endphp
+                                                                <span class="badge bg-info px-3 py-2">{{ $nights }} Night{{ $nights > 1 ? 's' : '' }}</span>
+                                                            @else
+                                                                <span class="badge bg-secondary px-3 py-2">Duration TBD</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-building-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Hotel Details</h6>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Location</small>
+                                                        <div class="fw-medium">{{ $booking['hotelDetails']['location'] ?? 'Location not specified' }}</div>
+                                                    </div>
+                                                    @if(isset($booking['hotelDetails']['cancellation_charge']) && !empty($booking['hotelDetails']['cancellation_charge']))
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Cancellation Policy</small>
+                                                        <div class="fw-medium text-warning">{{ $booking['hotelDetails']['cancellation_charge'] }}</div>
+                                                    </div>
+                                                    @endif
+                                                    @if(isset($booking['hotelDetails']['image']))
+                                                        <div class="mt-3">
+                                                            <img src="{{ $booking['hotelDetails']['image'] }}" 
+                                                                 alt="{{ $booking['hotelDetails']['hotel_name'] ?? 'Hotel' }}" 
+                                                                 class="img-fluid rounded shadow-sm" 
+                                                                 style="height: 120px; width: 100%; object-fit: cover;">
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Room & Accommodation Details -->
+                                        @if(isset($booking['rooms']) && is_array($booking['rooms']))
+                                            <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-warning rounded-circle p-2 me-3">
+                                                        <i class="ri-door-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Room & Accommodation Details</h6>
+                                                </div>
+                                                
+                                                @foreach($booking['rooms'] as $roomIndex => $room)
+                                                    <div class="card mb-3" style="border: 2px solid #e9ecef; border-radius: 12px; overflow: hidden;">
+                                                        <div class="card-header border-0" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%); padding: 15px;">
+                                                            <div class="row align-items-center">
+                                                                <div class="col-md-8">
+                                                                    <h6 class="fw-bold text-white mb-1">
+                                                                        <i class="ri-door-line me-2"></i>Room {{ $roomIndex + 1 }}: {{ $room['room_type'] ?? 'Standard Room' }}
+                                                                    </h6>
+                                                                    <small class="text-white opacity-75">Room ID: {{ $room['room_id'] ?? 'N/A' }}</small>
+                                                                </div>
+                                                                <div class="col-md-4 text-end">
+                                                                    @if(isset($room['beds']) && is_array($room['beds']))
+                                                                        @php $totalRoomPrice = collect($room['beds'])->sum('price'); @endphp
+                                                                        <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                                            <span class="text-success fw-bold fs-5">SGD {{ number_format($totalRoomPrice, 2) }}</span>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="card-body" style="background-color: #f8f9fa;">
+                                                            @if(isset($room['beds']) && is_array($room['beds']))
+                                                                @foreach($room['beds'] as $bedIndex => $bed)
+                                                                    <div class="bg-white rounded p-3 mb-3 shadow-sm">
+                                                                        <div class="row">
+                                                                            <div class="col-md-6">
+                                                                                <div class="d-flex align-items-center mb-3">
+                                                                                    <div class="bg-primary rounded-circle p-2 me-3">
+                                                                                        <i class="ri-hotel-bed-line text-white"></i>
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <h6 class="fw-bold text-dark mb-0">{{ $bed['bed_type'] ?? 'Bed' }}</h6>
+                                                                                        <small class="text-muted">Bed ID: {{ $bed['bed_id'] ?? 'N/A' }}</small>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="row">
+                                                                                    <div class="col-6 mb-2">
+                                                                                        <small class="text-muted">Guests</small>
+                                                                                        <div class="fw-medium text-primary">{{ $bed['head_count'] ?? 0 }} people</div>
+                                                                                    </div>
+                                                                                    <div class="col-6 mb-2">
+                                                                                        <small class="text-muted">Max Capacity</small>
+                                                                                        <div class="fw-medium">{{ $bed['max_occupancy'] ?? 'N/A' }}</div>
+                                                                                    </div>
+                                                                                    <div class="col-12">
+                                                                                        <small class="text-muted">Room Price</small>
+                                                                                        <div class="fs-5 fw-bold text-success">SGD {{ number_format($bed['price'] ?? 0, 2) }}</div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            
+                                                                            <div class="col-md-6">
+                                                                                @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']))
+                                                                                    <div class="mb-3">
+                                                                                        <div class="d-flex align-items-center mb-2">
+                                                                                            <div class="bg-warning rounded-circle p-2 me-2">
+                                                                                                <i class="ri-restaurant-line text-white"></i>
+                                                                                            </div>
+                                                                                            <h6 class="fw-bold mb-0 text-dark">Selected Meals</h6>
+                                                                                        </div>
+                                                                                        @foreach($bed['selectedMeals'] as $mealKey => $meal)
+                                                                                            <div class="bg-light rounded p-2 mb-2">
+                                                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                                                    <span class="fw-medium">{{ $meal['type'] ?? 'Meal Plan' }}</span>
+                                                                                                    <span class="badge bg-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        @endforeach
+                                                                                        @php $totalMealPrice = collect($bed['selectedMeals'])->sum('price'); @endphp
+                                                                                        <div class="border-top pt-2 mt-2">
+                                                                                            <div class="d-flex justify-content-between">
+                                                                                                <strong>Meal Total:</strong>
+                                                                                                <strong class="text-warning">SGD {{ number_format($totalMealPrice, 2) }}</strong>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                @endif
+                                                                                
+                                                                                @if(isset($bed['mealTypes']) && is_array($bed['mealTypes']))
+                                                                                    <div>
+                                                                                        <small class="text-muted fw-bold d-block mb-2">Available Meal Options:</small>
+                                                                                        <div class="d-flex flex-wrap gap-1">
+                                                                                            @foreach($bed['mealTypes'] as $mealType)
+                                                                                                <span class="badge bg-outline-secondary">{{ $mealType }}</span>
+                                                                                            @endforeach
+                                                                                        </div>
+                                                                                    </div>
+                                                                                @endif
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                @endforeach
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                                
+                                                <!-- Booking Summary -->
+                                                <div class="bg-primary bg-opacity-10 rounded p-3">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-8">
+                                                            <h6 class="fw-bold text-dark mb-1">Hotel Booking Summary</h6>
+                                                            <small class="text-muted">{{ count($booking['rooms']) }} room(s) • {{ ucfirst($booking['bookingType'] ?? 'Standard') }} booking</small>
+                                                        </div>
+                                                        <div class="col-md-4 text-end">
+                                                            <small class="text-muted d-block">Total Amount</small>
+                                                            <div class="fs-3 fw-bold text-white">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        <!-- Special Requests -->
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endif
+                        @endforeach
+                    @else
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-hotel-line ri-48px text-muted"></i>
+                            </div>
+                            <h4 class="text-dark mb-3">No Hotel Data Available</h4>
+                            <p class="text-muted mb-4">Hotel services are booked but detailed information is not available at this moment.</p>
+                            <div class="alert alert-primary border-0 shadow-sm" style="max-width: 400px; margin: 0 auto;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-information-line text-primary me-2"></i>
+                                    <div>
+                                        <strong>Note:</strong> {{ $svc['hotel'] }} hotel service(s) are associated with this tour.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
+                    </button>
+                    {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
+                        <i class="ri-download-line me-2"></i>Download Details
+                    </button> --}}
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+     <!-- Attraction Details Modal -->
+     @if(isset($svc['attraction']) && $svc['attraction'] > 0)
+     <div class="modal fade" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
+                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                         <div class="text-white">
+                             <h3 class="mb-1 fw-bold">
+                                 <i class="ri-building-2-line me-2"></i>Attraction Bookings
+                             </h3>
+                             <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Attraction Details</p>
+                         </div>
+                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                     </div>
+                 </div>
+                 <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                     @if(isset($serviceData['attraction']) && count($serviceData['attraction']) > 0)
+                         @foreach($serviceData['attraction'] as $index => $attractionOrder)
+                         @php
+                             $attractionData = is_string($attractionOrder->data) ? json_decode($attractionOrder->data, true) : $attractionOrder->data;
+                         @endphp
+                         
+                         @if(is_array($attractionData))
+                             @foreach($attractionData as $booking)
+                                 <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #fd9853 0%, #fe7854 100%); padding: 20px;">
+                                         <div class="row align-items-center">
+                                             <div class="col-md-8">
+                                                 <h5 class="mb-1 fw-bold text-white">
+                                                     <i class="ri-building-2-line me-2"></i>{{ $booking['AttractionName'] ?? 'Attraction Booking' }}
+                                                 </h5>
+                                                 <p class="mb-0 text-white opacity-75">{{ $booking['ticketName'] ?? 'Standard Ticket' }} • Booking {{ $index + 1 }}</p>
+                                             </div>
+                                             <div class="col-md-4 text-end">
+                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                     <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     
+                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
+                                         <!-- Guest Information -->
+                                         <div class="row mb-4">
+                                             <div class="col-md-6">
+                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                     <div class="d-flex align-items-center mb-3">
+                                                         <div class="bg-primary rounded-circle p-2 me-3">
+                                                             <i class="ri-user-line text-white"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                     </div>
+                                                     <div class="mb-2">
+                                                         <small class="text-muted">Full Name</small>
+                                                         <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                     </div>
+                                                     <div class="mb-2">
+                                                         <small class="text-muted">Email Address</small>
+                                                         <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                     </div>
+                                                     <div class="mb-0">
+                                                         <small class="text-muted">Phone Number</small>
+                                                         <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                     <div class="d-flex align-items-center mb-3">
+                                                         <div class="bg-info rounded-circle p-2 me-3">
+                                                             <i class="ri-map-pin-line text-white"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold mb-0 text-dark">Address</h6>
+                                                     </div>
+                                                     <div class="text-muted">
+                                                         @if($booking['address1'] ?? false)
+                                                             <div>{{ $booking['address1'] }}</div>
+                                                         @endif
+                                                         @if($booking['address2'] ?? false)
+                                                             <div>{{ $booking['address2'] }}</div>
+                                                         @endif
+                                                         @if($booking['state'] ?? false)
+                                                             <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                         @endif
+                                                         @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                             <div class="text-muted">Address not provided</div>
+                                                         @endif
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+ 
+                                         <!-- Visit & Booking Information -->
+                                         <div class="row mb-4">
+                                             <div class="col-md-6">
+                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                     <div class="d-flex align-items-center mb-3">
+                                                         <div class="bg-warning rounded-circle p-2 me-3">
+                                                             <i class="ri-calendar-line text-white"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold mb-0 text-dark">Visit Schedule</h6>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <small class="text-muted">Visit Date</small>
+                                                         <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <small class="text-muted">Visit Time</small>
+                                                         <div class="fw-medium text-primary">{{ $booking['visitTime'] ?? 'Full Day Access' }}</div>
+                                                     </div>
+                                                     <div>
+                                                         <small class="text-muted">Selection Type</small>
+                                                         <div><span class="badge bg-info px-3 py-2">{{ ucfirst($booking['Selection'] ?? 'Standard') }}</span></div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                     <div class="d-flex align-items-center mb-3">
+                                                         <div class="bg-info rounded-circle p-2 me-3">
+                                                             <i class="ri-group-line text-white"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold mb-0 text-dark">Guest Information</h6>
+                                                     </div>
+                                                     <div class="row">
+                                                         <div class="col-4 text-center mb-3">
+                                                             <div class="bg-light rounded p-2">
+                                                                 <div class="fs-4 fw-bold text-success">{{ $booking['adultCount'] ?? 0 }}</div>
+                                                                 <small class="text-muted">Adults</small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-4 text-center mb-3">
+                                                             <div class="bg-light rounded p-2">
+                                                                 <div class="fs-4 fw-bold text-warning">{{ $booking['childCount'] ?? 0 }}</div>
+                                                                 <small class="text-muted">Children</small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-4 text-center mb-3">
+                                                             <div class="bg-light rounded p-2">
+                                                                 <div class="fs-4 fw-bold text-info">{{ $booking['seniorCount'] ?? 0 }}</div>
+                                                                 <small class="text-muted">Seniors</small>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                     <div class="text-center">
+                                                         <span class="badge bg-primary px-3 py-2">
+                                                             Total: {{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) + ($booking['seniorCount'] ?? 0) }} Guests
+                                                         </span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+ 
+                                         <!-- Attraction Details -->
+                                         <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                             <div class="d-flex align-items-center mb-3">
+                                                 <div class="bg-success rounded-circle p-2 me-3">
+                                                     <i class="ri-building-2-line text-white"></i>
+                                                 </div>
+                                                 <h6 class="fw-bold mb-0 text-dark">Attraction Details</h6>
+                                             </div>
+                                             <div class="row">
+                                                 <div class="col-md-4 mb-3">
+                                                     <small class="text-muted">Attraction ID</small>
+                                                     <div class="fw-medium">{{ $booking['AttractionId'] ?? 'N/A' }}</div>
+                                                 </div>
+                                                 <div class="col-md-4 mb-3">
+                                                     <small class="text-muted">Ticket ID</small>
+                                                     <div class="fw-medium">{{ $booking['ticketId'] ?? 'N/A' }}</div>
+                                                 </div>
+                                                 <div class="col-md-4 mb-3">
+                                                     <small class="text-muted">NRI Status</small>
+                                                     <span class="badge bg-info">{{ ucfirst($booking['nri'] ?? 'N/A') }}</span>
+                                                 </div>
+                                             </div>
+                                         </div>
+ 
+                                         <!-- Ticket & Pricing Details -->
+                                         @if(isset($booking['ticket_details']))
+                                         <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                             <div class="d-flex align-items-center mb-3">
+                                                 <div class="bg-success rounded-circle p-2 me-3">
+                                                     <i class="ri-ticket-line text-white"></i>
+                                                 </div>
+                                                 <h6 class="fw-bold mb-0 text-dark">Ticket & Pricing Information</h6>
+                                             </div>
+                                             
+                                             <!-- Pricing Cards -->
+                                             <div class="row mb-3">
+                                                 <div class="col-md-4 mb-3">
+                                                     <div class="border rounded-3 p-3 text-center" style="border-color: #28a745; background: linear-gradient(135deg, #d4edda, #f8f9fa);">
+                                                         <div class="text-success mb-2">
+                                                             <i class="ri-user-line ri-24px"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold text-success mb-1">Adult Ticket</h6>
+                                                         <div class="fs-4 fw-bold text-success">SGD {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</div>
+                                                         <small class="text-muted">Per person</small>
+                                                     </div>
+                                                 </div>
+                                                 <div class="col-md-4 mb-3">
+                                                     <div class="border rounded-3 p-3 text-center" style="border-color: #ffc107; background: linear-gradient(135deg, #fff3cd, #f8f9fa);">
+                                                         <div class="text-warning mb-2">
+                                                             <i class="ri-user-smile-line ri-24px"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold text-warning mb-1">Child Ticket</h6>
+                                                         <div class="fs-4 fw-bold text-warning">SGD {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</div>
+                                                         <small class="text-muted">Per child</small>
+                                                     </div>
+                                                 </div>
+                                                 <div class="col-md-4 mb-3">
+                                                     <div class="border rounded-3 p-3 text-center" style="border-color: #17a2b8; background: linear-gradient(135deg, #d1ecf1, #f8f9fa);">
+                                                         <div class="text-info mb-2">
+                                                             <i class="ri-user-star-line ri-24px"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold text-info mb-1">Senior Ticket</h6>
+                                                         <div class="fs-4 fw-bold text-info">SGD {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</div>
+                                                         <small class="text-muted">Per senior</small>
+                                                     </div>
+                                                 </div>
+                                             </div>
+ 
+                                             <!-- Booking Summary -->
+                                             <div class="bg-light rounded p-3 mb-3">
+                                                 <div class="row align-items-center">
+                                                     <div class="col-md-8">
+                                                         <h6 class="fw-bold text-dark mb-2">Booking Summary</h6>
+                                                         <div class="d-flex gap-3">
+                                                             @if($booking['adultCount'] ?? 0 > 0)
+                                                                 <span class="badge bg-success">{{ $booking['adultCount'] }} × SGD {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</span>
+                                                             @endif
+                                                             @if($booking['childCount'] ?? 0 > 0)
+                                                                 <span class="badge bg-warning">{{ $booking['childCount'] }} × SGD {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</span>
+                                                             @endif
+                                                             @if($booking['seniorCount'] ?? 0 > 0)
+                                                                 <span class="badge bg-info">{{ $booking['seniorCount'] }} × SGD {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</span>
+                                                             @endif
+                                                         </div>
+                                                     </div>
+                                                     <div class="col-md-4 text-end">
+                                                         <small class="text-muted d-block">Total Amount</small>
+                                                         <div class="fs-3 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+ 
+                                             @if(isset($booking['ticket_details']['description']) && !empty($booking['ticket_details']['description']))
+                                             <!-- Ticket Description -->
+                                             <div class="border-start border-3 border-primary ps-3">
+                                                 <h6 class="fw-bold text-dark mb-2">Ticket Information</h6>
+                                                 <div class="text-muted">{!! $booking['ticket_details']['description'] !!}</div>
+                                             </div>
+                                             @endif
+                                         </div>
+                                         @endif
+ 
+                                         <!-- Special Requests -->
+                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                             <div class="bg-white rounded p-3 shadow-sm">
+                                                 <div class="d-flex align-items-center mb-3">
+                                                     <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                         <i class="ri-message-line text-white"></i>
+                                                     </div>
+                                                     <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                 </div>
+                                                 <div class="bg-light rounded p-3">
+                                                     <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                 </div>
+                                             </div>
+                                         @endif
+                                     </div>
+                                 </div>
+                             @endforeach
+                         @endif
+                         @endforeach
+                     @else
+                         <div class="text-center py-5">
+                             <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                 <i class="ri-building-2-line ri-48px text-muted"></i>
+                             </div>
+                             <h4 class="text-dark mb-3">No Attraction Data Available</h4>
+                             <p class="text-muted mb-4">Attraction services are booked but detailed information is not available.</p>
+                         </div>
+                     @endif
+                 </div>
+                 <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                     <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                         <i class="ri-close-line me-2"></i>Close
+                     </button>
+                     {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
+                         <i class="ri-download-line me-2"></i>Download Details
+                     </button> --}}
+                 </div>
+             </div>
+         </div>
+     </div>
+     @endif
+
+     <!-- Restaurant Details Modal -->
+     @if(isset($svc['restaurant']) && $svc['restaurant'] > 0)
+     <div class="modal fade" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
+                     <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                         <div class="text-white">
+                             <h3 class="mb-1 fw-bold">
+                                 <i class="ri-restaurant-2-line me-2"></i>Restaurant Bookings
+                             </h3>
+                             <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Restaurant Details</p>
+                         </div>
+                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                     </div>
+                 </div>
+                 <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                     @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
+                         @foreach($serviceData['restaurant'] as $index => $restaurantOrder)
+                         @php
+                             $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
+                         @endphp
+                         
+                         @if(is_array($restaurantData))
+                             @foreach($restaurantData as $booking)
+                                 <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%); padding: 20px;">
+                                         <div class="row align-items-center">
+                                             <div class="col-md-8">
+                                                 <h5 class="mb-1 fw-bold text-white">
+                                                     <i class="ri-restaurant-2-line me-2"></i>{{ $booking['restaurantName'] ?? 'Restaurant Booking' }}
+                                                 </h5>
+                                                 <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['mealType'] ?? 'Meal') }} • {{ $booking['mealSpecificType'] ?? 'Standard' }}</p>
+                                             </div>
+                                             <div class="col-md-4 text-end">
+                                                 <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                     <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     
+                                     <div class="card-body p-4" style="background-color: #f8f9fa;">
+                                         <!-- Guest Information -->
+                                         <div class="row mb-4">
+                                             <div class="col-md-6">
+                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                     <div class="d-flex align-items-center mb-3">
+                                                         <div class="bg-primary rounded-circle p-2 me-3">
+                                                             <i class="ri-user-line text-white"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                     </div>
+                                                     <div class="mb-2">
+                                                         <small class="text-muted">Full Name</small>
+                                                         <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                     </div>
+                                                     <div class="mb-2">
+                                                         <small class="text-muted">Email Address</small>
+                                                         <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                     </div>
+                                                     <div class="mb-0">
+                                                         <small class="text-muted">Phone Number</small>
+                                                         <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             <div class="col-md-6">
+                                                 <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                     <div class="d-flex align-items-center mb-3">
+                                                         <div class="bg-warning rounded-circle p-2 me-3">
+                                                             <i class="ri-calendar-line text-white"></i>
+                                                         </div>
+                                                         <h6 class="fw-bold mb-0 text-dark">Reservation Details</h6>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <small class="text-muted">Dining Date</small>
+                                                         <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <small class="text-muted">Dining Time</small>
+                                                         <div class="fw-medium text-primary">{{ $booking['visitTime'] ?? 'Time to be confirmed' }}</div>
+                                                     </div>
+                                                     <div class="row">
+                                                         <div class="col-6 text-center">
+                                                             <div class="bg-light rounded p-2">
+                                                                 <div class="fs-4 fw-bold text-success">{{ $booking['adultCount'] ?? 0 }}</div>
+                                                                 <small class="text-muted">Adults</small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-6 text-center">
+                                                             <div class="bg-light rounded p-2">
+                                                                 <div class="fs-4 fw-bold text-warning">{{ $booking['childCount'] ?? 0 }}</div>
+                                                                 <small class="text-muted">Children</small>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                     <div class="text-center mt-2">
+                                                         <span class="badge bg-primary px-3 py-2">
+                                                             Party of {{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) }}
+                                                         </span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+ 
+                                         <!-- Restaurant Overview -->
+                                         <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                             <div class="d-flex align-items-center mb-3">
+                                                 <div class="bg-info rounded-circle p-2 me-3">
+                                                     <i class="ri-information-line text-white"></i>
+                                                 </div>
+                                                 <h6 class="fw-bold mb-0 text-dark">Restaurant Overview</h6>
+                                             </div>
+                                             <div class="row">
+                                                 <div class="col-md-4 mb-3">
+                                                     <small class="text-muted">Meal Price</small>
+                                                     <div class="fw-medium text-success">SGD {{ number_format($booking['mealPrice'] ?? 0, 2) }}</div>
+                                                 </div>
+                                                 <div class="col-md-4 mb-3">
+                                                     <small class="text-muted">Transport Price</small>
+                                                     <div class="fw-medium text-info">SGD {{ number_format($booking['transportPrice'] ?? 0, 2) }}</div>
+                                                 </div>
+                                                 {{-- <div class="col-md-4 mb-3">
+                                                     <small class="text-muted">DMC ID</small>
+                                                     <span class="badge bg-secondary">{{ $booking['dmc_id'] ?? 'N/A' }}</span>
+                                                 </div>
+                                                 <div class="col-md-6 mb-3">
+                                                     <small class="text-muted">Price Types</small>
+                                                     <div>
+                                                         @if(isset($booking['priceTypes']) && is_array($booking['priceTypes']))
+                                                             @foreach($booking['priceTypes'] as $priceType)
+                                                                 <span class="badge bg-outline-primary me-1">{{ strtoupper($priceType) }}</span>
+                                                             @endforeach
+                                                         @else
+                                                             <span class="text-muted">N/A</span>
+                                                         @endif
+                                                     </div>
+                                                 </div> --}}
+                                                 <div class="col-md-6 mb-3">
+                                                     <small class="text-muted">Transport</small>
+                                                     <div class="fw-medium">{{ $booking['transport'] ?? 'Not included' }}</div>
+                                                 </div>
+                                             </div>
+                                         </div>
+ 
+                                         <!-- Menu & Meal Details -->
+                                         @if(isset($booking['MealDescription']) && is_array($booking['MealDescription']))
+                                         <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                             <div class="d-flex align-items-center mb-3">
+                                                 <div class="bg-success rounded-circle p-2 me-3">
+                                                     <i class="ri-restaurant-line text-white"></i>
+                                                 </div>
+                                                 <h6 class="fw-bold mb-0 text-dark">Menu Selection & Pricing</h6>
+                                             </div>
+                                             
+                                             @foreach($booking['MealDescription'] as $index => $meal)
+                                                 <div class="card mb-4 shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
+                                                     <!-- Item Header -->
+                                                     <div class="card-header border-0 p-0 position-relative" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); height: 120px;">
+                                                         <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                                                             <div class="text-white">
+                                                                 <h5 class="mb-2 fw-bold">
+                                                                     <i class="ri-restaurant-2-line me-2"></i>{{ $meal['name'] ?? $meal['item_name'] ?? 'Menu Item' }}
+                                                                 </h5>
+                                                                 <div class="d-flex flex-wrap gap-2">
+                                                                     <span class="badge bg-opacity-20 text-white border border-white border-opacity-50 px-3 py-1">
+                                                                         <i class="ri-wine-glass-line me-1"></i>{{ $meal['category'] ?? 'Category' }}
+                                                                     </span>
+                                                                     <span class="badge bg-opacity-20 text-white border border-white border-opacity-50 px-3 py-1">
+                                                                         <i class="ri-leaf-line me-1"></i>{{ $meal['item_type'] ?? 'Type' }}
+                                                                     </span>
+                                                                 </div>
+                                                             </div>
+                                                             <div class="text-end">
+                                                                 <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
+                                                                     <small class="text-muted d-block mb-1">Unit Price</small>
+                                                                     <div class="fs-4 fw-bold text-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                     
+                                                     <!-- Item Details -->
+                                                     <div class="card-body p-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
+                                                         <div class="row align-items-center mb-4">
+                                                             <!-- Quantity Section -->
+                                                             <div class="col-md-6">
+                                                                 <div class="text-center p-4 rounded-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 2px solid #2196f3;">
+                                                                     <div class="d-flex align-items-center justify-content-center mb-2">
+                                                                         <i class="ri-shopping-basket-line text-primary ri-24px me-2"></i>
+                                                                         <h6 class="fw-bold text-primary mb-0">Quantity Ordered</h6>
+                                                                     </div>
+                                                                     <div class="fs-1 fw-bold text-primary mb-1">{{ $meal['quantity'] ?? 1 }}</div>
+                                                                     <small class="text-muted">{{ ($meal['quantity'] ?? 1) == 1 ? 'item' : 'items' }}</small>
+                                                                 </div>
+                                                             </div>
+                                                             
+                                                             <!-- Item Info -->
+                                                             <div class="col-md-6">
+                                                                 <div class="bg-white rounded-3 p-4 shadow-sm border">
+                                                                     <div class="d-flex align-items-center mb-3">
+                                                                         <div class="bg-warning rounded-circle p-2 me-3">
+                                                                             <i class="ri-information-line text-white"></i>
+                                                                         </div>
+                                                                         <h6 class="fw-bold mb-0 text-dark">Item Details</h6>
+                                                                     </div>
+                                                                     <div class="row">
+                                                                         <div class="col-6 mb-2">
+                                                                             <small class="text-muted">Item ID</small>
+                                                                             <div class="fw-medium">#{{ $meal['meal_id'] ?? 'N/A' }}</div>
+                                                                         </div>
+                                                                         <div class="col-6 mb-2">
+                                                                             <small class="text-muted">Category</small>
+                                                                             <div class="fw-medium">{{ $meal['category'] ?? 'N/A' }}</div>
+                                                                         </div>
+                                                                         <div class="col-12">
+                                                                             <small class="text-muted">Dietary Type</small>
+                                                                             <div>
+                                                                                 <span class="badge bg-success">{{ $meal['item_type'] ?? 'Standard' }}</span>
+                                                                             </div>
+                                                                         </div>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+ 
+                                                         <!-- Price Calculation -->
+                                                         <div class="bg-gradient-light rounded-3 p-4 border border-primary border-opacity-25">
+                                                             <div class="row align-items-center">
+                                                                 <div class="col-md-7">
+                                                                     <div class="d-flex align-items-center mb-3">
+                                                                         <div class="bg-primary rounded-circle p-2 me-3">
+                                                                             <i class="ri-calculator-line text-white"></i>
+                                                                         </div>
+                                                                         <h6 class="fw-bold mb-0 text-dark">Price Calculation</h6>
+                                                                     </div>
+                                                                     <div class="d-flex align-items-center gap-3">
+                                                                         <div class="text-center">
+                                                                             <div class="fs-5 fw-bold text-success">SGD {{ number_format($meal['price'] ?? 0, 2) }}</div>
+                                                                             <small class="text-muted">per item</small>
+                                                                         </div>
+                                                                         <div class="text-primary fs-3">×</div>
+                                                                         <div class="text-center">
+                                                                             <div class="fs-5 fw-bold text-primary">{{ $meal['quantity'] ?? 1 }}</div>
+                                                                             <small class="text-muted">{{ ($meal['quantity'] ?? 1) == 1 ? 'item' : 'items' }}</small>
+                                                                         </div>
+                                                                         <div class="text-primary fs-3">=</div>
+                                                                     </div>
+                                                                 </div>
+                                                                 <div class="col-md-5 text-end">
+                                                                     <div class="bg-white rounded-3 p-4 shadow border border-success border-opacity-50">
+                                                                         <small class="text-muted d-block mb-2">Item Subtotal</small>
+                                                                         <div class="fs-2 fw-bold text-success">
+                                                                             SGD {{ number_format(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1), 2) }}
+                                                                         </div>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             @endforeach
+                                             
+                                             <!-- Total Summary -->
+                                             <div class="card shadow-lg mt-4" style="border: none; border-radius: 15px; overflow: hidden;">
+                                                 <div class="card-header border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+                                                     <div class="row align-items-center">
+                                                         <div class="col-md-8">
+                                                             <h5 class="mb-1 fw-bold text-white">
+                                                                 <i class="ri-receipt-line me-2"></i>Order Summary
+                                                             </h5>
+                                                             <p class="mb-0 text-white opacity-75">
+                                                                 {{ count($booking['MealDescription']) }} item(s) • {{ $booking['mealType'] ?? 'Meal' }} • {{ $booking['mealSpecificType'] ?? 'Menu' }}
+                                                             </p>
+                                                         </div>
+                                                         <div class="col-md-4 text-end">
+                                                             <div class="bg-white bg-opacity-95 rounded-3 px-4 py-3 shadow">
+                                                                 <small class="text-muted d-block mb-1">Grand Total</small>
+                                                                 <div class="fs-2 fw-bold text-success">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                                 <div class="card-body" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 20px;">
+                                                     <div class="row">
+                                                         <div class="col-md-4 text-center">
+                                                             <div class="p-3">
+                                                                 <div class="bg-primary bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                                     <i class="ri-restaurant-2-line text-primary ri-24px"></i>
+                                                                 </div>
+                                                                 <h6 class="fw-bold text-dark">{{ $booking['restaurantName'] ?? 'Restaurant' }}</h6>
+                                                                 <small class="text-muted">{{ $booking['mealType'] ?? 'Dining' }} Experience</small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-md-4 text-center">
+                                                             <div class="p-3">
+                                                                 <div class="bg-warning bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                                     <i class="ri-group-line text-warning ri-24px"></i>
+                                                                 </div>
+                                                                 <h6 class="fw-bold text-dark">{{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) }} Guests</h6>
+                                                                 <small class="text-muted">{{ $booking['adultCount'] ?? 0 }} Adults, {{ $booking['childCount'] ?? 0 }} Children</small>
+                                                             </div>
+                                                         </div>
+                                                         <div class="col-md-4 text-center">
+                                                             <div class="p-3">
+                                                                 <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                                     <i class="ri-calendar-check-line text-success ri-24px"></i>
+                                                                 </div>
+                                                                 <h6 class="fw-bold text-dark">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</h6>
+                                                                 <small class="text-muted">{{ $booking['visitTime'] ?? 'Time TBD' }}</small>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                     
+                                                     <!-- Payment Breakdown -->
+                                                     <div class="mt-4 p-3 bg-light rounded-3">
+                                                         <div class="row align-items-center">
+                                                             <div class="col-md-6">
+                                                                 <div class="d-flex align-items-center">
+                                                                     <i class="ri-money-dollar-circle-line text-success ri-24px me-2"></i>
+                                                                     <div>
+                                                                         <h6 class="fw-bold text-dark mb-0">Payment Summary</h6>
+                                                                         <small class="text-muted">Meal Price: SGD {{ number_format($booking['mealPrice'] ?? 0, 2) }} | Transport: SGD {{ number_format($booking['transportPrice'] ?? 0, 2) }}</small>
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                             <div class="col-md-6 text-end">
+                                                                 <div class="fw-bold text-success fs-4">
+                                                                     Total: SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         @endif
+ 
+                                         <!-- Special Requests -->
+                                         @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                             <div class="bg-white rounded p-3 shadow-sm">
+                                                 <div class="d-flex align-items-center mb-3">
+                                                     <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                         <i class="ri-message-line text-white"></i>
+                                                     </div>
+                                                     <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                 </div>
+                                                 <div class="bg-light rounded p-3">
+                                                     <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                 </div>
+                                             </div>
+                                         @endif
+                                     </div>
+                                 </div>
+                             @endforeach
+                         @endif
+                         @endforeach
+                     @else
+                         <div class="text-center py-5">
+                             <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                 <i class="ri-restaurant-2-line ri-48px text-muted"></i>
+                             </div>
+                             <h4 class="text-dark mb-3">No Restaurant Data Available</h4>
+                             <p class="text-muted mb-4">Restaurant services are booked but detailed information is not available.</p>
+                         </div>
+                     @endif
+                 </div>
+                 <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                     <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                         <i class="ri-close-line me-2"></i>Close
+                     </button>
+                     {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
+                         <i class="ri-download-line me-2"></i>Download Details
+                     </button> --}}
+                 </div>
+             </div>
+         </div>
+     </div>
+     @endif
+ 
+
+    <!-- Guide Details Modal -->
+    @if(isset($svc['guide']) && $svc['guide'] > 0)
+    <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
+                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                        <div class="text-white">
+                            <h3 class="mb-1 fw-bold">
+                                <i class="ri-user-voice-line me-2"></i>Guide Bookings
+                            </h3>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Guide Details</p>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
+                        @foreach($serviceData['guide'] as $index => $guideOrder)
+                        @php
+                            $guideData = is_string($guideOrder->data) ? json_decode($guideOrder->data, true) : $guideOrder->data;
+                        @endphp
+                        
+                        @if(is_array($guideData))
+                            @foreach($guideData as $booking)
+                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                    <div class="card-header border-0" style="background: linear-gradient(90deg, #00cec9 0%, #55a3ff 100%); padding: 20px;">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h5 class="mb-1 fw-bold text-white">
+                                                    <i class="ri-user-voice-line me-2"></i>{{ $booking['guide_name'] ?? 'Guide Booking' }}
+                                                </h5>
+                                                <p class="mb-0 text-white opacity-75">{{ $booking['hours'] ?? 'N/A' }} Hours</p>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card-body p-4" style="background-color: #f8f9fa;">
+                                        <!-- Guide Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-8">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-success rounded-circle p-2 me-3">
+                                                            <i class="ri-user-voice-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Guide Information</h6>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Guide Name</small>
+                                                            <div class="fw-medium">{{ $booking['guide_name'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                        {{-- <div class="col-6 mb-3">
+                                                            <small class="text-muted">DMC ID</small>
+                                                            <div class="fw-medium">{{ $booking['dmc_id'] ?? $booking['dmc_Id'] ?? 'N/A' }}</div>
+                                                        </div> --}}
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Base Price</small>
+                                                            <div class="fw-medium text-success">SGD {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Surcharge</small>
+                                                            <div class="fw-medium text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Tax (%)</small>
+                                                            <div class="fw-medium">{{ $booking['Tax'] ?? 0 }}%</div>
+                                                        </div>
+                                                        {{-- <div class="col-6 mb-3">
+                                                            <small class="text-muted">Mode</small>
+                                                            <span class="badge bg-info">{{ strtoupper($booking['Mode'] ?? 'N/A') }}</span>
+                                                        </div> --}}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                @if(isset($booking['image']))
+                                                    <img src="{{ $booking['image'] }}" 
+                                                         alt="{{ $booking['guide_name'] ?? 'Guide' }}" 
+                                                         class="img-fluid rounded shadow-sm" 
+                                                         style="height: 200px; width: 100%; object-fit: cover;">
+                                                @else
+                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;">
+                                                        <i class="ri-user-voice-line ri-48px text-muted"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <!-- Service Schedule & Details -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                                            <i class="ri-calendar-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Service Date</small>
+                                                        <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Start Time</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['entrytime'] ?? 'To be confirmed' }}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Service Duration</small>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-info px-3 py-2 me-2">{{ $booking['hours'] ?? 'N/A' }} Hours</span>
+                                                            <small class="text-muted">of guided service</small>
+                                                        </div>
+                                                    </div>
+                                                    @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
+                                                    <div>
+                                                        <small class="text-muted">Night Service Hours</small>
+                                                        <div class="fw-medium text-warning">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
+                                                    </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-group-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="fs-3 fw-bold text-success">{{ $booking['adults'] ?? 0 }}</div>
+                                                                <small class="text-muted">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="fs-3 fw-bold text-warning">{{ $booking['children'] ?? 0 }}</div>
+                                                                <small class="text-muted">Children</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-center">
+                                                        <span class="badge bg-primary px-3 py-2">
+                                                            Group Size: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} People
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Service & Pricing Details -->
+                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-success rounded-circle p-2 me-3">
+                                                    <i class="ri-money-dollar-circle-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Service Pricing Breakdown</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <div class="text-center p-3 border rounded" style="border-color: #28a745;">
+                                                        <small class="text-muted d-block">Base Price</small>
+                                                        <div class="fs-5 fw-bold text-success">SGD {{ number_format($booking['basePrice'] ?? 0, 2) }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <div class="text-center p-3 border rounded" style="border-color: #ffc107;">
+                                                        <small class="text-muted d-block">Surcharge</small>
+                                                        <div class="fs-5 fw-bold text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <div class="text-center p-3 border rounded" style="border-color: #17a2b8;">
+                                                        <small class="text-muted d-block">Tax ({{ $booking['Tax'] ?? 0 }}%)</small>
+                                                        <div class="fs-5 fw-bold text-info">
+                                                            SGD {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <div class="text-center p-3 border rounded" style="border-color: #6f42c1; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
+                                                        <small class="text-muted d-block">Total Amount</small>
+                                                        <div class="fs-4 fw-bold text-primary">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Customer Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address & Location</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Pickup Location</small>
+                                                        <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Special Requests -->
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endif
+                        @endforeach
+                    @else
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-user-voice-line ri-48px text-muted"></i>
+                            </div>
+                            <h4 class="text-dark mb-3">No Guide Data Available</h4>
+                            <p class="text-muted mb-4">Guide services are booked but detailed information is not available.</p>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
+                    </button>
+                    {{-- <button type="button" class="btn btn-primary px-4 py-2 ms-2" style="border-radius: 25px;">
+                        <i class="ri-download-line me-2"></i>Download Details
+                    </button> --}}
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Entry Port (Arrival) Details Modal -->
+    @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
+    <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
+                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                        <div class="text-white">
+                            <h3 class="mb-1 fw-bold">
+                                <i class="ri-flight-land-line me-2"></i>Arrival Transfer
+                            </h3>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Entry Port Details</p>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
+                        @foreach($serviceData['entry_port'] as $index => $entryOrder)
+                        @php
+                            $entryData = is_string($entryOrder->data) ? json_decode($entryOrder->data, true) : $entryOrder->data;
+                        @endphp
+                        
+                        @if(is_array($entryData))
+                            @foreach($entryData as $booking)
+                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                    <div class="card-header border-0" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%); padding: 20px;">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h5 class="mb-1 fw-bold text-white">
+                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
+                                                </h5>
+                                                <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['type'] ?? 'Standard') }} Transfer • Booking {{ $index + 1 }}</p>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card-body p-4" style="background-color: #f8f9fa;">
+                                        <!-- Transfer Schedule -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-success rounded-circle p-2 me-3">
+                                                            <i class="ri-calendar-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Transfer Schedule</h6>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Arrival Date</small>
+                                                        <div class="fw-bold text-success fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Pickup Time</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['entrytime'] ?? 'To be confirmed' }}</div>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted">Transfer Type</small>
+                                                        <div><span class="badge bg-info px-3 py-2">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-group-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Passenger Information</h6>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="fs-3 fw-bold text-success">{{ $booking['adults'] ?? 0 }}</div>
+                                                                <small class="text-muted">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="fs-3 fw-bold text-warning">{{ $booking['children'] ?? 0 }}</div>
+                                                                <small class="text-muted">Children</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-center">
+                                                        <span class="badge bg-primary px-3 py-2">
+                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passengers
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Route Information -->
+                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-primary rounded-circle p-2 me-3">
+                                                    <i class="ri-route-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="bg-success rounded-circle p-2 me-3 mt-1">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted">Pickup Location</small>
+                                                            <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
+                                                            <small class="text-success">Origin</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="bg-danger rounded-circle p-2 me-3 mt-1">
+                                                            <i class="ri-flag-line text-white"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted">Drop-off Location</small>
+                                                            <div class="fw-medium">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
+                                                            <small class="text-danger">Destination</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">City</small>
+                                                    <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Country</small>
+                                                    <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Vehicle Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-8">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                                            <i class="ri-car-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Vehicle name</small>
+                                                            <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Service Type</small>
+                                                            <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                        </div>
+                                                        {{-- <div class="col-6 mb-3">
+                                                            <small class="text-muted">Mode</small>
+                                                            <span class="badge bg-info">{{ strtoupper($booking['Mode'] ?? 'N/A') }}</span>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Booking Type</small>
+                                                            <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
+                                                        </div> --}}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                @if(isset($booking['image']))
+                                                    <img src="{{ $booking['image'] }}" 
+                                                         alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
+                                                         class="img-fluid rounded shadow-sm" 
+                                                         style="height: 150px; width: 100%; object-fit: cover;">
+                                                @else
+                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                                                        <i class="ri-car-line ri-48px text-muted"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <!-- Customer Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Special Requests -->
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endif
+                        @endforeach
+                    @else
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-flight-land-line ri-48px text-muted"></i>
+                            </div>
+                            <h4 class="text-dark mb-3">No Arrival Transfer Data Available</h4>
+                            <p class="text-muted mb-4">Entry port services are booked but detailed information is not available.</p>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Exit Port (Departure) Details Modal -->
+    @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
+    <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
+                    <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                        <div class="text-white">
+                            <h3 class="mb-1 fw-bold">
+                                <i class="ri-flight-takeoff-line me-2"></i>Departure Transfer
+                            </h3>
+                            <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Exit Port Details</p>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                    @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
+                        @foreach($serviceData['exit_port'] as $index => $exitOrder)
+                        @php
+                            $exitData = is_string($exitOrder->data) ? json_decode($exitOrder->data, true) : $exitOrder->data;
+                        @endphp
+                        
+                        @if(is_array($exitData))
+                            @foreach($exitData as $booking)
+                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                    <div class="card-header border-0" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%); padding: 20px;">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-8">
+                                                <h5 class="mb-1 fw-bold text-white">
+                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
+                                                </h5>
+                                                <p class="mb-0 text-white opacity-75">{{ ucfirst($booking['type'] ?? 'Standard') }} Transfer • Booking {{ $index + 1 }}</p>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                                    <span class="text-success fw-bold fs-5">SGD {{ number_format($booking['totalPrice'] ?? 0, 2) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card-body p-4" style="background-color: #f8f9fa;">
+                                        <!-- Transfer Schedule -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                                            <i class="ri-calendar-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Transfer Schedule</h6>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Departure Date</small>
+                                                        <div class="fw-bold text-danger fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Pickup Time</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['entrytime'] ?? 'To be confirmed' }}</div>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted">Transfer Type</small>
+                                                        <div><span class="badge bg-warning px-3 py-2">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-group-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Passenger Information</h6>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="fs-3 fw-bold text-success">{{ $booking['adults'] ?? 0 }}</div>
+                                                                <small class="text-muted">Adults</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6 text-center">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="fs-3 fw-bold text-warning">{{ $booking['children'] ?? 0 }}</div>
+                                                                <small class="text-muted">Children</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-center">
+                                                        <span class="badge bg-primary px-3 py-2">
+                                                            Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passengers
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Route Information -->
+                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-primary rounded-circle p-2 me-3">
+                                                    <i class="ri-route-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="bg-success rounded-circle p-2 me-3 mt-1">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted">Pickup Location</small>
+                                                            <div class="fw-medium">{{ $booking['exitpickup'] ?? 'N/A' }}</div>
+                                                            <small class="text-success">Origin</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="bg-danger rounded-circle p-2 me-3 mt-1">
+                                                            <i class="ri-flag-line text-white"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted">Drop-off Location</small>
+                                                            <div class="fw-medium">{{ $booking['exitdropoff'] ?? 'N/A' }}</div>
+                                                            <small class="text-danger">Destination</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">City</small>
+                                                    <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Country</small>
+                                                    <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Vehicle Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-8">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                                            <i class="ri-car-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Vehicle Name</small>
+                                                            <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Service Type</small>
+                                                            <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                @if(isset($booking['image']))
+                                                    <img src="{{ $booking['image'] }}" 
+                                                         alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
+                                                         class="img-fluid rounded shadow-sm" 
+                                                         style="height: 150px; width: 100%; object-fit: cover;">
+                                                @else
+                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                                                        <i class="ri-car-line ri-48px text-muted"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <!-- Customer Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                                            <i class="ri-user-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Full Name</small>
+                                                        <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Email Address</small>
+                                                        <div class="fw-medium text-primary">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                    <div class="mb-0">
+                                                        <small class="text-muted">Phone Number</small>
+                                                        <div class="fw-medium">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-info rounded-circle p-2 me-3">
+                                                            <i class="ri-map-pin-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Address Information</h6>
+                                                    </div>
+                                                    <div class="text-muted">
+                                                        @if($booking['address1'] ?? false)
+                                                            <div>{{ $booking['address1'] }}</div>
+                                                        @endif
+                                                        @if($booking['address2'] ?? false)
+                                                            <div>{{ $booking['address2'] }}</div>
+                                                        @endif
+                                                        @if($booking['state'] ?? false)
+                                                            <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
+                                                        @endif
+                                                        @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
+                                                            <div class="text-muted">Address not provided</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Special Requests -->
+                                        @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                            <div class="bg-white rounded p-3 shadow-sm">
+                                                <div class="d-flex align-items-center mb-3">
+                                                    <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                                                        <i class="ri-message-line text-white"></i>
+                                                    </div>
+                                                    <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                                </div>
+                                                <div class="bg-light rounded p-3">
+                                                    <p class="mb-0 text-dark">{{ $booking['specialRequests'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endif
+                        @endforeach
+                    @else
+                        <div class="text-center py-5">
+                            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="ri-flight-takeoff-line ri-48px text-muted"></i>
+                            </div>
+                            <h4 class="text-dark mb-3">No Departure Transfer Data Available</h4>
+                            <p class="text-muted mb-4">Exit port services are booked but detailed information is not available.</p>
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 25px;">
+                        <i class="ri-close-line me-2"></i>Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Travel Hourly Details Modal -->
+    @if(isset($svc['travel_hourly']) && $svc['travel_hourly'] > 0)
+        <div class="modal fade" id="travel_hourlyDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_hourlyModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content border-0 shadow-lg">
+                    @php
+                        $firstOrder = $serviceData['travel_hourly'][0] ?? null;
+                        $firstBookingData = null;
+                        if ($firstOrder) {
+                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
+                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
+                        }
+                    @endphp
+                    
+                    <!-- Modal Header -->
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-time-line me-2"></i>Local-Tour Hourly
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Hourly Tour Details • {{ $firstBookingData['city'] ?? 'Location not specified' }}</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
+                                        <i class="ri-calendar-line me-1"></i>
+                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('D, M d, Y') : 'Date not specified' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4" style="background: #f8fafc;">
+                        @if(isset($serviceData['travel_hourly']) && count($serviceData['travel_hourly']) > 0)
+                            @foreach($serviceData['travel_hourly'] as $index => $hourlyOrder)
+                                @php
+                                    $hourlyData = is_string($hourlyOrder->data) ? json_decode($hourlyOrder->data, true) : $hourlyOrder->data;
+                                @endphp
+                                
+                                @if(is_array($hourlyData))
+                                    @foreach($hourlyData as $bookingIndex => $booking)
+                                        @if($index > 0 || $bookingIndex > 0)
+                                            <hr class="my-4">
+                                        @endif
+                                
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <div class="card-header bg-transparent border-0 text-white">
+                                                <h5 class="card-title mb-0 fw-bold">
+                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Hourly Tour Booking' }}
+                                                </h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Service Schedule & Group Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-primary rounded-circle p-2 me-3">
+                                                    <i class="ri-calendar-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Booking Date</small>
+                                                    <div class="fw-medium">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') : 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Time</small>
+                                                    <div class="fw-medium">{{ $booking['entrytime'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Selected Hours</small>
+                                                    <span class="badge bg-info">{{ $booking['selectedHours'] ?? 'N/A' }} Hour(s)</span>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Service Type</small>
+                                                    <span class="badge bg-warning">{{ $booking['type'] ?? 'Standard' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-success rounded-circle p-2 me-3">
+                                                    <i class="ri-group-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Adults</small>
+                                                    <div class="fw-medium">{{ $booking['adults'] ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Children</small>
+                                                    <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Total Guests</small>
+                                                    <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Night Service Timing</small>
+                                                    <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pickup Location & Vehicle Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-success rounded-circle p-2 me-3">
+                                                    <i class="ri-map-pin-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Pickup Location</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-3">
+                                                    <small class="text-muted">Pickup Point</small>
+                                                    <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">City</small>
+                                                    <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Country</small>
+                                                    <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <!-- Vehicle Information -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-8">
+                                                <div class="bg-white rounded p-3 shadow-sm h-100">
+                                                    <div class="d-flex align-items-center mb-3">
+                                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                                            <i class="ri-car-line text-white"></i>
+                                                        </div>
+                                                        <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Vehicle Name</small>
+                                                            <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <small class="text-muted">Service Type</small>
+                                                            <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                @if(isset($booking['image']))
+                                                    <img src="{{ $booking['image'] }}" 
+                                                         alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
+                                                         class="img-fluid rounded shadow-sm" 
+                                                         style="height: 150px; width: 100%; object-fit: cover;">
+                                                @else
+                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                                                        <i class="ri-car-line ri-48px text-muted"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pricing & Customer Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-warning rounded-circle p-2 me-3">
+                                                    <i class="ri-money-dollar-circle-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Total Price</small>
+                                                    <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Tax</small>
+                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
+                                                </div>
+                                                {{-- <div class="col-12 mb-3">
+                                                    <small class="text-muted">Booking Type</small>
+                                                    <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
+                                                </div> --}}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Name</small>
+                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Email</small>
+                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Phone</small>
+                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Special Requests -->
+                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-secondary rounded-circle p-2 me-3">
+                                            <i class="ri-message-2-line text-white"></i>
+                                        </div>
+                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
+                                </div>
+                                @endif
+                                    @endforeach
+                                @endif
+                            @endforeach
+                        @else
+                            <div class="text-center py-5">
+                                <i class="ri-time-line ri-48px text-muted mb-3"></i>
+                                <h5 class="text-muted">No hourly tour data available</h5>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="closeServiceModal('travel_hourly', {{ $tour->tour_id }})">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                        {{-- <button type="button" class="btn btn-primary">
+                            <i class="ri-download-line me-1"></i>Download Details
+                        </button> --}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Travel Point Details Modal -->
+    @if(isset($svc['travel_point']) && $svc['travel_point'] > 0)
+        <div class="modal fade" id="travel_pointDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="travel_pointModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content border-0 shadow-lg">
+                    @php
+                        $firstOrder = $serviceData['travel_point'][0] ?? null;
+                        $firstBookingData = null;
+                        $headerFromZone = 'N/A';
+                        $headerToZone = 'N/A';
+                        
+                        if ($firstOrder) {
+                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
+                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
+                            
+                            // Get zone names for header
+                            if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
+                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
+                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
+                            }
+                            
+                            if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
+                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
+                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
+                            }
+                        }
+                    @endphp
+                    
+                    <!-- Modal Header -->
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Point to Point Transfer • {{ $headerFromZone }} → {{ $headerToZone }}</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
+                                        <i class="ri-calendar-line me-1"></i>
+                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('D, M d, Y') : 'Date not specified' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('travel_point', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4" style="background: #f8fafc;">
+                        @if(isset($serviceData['travel_point']) && count($serviceData['travel_point']) > 0)
+                            @foreach($serviceData['travel_point'] as $index => $pointOrder)
+                                @php
+                                    $pointData = is_string($pointOrder->data) ? json_decode($pointOrder->data, true) : $pointOrder->data;
+                                @endphp
+                                
+                                @if(is_array($pointData))
+                                    @foreach($pointData as $bookingIndex => $booking)
+                                        @php
+                                            // Fetch zone information
+                                            $fromZoneName = 'N/A';
+                                            $toZoneName = 'N/A';
+                                            
+                                            if(isset($booking['from_zone_id']) && $booking['from_zone_id']) {
+                                                $fromZone = \DB::table('zones')->where('zone_id', $booking['from_zone_id'])->first();
+                                                $fromZoneName = $fromZone ? $fromZone->zone_type : 'Zone ' . $booking['from_zone_id'];
+                                            }
+                                            
+                                            if(isset($booking['to_zone_id']) && $booking['to_zone_id']) {
+                                                $toZone = \DB::table('zones')->where('zone_id', $booking['to_zone_id'])->first();
+                                                $toZoneName = $toZone ? $toZone->zone_type : 'Zone ' . $booking['to_zone_id'];
+                                            }
+                                        @endphp
+                                        
+                                        @if($index > 0 || $bookingIndex > 0)
+                                            <hr class="my-4">
+                                        @endif
+                                
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <div class="card-header bg-transparent border-0 text-white">
+                                                <h5 class="card-title mb-0 fw-bold">
+                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Point to Point Transfer' }}
+                                                </h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Service Schedule & Group Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-primary rounded-circle p-2 me-3">
+                                                    <i class="ri-calendar-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Transfer Schedule</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Date</small>
+                                                    <div class="fw-medium">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') : 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Time</small>
+                                                    <div class="fw-medium">{{ $booking['entrytime'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Distance</small>
+                                                    <span class="badge bg-info">{{ $booking['distance'] ?? 'N/A' }} km</span>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Service Type</small>
+                                                    <span class="badge bg-warning">{{ $booking['type'] ?? 'Standard' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-success rounded-circle p-2 me-3">
+                                                    <i class="ri-group-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Adults</small>
+                                                    <div class="fw-medium">{{ $booking['adults'] ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Children</small>
+                                                    <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Total Guests</small>
+                                                    <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Night Service Timing</small>
+                                                    <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Route Details -->
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                            <i class="ri-direction-line text-white"></i>
+                                        </div>
+                                        <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="d-flex align-items-start">
+                                                <div class="bg-success rounded-circle p-2 me-3 mt-1">
+                                                    <i class="ri-play-circle-line text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">Pickup Location</small>
+                                                    <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
+                                                    <small class="text-success">Origin</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="d-flex align-items-start">
+                                                <div class="bg-danger rounded-circle p-2 me-3 mt-1">
+                                                    <i class="ri-flag-line text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">Drop-off Location</small>
+                                                    <div class="fw-medium">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
+                                                    <small class="text-danger">Destination</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">City</small>
+                                            <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">Country</small>
+                                            <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-8">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-warning rounded-circle p-2 me-3">
+                                                    <i class="ri-car-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-6 mb-3">
+                                                    <small class="text-muted">Vehicle Name</small>
+                                                    <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <small class="text-muted">Service Type</small>
+                                                    <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transfer</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        @if(isset($booking['image']))
+                                            <img src="{{ $booking['image'] }}" 
+                                                 alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
+                                                 class="img-fluid rounded shadow-sm" 
+                                                 style="height: 150px; width: 100%; object-fit: cover;">
+                                        @else
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                                                <i class="ri-car-line ri-48px text-muted"></i>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Pricing & Customer Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-warning rounded-circle p-2 me-3">
+                                                    <i class="ri-money-dollar-circle-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Total Price</small>
+                                                    <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Tax</small>
+                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">From Zone</small>
+                                                    <div class="fw-medium">{{ $fromZoneName }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">To Zone</small>
+                                                    <div class="fw-medium">{{ $toZoneName }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Name</small>
+                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Email</small>
+                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Phone</small>
+                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Special Requests -->
+                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-secondary rounded-circle p-2 me-3">
+                                            <i class="ri-message-2-line text-white"></i>
+                                        </div>
+                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
+                                </div>
+                                @endif
+                                @endforeach
+                                @endif
+                            @endforeach
+                        @else
+                            <div class="text-center py-5">
+                                <i class="ri-route-line ri-48px text-muted mb-3"></i>
+                                <h5 class="text-muted">No point to point transfer data available</h5>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="closeServiceModal('travel_point', {{ $tour->tour_id }})">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Local Transport Details Modal -->
+    @if(isset($svc['local_transport']) && $svc['local_transport'] > 0)
+        <div class="modal fade" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content border-0 shadow-lg">
+                    @php
+                        $firstOrder = $serviceData['local_transport'][0] ?? null;
+                        $firstBookingData = null;
+                        $headerFromZone = 'N/A';
+                        $headerToZone = 'N/A';
+                        
+                        if ($firstOrder) {
+                            $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
+                            $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
+                            
+                            // Get zone names for header
+                            if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
+                                $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
+                                $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
+                            }
+                            
+                            if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
+                                $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
+                                $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
+                            }
+                        }
+                    @endphp
+                    
+                    <!-- Modal Header -->
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-car-line me-2"></i>Local Transport
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #{{ $tour->tour_id }} Local Transport Service • {{ $headerFromZone }} → {{ $headerToZone }}</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-white bg-opacity-90 text-primary px-3 py-2">
+                                        <i class="ri-calendar-line me-1"></i>
+                                        {{ isset($firstBookingData['bookingDate']) ? \Carbon\Carbon::parse($firstBookingData['bookingDate'])->format('M d, Y') : 'Date not specified' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4" style="background: #f8fafc;">
+                        @if(isset($serviceData['local_transport']) && count($serviceData['local_transport']) > 0)
+                            @foreach($serviceData['local_transport'] as $index => $transportOrder)
+                                @php
+                                    $transportData = is_string($transportOrder->data) ? json_decode($transportOrder->data, true) : $transportOrder->data;
+                                @endphp
+                                
+                                @if(is_array($transportData))
+                                    @foreach($transportData as $bookingIndex => $booking)
+                                        @php
+                                            // Fetch zone information
+                                            $fromZoneName = 'N/A';
+                                            $toZoneName = 'N/A';
+                                            
+                                            if(isset($booking['from_zone_id']) && $booking['from_zone_id']) {
+                                                $fromZone = \DB::table('zones')->where('zone_id', $booking['from_zone_id'])->first();
+                                                $fromZoneName = $fromZone ? $fromZone->zone_type : 'Zone ' . $booking['from_zone_id'];
+                                            }
+                                            
+                                            if(isset($booking['to_zone_id']) && $booking['to_zone_id']) {
+                                                $toZone = \DB::table('zones')->where('zone_id', $booking['to_zone_id'])->first();
+                                                $toZoneName = $toZone ? $toZone->zone_type : 'Zone ' . $booking['to_zone_id'];
+                                            }
+                                        @endphp
+                                        
+                                        @if($index > 0 || $bookingIndex > 0)
+                                            <hr class="my-4">
+                                        @endif
+                                
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                            <div class="card-header bg-transparent border-0 text-white">
+                                                <h5 class="card-title mb-0 fw-bold">
+                                                    <i class="ri-car-line me-2"></i>{{ $booking['vehicles_name'] ?? 'Local Transport Service' }}
+                                                </h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Service Schedule & Group Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-primary rounded-circle p-2 me-3">
+                                                    <i class="ri-calendar-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Transport Schedule</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Date</small>
+                                                    <div class="fw-medium">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Time</small>
+                                                    <div class="fw-medium">{{ $booking['entrytime'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Distance</small>
+                                                    <span class="badge bg-info">{{ $booking['distance'] ?? 'N/A' }} km</span>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Service Type</small>
+                                                    <span class="badge bg-warning">{{ $booking['type'] ?? 'Standard' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-success rounded-circle p-2 me-3">
+                                                    <i class="ri-group-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Adults</small>
+                                                    <div class="fw-medium">{{ $booking['adults'] ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Children</small>
+                                                    <div class="fw-medium">{{ $booking['children'] ?? 0 }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Total Guests</small>
+                                                    <span class="badge bg-primary">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Service Hours</small>
+                                                    <div class="fw-medium text-muted small">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Route Details -->
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-warning rounded-circle p-2 me-3">
+                                            <i class="ri-direction-line text-white"></i>
+                                        </div>
+                                        <h6 class="fw-bold mb-0 text-dark">Route Details</h6>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="d-flex align-items-start">
+                                                <div class="bg-success rounded-circle p-2 me-3 mt-1">
+                                                    <i class="ri-play-circle-line text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">Pickup Location</small>
+                                                    <div class="fw-medium">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
+                                                    <small class="text-success">Origin</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="d-flex align-items-start">
+                                                <div class="bg-danger rounded-circle p-2 me-3 mt-1">
+                                                    <i class="ri-flag-line text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">Drop-off Location</small>
+                                                    <div class="fw-medium">{{ $booking['entrydropoff'] ?? 'N/A' }}</div>
+                                                    <small class="text-danger">Destination</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">City</small>
+                                            <div class="fw-medium">{{ $booking['city'] ?? 'N/A' }}</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">Country</small>
+                                            <div class="fw-medium">{{ $booking['country'] ?? 'N/A' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-8">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-warning rounded-circle p-2 me-3">
+                                                    <i class="ri-car-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-6 mb-3">
+                                                    <small class="text-muted">Vehicle Name</small>
+                                                    <div class="fw-medium">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <small class="text-muted">Service Type</small>
+                                                    <div class="fw-medium">{{ $booking['type'] ?? 'N/A' }} Transport</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        @if(isset($booking['image']))
+                                            <img src="{{ $booking['image'] }}" 
+                                                 alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
+                                                 class="img-fluid rounded shadow-sm" 
+                                                 style="height: 150px; width: 100%; object-fit: cover;">
+                                        @else
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                                                <i class="ri-car-line ri-48px text-muted"></i>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Pricing & Customer Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-warning rounded-circle p-2 me-3">
+                                                    <i class="ri-money-dollar-circle-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Total Price</small>
+                                                    <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">Tax</small>
+                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">From Zone</small>
+                                                    <div class="fw-medium">{{ $fromZoneName }}</div>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <small class="text-muted">To Zone</small>
+                                                    <div class="fw-medium">{{ $toZoneName }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-info rounded-circle p-2 me-3">
+                                                    <i class="ri-user-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Name</small>
+                                                    <div class="fw-medium">{{ $booking['fullName'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Email</small>
+                                                    <div class="fw-medium">{{ $booking['email'] ?? 'N/A' }}</div>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted">Phone</small>
+                                                    <div class="fw-medium">{{ $booking['phone'] ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Special Requests -->
+                                @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
+                                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-secondary rounded-circle p-2 me-3">
+                                            <i class="ri-message-2-line text-white"></i>
+                                        </div>
+                                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                                    </div>
+                                    <p class="text-muted mb-0">{{ $booking['specialRequests'] }}</p>
+                                </div>
+                                @endif
+                                @endforeach
+                                @endif
+                            @endforeach
+                        @else
+                            <div class="text-center py-5">
+                                <i class="ri-car-line ri-48px text-muted mb-3"></i>
+                                <h5 class="text-muted">No local transport data available</h5>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+@endforeach
+
 <!-- Payment Details Modal -->
 <div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -489,6 +3393,159 @@
 </div>
 
 <script>
+// Service Modal Functions
+function openServiceModal(serviceType, tourId, event) {
+    console.log('Opening service modal:', serviceType, 'for tour:', tourId);
+    
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    // Construct modal ID
+    const modalId = `${serviceType}DetailsModal${tourId}`;
+    console.log('Looking for modal element:', modalId);
+    
+    // Find the modal element
+    const modalElement = document.getElementById(modalId);
+    console.log('Modal element found:', !!modalElement);
+    
+    if (!modalElement) {
+        console.error('Modal element not found:', modalId);
+        
+        // Log available modals for debugging
+        const availableModals = Array.from(document.querySelectorAll('[id*="DetailsModal"]')).map(el => el.id);
+        console.log('Available service modals on page:', availableModals);
+        
+        // Show user-friendly error
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Modal Not Found',
+                text: `Could not find ${serviceType} details modal for tour ${tourId}. Please refresh the page and try again.`,
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } else {
+            alert(`Could not find ${serviceType} details modal for tour ${tourId}. Please refresh the page and try again.`);
+        }
+        return;
+    }
+    
+    try {
+        // Method 1: Try Bootstrap 5 method
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            console.log('Using Bootstrap 5 modal method');
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: false
+            });
+            modal.show();
+            console.log('Bootstrap 5 modal show called');
+            return;
+        }
+        
+        // Method 2: Try jQuery method (fallback)
+        if (typeof $ !== 'undefined' && $.fn.modal) {
+            console.log('Using jQuery modal method');
+            $(modalElement).modal({
+                backdrop: 'static',
+                keyboard: false
+            });
+            $(modalElement).modal('show');
+            console.log('jQuery modal show called');
+            return;
+        }
+        
+        // Method 3: Manual modal display (last resort)
+        console.log('Using manual modal display');
+        modalElement.style.display = 'block';
+        modalElement.classList.add('show');
+        modalElement.setAttribute('aria-hidden', 'false');
+        
+        // Add backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = `backdrop-${modalId}`;
+        document.body.appendChild(backdrop);
+        
+        // Prevent body scroll
+        document.body.classList.add('modal-open');
+        
+        console.log('Manual modal display applied');
+        
+    } catch (error) {
+        console.error('Error opening modal:', error);
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Error',
+                text: 'An error occurred while opening the modal. Please try again.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } else {
+            alert('An error occurred while opening the modal. Please try again.');
+        }
+    }
+}
+
+function closeServiceModal(serviceType, tourId) {
+    const modalId = `${serviceType}DetailsModal${tourId}`;
+    const modalElement = document.getElementById(modalId);
+    
+    if (!modalElement) {
+        console.error('Modal element not found for closing:', modalId);
+        return;
+    }
+    
+    try {
+        // Method 1: Bootstrap 5
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+        
+        // Method 2: jQuery
+        if (typeof $ !== 'undefined' && $.fn.modal) {
+            $(modalElement).modal('hide');
+        }
+        
+        // Method 3: Manual
+        modalElement.style.display = 'none';
+        modalElement.classList.remove('show');
+        modalElement.setAttribute('aria-hidden', 'true');
+        
+        // Remove backdrop
+        const backdrop = document.getElementById(`backdrop-${modalId}`);
+        if (backdrop) {
+            backdrop.remove();
+        }
+        
+        // Remove any orphaned backdrops
+        const allBackdrops = document.querySelectorAll('.modal-backdrop');
+        allBackdrops.forEach(backdrop => backdrop.remove());
+        
+        // Re-enable body scroll
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+    } catch (error) {
+        console.error('Error closing modal:', error);
+    }
+}
+
+// Legacy function for backwards compatibility
+function openHotelModal(tourId) {
+    openServiceModal('hotel', tourId);
+}
+
+function closeHotelModal(tourId) {
+    closeServiceModal('hotel', tourId);
+}
+
 // Create a simple data object for tours
 const toursData = {
     @foreach($tours as $tour)
