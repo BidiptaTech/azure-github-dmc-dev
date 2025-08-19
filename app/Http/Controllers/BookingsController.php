@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
+use Illuminate\Support\Facades\Crypt;
 use App\Models\Enquiry;
 
 class BookingsController extends Controller
@@ -873,8 +874,9 @@ class BookingsController extends Controller
     /**
      * View specific tour details
      */
-    public function viewTour($tourId)
+    public function viewTour($encryptedId)
     {
+        $tourId = Crypt::decrypt($encryptedId);
         $tour = Tour::where('tour_id', $tourId)->firstOrFail();
         
         // Parse payment details if exists

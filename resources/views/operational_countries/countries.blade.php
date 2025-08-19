@@ -66,7 +66,7 @@
                                 <td style="display: inline-block; white-space: nowrap;">
                                     <!-- Edit Button -->
                                     @if(hasPermission('edit country'))
-                                    <a href="{{ route('country.edit',  $country->operational_country_id) }}" 
+                                    <a href="{{ route('country.edit',  Crypt::encrypt($country->operational_country_id )) }}" 
                                     class="btn btn-primary btn-sm rounded-circle waves-effect waves-light" 
                                     style="min-width: 28px; min-height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">

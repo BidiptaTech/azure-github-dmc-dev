@@ -13,6 +13,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 class AgentController extends Controller
 {
     /**
@@ -393,6 +394,7 @@ class AgentController extends Controller
     */
     public function edit(string $agent_id)
     {
+        $agent_id = Crypt::decrypt($agent_id);
         $agent = Agent::where('agent_id', $agent_id)->firstOrFail();
         $sales_mg = User::where('role_id', 38)->get();
 
