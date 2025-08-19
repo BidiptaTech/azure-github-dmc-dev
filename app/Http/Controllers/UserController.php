@@ -20,6 +20,7 @@ use App\Models\City;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Crypt;
 use DB;
 use Auth;
 
@@ -1460,12 +1461,12 @@ class UserController extends Controller
     * Show the form for editing the specified User.
     * Date 08-10-2024
     */
-    public function edit($id)
+    public function edit($encryptedId)
     {
         if (!hasPermission('edit users')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        
+        $id = Crypt::decrypt($encryptedId); 
         $users = User::where('userId', $id)->first();
         if(!$this->auth_user->role_id >= 37){
             abort(403, 'You do not have permission to access this page.');

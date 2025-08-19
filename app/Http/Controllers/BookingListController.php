@@ -9,7 +9,7 @@ use App\Models\Tour;
 use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Crypt;
 class BookingListController extends Controller
 {
     /**
@@ -910,11 +910,11 @@ class BookingListController extends Controller
     /**
      * Show the tour itinerary on a separate page.
      */
-    public function showItinerary(string $tourId)
+    public function showItinerary($tourId)
     {
         $user = auth()->user();
         $agent_ids = collect();
-        
+        $tourId = Crypt::decrypt($tourId);
         // Similar logic to index method for filtering bookings based on user role
         switch ($user->role_id) {
             case 10: // Master DMC

@@ -206,7 +206,7 @@
                   <div class="d-flex gap-2">
                     <!-- Edit Button -->
                     @if(hasPermission('edit users'))
-                      <a href="{{ route('users.edit', $user->userId) }}" 
+                      <a href="{{ route('users.edit', Crypt::encrypt($user->userId)) }}" 
                         class="btn btn-primary btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                         style="width: 28px; height: 28px; padding: 0;">
                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
