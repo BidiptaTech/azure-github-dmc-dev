@@ -24,13 +24,13 @@ const index = () => {
   const attraction = location.state?.attraction || {};
   
 
-   console.log('attraction',attraction);
+   // console.log('attraction',attraction);
   
 
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails || { prices: {} }
   );
-      console.log('attractionDetails',attractionDetails);
+      // console.log('attractionDetails',attractionDetails);
   
 
  
@@ -130,7 +130,7 @@ const index = () => {
   // Force re-render when nriStatus changes to update price calculations
   useEffect(() => {
     setPriceUpdateTrigger(prev => prev + 1);
-    console.log("NRI status changed to:", nriStatus);
+    // console.log("NRI status changed to:", nriStatus);
   }, [nriStatus]);
 
   // Also force re-render when selectedTicket changes
@@ -140,10 +140,7 @@ const index = () => {
     }
   }, [selectedTicket]);
 
-  // Add effect to track ticket selection changes
-  useEffect(() => {
-    console.log("Selected ticket changed in parent:", selectedTicket);
-  }, [selectedTicket]);
+
 
   // Calculate total price based on selected options
   const calculateTotalPrice = () => {
@@ -152,7 +149,7 @@ const index = () => {
     let totalPrice = 0;
     
     // Debug the nriStatus
-    console.log("Current NRI status in price calculation:", nriStatus);
+    // console.log("Current NRI status in price calculation:", nriStatus);
     
     // Get numeric values with safe parsing - ensure we're reading the latest nriStatus
     let adultPrice, childPrice, seniorPrice;
@@ -173,7 +170,7 @@ const index = () => {
     }
     
     // Log the prices being used
-    console.log("Using prices:", { adultPrice, childPrice, seniorPrice });
+    // console.log("Using prices:", { adultPrice, childPrice, seniorPrice });
     
     // Ensure these are numbers
     const adultCount = parseInt(guestCounts.Adults || 0, 10);
@@ -232,7 +229,7 @@ const index = () => {
     }
     
     // Log the NRI status used for booking
-    console.log("Booking with NRI status:", nriStatus);
+    // console.log("Booking with NRI status:", nriStatus);
     
     // Get accurate counts for database
     const adultCount = parseInt(guestCounts.Adults || 0, 10);
@@ -258,7 +255,7 @@ const index = () => {
     }
     
     // Log the actual prices being used
-    console.log("Using ticket prices:", { baseTicketPrice, childTicketPrice, seniorTicketPrice, nriStatus });
+    //  console.log("Using ticket prices:", { baseTicketPrice, childTicketPrice, seniorTicketPrice, nriStatus });
     
     // Calculate ticket total - simply multiply price by count, no extra multiplier
     const calculatedTotal = (adultCount * baseTicketPrice) + 

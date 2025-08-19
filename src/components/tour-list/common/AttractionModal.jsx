@@ -47,8 +47,8 @@ export default function AttractionModal({
   date,
 }) {
   // Debug logging to see what data is being received
-  console.log('AttractionModal - Received bookings:', bookings);
-  console.log('AttractionModal - Received date:', date);
+  // console.log('AttractionModal - Received bookings:', bookings);
+  // console.log('AttractionModal - Received date:', date);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [enrichedBooking, setEnrichedBooking] = useState(null);
@@ -105,10 +105,10 @@ export default function AttractionModal({
     };
 
     // Debug logging to see what data is being passed
-    console.log('AttractionModal - Original booking:', booking);
-    console.log('AttractionModal - Is package booking:', isPackageBooking);
-    console.log('AttractionModal - Package details:', packageDetails);
-    console.log('AttractionModal - Enriched booking:', enrichedBooking);
+    // console.log('AttractionModal - Original booking:', booking);
+    // console.log('AttractionModal - Is package booking:', isPackageBooking);
+    // console.log('AttractionModal - Package details:', packageDetails);
+    // console.log('AttractionModal - Enriched booking:', enrichedBooking);
 
     setSelectedBooking(booking);
     setEnrichedBooking(enrichedBooking);
@@ -224,7 +224,7 @@ export default function AttractionModal({
         return shouldInclude;
       })
     : [];
-     console.log('AttractionModal - Filtered bookings:', filteredBookings);
+     // console.log('AttractionModal - Filtered bookings:', filteredBookings);
     
 
   return (

@@ -122,8 +122,8 @@ const PreDefinePackages = () => {
     // Fetch package booking lists when component mounts or status changes
     useEffect(() => {
         const status = getStatusFromTab(tabValue);
-        console.log("========== FETCHING PACKAGE BOOKING LISTS ==========");
-        console.log("Status:", status);
+        // console.log("========== FETCHING PACKAGE BOOKING LISTS ==========");
+        // console.log("Status:", status);
         
         // Reset pagination and fetch first page
         dispatch(resetBookingListsPagination());
@@ -137,14 +137,14 @@ const PreDefinePackages = () => {
 
     // Process the API data when it's received - now simplified since server handles categorization
     useEffect(() => {
-        console.log("========== API RESPONSE ==========");
-        console.log("Raw bookingLists:", bookingLists);
-        console.log("bookingListsLoading:", bookingListsLoading);
-        console.log("bookingListsError:", bookingListsError);
-        console.log("Current status:", bookingListsStatus);
-        console.log("Pagination:", bookingListsPagination);
-        console.log("hasMore:", bookingListsPagination.hasMore);
-        console.log("Current data length:", bookingLists?.length || 0);
+        // console.log("========== API RESPONSE ==========");
+        // console.log("Raw bookingLists:", bookingLists);
+        // console.log("bookingListsLoading:", bookingListsLoading);
+        // console.log("bookingListsError:", bookingListsError);
+        // console.log("Current status:", bookingListsStatus);
+        // console.log("Pagination:", bookingListsPagination);
+        // console.log("hasMore:", bookingListsPagination.hasMore);
+        // console.log("Current data length:", bookingLists?.length || 0);
 
         if (bookingLists && Array.isArray(bookingLists)) {
             // Format the booking data for display
@@ -176,16 +176,16 @@ const PreDefinePackages = () => {
 
     // Load more data function
     const loadMoreData = useCallback(() => {
-        console.log("loadMoreData called with:", {
-            isLoadingMore,
-            hasMore: bookingListsPagination.hasMore,
-            bookingListsLoading,
-            currentStart: bookingListsPagination.start,
-            currentLimit: bookingListsPagination.limit
-        });
+        // console.log("loadMoreData called with:", {
+        //     isLoadingMore,
+        //     hasMore: bookingListsPagination.hasMore,
+        //     bookingListsLoading,
+        //     currentStart: bookingListsPagination.start,
+        //     currentLimit: bookingListsPagination.limit
+        // });
         
         if (isLoadingMore || !bookingListsPagination.hasMore || bookingListsLoading) {
-            console.log("loadMoreData blocked:", { isLoadingMore, hasMore: bookingListsPagination.hasMore, bookingListsLoading });
+            // console.log("loadMoreData blocked:", { isLoadingMore, hasMore: bookingListsPagination.hasMore, bookingListsLoading });
             return;
         }
         
@@ -193,7 +193,7 @@ const PreDefinePackages = () => {
         const status = getStatusFromTab(tabValue);
         const nextStart = bookingListsPagination.start + bookingListsPagination.limit;
         
-        console.log("Making API call for next page:", { nextStart, limit: bookingListsPagination.limit, status });
+        // console.log("Making API call for next page:", { nextStart, limit: bookingListsPagination.limit, status });
         
         dispatch(setBookingListsPagination({ start: nextStart }));
         dispatch(fetchPackageBookingLists({ 
@@ -207,25 +207,25 @@ const PreDefinePackages = () => {
 
     // Intersection Observer for infinite scroll
     useEffect(() => {
-        console.log("Setting up intersection observer with:", {
-            hasMore: bookingListsPagination.hasMore,
-            isLoadingMore,
-            bookingListsLoading,
-            loadMoreRef: !!loadMoreRef.current
-        });
+        // console.log("Setting up intersection observer with:", {
+        //     hasMore: bookingListsPagination.hasMore,
+        //     isLoadingMore,
+        //     bookingListsLoading,
+        //     loadMoreRef: !!loadMoreRef.current
+        // });
         
         const observer = new IntersectionObserver(
             (entries) => {
                 const [entry] = entries;
-                console.log("Intersection observer triggered:", {
-                    isIntersecting: entry.isIntersecting,
-                    hasMore: bookingListsPagination.hasMore,
-                    isLoadingMore,
-                    bookingListsLoading
-                });
+                // console.log("Intersection observer triggered:", {
+                //     isIntersecting: entry.isIntersecting,
+                //     hasMore: bookingListsPagination.hasMore,
+                //     isLoadingMore,
+                //     bookingListsLoading
+                // });
                 
                 if (entry.isIntersecting && bookingListsPagination.hasMore && !isLoadingMore && !bookingListsLoading) {
-                    console.log("Calling loadMoreData from intersection observer");
+                    // console.log("Calling loadMoreData from intersection observer");
                     loadMoreData();
                 }
             },
@@ -236,9 +236,9 @@ const PreDefinePackages = () => {
         const timeoutId = setTimeout(() => {
             if (loadMoreRef.current) {
                 observer.observe(loadMoreRef.current);
-                console.log("Observer attached to loadMoreRef");
+                // console.log("Observer attached to loadMoreRef");
             } else {
-                console.log("loadMoreRef.current is still null after timeout");
+                 console.log("loadMoreRef.current is still null after timeout");
             }
         }, 100);
 
@@ -311,8 +311,8 @@ const PreDefinePackages = () => {
     // Format booking data to match the expected structure
     const formatBookingData = (booking) => {
         // console.log("========== FORMATTING BOOKING DATA ==========");
-        console.log("Original booking:", booking);
-        console.log("Agent ID from booking:", booking.agent_id);
+        // console.log("Original booking:", booking);
+        // console.log("Agent ID from booking:", booking.agent_id);
         // Parse the JSON strings in the API response
         let bookingDetails = {};
         let travelDates = {};
@@ -326,15 +326,15 @@ const PreDefinePackages = () => {
                 if (typeof booking.booking_details === 'string') {
                     try {
                         bookingDetails = JSON.parse(booking.booking_details);
-                        console.log("Parsed booking_details:", bookingDetails);
-                        console.log("Agent ID from booking_details:", bookingDetails.agent_id);
+                        // console.log("Parsed booking_details:", bookingDetails);
+                        // console.log("Agent ID from booking_details:", bookingDetails.agent_id);
                     } catch (e) {
                         console.error("Failed to parse booking_details:", e);
                     }
                 } else if (typeof booking.booking_details === 'object') {
                     bookingDetails = booking.booking_details;
-                    console.log("Using booking_details object directly:", bookingDetails);
-                    console.log("Agent ID from booking_details object:", bookingDetails.agent_id);
+                    // console.log("Using booking_details object directly:", bookingDetails);
+                    // console.log("Agent ID from booking_details object:", bookingDetails.agent_id);
                 }
             }
 

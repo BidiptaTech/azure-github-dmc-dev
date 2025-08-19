@@ -391,7 +391,7 @@ const TicketSelection = ({
 
   // Handle NRI status changes with immediate parent notification
   const handleNriStatusChange = (event) => {
-    console.log("Changing NRI status to:", event.target.value);
+    // console.log("Changing NRI status to:", event.target.value);
     setNriStatus(event.target.value);
   };
 

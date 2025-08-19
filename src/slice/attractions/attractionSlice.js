@@ -26,7 +26,7 @@ export const fetchAttractions = createAsyncThunk(
       // Get selected DMC ID from Redux state
       const state = getState();
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 AttractionsSlice - Fetching attractions with DMC ID:', selectedDmcId);
+      // console.log('🎯 AttractionsSlice - Fetching attractions with DMC ID:', selectedDmcId);
 
       const queryParams = new URLSearchParams();
 
@@ -103,8 +103,8 @@ export const fetchAttractionDetails = createAsyncThunk(
       
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode || "default_value";
-      console.log('Fetching attraction details with params:', { attractionId, mode, dmc_id: finalDmcId });
-      console.log('Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('Fetching attraction details with params:', { attractionId, mode, dmc_id: finalDmcId });
+      // console.log('Selected DMC ID from Redux:', selectedDmcId);
       
       const apiUrl = `${BASE_URL}/attraction-details?attractionId=${attractionId}&mode=${mode}&dmc_id=${finalDmcId}`;
 
@@ -138,7 +138,7 @@ export const createBooking = createAsyncThunk(
 
       // Get selected DMC ID from Redux state
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 AttractionsSlice - Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('🎯 AttractionsSlice - Selected DMC ID from Redux:', selectedDmcId);
 
       // Add selected DMC ID to booking details
       const updatedBookingDetails = {
@@ -149,7 +149,7 @@ export const createBooking = createAsyncThunk(
         }))
       };
 
-      console.log('🚀 AttractionsSlice - Booking with DMC ID:', selectedDmcId);
+      // console.log('🚀 AttractionsSlice - Booking with DMC ID:', selectedDmcId);
 
       let AgentId;
       if (
@@ -255,7 +255,7 @@ const attractionsSlice = createSlice({
       state.checkoutData = action.payload;
     },
     setAttractionService: (state, action) => {
-      console.log('AttractionService', action.payload);
+      // console.log('AttractionService', action.payload);
       state.services = action.payload;
     },
     setSearchParams: (state, action) => {

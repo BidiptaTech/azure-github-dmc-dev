@@ -739,7 +739,7 @@ const TourProperties = () => {
     dispatch(setBookingMode(currentMode));
 
     // The slice will automatically use the selected DMC ID from Redux
-    console.log('Selected mode for attraction:', currentMode);
+    // console.log('Selected mode for attraction:', currentMode);
 
     dispatch(
       fetchAttractionDetails({

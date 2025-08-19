@@ -25,7 +25,7 @@ export const fetchAgentList = createAsyncThunk(
       });
       
       if (response.data.success) {
-        console.log(response.data.success);
+        // console.log(response.data.success);
         return response.data.agents;
         
       } else {

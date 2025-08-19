@@ -35,7 +35,6 @@ export const fetchDMCsByCountry = createAsyncThunk(
 
       return response.data;
     } catch (error) {
-      console.error('Error fetching DMCs:', error);
       return rejectWithValue(
         error.response?.data?.message || error.message || 'Failed to fetch DMCs'
       );
@@ -67,10 +66,8 @@ export const fetchDMCCount = createAsyncThunk(
         headers
       });
 
-      console.log('DMC Count API Response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching DMC count:', error);
       return rejectWithValue(
         error.response?.data?.message || error.message || 'Failed to fetch DMC count'
       );
@@ -89,7 +86,6 @@ const getInitialDmcId = () => {
     }
     return null;
   } catch (error) {
-    console.error('Error reading DMC ID from localStorage:', error);
     return null;
   }
 };
@@ -104,13 +100,11 @@ const getDmcIdFromAuth = () => {
       
       // If user role is not "Agent" and dmcId exists, use it
       if (userRole && userRole !== "Agent" && dmcId) {
-        console.log('🎯 DMC Slice: Found DMC ID from auth for non-Agent user:', dmcId);
         return parseInt(dmcId);
       }
     }
     return null;
   } catch (error) {
-    console.error('Error reading DMC ID from auth:', error);
     return null;
   }
 };
@@ -125,13 +119,11 @@ const getDmcLogoFromAuth = () => {
       
       // If user role is not "Agent" and dmcLogo exists, use it
       if (userRole && userRole !== "Agent" && dmcLogo) {
-        console.log('🎨 DMC Slice: Found DMC Logo from auth for non-Agent user:', dmcLogo);
         return dmcLogo;
       }
     }
     return null;
   } catch (error) {
-    console.error('Error reading DMC Logo from auth:', error);
     return null;
   }
 };
@@ -146,13 +138,11 @@ const getDmcCompanyNameFromAuth = () => {
       
       // If user role is not "Agent" and dmcCompanyName exists, use it
       if (userRole && userRole !== "Agent" && dmcCompanyName) {
-        console.log('🏢 DMC Slice: Found DMC Company Name from auth for non-Agent user:', dmcCompanyName);
         return dmcCompanyName;
       }
     }
     return null;
   } catch (error) {
-    console.error('Error reading DMC Company Name from auth:', error);
     return null;
   }
 };
@@ -163,7 +153,6 @@ const getInitialDmcData = () => {
     const storedDmcData = localStorage.getItem('selectedDmcData');
     return storedDmcData ? JSON.parse(storedDmcData) : null;
   } catch (error) {
-    console.error('Error reading DMC data from localStorage:', error);
     return null;
   }
 };
@@ -174,7 +163,6 @@ const getInitialDmcLogo = () => {
     const storedDmcLogo = localStorage.getItem('selectedDmcLogo');
     return storedDmcLogo || null;
   } catch (error) {
-    console.error('Error reading DMC logo from localStorage:', error);
     return null;
   }
 };
@@ -185,7 +173,6 @@ const getInitialDmcCompanyName = () => {
     const storedDmcCompanyName = localStorage.getItem('selectedDmcCompanyName');
     return storedDmcCompanyName || null;
   } catch (error) {
-    console.error('Error reading DMC company name from localStorage:', error);
     return null;
   }
 };
@@ -221,9 +208,6 @@ const dmcSlice = createSlice({
       const dmcId = action.payload.dmcId;
       const dmcData = action.payload.dmcData;
       
-      console.log('🏪 Redux: Storing selected DMC ID:', dmcId === null ? 'null (dmcId was 0)' : dmcId);
-      console.log('🏪 Redux: Storing DMC Data:', dmcData);
-      
       // Extract logo and company name from DMC data
       let logo = null;
       let companyName = null;
@@ -231,13 +215,6 @@ const dmcSlice = createSlice({
       if (dmcData && dmcData.originalData) {
         logo = dmcData.originalData.logo || null;
         companyName = dmcData.originalData.company_name || null;
-        
-        console.log('🎨 Redux: Extracted DMC Logo:', logo);
-        console.log('🏢 Redux: Extracted DMC Company Name:', companyName);
-        console.log('👤 Redux: DMC User ID (userId):', dmcData.originalData.userId);
-        console.log('📧 Redux: DMC Email:', dmcData.originalData.email);
-        console.log('📞 Redux: DMC Phone:', dmcData.originalData.phone);
-        console.log('🌍 Redux: DMC Country:', dmcData.originalData.country);
       }
       
       state.dmcId = dmcId;
@@ -252,29 +229,19 @@ const dmcSlice = createSlice({
           localStorage.setItem('selectedDmcData', JSON.stringify(dmcData || null));
           localStorage.setItem('selectedDmcLogo', logo || '');
           localStorage.setItem('selectedDmcCompanyName', companyName || '');
-          console.log('💾 localStorage: Stored DMC ID:', dmcId);
-          console.log('💾 localStorage: Stored DMC Logo:', logo);
-          console.log('💾 localStorage: Stored DMC Company Name:', companyName);
         } else {
           localStorage.removeItem('selectedDmcId');
           localStorage.removeItem('selectedDmcData');
           localStorage.removeItem('selectedDmcLogo');
           localStorage.removeItem('selectedDmcCompanyName');
-          console.log('🗑️ localStorage: Removed DMC data');
         }
       } catch (error) {
-        console.error('Error storing DMC data in localStorage:', error);
+        // Error handling silently
       }
-      
-      console.log('🏪 Redux: Updated state - dmcId:', state.dmcId);
-      console.log('🎨 Redux: Updated state - selectedDmcLogo:', state.selectedDmcLogo);
-      console.log('🏢 Redux: Updated state - selectedDmcCompanyName:', state.selectedDmcCompanyName);
     },
 
     // Clear selected DMC (single selection - for Book Tour)
     clearSelectedDmc: (state) => {
-      console.log('🗑️ Redux: Clearing DMC selection - setting dmcId to null');
-      
       state.dmcId = null;
       state.selectedDmcData = null;
       state.selectedDmcLogo = null;
@@ -286,65 +253,43 @@ const dmcSlice = createSlice({
         localStorage.removeItem('selectedDmcData');
         localStorage.removeItem('selectedDmcLogo');
         localStorage.removeItem('selectedDmcCompanyName');
-        console.log('🗑️ localStorage: Removed DMC data');
       } catch (error) {
-        console.error('Error removing DMC data from localStorage:', error);
+        // Error handling silently
       }
-      
-      console.log('🗑️ Redux: DMC selection cleared - dmcId is now null');
     },
 
     // Set multiple selected DMC IDs (multiple selection - for Book an Enquiry)
     setSelectedDmcIds: (state, action) => {
-      console.log('🏪 Redux: Storing selected DMC IDs (multiple):', action.payload.dmcIds);
-      console.log('🏪 Redux: Storing DMCs Data (multiple):', action.payload.dmcsData);
-      
       state.selectedDmcIds = action.payload.dmcIds || [];
       state.selectedDmcsData = action.payload.dmcsData || [];
-      
-      // console.log('🏪 Redux: Updated state - selectedDmcIds:', state.selectedDmcIds);
     },
 
     // Add DMC to multiple selection (for Book an Enquiry)
     addDmcToSelection: (state, action) => {
       const { dmcId, dmcData } = action.payload;
-      console.log('➕ Redux: Adding DMC to selection - dmcId:', dmcId);
       
       // Check if DMC is already selected
       if (!state.selectedDmcIds.includes(dmcId)) {
         state.selectedDmcIds.push(dmcId);
         state.selectedDmcsData.push(dmcData);
-        
-        console.log('➕ Redux: DMC added to selection - current selectedDmcIds:', state.selectedDmcIds);
-      } else {
-        console.log('⚠️ Redux: DMC already in selection:', dmcId);
       }
     },
 
     // Remove DMC from multiple selection (for Book an Enquiry)
     removeDmcFromSelection: (state, action) => {
       const { dmcId } = action.payload;
-      console.log('➖ Redux: Removing DMC from selection - dmcId:', dmcId);
       
       const index = state.selectedDmcIds.indexOf(dmcId);
       if (index > -1) {
         state.selectedDmcIds.splice(index, 1);
         state.selectedDmcsData.splice(index, 1);
-        
-        console.log('➖ Redux: DMC removed from selection - current selectedDmcIds:', state.selectedDmcIds);
-      } else {
-        console.log('⚠️ Redux: DMC not found in selection:', dmcId);
       }
     },
 
     // Clear all selected DMCs (multiple selection - for Book an Enquiry)
     clearSelectedDmcs: (state) => {
-      console.log('🗑️ Redux: Clearing all DMC selections (multiple)');
-      
       state.selectedDmcIds = [];
       state.selectedDmcsData = [];
-      
-      console.log('🗑️ Redux: All DMC selections cleared');
     },
 
     // Clear DMCs
@@ -368,10 +313,6 @@ const dmcSlice = createSlice({
     // Set DMC data from auth login (for non-Agent users)
     setDmcFromAuth: (state, action) => {
       const { dmcId, dmcLogo, dmcCompanyName } = action.payload;
-      console.log('🔐 DMC Slice: Setting DMC data from auth login');
-      console.log('🔐 DMC Slice: dmcId:', dmcId);
-      console.log('🔐 DMC Slice: dmcLogo:', dmcLogo);
-      console.log('🔐 DMC Slice: dmcCompanyName:', dmcCompanyName);
       
       state.dmcId = dmcId;
       state.selectedDmcLogo = dmcLogo;
@@ -383,18 +324,14 @@ const dmcSlice = createSlice({
           localStorage.setItem('selectedDmcId', dmcId.toString());
           localStorage.setItem('selectedDmcLogo', dmcLogo || '');
           localStorage.setItem('selectedDmcCompanyName', dmcCompanyName || '');
-          console.log('💾 localStorage: Stored DMC data from auth');
         }
       } catch (error) {
-        console.error('Error storing DMC data from auth in localStorage:', error);
+        // Error handling silently
       }
-      
-      console.log('🔐 DMC Slice: Updated state from auth login');
     },
 
     // Reset DMC state
     resetDMCState: (state) => {
-      console.log('🔄 Redux: Resetting DMC state to initial values');
       return initialState;
     }
   },
@@ -431,12 +368,6 @@ const dmcSlice = createSlice({
         
         // If dmc_count is 1, automatically store the dmc_id, logo, and company name
         if (action.payload && action.payload.dmc_count === 1 && action.payload.dmc_id) {
-          console.log('🏪 Redux: Auto-storing DMC data from count API');
-          console.log('🏪 Redux: dmc_id:', action.payload.dmc_id);
-          console.log('🏪 Redux: dmc_logo:', action.payload.dmc_logo);
-          console.log('🏪 Redux: dmc_company_name:', action.payload.dmc_company_name);
-          console.log('🏪 Redux: dmc_name:', action.payload.dmc_name);
-          
           state.dmcId = action.payload.dmc_id;
           state.selectedDmcLogo = action.payload.dmc_logo || null;
           state.selectedDmcCompanyName = action.payload.dmc_company_name || null;
@@ -462,18 +393,9 @@ const dmcSlice = createSlice({
             localStorage.setItem('selectedDmcData', JSON.stringify(state.selectedDmcData));
             localStorage.setItem('selectedDmcLogo', action.payload.dmc_logo || '');
             localStorage.setItem('selectedDmcCompanyName', action.payload.dmc_company_name || '');
-            console.log('💾 localStorage: Auto-stored DMC data');
-            console.log('💾 localStorage: DMC ID:', action.payload.dmc_id);
-            console.log('💾 localStorage: DMC Logo:', action.payload.dmc_logo);
-            console.log('💾 localStorage: DMC Company Name:', action.payload.dmc_company_name);
           } catch (error) {
-            console.error('Error storing auto-selected DMC data in localStorage:', error);
+            // Error handling silently
           }
-          
-          console.log('🏪 Redux: Auto-stored DMC data in state');
-          console.log('🏪 Redux: dmcId:', state.dmcId);
-          console.log('🎨 Redux: selectedDmcLogo:', state.selectedDmcLogo);
-          console.log('🏢 Redux: selectedDmcCompanyName:', state.selectedDmcCompanyName);
         }
       })
       // Fetch DMC count - rejected
