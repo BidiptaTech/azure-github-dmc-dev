@@ -330,13 +330,13 @@
                         </label>
                         <div class="input-group">
                             <label class="custom-file-upload">
-                                <input type="file" id="images" name="images[]" class="d-none" multiple accept="image/*">
+                                <input type="file" id="image" name="image[]" class="d-none" multiple accept="image/*">
                                 <i class="fas fa-cloud-upload-alt me-2"></i> Choose Images
                             </label>
                             <span id="file-chosen" class="ms-3 align-self-center text-muted">No files selected</span>
                         </div>
                         <small class="text-muted">You can select multiple images</small>
-                        @error('images')
+                        @error('image')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -408,7 +408,7 @@
         });
         
         // Handle file input change for image preview
-        $('#images').on('change', function(e) {
+        $('#image').on('change', function(e) {
             const fileInput = e.target;
             const fileCount = fileInput.files.length;
             
@@ -452,7 +452,7 @@
             
             // Create a new FileList without the removed file
             // Note: FileList is immutable, so we need to recreate the input
-            const input = document.getElementById('images');
+            const input = document.getElementById('image');
             const dt = new DataTransfer();
             
             // Add all files except the one to be removed

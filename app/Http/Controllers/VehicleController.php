@@ -23,6 +23,7 @@ use App\Models\Zone;
 use App\Services\LogActivityService;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Crypt;
 
 class VehicleController extends Controller
 {
@@ -343,7 +344,7 @@ class VehicleController extends Controller
                 LogActivityService::log('restore_vehicle', 'App\Models\Vehicle', $existingVehicle->id, $existingVehicle);
 
                 return redirect()->route('vehicle.edit', [
-                    'vehicle' => $existingVehicle->vehicle_id,
+                    'vehicle' => Crypt::encrypt($existingVehicle->vehicle_id),
                     'zone_mapping' => true,
                     'mapping_type' => 'port_port'
                 ])->with('success', 'Vehicle restored successfully! Now you can map zones.');
@@ -415,7 +416,7 @@ class VehicleController extends Controller
             
             // Redirect to edit page with zone mapping tab active
             return redirect()->route('vehicle.edit', [
-                'vehicle' => $vehicle->vehicle_id,
+                'vehicle' => Crypt::encrypt($vehicle->vehicle_id),
                 'zone_mapping' => true,
                 'mapping_type' => 'port_port'
             ])->with('success', 'Vehicle added successfully! Now you can map zones.');
@@ -453,6 +454,7 @@ class VehicleController extends Controller
         if (!hasPermission('edit vehicle')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $vehicle = Vehicle::where('vehicle_id',$id)->first();
         $drivers = Driver::where('is_active', 1)->where('dmc_id', $vehicle->dmc_id)->get();
         $dmc_country = User::where('userId', $vehicle->dmc_id)->first()->country;
@@ -493,7 +495,8 @@ class VehicleController extends Controller
     public function update(Request $request, $id)
     {
         // Validate the incoming request data
-        $vehicle_id = $request->vehicle_id;
+        $id = Crypt::decrypt($id);
+        $vehicle_id = $id;
         $vehicle = Vehicle::where('vehicle_id', $vehicle_id)->first();
 
         // For plate number, we only need basic validation since it's readonly in the form
@@ -718,7 +721,7 @@ class VehicleController extends Controller
         }
         
         return redirect()->route('vehicle.edit', [
-            'vehicle' => $vehicleId,
+            'vehicle' => Crypt::encrypt($vehicleId),
             'zone_mapping' => true,
             'mapping_type' => $mappingType
         ])->with('success', 'Zone mappings saved successfully!');
@@ -926,7 +929,7 @@ class VehicleController extends Controller
         if (!hasPermission('delete vehicle')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        
+        $id = Crypt::decrypt($id);
         // Get vehicle and delete images from Azure
         $vehicle = Vehicle::where('vehicle_id', $id)->first();
         if($vehicle) {

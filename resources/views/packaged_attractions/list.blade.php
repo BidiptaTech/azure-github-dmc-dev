@@ -82,7 +82,7 @@
                                 </td>
                                 <td style="display: inline-block; white-space: nowrap;">
                                     <!-- View Button -->
-                                    <a href="{{ route('packaged-attractions.show', $attraction->package_attraction_id) }}" 
+                                    <a href="{{ route('packaged-attractions.show', Crypt::encrypt($attraction->package_attraction_id)) }}" 
                                         class="btn btn-primary btn-sm rounded-circle" 
                                         style="width: 28px; height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 0 24 24" width="16px" fill="#ffffff">
@@ -92,7 +92,7 @@
                                     </a>
                                     
                                     <!-- Edit Button -->
-                                    <a href="{{ route('packaged-attractions.edit', $attraction->package_attraction_id) }}" 
+                                    <a href="{{ route('packaged-attractions.edit', Crypt::encrypt($attraction->package_attraction_id)) }}" 
                                         class="btn btn-info btn-sm rounded-circle" 
                                         style="width: 28px; height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
@@ -104,13 +104,17 @@
                                     <button type="button" 
                                         class="btn btn-danger btn-sm rounded-circle" 
                                         style="width: 28px; height: 28px; padding: 0;" 
-                                        data-toggle="modal" 
-                                        data-target="#deleteModal" 
-                                        onclick="setDeleteForm('{{ route('packaged-attractions.destroy', $attraction->package_attraction_id) }}')">
+                                        onclick="setDeleteForm('{{ route('packaged-attractions.destroy', Crypt::encrypt($attraction->package_attraction_id)) }}', '{{ $attraction->name }}')"
+                                        title="Delete {{ $attraction->name }}">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
                                             <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                         </svg>
                                     </button>
+                                    <!-- Debug info (remove in production) -->
+                                    <small class="d-none">
+                                        Route: {{ route('packaged-attractions.destroy', Crypt::encrypt($attraction->package_attraction_id)) }}
+                                        ID: {{ $attraction->package_attraction_id }}
+                                    </small>
                                 </td>
                             </tr>
                         @endforeach
@@ -122,18 +126,19 @@
 </div>
 
 <!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" 
-        aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
+                <h5 class="modal-title" id="deleteModalLabel">Delete Confirmation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Are you sure want to delete this packaged attraction?
+                <p>Are you sure you want to delete this packaged attraction?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="deleteForm" action="" method="POST" style="display:inline">
                     @csrf
                     @method('DELETE')
@@ -189,8 +194,105 @@
         });
     });
 
-    function setDeleteForm(action) {
+    function setDeleteForm(action, attractionName) {
+        console.log('Setting delete form action:', action);
+        console.log('Attraction name:', attractionName);
+        
         document.getElementById('deleteForm').action = action;
+        
+        // Update modal body with attraction name
+        var modalBody = document.querySelector('#deleteModal .modal-body p:first-child');
+        if (modalBody) {
+            modalBody.innerHTML = `Are you sure you want to delete the packaged attraction "<strong>${attractionName}</strong>"?`;
+        }
+        
+        // Try to show the modal using Bootstrap 5
+        try {
+            if (typeof bootstrap !== 'undefined') {
+                var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                deleteModal.show();
+            } else {
+                // Fallback: show modal manually
+                document.getElementById('deleteModal').style.display = 'block';
+                document.getElementById('deleteModal').classList.add('show');
+                document.body.classList.add('modal-open');
+                
+                // Add backdrop
+                var backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.id = 'modalBackdrop';
+                document.body.appendChild(backdrop);
+            }
+        } catch (error) {
+            console.error('Error showing modal:', error);
+            // Fallback: show modal manually
+            document.getElementById('deleteModal').style.display = 'block';
+            document.getElementById('deleteModal').classList.add('show');
+            document.body.classList.add('modal-open');
+        }
     }
+
+    // Ensure modal is properly initialized
+    $(document).ready(function() {
+        // Check if delete modal exists
+        if ($('#deleteModal').length) {
+            console.log('Delete modal found');
+        } else {
+            console.log('Delete modal not found');
+        }
+        
+        // Check if Bootstrap is available
+        if (typeof bootstrap !== 'undefined') {
+            console.log('Bootstrap is available');
+        } else {
+            console.log('Bootstrap is NOT available');
+        }
+        
+        // Handle form submission
+        $('#deleteForm').on('submit', function(e) {
+            console.log('Delete form submitted');
+            // You can add loading state here if needed
+            $(this).find('button[type="submit"]').prop('disabled', true).text('Deleting...');
+        });
+
+        // Reset form when modal is hidden
+        $('#deleteModal').on('hidden.bs.modal', function () {
+            $('#deleteForm').find('button[type="submit"]').prop('disabled', false).text('Delete');
+        });
+
+        // Add manual close functionality for fallback
+        function closeModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            document.getElementById('deleteModal').classList.remove('show');
+            document.body.classList.remove('modal-open');
+            
+            // Remove backdrop if exists
+            var backdrop = document.getElementById('modalBackdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+        }
+
+        // Add close event listeners
+        document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function(button) {
+            button.addEventListener('click', closeModal);
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Test modal functionality
+        console.log('Testing modal functionality...');
+        try {
+            var testModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            console.log('Modal object created successfully');
+        } catch (error) {
+            console.error('Error creating modal object:', error);
+        }
+    });
 </script>
 @endsection

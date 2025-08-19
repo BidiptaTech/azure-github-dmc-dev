@@ -100,7 +100,7 @@
                 </div>
             @endif
 
-            <form id="driverForm" method="POST" action="{{ route('driver.update', $driver->driver_id) }}" enctype="multipart/form-data" class="card-body">
+            <form id="driverForm" method="POST" action="{{ route('driver.update', Crypt::encrypt($driver->driver_id)) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
                 <!-- Hidden Fields -->

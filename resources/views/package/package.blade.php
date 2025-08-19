@@ -310,10 +310,10 @@
                     </div>
                     <div class="card-footer bg-transparent border-top-0 pt-0">
                         <div class="d-flex gap-2">
-                            <a href="{{ route('packages.show', ['package_id' => $package->package_id]) }}" class="btn btn-primary btn-sm w-100">
+                            <a href="{{ route('packages.show', ['package_id' => Crypt::encrypt($package->package_id)]) }}" class="btn btn-primary btn-sm w-100">
                                 <i class="ri-eye-line me-1"></i>Details
                             </a>
-                            <form action="{{ route('packages.destroy', ['package_id' => $package->package_id]) }}" method="POST" class="w-100">
+                            <form action="{{ route('packages.destroy', ['package_id' => Crypt::encrypt($package->package_id)]) }}" method="POST" class="w-100">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-outline-danger btn-sm w-100" 

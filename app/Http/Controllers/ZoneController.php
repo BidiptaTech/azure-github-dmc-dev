@@ -12,6 +12,7 @@ use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\User;
+use Illuminate\Support\Facades\Crypt;
 
 class ZoneController extends Controller
 {
@@ -121,8 +122,10 @@ class ZoneController extends Controller
     /**
      * Display the specified zone.
      */
-    public function show(Zone $zone)
+    public function show($id)
     {
+        $zoneId = Crypt::decrypt($id);
+        $zone = Zone::where('zone_id', $zoneId)->first();
         // Get the city name using the city_id
         $cityName = City::where('city_id', $zone->city)->value('name') ?? $zone->city;
         return view('zones.show', compact('zone', 'cityName'));
@@ -131,8 +134,10 @@ class ZoneController extends Controller
     /**
      * Show the form for editing the specified zone.
      */
-    public function edit(Zone $zone)
+    public function edit($id)
     {
+        $zoneId = Crypt::decrypt($id);
+        $zone = Zone::where('zone_id', $zoneId)->first();
         $city = City::where('country', Auth::user()->country)->get();
         return view('zones.edit', compact('zone', 'city'));
     }
@@ -167,15 +172,27 @@ class ZoneController extends Controller
     /**
      * Remove the specified zone from storage.
      */
-    public function destroy(Zone $zone)
+    public function destroy($id)
     {
-        // Remove zone_id from associated hotels, attractions, and restaurants
+        $zoneId = Crypt::decrypt($id);
+        $zone = Zone::where('zone_id', $zoneId)->first();
+        
+        // Remove zone assignments from associated hotels, attractions, and restaurants
         if ($zone->zone_type == 'Hotel') {
-            Hotel::where('zone_id', $zone->zone_id)->update(['zone_id' => null]);
+            $hotels = Hotel::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
+            foreach ($hotels as $hotel) {
+                $hotel->removeZoneAssignment($zoneId);
+            }
         } elseif ($zone->zone_type == 'Attraction') {
-            Attraction::where('zone_id', $zone->zone_id)->update(['zone_id' => null]);
+            $attractions = Attraction::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
+            foreach ($attractions as $attraction) {
+                $attraction->removeZoneAssignment($zoneId);
+            }
         } elseif ($zone->zone_type == 'Restaurant') {
-            Restaurant::where('zone_id', $zone->zone_id)->update(['zone_id' => null]);
+            $restaurants = Restaurant::whereJsonContains('zone_assignments', ['zone_id' => $zoneId])->get();
+            foreach ($restaurants as $restaurant) {
+                $restaurant->removeZoneAssignment($zoneId);
+            }
         }
         
         $zone->delete();
