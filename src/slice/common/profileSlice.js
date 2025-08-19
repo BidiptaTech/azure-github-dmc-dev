@@ -10,13 +10,13 @@ export const updateProfile = createAsyncThunk(
   'profile/updateProfile',
   async (profileData, { rejectWithValue }) => {
     try {
-      console.log('Profile data being sent:', profileData);
+      // console.log('Profile data being sent:', profileData);
       const formData = new FormData();
       if (profileData.old_password) formData.append('old_password', profileData.old_password);
       if (profileData.new_password) formData.append('new_password', profileData.new_password);
       if (profileData.confirm_password) formData.append('confirm_password', profileData.confirm_password);
       if (profileData.image) {
-        console.log('Appending image to FormData as image:', profileData.image);
+        // console.log('Appending image to FormData as image:', profileData.image);
         formData.append('image', profileData.image);
       }
       if (profileData.phone_no) formData.append('phone', profileData.phone_no);
@@ -25,7 +25,7 @@ export const updateProfile = createAsyncThunk(
       // Debug: Log what's being sent to the API
       // console.log('FormData contents:');
       for (let [key, value] of formData.entries()) {
-        console.log(`${key}:`, value);
+        // console.log(`${key}:`, value);
       }
 
       const authToken = Cookies.get('authToken');
@@ -42,8 +42,8 @@ export const updateProfile = createAsyncThunk(
       // console.log('API response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Profile update error:', error);
-      console.error('Error response:', error.response?.data);
+      //  console.error('Profile update error:', error);
+      // console.error('Error response:', error.response?.data);
       return rejectWithValue(
         error.response && error.response.data ? error.response.data : error.message
       );

@@ -23,7 +23,7 @@ export const fetchRestaurants = createAsyncThunk(
       // Get selected DMC ID from Redux state
       const state = getState();
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 RestaurantsSlice - Fetching restaurants with DMC ID:', selectedDmcId);
+      // console.log('🎯 RestaurantsSlice - Fetching restaurants with DMC ID:', selectedDmcId);
 
       const queryParams = new URLSearchParams();
 
@@ -59,7 +59,7 @@ export const fetchRestaurants = createAsyncThunk(
         }
       );
 
-      console.log('Restaurant API response:', response.data);
+      // console.log('Restaurant API response:', response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching restaurants:", error);
@@ -87,8 +87,8 @@ export const fetchRestaurantsDetails = createAsyncThunk(
       
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode || "dmc";
-      console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id: finalDmcId });
-      console.log('Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id: finalDmcId });
+      // console.log('Selected DMC ID from Redux:', selectedDmcId);
       
       const response = await axios.get(
         `${BASE_URL}/restaurant-details?restaurantId=${restaurantId}&mode=${mode}&dmc_id=${finalDmcId}`,
@@ -100,7 +100,7 @@ export const fetchRestaurantsDetails = createAsyncThunk(
         }
       );
 
-      console.log("Fetched Restaurant Details Response:", response.data);
+      // console.log("Fetched Restaurant Details Response:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching restaurant details:", error);
@@ -124,7 +124,7 @@ export const createBooking = createAsyncThunk(
 
       // Get selected DMC ID from Redux state
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
 
       // Add selected DMC ID to booking details
       const updatedBookingDetails = {
@@ -135,7 +135,7 @@ export const createBooking = createAsyncThunk(
         }))
       };
 
-      console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
+      // console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
 
       // Corrected conditional statement
       let AgentId;

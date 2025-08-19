@@ -183,12 +183,12 @@ const extractServiceTime = (service) => {
 // Extract booking data using the actual booking data from props
 const extractBookingData = () => {
   if (!globalBookingData) {
-    console.log('No global booking data available');
+    // console.log('No global booking data available');
     return null;
   }
 
   const bookingData = globalBookingData;
-  console.log('Using booking data:', bookingData);
+  // console.log('Using booking data:', bookingData);
 
   // Parse booking_details and travel_dates if present
   const bookingDetails = parseJsonSafely(bookingData.booking_details);
@@ -325,21 +325,21 @@ const extractBookingData = () => {
     itinerary
   };
 
-  console.log('Extracted booking data:', result);
+  // console.log('Extracted booking data:', result);
   
   // Debug: Log detailed service information
   if (process.env.NODE_ENV === 'development') {
-    console.log('Detailed service extraction:');
+    // console.log('Detailed service extraction:');
     result.itinerary.forEach((day, dayIndex) => {
-      console.log(`Day ${dayIndex + 1}:`, day.day);
+      // console.log(`Day ${dayIndex + 1}:`, day.day);
       day.services.forEach((service, serviceIndex) => {
-        console.log(`  Service ${serviceIndex + 1}:`, {
-          activity: service.activity,
-          category: service.category,
-          hasAttractionTransfer: service.hasAttractionTransfer,
-          hasEntryTransport: service.hasEntryTransport,
-          hasExitTransport: service.hasExitTransport
-        });
+        // console.log(`  Service ${serviceIndex + 1}:`, {
+        //   activity: service.activity,
+        //   category: service.category,
+        //   hasAttractionTransfer: service.hasAttractionTransfer,
+        //   hasEntryTransport: service.hasEntryTransport,
+        //   hasExitTransport: service.hasExitTransport
+        // });
       });
     });
   }
@@ -371,17 +371,17 @@ const createCustomPDFHTML = (bookingData) => {
     const others = day.services.filter(s => !hotels.includes(s) && !attractions.includes(s) && !restaurants.includes(s) && !guides.includes(s) && !transport.includes(s));
 
     // Debug: Log service categorization (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Day ${index + 1} service categorization:`, {
-        hotels: hotels.length,
-        attractions: attractions.length,
-        restaurants: restaurants.length,
-        guides: guides.length,
-        transport: transport.length,
-        others: others.length,
-        attractionTransfers: day.services.filter(s => s.hasAttractionTransfer).length
-      });
-    }
+    // if (process.env.NODE_ENV === 'development') {
+    //   console.log(`Day ${index + 1} service categorization:`, {
+    //     hotels: hotels.length,
+    //     attractions: attractions.length,
+    //     restaurants: restaurants.length,
+    //     guides: guides.length,
+    //     transport: transport.length,
+    //     others: others.length,
+    //     attractionTransfers: day.services.filter(s => s.hasAttractionTransfer).length
+    //   });
+    // }
 
     // Create service sections with headings
     const createServiceSection = (services, title, icon, color) => {

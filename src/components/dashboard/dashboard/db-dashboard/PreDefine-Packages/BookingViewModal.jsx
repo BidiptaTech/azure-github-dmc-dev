@@ -197,9 +197,9 @@ const safeRender = (content, type = 'default') => {
 // Enhanced Service Card Component - For debugging data issues
 const ServiceCard = ({ service, fallback = false }) => {
   // Only log in development environment 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Service data:', service);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('Service data:', service);
+  // }
   
   // Extract basic information that should be available
   let serviceType = '';
@@ -471,9 +471,9 @@ const DayCard = ({ day, index, totalDays }) => {
   const hasServices = day.services && Array.isArray(day.services) && day.services.length > 0;
   
   // Debugging the day structure - only in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`Day ${day.day || index + 1} data:`, day);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log(`Day ${day.day || index + 1} data:`, day);
+  // }
   
   // Extract transport information from day data
   const hasArrivalPickup = day.arrival_pickup === 1 || day.arrival_pickup === true;
@@ -677,9 +677,9 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
   const itinerary = bookingDetails?.itinerary || [];
   
   // Log the itinerary data for debugging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Itinerary data:', itinerary);
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('Itinerary data:', itinerary);
+  // }
   
   // const itinerary = bookingDetails?.itinerary || [];
   

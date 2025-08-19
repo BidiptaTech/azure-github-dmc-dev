@@ -220,7 +220,7 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const { country, country_code } = await getUserCountry();
-      console.log("Country from getUserCountry:", country);
+      // console.log("Country from getUserCountry:", country);
       const response = await axios.post(
         `${BASE_URL}/login`,
         { email, password },
@@ -263,7 +263,7 @@ export const loginUser = createAsyncThunk(
           dmc_company_name: dmcCompanyName, // Add dmc_company_name from API response
         } = response.data.user;
 
-        console.log("DMC Logo from response:", zone_on); // Log the logo URL
+        // console.log("DMC Logo from response:", zone_on); // Log the logo URL
         const countryCode = country_code;
         // Convert currency symbol from Unicode to string without the semicolon
         const convertedCurrencySymbol = currencySymbol
@@ -432,7 +432,7 @@ export const loginUser = createAsyncThunk(
             secure: true,
             sameSite: "Strict",
           });
-          console.log('🎯 Auth Slice: Stored DMC ID in cookies for non-Agent user:', dmcId);
+          // console.log('🎯 Auth Slice: Stored DMC ID in cookies for non-Agent user:', dmcId);
         }
 
         // Also store in localStorage as a fallback
@@ -564,11 +564,11 @@ const authSlice = createSlice({
   reducers: {
     updateProfileData: (state, action) => {
       const { phone, image, agent_address } = action.payload;
-      console.log('updateProfileData called with:', { phone, image, agent_address });
-      console.log('Current state.profilePicture:', state.profilePicture);
+      // console.log('updateProfileData called with:', { phone, image, agent_address });
+      // console.log('Current state.profilePicture:', state.profilePicture);
       
       if (phone) {
-        console.log('Updating phone number from', state.phoneNo, 'to', phone);
+        // console.log('Updating phone number from', state.phoneNo, 'to', phone);
         state.phoneNo = phone;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -582,7 +582,7 @@ const authSlice = createSlice({
         const cleanImage = image.replace(/\\/g, '');
         // Cache-bust to force immediate refresh in UI
         const cacheBusted = cleanImage + (cleanImage.includes('?') ? `&t=${Date.now()}` : `?t=${Date.now()}`);
-        console.log('Updating profile picture from', state.profilePicture, 'to', cacheBusted);
+        // console.log('Updating profile picture from', state.profilePicture, 'to', cacheBusted);
         state.profilePicture = cacheBusted;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -591,10 +591,10 @@ const authSlice = createSlice({
           secure: true,
           sameSite: "Strict",
         });
-        console.log('Profile picture updated in state:', state.profilePicture);
+        // console.log('Profile picture updated in state:', state.profilePicture);
       }
       if (agent_address !== undefined) {
-        console.log('Updating agent address from', state.agent_address, 'to', agent_address);
+        // console.log('Updating agent address from', state.agent_address, 'to', agent_address);
         state.agent_address = agent_address;
         // Update cookie
         const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -686,7 +686,7 @@ const authSlice = createSlice({
       state.currencySymbol = action.payload;
     },
     setDmcLogo: (state, action) => {
-      console.log("setDmcLogo", action.payload);
+      // console.log("setDmcLogo", action.payload);
       state.DmcLogo = action.payload;
     },
     setDmcName: (state, action) => {
@@ -768,7 +768,7 @@ const authSlice = createSlice({
         
         // For non-Agent users, set DMC ID in DMC slice
         if (action.payload.dmcId && action.payload.userRole !== "Agent") {
-          console.log('🎯 Auth Slice: Setting DMC ID in DMC slice for non-Agent user:', action.payload.dmcId);
+          //  console.log('🎯 Auth Slice: Setting DMC ID in DMC slice for non-Agent user:', action.payload.dmcId);
           // Note: We can't dispatch from here, so we'll handle this in the component that calls loginUser
         }
         
