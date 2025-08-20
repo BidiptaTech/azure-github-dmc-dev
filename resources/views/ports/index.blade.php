@@ -70,7 +70,7 @@
                                 <td>{{ $port->longitude }}</td>
                                 {{-- <td>{{ $port->distance }}</td> --}}
                                 <td>
-                                    <form action="{{ route('port.toggle-status', $port->port_id) }}" method="POST" style="display: inline;">
+                                    <form action="{{ route('port.toggle-status', Crypt::encrypt($port->port_id)) }}" method="POST" style="display: inline;">
                                         @csrf
                                         <button type="submit" class="btn btn-sm {{ $port->status ? 'btn-success' : 'btn-danger' }}">
                                             {{ $port->status ? 'Active' : 'Inactive' }}
@@ -80,21 +80,21 @@
                                 <td>
                                     <div class="d-flex gap-1">
                                         <!-- View -->
-                                        <a href="{{ route('ports.show', $port->port_id) }}" 
+                                        <a href="{{ route('ports.show', Crypt::encrypt($port->port_id)) }}" 
                                            class="btn btn-info btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                            style="width: 28px; height: 28px; padding: 0;" title="View">
                                             <i class="ri-eye-line" style="font-size: 16px;"></i>
                                         </a>
 
                                         <!-- Edit -->
-                                        <a href="{{ route('ports.edit', $port->port_id) }}" 
+                                        <a href="{{ route('ports.edit', Crypt::encrypt($port->port_id)) }}" 
                                            class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                            style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                             <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                         </a>
 
                                         <!-- Delete -->
-                                        <form action="{{ route('ports.destroy', $port->port_id) }}" method="POST" class="d-inline">
+                                        <form action="{{ route('ports.destroy', Crypt::encrypt($port->port_id)) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" 
