@@ -111,9 +111,7 @@
                             <a href="{{ route('single-tour-package.create') }}" class="btn btn-primary btn-lg px-4">
                                 <i class="ri-add-line me-2"></i>Create Another Tour Package
                             </a>
-                            <a href="{{ route('single-tour-package.index') }}" class="btn btn-outline-primary btn-lg px-4">
-                                <i class="ri-list-check me-2"></i>View All Packages
-                            </a>
+                            
                             <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-lg px-4">
                                 <i class="ri-dashboard-line me-2"></i>Back to Dashboard
                             </a>

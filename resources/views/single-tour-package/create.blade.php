@@ -1228,7 +1228,7 @@
 
                         // Send request to store orders
                         console.log('Store orders URL:', '{{ route('single-tour-package.store-orders') }}');
-                        const response = await fetch('/single-tour-package-store-orders', {
+                        const response = await fetch('/package-store-orders', {
                             method: 'POST',
                             headers: {
                                 'X-Requested-With': 'XMLHttpRequest',

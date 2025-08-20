@@ -139,7 +139,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
     Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
     Route::post('/single-tour-package', [SingleTourPackageController::class, 'store'])->name('single-tour-package.store');
-    Route::post('/single-tour-package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
+    Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
     Route::get('/single-tour-package/{id}', [SingleTourPackageController::class, 'show'])->name('single-tour-package.show');
     Route::get('/single-tour-package/{id}/edit', [SingleTourPackageController::class, 'edit'])->name('single-tour-package.edit');
     Route::put('/single-tour-package/{id}', [SingleTourPackageController::class, 'update'])->name('single-tour-package.update');
