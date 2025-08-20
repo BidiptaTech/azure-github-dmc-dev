@@ -15,6 +15,7 @@ use App\Models\Guide;
 use App\Models\Restaurant;
 use App\Models\Meal;
 use App\Models\Zone;
+use App\Models\Order;
 use App\Models\Vehicle;
 use App\Models\VehicleZoneMapping;
 use Illuminate\Support\Facades\Auth;
@@ -29,8 +30,11 @@ class SingleTourPackageController extends Controller
      */
     public function index()
     {
-        $packages = SingleTourPackage::with(['country', 'city', 'agent'])
-            ->where('dmc_id', Auth::id())
+        // Query tours table since that's where the data is actually stored
+        $packages = Tour::with(['agent'])
+            ->whereHas('agent', function($query) {
+                $query->where('sales_manager_dmc', Auth::id());
+            })
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -54,6 +58,29 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * Show thank you page after successful tour package creation
+     */
+    public function thankYou(Request $request)
+    {
+        // Handle POST data from JavaScript form submission
+        if ($request->isMethod('post')) {
+            $tourDetails = $request->input('tour_details');
+            $createdOrders = $request->input('created_orders');
+            
+            if ($tourDetails) {
+                session(['tour_details' => json_decode($tourDetails, true)]);
+            }
+            if ($createdOrders) {
+                session(['created_orders' => json_decode($createdOrders, true)]);
+            }
+            
+            return redirect()->route('single-tour-package.thank-you');
+        }
+        
+        return view('single-tour-package.thank-you');
+    }
+
+    /**
      * Store a newly created single tour package in storage.
      */
     public function store(Request $request)
@@ -72,7 +99,7 @@ class SingleTourPackageController extends Controller
             'package_name' => 'nullable|string|max:255',
             'estimated_budget' => 'nullable|numeric|min:0',
             'package_description' => 'nullable|string',
-            'is_premium' => 'nullable|boolean'
+            'is_premium' => 'nullable|boolean',
         ]);
 
         // Additional validation: male + female should equal adults
@@ -108,7 +135,7 @@ class SingleTourPackageController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "Pending";
             $tour->city = $request->city;
-            $tour->child_ages = null; // You can add this field to the form if needed
+            $tour->child_ages = $request->child_ages ?? null;
             $tour->save();
 
             DB::commit();
@@ -146,14 +173,13 @@ class SingleTourPackageController extends Controller
 
     /**
      * Display the specified single tour package.
+     * Note: Not used in current workflow - user stays on create page
      */
     public function show($id)
     {
-        $package = SingleTourPackage::with(['country', 'city', 'agent', 'dmc'])
-            ->where('dmc_id', Auth::id())
-            ->findOrFail($id);
-
-        return view('single-tour-package.show', compact('package'));
+        // Not implemented - user workflow doesn't need this
+        return redirect()->route('single-tour-package.create')
+            ->with('info', 'Redirected to create page - show functionality not implemented');
     }
 
     /**
@@ -161,12 +187,11 @@ class SingleTourPackageController extends Controller
      */
     public function edit($id)
     {
-        $package = SingleTourPackage::where('dmc_id', Auth::id())->findOrFail($id);
+        $package = Tour::findOrFail($id);
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $cities = City::where('country_id', $package->country_id)->orderBy('name')->get();
+        $cities = City::orderBy('name')->get();
         
-        $agents = Agent::where('root_dmc_id', Auth::id())
-            ->orWhere('sales_manager_dmc', Auth::id())
+        $agents = Agent::where('sales_manager_dmc', Auth::id())
             ->orderBy('name')
             ->get();
 
@@ -178,7 +203,7 @@ class SingleTourPackageController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $package = SingleTourPackage::where('dmc_id', Auth::id())->findOrFail($id);
+        $package = Tour::findOrFail($id);
 
         $request->validate([
             'country_id' => 'required|exists:countries,id',
@@ -234,7 +259,7 @@ class SingleTourPackageController extends Controller
     public function destroy($id)
     {
         try {
-            $package = SingleTourPackage::where('dmc_id', Auth::id())->findOrFail($id);
+            $package = Tour::findOrFail($id);
             $package->delete();
 
             return redirect()->route('single-tour-package.index')
@@ -459,7 +484,7 @@ class SingleTourPackageController extends Controller
                 ->where(function ($q) use ($city) {
                     $q->whereRaw('LOWER(city) = ?', [strtolower($city)]);
                 })
-                ->select('hotel_unique_id', 'name', 'city', 'main_image', 'hotel_star_rating', 'latitude', 'longitude')
+                ->select('hotel_unique_id', 'name', 'city', 'main_image', 'hotel_star_rating', 'latitude', 'longitude', 'check_in_time', 'check_out_time')
                 ->orderBy('name')
                 ->get();
 
@@ -919,6 +944,498 @@ class SingleTourPackageController extends Controller
                     'error_file' => $e->getFile()
                 ]
             ], 500);
+        }
+    }
+
+    /**
+     * Get service name based on service type and data using exact field names from your JSON
+     */
+    private function getServiceName($serviceType, $data)
+    {
+        switch ($serviceType) {
+            case 'hotel':
+                return $data['hotelDetails']['hotel_name'] ?? 'Hotel Booking';
+            case 'attraction':
+                return $data['AttractionName'] ?? 'Attraction Visit'; // Using AttractionName from your JSON
+            case 'restaurant':
+                return $data['name'] ?? 'Restaurant Booking';
+            case 'guide':
+                return $data['guide_name'] ?? 'Guide Service'; // Using guide_name from your JSON
+            case 'transport':
+                return $data['vehicles_name'] ?? 'Transport Service'; // Using vehicles_name from your JSON
+            case 'entry_port':
+                return $data['name'] ?? 'Entry Port Service';
+            case 'exit_port':
+                return $data['name'] ?? 'Exit Port Service';
+            default:
+                return 'Service';
+        }
+    }
+
+    /**
+     * Extract booking date based on service type using exact field names from your JSON
+     */
+    private function extractBookingDate($serviceType, $data)
+    {
+        switch ($serviceType) {
+            case 'hotel':
+                return $data['bookingDate'][0] ?? null; // First date from array
+            case 'attraction':
+                return $data['bookingDate'] ?? null; // Single date string
+            case 'restaurant':
+                return $data['bookingDate'] ?? null; // Single date string
+            case 'guide':
+                return $data['pickupdate'] ?? null; // Using pickupdate from guide data
+            case 'transport':
+                return $data['pickupdate'] ?? null; // Using pickupdate from transport data
+            case 'entry_port':
+                return $data['pickupdate'] ?? null; // Using pickupdate from entry port data
+            case 'exit_port':
+                return $data['exitpickupdate'] ?? null; // Using exitpickupdate from exit port data
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Store service orders in orders table (called separately after tour creation)
+     */
+    public function storeServiceOrders(Request $request)
+    {
+        $request->validate([
+            'tour_id' => 'required|integer',
+            'agent_id' => 'required|integer',
+            'hotel_data' => 'nullable|string',
+            'attraction_data' => 'nullable|string',
+            'restaurant_data' => 'nullable|string',
+            'guide_data' => 'nullable|string',
+            'transport_data' => 'nullable|string',
+            'entry_port_data' => 'nullable|string',
+            'exit_port_data' => 'nullable|string'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $tourId = $request->tour_id;
+            $agentId = $request->agent_id;
+
+            // Debug: Log incoming data
+            \Log::info('Store Service Orders Request Data:', [
+                'tour_id' => $tourId,
+                'agent_id' => $agentId,
+                'hotel_data' => $request->hotel_data,
+                'attraction_data' => $request->attraction_data,
+                'guide_data' => $request->guide_data,
+                'restaurant_data' => $request->restaurant_data,
+                'transport_data' => $request->transport_data,
+                'entry_port_data' => $request->entry_port_data,
+                'exit_port_data' => $request->exit_port_data
+            ]);
+            
+            // Additional debugging for hotel data
+            if ($request->hotel_data) {
+                $hotelDataDecoded = json_decode($request->hotel_data, true);
+                \Log::info('Hotel Data Analysis:', [
+                    'raw_hotel_data' => $request->hotel_data,
+                    'decoded_hotel_data' => $hotelDataDecoded,
+                    'is_array' => is_array($hotelDataDecoded),
+                    'count' => is_array($hotelDataDecoded) ? count($hotelDataDecoded) : 0,
+                    'first_item_keys' => is_array($hotelDataDecoded) && count($hotelDataDecoded) > 0 ? array_keys($hotelDataDecoded[0]) : []
+                ]);
+            }
+
+            $serviceTypes = [
+                'hotel' => 'hotel_data',
+                'attraction' => 'attraction_data', 
+                'restaurant' => 'restaurant_data',
+                'guide' => 'guide_data',
+                'transport' => 'transport_data',
+                'entry_port' => 'entry_port_data',
+                'exit_port' => 'exit_port_data'
+            ];
+
+            $createdOrders = [];
+
+            foreach ($serviceTypes as $type => $dataField) {
+                $serviceData = $request->input($dataField);
+                
+                \Log::info("Processing service type: {$type}", [
+                    'dataField' => $dataField,
+                    'serviceData' => $serviceData,
+                    'isEmpty' => empty($serviceData),
+                    'isEmptyArray' => $serviceData === '[]'
+                ]);
+                
+                if ($serviceData && $serviceData !== '[]' && $serviceData !== '') {
+                    // Decode JSON data
+                    $decodedData = json_decode($serviceData, true);
+                    
+                    \Log::info("Decoded data for {$type}:", [
+                        'decodedData' => $decodedData,
+                        'isArray' => is_array($decodedData),
+                        'count' => is_array($decodedData) ? count($decodedData) : 0
+                    ]);
+                    
+                    if (is_array($decodedData) && count($decodedData) > 0) {
+                        if ($type === 'hotel') {
+                            // For hotels, store all hotel bookings as an array in one order
+                            $hotelDataArray = [];
+                            
+                            foreach ($decodedData as $hotelBooking) {
+                                try {
+                                    // Debug: Log the raw hotel data to see what's coming through
+                                    \Log::info("Raw hotel data received:", [
+                                        'hotel_booking' => $hotelBooking,
+                                        'has_fullName' => isset($hotelBooking['fullName']),
+                                        'has_hotelDetails' => isset($hotelBooking['hotelDetails']),
+                                        'hotel_name_value' => $hotelBooking['hotelDetails']['hotel_name'] ?? 'NOT_SET',
+                                        'available_keys' => array_keys($hotelBooking)
+                                    ]);
+                                    
+                                    // Get tour details to extract customer information if hotel data is empty
+                                    $tour = Tour::where('tour_id', $tourId)->first();
+                                    
+                                    // Check if we have valid hotel data or if it's empty
+                                    $hasValidHotelData = !empty($hotelBooking['hotelDetails']['hotel_name'] ?? $hotelBooking['hotel_name'] ?? '') && 
+                                                       !empty($hotelBooking['fullName'] ?? '');
+                                    
+                                    if (!$hasValidHotelData) {
+                                        \Log::warning("Hotel data is incomplete or empty. Raw data:", [
+                                            'hotel_booking' => $hotelBooking,
+                                            'tour_id' => $tourId,
+                                            'available_keys' => array_keys($hotelBooking)
+                                        ]);
+                                    }
+                                    
+                                    // Ensure hotel data includes all required customer details and maintains exact format
+                                    $enhancedHotelData = [
+                                        // Customer details - use hotel data if available, otherwise use defaults
+                                        'fullName' => $hotelBooking['fullName'] ?? 'Guest User',
+                                        'email' => $hotelBooking['email'] ?? 'guest@example.com',
+                                        'phone' => $hotelBooking['phone'] ?? '0000000000',
+                                        'countryCode' => $hotelBooking['countryCode'] ?? '65',
+                                        'address1' => $hotelBooking['address1'] ?? 'Address not provided',
+                                        'address2' => $hotelBooking['address2'] ?? null,
+                                        'state' => $hotelBooking['state'] ?? 'State not provided',
+                                        'zip' => $hotelBooking['zip'] ?? '000000',
+                                        'specialRequests' => $hotelBooking['specialRequests'] ?? null,
+                                        'id' => $hotelBooking['id'] ?? null,
+                                        'bookingType' => $hotelBooking['bookingType'] ?? 'enquiry',
+                                        
+                                        // Hotel booking dates
+                                        'bookingDate' => $hotelBooking['bookingDate'] ?? [],
+                                        
+                                        // Hotel details - ensure we have valid data with proper null checks
+                                        'hotelDetails' => [
+                                            'hotel_id' => $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? 'hotel_' . time(),
+                                            'hotel_name' => $hotelBooking['hotelDetails']['hotel_name'] ?? $hotelBooking['hotel_name'] ?? 'Hotel Booking',
+                                            'image' => $hotelBooking['hotelDetails']['image'] ?? $hotelBooking['hotel_image'] ?? '',
+                                            'location' => $hotelBooking['hotelDetails']['location'] ?? $hotelBooking['hotel_location'] ?? 'Location not specified',
+                                            'checkInTime' => $hotelBooking['hotelDetails']['checkInTime'] ?? $hotelBooking['check_in_time'] ?? '15:00:00',
+                                            'checkOutTime' => $hotelBooking['hotelDetails']['checkOutTime'] ?? $hotelBooking['check_out_time'] ?? '12:00:00',
+                                            'cancellation_charge' => $hotelBooking['hotelDetails']['cancellation_charge'] ?? null
+                                        ],
+                                        
+                                        // Price and mode
+                                        'priceMode' => $hotelBooking['priceMode'] ?? 'dmc',
+                                        'priceModeId' => $hotelBooking['priceModeId'] ?? 0,
+                                        
+                                        // Rooms data (exact structure)
+                                        'rooms' => $hotelBooking['rooms'] ?? [],
+                                        
+                                        // Total price
+                                        'totalPrice' => $hotelBooking['totalPrice'] ?? 0,
+                                        
+                                        // Tour ID
+                                        'tour_id' => $tourId
+                                    ];
+                                    
+                                    $hotelDataArray[] = $enhancedHotelData;
+                                    
+                                } catch (\Exception $e) {
+                                    \Log::error("Error processing hotel booking:", [
+                                        'error' => $e->getMessage(),
+                                        'hotel_booking' => $hotelBooking,
+                                        'tour_id' => $tourId,
+                                        'line' => $e->getLine(),
+                                        'file' => $e->getFile()
+                                    ]);
+                                    
+                                    // Continue with next hotel booking instead of failing completely
+                                    continue;
+                                }
+                            }
+                            
+                            // Create one order with all hotel data as array
+                            if (!empty($hotelDataArray)) {
+                                $order = Order::create([
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => $hotelDataArray, // Store all hotel data as array
+                                    'type' => $type,
+                                    'status' => 1,
+                                ]);
+
+                                \Log::info("Hotel orders created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'hotel_count' => count($hotelDataArray),
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $type,
+                                    'order_id' => $order->booking_id,
+                                    'hotel_count' => count($hotelDataArray),
+                                    'data_count' => count($hotelDataArray)
+                                ];
+                            }
+                            
+                        } elseif ($type === 'attraction') {
+                            // For attractions, store all attractions as an array in one order
+                            $attractionDataArray = [];
+                            
+                            foreach ($decodedData as $attraction) {
+                                $attractionDataArray[] = $attraction;
+                            }
+                            
+                            // Create one order with all attraction data as array
+                            if (!empty($attractionDataArray)) {
+                                $order = Order::create([
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => $attractionDataArray, // Store all attraction data as array
+                                    'type' => $type,
+                                    'status' => 1,
+                                ]);
+
+                                \Log::info("Attraction orders created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'attraction_count' => count($attractionDataArray),
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $type,
+                                    'order_id' => $order->booking_id,
+                                    'attraction_count' => count($attractionDataArray),
+                                    'data_count' => count($attractionDataArray)
+                                ];
+                            }
+                            
+                        } elseif ($type === 'restaurant') {
+                            // For restaurants, store all restaurants as an array in one order
+                            $restaurantDataArray = [];
+                            
+                            foreach ($decodedData as $restaurant) {
+                                $restaurantDataArray[] = $restaurant;
+                            }
+                            
+                            // Create one order with all restaurant data as array
+                            if (!empty($restaurantDataArray)) {
+                                $order = Order::create([
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => $restaurantDataArray, // Store all restaurant data as array
+                                    'type' => $type,
+                                    'status' => 1,
+                                ]);
+
+                                \Log::info("Restaurant orders created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'restaurant_count' => count($restaurantDataArray),
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $type,
+                                    'order_id' => $order->booking_id,
+                                    'restaurant_count' => count($restaurantDataArray),
+                                    'data_count' => count($restaurantDataArray)
+                                ];
+                            }
+                            
+                        } elseif ($type === 'guide') {
+                            // For guides, store all guides as an array in one order
+                            $guideDataArray = [];
+                            
+                            foreach ($decodedData as $guide) {
+                                $guideDataArray[] = $guide;
+                            }
+                            
+                            // Create one order with all guide data as array
+                            if (!empty($guideDataArray)) {
+                                $order = Order::create([
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => $guideDataArray, // Store all guide data as array
+                                    'type' => $type,
+                                    'status' => 1,
+                                ]);
+
+                                \Log::info("Guide orders created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'guide_count' => count($guideDataArray),
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $type,
+                                    'order_id' => $order->booking_id,
+                                    'guide_count' => count($guideDataArray),
+                                    'data_count' => count($guideDataArray)
+                                ];
+                            }
+                            
+                        } elseif ($type === 'transport') {
+                            // For transport, store all transport as an array in one order
+                            $transportDataArray = [];
+                            
+                            foreach ($decodedData as $transport) {
+                                $transportDataArray[] = $transport;
+                            }
+                            
+                            // Create one order with all transport data as array
+                            if (!empty($transportDataArray)) {
+                                $order = Order::create([
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => $transportDataArray, // Store all transport data as array
+                                    'type' => $type,
+                                    'status' => 1,
+                                ]);
+
+                                \Log::info("Transport orders created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'transport_count' => count($transportDataArray),
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $type,
+                                    'order_id' => $order->booking_id,
+                                    'transport_count' => count($transportDataArray),
+                                    'data_count' => count($transportDataArray)
+                                ];
+                            }
+                            
+                        } else {
+                            // For other services (entry_port, exit_port), store all as an array in one order
+                            $serviceDataArray = [];
+                            
+                            foreach ($decodedData as $service) {
+                                $serviceDataArray[] = $service;
+                            }
+                            
+                            // Create one order with all service data as array
+                            if (!empty($serviceDataArray)) {
+                                $order = Order::create([
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => $serviceDataArray, // Store all service data as array
+                                    'type' => $type,
+                                    'status' => 1,
+                                ]);
+
+                                \Log::info("{$type} orders created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'service_count' => count($serviceDataArray),
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $type,
+                                    'order_id' => $order->booking_id,
+                                    'service_count' => count($serviceDataArray),
+                                    'data_count' => count($serviceDataArray)
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            // Get tour details for thank you page
+            $tour = Tour::where('tour_id', $tourId)->first();
+            
+            // Get all service orders with booking dates for thank you page
+            $serviceOrders = Order::where('tour_id', $tourId)
+                ->orderBy('created_at', 'asc')
+                ->get();
+            
+            $servicesByDate = [];
+            foreach ($serviceOrders as $order) {
+                $orderData = $order->data;
+                
+                // Check if orderData is an array (new structure) or single object (old structure)
+                if (is_array($orderData) && isset($orderData[0])) {
+                    // New structure: orderData is an array of services
+                    foreach ($orderData as $serviceData) {
+                        $bookingDate = $this->extractBookingDate($order->type, $serviceData);
+                        
+                        if ($bookingDate) {
+                            $formattedDate = \Carbon\Carbon::parse($bookingDate)->format('M d, Y');
+                            if (!isset($servicesByDate[$formattedDate])) {
+                                $servicesByDate[$formattedDate] = [];
+                            }
+                            
+                            $servicesByDate[$formattedDate][] = [
+                                'type' => $order->type,
+                                'name' => $this->getServiceName($order->type, $serviceData),
+                                'order_id' => $order->booking_id,
+                                'data' => $serviceData // Include individual service data for synchronization
+                            ];
+                        }
+                    }
+                } else {
+                    // Old structure: orderData is a single service object
+                    $bookingDate = $this->extractBookingDate($order->type, $orderData);
+                    
+                    if ($bookingDate) {
+                        $formattedDate = \Carbon\Carbon::parse($bookingDate)->format('M d, Y');
+                        if (!isset($servicesByDate[$formattedDate])) {
+                            $servicesByDate[$formattedDate] = [];
+                        }
+                        
+                        $servicesByDate[$formattedDate][] = [
+                            'type' => $order->type,
+                            'name' => $this->getServiceName($order->type, $orderData),
+                            'order_id' => $order->booking_id,
+                            'data' => $orderData // Include full data for synchronization
+                        ];
+                    }
+                }
+            }
+            
+            $tourDetails = [
+                'tour_id' => $tourId,
+                'display_id' => $tour->display_id ?? 'N/A',
+                'destination' => $tour->destination ?? 'N/A',
+                'city' => $tour->city ?? 'N/A',
+                'check_in_date' => $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') : 'N/A',
+                'check_out_date' => $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') : 'N/A',
+                'total_guests' => ($tour->adult ?? 0) + ($tour->child ?? 0) + ($tour->infant ?? 0),
+                'services_by_date' => $servicesByDate
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All service orders saved successfully!',
+                'created_orders' => $createdOrders,
+                'tour_id' => $tourId,
+                'tour_details' => $tourDetails,
+                'redirect_url' => route('single-tour-package.thank-you')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save service orders. Error: ' . $e->getMessage()
+            ], 422);
         }
     }
 } 
