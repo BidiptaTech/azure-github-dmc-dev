@@ -3178,8 +3178,26 @@ class HotelController extends Controller
     {
         // Check if user is DMC (role_id = 11)
         $user = auth()->user();
-        if ($user->role_id != 11) {
+        $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+
+        if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 77){
+            $product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $product_head->created_by;
+        }else if($user->role_id == 84){
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $dmc_id = $product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
         // Get all available hotels
@@ -3189,13 +3207,13 @@ class HotelController extends Controller
                           ->get();
         
         // Filter hotels that are selected by the current DMC
-        $selectedHotels = $allHotels->filter(function($hotel) use ($user) {
-            return $hotel->hasSelectedByDmc($user->userId);
+        $selectedHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
+            return $hotel->hasSelectedByDmc($dmc_id);
         });
-        
+
         // Get hotels that are not selected by the current DMC
-        $availableHotels = $allHotels->filter(function($hotel) use ($user) {
-            return !$hotel->hasSelectedByDmc($user->userId);
+        $availableHotels = $allHotels->filter(function($hotel) use ($dmc_id) {
+            return !$hotel->hasSelectedByDmc($dmc_id);
         });
 
         return view('services.hotels', compact('availableHotels', 'selectedHotels'));

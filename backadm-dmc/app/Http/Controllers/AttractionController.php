@@ -635,8 +635,25 @@ class AttractionController extends Controller
     {
         // Check if user is DMC (role_id = 11)
         $user = auth()->user();
-        if ($user->role_id != 11) {
+        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 74){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->userId;
+        }else if($user->role_id == 93){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->userId;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
         // Get all available attractions
@@ -645,13 +662,13 @@ class AttractionController extends Controller
                                    ->get();
         
         // Filter attractions that are selected by the current DMC
-        $selectedAttractions = $allAttractions->filter(function($attraction) use ($user) {
-            return $attraction->hasSelectedByDmc($user->userId);
+        $selectedAttractions = $allAttractions->filter(function($attraction) use ($dmc_id) {
+            return $attraction->hasSelectedByDmc($dmc_id);
         });
         
         // Get attractions that are not selected by the current DMC
-        $availableAttractions = $allAttractions->filter(function($attraction) use ($user) {
-            return !$attraction->hasSelectedByDmc($user->userId);
+        $availableAttractions = $allAttractions->filter(function($attraction) use ($dmc_id) {
+            return !$attraction->hasSelectedByDmc($dmc_id);
         });
 
         return view('services.attractions', compact('availableAttractions', 'selectedAttractions'));
@@ -664,21 +681,38 @@ class AttractionController extends Controller
     public function updateDmcAttractions(Request $request)
     {
         $user = auth()->user();
-        if ($user->role_id != 11) {
+        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to perform this action.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 74){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }else if($user->role_id == 93){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
         $selectedAttractions = $request->input('selected_attractions', []);
         
         // Remove DMC ID from all attractions first
-        Attraction::whereJsonContains('dmc_id', $user->userId)->get()->each(function($attraction) use ($user) {
-            $attraction->removeDmcId($user->userId);
+        Attraction::whereJsonContains('dmc_id', $dmc_id)->get()->each(function($attraction) use ($dmc_id) {
+            $attraction->removeDmcId($dmc_id);
         });
         
         // Add DMC ID to selected attractions
         if (!empty($selectedAttractions)) {
-            Attraction::whereIn('attraction_id', $selectedAttractions)->get()->each(function($attraction) use ($user) {
-                $attraction->addDmcId($user->userId);
+            Attraction::whereIn('attraction_id', $selectedAttractions)->get()->each(function($attraction) use ($dmc_id) {
+                $attraction->addDmcId($dmc_id);
             });
         }
 
@@ -694,9 +728,30 @@ class AttractionController extends Controller
         try {
             $attractionId = $request->input('attraction_id');
             $user = Auth::user();
+
+        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        if (!in_array($user->role_id, $allowedRoles)) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 74){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }else if($user->role_id == 93){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
+        }
             
             // Find the attraction
-            $attraction = Attraction::find($attractionId);
+            $attraction = Attraction::where('attraction_id', $attractionId)->first();
             if (!$attraction) {
                 return response()->json([
                     'success' => false,
@@ -705,7 +760,7 @@ class AttractionController extends Controller
             }
             
             // Add the DMC ID to the attraction's dmc_id array
-            $attraction->addDmcId($user->userId);
+            $attraction->addDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,
@@ -730,9 +785,30 @@ class AttractionController extends Controller
         try {
             $attractionId = $request->input('attraction_id');
             $user = Auth::user();
+
+            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        if (!in_array($user->role_id, $allowedRoles)) {
+            abort(403, 'You do not have permission to perform this action.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 74){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }else if($user->role_id == 93){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
+        }
             
             // Find the attraction
-            $attraction = Attraction::find($attractionId);
+            $attraction = Attraction::where('attraction_id', $attractionId)->first();
             if (!$attraction) {
                 return response()->json([
                     'success' => false,
@@ -741,7 +817,7 @@ class AttractionController extends Controller
             }
             
             // Check if this DMC has selected this attraction
-            if (!$attraction->hasSelectedByDmc($user->userId)) {
+            if (!$attraction->hasSelectedByDmc($dmc_id)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Attraction not selected by you.'
@@ -749,7 +825,7 @@ class AttractionController extends Controller
             }
             
             // Remove the DMC ID from the attraction's dmc_id array
-            $attraction->removeDmcId($user->userId);
+            $attraction->removeDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,
