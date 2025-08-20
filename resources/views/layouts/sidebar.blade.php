@@ -925,59 +925,58 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-                <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
-                        <div data-i18n="All Products">All Products</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <!-- Packages -->
-                {{-- <li class="menu-item @if((Request::is('packages*') && !Request::is('packaged-attractions*')) || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*')) open active @endif">
-                    <a href="#" class="menu-link menu-toggle">
-                        <i class="menu-icon tf-icons ri-gift-line"></i>
-                        <div data-i18n="Packages">Packages</div>
-                    </a>
-                    <ul class="menu-sub"> --}}
-                        <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
-                            <a href="{{ route('packages.index') }}" class="menu-link" title="Packages">
-                                {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
-                                <div data-i18n="Packages" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Packages</span>
-                                    <span class="tooltip-text">Packages</span>
-                                </div>
-                            </a>
-                        </li>
-                        {{-- <li class="menu-item @if(Request::is('packages/create')) active @endif">
-                            <a href="{{ route('packages.create') }}" class="menu-link">
-                                <div data-i18n="Create Package" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Create Predefined Package</span>
-                                    <span class="tooltip-text">Create Predefined Package</span>
-                                </div>
-                            </a>
-                        </li> --}}
-                        @if(in_array(auth()->user()->role_id, [33]))
-                        <!-- Single Tour Package for DMCs -->
-                        {{-- <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
-                            <a href="{{ route('single-tour-package.create') }}" class="menu-link" title="Create Tour Package">
-                                <i class="menu-icon tf-icons ri-gift-line"></i>
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*') || Request::is('category*') || Request::is('facility*') || Request::is('ports*') || Request::is('single-tour-package*') || Request::is('zones*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
+                    <div data-i18n="All Products">All Products</div>
+                </a>
+                <ul class="menu-sub">
+                    <!-- Packages -->
+            {{-- <li class="menu-item @if((Request::is('packages*') && !Request::is('packaged-attractions*')) || Request::is('predefined-package-booking-list') || Request::is('single-tour-package*')) open active @endif">
+                <a href="#" class="menu-link menu-toggle">
+                    <i class="menu-icon tf-icons ri-gift-line"></i>
+                    <div data-i18n="Packages">Packages</div>
+                </a>
+                <ul class="menu-sub"> --}}
+                    <li class="menu-item @if(Request::is('packages') && !Request::is('packaged-attractions*')) active @endif">
+                        <a href="{{ route('packages.index') }}" class="menu-link" title="Packages">
+                            {{-- <i class="menu-icon tf-icons ri-gift-line"></i> --}}
+                            <div data-i18n="Packages" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Packages</span>
+                                <span class="tooltip-text">Packages</span>
+                            </div>
+                        </a>
+                    </li>
+                    {{-- <li class="menu-item @if(Request::is('packages/create')) active @endif">
+                        <a href="{{ route('packages.create') }}" class="menu-link">
+                            <div data-i18n="Create Package" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Create Predefined Package</span>
+                                <span class="tooltip-text">Create Predefined Package</span>
+                            </div>
+                        </a>
+                    </li> --}}
+                    @if(in_array(auth()->user()->role_id, [33]))
+                    <!-- Single Tour Package for DMCs -->
+                     <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+                        <a href="{{ route('single-tour-package.create') }}" class="menu-link" title="Create Tour Package">
                                 <div data-i18n="Create Tour Package" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Create Tour Package</span>
-                                    <span class="tooltip-text">Create Tour Package</span>
-                                </div>
-                            </a>
-                        </li> --}}
-                        {{-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
-                            <a href="{{ route('single-tour-package.index') }}" class="menu-link">
-                                <div data-i18n="Single Tour Packages" class="menu-tooltip">
-                                    <span class="menu-text-with-tooltip">Single Tour Packages</span>
-                                    <span class="tooltip-text">Single Tour Packages</span>
-                                </div>
-                            </a>
-                        </li> --}}
-                        @endif
-                        
-                    {{-- </ul>
-                </li> --}}
+                                <span class="menu-text-with-tooltip">Create Tour Package</span>
+                                <span class="tooltip-text">Create Tour Package</span>
+                            </div>
+                        </a>
+                    </li> 
+                    {{-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
+                        <a href="{{ route('single-tour-package.index') }}" class="menu-link">
+                            <div data-i18n="Single Tour Packages" class="menu-tooltip">
+                                <span class="menu-text-with-tooltip">Single Tour Packages</span>
+                                <span class="tooltip-text">Single Tour Packages</span>
+                            </div>
+                        </a>
+                    </li> --}}
+                    @endif
+                    
+                {{-- </ul>
+            </li> --}}
 
                 <!-- Packaged Attractions -->
                 {{-- <li class="menu-item @if(Request::is('packaged-attractions*') && !Request::is('packaged-attractions/packaged-attraction-approval*')) open active @endif">

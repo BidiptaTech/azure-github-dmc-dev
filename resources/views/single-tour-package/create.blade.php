@@ -284,7 +284,16 @@
             <input type="hidden" id="hotelBookings" name="hotel_bookings" value="[]">
             <input type="hidden" id="guideBookings" name="guide_bookings" value="[]">
             <input type="hidden" id="vehicleBookings" name="vehicle_bookings" value="[]">
-            <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
+                        <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
+            
+            <!-- JSON Data Fields for Service Orders -->
+            <input type="hidden" id="hotel_data" name="hotel_data" value="">
+            <input type="hidden" id="attraction_data" name="attraction_data" value="">
+            <input type="hidden" id="restaurant_data" name="restaurant_data" value="">
+            <input type="hidden" id="guide_data" name="guide_data" value="">
+            <input type="hidden" id="transport_data" name="transport_data" value="">
+            <input type="hidden" id="entry_port_data" name="entry_port_data" value="">
+            <input type="hidden" id="exit_port_data" name="exit_port_data" value="">
 
             <!-- Customer Information Section -->
             <div class="row mb-4">
@@ -438,45 +447,841 @@
                     alert(message);
                 }
 
+                // Function to collect hotel data when hotels are selected
+                function updateHotelDataField() {
+                    // Safety check: ensure selectedHotels is an array
+                    if (!Array.isArray(selectedHotels)) {
+                        console.warn('selectedHotels is not an array, initializing as empty array');
+                        selectedHotels = [];
+                    }
+                    
+                    const hotelDataArray = selectedHotels.map(hotel => {
+                        // Debug: Log the hotel object to see its structure
+                        console.log('Processing hotel object:', hotel);
+                        
+                        // Get current guest information from main form
+                        const adults = parseInt(document.getElementById('adults').value) || 0;
+                        const male = parseInt(document.getElementById('male').value) || 0;
+                        const female = parseInt(document.getElementById('female').value) || 0;
+                        const children = parseInt(document.getElementById('children').value) || 0;
+                        const infants = parseInt(document.getElementById('infants').value) || 0;
+                        
+                        // Get customer information from the Customer Information form
+                        const customerData = getCustomerData();
+                        
+                        // Find the selected hotel data from hotelData array
+                        const selectedHotelInfo = hotelData.find(h => h.hotel_unique_id == hotel.id);
+                        
+                        return {
+                            // Customer Information (from Customer Information form)
+                            fullName: customerData.fullName,
+                            email: customerData.email,
+                            phone: customerData.phone,
+                            countryCode: customerData.countryCode,
+                            address1: customerData.address1,
+                            address2: customerData.address2,
+                            state: customerData.state,
+                            zip: customerData.zip,
+                            specialRequests: customerData.specialRequests,
+                            
+                            // Hotel Information
+                            hotel_id: hotel.id,
+                            hotel_name: hotel.name,
+                            hotel_unique_id: hotel.id,
+                            room_type: hotel.roomType,
+                            bed_type: hotel.bedType,
+                            meal_plan: hotel.mealPlan,
+                            number_of_rooms: parseInt(hotel.numberOfRooms) || 1,
+                            nights: hotel.nights,
+                            check_in_date: hotel.checkInDate,
+                            check_out_date: hotel.checkOutDate,
+                            total_nights: hotel.totalNights,
+                            
+                            // Booking Dates (required for the backend) - Format as YYYY-MM-DD
+                            bookingDate: [
+                                hotel.checkInDate ? new Date(hotel.checkInDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                                hotel.checkOutDate ? new Date(hotel.checkOutDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+                            ],
+                            
+                            // Hotel Details
+                            hotelDetails: selectedHotelInfo ? {
+                                hotel_id: selectedHotelInfo.hotel_unique_id,
+                                hotel_name: selectedHotelInfo.name,
+                                image: selectedHotelInfo.main_image,
+                                location: selectedHotelInfo.city,
+                                checkInTime: selectedHotelInfo.check_in_time || "",
+                                checkOutTime: selectedHotelInfo.check_out_time || "",
+                                cancellation_charge: null
+                            } : {
+                                hotel_id: hotel.id,
+                                hotel_name: hotel.name,
+                                image: "",
+                                location: "Location not specified",
+                                checkInTime: hotel.check_in_time || "",
+                                checkOutTime: hotel.check_out_time || "",
+                                cancellation_charge: null
+                            },
+                            
+                            // Rooms Array - Include the selected room data
+                            rooms: [{
+                                room_id: hotel.roomId || hotel.id || hotel.room_id || "room_" + Date.now(),
+                                room_type: hotel.roomType || hotel.room_type || "",
+                                beds: [{
+                                    bed_id: hotel.bedId || hotel.id || hotel.bed_id || "bed_" + Date.now(),
+                                    bed_type: hotel.bedType || hotel.bed_type || "",
+                                    baby_cot: parseInt(hotel.baby_cot) || 0,
+                                    head_count: adults + children,
+                                    max_occupancy: parseInt(hotel.max_occupancy) || (adults + children),
+                                    price: parseFloat(hotel.price) || 0,
+                                    mealTypes: [hotel.mealPlan || hotel.meal_plan || ""],
+                                    selectedMeals: {
+                                        meal_1: {
+                                            type: hotel.mealPlan || hotel.meal_plan || "",
+                                            price: parseFloat(hotel.meal_price) || 0
+                                        }
+                                    }
+                                }]
+                            }],
+                            
+                            // Guest Information
+                            guest_info: {
+                                adults: adults,
+                                male: male,
+                                female: female,
+                                children: children,
+                                infants: infants,
+                                total_guests: adults + children + infants
+                            },
+                            
+                            // Booking Information
+                            booking_type: 'hotel',
+                            created_at: new Date().toISOString(),
+                            
+                            // Additional fields for compatibility
+                            priceMode: hotel.priceMode || 'dmc',
+                            priceModeId: parseInt(hotel.priceModeId) || 0,
+                            totalPrice: parseFloat(hotel.totalPrice) || 0,
+                            tour_id: parseInt(hotel.tour_id) || 0
+                        };
+                    });
+                    
+                    // Update the hidden field with JSON string
+                    const hotelDataField = document.getElementById('hotel_data');
+                    if (hotelDataField) {
+                        hotelDataField.value = JSON.stringify(hotelDataArray);
+                        console.log('Hotel data updated:', hotelDataArray);
+                    }
+                }
+
+                // Function to fetch attraction details dynamically
+                async function fetchAttractionDetails(attractionId, ticketId) {
+                    try {
+                        // Fetch attraction details
+                        const attractionResponse = await fetch(`/api/attractions/${attractionId}`);
+                        const attractionData = await attractionResponse.json();
+                        
+                        // Fetch ticket details
+                        const ticketResponse = await fetch(`/api/tickets/${ticketId}`);
+                        const ticketData = await ticketResponse.json();
+                        
+                        // Combine the data
+                        return {
+                            adult_price: ticketData.adult_price || 0,
+                            child_price: ticketData.child_price || 0,
+                            senior_price: ticketData.senior_price || 0,
+                            description: ticketData.description || "",
+                            nri: ticketData.nri || "",
+                            package_attraction_id: attractionData.package_attraction_id || null
+                        };
+                    } catch (error) {
+                        console.error('Error fetching attraction details:', error);
+                        // Return default values if API fails
+                        return {
+                            adult_price: 0,
+                            child_price: 0,
+                            senior_price: 0,
+                            description: "",
+                            nri: "",
+                            package_attraction_id: null
+                        };
+                    }
+                }
+
+                // Function to collect attraction data
+                function updateAttractionDataField() {
+                    const attractionDataArray = [];
+                    
+                    // Get customer information from the Customer Information form
+                    const customerData = getCustomerData();
+                    
+                    // Get all attraction selections from all days
+                    document.querySelectorAll('.attraction-select').forEach(select => {
+                        if (select.value) {
+                            const dayMatch = select.name.match(/day(\d+)_attraction_(\d+)/);
+                            if (dayMatch) {
+                                const day = dayMatch[1];
+                                const index = dayMatch[2];
+                                
+                                const timeSlot = document.getElementById(`day${day}_attraction_${index}_time`)?.value || '';
+                                const ticket = document.getElementById(`day${day}_attraction_${index}_ticket`)?.value || '';
+                                const guestSummary = document.getElementById(`day${day}_attraction_${index}_guest_summary`)?.textContent || '';
+                                
+                                // Parse guest info from summary text
+                                const guestInfo = parseGuestSummary(guestSummary);
+                                
+                                // Get attraction details from the selected option and fetch dynamic data
+                                const selectedOption = select.options[select.selectedIndex];
+                                const attractionId = select.value;
+                                const ticketId = ticket;
+                                
+                                // Get attraction details and calculate prices
+                                // Get prices from form fields or ticket data
+                                const adultPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_adult_price`)?.value || 0);
+                                const childPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_child_price`)?.value || 0);
+                                const seniorPrice = parseFloat(document.getElementById(`day${day}_attraction_${index}_senior_price`)?.value || 0);
+                                
+                                // Calculate total price dynamically
+                                const totalPrice = (guestInfo.adults * adultPrice) + 
+                                                  (guestInfo.children * childPrice) + 
+                                                  (guestInfo.seniors * seniorPrice);
+                                
+                                attractionDataArray.push({
+                                    // Customer Information (from Customer Information form)
+                                    fullName: customerData.fullName,
+                                    email: customerData.email,
+                                    phone: customerData.phone,
+                                    countryCode: customerData.countryCode,
+                                    address1: customerData.address1,
+                                    address2: customerData.address2,
+                                    state: customerData.state,
+                                    zip: customerData.zip,
+                                    specialRequests: customerData.specialRequests,
+                                    
+                                    // Attraction Information
+                                    bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || new Date().toISOString().split('T')[0],
+                                    visitTime: timeSlot || "10:00-00:00",
+                                    adultCount: guestInfo.adults || 0,
+                                    childCount: guestInfo.children || 0,
+                                    seniorCount: guestInfo.seniors || 0,
+                                    AttractionId: parseInt(attractionId),
+                                    AttractionName: selectedOption.text,
+                                    ticketId: parseInt(ticketId) || 10000001,
+                                    ticketName: ticketId ? `Ticket ${ticketId}` : "Ticket 1",
+                                    
+                                    // Ticket Details (with proper pricing)
+                                    ticket_details: {
+                                        adult_price: adultPrice,
+                                        child_price: childPrice,
+                                        senior_price: seniorPrice,
+                                        description: document.getElementById(`day${day}_attraction_${index}_description`)?.value || "",
+                                        nri: document.getElementById(`day${day}_attraction_${index}_nri`)?.value || "residential"
+                                    },
+                                    
+                                    // Transport and Mode
+                                    transport: document.getElementById(`day${day}_attraction_${index}_transport`)?.value || null,
+                                    Selection: document.getElementById(`day${day}_attraction_${index}_transport_selection`)?.value || "withoutTransport",
+                                    mode: "dmc",
+                                    
+                                    // Pricing (calculated dynamically - NOT null)
+                                    totalPrice: totalPrice,
+                                    nri: document.getElementById(`day${day}_attraction_${index}_nri`)?.value || "residential",
+                                    price: totalPrice,
+                                    prices: {
+                                        price: totalPrice
+                                    },
+                                    
+                                    // DMC and Package Info
+                                    dmc_id: document.getElementById('dmc_id')?.value || 4,
+                                    bookingType: document.getElementById(`day${day}_attraction_${index}_booking_type`)?.value || "booking",
+                                    package_type: parseInt(document.getElementById(`day${day}_attraction_${index}_package_type`)?.value || 0),
+                                    package_attraction_id: parseInt(document.getElementById(`day${day}_attraction_${index}_package_attraction_id`)?.value || null)
+                                });
+                            }
+                        }
+                    });
+                    
+                    // Update the data field after processing all attractions
+                    const attractionDataField = document.getElementById('attraction_data');
+                    if (attractionDataField) {
+                        attractionDataField.value = JSON.stringify(attractionDataArray);
+                        console.log('Attraction data updated:', attractionDataArray);
+                    }
+                }
+
+                // Function to collect guide data
+                function updateGuideDataField() {
+                    const guideDataArray = [];
+                    
+                    // Get customer information from the Customer Information form
+                    const customerData = getCustomerData();
+                    
+                    document.querySelectorAll('.guide-select').forEach(select => {
+                        if (select.value) {
+                            const dayMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                            if (dayMatch) {
+                                const day = dayMatch[1];
+                                const index = dayMatch[2];
+                                
+                                const pickupTime = document.getElementById(`day${day}_guide_${index}_pickup_time`)?.value || '';
+                                const packageType = document.getElementById(`day${day}_guide_${index}_package`)?.value || '';
+                                const guestSummary = document.getElementById(`day${day}_guide_${index}_guest_summary`)?.textContent || '';
+                                
+                                // Parse guest info from summary text
+                                const guestInfo = parseGuestSummary(guestSummary);
+                                
+                                // Get guide details from the selected option
+                                const selectedOption = select.options[select.selectedIndex];
+                                const guideId = select.value;
+                                
+                                // Get guide date from the form
+                                const guideDate = document.getElementById(`day${day}_guide_${index}_date`)?.value || new Date().toISOString().split('T')[0];
+                                
+                                // Calculate pricing (this should come from actual guide pricing data)
+                                const basePrice = parseFloat(document.getElementById(`day${day}_guide_${index}_base_price`)?.value || 0);
+                                const hours = parseFloat(document.getElementById(`day${day}_guide_${index}_hours`)?.value || 0);
+                                const surcharge = parseFloat(document.getElementById(`day${day}_guide_${index}_surcharge`)?.value || 0);
+                                const totalPrice = (basePrice * hours) + surcharge;
+                                
+                                guideDataArray.push({
+                                    // Guide Information
+                                    bookingDate: guideDate,
+                                    guide_id: guideId,
+                                    guide_name: selectedOption.text,
+                                    image: selectedOption.dataset.image || "",
+                                    dmc_Id: document.getElementById('dmc_id')?.value || "4",
+                                    Mode: "dmc",
+                                    
+                                    // Pickup Information
+                                    entrypickup: document.getElementById(`day${day}_guide_${index}_pickup_location`)?.value || "",
+                                    PickupPlaceid: null,
+                                    DropoffPlaceid: null,
+                                    pickupdate: guideDate,
+                                    entrytime: pickupTime || "",
+                                    
+                                    // Guest Information
+                                    adults: (guestInfo.adults || 0).toString(),
+                                    children: (guestInfo.children || 0).toString(),
+                                    
+                                    // Service Details
+                                    hours: hours.toString(),
+                                    basePrice: basePrice.toFixed(2),
+                                    surcharge: surcharge.toFixed(2),
+                                    totalPrice: totalPrice.toFixed(2),
+                                    Tax: document.getElementById(`day${day}_guide_${index}_tax`)?.value || "0.00",
+                                    Night_Start_Time: document.getElementById(`day${day}_guide_${index}_night_start_time`)?.value || "",
+                                    Night_End_Time: document.getElementById(`day${day}_guide_${index}_night_end_time`)?.value || "",
+                                    
+                                    // Customer Information (from Customer Information form)
+                                    fullName: customerData.fullName,
+                                    email: customerData.email,
+                                    phone: customerData.phone,
+                                    countryCode: customerData.countryCode,
+                                    address1: customerData.address1,
+                                    address2: customerData.address2,
+                                    state: customerData.state,
+                                    zip: customerData.zip,
+                                    specialRequests: customerData.specialRequests,
+                                    
+                                    // User Info (duplicate for compatibility)
+                                    userInfo: {
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        countryCode: customerData.countryCode,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2,
+                                        state: customerData.state,
+                                        zip: customerData.zip,
+                                        specialRequests: customerData.specialRequests
+                                    },
+                                    
+                                    bookingType: document.getElementById(`day${day}_guide_${index}_booking_type`)?.value || "booking"
+                                });
+                            }
+                        }
+                    });
+                    
+                    const guideDataField = document.getElementById('guide_data');
+                    if (guideDataField) {
+                        guideDataField.value = JSON.stringify(guideDataArray);
+                        console.log('Guide data updated:', guideDataArray);
+                    }
+                }
+
+                // Function to collect restaurant data
+                function updateRestaurantDataField() {
+                    const restaurantDataArray = [];
+                    
+                    // Get customer information from the Customer Information form
+                    const customerData = getCustomerData();
+                    
+                    document.querySelectorAll('.restaurant-select').forEach(select => {
+                        if (select.value) {
+                            const dayMatch = select.name.match(/day(\d+)_restaurant_(\d+)/);
+                            if (dayMatch) {
+                                const day = dayMatch[1];
+                                const index = dayMatch[2];
+                                
+                                const mealType = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
+                                const timeSlot = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
+                                const guestSummary = document.getElementById(`day${day}_restaurant_${index}_guest_summary`)?.textContent || '';
+                                
+                                // Parse guest info from summary text
+                                const guestInfo = parseGuestSummary(guestSummary);
+                                
+                                // Get restaurant details from the selected option
+                                const selectedOption = select.options[select.selectedIndex];
+                                const restaurantId = select.value;
+                                
+                                // Calculate meal price (this should come from actual meal data)
+                                const mealPrice = parseFloat(document.getElementById(`day${day}_restaurant_${index}_meal_price`)?.value || 0);
+                                const totalPrice = (guestInfo.adults + guestInfo.children) * mealPrice;
+                                
+                                restaurantDataArray.push({
+                                    // Customer Information (from Customer Information form)
+                                    fullName: customerData.fullName,
+                                    email: customerData.email,
+                                    phone: customerData.phone,
+                                    countryCode: customerData.countryCode,
+                                    address1: customerData.address1,
+                                    address2: customerData.address2,
+                                    state: customerData.state,
+                                    zip: customerData.zip,
+                                    specialRequests: customerData.specialRequests,
+                                    
+                                    // Restaurant Information
+                                    bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || new Date().toISOString().split('T')[0],
+                                    visitTime: timeSlot || "2:00 PM",
+                                    adultCount: guestInfo.adults || 0,
+                                    childCount: guestInfo.children || 0,
+                                    restaurantId: parseInt(restaurantId),
+                                    restaurantName: selectedOption.text,
+                                    
+                                    // Meal Information
+                                    mealType: mealType || "",
+                                    mealSpecificType: document.getElementById(`day${day}_meal_specific_type_${index}`)?.value || "",
+                                    
+                                    // Meal Description (array of meal items)
+                                    MealDescription: [{
+                                        item_name: document.getElementById(`day${day}_meal_item_name_${index}`)?.value || null,
+                                        name: document.getElementById(`day${day}_meal_name_${index}`)?.value || "",
+                                        price: mealPrice,
+                                        meal_id: parseInt(restaurantId),
+                                        category: document.getElementById(`day${day}_meal_category_${index}`)?.value || "",
+                                        item_type: document.getElementById(`day${day}_meal_item_type_${index}`)?.value || ""
+                                    }],
+                                    
+                                    // Pricing
+                                    totalPrice: totalPrice,
+                                    mealPrice: totalPrice,
+                                    
+                                    // Transport
+                                    transport: document.getElementById(`day${day}_restaurant_transport_${index}`)?.value || null,
+                                    transportPrice: parseFloat(document.getElementById(`day${day}_restaurant_transport_price_${index}`)?.value || 0),
+                                    
+                                    // Price Types and DMC
+                                    priceTypes: [document.getElementById(`day${day}_restaurant_price_type_${index}`)?.value || "dmc"],
+                                    dmc_id: document.getElementById('dmc_id')?.value || "4",
+                                    bookingType: document.getElementById(`day${day}_restaurant_booking_type_${index}`)?.value || "booking"
+                                });
+                            }
+                        }
+                    });
+                    
+                    const restaurantDataField = document.getElementById('restaurant_data');
+                    if (restaurantDataField) {
+                        restaurantDataField.value = JSON.stringify(restaurantDataArray);
+                        console.log('Restaurant data updated:', restaurantDataArray);
+                    }
+                }
+
+                // Function to collect transport data (including entry/exit ports)
+                function updateTransportDataField() {
+                    const transportDataArray = [];
+                    const entryPortArray = [];
+                    const exitPortArray = [];
+                    
+                    // Get customer information from the Customer Information form
+                    const customerData = getCustomerData();
+                    
+                    // Get all transport selections
+                    document.querySelectorAll('select[name*="_pickup_zone_id"]').forEach(pickupSelect => {
+                        if (pickupSelect.value) {
+                            const nameMatch = pickupSelect.name.match(/day(\d+)_(\w+)_pickup_zone_id/);
+                            if (nameMatch) {
+                                const day = nameMatch[1];
+                                const section = nameMatch[2]; // entry, exit, transport
+                                
+                                const dropoffSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+                                const timeSelect = document.querySelector(`select[name="day${day}_${section}_pickup_time"], select[name="day${day}_${section}_time"]`);
+                                const dateInput = document.querySelector(`input[name="day${day}_${section}_date"], input[name="day${day}_${section}_pickup_date"]`);
+                                
+                                if (dropoffSelect?.value && vehicleSelect?.value && serviceTypeSelect?.value) {
+                                    // Get zone details for pickup and dropoff
+                                    const pickupZone = pickupSelect.options[pickupSelect.selectedIndex];
+                                    const dropoffZone = dropoffSelect.options[dropoffSelect.selectedIndex];
+                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                    
+                                    // Get guest counts from the form
+                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    
+                                    // Calculate total price (this should come from actual pricing data)
+                                    const basePrice = parseFloat(document.getElementById(`day${day}_${section}_base_price`)?.value || 0);
+                                    const totalPrice = (adultCount + childCount) * basePrice;
+                                    
+                                    // Get pickup and dropoff coordinates (these should come from zone data)
+                                    const pickupCoords = {
+                                        lat: pickupZone.dataset.latitude || "",
+                                        lng: pickupZone.dataset.longitude || ""
+                                    };
+                                    const dropoffCoords = {
+                                        lat: dropoffZone.dataset.latitude || "",
+                                        lng: dropoffZone.dataset.longitude || ""
+                                    };
+                                    
+                                    // Create transport data based on section type
+                                    let transportData;
+                                    
+                                    if (section === 'entry') {
+                                        // Entry Port Data Structure
+                                        transportData = {
+                                            // Transport Information
+                                            bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            vehicles_id: vehicleSelect.value,
+                                            image: vehicle.dataset.image || "",
+                                            dmc_id: document.getElementById('dmc_id')?.value || "4",
+                                            vehicles_name: vehicle.text,
+                                            Mode: "dmc",
+                                            type: serviceTypeSelect.value || "",
+                                            
+                                            // Pickup and Dropoff Information
+                                            entrypickup: pickupZone.text,
+                                            entrydropoff: dropoffZone.text,
+                                            PickupPlaceid: pickupCoords,
+                                            DropoffPlaceid: dropoffCoords,
+                                            pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            entrytime: timeSelect?.value || "",
+                                            
+                                            // Guest Information
+                                            adults: adultCount.toString(),
+                                            children: childCount.toString(),
+                                            
+                                            // Pricing and Details
+                                            totalPrice: totalPrice.toString(),
+                                            Tax: document.getElementById(`day${day}_${section}_tax`)?.value || "0.00",
+                                            distance: document.getElementById(`day${day}_${section}_distance`)?.value || "0",
+                                            Night_Start_Time: document.getElementById(`day${day}_${section}_night_start_time`)?.value || "",
+                                            Night_End_Time: document.getElementById(`day${day}_${section}_night_end_time`)?.value || "",
+                                            city: pickupZone.dataset.city || "",
+                                            country: pickupZone.dataset.country || "",
+                                            
+                                            // Customer Information (from Customer Information form)
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            countryCode: customerData.countryCode,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2,
+                                            state: customerData.state,
+                                            zip: customerData.zip,
+                                            specialRequests: customerData.specialRequests,
+                                            
+                                            // User Info (duplicate for compatibility)
+                                            userInfo: {
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                countryCode: customerData.countryCode,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests
+                                            },
+                                            
+                                            bookingType: document.getElementById(`day${day}_${section}_booking_type`)?.value || "booking"
+                                        };
+                                    } else if (section === 'exit') {
+                                        // Exit Port Data Structure
+                                        transportData = {
+                                            // Transport Information
+                                            bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            vehicles_id: vehicleSelect.value,
+                                            vehicles_name: vehicle.text,
+                                            dmc_id: document.getElementById('dmc_id')?.value || "4",
+                                            Mode: "dmc",
+                                            type: serviceTypeSelect.value || "",
+                                            image: vehicle.dataset.image || "",
+                                            
+                                            // Pickup and Dropoff Information
+                                            exitpickup: pickupZone.text,
+                                            exitdropoff: dropoffZone.text,
+                                            PickupPlaceid: null,
+                                            DropoffPlaceid: null,
+                                            exitpickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            entrytime: timeSelect?.value || "",
+                                            
+                                            // Guest Information
+                                            adults: adultCount.toString(),
+                                            children: childCount.toString(),
+                                            
+                                            // Pricing and Details
+                                            totalPrice: totalPrice.toString(),
+                                            Tax: document.getElementById(`day${day}_${section}_tax`)?.value || "0.00",
+                                            distance: document.getElementById(`day${day}_${section}_distance`)?.value || "0",
+                                            Night_Start_Time: document.getElementById(`day${day}_${section}_night_start_time`)?.value || "",
+                                            Night_End_Time: document.getElementById(`day${day}_${section}_night_end_time`)?.value || "",
+                                            city: pickupZone.dataset.city || "",
+                                            country: pickupZone.dataset.country || "",
+                                            
+                                            // Customer Information (from Customer Information form)
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            countryCode: customerData.countryCode,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2,
+                                            state: customerData.state,
+                                            zip: customerData.zip,
+                                            specialRequests: customerData.specialRequests,
+                                            
+                                            // User Info (duplicate for compatibility)
+                                            userInfo: {
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests
+                                            },
+                                            
+                                            bookingType: document.getElementById(`day${day}_${section}_booking_type`)?.value || "enquiry"
+                                        };
+                                    } else {
+                                        // Regular Transport Data Structure
+                                        transportData = {
+                                            // Transport Information
+                                            bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            vehicles_id: vehicleSelect.value,
+                                            image: vehicle.dataset.image || "",
+                                            dmc_id: document.getElementById('dmc_id')?.value || "4",
+                                            vehicles_name: vehicle.text,
+                                            Mode: "dmc",
+                                            type: serviceTypeSelect.value || "",
+                                            
+                                            // Pickup and Dropoff Information
+                                            entrypickup: pickupZone.text,
+                                            entrydropoff: dropoffZone.text,
+                                            PickupPlaceid: pickupCoords,
+                                            DropoffPlaceid: dropoffCoords,
+                                            pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            entrytime: timeSelect?.value || "",
+                                            
+                                            // Guest Information
+                                            adults: adultCount.toString(),
+                                            children: childCount.toString(),
+                                            
+                                            // Pricing and Details
+                                            totalPrice: totalPrice.toString(),
+                                            Tax: document.getElementById(`day${day}_${section}_tax`)?.value || "0.00",
+                                            distance: document.getElementById(`day${day}_${section}_distance`)?.value || "0",
+                                            Night_Start_Time: document.getElementById(`day${day}_${section}_night_start_time`)?.value || "",
+                                            Night_End_Time: document.getElementById(`day${day}_${section}_night_end_time`)?.value || "",
+                                            city: pickupZone.dataset.city || "",
+                                            country: pickupZone.dataset.country || "",
+                                            
+                                            // Customer Information (from Customer Information form)
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            countryCode: customerData.countryCode,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2,
+                                            state: customerData.state,
+                                            zip: customerData.zip,
+                                            specialRequests: customerData.specialRequests,
+                                            
+                                            // User Info (duplicate for compatibility)
+                                            userInfo: {
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                countryCode: customerData.countryCode,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests
+                                            },
+                                            
+                                            bookingType: document.getElementById(`day${day}_${section}_booking_type`)?.value || "booking"
+                                        };
+                                    }
+                                    
+                                    if (section === 'entry') {
+                                        entryPortArray.push(transportData);
+                                    } else if (section === 'exit') {
+                                        exitPortArray.push(transportData);
+                                    } else {
+                                        transportDataArray.push(transportData);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Update all transport-related fields
+                    const transportDataField = document.getElementById('transport_data');
+                    if (transportDataField) {
+                        transportDataField.value = JSON.stringify(transportDataArray);
+                    }
+                    
+                    const entryPortDataField = document.getElementById('entry_port_data');
+                    if (entryPortDataField) {
+                        entryPortDataField.value = JSON.stringify(entryPortArray);
+                    }
+                    
+                    const exitPortDataField = document.getElementById('exit_port_data');
+                    if (exitPortDataField) {
+                        exitPortDataField.value = JSON.stringify(exitPortArray);
+                    }
+                    
+                    console.log('Transport data updated:', {
+                        transport: transportDataArray,
+                        entry_port: entryPortArray,
+                        exit_port: exitPortArray
+                    });
+                }
+
+                // Helper function to parse guest summary text
+                function parseGuestSummary(summaryText) {
+                    const adultMatch = summaryText.match(/(\d+)\s+adults/);
+                    const maleMatch = summaryText.match(/(\d+)\s+male/);
+                    const femaleMatch = summaryText.match(/(\d+)\s+female/);
+                    const childMatch = summaryText.match(/(\d+)\s+children/);
+                    const infantMatch = summaryText.match(/(\d+)\s+infants/);
+                    
+                    return {
+                        adults: adultMatch ? parseInt(adultMatch[1]) : 0,
+                        male: maleMatch ? parseInt(maleMatch[1]) : 0,
+                        female: femaleMatch ? parseInt(femaleMatch[1]) : 0,
+                        children: childMatch ? parseInt(childMatch[1]) : 0,
+                        infants: infantMatch ? parseInt(infantMatch[1]) : 0
+                    };
+                }
+
                 async function saveAllBookings() {
                     if (!validateCustomerInfo()) {
                         return false;
                     }
 
-                    const hotelBookings = JSON.parse(document.getElementById('hotelBookings').value || '[]');
-                    const guideBookings = JSON.parse(document.getElementById('guideBookings').value || '[]');
-                    const vehicleBookings = JSON.parse(document.getElementById('vehicleBookings').value || '[]');
-                    const attractionBookings = JSON.parse(document.getElementById('attractionBookings').value || '[]');
+                    // Get tour and agent IDs
+                    const agentId = document.getElementById('agent_id').value;
+                    const tourId = window.currentTourId;
 
-                    // Check if at least one booking exists
-                    if (hotelBookings.length === 0 && guideBookings.length === 0 && 
-                        vehicleBookings.length === 0 && attractionBookings.length === 0) {
-                        alert('Please add at least one booking (hotel, guide, vehicle, or attraction)');
+                    if (!tourId) {
+                        alert('Tour ID not found. Please create a tour first.');
                         return false;
                     }
 
-                    const agentId = document.getElementById('agent_id').value;
-                    const tourId = document.getElementById('tour_id').value;
+                    // Update all service data fields before sending
+                    updateHotelDataField();
+                    updateAttractionDataField();
+                    updateGuideDataField();
+                    updateRestaurantDataField();
+                    updateTransportDataField();
+
+                    // Get all service data from hidden fields (with null checks)
+                    const hotelData = document.getElementById('hotel_data')?.value || '';
+                    const attractionData = document.getElementById('attraction_data')?.value || '';
+                    const restaurantData = document.getElementById('restaurant_data')?.value || '';
+                    const guideData = document.getElementById('guide_data')?.value || '';
+                    const transportData = document.getElementById('transport_data')?.value || '';
+                    const entryPortData = document.getElementById('entry_port_data')?.value || '';
+                    const exitPortData = document.getElementById('exit_port_data')?.value || '';
+
+                    // Check if at least one service has data
+                    if (!hotelData && !attractionData && !restaurantData && !guideData && 
+                        !transportData && !entryPortData && !exitPortData) {
+                        alert('Please add at least one service (hotel, attraction, guide, restaurant, or transport)');
+                        return false;
+                    }
 
                     try {
-                        // Save each type of booking
-                        if (hotelBookings.length > 0) {
-                            await saveServiceOrder('hotel', hotelBookings, agentId, tourId);
-                        }
-                        if (guideBookings.length > 0) {
-                            await saveServiceOrder('guide', guideBookings, agentId, tourId);
-                        }
-                        if (vehicleBookings.length > 0) {
-                            await saveServiceOrder('vehicle', vehicleBookings, agentId, tourId);
-                        }
-                        if (attractionBookings.length > 0) {
-                            await saveServiceOrder('attraction', attractionBookings, agentId, tourId);
-                        }
+                        // Prepare form data
+                        const formData = new FormData();
+                        formData.append('_token', document.querySelector('input[name="_token"]').value);
+                        formData.append('tour_id', tourId);
+                        formData.append('agent_id', agentId);
+                        formData.append('hotel_data', hotelData || '');
+                        formData.append('attraction_data', attractionData || '');
+                        formData.append('restaurant_data', restaurantData || '');
+                        formData.append('guide_data', guideData || '');
+                        formData.append('transport_data', transportData || '');
+                        formData.append('entry_port_data', entryPortData || '');
+                        formData.append('exit_port_data', exitPortData || '');
 
-                        alert('All bookings saved successfully!');
-                        window.location.href = '{{ route('single-tour-package.index') }}';
+                        // Send request to store orders
+                        console.log('Store orders URL:', '{{ route('single-tour-package.store-orders') }}');
+                        const response = await fetch('/single-tour-package-store-orders', {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            },
+                            body: formData
+                        });
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            console.log('Service orders saved:', result);
+                            
+                            // Store data in session and redirect to thank you page
+                            if (result.redirect_url) {
+                                // Use a form to pass data via session
+                                const form = document.createElement('form');
+                                form.method = 'POST';
+                                form.action = result.redirect_url;
+                                
+                                // Add CSRF token
+                                const csrfInput = document.createElement('input');
+                                csrfInput.type = 'hidden';
+                                csrfInput.name = '_token';
+                                csrfInput.value = document.querySelector('input[name="_token"]').value;
+                                form.appendChild(csrfInput);
+                                
+                                // Add tour details
+                                const tourDetailsInput = document.createElement('input');
+                                tourDetailsInput.type = 'hidden';
+                                tourDetailsInput.name = 'tour_details';
+                                tourDetailsInput.value = JSON.stringify(result.tour_details);
+                                form.appendChild(tourDetailsInput);
+                                
+                                // Add created orders
+                                const ordersInput = document.createElement('input');
+                                ordersInput.type = 'hidden';
+                                ordersInput.name = 'created_orders';
+                                ordersInput.value = JSON.stringify(result.created_orders);
+                                form.appendChild(ordersInput);
+                                
+                                document.body.appendChild(form);
+                                form.submit();
+                            } else {
+                                // Fallback to staying on same page
+                                showNotification('All service orders saved successfully!', 'success');
+                            }
+                        } else {
+                            alert('Error saving orders: ' + result.message);
+                        }
                     } catch (error) {
-                        alert('Error saving bookings: ' + error.message);
+                        console.error('Error saving orders:', error);
+                        alert('Error saving orders: ' + error.message);
                     }
                 }
             </script>
@@ -989,12 +1794,14 @@ function validateCustomerInfo() {
     return true;
 }
 
+// Global variables (move outside DOMContentLoaded)
+let tourStartDate = null;
+let tourEndDate = null;
+let selectedHotels = [];
+let tourNights = 0;
+let hotelData = [];
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Global variables
-    let tourStartDate = null;
-    let tourEndDate = null;
-    let selectedHotels = [];
-    let tourNights = 0;
 
     // Country and City Cascade (following agent controller pattern)
     const userCountrySelect = document.getElementById('user_country');
@@ -1569,8 +2376,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Store hotel data globally for reference
-    let hotelData = [];
+    // Store hotel data globally for reference (already declared globally)
     
     // Load hotels for city
     function loadHotelsForCity(cityName) {
@@ -1948,6 +2754,9 @@ document.addEventListener('DOMContentLoaded', function() {
          selectedHotels.push(hotelData);
          displaySelectedHotels();
          
+         // Update hotel_data JSON field
+         updateHotelDataField();
+         
          // Show success notification
          showNotification(`Hotel "${hotelData.name}" added successfully for ${hotelData.totalNights} nights!`, 'success');
          
@@ -2075,9 +2884,9 @@ document.addEventListener('DOMContentLoaded', function() {
              const isFirstDay = day === 1;
              const isLastDay = day === totalDays;
              
-             servicesHTML += `
-                 <div class="daily-service-section border-bottom">
-                     <div class="day-header p-3 bg-gradient-primary text-white">
+                         servicesHTML += `
+                <div class="daily-service-section border-bottom" id="day${day}">
+                    <div class="day-header p-3 bg-gradient-primary text-white">
                          <div class="d-flex justify-content-between align-items-center">
                              <div>
                                  <h5 class="mb-1 fw-bold">
@@ -2097,6 +2906,9 @@ document.addEventListener('DOMContentLoaded', function() {
                      <div class="day-content p-4 bg-light">
              `;
              
+            
+
+             
             // Entry Port Services (Only on Day 1)
               if (day === 1) {
                                    servicesHTML += `
@@ -2108,9 +2920,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPortService(${day}, 'entry')">
-                                  <i class="ri-add-line me-1"></i>Add Port Service
-                              </button>
                           </div>
                           
                           <div class="card border-primary shadow-sm">
@@ -2217,39 +3026,54 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Vehicle Results Section (Hidden Initially) -->
                                  <div class="row mt-4" id="day${day}_entry_vehicle_results" style="display: none;">
-                                     <div class="col-12">
-                                         <div class="alert alert-info">
-                                             <div class="d-flex align-items-center">
-                                                 <i class="ri-car-line me-2 fs-4"></i>
-                                                 <div>
-                                                     <strong>Available Vehicles</strong>
-                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <div class="col-md-6">
-                                         <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select vehicle-select" name="day${day}_entry_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry')">
-                                             <option value="">Choose vehicle</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-6">
-                                         <label class="form-label fw-semibold">Service Type</label>
-                                         <select class="form-select service-type-select" name="day${day}_entry_service_type" onchange="updatePricing(${day}, 'entry')">
-                                             <option value="">Select service type</option>
-                                             <option value="Shared">Shared</option>
-                                             <option value="Private">Private</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-12 mt-3">
-                                                                                  <button type="button" class="btn btn-success w-100 py-2" onclick="addPortService(${day}, 'entry')">
-                                            <i class="ri-add-line me-2"></i>Add to Package
-                                         </button>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-car-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Available Vehicles</strong>
+                                                    <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vehicle + Service Type in one row -->
+                                    <div class="col-12">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Vehicle</label>
+                                                <select class="form-select vehicle-select" 
+                                                        name="day${day}_entry_vehicle_id" 
+                                                        onchange="updateVehicleDetails(${day}, 'entry')">
+                                                    <option value="">Choose vehicle</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Service Type</label>
+                                                <select class="form-select service-type-select" 
+                                                        name="day${day}_entry_service_type" 
+                                                        onchange="updatePricing(${day}, 'entry')">
+                                                    <option value="">Select service type</option>
+                                                    <option value="Shared">Shared</option>
+                                                    <option value="Private">Private</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Container for additional entry port vehicles -->
+                        <div class="entry-ports-container"></div>
+                        
+                        <!-- Add More Button - Positioned below additional vehicles -->
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-light border" onclick="addMoreEntryPorts(${day})" style="color: #0c63e4; border-color: #b8daff !important; background-color: #f8f9fa;">
+                                <i class="ri-add-line me-2"></i>Add More Vehicles
+                            </button>
+                        </div>
                      </div>
                  `;
              }
@@ -2265,9 +3089,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Configure entry and exit port transportation services</small>
                               </div>
-                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="addPortService(${day}, 'exit')">
-                                  <i class="ri-add-line me-1"></i>Add Port Service
-                              </button>
                           </div>
                           
                           <div class="card border-danger shadow-sm">
@@ -2372,41 +3193,56 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                                  
-                                 <!-- Vehicle Results Section (Hidden Initially) -->
-                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
-                                     <div class="col-12">
-                                         <div class="alert alert-info">
-                                             <div class="d-flex align-items-center">
-                                                 <i class="ri-car-line me-2 fs-4"></i>
-                                                 <div>
-                                                     <strong>Available Vehicles</strong>
-                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <div class="col-md-6">
-                                         <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select vehicle-select" name="day${day}_exit_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit')">
-                                             <option value="">Choose vehicle</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-md-6">
-                                         <label class="form-label fw-semibold">Service Type</label>
-                                         <select class="form-select service-type-select" name="day${day}_exit_service_type" onchange="updatePricing(${day}, 'exit')">
-                                             <option value="">Select service type</option>
-                                             <option value="Shared">Shared</option>
-                                             <option value="Private">Private</option>
-                                         </select>
-                                     </div>
-                                     <div class="col-12 mt-3">
-                                         <button type="button" class="btn btn-success w-100 py-2" onclick="saveService(${day}, 'exit_port')">
-                                             <i class="ri-save-line me-2"></i>Save and Add More
-                                         </button>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
+                                                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-car-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Available Vehicles</strong>
+                                                    <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vehicle + Service Type in one row -->
+                                    <div class="col-12">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Vehicle</label>
+                                                <select class="form-select vehicle-select" 
+                                                        name="day${day}_exit_vehicle_id" 
+                                                        onchange="updateVehicleDetails(${day}, 'exit')">
+                                                    <option value="">Choose vehicle</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Service Type</label>
+                                                <select class="form-select service-type-select" 
+                                                        name="day${day}_exit_service_type" 
+                                                        onchange="updatePricing(${day}, 'exit')">
+                                                    <option value="">Select service type</option>
+                                                    <option value="Shared">Shared</option>
+                                                    <option value="Private">Private</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Container for additional exit port vehicles -->
+                        <div class="exit-ports-container"></div>
+                        
+                        <!-- Add More Button - Positioned below additional vehicles -->
+                        <div class="text-center mt-3">
+                            <button type="button" class="btn btn-light border" onclick="addMoreExitPorts(${day})" style="color: #dc3545; border-color: #f5c2c7 !important; background-color: #f8f9fa;">
+                                <i class="ri-add-line me-2"></i>Add More Vehicles
+                            </button>
+                        </div>
                      </div>
                  `;
              }
@@ -2490,11 +3326,11 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                           </div>
                           
-                          <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="addAttractionService(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Attraction
-                                          </button>
-                             </div>
+                                                   <div class="mt-3 text-center">
+                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="addMoreAttractions(${day})">
+                                             <i class="ri-add-line me-1"></i>Add More Attraction
+                                         </button>
+                            </div>
                          </div>
                      </div>
                      
@@ -2583,11 +3419,11 @@ document.addEventListener('DOMContentLoaded', function() {
                               </div>
                           </div>
                           
-                          <div class="mt-3 text-center">
-                                          <button type="button" class="btn btn-sm btn-outline-info" onclick="addGuideService(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Guide
-                                          </button>
-                             </div>
+                                                   <div class="mt-3 text-center">
+                                         <button type="button" class="btn btn-sm btn-outline-info" onclick="addMoreGuides(${day})">
+                                             <i class="ri-add-line me-1"></i>Add More Guide
+                                         </button>
+                            </div>
                          </div>
                      </div>
                      
@@ -2676,28 +3512,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                                  
-                                 <div class="mt-3 text-center">
-                              <button type="button" class="btn btn-sm btn-outline-success" onclick="addRestaurantService(${day})">
-                                              <i class="ri-add-line me-1"></i>Add Restaurant
-                                          </button>
-                             </div>
+                                                                 <div class="mt-3 text-center">
+                             <button type="button" class="btn btn-sm btn-outline-success" onclick="addMoreRestaurants(${day})">
+                                             <i class="ri-add-line me-1"></i>Add More Restaurant
+                                         </button>
+                            </div>
                          </div>
                      </div>
                      
                      <!-- Transport Services -->
-                     <div class="mb-4">
-                         <div class="d-flex justify-content-between align-items-center mb-3">
-                             <h6 class="text-warning mb-0">
-                                 <i class="ri-car-line me-2"></i>Book Transport Services
-                                 <small class="text-muted ms-2">Select professional transport and configure your tour package</small>
-                             </h6>
-                             <button type="button" class="btn btn-sm btn-warning" onclick="addTransportService(${day})">
-                                 <i class="ri-add-line me-1"></i>Add Transport
-                             </button>
+                     <div class="service-card mb-4">
+                         <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-warning">
+                             <div>
+                                 <h6 class="text-warning mb-1 fw-bold">
+                                     <i class="ri-car-line me-2"></i>Book Transport Services
+                                 </h6>
+                                 <small class="text-muted">Select professional transport and configure your tour package</small>
+                             </div>
                          </div>
                          
-                         
-                        <div class="card border-warning">
+                         <div class="transports-container" id="day${day}_transports_container">
+                            <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="1">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div class="d-flex gap-2">
@@ -2796,41 +3631,61 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Vehicle Results Section (Hidden Initially) -->
                                  <div class="row mt-4" id="day${day}_transport_vehicle_results" style="display: none;">
-                                     <div class="col-12">
-                                         <div class="alert alert-info">
-                                             <div class="d-flex align-items-center">
-                                                 <i class="ri-car-line me-2 fs-4"></i>
-                                                 <div>
-                                                     <strong>Available Vehicles</strong>
-                                                     <div class="small text-muted">Select your preferred vehicle and service type below</div>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <div class="col-md-6">
-                                         <label class="form-label fw-semibold">Vehicle</label>
-                                         <select class="form-select vehicle-select" name="day${day}_transport_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport')">
-                                             <option value="">Choose vehicle</option>
-                                         </select>
-                                     </div>
-                                    <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Service Type</label>
-                                    <select class="form-select" name="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
-                                        <option value="">Select service type</option>
-                                        <option value="Shared">Shared</option>
-                                        <option value="Private">Private</option>
-                                    </select>
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-car-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Available Vehicles</strong>
+                                                    <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    <!-- Vehicle + Service Type in one row -->
+                                    <div class="col-12">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Vehicle</label>
+                                                <select class="form-select vehicle-select" 
+                                                        name="day${day}_transport_vehicle_id" 
+                                                        onchange="updateVehicleDetails(${day}, 'transport')">
+                                                    <option value="">Choose vehicle</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-semibold">Service Type</label>
+                                                <select class="form-select" 
+                                                        name="day${day}_transport_service_type" 
+                                                        onchange="updatePricing(${day}, 'transport')">
+                                                    <option value="">Select service type</option>
+                                                    <option value="Shared">Shared</option>
+                                                    <option value="Private">Private</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Add More Vehicles button -->
                                     <div class="col-12 mt-3">
-                                        <button type="button" class="btn btn-success w-100 py-2" onclick="addTransportToPackage(${day})">
-                                            <i class="ri-add-line me-2"></i>Add to Package
+                                        <button type="button" class="btn btn-success w-100 py-2" onclick="addMoreTransports(${day})">
+                                            <i class="ri-add-line me-2"></i>Add More Vehicles
                                         </button>
                                     </div>
-                                 </div>
+                                </div>
                              </div>
                          </div>
                      </div>
+                     
+                     <div class="mt-3 text-center">
+                         <button type="button" class="btn btn-sm btn-outline-warning" onclick="addMoreTransports(${day})">
+                             <i class="ri-add-line me-1"></i>Add More Transport
+                         </button>
+                     </div>
                  </div>
+             </div>
                  
              </div>
          </div>
@@ -2994,6 +3849,9 @@ document.addEventListener('DOMContentLoaded', function() {
     window.removeHotel = function(index) {
          selectedHotels.splice(index, 1);
          displaySelectedHotels();
+         
+         // Update hotel_data JSON field after removal
+         updateHotelDataField();
          
                  if (selectedHotels.length === 0) {
             document.getElementById('packageDetailsSection').style.display = 'none';
@@ -4512,6 +5370,429 @@ document.addEventListener('DOMContentLoaded', function() {
          console.log('Add transport service for day', day);
          // Future implementation: Add dynamic form for transport
      };
+     
+     window.addMoreTransports = function(day) {
+         const container = document.getElementById(`day${day}_transports_container`);
+         const existingTransports = container.querySelectorAll('.transport-item');
+         const newIndex = existingTransports.length + 1;
+         
+         const newTransportHTML = `
+             <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="${newIndex}">
+                 <div class="card-header bg-warning text-white">
+                     <div class="d-flex align-items-center justify-content-between">
+                         <div class="d-flex align-items-center">
+                             <span class="service-icon me-3">
+                                 <i class="ri-car-line fs-4"></i>
+                             </span>
+                             <div>
+                                 <h6 class="mb-0 fw-bold">Transport Booking #${newIndex}</h6>
+                                 <small class="opacity-75">Configure transport service</small>
+                             </div>
+                         </div>
+                         <button type="button" class="btn btn-sm btn-outline-light" onclick="removeTransport(this, ${day}, ${newIndex})">
+                             <i class="ri-close-line"></i>
+                         </button>
+                     </div>
+                 </div>
+                 <div class="card-body">
+                     <div class="d-flex justify-content-between align-items-center mb-3">
+                         <div class="d-flex gap-2">
+                             <span class="badge bg-danger">Point To Point</span>
+                             <span class="badge bg-primary">Hourly</span>
+                         </div>
+                         <div class="d-flex gap-2">
+                             <input type="date" class="form-control" value="${getCurrentDate()}" name="day${day}_transport_${newIndex}_date">
+                         </div>
+                     </div>
+                     
+                     <div class="row g-4 align-items-end">
+                         <div class="col-md-3">
+                             <div class="form-group">
+                                 <label class="form-label fw-semibold text-muted mb-2">
+                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                 </label>
+                                 <div class="position-relative">
+                                     <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" style="padding-left: 45px;">
+                                         <option value="">Select pickup zone</option>
+                                     </select>
+                                     <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="form-group">
+                                 <label class="form-label fw-semibold text-muted mb-2">
+                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                 </label>
+                                 <div class="position-relative">
+                                     <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                         <option value="">Select pickup zone first</option>
+                                     </select>
+                                     <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                     <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'transport_${newIndex}')">
+                                         <i class="ri-close-line text-muted"></i>
+                                     </button>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-2">
+                             <div class="form-group">
+                                 <label class="form-label fw-semibold text-muted mb-2">
+                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                 </label>
+                                 <div class="position-relative">
+                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_pickup_time" style="padding-left: 45px;">
+                                         <option value="">Select The Time</option>
+                                         ${generateTimeOptions()}
+                                     </select>
+                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-2">
+                             <div class="form-group">
+                                 <label class="form-label fw-semibold text-muted mb-2">
+                                     <i class="ri-calendar-line text-primary me-2"></i>Transport Date
+                                 </label>
+                                 <div class="position-relative">
+                                     <input type="date" class="form-control border-2" name="day${day}_transport_${newIndex}_date" value="${getCurrentDate()}" style="padding-left: 45px;">
+                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-2">
+                             <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}')" id="day${day}_transport_${newIndex}_search_btn" disabled>
+                                 <i class="ri-search-line me-2"></i>Search Vehicles
+                             </button>
+                         </div>
+                     </div>
+                     
+                     <!-- Vehicle Results Section (Hidden Initially) -->
+                     <div class="row mt-4" id="day${day}_transport_${newIndex}_vehicle_results" style="display: none;">
+                         <div class="col-12">
+                             <div class="alert alert-info">
+                                 <div class="d-flex align-items-center">
+                                     <i class="ri-car-line me-2 fs-4"></i>
+                                     <div>
+                                         <strong>Available Vehicles</strong>
+                                         <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-6">
+                             <label class="form-label fw-semibold">Vehicle</label>
+                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}')">
+                                 <option value="">Choose vehicle</option>
+                             </select>
+                         </div>
+                         <div class="col-md-6">
+                             <label class="form-label fw-semibold">Service Type</label>
+                             <select class="form-select" name="day${day}_transport_${newIndex}_service_type" onchange="updatePricing(${day}, 'transport_${newIndex}')">
+                                 <option value="">Select service type</option>
+                                 <option value="Shared">Shared</option>
+                                 <option value="Private">Private</option>
+                             </select>
+                         </div>
+                         <div class="col-12 mt-3">
+                             <button type="button" class="btn btn-success w-100 py-2" onclick="addMoreTransports(${day})">
+                                 <i class="ri-add-line me-2"></i>Add More Vehicles
+                             </button>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+         `;
+         
+         container.insertAdjacentHTML('beforeend', newTransportHTML);
+         
+         // Load zones for the new transport
+         const newPickupSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_pickup_zone_id"]`);
+         if (newPickupSelect) {
+             loadZonesForTransport(newPickupSelect);
+         }
+         
+         showNotification(`Transport Booking #${newIndex} added for Day ${day}`, 'success');
+     };
+     
+     window.removeTransport = function(button, day, index) {
+         const transportItem = button.closest('.transport-item');
+         transportItem.remove();
+         showNotification(`Transport Booking #${index} removed from Day ${day}`, 'info');
+     };
+     
+     // Entry Port Functions
+     window.addMoreEntryPorts = function(day) {
+         console.log('addMoreEntryPorts called for day:', day);
+         
+         // Find the service card container for entry ports (contains primary/blue card)
+         const dayContainer = document.getElementById(`day${day}`);
+         if (!dayContainer) {
+             console.error('Day container not found for day', day);
+             return;
+         }
+         
+         // Find the service card that contains the primary border card (entry port)
+         const serviceCards = dayContainer.querySelectorAll('.service-card');
+         let entryPortServiceCard = null;
+         
+         serviceCards.forEach(card => {
+             if (card.querySelector('.card.border-primary.shadow-sm')) {
+                 entryPortServiceCard = card;
+             }
+         });
+         
+                 if (!entryPortServiceCard) {
+            showNotification(`Entry port service card not found for Day ${day}. Entry ports are only available on the first day of the tour.`, 'warning');
+            console.error('Entry port service card not found for day', day);
+            return;
+        }
+         
+                 // Find existing entry port items container (it's outside the service card)
+        let container = entryPortServiceCard.parentElement.querySelector('.entry-ports-container');
+        if (!container) {
+            console.error('Entry ports container not found for day', day);
+            return;
+        }
+         
+         const existingPorts = container.querySelectorAll('.entry-port-item');
+         const newIndex = existingPorts.length + 1;
+         
+                 const newPortHTML = `
+            <div class="card border-primary shadow-sm entry-port-item mb-3" data-entry-port-index="${newIndex}" style="border-color: #b8daff !important;">
+                <div class="card-header text-primary" style="background-color: #e7f3ff; border-bottom: 1px solid #b8daff;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <span class="service-icon me-3" style="background-color: rgba(0,123,255,0.1); color: #0c63e4;">
+                                <i class="ri-login-circle-line fs-4"></i>
+                            </span>
+                            <div>
+                                <h6 class="mb-0 fw-bold text-primary">Available Vehicles #${newIndex}</h6>
+                                <small class="text-muted">Arrival transportation option</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="removeEntryPort(this, ${day}, ${newIndex})" title="Remove this vehicle option">
+                            <i class="ri-close-line"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body bg-white">
+                    <div class="alert alert-light mb-3" style="background-color: #f8f9fa; border-color: #e9ecef; color: #6c757d;">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-car-line me-2 fs-4 text-primary"></i>
+                            <div>
+                                <strong class="text-dark">Available Vehicles #${newIndex}</strong>
+                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}')">
+                                <option value="">Choose vehicle</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Service Type</label>
+                            <select class="form-select service-type-select" name="day${day}_entry_${newIndex}_service_type" onchange="updatePricing(${day}, 'entry_${newIndex}')">
+                                <option value="">Select service type</option>
+                                <option value="Shared">Shared</option>
+                                <option value="Private">Private</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+         
+                 container.insertAdjacentHTML('beforeend', newPortHTML);
+        
+        // Load vehicles for the new dropdown (similar to main vehicle dropdown)
+        const newVehicleSelect = container.querySelector(`[name="day${day}_entry_${newIndex}_vehicle_id"]`);
+        if (newVehicleSelect) {
+            // Copy options from the main vehicle dropdown if available
+            const mainVehicleSelect = dayContainer.querySelector(`[name="day${day}_entry_vehicle_id"]`);
+            if (mainVehicleSelect && mainVehicleSelect.options.length > 1) {
+                // Clear and copy options
+                newVehicleSelect.innerHTML = '';
+                for (let i = 0; i < mainVehicleSelect.options.length; i++) {
+                    const option = mainVehicleSelect.options[i].cloneNode(true);
+                    newVehicleSelect.appendChild(option);
+                }
+            }
+        }
+        
+        showNotification(`Entry Port Vehicle #${newIndex} added for Day ${day}`, 'success');
+     };
+     
+     window.removeEntryPort = function(button, day, index) {
+         const portItem = button.closest('.entry-port-item');
+         portItem.remove();
+         showNotification(`Entry Port Vehicle #${index} removed from Day ${day}`, 'info');
+     };
+
+     
+         // Exit Port Functions
+    window.addMoreExitPorts = function(day) {
+        console.log('addMoreExitPorts called for day:', day);
+        
+        // Find the day container
+        const dayContainer = document.getElementById(`day${day}`);
+        if (!dayContainer) {
+            console.error('Day container not found for day', day);
+            return;
+        }
+        
+        // Find the service card that contains the danger border card (exit port)
+        const serviceCards = dayContainer.querySelectorAll('.service-card');
+        let exitPortServiceCard = null;
+        
+        serviceCards.forEach(card => {
+            if (card.querySelector('.card.border-danger.shadow-sm')) {
+                exitPortServiceCard = card;
+            }
+        });
+        
+        if (!exitPortServiceCard) {
+            showNotification(`Exit port services are only available on the last day of the tour. This is Day ${day}.`, 'warning');
+            console.error('Exit port service card not found for day', day);
+            return;
+        }
+         
+                 // Find existing exit port items container (it's outside the service card)
+        console.log('Looking for exit ports container for day', day);
+        console.log('Exit port service card:', exitPortServiceCard);
+        console.log('Service card parent:', exitPortServiceCard.parentElement);
+        
+        // Try multiple approaches to find the container
+        let container = exitPortServiceCard.parentElement.querySelector('.exit-ports-container');
+        
+        if (!container) {
+            // Try looking in the day container directly
+            container = dayContainer.querySelector('.exit-ports-container');
+            console.log('Trying day container approach:', container);
+        }
+        
+        if (!container) {
+            // Try looking in all service cards' parents
+            const allServiceCards = dayContainer.querySelectorAll('.service-card');
+            allServiceCards.forEach(card => {
+                if (!container) {
+                    const potentialContainer = card.parentElement.querySelector('.exit-ports-container');
+                    if (potentialContainer) {
+                        container = potentialContainer;
+                        console.log('Found container via service card parent search:', container);
+                    }
+                }
+            });
+        }
+        
+        if (!container) {
+            console.error('Exit ports container not found for day', day);
+            console.log('Available elements in day container:', dayContainer.innerHTML);
+            showNotification(`Exit ports container not found for Day ${day}. Please refresh the page and try again.`, 'error');
+            return;
+        }
+        
+        console.log('Successfully found exit ports container:', container);
+         
+         const existingPorts = container.querySelectorAll('.exit-port-item');
+         const newIndex = existingPorts.length + 1;
+         
+                 const newPortHTML = `
+            <div class="card border-danger shadow-sm exit-port-item mb-3" data-exit-port-index="${newIndex}" style="border-color: #f5c2c7 !important;">
+                <div class="card-header text-danger" style="background-color: #f8d7da; border-bottom: 1px solid #f5c2c7;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <span class="service-icon me-3" style="background-color: rgba(220,53,69,0.1); color: #dc3545;">
+                                <i class="ri-logout-circle-line fs-4"></i>
+                            </span>
+                            <div>
+                                <h6 class="mb-0 fw-bold text-danger">Available Vehicles #${newIndex}</h6>
+                                <small class="text-muted">Departure transportation option</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeExitPort(this, ${day}, ${newIndex})" title="Remove this vehicle option">
+                            <i class="ri-close-line"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body bg-white">
+                    <div class="alert alert-light mb-3" style="background-color: #f8f9fa; border-color: #e9ecef; color: #6c757d;">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-car-line me-2 fs-4 text-danger"></i>
+                            <div>
+                                <strong class="text-dark">Available Vehicles #${newIndex}</strong>
+                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Vehicle</label>
+                            <select class="form-select vehicle-select" name="day${day}_exit_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit_${newIndex}')">
+                                <option value="">Choose vehicle</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Service Type</label>
+                            <select class="form-select service-type-select" name="day${day}_exit_${newIndex}_service_type" onchange="updatePricing(${day}, 'exit_${newIndex}')">
+                                <option value="">Select service type</option>
+                                <option value="Shared">Shared</option>
+                                <option value="Private">Private</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+         
+                 container.insertAdjacentHTML('beforeend', newPortHTML);
+        
+        // Load vehicles for the new dropdown (similar to main vehicle dropdown)
+        const newVehicleSelect = container.querySelector(`[name="day${day}_exit_${newIndex}_vehicle_id"]`);
+        if (newVehicleSelect) {
+            // Copy options from the main vehicle dropdown if available
+            const mainVehicleSelect = dayContainer.querySelector(`[name="day${day}_exit_vehicle_id"]`);
+            if (mainVehicleSelect && mainVehicleSelect.options.length > 1) {
+                // Clear and copy options
+                newVehicleSelect.innerHTML = '';
+                for (let i = 0; i < mainVehicleSelect.options.length; i++) {
+                    const option = mainVehicleSelect.options[i].cloneNode(true);
+                    newVehicleSelect.appendChild(option);
+                }
+            }
+        }
+        
+        showNotification(`Exit Port Vehicle #${newIndex} added for Day ${day}`, 'success');
+     };
+     
+     window.removeExitPort = function(button, day, index) {
+         const portItem = button.closest('.exit-port-item');
+         portItem.remove();
+         showNotification(`Exit Port Vehicle #${index} removed from Day ${day}`, 'info');
+     };
+
+     
+     function generateTimeOptions() {
+         let options = '';
+         for (let hour = 0; hour < 24; hour++) {
+             const hourStr = hour === 0 ? '12' : (hour > 12 ? hour - 12 : hour);
+             const ampm = hour < 12 ? 'AM' : 'PM';
+             const formattedTime = `${hourStr.toString().padStart(2, '0')}:00 ${ampm}`;
+             options += `<option value="${formattedTime}">${formattedTime}</option>`;
+         }
+         return options;
+     }
+     
+     function getCurrentDate() {
+         const today = new Date();
+         const year = today.getFullYear();
+         const month = (today.getMonth() + 1).toString().padStart(2, '0');
+         const day = today.getDate().toString().padStart(2, '0');
+         return `${year}-${month}-${day}`;
+     }
      
      // Guest selector functionality
          window.openGuestSelector = function(serviceId) {
