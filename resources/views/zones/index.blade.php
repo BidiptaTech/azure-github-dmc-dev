@@ -70,7 +70,7 @@
                                 <button type="button" 
                                         class="btn btn-{{ $zone->zone_type == 'Hotel' ? 'success' : ($zone->zone_type == 'Attraction' ? 'info' : ($zone->zone_type == 'Restaurant' ? 'warning' : 'secondary')) }} btn-sm rounded-pill d-flex justify-content-center align-items-center shadow-sm hover-lift"
                                         style="width: 36px; height: 36px; padding: 0; transition: all 0.2s ease;" title="{{ $zone->zone_type }} Settings"
-                                        data-bs-toggle="modal" data-bs-target="#checkboxModal-{{ $zone->zone_id }}">
+                                        data-bs-toggle="modal" data-bs-target="#checkboxModal-{{ Crypt::encrypt($zone->zone_id) }}">
                                     @if($zone->zone_type == 'Hotel')
                                         <i class="ri-hotel-line" style="font-size: 18px;"></i>
                                     @elseif($zone->zone_type == 'Restaurant')
@@ -111,7 +111,7 @@
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" 
                                                         style="position: absolute; top: 15px; right: 15px;"></button>
                                             </div>
-                                            <form action="{{ route('zones.settings', $zone->zone_id) }}" method="POST">
+                                            <form action="{{ route('zones.settings', Crypt::encrypt($zone->zone_id)) }}" method="POST">
                                                 @csrf
                                                 <div class="modal-body p-4" style="height: 60vh; overflow-y: auto;">
                                                     <div class="modal-body-content">
@@ -313,20 +313,20 @@
                             <td>
                                 <div class="d-flex gap-1">
                                     <!-- View -->
-                                    <a href="{{ route('zones.show', $zone->zone_id) }}" 
+                                    <a href="{{ route('zones.show', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-info btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="View">
                                         <i class="ri-eye-line" style="font-size: 16px;"></i>
                                     </a>
 
                                     <!-- Edit -->
-                                    <a href="{{ route('zones.edit', $zone->zone_id) }}" 
+                                    <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                     </a>
                                     <!-- Delete -->
-                                    <form action="{{ route('zones.destroy', $zone->zone_id) }}" method="POST" class="d-inline">
+                                    <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" 

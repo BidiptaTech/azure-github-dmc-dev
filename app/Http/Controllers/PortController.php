@@ -113,6 +113,7 @@ class PortController extends Controller
      */
     public function show($port_id)
     {
+        $port_id = Crypt::decrypt($port_id);
         $port = Port::where('port_id', $port_id)->firstOrFail();
         $port->load(['country', 'city']);
         return view('ports.show', compact('port'));
@@ -123,6 +124,7 @@ class PortController extends Controller
      */
     public function edit($port_id)
     {
+        $port_id = Crypt::decrypt($port_id);
         $port = Port::where('port_id', $port_id)->firstOrFail();
         $countries = Country::all();
         $cities = City::all();
@@ -161,6 +163,7 @@ class PortController extends Controller
      */
     public function destroy($port_id)
     {
+        $port_id = Crypt::decrypt($port_id);
         $port = Port::where('port_id', $port_id)->firstOrFail();
         $port->delete();
         return redirect()->route('ports.index')->with('success', 'Port deleted successfully');
@@ -181,6 +184,7 @@ class PortController extends Controller
      */
     public function toggleStatus($port_id)
     {
+        $port_id = Crypt::decrypt($port_id);
         $port = Port::where('port_id', $port_id)->firstOrFail();
         $port->status = !$port->status;
         $port->save();

@@ -771,6 +771,7 @@ class JobSheetController extends Controller
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                     ->get();
             }
+           
             
             return view('CreateJobSheet.create-guide-jobsheet', compact('orders', 'guides', 'dmcId'));
             
@@ -1681,7 +1682,6 @@ class JobSheetController extends Controller
                     }
                     return $order;
                 });
-                
                 return response()->json([
                     'success' => true,
                     'data' => $orders,
@@ -1692,6 +1692,7 @@ class JobSheetController extends Controller
                     $order->driver = $order->driver_id ? Driver::find($order->driver_id) : null;
                     return $order;
                 });
+                
                 return response()->json([
                     'success' => true,
                     'data' => $orders,

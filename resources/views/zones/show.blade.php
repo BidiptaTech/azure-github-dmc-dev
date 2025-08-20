@@ -101,7 +101,7 @@
                 <div class="card-header card-header-3d d-flex justify-content-between align-items-center">
                     <h5 class="m-0" style="color: #141313"><i class="bx bx-map-pin me-2"></i>Zone Information</h5>
                     <div>
-                        <a href="{{ route('zones.edit', $zone->zone_id) }}" class="btn btn-primary btn-3d"><i class="bx bx-edit me-1"></i>Edit</a>
+                        <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" class="btn btn-primary btn-3d"><i class="bx bx-edit me-1"></i>Edit</a>
                         <a href="{{ route('zones.index') }}" class="btn btn-secondary btn-3d ms-2"><i class="bx bx-arrow-back me-1"></i>Back to List</a>
                     </div>
                 </div>

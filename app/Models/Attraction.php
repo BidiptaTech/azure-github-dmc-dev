@@ -164,4 +164,22 @@ class Attraction extends Model
         $assignments = $this->zone_assignments ?? [];
         return array_column($assignments, 'dmc_id');
     }
+
+    /**
+     * Remove zone assignment for a specific zone (regardless of DMC)
+     */
+    public function removeZoneAssignment($zoneId)
+    {
+        $assignments = $this->zone_assignments ?? [];
+        
+        // Remove all assignments for the specified zone
+        $assignments = array_filter($assignments, function($assignment) use ($zoneId) {
+            return !isset($assignment['zone_id']) || $assignment['zone_id'] != $zoneId;
+        });
+        
+        $this->zone_assignments = array_values($assignments);
+        $this->save();
+        
+        return $this;
+    }
 }

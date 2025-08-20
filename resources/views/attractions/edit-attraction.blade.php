@@ -23,7 +23,7 @@
         <ul class="nav nav-pills mb-4 mt-4 d-flex justify-content-center" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->routeIs('attraction.edit') ? 'active' : '' }}" 
-                href="{{ route('attraction.edit', $attraction->attraction_id) }}" 
+                href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
                    role="tab">
                     Attractions & Experiences
                 </a>

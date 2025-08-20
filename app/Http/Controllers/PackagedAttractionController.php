@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\CommonHelper;
 use App\Models\User;
+use Illuminate\Support\Facades\Crypt;
 
 class PackagedAttractionController extends Controller
 {
@@ -230,8 +231,9 @@ class PackagedAttractionController extends Controller
         if (!hasPermission('view attraction')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $packageAttractionId = Crypt::decrypt($id);
         
-        $packagedAttraction = PackagedAttraction::findOrFail($id);
+        $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
         return view('packaged_attractions.show', compact('packagedAttraction'));
     }
 
@@ -243,7 +245,8 @@ class PackagedAttractionController extends Controller
         if (!hasPermission('edit attraction')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        $packagedAttraction = PackagedAttraction::findOrFail($id);
+        $packageAttractionId = Crypt::decrypt($id);
+        $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
         $attractions = Attraction::where('status', 1)->get();
         return view('packaged_attractions.edit', compact('packagedAttraction', 'attractions'));
     }
@@ -274,7 +277,8 @@ class PackagedAttractionController extends Controller
                     ->withInput();
             }
 
-            $packagedAttraction = PackagedAttraction::where('package_attraction_id', $id)->first();
+            $packageAttractionId = Crypt::decrypt($id);
+            $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
             $updateData = [
                 'name' => $request->package_attraction_name,
                 'attractions' => json_encode($request->attractions),
@@ -331,7 +335,8 @@ class PackagedAttractionController extends Controller
             abort(403, 'You do not have permission to perform this action.');
         }
         try {
-            $packagedAttraction = PackagedAttraction::where('package_attraction_id', $id)->first();
+            $packageAttractionId = Crypt::decrypt($id);
+            $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
             
             // We don't need to manually delete files when using CommonHelper
             // as it handles storage in a centralized way
@@ -407,7 +412,8 @@ class PackagedAttractionController extends Controller
             abort(403, 'You do not have permission to perform this action.');
         }
         
-        $packagedAttraction = PackagedAttraction::findOrFail($id);
+        $packageAttractionId = Crypt::decrypt($id);
+        $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
         
         // For simplicity, we'll just remove the main image
         if ($packagedAttraction->image && file_exists(public_path($packagedAttraction->image))) {

@@ -571,14 +571,14 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->where('dmc_id', $dmc_id)
                     ->whereNotNull('unique_tour_id')
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
             } else {
                 // For agents, show all their enquiries (no DMC filtering)
                 $enquiries = EnquiryForm::where('agent_id', $agent_id)
@@ -586,13 +586,13 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNotNull('unique_tour_id')
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
             }
             if (!$enquiries) {
                 return response()->json([
@@ -640,7 +640,7 @@ class EnquiryController extends Controller
                     ->whereYear('check_in_time', now()->year)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
 
                 $tour_enquiries_list = EnquiryForm::whereIn('agent_id', $agent_ids)
                     ->whereNotNull('unique_tour_id')
@@ -649,7 +649,7 @@ class EnquiryController extends Controller
                     ->whereYear('check_in_time', now()->year)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
             }
             else{
                 if (empty($user?->agent_id)) {
@@ -663,7 +663,7 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
-                    ->get();
+                    ->get()->orderBy('created_at', 'desc');
             }
         }
         elseif($user->agent_id){
@@ -672,7 +672,7 @@ class EnquiryController extends Controller
                 ->where('status', null)
                 ->skip($start)
                 ->take($limit)
-                ->get();
+                ->get()->orderBy('created_at', 'desc');
         }
         // Get total count for pagination info
         $totalCount = 0;

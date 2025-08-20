@@ -18,6 +18,7 @@ use App\Helpers\CommonHelper;
 use App\Models\Country;
 use App\Models\City;
 use App\Models\Order;
+use Illuminate\Support\Facades\Crypt;
 
 class RestaurantController extends Controller
 {
@@ -121,6 +122,7 @@ class RestaurantController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
 
+        $id = Crypt::decrypt($id);
         $hotels = Hotel::where('status', 1)->get();
         $mealTypes = Meal::whereIn('type', ['Breakfast', 'Lunch', 'Dinner'])
                         ->get()
@@ -176,6 +178,8 @@ class RestaurantController extends Controller
                 'closing_time_dinner' => null,
             ]);
         }
+
+        $id = Crypt::decrypt($id);
 
         $allImages = $request->all_images;
         $existingImages = $request->input('existing_images', []);
@@ -528,6 +532,7 @@ class RestaurantController extends Controller
         if (!hasPermission('edit restaurant')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $hotels = Hotel::where('status', 1)->get();
         $mealTypes = Meal::whereIn('type', ['Breakfast', 'Lunch', 'Dinner'])
                         ->get()
@@ -581,6 +586,8 @@ class RestaurantController extends Controller
                 'closing_time_dinner' => null,
             ]);
         }
+
+        $id = Crypt::decrypt($id);
 
         $allImages = $request->all_images;
         $existingImages = $request->input('existing_images', []);
@@ -662,14 +669,15 @@ class RestaurantController extends Controller
         if (!hasPermission('delete restaurant')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $isUsedInRooms = Room::where('breakfast_restaurant', $id)
         ->orWhere('lunch_restaurant', $id)
         ->orWhere('dinner_restaurant', $id)
         ->exists();
         if ($isUsedInRooms) {
-        // The restaurant is being used in the rooms table, so do not delete it
-        return redirect()->route('restaurant.index')
-        ->with('error', 'This Restaurant is in use, cannot be deleted!');
+            // The restaurant is being used in the rooms table, so do not delete it
+            return redirect()->route('restaurant.index')
+            ->with('error', 'This Restaurant is in use, cannot be deleted!');
         }
 
         // Get restaurant and delete images from Azure
@@ -699,6 +707,7 @@ class RestaurantController extends Controller
 
     public function restaurantCalendar($restaurant_id)
     {
+        $restaurant_id = Crypt::decrypt($restaurant_id);
         $restaurant = Restaurant::where('restaurant_id', $restaurant_id)->first();
         $close_days = $restaurant->close_days;
         $close_dates = $restaurant->close_dates;

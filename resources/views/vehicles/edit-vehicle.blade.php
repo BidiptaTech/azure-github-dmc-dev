@@ -113,14 +113,14 @@
         <ul class="nav nav-tabs mb-4 mt-4 d-flex justify-content-center" id="main-tabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ !request()->has('zone_mapping') ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', $vehicle->vehicle_id) }}" 
+                   href="{{ route('vehicle.edit', Crypt::encrypt($vehicle->vehicle_id)) }}" 
                    role="tab">
                     Edit Vehicle
                 </a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->has('zone_mapping') ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'port_port']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_port']) }}" 
                    role="tab">
                     Zone Mapping
                 </a>
@@ -132,7 +132,7 @@
         <ul class="nav nav-pills mb-4 d-flex justify-content-center" id="zone-mapping-tabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'port_port' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'port_port']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_port']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Port</span>
@@ -144,7 +144,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'port_attraction' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'port_attraction']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_attraction']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Port</span>
@@ -156,7 +156,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'port_restaurant' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'port_restaurant']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_restaurant']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Port</span>
@@ -169,7 +169,7 @@
             <!-- Existing tabs -->
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'port_hotel' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'port_hotel']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_hotel']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Port</span>
@@ -181,7 +181,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'hotel_attraction' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'hotel_attraction']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'hotel_attraction']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Hotel</span>
@@ -193,7 +193,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'hotel_restaurant' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'hotel_restaurant']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'hotel_restaurant']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Hotel</span>
@@ -205,7 +205,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'attraction_restaurant' ? 'active' : '' }}" 
-                   href="{{ route('vehicle.edit', ['vehicle' => $vehicle->vehicle_id, 'zone_mapping' => true, 'mapping_type' => 'attraction_restaurant']) }}" 
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'attraction_restaurant']) }}" 
                    role="tab">
                     <span class="d-flex align-items-center">
                         <span>Attraction</span>
@@ -247,7 +247,7 @@
 
 
             @if(!request()->has('zone_mapping'))
-            <form id="vehicleForm" method="POST" action="{{ route('vehicle.update', $vehicle->vehicle_id) }}"
+            <form id="vehicleForm" method="POST" action="{{ route('vehicle.update', Crypt::encrypt($vehicle->vehicle_id)) }}"
                 enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
