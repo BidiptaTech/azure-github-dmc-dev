@@ -35,7 +35,7 @@
                 </button>
                 @endif
             </h5>
-            <form id="attractionForm" method="POST" action="{{ route('attraction.update.approval', $attraction->attraction_id) }}" enctype="multipart/form-data" class="card-body">
+            <form id="attractionForm" method="POST" action="{{ route('attraction.update.approval', Crypt::encrypt($attraction->attraction_id)) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
                 <!-- Hidden Fields -->
@@ -50,12 +50,12 @@
                                 </label>
                                 {{-- <span class="text-danger">(This attraction name cannot be changed.)</span> --}}
                                 @if($same_attraction)
-                                <input type="text" class="form-control" id="input35" name="name"
-                                value="{{ old('name', $same_attraction->name) }}" placeholder="Enter Attraction Name" readonly required>
-                                <span></span>
-                                @else
-                                <input value="{{$attraction->name}}" type="text" class="form-control" name="name"
-                                placeholder="Enter Attraction Name" required>
+                                    <input type="text" class="form-control" id="input35" name="name"
+                                    value="{{ old('name', $same_attraction->name) }}" placeholder="Enter Attraction Name" readonly required>
+                                    <span></span>
+                                    @else
+                                    <input value="{{$attraction->name}}" type="text" class="form-control" name="name"
+                                    placeholder="Enter Attraction Name" required>
                                 @endif
 
                                 @error('name')

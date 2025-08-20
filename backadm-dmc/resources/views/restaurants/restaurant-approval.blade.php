@@ -121,7 +121,7 @@
                                     <td style="display: inline-block; white-space: nowrap;">
                                         <!-- Edit Button -->
                                         {{-- @if(hasPermission('edit category')) --}}
-                                        <a href="{{ route('restaurants.edit.approval', $restaurant->restaurant_id) }}"
+                                        <a href="{{ route('restaurants.edit.approval', Crypt::encrypt($restaurant->restaurant_id)) }}"
                                             class="btn btn-primary btn-sm rounded-circle"
                                             style="min-width: 28px; min-height: 28px; padding: 0;">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
@@ -138,7 +138,7 @@
                                             class="btn btn-danger btn-sm rounded-circle"
                                             style="min-width: 28px; min-height: 28px; padding: 0;" data-toggle="modal"
                                             data-target="#deleteModal"
-                                            onclick="setDeleteForm('{{ route('restaurant.destroy', $restaurant->restaurant_id) }}')">
+                                            onclick="setDeleteForm('{{ route('restaurant.destroy', Crypt::encrypt($restaurant->restaurant_id)) }}')">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
                                                 width="16px" fill="#ffffff">
                                                 <path

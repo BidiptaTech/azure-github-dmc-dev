@@ -166,7 +166,7 @@
                 </div>
             @endif
 
-            <form id="guideForm" method="POST" action="{{ route('guide.update',$guide->guide_id) }}"
+            <form id="guideForm" method="POST" action="{{ route('guide.update',Crypt::encrypt($guide->guide_id)) }}"
                 enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')

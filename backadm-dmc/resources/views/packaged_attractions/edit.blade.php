@@ -236,7 +236,7 @@
                 </a>
             </h5>
             <x-alert />
-            <form id="packagedAttractionForm" method="POST" action="{{ route('packaged-attractions.update', $packagedAttraction->package_attraction_id) }}"
+            <form id="packagedAttractionForm" method="POST" action="{{ route('packaged-attractions.update', Crypt::encrypt($packagedAttraction->package_attraction_id)) }}"
                 enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')

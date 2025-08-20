@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
 use App\Models\Country;
 use App\Models\City;
+use Illuminate\Support\Facades\Crypt;
+
 class AttractionController extends Controller
 {
     /*
@@ -119,6 +121,7 @@ class AttractionController extends Controller
     public function editAttractionApproval($id)
     {
 
+        $id = Crypt::decrypt($id);
         $attraction = Attraction::where('attraction_id',$id)->first();
         $country = [];
         $country = Country::where('is_active', 1)->get();
@@ -140,6 +143,7 @@ class AttractionController extends Controller
 
     public function updateAttractionApproval(Request $request, $id)
     {
+        $id = Crypt::decrypt($id);
         //dd($id, $request->all());
         $request->validate([
             'name' => 'required|string|max:255',
@@ -458,6 +462,7 @@ class AttractionController extends Controller
         if (!hasPermission('edit attraction')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $country = Country::where('is_active', 1)->get();
         $attraction = Attraction::where('attraction_id',$id)->first();
         $city = City::where('country', $attraction->country)->get();
@@ -573,7 +578,7 @@ class AttractionController extends Controller
         if (!hasPermission('delete attraction')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        
+        $id = Crypt::decrypt($id);
         // Get attraction and delete images from Azure
         $attraction = Attraction::where('attraction_id', $id)->first();
         if($attraction) {

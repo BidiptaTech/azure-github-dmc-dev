@@ -105,7 +105,7 @@
                 </button>
                 @endif
             </h5>
-            <form id="restaurantForm" method="POST" action="{{ route('restaurant.update.approval', $restaurant->restaurant_id) }}" enctype="multipart/form-data" class="card-body">
+            <form id="restaurantForm" method="POST" action="{{ route('restaurant.update.approval', Crypt::encrypt($restaurant->restaurant_id)) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
                 <!-- Hidden Fields -->

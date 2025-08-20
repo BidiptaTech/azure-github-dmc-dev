@@ -31,7 +31,7 @@
                                 <a href="{{ route('packaged-attractions.index') }}" class="btn btn-light me-2">
                                     <i class="mdi mdi-arrow-left me-1"></i> Back to List
                                 </a>
-                                <a href="{{ route('packaged-attractions.edit', $packagedAttraction->id) }}" class="btn btn-warning">
+                                <a href="{{ route('packaged-attractions.edit', Crypt::encrypt($packagedAttraction->package_attraction_id)) }}" class="btn btn-warning">
                                     <i class="mdi mdi-pencil-outline me-1"></i> Edit Package
                                 </a>
                             </div>

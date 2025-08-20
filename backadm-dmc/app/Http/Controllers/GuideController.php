@@ -19,6 +19,7 @@ use App\Models\Languages;
 use App\Services\LogActivityService;
 use App\Models\City;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Crypt;
 
 class GuideController extends Controller
 {
@@ -115,6 +116,7 @@ class GuideController extends Controller
 
     public function editGuideApproval($id)
     {
+        $id = Crypt::decrypt($id);
         $guide = Guide::where('guide_id', $id)->first();
         $languages = GuideLanguage::where('guide_id', $id)->get();
         $languagesname = Languages::get();
@@ -609,6 +611,7 @@ class GuideController extends Controller
         if (!hasPermission('edit guide')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $guide = Guide::where('guide_id', $id)->first();
         $city = City::where('country', $guide->country)->get();
         $languages = GuideLanguage::where('guide_id', $id)->get();
@@ -632,6 +635,7 @@ class GuideController extends Controller
     */
     public function update(Request $request, $id)
     {
+        $id = Crypt::decrypt($id);
         $guide = Guide::where('guide_id',$id)->first();
 
         $user = auth()->user();
@@ -790,6 +794,7 @@ class GuideController extends Controller
         if (!hasPermission('delete guide')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         // Get guide and delete images from Azure
         $guide = Guide::where('guide_id', $id)->first();
         if($guide) {
@@ -826,6 +831,7 @@ class GuideController extends Controller
 
     public function guideCalendar($guide_id)
     {
+        $guide_id = Crypt::decrypt($guide_id);
         $guide = Guide::where('guide_id', $guide_id)->first();
         $close_days = $guide->close_days;
         $close_dates = $guide->close_dates;
