@@ -64,7 +64,6 @@ class HomeController extends Controller
         ->where('country', $country)
         ->where('status', 1)
         ->where('location', $city)
-        ->orderBy('attraction_id', 'desc')
         ->get();
 
         // Filter by DMC ID at application level to handle JSON column properly

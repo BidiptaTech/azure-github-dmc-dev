@@ -74,7 +74,7 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ route('attraction.edit', $attraction->attraction_id) }}" 
+                                            <a href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="ri-edit-line me-1"></i>Edit
                                             </a>
