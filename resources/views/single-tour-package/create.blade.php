@@ -1227,8 +1227,10 @@
                         formData.append('exit_port_data', exitPortData || '');
 
                         // Send request to store orders
-                        console.log('Store orders URL:', '{{ route('single-tour-package.store-orders') }}');
-                        const response = await fetch('/package-store-orders', {
+                        const storeOrdersUrl = '{{ route('single-tour-package.store-orders') }}';
+                        console.log('Store orders URL:', storeOrdersUrl);
+                 
+                        const response = await fetch(storeOrdersUrl, {
                             method: 'POST',
                             headers: {
                                 'X-Requested-With': 'XMLHttpRequest',
