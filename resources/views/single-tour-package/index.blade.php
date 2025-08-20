@@ -89,8 +89,8 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex flex-column">
-                                                    <span class="fw-semibold">{{ $package->start_date->format('d M Y') }}</span>
-                                                    <small class="text-muted">to {{ $package->end_date->format('d M Y') }}</small>
+                                                    <span class="fw-semibold">{{ $package->check_in_time ? \Carbon\Carbon::parse($package->check_in_time)->format('d M Y') : 'N/A' }}</span>
+                                                    <small class="text-muted">to {{ $package->check_out_time ? \Carbon\Carbon::parse($package->check_out_time)->format('d M Y') : 'N/A' }}</small>
                                                 </div>
                                             </td>
                                             <td>

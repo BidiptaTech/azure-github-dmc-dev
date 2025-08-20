@@ -949,15 +949,14 @@
                     </li> --}}
                     @if(in_array(auth()->user()->role_id, [33]))
                     <!-- Single Tour Package for DMCs -->
-                    {{-- <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+                     <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
                         <a href="{{ route('single-tour-package.create') }}" class="menu-link" title="Create Tour Package">
-                            <i class="menu-icon tf-icons ri-gift-line"></i>
-                            <div data-i18n="Create Tour Package" class="menu-tooltip">
+                                <div data-i18n="Create Tour Package" class="menu-tooltip">
                                 <span class="menu-text-with-tooltip">Create Tour Package</span>
                                 <span class="tooltip-text">Create Tour Package</span>
                             </div>
                         </a>
-                    </li> --}}
+                    </li> 
                     {{-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
                         <a href="{{ route('single-tour-package.index') }}" class="menu-link">
                             <div data-i18n="Single Tour Packages" class="menu-tooltip">
