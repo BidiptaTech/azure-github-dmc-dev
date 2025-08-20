@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Models\PackageBooking;
 use App\Models\Vehicle;
 use App\Models\Agent;
+use Illuminate\Support\Facades\Crypt;
 
 class PackageController extends Controller
 {
@@ -386,6 +387,7 @@ class PackageController extends Controller
      */
     public function show($package_id)
     {
+        $package_id = Crypt::decrypt($package_id);
         $package = Package::with(['creator', 'updater'])->where('package_id', $package_id)->firstOrFail();
         
         // Increment views
@@ -520,6 +522,7 @@ class PackageController extends Controller
     public function destroy($package_id)
     {
         try {
+            $package_id = Crypt::decrypt($package_id);
             $package = Package::where('package_id', $package_id)->first();
             
             // Note: Image cleanup is handled by the storage system configured in CommonHelper

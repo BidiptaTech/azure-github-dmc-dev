@@ -571,6 +571,7 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->where('dmc_id', $dmc_id)
@@ -578,6 +579,7 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
             } else {
                 // For agents, show all their enquiries (no DMC filtering)
@@ -586,12 +588,14 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNotNull('unique_tour_id')
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
             }
             if (!$enquiries) {
@@ -640,6 +644,7 @@ class EnquiryController extends Controller
                     ->whereYear('check_in_time', now()->year)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
 
                 $tour_enquiries_list = EnquiryForm::whereIn('agent_id', $agent_ids)
@@ -649,6 +654,7 @@ class EnquiryController extends Controller
                     ->whereYear('check_in_time', now()->year)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
             }
             else{
@@ -663,6 +669,7 @@ class EnquiryController extends Controller
                     ->where('status', null)
                     ->skip($start)
                     ->take($limit)
+                    ->orderBy('created_at', 'desc')
                     ->get();
             }
         }
@@ -672,6 +679,7 @@ class EnquiryController extends Controller
                 ->where('status', null)
                 ->skip($start)
                 ->take($limit)
+                ->orderBy('created_at', 'desc')
                 ->get();
         }
         // Get total count for pagination info

@@ -133,6 +133,8 @@ var initialOrders = {!! json_encode($orders ?? []) !!};
 var initialGuides = {!! json_encode($guides ?? []) !!};
 var dataTableInitialized = false; // Track if DataTable is initialized
 
+
+
 $(document).ready(function() {
     let datePicker = null;
     // Store the current tour guide orders data for export
@@ -162,11 +164,13 @@ $(document).ready(function() {
     // Initialize table with orders data from controller
     function initializeTable() {
         // Check if we have initial data from controller
+        console.log("initialOrders = ", initialOrders);
         if (typeof initialOrders !== 'undefined' && initialOrders.length > 0) {
             let tableHTML = '';
             tourGuideOrdersData = []; // Reset the export data
             
             initialOrders.forEach(function(item, index) {
+                console.log("item = ", item);
                 // Handle data as array or object (flexibility for different data structures)
                 const orderData = item.data || {};
                 let dataItem;
@@ -273,13 +277,15 @@ $(document).ready(function() {
                             } else {
                                 dataItem = {};
                             }
+
                             
+                            console.log("item.tour.tour_id = ", item.tour.tour_id);
                             // Store data for export
                             const $select = $(`select[data-order-id="${item.booking_id}"]`);
                             const selectedGuideName = $select.find('option:selected').text() || 'Not Assigned';
                             tourGuideOrdersData.push({
                                 order_id: item.booking_id || item.id || 'N/A',
-                                tour_id: item.tour_id || 'N/A',
+                                tour_id: item.tour.tour_id || 'N/A',
                                 order_type: item.type || 'N/A',
                                 pickup_time: dataItem.entrytime || 'N/A',
                                 pickup_location: dataItem.entrypickup || 'N/A',
@@ -433,6 +439,7 @@ $(document).ready(function() {
         const date = $('#dateSelect').val();
         const dmcId = $('#dmc_id').val();
         const tourId = $select.data('tour-id');
+        console.log(tourId);
 
         const selectedGuideName = $select.find('option:selected').text().trim();
         const item = tourGuideOrdersData.find(obj => obj.order_id == orderId);
