@@ -1450,10 +1450,10 @@
                                                                          <h6 class="fw-bold mb-0 text-dark">Item Details</h6>
                                                                      </div>
                                                                      <div class="row">
-                                                                         <div class="col-6 mb-2">
+                                                                         {{-- <div class="col-6 mb-2">
                                                                              <small class="text-muted">Item ID</small>
                                                                              <div class="fw-medium">#{{ $meal['meal_id'] ?? 'N/A' }}</div>
-                                                                         </div>
+                                                                         </div> --}}
                                                                          <div class="col-6 mb-2">
                                                                              <small class="text-muted">Category</small>
                                                                              <div class="fw-medium">{{ $meal['category'] ?? 'N/A' }}</div>
