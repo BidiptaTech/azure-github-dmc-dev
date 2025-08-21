@@ -709,9 +709,14 @@
                 </li>
                 @endif -->
 
-                <!-- Tour -->
-            @if(hasPermission('view tour'))
-            
+        @if(in_array(auth()->user()->role_id, [33]))
+            <!-- Single Tour Package for DMCs -->
+            <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
+                <a href="{{ route('single-tour-package.create') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-route-line"></i>
+                    <div data-i18n="Create Tour Package">Create Tour Package</div>
+                </a>
+            </li> 
         @endif
 
         <!-- End Tour -->
@@ -955,29 +960,6 @@
                             </div>
                         </a>
                     </li> --}}
-                    @if(in_array(auth()->user()->role_id, [33]))
-                    <!-- Single Tour Package for DMCs -->
-                     <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
-                        <a href="{{ route('single-tour-package.create') }}" class="menu-link" title="Create Tour Package">
-                                <div data-i18n="Create Tour Package" class="menu-tooltip">
-                                <span class="menu-text-with-tooltip">Create Tour Package</span>
-                                <span class="tooltip-text">Create Tour Package</span>
-                            </div>
-                        </a>
-                    </li> 
-                    {{-- <li class="menu-item @if(Request::is('single-tour-package')) active @endif">
-                        <a href="{{ route('single-tour-package.index') }}" class="menu-link">
-                            <div data-i18n="Single Tour Packages" class="menu-tooltip">
-                                <span class="menu-text-with-tooltip">Single Tour Packages</span>
-                                <span class="tooltip-text">Single Tour Packages</span>
-                            </div>
-                        </a>
-                    </li> --}}
-                    @endif
-                    
-                {{-- </ul>
-            </li> --}}
-
                 <!-- Packaged Attractions -->
                 {{-- <li class="menu-item @if(Request::is('packaged-attractions*') && !Request::is('packaged-attractions/packaged-attraction-approval*')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
