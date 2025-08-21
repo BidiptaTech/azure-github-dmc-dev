@@ -99,7 +99,8 @@ const EnquiryList = () => {
     (state) => state.bookingEnquiry
   );
   const { userRole } = useSelector((state) => state.auth);
-  console.log(enquiries, "enq");
+  const selectedAgent = useSelector((state) => state.editing.agentId);
+  // console.log(enquiries, "enq");
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -125,7 +126,21 @@ const EnquiryList = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 })).unwrap();
+      // Use agent ID from Redux if available
+      if (selectedAgent) {
+        await dispatch(fetchEnquiries({ 
+          agentId: selectedAgent,
+          reset: true, 
+          start: 0, 
+          limit: 30 
+        })).unwrap();
+      } else {
+        await dispatch(fetchEnquiries({ 
+          reset: true, 
+          start: 0, 
+          limit: 30 
+        })).unwrap();
+      }
     } catch (error) {
       console.error('Failed to refresh enquiries:', error);
     } finally {
@@ -134,35 +149,43 @@ const EnquiryList = () => {
   };
 
   // Initial data fetch
-  useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
-    }
-  }, [status, dispatch]);
+  // useEffect(() => {
+  //   if (status === "idle") {
+  //     dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+  //   }
+  // }, [status, dispatch]);
 
   // Add a separate effect to refresh enquiries periodically and on component mount
-  useEffect(() => {
-    // Fetch enquiries on component mount
-    dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+  // useEffect(() => {
+  //   // Fetch enquiries on component mount
+  //   if (selectedAgent) {
+  //     dispatch(fetchEnquiries({ agentId: selectedAgent, reset: true, start: 0, limit: 30 }));
+  //   } else {
+  //     dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+  //   }
     
-    // // Set up periodic refresh every 30 seconds
-    // const interval = setInterval(() => {
-    //   dispatch(fetchEnquiries({ reset: false, start: 0, limit: 30 }));
-    // }, 30000); // 30 seconds
+  //   // // Set up periodic refresh every 30 seconds
+  //   // const interval = setInterval(() => {
+  //   //   if (selectedAgent) {
+  //   //     dispatch(fetchEnquiries({ agentId: selectedAgent, reset: false, start: 0, limit: 30 }));
+  //   //   } else {
+  //   //     dispatch(fetchEnquiries({ reset: false, start: 0, limit: 30 }));
+  //   //   }
+  //   // }, 30000); // 30 seconds
     
-    // // Cleanup interval on component unmount
-    // return () => clearInterval(interval);
-  }, [dispatch]);
+  //   // // Cleanup interval on component unmount
+  //   // return () => clearInterval(interval);
+  // }, [dispatch, selectedAgent]);
 
   // Effect to detect new enquiries
-  useEffect(() => {
-    if (enquiries.length > 0 && lastEnquiryCount > 0 && enquiries.length > lastEnquiryCount) {
-      setShowNewEnquiryAlert(true);
-      // Auto-hide the alert after 5 seconds
-      setTimeout(() => setShowNewEnquiryAlert(false), 5000);
-    }
-    setLastEnquiryCount(enquiries.length);
-  }, [enquiries.length, lastEnquiryCount]);
+  // useEffect(() => {
+  //   if (enquiries.length > 0 && lastEnquiryCount > 0 && enquiries.length > lastEnquiryCount) {
+  //     setShowNewEnquiryAlert(true);
+  //     // Auto-hide the alert after 5 seconds
+  //     setTimeout(() => setShowNewEnquiryAlert(false), 5000);
+  //   }
+  //   setLastEnquiryCount(enquiries.length);
+  // }, [enquiries.length, lastEnquiryCount]);
 
 
 
@@ -348,10 +371,19 @@ const EnquiryList = () => {
         //   nextStart
         // });
         
-        dispatch(fetchEnquiries({ start: nextStart, limit: 30, reset: false }));
+        if (selectedAgent) {
+          dispatch(fetchEnquiries({ 
+            agentId: selectedAgent,
+            start: nextStart, 
+            limit: 30, 
+            reset: false 
+          }));
+        } else {
+          dispatch(fetchEnquiries({ start: nextStart, limit: 30, reset: false }));
+        }
       }
     }
-  }, [page, sortedEnquiries.length, rowsPerPage, dispatch, totalPages]);
+  }, [page, sortedEnquiries.length, rowsPerPage, dispatch, totalPages, selectedAgent]);
 
   const paginatedEnquiries = sortedEnquiries.slice(
     page * rowsPerPage,

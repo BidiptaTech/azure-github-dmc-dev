@@ -47,29 +47,42 @@ const SalesManagerDashboard = () => {
       const handleMainTabChange = (event, newValue) => {
     setMainTabValue(newValue);
   };
-    const {agents,error} =useSelector((state)=>state.agentList)
+    const {agents,error} = useSelector((state) => state.agentList);
+    const selectedAgent = useSelector((state) => state.editing.agentId) || '';
     // console.log(agents,"agentlist");
+
+        useEffect(() => {
+    // Fetch agent list on component mount
+    dispatch(fetchAgentList());
     
-      const [selectedAgent, setSelectedAgent] = useState('');
-
-        useEffect(()=>{
-     
-         dispatch(fetchAgentList())
-            dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }))
-     
-  },[dispatch])
+    // Initial fetch of enquiries - will use agent ID from Redux if available
+    const storedAgentId = selectedAgent;
+    if (storedAgentId) {
+      // If we have an agent ID in Redux, use it for initial fetch
+      dispatch(fetchEnquiries({ agentId: storedAgentId, reset: true, start: 0, limit: 30 }));
+      dispatch(fetchLists({ agentId: storedAgentId, reset: true }));
+    } else {
+      // Otherwise fetch all enquiries
+      dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+      dispatch(fetchLists({ reset: true }));
+    }
+  }, [dispatch, selectedAgent])
    const handleChange = (event) => {
-      const agentId =event.target.value
-      setSelectedAgent(agentId);
-      dispatch(fetchEnquiries({ agentId, reset: true, start: 0, limit: 30 }))
-      dispatch(setAgentId(agentId))
-      dispatch(fetchLists({ agentId, reset: true }))
-      console.log('Selected agent:', event.target.value);
+      const agentId = event.target.value;
+      // Store agent ID in Redux first
+      dispatch(setAgentId(agentId));
+      // Then fetch data with the selected agent ID
+      if (agentId) {
+        dispatch(fetchEnquiries({ agentId, reset: true, start: 0, limit: 30 }));
+        dispatch(fetchLists({ agentId, reset: true }));
+      } else {
+        // If "All Agents" is selected (empty string)
+        dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+        dispatch(fetchLists({ reset: true }));
+      }
+      console.log('Selected agent:', agentId);
     };
-  // useEffect(() => {
-  //   dispatch(fetchLists());
-
-  // }, [dispatch]);
+  // We've moved the fetchLists call to the first useEffect where we can include agentId
   function TabPanel(props) {
     const { children, value, index, ...other } = props;
   
