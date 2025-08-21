@@ -9,6 +9,7 @@ use App\Models\Agent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Crypt;
@@ -814,14 +815,154 @@ class BookingsController extends Controller
     }
 
     /**
-     * Display Refunds (placeholder for future implementation)
+     * Display Refunds (tour_status = 'Refund - Pending')
      */
     public function refunds()
     {
-        // For now, return empty data as refunds section is not needed yet
+        $user = Auth::user();
+        $dmc_id = null;
         $tours = collect([]);
+
+        if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
+            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->select([
+                'tours.tour_id',
+                'tours.unique_tour_id',
+                'tours.display_id',
+                'tours.multi_enq_id',
+                'tours.adult',
+                'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
+                'tours.destination',
+                'tours.city',
+                'tours.check_in_time',
+                'tours.check_out_time',
+                'tours.tour_status',
+                'tours.payment_details',
+                'tours.created_at',
+                'tours.updated_at',
+                'tours.agent_id',
+                'tours.dmc_id',
+                'agents.name as agent_name'
+            ])
+            ->orderBy('tours.created_at', 'desc')
+            ->paginate(15);
+        }
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
+            ->where('tours.dmc_id', $dmc_id)
+            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->select([
+                'tours.tour_id',
+                'tours.unique_tour_id',
+                'tours.display_id',
+                'tours.multi_enq_id',
+                'tours.adult',
+                'tours.child',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
+                'tours.destination',
+                'tours.city',
+                'tours.check_in_time',
+                'tours.check_out_time',
+                'tours.tour_status',
+                'tours.payment_details',
+                'tours.created_at',
+                'tours.updated_at',
+                'tours.agent_id',
+                'tours.dmc_id',
+                'agents.name as agent_name'
+            ])
+            ->orderBy('tours.created_at', 'desc')
+            ->paginate(15);
+        }
         
         return view('bookings.refunds', compact('tours'));
+    }
+
+    /**
+     * Process refund for a tour (update tour_status from 'Refund - Pending' to 'Refunded')
+     */
+    public function processRefund(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid tour ID provided'
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            
+            // Find the tour
+            $tour = Tour::where('tour_id', $tourId)
+                       ->where('tour_status', 'Refund - Pending')
+                       ->first();
+
+            if (!$tour) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tour not found or not eligible for refund processing'
+                ], 404);
+            }
+
+            // Update tour status to Refunded
+            $tour->tour_status = 'Refunded';
+            $tour->updated_at = now();
+            $tour->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Refund processed successfully',
+                'tour_id' => $tourId,
+                'new_status' => 'Refunded'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing the refund: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

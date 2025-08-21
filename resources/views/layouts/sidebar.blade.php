@@ -817,7 +817,7 @@
                                     </div>
                                 </a>
                             </li>
-                            {{-- <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
+                            <li class="menu-item @if(Request::is('bookings/refunds')) active @endif">
                                 <a href="{{ route('bookings.refunds') }}" class="menu-link" title="Refunds">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span data-i18n="Refunds">Refunds</span>
@@ -826,7 +826,7 @@
                                         @endif
                                     </div>
                                 </a>
-                            </li> --}}
+                            </li>
                         {{-- </ul>
                     </li> --}}
                 @endif
