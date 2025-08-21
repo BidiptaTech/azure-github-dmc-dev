@@ -72,20 +72,24 @@ class GuideController extends Controller
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
             $guides = Guide::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
-        } 
+        }
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 75){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $guides = Guide::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $guides = Guide::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+            $product_head = User::where('userId', $user->created_by)->first();
+            $this_dmc_id = $product_head->created_by;
+            if($this_dmc_id){
+                $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
             }
         }
         elseif($user->role_id == 102){
-            $guides = Guide::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $this_dmc_id = $product_head->created_by;
+            if($this_dmc_id){
+                $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
+            }
         }
         // $guides = Guide::where('guide_id', 40)->get();
         return view('guides.guide', compact('guides', 'user'));
