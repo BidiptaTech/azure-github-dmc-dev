@@ -2418,7 +2418,7 @@ class TourController extends Controller
 
         if ($order) {
             $order->status = 4; //cancel booking
-            $order->save;
+            $order->save();
             $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$order->type);
             return response()->json([
                 'success' => true,
