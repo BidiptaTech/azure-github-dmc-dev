@@ -189,7 +189,6 @@
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
-                            <th>Services</th>
                             <th>Guests</th>
                             <th>Agent</th>
                             <th>Cancellation Status</th>
@@ -230,38 +229,7 @@
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
-                                        $svc = [
-                                            'hotel' => $tour->hotel ?? 0,
-                                            'attraction' => $tour->attraction ?? 0,
-                                            'restaurent' => $tour->restaurent ?? 0,
-                                            'travel' => $tour->travel ?? 0,
-                                            'guide' => $tour->guide ?? 0,
-                                            'port' => $tour->port ?? 0,
-                                        ];
-                                        $icons = [
-                                            'hotel' => 'ri-hotel-line',
-                                            'attraction' => 'ri-building-2-line',
-                                            'restaurent' => 'ri-restaurant-2-line',
-                                            'travel' => 'ri-bus-2-line',
-                                            'guide' => 'ri-user-voice-line',
-                                            'port' => 'ri-ship-line',
-                                        ];
-                                    @endphp
-                                    @foreach($svc as $key=>$count)
-                                        @if(intval($count) > 0)
-                                            <span class="badge bg-light text-dark border">
-                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
-                                            </span>
-                                        @endif
-                                    @endforeach
-                                    @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted">No services</span>
-                                    @endif
-                                </div>
-                            </td>
+
                             <td>
                                 <div class="d-flex gap-2">
                                     @if($tour->adult > 0)
@@ -324,7 +292,7 @@
                         </tr>
                         @empty
                         {{-- <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="7" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-close-circle-line ri-48px text-muted mb-2"></i>
                                     <h6 class="text-muted">No cancelled bookings</h6>
@@ -357,9 +325,9 @@ function filterTable() {
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const cancelledDate = row.cells[7]?.textContent.toLowerCase() || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[5]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const cancelledDate = row.cells[6]?.textContent.toLowerCase() || '';
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
@@ -647,10 +615,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            // order: [[6, 'desc']], // Sort by Cancelled Date column (index 6) in descending order
+            // order: [[5, 'desc']], // Sort by Cancelled Date column (index 5) in descending order
             columnDefs: [
                 {
-                    targets: [7], // Actions column (index 7)
+                    targets: [6], // Actions column (index 6)
                     orderable: false,
                     searchable: false
                 },
@@ -659,7 +627,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     orderable: false
                 },
                 {
-                    targets: [5], // Cancellation Status column (index 5)
+                    targets: [4], // Cancellation Status column (index 4)
                     orderable: false
                 }
             ],

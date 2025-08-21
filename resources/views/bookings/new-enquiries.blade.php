@@ -181,7 +181,6 @@
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
-                            <th>Services</th>
                             <th>Guests</th>
                             <th>Agent</th>
                             <th>Check-in/Check-out</th>
@@ -218,38 +217,7 @@
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
-                                        $svc = [
-                                            'hotel' => $tour->hotel ?? 0,
-                                            'attraction' => $tour->attraction ?? 0,
-                                            'restaurent' => $tour->restaurent ?? 0,
-                                            'travel' => $tour->travel ?? 0,
-                                            'guide' => $tour->guide ?? 0,
-                                            'port' => $tour->port ?? 0,
-                                        ];
-                                        $icons = [
-                                            'hotel' => 'ri-hotel-line',
-                                            'attraction' => 'ri-building-2-line',
-                                            'restaurent' => 'ri-restaurant-2-line',
-                                            'travel' => 'ri-bus-2-line',
-                                            'guide' => 'ri-user-voice-line',
-                                            'port' => 'ri-ship-line',
-                                        ];
-                                    @endphp
-                                    @foreach($svc as $key=>$count)
-                                        @if(intval($count) > 0)
-                                            <span class="badge bg-light text-dark border">
-                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
-                                            </span>
-                                        @endif
-                                    @endforeach
-                                    @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted">No services</span>
-                                    @endif
-                                </div>
-                            </td>
+
                             <td>
                                 <div class="d-flex gap-2">
                                     @if($tour->adult > 0)
@@ -477,7 +445,7 @@ function filterTable() {
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const city = row.cells[2]?.querySelector('.text-muted')?.textContent || '';
-        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
         
@@ -763,15 +731,15 @@ function exportData() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            // order: [[8, 'desc']], // Sort by Created Date column (index 8) in descending order
+            // order: [[7, 'desc']], // Sort by Created Date column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [8, 9], // Negotiation and Actions columns (indices 8 and 9)
+                    targets: [7, 8], // Negotiation and Actions columns (indices 7 and 8)
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [4], // Guests column (index 4)
+                    targets: [3], // Guests column (index 3)
                     orderable: false
                 }
             ],
