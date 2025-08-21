@@ -55,13 +55,13 @@ const SalesManagerDashboard = () => {
         useEffect(()=>{
      
          dispatch(fetchAgentList())
-            dispatch(fetchEnquiries())
+            dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }))
      
   },[dispatch])
    const handleChange = (event) => {
       const agentId =event.target.value
       setSelectedAgent(agentId);
-      dispatch(fetchEnquiries(agentId))
+      dispatch(fetchEnquiries({ agentId, reset: true, start: 0, limit: 30 }))
       dispatch(setAgentId(agentId))
       dispatch(fetchLists({ agentId, reset: true }))
       console.log('Selected agent:', event.target.value);

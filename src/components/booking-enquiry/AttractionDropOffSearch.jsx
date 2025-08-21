@@ -227,6 +227,10 @@ const AttractionDropOffSearch = ({ onSelect, value = null }) => {
     
     return `${openTime[0]} - ${closeTime[0]}`;
   };
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+  };
 
   return (
     <SearchContainer>
