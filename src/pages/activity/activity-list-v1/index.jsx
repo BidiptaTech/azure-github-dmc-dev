@@ -57,7 +57,7 @@ const ActivityListPage1 = () => {
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const mode = useSelector((state) => state.tourguide.mode);
   const priceMode = useSelector((state) => state.tourguide.pricemode);
-
+  const pickupdate = useSelector((state) => state.tourguide.pickupdate);
   useEffect(() => {
     const defaultMode =
       priceMode === "checked" || priceMode === "non-checked"
@@ -174,7 +174,7 @@ const ActivityListPage1 = () => {
       mode: guideMode,
       dmc_id: dmcId,
       pickup: city,
-      date: guides.date || new Date().toISOString().split('T')[0]
+      date: pickupdate || new Date().toISOString().split('T')[0]
     };
     
     dispatch(fetchGuideDetails(searchParams))
