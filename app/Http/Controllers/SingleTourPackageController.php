@@ -1169,12 +1169,19 @@ class SingleTourPackageController extends Controller
                             
                             // Create one order with all hotel data as array
                             if (!empty($hotelDataArray)) {
+                                // Get the last booking ID and increment by 1
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
                                 $order = Order::create([
+                                    'booking_id' => $newBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => $hotelDataArray, // Store all hotel data as array
                                     'type' => $type,
                                     'status' => 1,
+                                    'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("Hotel orders created successfully", [
@@ -1201,12 +1208,19 @@ class SingleTourPackageController extends Controller
                             
                             // Create one order with all attraction data as array
                             if (!empty($attractionDataArray)) {
+                                // Get the last booking ID and increment by 1
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
                                 $order = Order::create([
+                                    'booking_id' => $newBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => $attractionDataArray, // Store all attraction data as array
                                     'type' => $type,
                                     'status' => 1,
+                                    'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("Attraction orders created successfully", [
@@ -1233,12 +1247,19 @@ class SingleTourPackageController extends Controller
                             
                             // Create one order with all restaurant data as array
                             if (!empty($restaurantDataArray)) {
+                                // Get the last booking ID and increment by 1
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
                                 $order = Order::create([
+                                    'booking_id' => $newBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => $restaurantDataArray, // Store all restaurant data as array
                                     'type' => $type,
                                     'status' => 1,
+                                    'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("Restaurant orders created successfully", [
@@ -1265,12 +1286,19 @@ class SingleTourPackageController extends Controller
                             
                             // Create one order with all guide data as array
                             if (!empty($guideDataArray)) {
+                                // Get the last booking ID and increment by 1
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
                                 $order = Order::create([
+                                    'booking_id' => $newBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => $guideDataArray, // Store all guide data as array
                                     'type' => $type,
                                     'status' => 1,
+                                    'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("Guide orders created successfully", [
@@ -1297,12 +1325,19 @@ class SingleTourPackageController extends Controller
                             
                             // Create one order with all transport data as array
                             if (!empty($transportDataArray)) {
+                                // Get the last booking ID and increment by 1
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
                                 $order = Order::create([
+                                    'booking_id' => $newBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => $transportDataArray, // Store all transport data as array
                                     'type' => $type,
                                     'status' => 1,
+                                    'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("Transport orders created successfully", [
@@ -1329,12 +1364,19 @@ class SingleTourPackageController extends Controller
                             
                             // Create one order with all service data as array
                             if (!empty($serviceDataArray)) {
+                                // Get the last booking ID and increment by 1
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
                                 $order = Order::create([
+                                    'booking_id' => $newBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => $serviceDataArray, // Store all service data as array
                                     'type' => $type,
                                     'status' => 1,
+                                    'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("{$type} orders created successfully", [
