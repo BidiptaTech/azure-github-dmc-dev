@@ -132,6 +132,7 @@ class MealController extends Controller
         if (!hasPermission('edit meal')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $restaurants = Restaurant::where('is_active', 1)->get();
 
         $meals = Meal::where('meal_id',$id)->first();
@@ -157,6 +158,7 @@ class MealController extends Controller
             // Catch Validation Errors
             dd($e->errors());
         }
+        $id = Crypt::decrypt($id);
         
         // $image = $request->file('files');
         // if($image){
@@ -200,7 +202,7 @@ class MealController extends Controller
         
         $meal->save();
 
-        return redirect()->route('meals.restaurant_create', $request->restaurant_id)->with('success', 'Meal details updated successfully.');
+        return redirect()->route('meals.restaurant_create', Crypt::encrypt($request->restaurant_id))->with('success', 'Meal details updated successfully.');
     }
 
     /*
@@ -212,9 +214,10 @@ class MealController extends Controller
         if (!hasPermission('delete meal')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $meal = Meal::where('meal_id',$id)->first();
         $delete = $meal->delete();
-        return redirect()->route('meals.restaurant_create', $meal->restaurant_id)->with('success', 'Meal details deleted successfully.');
+        return redirect()->route('meals.restaurant_create', Crypt::encrypt($meal->restaurant_id))->with('success', 'Meal details deleted successfully.');
         
     
     }

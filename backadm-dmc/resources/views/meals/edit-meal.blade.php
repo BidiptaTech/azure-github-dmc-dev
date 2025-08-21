@@ -23,7 +23,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form id="mealsForm" method="POST" action="{{ route('meals.update', ['meal' => $meals->meal_id]) }}" enctype="multipart/form-data" class="card-body">
+            <form id="mealsForm" method="POST" action="{{ route('meals.update', ['meal' => Crypt::encrypt($meals->meal_id)]) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
                 <!-- Hidden Fields -->
