@@ -71,11 +71,6 @@ import PackagesTable from "./PackagesTable";
 import DateFilter from "./DateFilter";
 
 
-
-
-
-
-
 const PreDefinePackages = () => {
     const dispatch = useDispatch();
     const {
@@ -1098,76 +1093,19 @@ const PreDefinePackages = () => {
                 >
                     <Tab
                         icon={<DonutLarge />}
-                        label={
-                            <Box sx={{ position: 'relative', pr: 3 }}>
-                                Ongoing
-                                <Badge
-                                    badgeContent={tabValue === 0 ? bookingListsPagination.total : processedData.ongoing.length}
-                                    
-                                    color="primary"
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: '10px',
-                                            height: '20px',
-                                            minWidth: '20px'
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
+                        label="Ongoing"
                         iconPosition="start"
                         {...a11yProps(0)}
                     />
                     <Tab
                         icon={<Upcoming />}
-                        label={
-                            <Box sx={{ position: 'relative', pr: 3 }}>
-                                Upcoming
-                                <Badge
-                                    badgeContent={tabValue === 1 ? bookingListsPagination.total : processedData.upcoming.length}
-                                
-                                    color="primary"
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: '10px',
-                                            height: '20px',
-                                            minWidth: '20px'
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
+                        label="Upcoming"
                         iconPosition="start"
                         {...a11yProps(1)}
                     />
                     <Tab
                         icon={<History />}
-                        label={
-                            <Box sx={{ position: 'relative', pr: 3 }}>
-                                Past
-                                <Badge
-                                    badgeContent={tabValue === 2 ? bookingListsPagination.total : processedData.past.length}
-                                    
-                                    color="primary"
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: '10px',
-                                            height: '20px',
-                                            minWidth: '20px'
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
+                        label="Past"
                         iconPosition="start"
                         {...a11yProps(2)}
                     />
@@ -1187,7 +1125,6 @@ const PreDefinePackages = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <DonutLarge sx={{ mr: 1, color: '#4361ee' }} /> Currently Ongoing Packages
-                            <Chip label={`${getCurrentFilteredData().length} packages`} size="small" sx={{ ml: 2, backgroundColor: '#e3f2fd', color: '#1976d2' }} />
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {showSearchInput ? (
@@ -1321,7 +1258,6 @@ const PreDefinePackages = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <Upcoming sx={{ mr: 1, color: '#4361ee' }} /> Upcoming Packages
-                            <Chip label={`${getCurrentFilteredData().length} packages`} size="small" sx={{ ml: 2, backgroundColor: '#e8f5e9', color: '#2e7d32' }} />
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {showSearchInput ? (
@@ -1455,7 +1391,6 @@ const PreDefinePackages = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <History sx={{ mr: 1, color: '#4361ee' }} /> Past Packages
-                            <Chip label={`${getCurrentFilteredData().length} packages`} size="small" sx={{ ml: 2, backgroundColor: '#f5f5f5', color: '#616161' }} />
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {showSearchInput ? (
