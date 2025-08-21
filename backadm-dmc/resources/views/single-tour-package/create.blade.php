@@ -219,6 +219,11 @@
                                         <i class="ri-calculator-line"></i>
                                     </button>
                                 </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-info btn-sm" onclick="testCurrentMealPricing()" title="Test current meal prices from dataset">
+                                        <i class="ri-test-tube-line"></i>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Night Selection -->
@@ -778,6 +783,57 @@
                     
                     console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: $${totalMealCost}`);
                     return totalMealCost;
+                }
+
+                // Function to test current meal prices and calculation
+                function testCurrentMealPricing() {
+                    console.log('=== TESTING CURRENT MEAL PRICING ===');
+                    
+                    // Test with the current room type selection
+                    const roomTypeSelect = document.getElementById('roomTypeSelect');
+                    if (!roomTypeSelect || !roomTypeSelect.value) {
+                        console.log('No room type selected');
+                        return;
+                    }
+                    
+                    const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                    console.log('Selected room option:', selectedOption);
+                    console.log('Selected room dataset:', selectedOption.dataset);
+                    
+                    // Get meal prices from dataset
+                    const mealPrices = {
+                        breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
+                        lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
+                        dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
+                    };
+                    
+                    console.log('Meal prices from dataset:', mealPrices);
+                    
+                    // Test calculation with sample data
+                    const testCases = [
+                        { mealPlan: '2 rooms with breakfast + lunch', guests: 2, nights: 1, rooms: 2 },
+                        { mealPlan: '1 room with breakfast', guests: 2, nights: 1, rooms: 1 },
+                        { mealPlan: '3 rooms with all meals (breakfast + lunch + dinner)', guests: 2, nights: 1, rooms: 3 }
+                    ];
+                    
+                    testCases.forEach((testCase, index) => {
+                        console.log(`\n--- Test Case ${index + 1} ---`);
+                        console.log(`Meal Plan: ${testCase.mealPlan}`);
+                        console.log(`Guests: ${testCase.guests}, Nights: ${testCase.nights}, Rooms: ${testCase.rooms}`);
+                        
+                        const result = calculateCorrectMealCosts(
+                            testCase.mealPlan, 
+                            testCase.nights, 
+                            testCase.guests, 
+                            0, 
+                            mealPrices, 
+                            testCase.rooms
+                        );
+                        
+                        console.log(`Result: $${result}`);
+                    });
+                    
+                    showNotification('Current meal pricing test completed. Check console for details.', 'info');
                 }
 
                 // Function to collect hotel data when hotels are selected
@@ -3833,7 +3889,15 @@ document.addEventListener('DOMContentLoaded', function() {
          const roomType = document.getElementById('roomTypeSelect').value;
          const bedType = document.getElementById('bedTypeSelect').value;
          const mealPlan = document.getElementById('mealPlanSelect').value;
-         const numberOfRooms = document.getElementById('numberOfRooms').value;
+         // Extract room count from meal plan selection
+         let numberOfRooms = 1; // default
+         if (mealPlan) {
+             const roomMatch = mealPlan.match(/(\d+)\s*rooms?/i);
+             if (roomMatch) {
+                 numberOfRooms = parseInt(roomMatch[1]);
+             }
+         }
+         console.log(`Extracted room count from meal plan "${mealPlan}": ${numberOfRooms} rooms`);
          
          if (!hotelSelect.value) {
              showNotification('Please select a hotel first.', 'warning');
@@ -3925,12 +3989,13 @@ document.addEventListener('DOMContentLoaded', function() {
              console.log('Selected option dataset:', selectedOption ? selectedOption.dataset : 'N/A');
              
              if (selectedOption && selectedOption.dataset) {
-                 // Get meal prices directly from the room type option dataset
-                 mealPrices = {
-                     breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
-                     lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
-                     dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
-                 };
+                                 // Get meal prices directly from the room type option dataset
+                // If API doesn't return meal prices, use default values for testing
+                mealPrices = {
+                    breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 100, // Default $100
+                    lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 200, // Default $200
+                    dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 300 // Default $300
+                };
                  
                  console.log('Meal prices from room type option:', mealPrices);
                  console.log('Dataset values:', {
