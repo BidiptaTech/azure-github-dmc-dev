@@ -9,7 +9,7 @@
     <ul class="nav nav-pills mb-4 mt-4 d-flex justify-content-center" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->routeIs('attraction.edit') ? 'active' : '' }}" 
-                   href="{{ route('attraction.edit', $attraction->attraction_id) }}" 
+                   href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
                    role="tab">
                     Attraction
                 </a>
@@ -19,7 +19,7 @@
             <li class="nav-item" role="presentation">
                 
                 <a class="nav-link {{ request()->routeIs('tickets.add_ticket') ? 'active' : '' }}" 
-                   href="{{ route('tickets.add_ticket', $attraction->attraction_id) }}" 
+                   href="{{ route('tickets.add_ticket', Crypt::encrypt($attraction->attraction_id)) }}" 
                    role="tab">
                     Ticket
                 </a>
@@ -42,7 +42,7 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <form action="{{ route('tickets.store') }}" method="POST">
+                            <form action="{{ route('tickets.store', Crypt::encrypt($attraction->attraction_id)) }}" method="POST">
                                 @csrf
                                 <div class="row">
                                     <input type="hidden" name="attraction_id" value="{{ $attraction->attraction_id }}">
@@ -223,7 +223,7 @@
                                 <td style="display: inline-block; white-space: nowrap;">
                                     <!-- View Button -->
                                     
-                                    <a href="{{ route('tickets.show', $ticket->ticket_id) }}" 
+                                    <a href="{{ route('tickets.show', Crypt::encrypt($ticket->ticket_id)) }}" 
                                     class="btn btn-info btn-sm rounded-circle" 
                                     style="width: 28px; height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 0 576 512" width="16px" fill="#ffffff">
@@ -234,7 +234,7 @@
 
                                     <!-- Edit Button -->
                                    
-                                    <a href="{{ route('tickets.edit', $ticket->ticket_id) }}" 
+                                    <a href="{{ route('tickets.edit', Crypt::encrypt($ticket->ticket_id)) }}" 
                                     class="btn btn-primary btn-sm rounded-circle" 
                                     style="width: 28px; height: 28px; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
@@ -250,7 +250,7 @@
                                             style="width: 28px; height: 28px; padding: 0;" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#deleteModal" 
-                                            onclick="setDeleteForm('{{ route('tickets.destroy', $ticket->ticket_id) }}')">
+                                            onclick="setDeleteForm('{{ route('tickets.destroy', Crypt::encrypt($ticket->ticket_id)) }}')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
                                             <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
                                         </svg>

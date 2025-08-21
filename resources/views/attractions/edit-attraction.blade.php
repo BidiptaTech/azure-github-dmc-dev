@@ -31,7 +31,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->routeIs('tickets.add_ticket') ? 'active' : '' }}" 
-                   href="{{ route('tickets.add_ticket', $attraction->attraction_id) }}" 
+                   href="{{ route('tickets.add_ticket', Crypt::encrypt($attraction->attraction_id)) }}" 
                    role="tab">
                     Ticket
                 </a>
@@ -44,7 +44,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form id="attractionForm" method="POST" action="{{ route('attraction.update', $attraction->attraction_id) }}" enctype="multipart/form-data" class="card-body">
+            <form id="attractionForm" method="POST" action="{{ route('attraction.update', Crypt::encrypt($attraction->attraction_id)) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
                 <!-- Hidden Fields -->
