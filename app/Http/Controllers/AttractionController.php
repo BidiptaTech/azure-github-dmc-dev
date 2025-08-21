@@ -36,7 +36,6 @@ class AttractionController extends Controller
             $dmc_ids = User::where('role_id', 11)->pluck('userId')->toArray();
             $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
-                ->orderBy('id', 'DESC')
                 ->get();
         } elseif ($user->role_id == 3) {
             $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('status', [5, 1])->get();
@@ -85,19 +84,25 @@ class AttractionController extends Controller
             });
         }
         elseif($user->role_id == 74){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $attractions = Attraction::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+            $product_head = User::where('userId', $user->created_by)->first();
+            $this_dmc_id = $product_head->created_by;
+
+            if($this_dmc_id){
+                $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($this_dmc_id) {
+                    return $attraction->hasSelectedByDmc($this_dmc_id);
+                });
             }
         }
         elseif($user->role_id == 93 || $user->role_id == 90){
-            if($user->role_id != 111){
-                $assistant_product_manager = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $this_dmc_id = $product_head->created_by;
+
+            if($this_dmc_id){
+                $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($this_dmc_id) {
+                    return $attraction->hasSelectedByDmc($this_dmc_id);
+                });
             }
-            
-            $attractions = Attraction::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
         }
         return view('attractions.attraction', compact('attractions', 'user'));
     }
@@ -113,7 +118,7 @@ class AttractionController extends Controller
             $pendingattractions = Attraction::with('user')
             ->where('status', 5)
             ->get();
-            }
+        }
         
         return view('attractions.attraction-approval',compact('pendingattractions'));
     }
@@ -646,11 +651,11 @@ class AttractionController extends Controller
             $dmc_id = $user->created_by;
         }else if($user->role_id == 74){
             $user_product_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $user_product_head->userId;
+            $dmc_id = $user_product_head->created_by;
         }else if($user->role_id == 93){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-            $dmc_id = $user_product_head->userId;
+            $dmc_id = $user_product_head->created_by;
         }
         else{
             return redirect()->back()->with('error', 'You do not have permission to access this page.');

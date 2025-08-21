@@ -74,13 +74,13 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ route('restaurant.edit', $restaurant->restaurant_id) }}" 
+                                            <a href="{{ route('restaurant.edit', Crypt::encrypt($restaurant->restaurant_id)) }}" 
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="ri-edit-line me-1"></i>Edit
                                             </a>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-danger remove-restaurant-btn" 
-                                                    data-restaurant-id="{{ $restaurant->id }}"
+                                                    data-restaurant-id="{{ $restaurant->restaurant_id }}"
                                                     data-restaurant-name="{{ $restaurant->name }}">
                                                 <i class="ri-delete-bin-line me-1"></i>Remove
                                             </button>

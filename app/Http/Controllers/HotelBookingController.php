@@ -331,6 +331,10 @@ class HotelBookingController extends Controller
     public function getAttractionBookingData(Request $request): JsonResponse
     {
         try {
+            Log::info('Getting attraction booking data request', [
+                'request_data' => $request->all()
+            ]);
+            
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
@@ -377,6 +381,18 @@ class HotelBookingController extends Controller
             }
 
             $booking = $attractionData[$bookingIndex];
+            
+            Log::info('Attraction booking data found', [
+                'tour_id' => $tourId,
+                'attraction_order_index' => $attractionOrderIndex,
+                'booking_index' => $bookingIndex,
+                'attraction_name' => $booking['AttractionName'] ?? 'Unknown',
+                'total_price' => $booking['totalPrice'] ?? 0,
+                'booking_date' => $booking['bookingDate'] ?? null,
+                'visit_time' => $booking['visitTime'] ?? null,
+                'full_booking_keys' => array_keys($booking),
+                'raw_booking_data' => $booking
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -389,6 +405,7 @@ class HotelBookingController extends Controller
                     'attraction_booking' => [
                         'booking_id' => $attractionOrder->id,
                         'attraction_name' => $booking['AttractionName'] ?? 'Unknown Attraction',
+                        'attraction_id' => $booking['AttractionId'] ?? null,
                         'ticket_name' => $booking['ticketName'] ?? 'N/A',
                         'total_price' => $booking['totalPrice'] ?? 0,
                         'adult_count' => $booking['adultCount'] ?? 0,
@@ -396,6 +413,18 @@ class HotelBookingController extends Controller
                         'senior_count' => $booking['seniorCount'] ?? 0,
                         'booking_date' => $booking['bookingDate'] ?? null,
                         'visit_time' => $booking['visitTime'] ?? null,
+                        // Customer information
+                        'full_name' => $booking['fullName'] ?? 'N/A',
+                        'email' => $booking['email'] ?? 'N/A',
+                        'phone' => $booking['phone'] ?? 'N/A',
+                        'address' => $booking['address1'] ?? 'N/A',
+                        'special_requests' => $booking['specialRequests'] ?? null,
+                        // Additional details  
+                        'location' => $booking['location'] ?? $booking['city'] ?? $booking['country'] ?? 'N/A',
+                        'image' => $booking['image'] ?? $booking['AttractionImage'] ?? null,
+                        'transport' => $booking['transport'] ?? null,
+                        'selection' => $booking['Selection'] ?? null,
+                        'ticket_details' => $booking['ticket_details'] ?? [],
                         'attraction_details' => $booking
                     ]
                 ]
@@ -1084,6 +1113,16 @@ class HotelBookingController extends Controller
             }
 
             $booking = $hotelData[$bookingIndex];
+            
+            Log::info('Hotel booking data found', [
+                'tour_id' => $tourId,
+                'hotel_order_index' => $hotelOrderIndex,
+                'booking_index' => $bookingIndex,
+                'hotel_name' => $booking['hotelDetails']['hotel_name'] ?? 'Unknown',
+                'total_price' => $booking['totalPrice'] ?? 0,
+                'booking_dates' => $booking['bookingDate'] ?? [],
+                'full_booking_keys' => array_keys($booking)
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -1096,10 +1135,23 @@ class HotelBookingController extends Controller
                     'hotel_booking' => [
                         'booking_id' => $hotelOrder->id,
                         'hotel_name' => $booking['hotelDetails']['hotel_name'] ?? 'Unknown Hotel',
+                        'hotel_id' => $booking['hotelDetails']['hotel_id'] ?? null,
                         'location' => $booking['hotelDetails']['location'] ?? 'N/A',
+                        'image' => $booking['hotelDetails']['image'] ?? null,
                         'total_price' => $booking['totalPrice'] ?? 0,
                         'room_count' => count($booking['rooms'] ?? []),
                         'booking_dates' => $booking['bookingDate'] ?? [],
+                        'check_in_time' => $booking['hotelDetails']['checkInTime'] ?? '12:00 PM',
+                        'check_out_time' => $booking['hotelDetails']['checkOutTime'] ?? '11:00 AM',
+                        'cancellation_charge' => $booking['hotelDetails']['cancellation_charge'] ?? null,
+                        // Customer information
+                        'full_name' => $booking['fullName'] ?? 'N/A',
+                        'email' => $booking['email'] ?? 'N/A',
+                        'phone' => $booking['phone'] ?? 'N/A',
+                        'address' => $booking['address1'] ?? 'N/A',
+                        'special_requests' => $booking['specialRequests'] ?? null,
+                        // Room details
+                        'rooms' => $booking['rooms'] ?? [],
                         'hotel_details' => $booking['hotelDetails'] ?? []
                     ]
                 ]

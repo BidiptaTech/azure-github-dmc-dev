@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\DB;
 use App\Models\Attraction;
+use Illuminate\Support\Facades\Crypt;
 
 class TicketController extends Controller
 {
@@ -104,7 +105,7 @@ class TicketController extends Controller
             $ticket->save();
 
             DB::commit();
-            return redirect()->route('tickets.add_ticket', $attraction_id)->with('success', 'Ticket created successfully.');
+            return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction_id))->with('success', 'Ticket created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Failed to create ticket.');
@@ -119,6 +120,7 @@ class TicketController extends Controller
         // if (!hasPermission('view ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $ticket_id = Crypt::decrypt($ticket_id);
         $ticket = Ticket::where('ticket_id', $ticket_id)->first();
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
@@ -129,6 +131,7 @@ class TicketController extends Controller
 
     public function add_ticket($attraction_id)
     {
+        $attraction_id = Crypt::decrypt($attraction_id);
         $attraction = Attraction::where('attraction_id', $attraction_id)->first();
         $tickets = Ticket::where('status', 1)->where('attraction_id', $attraction_id)->get();
         return view('tickets.add-ticket', compact('attraction', 'tickets'));
@@ -142,6 +145,7 @@ class TicketController extends Controller
         // if (!hasPermission('edit ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $ticket_id = Crypt::decrypt($ticket_id);
         $ticket = Ticket::where('ticket_id', $ticket_id)->first();
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
@@ -169,6 +173,7 @@ class TicketController extends Controller
             'senior_adult_price' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:0,1',
         ]);
+        $ticket_id = Crypt::decrypt($ticket_id);
         $ticket = Ticket::where('ticket_id', $ticket_id)->first();
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
@@ -190,7 +195,7 @@ class TicketController extends Controller
         
         $ticket->save();
 
-        return redirect()->route('tickets.add_ticket', $ticket->attraction_id)->with('success', 'Ticket updated successfully.');
+        return redirect()->route('tickets.add_ticket', Crypt::encrypt($ticket->attraction_id))->with('success', 'Ticket updated successfully.');
     }
 
     /**
@@ -201,12 +206,13 @@ class TicketController extends Controller
         // if (!hasPermission('delete ticket')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $ticket_id = Crypt::decrypt($ticket_id);
         $ticket = Ticket::where('ticket_id', $ticket_id)->first();
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
         $ticket->delete();
         
-        return redirect()->route('tickets.add_ticket', $ticket->attraction_id)->with('success', 'Ticket deleted successfully.');
+        return redirect()->route('tickets.add_ticket', Crypt::encrypt($ticket->attraction_id))->with('success', 'Ticket deleted successfully.');
     }
 }

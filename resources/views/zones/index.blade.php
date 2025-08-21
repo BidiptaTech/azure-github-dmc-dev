@@ -313,20 +313,20 @@
                             <td>
                                 <div class="d-flex gap-1">
                                     <!-- View -->
-                                    <a href="{{ route('zones.show', $zone->zone_id) }}" 
+                                    <a href="{{ route('zones.show', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-info btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="View">
                                         <i class="ri-eye-line" style="font-size: 16px;"></i>
                                     </a>
 
                                     <!-- Edit -->
-                                    <a href="{{ route('zones.edit', $zone->zone_id) }}" 
+                                    <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                     </a>
                                     <!-- Delete -->
-                                                                            <form action="{{ route('zones.destroy', $zone->zone_id) }}" method="POST" class="d-inline">
+                                    <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" 

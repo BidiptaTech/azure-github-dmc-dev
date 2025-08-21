@@ -84,15 +84,25 @@ class RestaurantController extends Controller
             });
         }
         elseif($user->role_id == 78){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->where('created_by', $user->userId)->get();
+            $user_product_head = User::select('created_by')->where('userId', $user->created_by)->first();
+            $this_dmc_id = $user_product_head->created_by;
+
+            if($this_dmc_id){
+                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
+                    return $restaurant->hasSelectedByDmc($this_dmc_id);
+                });
             }
         }
         elseif($user->role_id == 120){
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->where('created_by', $user->userId)->get();
+            $user_product_manager = User::select('created_by')->where('userId', $user->created_by)->first();
+            $user_product_head = User::select('created_by')->where('userId', $user_product_manager->created_by)->first();
+            $this_dmc_id = $user_product_head->created_by;
+
+            if($this_dmc_id){
+                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
+                    return $restaurant->hasSelectedByDmc($this_dmc_id);
+                });
+            }
         }
         // $restaurants = Restaurant::with('hotel')->get();
         return view('restaurants.restaurant', compact('restaurants'));
