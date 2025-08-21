@@ -18,6 +18,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\HotelRestaurantController;
+use App\Http\Controllers\HotelBookingController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BookingsController;
@@ -455,6 +456,41 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::get('/booking', [BookingController::class, 'index'])->name('booking.index');
         Route::post('/approve-booking', [BookingController::class, 'approve'])->name('bookings.approve');
         Route::post('/decline-booking', [BookingController::class, 'decline'])->name('bookings.decline');
+        
+        // Hotel Booking Management Routes
+        Route::post('/booking/update-hotel-dates', [HotelBookingController::class, 'updateHotelDates'])->name('booking.update.hotel.dates');
+        Route::post('/booking/get-hotel-data', [HotelBookingController::class, 'getHotelBookingData'])->name('booking.get.hotel.data');
+
+        // Attraction Booking Management Routes
+        Route::post('/booking/update-attraction-booking', [HotelBookingController::class, 'updateAttractionBooking'])->name('booking.update.attraction.booking');
+        Route::post('/booking/get-attraction-data', [HotelBookingController::class, 'getAttractionBookingData'])->name('booking.get.attraction.data');
+
+        // Restaurant Booking Management Routes
+        Route::post('/booking/update-restaurant-booking', [HotelBookingController::class, 'updateRestaurantBooking'])->name('booking.update.restaurant.booking');
+        Route::post('/booking/get-restaurant-data', [HotelBookingController::class, 'getRestaurantBookingData'])->name('booking.get.restaurant.data');
+
+        // Guide Booking Management Routes
+        Route::post('/booking/update-guide-booking', [HotelBookingController::class, 'updateGuideBooking'])->name('booking.update.guide.booking');
+        Route::post('/booking/get-guide-data', [HotelBookingController::class, 'getGuideBookingData'])->name('booking.get.guide.data');
+
+        Route::post('/booking/update-arrival-booking', [HotelBookingController::class, 'updateArrivalBooking'])->name('booking.update.arrival.booking');
+        Route::post('/booking/get-arrival-data', [HotelBookingController::class, 'getArrivalBookingData'])->name('booking.get.arrival.data');
+
+        // Departure Booking Management Routes
+        Route::post('/booking/update-departure-booking', [HotelBookingController::class, 'updateDepartureBooking'])->name('booking.update.departure.booking');
+        Route::post('/booking/get-departure-data', [HotelBookingController::class, 'getDepartureBookingData'])->name('booking.get.departure.data');
+
+        // Travel Point Booking Management Routes
+        Route::post('/booking/update-travel-point-booking', [HotelBookingController::class, 'updateTravelPointBooking'])->name('booking.update.travel.point.booking');
+        Route::post('/booking/get-travel-point-data', [HotelBookingController::class, 'getTravelPointBookingData'])->name('booking.get.travel.point.data');
+
+        // Travel Hourly Booking Management Routes
+        Route::post('/booking/update-travel-hourly-booking', [HotelBookingController::class, 'updateTravelHourlyBooking'])->name('booking.update.travel.hourly.booking');
+        Route::post('/booking/get-travel-hourly-data', [HotelBookingController::class, 'getTravelHourlyBookingData'])->name('booking.get.travel.hourly.data');
+
+        // Local Transport Booking Management Routes
+        Route::post('/booking/update-local-transport-booking', [HotelBookingController::class, 'updateLocalTransportBooking'])->name('booking.update.local.transport.booking');
+        Route::post('/booking/get-local-transport-data', [HotelBookingController::class, 'getLocalTransportBookingData'])->name('booking.get.local.transport.data');
 
         // Bookings Management Routes
         Route::get('/bookings/new-enquiries', [BookingsController::class, 'newEnquiries'])->name('bookings.new-enquiries');
