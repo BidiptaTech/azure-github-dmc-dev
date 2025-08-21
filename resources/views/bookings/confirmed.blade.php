@@ -466,7 +466,54 @@
                                                         @endif
                                                     @endforeach
                                                 @endif
-                                            @elseif(in_array($key, ['hotel', 'attraction', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']))
+                                            @elseif($key === 'hotel')
+                                                {{-- Special handling for hotels - show individual buttons --}}
+                                                @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
+                                                    @php $globalHotelCounter = 1; @endphp
+                                                    @foreach($serviceData['hotel'] as $hotelOrderIndex => $hotelOrder)
+                                                        @php
+                                                            $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data;
+                                                        @endphp
+                                                        @if(is_array($hotelData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($hotelData as $originalKey => $booking)
+                                                                @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})">
+                                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                                    Hotel {{ $globalHotelCounter }}
+                                                                </span>
+                                                                @php 
+                                                                    $actualBookingIndex++; 
+                                                                    $globalHotelCounter++;
+                                                                @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'attraction')
+                                                @if(isset($serviceData[$key]))
+                                                    @php $globalAttractionCounter = 1; @endphp
+                                                    @foreach($serviceData[$key] as $attractionOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }})">
+                                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                                    Attraction {{ $globalAttractionCounter }}
+                                                                </span>
+                                                                @php 
+                                                                    $actualBookingIndex++; 
+                                                                    $globalAttractionCounter++;
+                                                                @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif(in_array($key, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']))
                                                 <span class="badge bg-light text-dark border" style="cursor: pointer;" 
                                                       onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
                                                       data-debug-info="{{ json_encode($debugInfo) }}">
@@ -4684,7 +4731,7 @@ function loadIndividualGuideContent(tourId, guideOrderIndex, bookingIndex, modal
     // Get CSRF token
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     
-    fetch('/booking/get-guide-data', {
+    fetch('{{ url("/booking/get-guide-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -5140,7 +5187,7 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
     const tourData = getTourDataFromPage(tourId);
     console.log('Tour data for guide edit:', tourData);
     
-    fetch('/booking/get-guide-data', {
+    fetch('{{ url("/booking/get-guide-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -5248,7 +5295,7 @@ function saveGuideChanges(tourId, guideOrderIndex, bookingIndex, editModalId) {
     
     console.log('Saving guide changes:', requestData);
     
-    fetch('/booking/update-guide-booking', {
+    fetch('{{ url("/booking/update-guide-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -5308,6 +5355,1236 @@ function validateGuideDates(bookingDate, pickupDate, tourId) {
     }
     
     return true;
+}
+
+// Individual Hotel Modal Functions
+function openIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex) {
+    try {
+        console.log('🏨 Opening individual hotel modal for:', { tourId, hotelOrderIndex, bookingIndex });
+        
+        const modalId = `individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create and show the individual hotel modal
+        createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex);
+        
+    } catch (error) {
+        console.error('Error opening individual hotel modal:', error);
+        alert('Error opening hotel modal. Please try again.');
+    }
+}
+
+function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
+    const modalId = `individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content border-0 shadow-lg">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-hotel-line me-2"></i>Hotel Details
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Hotel Booking Details</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualHotelViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4" style="background: #f8fafc;">
+                        <div id="individualHotelContent_${modalId}">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="text-muted mt-3">Loading hotel details...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Footer -->
+                    <div class="modal-footer bg-light border-0" style="border-radius: 0 0 8px 8px;">
+                        <div class="d-flex justify-content-between w-100">
+                            <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
+                                <i class="ri-close-line me-1"></i>Close
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                        onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-edit-line me-1"></i>Edit
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                        onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-close-line me-1"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to document
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Initialize and show the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load the individual hotel content
+    loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId);
+}
+
+function closeIndividualHotelViewModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    } catch (error) {
+        console.error('Error closing individual hotel view modal:', error);
+    }
+}
+
+function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId) {
+    // Fetch hotel data from backend and populate the modal content
+    console.log('🔄 Fetching hotel data from backend', { tourId, hotelOrderIndex, bookingIndex, modalId });
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    fetch('{{ url("/booking/get-hotel-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            hotel_order_index: hotelOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Hotel data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Hotel data parsed', data);
+        console.log('🔍 Hotel booking data structure:', data.data?.hotel_booking);
+        
+        if (data.success && data.data && data.data.hotel_booking) {
+            // Use the actual hotel data from backend
+            const hotelData = data.data.hotel_booking;
+            const hotelDetails = hotelData.hotel_details || {};
+            const bookingDates = hotelData.booking_dates || [];
+            
+            const hotelBooking = {
+                hotelName: hotelData.hotel_name,
+                hotel_id: hotelData.hotel_id,
+                image: hotelData.image,
+                location: hotelData.location,
+                checkInDate: Array.isArray(bookingDates) && bookingDates.length > 0 ? bookingDates[0] : 'N/A',
+                checkOutDate: Array.isArray(bookingDates) && bookingDates.length > 1 ? bookingDates[1] : 'N/A',
+                nights: Array.isArray(bookingDates) && bookingDates.length > 1 ? 
+                    Math.ceil((new Date(bookingDates[1]) - new Date(bookingDates[0])) / (1000 * 60 * 60 * 24)) : 'N/A',
+                rooms: hotelData.room_count || '1',
+                totalPrice: hotelData.total_price,
+                fullName: hotelData.full_name,
+                email: hotelData.email,
+                phone: hotelData.phone,
+                address: hotelData.address,
+                specialRequests: hotelData.special_requests,
+                cancellationCharge: hotelData.cancellation_charge,
+                // Additional hotel-specific fields
+                checkInTime: hotelData.check_in_time,
+                checkOutTime: hotelData.check_out_time,
+                roomType: hotelData.rooms && hotelData.rooms.length > 0 ? hotelData.rooms[0].room_type || 'Standard' : 'Standard',
+                bedType: hotelData.rooms && hotelData.rooms.length > 0 && hotelData.rooms[0].beds && hotelData.rooms[0].beds.length > 0 ? 
+                    hotelData.rooms[0].beds[0].bed_type || 'N/A' : 'N/A',
+                mealPlan: hotelData.rooms && hotelData.rooms.length > 0 && hotelData.rooms[0].beds && hotelData.rooms[0].beds.length > 0 && hotelData.rooms[0].beds[0].mealTypes && hotelData.rooms[0].beds[0].mealTypes.length > 0 ? 
+                    hotelData.rooms[0].beds[0].mealTypes[0] : 'Room Only'
+            };
+            
+            console.log('✅ Hotel booking data prepared for display', hotelBooking);
+            generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex);
+        } else {
+            console.error('❌ Hotel data fetch failed', data);
+            // Show error message
+            document.getElementById(`individualHotelContent_${modalId}`).innerHTML = `
+                <div class="text-center py-5">
+                    <i class="ri-error-warning-line ri-48px text-danger mb-3"></i>
+                    <h5 class="text-danger">Error Loading Hotel Details</h5>
+                    <p class="text-muted">${data.message || 'Unable to load hotel information. Please try again.'}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('💥 Error fetching hotel data:', error);
+        // Show error message
+        document.getElementById(`individualHotelContent_${modalId}`).innerHTML = `
+            <div class="text-center py-5">
+                <i class="ri-error-warning-line ri-48px text-danger mb-3"></i>
+                <h5 class="text-danger">Error Loading Hotel Details</h5>
+                <p class="text-muted">Network error occurred. Please check your connection and try again.</p>
+            </div>
+        `;
+    });
+}
+
+function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex) {
+    const contentHTML = `
+        <!-- Hotel Information Card with Image -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body p-4">
+                        <div class="row align-items-center text-white">
+                            <div class="col-md-3 text-center">
+                                ${hotelBooking.image ? `
+                                    <img src="${hotelBooking.image}" 
+                                         alt="${hotelBooking.hotelName || 'Hotel'}" 
+                                         class="rounded border border-white border-3 shadow"
+                                         style="width: 100px; height: 80px; object-fit: cover;">
+                                ` : `
+                                    <div class="bg-white bg-opacity-20 rounded d-flex align-items-center justify-content-center border border-white border-3"
+                                         style="width: 100px; height: 80px;">
+                                        <i class="ri-hotel-line" style="font-size: 2.5rem;"></i>
+                                    </div>
+                                `}
+                            </div>
+                            <div class="col-md-9">
+                                <h4 class="mb-2 fw-bold">
+                                    <i class="ri-hotel-line me-2"></i>${hotelBooking.hotelName || 'Hotel Accommodation'}
+                                </h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="opacity-75">Location</small>
+                                        <div class="fw-medium">${hotelBooking.location || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="opacity-75">Total Price</small>
+                                        <div class="fw-bold fs-5">SGD ${parseFloat(hotelBooking.totalPrice || 0).toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Details & Room Information -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="bg-white rounded p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary rounded-circle p-2 me-3">
+                            <i class="ri-calendar-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Booking Schedule</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Check-in Date</small>
+                            <div class="fw-medium">${hotelBooking.checkInDate || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Check-out Date</small>
+                            <div class="fw-medium">${hotelBooking.checkOutDate || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Total Nights</small>
+                            <div class="fw-medium">${hotelBooking.nights || 'N/A'} nights</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Check-in Time</small>
+                            <div class="fw-medium">${hotelBooking.checkInTime || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-white rounded p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-home-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Room Information</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Rooms</small>
+                            <div class="fw-medium">${hotelBooking.rooms || '1'}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Room Type</small>
+                            <div class="fw-medium">${hotelBooking.roomType || 'Standard'}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Bed Type</small>
+                            <div class="fw-medium">${hotelBooking.bedType || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Meal Plan</small>
+                            <span class="badge bg-primary">${hotelBooking.mealPlan || 'Room Only'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Information -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="bg-white rounded p-3 shadow-sm">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info rounded-circle p-2 me-3">
+                            <i class="ri-user-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Guest Information</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <small class="text-muted">Name</small>
+                            <div class="fw-medium">${hotelBooking.fullName || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <small class="text-muted">Email</small>
+                            <div class="fw-medium">${hotelBooking.email || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <small class="text-muted">Phone</small>
+                            <div class="fw-medium">${hotelBooking.phone || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Special Requests -->
+        ${hotelBooking.specialRequests ? `
+        <div class="bg-white rounded p-3 shadow-sm mb-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-secondary rounded-circle p-2 me-3">
+                    <i class="ri-message-2-line text-white"></i>
+                </div>
+                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+            </div>
+            <p class="text-muted mb-0">${hotelBooking.specialRequests}</p>
+        </div>
+        ` : ''}
+    `;
+    
+    document.getElementById(`individualHotelContent_${modalId}`).innerHTML = contentHTML;
+}
+
+function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+    console.log('Editing individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
+    
+    // Create and show the hotel edit modal (reuse existing edit functionality)
+    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex);
+}
+
+function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+    console.log('Approving individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
+    if (confirm('Are you sure you want to approve this hotel booking?')) {
+        alert('Hotel booking approved successfully!');
+        // Here you would make an API call to approve the hotel
+    }
+}
+
+function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+    console.log('Rejecting individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
+    const reason = prompt('Please provide a reason for rejection:');
+    if (reason !== null && reason.trim() !== '') {
+        alert('Hotel booking rejected successfully!');
+        // Here you would make an API call to reject the hotel
+    }
+}
+
+// Individual Attraction Modal Functions
+function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex) {
+    try {
+        console.log('🎢 Opening individual attraction modal for:', { tourId, attractionOrderIndex, bookingIndex });
+        
+        const modalId = `individualAttractionViewModal_${tourId}_${attractionOrderIndex}_${bookingIndex}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create and show the modal
+        createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex);
+        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex);
+        
+    } catch (error) {
+        console.error('Error opening individual attraction modal:', error);
+        alert('Error opening attraction details. Please try again.');
+    }
+}
+
+function createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex) {
+    const modalHtml = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-building-2-line me-2"></i>Attraction Details
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Attraction Booking Details</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        <div id="${modalId}_content">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-3 text-muted">Loading attraction details...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+}
+
+function closeIndividualAttractionViewModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after it's hidden
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                modalElement.remove();
+            });
+        }
+    } catch (error) {
+        console.error('Error closing individual attraction modal:', error);
+    }
+}
+
+function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex) {
+    console.log('🔍 Loading individual attraction content for:', { tourId, attractionOrderIndex, bookingIndex });
+    
+    fetch('{{ url("/booking/get-attraction-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Attraction data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Attraction data parsed', data);
+        console.log('🔍 Attraction booking data structure:', data.data?.attraction_booking);
+        
+        if (data.success && data.data && data.data.attraction_booking) {
+            // Use the actual attraction data from backend
+            const attractionData = data.data.attraction_booking;
+            const attractionDetails = attractionData.attraction_details || {};
+            
+            const attractionBooking = {
+                attractionName: attractionData.attraction_name,
+                attraction_id: attractionData.attraction_id,
+                image: attractionData.image,
+                location: attractionData.location,
+                bookingDate: attractionData.booking_date,
+                visitTime: attractionData.visit_time,
+                totalPrice: attractionData.total_price,
+                adultCount: attractionData.adult_count,
+                childCount: attractionData.child_count,
+                fullName: attractionData.full_name,
+                email: attractionData.email,
+                phone: attractionData.phone,
+                address: attractionData.address,
+                specialRequests: attractionData.special_requests,
+                ticketName: attractionData.ticket_name,
+                ticketDetails: attractionData.ticket_details || {},
+                transport: attractionData.transport,
+                selection: attractionData.selection
+            };
+            
+            console.log('✅ Attraction booking data prepared for display', attractionBooking);
+            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex);
+        } else {
+            console.error('❌ Attraction data fetch failed', data);
+            displayErrorContent(modalId, 'Failed to load attraction details');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error fetching individual attraction data:', error);
+        displayErrorContent(modalId, 'Error loading attraction details');
+    });
+}
+
+function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex) {
+    const bookingDate = attractionBooking.bookingDate;
+    const formattedDate = bookingDate ? new Date(bookingDate).toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+    }) : 'N/A';
+    
+    const content = `
+        <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header border-0" style="background: linear-gradient(90deg, #fd9853 0%, #fe7854 100%); padding: 20px;">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1 fw-bold text-white">
+                            <i class="ri-building-2-line me-2"></i>${attractionBooking.attractionName || 'Attraction Booking'}
+                        </h5>
+                        <p class="mb-0 text-white opacity-75">${attractionBooking.ticketName || 'Standard Ticket'} • Individual Booking</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                            <span class="text-success fw-bold fs-5">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body p-4" style="background-color: #f8f9fa;">
+                <!-- Guest Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary rounded-circle p-2 me-3">
+                                    <i class="ri-user-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Customer Details</h6>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Full Name</small>
+                                <div class="fw-medium">${attractionBooking.fullName || 'N/A'}</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Email Address</small>
+                                <div class="fw-medium text-primary">${attractionBooking.email || 'N/A'}</div>
+                            </div>
+                            <div class="mb-0">
+                                <small class="text-muted">Phone Number</small>
+                                <div class="fw-medium">${attractionBooking.phone || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-info rounded-circle p-2 me-3">
+                                    <i class="ri-map-pin-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Address</h6>
+                            </div>
+                            <div class="text-muted">
+                                ${attractionBooking.address && attractionBooking.address !== 'N/A' ? `<div>${attractionBooking.address}</div>` : '<div class="text-muted">Address not provided</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visit & Booking Information -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-warning rounded-circle p-2 me-3">
+                                    <i class="ri-calendar-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Visit Schedule</h6>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted">Visit Date</small>
+                                <div class="fw-bold text-success fs-5">${formattedDate}</div>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted">Visit Time</small>
+                                <div class="fw-medium text-primary">${attractionBooking.visitTime || 'Full Day Access'}</div>
+                            </div>
+                            <div>
+                                <small class="text-muted">Selection Type</small>
+                                <div><span class="badge bg-info px-3 py-2">${attractionBooking.selection ? attractionBooking.selection.charAt(0).toUpperCase() + attractionBooking.selection.slice(1) : 'Standard'}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-white rounded p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-info rounded-circle p-2 me-3">
+                                    <i class="ri-group-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Guest Information</h6>
+                            </div>
+                            <div class="row">
+                                <div class="col-4 text-center mb-3">
+                                    <div class="bg-light rounded p-2">
+                                        <div class="fs-4 fw-bold text-success">${attractionBooking.adultCount || 0}</div>
+                                        <small class="text-muted">Adults</small>
+                                    </div>
+                                </div>
+                                <div class="col-4 text-center mb-3">
+                                    <div class="bg-light rounded p-2">
+                                        <div class="fs-4 fw-bold text-warning">${attractionBooking.childCount || 0}</div>
+                                        <small class="text-muted">Children</small>
+                                    </div>
+                                </div>
+                                <div class="col-4 text-center mb-3">
+                                    <div class="bg-light rounded p-2">
+                                        <div class="fs-4 fw-bold text-info">0</div>
+                                        <small class="text-muted">Seniors</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <span class="badge bg-primary px-3 py-2">
+                                    Total: ${(parseInt(attractionBooking.adultCount || 0) + parseInt(attractionBooking.childCount || 0))} Guests
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attraction Details -->
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-building-2-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Attraction Details</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted">Attraction ID</small>
+                            <div class="fw-medium">${attractionBooking.attraction_id || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted">Ticket ID</small>
+                            <div class="fw-medium">${attractionBooking.ticketDetails?.ticketId || 'N/A'}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted">NRI Status</small>
+                            <span class="badge bg-info">${attractionBooking.ticketDetails?.nri ? attractionBooking.ticketDetails.nri.charAt(0).toUpperCase() + attractionBooking.ticketDetails.nri.slice(1) : 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ticket & Pricing Details -->
+                ${attractionBooking.ticketDetails && (attractionBooking.ticketDetails.adult_price || attractionBooking.ticketDetails.child_price) ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success rounded-circle p-2 me-3">
+                            <i class="ri-ticket-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Ticket & Pricing Information</h6>
+                    </div>
+                    
+                    <!-- Pricing Cards -->
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-3">
+                            <div class="border rounded-3 p-3 text-center" style="border-color: #28a745; background: linear-gradient(135deg, #d4edda, #f8f9fa);">
+                                <div class="text-success mb-2">
+                                    <i class="ri-user-line ri-24px"></i>
+                                </div>
+                                <h6 class="fw-bold text-success mb-1">Adult Ticket</h6>
+                                <div class="fs-4 fw-bold text-success">SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</div>
+                                <small class="text-muted">Per person</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="border rounded-3 p-3 text-center" style="border-color: #ffc107; background: linear-gradient(135deg, #fff3cd, #f8f9fa);">
+                                <div class="text-warning mb-2">
+                                    <i class="ri-user-smile-line ri-24px"></i>
+                                </div>
+                                <h6 class="fw-bold text-warning mb-1">Child Ticket</h6>
+                                <div class="fs-4 fw-bold text-warning">SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</div>
+                                <small class="text-muted">Per child</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="border rounded-3 p-3 text-center" style="border-color: #17a2b8; background: linear-gradient(135deg, #d1ecf1, #f8f9fa);">
+                                <div class="text-info mb-2">
+                                    <i class="ri-user-star-line ri-24px"></i>
+                                </div>
+                                <h6 class="fw-bold text-info mb-1">Senior Ticket</h6>
+                                <div class="fs-4 fw-bold text-info">SGD ${parseFloat(attractionBooking.ticketDetails.senior_price || 0).toFixed(2)}</div>
+                                <small class="text-muted">Per senior</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Booking Summary -->
+                    <div class="bg-light rounded p-3 mb-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="fw-bold text-dark mb-2">Booking Summary</h6>
+                                <div class="d-flex gap-3">
+                                    ${attractionBooking.adultCount && parseInt(attractionBooking.adultCount) > 0 ? `<span class="badge bg-success">${attractionBooking.adultCount} × SGD ${parseFloat(attractionBooking.ticketDetails.adult_price || 0).toFixed(2)}</span>` : ''}
+                                    ${attractionBooking.childCount && parseInt(attractionBooking.childCount) > 0 ? `<span class="badge bg-warning">${attractionBooking.childCount} × SGD ${parseFloat(attractionBooking.ticketDetails.child_price || 0).toFixed(2)}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <small class="text-muted d-block">Total Amount</small>
+                                <div class="fs-3 fw-bold text-primary">SGD ${parseFloat(attractionBooking.totalPrice || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${attractionBooking.ticketDetails.description ? `
+                    <!-- Ticket Description -->
+                    <div class="border-start border-3 border-primary ps-3">
+                        <h6 class="fw-bold text-dark mb-2">Ticket Information</h6>
+                        <div class="text-muted">${attractionBooking.ticketDetails.description}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+
+                <!-- Special Requests -->
+                ${attractionBooking.specialRequests ? `
+                <div class="bg-white rounded p-3 shadow-sm mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-purple rounded-circle p-2 me-3" style="background-color: #6f42c1;">
+                            <i class="ri-message-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                    </div>
+                    <div class="bg-light rounded p-3">
+                        <p class="mb-0 text-dark">${attractionBooking.specialRequests}</p>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Individual Action Buttons -->
+                <div class="bg-white rounded p-3 shadow-sm border-top">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-secondary rounded-circle p-2 me-3">
+                                <i class="ri-settings-line text-white"></i>
+                            </div>
+                            <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" 
+                                    class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                    onclick="editIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;">
+                                <i class="ri-edit-line me-1"></i>Edit
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-success btn-sm px-3 py-2" 
+                                    onclick="approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;">
+                                <i class="ri-check-line me-1"></i>Approve
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                    onclick="rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;">
+                                <i class="ri-close-line me-1"></i>Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById(`${modalId}_content`).innerHTML = content;
+}
+
+function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual attraction edit modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
+        
+        // Create and show the edit modal (don't close the view modal)
+        createAndShowIndividualAttractionEditModal(tourId, attractionOrderIndex, bookingIndex, 'edit');
+        // Load attraction data after modal is created
+        setTimeout(() => {
+            loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex);
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error opening individual attraction edit modal:', error);
+        alert('Error opening edit modal. Please try again.');
+    }
+}
+
+function createAndShowIndividualAttractionEditModal(tourId, attractionOrderIndex, bookingIndex, action) {
+    try {
+        const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+        
+        switch (action) {
+            case 'edit':
+                modalTitle = 'Edit Individual Attraction Booking';
+                modalColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                buttonClass = 'btn-primary';
+                buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
+                onSubmit = `saveIndividualAttractionChanges(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
+                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                break;
+                
+            default:
+                console.error('Unknown action:', action);
+                return;
+        }
+        
+        const modalHtml = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+                        <div class="modal-header text-white position-relative overflow-hidden" style="background: ${modalColor}; border: none; padding: 2rem;">
+                            <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10" style="background: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 20px);"></div>
+                            <div class="position-relative">
+                                <h4 class="modal-title fw-bold mb-1" style="font-size: 1.5rem;">
+                                    <i class="ri-building-2-line me-2" style="font-size: 1.8rem;"></i>
+                                    ${modalTitle}
+                                </h4>
+                                <p class="mb-0 opacity-75">Tour #${tourId} - Individual Attraction Booking</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionEditModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div class="p-4">
+                                ${modalContent}
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0 bg-light p-4">
+                            <div class="d-flex justify-content-end gap-3 w-100">
+                                <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualAttractionEditModal('${modalId}')" style="border-radius: 25px;">
+                                    <i class="ri-close-line me-1"></i>Cancel
+                                </button>
+                                <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                    ${buttonText}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById(modalId));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error creating individual attraction modal:', error);
+        alert('Error creating modal. Please try again.');
+    }
+}
+
+function closeIndividualAttractionEditModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after it's hidden
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                modalElement.remove();
+            });
+        }
+    } catch (error) {
+        console.error('Error closing individual attraction edit modal:', error);
+    }
+}
+
+function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+    return `
+        <form id="editIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="attraction_order_index" value="${attractionOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            <input type="hidden" name="booking_id" id="bookingId_${tourId}_${attractionOrderIndex}_${bookingIndex}">
+            
+            <!-- Attraction Information Header -->
+            <div class="bg-gradient-primary text-white rounded p-4 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white rounded-circle p-2 me-3">
+                            <i class="ri-building-2-line text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-white mb-1 fw-bold" id="attractionName_${tourId}_${attractionOrderIndex}_${bookingIndex}">Loading...</h5>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-light text-dark">
+                                    <i class="ri-building-2-line me-1"></i>Attraction Booking
+                                </span>
+                                <span class="badge bg-warning text-dark">
+                                    <i class="ri-price-tag-line me-1"></i><span id="attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}">SGD 0.00</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge bg-white text-primary px-3 py-2 fs-6">
+                            <i class="ri-calendar-line me-1"></i>Attraction ${bookingIndex + 1}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Travel Date Constraint Alert -->
+            <div class="alert alert-info border-0 mb-4" style="background: linear-gradient(45deg, #e3f2fd, #f3e5f5); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 text-info fs-4"></i>
+                    <div>
+                        <strong class="text-info">Travel Date Constraint</strong>
+                        <p class="mb-0 text-muted small mt-1">Visit date must be within the tour travel dates: <span id="travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="fw-bold text-primary">Loading...</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visit Date -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="ri-calendar-line me-2 text-primary"></i>Visit Date
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-12">
+                            <label for="bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                <i class="ri-calendar-check-line me-1 text-primary"></i>Visit Date
+                            </label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" 
+                                   name="booking_date" 
+                                   required 
+                                   style="border-radius: 12px; border: 2px solid #e9ecef;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visit Time -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="ri-time-line me-2 text-primary"></i>Visit Time Range
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="visitTimeStart_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                <i class="ri-time-line me-1 text-success"></i>Start Time
+                            </label>
+                            <input type="time" 
+                                   class="form-control form-control-lg" 
+                                   id="visitTimeStart_${tourId}_${attractionOrderIndex}_${bookingIndex}" 
+                                   name="visit_time_start" 
+                                   required 
+                                   style="border-radius: 12px; border: 2px solid #e9ecef;">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="visitTimeEnd_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                <i class="ri-time-line me-1 text-danger"></i>End Time
+                            </label>
+                            <input type="time" 
+                                   class="form-control form-control-lg" 
+                                   id="visitTimeEnd_${tourId}_${attractionOrderIndex}_${bookingIndex}" 
+                                   name="visit_time_end" 
+                                   required 
+                                   style="border-radius: 12px; border: 2px solid #e9ecef;">
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-light rounded-3">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-time-line text-primary me-2"></i>
+                            <span class="text-muted small">Current visit time range: </span>
+                            <span id="currentVisitTime_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="fw-bold text-dark ms-1">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
+
+function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
+    console.log('🔍 Loading attraction data for edit:', { tourId, attractionOrderIndex, bookingIndex });
+    
+    fetch('{{ url("/booking/get-attraction-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Attraction edit data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Attraction edit data parsed', data);
+        
+        if (data.success && data.data) {
+            const attractionData = data.data.attraction_booking;
+            const tourData = data.data.tour;
+            
+            // Populate form fields
+            document.getElementById(`attractionName_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = attractionData.attraction_name || 'Unknown Attraction';
+            document.getElementById(`attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = `SGD ${attractionData.total_price || '0.00'}`;
+            document.getElementById(`bookingId_${tourId}_${attractionOrderIndex}_${bookingIndex}`).value = attractionData.booking_id;
+            
+            // Set visit date
+            if (attractionData.booking_date) {
+                document.getElementById(`bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`).value = attractionData.booking_date;
+            }
+            
+            // Parse and set visit time range
+            if (attractionData.visit_time) {
+                const timeRange = parseVisitTimeRange(attractionData.visit_time);
+                if (timeRange.start && timeRange.end) {
+                    document.getElementById(`visitTimeStart_${tourId}_${attractionOrderIndex}_${bookingIndex}`).value = timeRange.start;
+                    document.getElementById(`visitTimeEnd_${tourId}_${attractionOrderIndex}_${bookingIndex}`).value = timeRange.end;
+                }
+            }
+            
+            // Set current visit time display
+            document.getElementById(`currentVisitTime_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = attractionData.visit_time || 'Not set';
+            
+            // Set travel date constraints
+            const checkInDate = tourData.check_in_time;
+            const checkOutDate = tourData.check_out_time;
+            
+            if (checkInDate && checkOutDate) {
+                document.getElementById(`travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = `${checkInDate} to ${checkOutDate}`;
+                
+                // Set min/max dates for the date input
+                const bookingDateInput = document.getElementById(`bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+                bookingDateInput.min = checkInDate;
+                bookingDateInput.max = checkOutDate;
+            } else {
+                document.getElementById(`travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = 'Loading...';
+            }
+            
+        } else {
+            console.error('❌ Failed to load attraction data for edit', data);
+            alert('Failed to load attraction data. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error loading attraction data for edit:', error);
+        alert('Error loading attraction data. Please try again.');
+    });
+}
+
+function saveIndividualAttractionChanges(tourId, attractionOrderIndex, bookingIndex) {
+    try {
+        const form = document.getElementById(`editIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('Individual attraction edit form not found');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // Additional date validation
+        if (!validateAttractionDate(tourId, attractionOrderIndex, bookingIndex)) {
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const bookingDate = formData.get('booking_date');
+        const visitTimeStart = formData.get('visit_time_start');
+        const visitTimeEnd = formData.get('visit_time_end');
+        
+        // Create visit time range
+        const visitTime = `${visitTimeStart}-${visitTimeEnd}`;
+        
+        const updateData = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            booking_id: formData.get('booking_id'),
+            booking_date: bookingDate,
+            visit_time: visitTime
+        };
+        
+        console.log('💾 Saving individual attraction changes:', updateData);
+        
+        fetch('{{ url("/booking/update-attraction-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => {
+            console.log('📡 Attraction update response received', { status: response.status });
+            return response.json();
+        })
+        .then(data => {
+            console.log('📊 Attraction update response parsed', data);
+            
+            if (data.success) {
+                // Close the edit modal
+                const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_edit`;
+                closeIndividualAttractionEditModal(modalId);
+                
+                // Show success message and refresh page
+                setTimeout(() => {
+                    alert(`✅ Attraction booking updated successfully!
+                    
+Visit Date: ${bookingDate}
+Visit Time: ${visitTime}
+
+The booking details have been updated.`);
+                    window.location.reload();
+                }, 100);
+                
+            } else {
+                console.error('❌ Attraction update failed', data);
+                alert('Error updating attraction booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error updating individual attraction booking:', error);
+            alert('Error updating attraction booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('Error saving individual attraction changes:', error);
+        alert('Error saving changes. Please try again.');
+    }
+}
+
+function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
+    const bookingDateInput = document.getElementById(`bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+    const bookingDate = bookingDateInput.value;
+    
+    if (!bookingDate) {
+        alert('Please select a visit date.');
+        bookingDateInput.focus();
+        return false;
+    }
+    
+    const minDate = bookingDateInput.min;
+    const maxDate = bookingDateInput.max;
+    
+    if (minDate && bookingDate < minDate) {
+        alert(`Visit date cannot be earlier than ${minDate}`);
+        bookingDateInput.focus();
+        return false;
+    }
+    
+    if (maxDate && bookingDate > maxDate) {
+        alert(`Visit date cannot be later than ${maxDate}`);
+        bookingDateInput.focus();
+        return false;
+    }
+    
+    return true;
+}
+
+function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
+        
+        if (confirm('Are you sure you want to approve this attraction booking?')) {
+            alert('Attraction booking approved successfully!');
+            // Here you would make an API call to approve the attraction
+        }
+        
+    } catch (error) {
+        console.error('Error opening individual attraction approve modal:', error);
+        alert('Error opening approve modal. Please try again.');
+    }
+}
+
+function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
+        
+        const reason = prompt('Please provide a reason for rejection:');
+        if (reason !== null && reason.trim() !== '') {
+            alert('Attraction booking rejected successfully!');
+            // Here you would make an API call to reject the attraction
+        }
+        
+    } catch (error) {
+        console.error('Error opening individual attraction reject modal:', error);
+        alert('Error opening reject modal. Please try again.');
+    }
 }
 
 // Individual Restaurant Modal Function
@@ -5904,7 +7181,7 @@ function closeArrivalEditModal(editModalId) {
 
 function loadArrivalDataForEdit(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId) {
     // Fetch actual arrival data from backend
-    fetch('/booking/get-arrival-data', {
+    fetch('{{ url("/booking/get-arrival-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -6097,7 +7374,7 @@ function saveArrivalChanges(tourId, arrivalOrderIndex, arrivalBookingIndex, edit
     });
     
     // Make API call to save changes to orders table
-    fetch('/booking/update-arrival-booking', {
+    fetch('{{ url("/booking/update-arrival-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -6404,7 +7681,7 @@ function closeDepartureEditModal(editModalId) {
 function loadDepartureDataForEdit(tourId, departureOrderIndex, departureBookingIndex, editModalId) {
     console.log('Loading departure data for edit:', { tourId, departureOrderIndex, departureBookingIndex });
     
-    fetch('/booking/get-departure-data', {
+    fetch('{{ url("/booking/get-departure-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -6577,7 +7854,7 @@ function saveDepartureChanges(tourId, departureOrderIndex, departureBookingIndex
         entry_time: displayTime
     });
     
-    fetch('/booking/update-departure-booking', {
+    fetch('{{ url("/booking/update-departure-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -6852,7 +8129,7 @@ function closeTravelPointEditModal(editModalId) {
 function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, travelPointBookingIndex, editModalId) {
     console.log('Loading travel point data for edit:', { tourId, travelPointOrderIndex, travelPointBookingIndex });
     
-    fetch('/booking/get-travel-point-data', {
+    fetch('{{ url("/booking/get-travel-point-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -7025,7 +8302,7 @@ function saveTravelPointChanges(tourId, travelPointOrderIndex, travelPointBookin
         entry_time: displayTime
     });
     
-    fetch('/booking/update-travel-point-booking', {
+    fetch('{{ url("/booking/update-travel-point-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -7300,7 +8577,7 @@ function closeTravelHourlyEditModal(editModalId) {
 function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, travelHourlyBookingIndex, editModalId) {
     console.log('Loading travel hourly data for edit:', { tourId, travelHourlyOrderIndex, travelHourlyBookingIndex });
     
-    fetch('/booking/get-travel-hourly-data', {
+    fetch('{{ url("/booking/get-travel-hourly-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -7474,7 +8751,7 @@ function saveTravelHourlyChanges(tourId, travelHourlyOrderIndex, travelHourlyBoo
         entry_time: displayTime
     });
     
-    fetch('/booking/update-travel-hourly-booking', {
+    fetch('{{ url("/booking/update-travel-hourly-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -7749,7 +9026,7 @@ function closeLocalTransportEditModal(editModalId) {
 function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, localTransportBookingIndex, editModalId) {
     console.log('Loading local transport data for edit:', { tourId, localTransportOrderIndex, localTransportBookingIndex });
     
-    fetch('/booking/get-local-transport-data', {
+    fetch('{{ url("/booking/get-local-transport-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -7922,7 +9199,7 @@ function saveLocalTransportChanges(tourId, localTransportOrderIndex, localTransp
         entry_time: displayTime
     });
     
-    fetch('/booking/update-local-transport-booking', {
+    fetch('{{ url("/booking/update-local-transport-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -8676,7 +9953,7 @@ function saveIndividualHotelChanges(tourId, hotelOrderIndex, bookingIndex) {
         console.log('Saving individual hotel changes:', updateData);
         
         // Send AJAX request to update orders table
-        fetch('/booking/update-hotel-dates', {
+        fetch('{{ url("/booking/update-hotel-dates") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -8713,7 +9990,7 @@ function saveIndividualHotelChanges(tourId, hotelOrderIndex, bookingIndex) {
                         day: 'numeric' 
                     })}
                     
-                    The booking dates have been updated in the orders table.
+                    The booking dates have been updated.
                 `;
                 
                 // Show success alert and refresh page after user clicks OK
@@ -9068,7 +10345,7 @@ function getHotelServiceData(tourId, hotelOrderIndex, bookingIndex) {
     return new Promise((resolve, reject) => {
         console.log('Fetching hotel data for:', { tourId, hotelOrderIndex, bookingIndex });
         
-        fetch('/booking/get-hotel-data', {
+        fetch('{{ url("/booking/get-hotel-data") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -10508,7 +11785,7 @@ function getAttractionServiceData(tourId, attractionOrderIndex, bookingIndex) {
     return new Promise((resolve, reject) => {
         console.log('Fetching attraction data for:', { tourId, attractionOrderIndex, bookingIndex });
         
-        fetch('/booking/get-attraction-data', {
+        fetch('{{ url("/booking/get-attraction-data") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -10735,7 +12012,7 @@ function saveIndividualAttractionChanges(tourId, attractionOrderIndex, bookingIn
         console.log('Saving individual attraction changes:', updateData);
         
         // Send AJAX request to update orders table
-        fetch('/booking/update-attraction-booking', {
+        fetch('{{ url("/booking/update-attraction-booking") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -10767,7 +12044,7 @@ function saveIndividualAttractionChanges(tourId, attractionOrderIndex, bookingIn
                     })}
                     Visit Time: ${visitTime}
                     
-                    The booking details have been updated in the orders table.
+                    The booking details have been updated.
                 `;
                 
                 // Show success alert and refresh page after user clicks OK
@@ -11409,7 +12686,7 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
         
         console.log('🚀 Sending request data:', requestData);
         
-        fetch('/booking/get-restaurant-data', {
+        fetch('{{ url("/booking/get-restaurant-data") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -11692,7 +12969,7 @@ function saveIndividualRestaurantChanges(tourId, restaurantOrderIndex, bookingIn
         console.log('Saving individual restaurant changes:', updateData);
         
         // Send AJAX request to update orders table
-        fetch('/booking/update-restaurant-booking', {
+        fetch('{{ url("/booking/update-restaurant-booking") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -11724,7 +13001,7 @@ function saveIndividualRestaurantChanges(tourId, restaurantOrderIndex, bookingIn
                     })}
                     Dining Time: ${visitTime}
                     
-                    The booking details have been updated in the orders table.
+                    The booking details have been updated.
                 `;
                 
                 // Show success alert and refresh page after user clicks OK
