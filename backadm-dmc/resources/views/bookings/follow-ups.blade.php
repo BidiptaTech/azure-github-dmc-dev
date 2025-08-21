@@ -228,7 +228,7 @@
                             <th>Tour Details</th>
                             <th>Destination</th>
                             <th>Travel Dates</th>
-                            <th>Services</th>
+                            {{-- <th>Services</th> --}}
                             <th>Guests</th>
                             <th>Agent</th>
                             <th>Status</th>
@@ -282,38 +282,7 @@
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
-                                        $svc = [
-                                            'hotel' => $tour->hotel ?? 0,
-                                            'attraction' => $tour->attraction ?? 0,
-                                            'restaurent' => $tour->restaurent ?? 0,
-                                            'travel' => $tour->travel ?? 0,
-                                            'guide' => $tour->guide ?? 0,
-                                            'port' => $tour->port ?? 0,
-                                        ];
-                                        $icons = [
-                                            'hotel' => 'ri-hotel-line',
-                                            'attraction' => 'ri-building-2-line',
-                                            'restaurent' => 'ri-restaurant-2-line',
-                                            'travel' => 'ri-bus-2-line',
-                                            'guide' => 'ri-user-voice-line',
-                                            'port' => 'ri-ship-line',
-                                        ];
-                                    @endphp
-                                    @foreach($svc as $key=>$count)
-                                        @if(intval($count) > 0)
-                                            <span class="badge bg-light text-dark border">
-                                                <i class="{{ $icons[$key] }} me-1"></i>{{ ucfirst($key) }}: {{ $count }}
-                                            </span>
-                                        @endif
-                                    @endforeach
-                                    @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted">No services</span>
-                                    @endif
-                                </div>
-                            </td>
+
                             <td>
                                 <div class="d-flex gap-2">
                                     @if($tour->adult > 0)
@@ -635,9 +604,9 @@ function filterTable() {
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const followUpStatus = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const followUpStatus = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
@@ -898,19 +867,19 @@ function resetFilters() {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            // order: [[9, 'desc']], // Sort by Last Contact column (index 9) in descending order
+            // order: [[8, 'desc']], // Sort by Last Contact column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [10, 11], // Update Price and Actions columns
+                    targets: [9, 10], // Update Price and Actions columns
                     orderable: false,
                     searchable: false
                 },
                 {
-                    targets: [4, 5], // Services and Guests columns
+                    targets: [4], // Guests column
                     orderable: false
                 },
                 {
-                    targets: [7, 8], // Status and Follow Up Status columns
+                    targets: [6, 7], // Status and Follow Up Status columns
                     orderable: false
                 }
             ],
