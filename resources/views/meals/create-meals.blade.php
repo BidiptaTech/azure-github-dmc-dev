@@ -21,7 +21,7 @@
         <ul class="nav nav-pills mb-4 mt-4 d-flex justify-content-center" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->routeIs('restaurant.edit') ? 'active' : '' }}" 
-                   href="{{ route('restaurant.edit', $current_restaurant->restaurant_id) }}" 
+                   href="{{ route('restaurant.edit', Crypt::encrypt($current_restaurant->restaurant_id)) }}" 
                    role="tab">
                     Restaurant
                 </a>
@@ -29,7 +29,7 @@
             
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->routeIs('meals.restaurant_create') ? 'active' : '' }}" 
-                   href="{{ route('meals.restaurant_create', $current_restaurant->restaurant_id) }}" 
+                   href="{{ route('meals.restaurant_create', Crypt::encrypt($current_restaurant->restaurant_id)) }}" 
                    role="tab">
                     Meals
                 </a>
