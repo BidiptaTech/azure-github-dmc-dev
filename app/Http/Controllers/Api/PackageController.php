@@ -372,69 +372,69 @@ class PackageController extends Controller
         // Get type from request
         $type = $request->input('user_role', 'user'); // Default to 'user' if not provided
         
-        if($type == 'agent' || $type == 'Agent'){
-            $user_id = $user->agent_id; 
-            $sales_manager_dmc_id = $user->sales_manager_dmc;
-            $role_id = $user->role_id;
+        // if($type == 'agent' || $type == 'Agent'){
+        //     $user_id = $user->agent_id; 
+        //     $sales_manager_dmc_id = $user->sales_manager_dmc;
+        //     $role_id = $user->role_id;
 
-            if($role_id == 11){
-                $dmc_id = $sales_manager_dmc_id;
-            }
-            elseif($role_id == 33 || $role_id == 128 || $role_id == 129 || $role_id == 130 || $role_id == 134 || $role_id == 135 || $role_id == 136 || $role_id == 138){
-                $sales_head_id = $user->sales_manager_dmc;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            }
-            elseif($role_id == 37){
-                $sales_manager_id = $user->sales_manager_dmc;
-                $sales_manager = User::where('userId', $sales_manager_id)->first();
-                $sales_head_id = $sales_manager->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            }
-            elseif($role_id == 38){
-                $assistant_sales_manager_id = $user->sales_manager_dmc;
-                $assistant_sales_manager = User::where('userId', $assistant_sales_manager_id)->first();
-                $sales_manager_id = $assistant_sales_manager->created_by;
-                $sales_manager = User::where('userId', $sales_manager_id)->first();
-                $sales_head_id = $sales_manager->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            }
-            else{
-                $dmc_id = null;
-            }
-        }else{
-            $user_id = $user->userId;
-            //DMC (role_id 11)
-            if($user->role_id == 11){
-                $dmc_id = $user_id;
-            }
-            //Sales Head (role_id 33)
-            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
-                $dmc_id = $user->created_by;
-            }
-            //Sales Manager (role_id 37)
-            elseif($user->role_id == 37){
-                $sales_manager_id = $user->userId;
-                $sales_head_id = $user->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            }
-            //Assistant Sales Manager (role_id 38)
-            elseif($user->role_id == 38){
-                $assistant_sales_manager_id = $user->userId;
-                $sales_manager_id = $user->created_by;
-                $sales_manager = User::where('userId', $sales_manager_id)->first();
-                $sales_head_id = $sales_manager->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            }
-            else {
-                $dmc_id = null; // Default for other roles
-            }
-        }
-        
+        //     if($role_id == 11){
+        //         $dmc_id = $sales_manager_dmc_id;
+        //     }
+        //     elseif($role_id == 33 || $role_id == 128 || $role_id == 129 || $role_id == 130 || $role_id == 134 || $role_id == 135 || $role_id == 136 || $role_id == 138){
+        //         $sales_head_id = $user->sales_manager_dmc;
+        //         $sales_head = User::where('userId', $sales_head_id)->first();
+        //         $dmc_id = $sales_head->created_by;
+        //     }
+        //     elseif($role_id == 37){
+        //         $sales_manager_id = $user->sales_manager_dmc;
+        //         $sales_manager = User::where('userId', $sales_manager_id)->first();
+        //         $sales_head_id = $sales_manager->created_by;
+        //         $sales_head = User::where('userId', $sales_head_id)->first();
+        //         $dmc_id = $sales_head->created_by;
+        //     }
+        //     elseif($role_id == 38){
+        //         $assistant_sales_manager_id = $user->sales_manager_dmc;
+        //         $assistant_sales_manager = User::where('userId', $assistant_sales_manager_id)->first();
+        //         $sales_manager_id = $assistant_sales_manager->created_by;
+        //         $sales_manager = User::where('userId', $sales_manager_id)->first();
+        //         $sales_head_id = $sales_manager->created_by;
+        //         $sales_head = User::where('userId', $sales_head_id)->first();
+        //         $dmc_id = $sales_head->created_by;
+        //     }
+        //     else{
+        //         $dmc_id = null;
+        //     }
+        // }else{
+        //     $user_id = $user->userId;
+        //     //DMC (role_id 11)
+        //     if($user->role_id == 11){
+        //         $dmc_id = $user_id;
+        //     }
+        //     //Sales Head (role_id 33)
+        //     elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+        //         $dmc_id = $user->created_by;
+        //     }
+        //     //Sales Manager (role_id 37)
+        //     elseif($user->role_id == 37){
+        //         $sales_manager_id = $user->userId;
+        //         $sales_head_id = $user->created_by;
+        //         $sales_head = User::where('userId', $sales_head_id)->first();
+        //         $dmc_id = $sales_head->created_by;
+        //     }
+        //     //Assistant Sales Manager (role_id 38)
+        //     elseif($user->role_id == 38){
+        //         $assistant_sales_manager_id = $user->userId;
+        //         $sales_manager_id = $user->created_by;
+        //         $sales_manager = User::where('userId', $sales_manager_id)->first();
+        //         $sales_head_id = $sales_manager->created_by;
+        //         $sales_head = User::where('userId', $sales_head_id)->first();
+        //         $dmc_id = $sales_head->created_by;
+        //     }
+        //     else {
+        //         $dmc_id = null; // Default for other roles
+        //     }
+        // }
+        $dmc_id = $request->dmc_id;
         $data = $request->json()->all();
         $package_id = $data['package']['package_id'];
         $totalPrice = $data['booking_details']['total_price'];

@@ -95,7 +95,7 @@ class TourController extends Controller
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
             $tour->display_id = $display_id;
-            $tour->tour_status = "Pending";
+            $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
             $tour->dmc_id = $request->dmc_id;
             $tour->multi_enq_id = $multi_enq_id ?? '';
@@ -450,7 +450,13 @@ class TourController extends Controller
             return response()->json(['message' => 'Type not found'], 404);
         }
         // Update expired tours to 'Closed'
-        $tours = Tour::where('agent_id', $agent_id)->get();
+        $dmc_id = $request->dmc_id;
+        if($dmc_id){
+            $tours = Tour::where('agent_id', $agent_id)->where('dmc_id', $dmc_id)->get();
+        }
+        else{
+            $tours = Tour::where('agent_id', $agent_id)->get();
+        }
         foreach ($tours as $tour) {
             if (
                 $tour->check_out_time &&
@@ -2425,6 +2431,7 @@ class TourController extends Controller
 
         if ($order) {
             $order->status = 4; //cancel booking
+            $order->deleted_at = now(); //cancel booking
             $order->save();
             $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$order->type);
             return response()->json([
@@ -2481,6 +2488,7 @@ class TourController extends Controller
                 }
 
                 $data['status'] = $order->status;
+                $data['booking_id'] = $order->booking_id; // Add booking_id from orders table
             }
 
             $order->data = $orderData;
