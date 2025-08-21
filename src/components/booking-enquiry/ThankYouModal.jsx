@@ -8,17 +8,13 @@ import {
   Modal, 
   Fade, 
   Backdrop, 
-  Grid, 
   Divider, 
   Chip,
-  IconButton,
-  CircularProgress
+  IconButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
   CheckCircle as CheckCircleIcon,
-  Dashboard as DashboardIcon,
-  Schedule as ScheduleIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
 
@@ -63,14 +59,10 @@ const StatusChip = styled(Chip)(({ theme }) => ({
   boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
 }));
 
-const ProgressWrapper = styled(Box)(({ theme }) => ({
-  position: 'relative',
-  display: 'inline-flex',
-  margin: theme.spacing(1),
-}));
+// Removed ProgressWrapper since we no longer need countdown progress
 
 const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard', delay = 7 }) => {
-  const [countdown, setCountdown] = useState(delay);
+  // Removed countdown state since we don't want auto-redirect
   
   // Get enquiry data from Redux state only
   const enquiryState = useSelector((state) => state.enquiry);
@@ -90,32 +82,11 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
     
     console.log('ThankYouModal is opening with Redux state:', { enquiryId, multiEnqId, tourId, id });
     
-    // Start countdown for auto-redirect
-    const timer = setInterval(() => {
-      setCountdown(prevCount => {
-        if (prevCount <= 1) {
-          clearInterval(timer);
-          // Redirect to dashboard
-          window.location.href = redirectUrl;
-          return 0;
-        }
-        return prevCount - 1;
-      });
-    }, 1000);
-    
-    // Clean up timer on modal close or unmount
-    return () => {
-      clearInterval(timer);
-    };
+    // Removed countdown and auto-redirect functionality
   }, [open, redirectUrl, enquiryId, multiEnqId, tourId, id]);
   
   const handleCloseModal = () => {
     if (onClose) onClose();
-  };
-  
-  // Handle immediate redirect
-  const handleRedirectNow = () => {
-    window.location.href = redirectUrl;
   };
   
   // Generate a reference ID from Redux state only
@@ -152,7 +123,7 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
     return randomId;
   };
   
-  const progress = (countdown / delay) * 100;
+  // Removed progress calculation since we don't have countdown anymore
   
   return (
     <StyledModal
@@ -201,60 +172,22 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
             />
           </Box>
           
-          <Grid container spacing={2} alignItems="center" justifyContent="center">
-            <Grid item xs={12} sm={6}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Status
-                </Typography>
-                <StatusChip
-                  icon={<CheckCircleIcon />}
-                  label="Enquiry Submitted"
-                  color="success"
-                />
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Redirecting to dashboard in
-                </Typography>
-                <ProgressWrapper>
-                  <CircularProgress 
-                    variant="determinate" 
-                    value={progress} 
-                    size={40} 
-                    thickness={4}
-                    color="primary"
-                  />
-                  <Box
-                    sx={{
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      right: 0,
-                      position: 'absolute',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" fontWeight="bold">
-                      {countdown}
-                    </Typography>
-                  </Box>
-                </ProgressWrapper>
-              </Box>
-            </Grid>
-          </Grid>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Status
+            </Typography>
+            <StatusChip
+              icon={<CheckCircleIcon />}
+              label="Enquiry Submitted"
+              color="success"
+            />
+          </Box>
           
-          <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Box sx={{ mt: 4, textAlign: 'end' }}>
             <Button
               variant="contained"
               color="primary"
-              startIcon={<DashboardIcon />}
-              onClick={handleRedirectNow}
+              onClick={handleCloseModal}
               sx={{ 
                 px: 3, 
                 py: 1, 
@@ -262,7 +195,7 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
                 boxShadow: '0 4px 10px rgba(53, 84, 209, 0.25)',
               }}
             >
-              Go to Dashboard Now
+              Close
             </Button>
           </Box>
         </StyledPaper>

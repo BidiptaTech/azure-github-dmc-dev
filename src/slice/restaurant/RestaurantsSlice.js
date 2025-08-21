@@ -8,7 +8,7 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
   async (
-    { city, date, adults, children, tour_id, fromMainSearch },
+    { city, date, adults, children, tour_id, fromMainSearch, start = 0, limit = 5 },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
@@ -17,21 +17,13 @@ export const fetchRestaurants = createAsyncThunk(
         return [];
       }
 
-      // Store the search parameters in Redux
-      dispatch(setSearchParams({
-        location: city,
-        date: date,
-        adults: adults,
-        children: children
-      }));
-
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
 
       // Get selected DMC ID from Redux state
       const state = getState();
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 RestaurantsSlice - Fetching restaurants with DMC ID:', selectedDmcId);
+      // console.log('🎯 RestaurantsSlice - Fetching restaurants with DMC ID:', selectedDmcId);
 
       const queryParams = new URLSearchParams();
 
@@ -46,6 +38,10 @@ export const fetchRestaurants = createAsyncThunk(
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
       if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Add pagination parameters
+      queryParams.append("start", start);
+      queryParams.append("limit", limit);
       
       // Add DMC ID to query parameters if available
       if (selectedDmcId) {
@@ -63,7 +59,7 @@ export const fetchRestaurants = createAsyncThunk(
         }
       );
 
-      console.log('Restaurant API response:', response.data);
+      // console.log('Restaurant API response:', response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching restaurants:", error);
@@ -91,8 +87,8 @@ export const fetchRestaurantsDetails = createAsyncThunk(
       
       // Construct the API URL with the mode and dmc_id parameters
       const mode = price_mode || "dmc";
-      console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id: finalDmcId });
-      console.log('Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('Fetching restaurant details with params:', { restaurantId, mode, dmc_id: finalDmcId });
+      // console.log('Selected DMC ID from Redux:', selectedDmcId);
       
       const response = await axios.get(
         `${BASE_URL}/restaurant-details?restaurantId=${restaurantId}&mode=${mode}&dmc_id=${finalDmcId}`,
@@ -104,7 +100,7 @@ export const fetchRestaurantsDetails = createAsyncThunk(
         }
       );
 
-      console.log("Fetched Restaurant Details Response:", response.data);
+      // console.log("Fetched Restaurant Details Response:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching restaurant details:", error);
@@ -128,7 +124,7 @@ export const createBooking = createAsyncThunk(
 
       // Get selected DMC ID from Redux state
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
 
       // Add selected DMC ID to booking details
       const updatedBookingDetails = {
@@ -139,7 +135,7 @@ export const createBooking = createAsyncThunk(
         }))
       };
 
-      console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
+      // console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
 
       // Corrected conditional statement
       let AgentId;
@@ -261,11 +257,11 @@ const restaurantsSlice = createSlice({
       state.services = action.payload; // Update the state with the new data
     },
     setSearchParams(state, action) {
-      state.searchParams = {
-        ...state.searchParams,
+      const serializedPayload = {
         ...action.payload,
         date: action.payload.date || "",
       };
+      state.searchParams = serializedPayload;
     },
     updateModeMap: (state, action) => {
       const { restaurantId, mode = "dmc", prices } = action.payload;
@@ -304,11 +300,23 @@ const restaurantsSlice = createSlice({
         state.status = "succeeded";
         // Check if the response is empty or undefined
         if (!action.payload || action.payload.length === 0) {
-          console.log('No restaurants found in response');
-          state.restaurants = [];
+          // If no data returned and we have existing data, don't clear it
+          // This indicates we've reached the end of available data
+          if (state.restaurants.length === 0) {
+            state.restaurants = [];
+          }
         } else {
-          console.log('Setting restaurants in state:', action.payload);
-          state.restaurants = action.payload;
+          // For infinite scroll: append new data to existing data
+          // Check if this is the first page (start = 0) or subsequent pages
+          const isFirstPage = action.meta.arg.start === 0;
+          
+          if (isFirstPage) {
+            // First page: replace existing data
+            state.restaurants = action.payload;
+          } else {
+            // Subsequent pages: append to existing data
+            state.restaurants = [...state.restaurants, ...action.payload];
+          }
         }
       })
       .addCase(fetchRestaurants.rejected, (state, action) => {

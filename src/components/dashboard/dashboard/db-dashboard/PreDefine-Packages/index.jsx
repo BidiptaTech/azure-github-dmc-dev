@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchPackageBookingLists } from "../../../../../slice/tour-packages/prePackagesSlice";
+import { 
+    fetchPackageBookingLists, 
+    setBookingListsStatus, 
+    setBookingListsPagination,
+    resetBookingListsPagination 
+} from "../../../../../slice/tour-packages/prePackagesSlice";
 
 import {
     Box,
@@ -25,8 +30,6 @@ import {
     TextField,
     InputAdornment,
     CircularProgress
-    
-    
 } from "@mui/material";
 import {
     DonutLarge,
@@ -68,17 +71,14 @@ import PackagesTable from "./PackagesTable";
 import DateFilter from "./DateFilter";
 
 
-
-
-
-
-
 const PreDefinePackages = () => {
     const dispatch = useDispatch();
     const {
         bookingLists,
         bookingListsLoading,
-        bookingListsError
+        bookingListsError,
+        bookingListsPagination,
+        bookingListsStatus
     } = useSelector((state) => state.prePackages);
     const { userRole } = useSelector((state) => state.auth);
 
@@ -101,173 +101,65 @@ const PreDefinePackages = () => {
     const [dateRange, setDateRange] = useState(null);
     const [isDateFilterActive, setIsDateFilterActive] = useState(false);
     const [filterKey, setFilterKey] = useState(0); // Key to force DateFilter component to reset
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const loadMoreRef = useRef(null);
 
-    // Fetch package booking lists when component mounts
+    // Map tab values to status
+    const getStatusFromTab = (tabValue) => {
+        switch (tabValue) {
+            case 0: return 'ongoing';
+            case 1: return 'upcoming';
+            case 2: return 'past';
+            default: return 'all';
+        }
+    };
+
+    // Fetch package booking lists when component mounts or status changes
     useEffect(() => {
+        const status = getStatusFromTab(tabValue);
         // console.log("========== FETCHING PACKAGE BOOKING LISTS ==========");
-        dispatch(fetchPackageBookingLists());
-    }, [dispatch]);
+        // console.log("Status:", status);
+        
+        // Reset pagination and fetch first page
+        dispatch(resetBookingListsPagination());
+        dispatch(setBookingListsStatus(status));
+        dispatch(fetchPackageBookingLists({ 
+            start: 0, 
+            limit: 10, // Fetch first 10 items
+            status: status 
+        }));
+    }, [dispatch, tabValue]);
 
-    // Process the API data when it's received
+    // Process the API data when it's received - now simplified since server handles categorization
     useEffect(() => {
         // console.log("========== API RESPONSE ==========");
         // console.log("Raw bookingLists:", bookingLists);
         // console.log("bookingListsLoading:", bookingListsLoading);
         // console.log("bookingListsError:", bookingListsError);
+        // console.log("Current status:", bookingListsStatus);
+        // console.log("Pagination:", bookingListsPagination);
+        // console.log("hasMore:", bookingListsPagination.hasMore);
+        // console.log("Current data length:", bookingLists?.length || 0);
 
-        if (bookingLists) {
-            // console.log("bookingLists is an array:", Array.isArray(bookingLists));
-            // console.log("bookingLists length:", Array.isArray(bookingLists) ? bookingLists.length : 'Not an array');
-
-            // It's possible the data is nested in a property of the response
-            if (!Array.isArray(bookingLists) && typeof bookingLists === 'object') {
-                // console.log("bookingLists keys:", Object.keys(bookingLists));
-
-                // Common response patterns to check
-                const possibleArrayProps = ['data', 'results', 'items', 'booking_lists', 'bookings', 'packages'];
-                for (const prop of possibleArrayProps) {
-                    if (bookingLists[prop] && Array.isArray(bookingLists[prop])) {
-                        // console.log(`Found array in bookingLists.${prop}:`, bookingLists[prop]);
-                    }
+        if (bookingLists && Array.isArray(bookingLists)) {
+            // Format the booking data for display
+            const formattedBookings = bookingLists.map(booking => {
+                try {
+                    return formatBookingData(booking);
+                } catch (error) {
+                    console.error("Error formatting booking:", error);
+                    return null;
                 }
-            }
-        }
+            }).filter(booking => booking !== null);
 
-        // Only process if we have an array of bookings
-        let bookingsArray = [];
-        if (Array.isArray(bookingLists) && bookingLists.length > 0) {
-            bookingsArray = bookingLists;
-        } else if (bookingLists && typeof bookingLists === 'object') {
-            // Try to find the array in the response object
-            if (bookingLists.booking_lists && Array.isArray(bookingLists.booking_lists)) {
-                bookingsArray = bookingLists.booking_lists;
-                // console.log("Using booking_lists array from response:", bookingsArray);
-            } else if (bookingLists.data && Array.isArray(bookingLists.data)) {
-                bookingsArray = bookingLists.data;
-                // console.log("Using data array from response:", bookingsArray);
-            }
-            // Add more potential paths if needed
-        }
-
-        // console.log("Final bookings array to process:", bookingsArray);
-
-        if (bookingsArray && bookingsArray.length > 0) {
-            try {
-                // Process the booking lists into three categories
-                const now = new Date();
-                // console.log("Current date for comparison:", now);
-                const ongoing = [];
-                const upcoming = [];
-                const past = [];
-
-                // Format all bookings first, then categorize them
-                bookingsArray.forEach((booking, index) => {
-                    if (!booking) {
-                        // console.log(`Booking at index ${index} is null or undefined, skipping`);
-                        return; // Skip this iteration
-                    }
-
-                    try {
-                        // console.log(`\n========== PROCESSING BOOKING ${index + 1} ==========`);
-
-                        // Format the booking data
-                        const formattedBooking = formatBookingData(booking);
-                        // console.log("Formatted booking data:", formattedBooking);
-
-                        // Parse dates for categorization
-                        let startDate, endDate;
-
-                        // Parse the start date from the formatted string (e.g., "Jun 12, 2023")
-                        if (formattedBooking.startDate && formattedBooking.startDate !== 'Not specified') {
-                            startDate = new Date(formattedBooking.startDate);
-                            // console.log("Parsed start date from formatted string:", startDate);
-                        }
-
-                        // Parse the end date from the formatted string
-                        if (formattedBooking.endDate && formattedBooking.endDate !== 'Not specified') {
-                            endDate = new Date(formattedBooking.endDate);
-                            // console.log("Parsed end date from formatted string:", endDate);
-                        }
-
-                        // Final fallback - use current date if dates are invalid
-                        if (!startDate || isNaN(startDate.getTime())) {
-                            // console.log("Start date invalid, using current date");
-                            startDate = new Date(now);
-                        }
-
-                        if (!endDate || isNaN(endDate.getTime())) {
-                            // console.log("End date invalid, using tomorrow");
-                            endDate = new Date(now);
-                            endDate.setDate(endDate.getDate() + 1); // Add one day
-                        }
-
-                        // console.log("Final dates for categorization:");
-                        // console.log("- startDate:", startDate);
-                        // console.log("- endDate:", endDate);
-
-                        // Set time to beginning/end of day for accurate comparison
-                        const today = new Date(now);
-                        today.setHours(0, 0, 0, 0);
-
-                        // Clone dates and set to beginning/end of day for accurate comparison
-                        const startOfStartDate = new Date(startDate);
-                        startOfStartDate.setHours(0, 0, 0, 0);
-
-                        const endOfEndDate = new Date(endDate);
-                        endOfEndDate.setHours(23, 59, 59, 999);
-
-                        // console.log("Comparison dates:");
-                        // console.log("- today:", today);
-                        // console.log("- startOfStartDate:", startOfStartDate);
-                        // console.log("- endOfEndDate:", endOfEndDate);
-
-                        // Determine booking category based on dates
-                        // Ongoing: today is between start_date and end_date (inclusive)
-                        // Upcoming: start_date is after today
-                        // Past: end_date is before today
-                        if (today >= startOfStartDate && today <= endOfEndDate) {
-                            // console.log("Category: ONGOING (today is between start and end dates)");
-                            ongoing.push(formattedBooking);
-                        } else if (startOfStartDate > today) {
-                            // console.log("Category: UPCOMING (start date is after today)");
-                            upcoming.push(formattedBooking);
-                        } else {
-                            // console.log("Category: PAST (end date is before today)");
-                            past.push(formattedBooking);
-                        }
-                    } catch (error) {
-                        console.error(`Error processing booking at index ${index}:`, error);
-                        console.error("Problematic booking:", booking);
-                        // We won't add the problematic booking to any category
-                    }
-                });
-
-                // console.log("========== FINAL CATEGORIZED DATA ==========");
-                // console.log("Ongoing bookings:", ongoing);
-                // console.log("Upcoming bookings:", upcoming);
-                // console.log("Past bookings:", past);
-                // console.log("Category counts:", {
-                // ongoing: ongoing.length,
-                // upcoming: upcoming.length,
-                // past: past.length
-                // });
-
-                setProcessedData({
-                    ongoing,
-                    upcoming,
-                    past
-                });
-            } catch (error) {
-                console.error("Fatal error processing booking data:", error);
-                // Reset to empty arrays if processing fails
-                setProcessedData({
-                    ongoing: [],
-                    upcoming: [],
-                    past: []
-                });
-            }
+            // Set the processed data based on current status
+            const status = getStatusFromTab(tabValue);
+            setProcessedData({
+                ongoing: status === 'ongoing' ? formattedBookings : [],
+                upcoming: status === 'upcoming' ? formattedBookings : [],
+                past: status === 'past' ? formattedBookings : []
+            });
         } else {
-            console.log("No booking data available to process");
             // Reset to empty arrays if no booking lists data
             setProcessedData({
                 ongoing: [],
@@ -275,7 +167,84 @@ const PreDefinePackages = () => {
                 past: []
             });
         }
-    }, [bookingLists]);
+    }, [bookingLists, bookingListsStatus, tabValue]);
+
+    // Load more data function
+    const loadMoreData = useCallback(() => {
+        // console.log("loadMoreData called with:", {
+        //     isLoadingMore,
+        //     hasMore: bookingListsPagination.hasMore,
+        //     bookingListsLoading,
+        //     currentStart: bookingListsPagination.start,
+        //     currentLimit: bookingListsPagination.limit
+        // });
+        
+        if (isLoadingMore || !bookingListsPagination.hasMore || bookingListsLoading) {
+            // console.log("loadMoreData blocked:", { isLoadingMore, hasMore: bookingListsPagination.hasMore, bookingListsLoading });
+            return;
+        }
+        
+        setIsLoadingMore(true);
+        const status = getStatusFromTab(tabValue);
+        const nextStart = bookingListsPagination.start + bookingListsPagination.limit;
+        
+        // console.log("Making API call for next page:", { nextStart, limit: bookingListsPagination.limit, status });
+        
+        dispatch(setBookingListsPagination({ start: nextStart }));
+        dispatch(fetchPackageBookingLists({ 
+            start: nextStart, 
+            limit: bookingListsPagination.limit, 
+            status: status 
+        })).finally(() => {
+            setIsLoadingMore(false);
+        });
+    }, [bookingListsPagination, isLoadingMore, bookingListsLoading, dispatch, tabValue]);
+
+    // Intersection Observer for infinite scroll
+    useEffect(() => {
+        // console.log("Setting up intersection observer with:", {
+        //     hasMore: bookingListsPagination.hasMore,
+        //     isLoadingMore,
+        //     bookingListsLoading,
+        //     loadMoreRef: !!loadMoreRef.current
+        // });
+        
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const [entry] = entries;
+                // console.log("Intersection observer triggered:", {
+                //     isIntersecting: entry.isIntersecting,
+                //     hasMore: bookingListsPagination.hasMore,
+                //     isLoadingMore,
+                //     bookingListsLoading
+                // });
+                
+                if (entry.isIntersecting && bookingListsPagination.hasMore && !isLoadingMore && !bookingListsLoading) {
+                    // console.log("Calling loadMoreData from intersection observer");
+                    loadMoreData();
+                }
+            },
+            { threshold: 0.1, rootMargin: '100px' } // Add rootMargin to trigger earlier
+        );
+
+        // Use setTimeout to ensure the ref is available
+        const timeoutId = setTimeout(() => {
+            if (loadMoreRef.current) {
+                observer.observe(loadMoreRef.current);
+                // console.log("Observer attached to loadMoreRef");
+            } else {
+                 console.log("loadMoreRef.current is still null after timeout");
+            }
+        }, 100);
+
+        return () => {
+            clearTimeout(timeoutId);
+            if (loadMoreRef.current) {
+                observer.unobserve(loadMoreRef.current);
+            }
+        };
+    }, [loadMoreRef, bookingListsPagination.hasMore, isLoadingMore, bookingListsLoading, loadMoreData]);
+
 
     // Helper function to format date strings
     const formatDate = (dateString) => {
@@ -337,8 +306,8 @@ const PreDefinePackages = () => {
     // Format booking data to match the expected structure
     const formatBookingData = (booking) => {
         // console.log("========== FORMATTING BOOKING DATA ==========");
-        console.log("Original booking:", booking);
-        console.log("Agent ID from booking:", booking.agent_id);
+        // console.log("Original booking:", booking);
+        // console.log("Agent ID from booking:", booking.agent_id);
         // Parse the JSON strings in the API response
         let bookingDetails = {};
         let travelDates = {};
@@ -352,15 +321,15 @@ const PreDefinePackages = () => {
                 if (typeof booking.booking_details === 'string') {
                     try {
                         bookingDetails = JSON.parse(booking.booking_details);
-                        console.log("Parsed booking_details:", bookingDetails);
-                        console.log("Agent ID from booking_details:", bookingDetails.agent_id);
+                        // console.log("Parsed booking_details:", bookingDetails);
+                        // console.log("Agent ID from booking_details:", bookingDetails.agent_id);
                     } catch (e) {
                         console.error("Failed to parse booking_details:", e);
                     }
                 } else if (typeof booking.booking_details === 'object') {
                     bookingDetails = booking.booking_details;
-                    console.log("Using booking_details object directly:", bookingDetails);
-                    console.log("Agent ID from booking_details object:", bookingDetails.agent_id);
+                    // console.log("Using booking_details object directly:", bookingDetails);
+                    // console.log("Agent ID from booking_details object:", bookingDetails.agent_id);
                 }
             }
 
@@ -815,6 +784,9 @@ const PreDefinePackages = () => {
         setShowDmcFilter(false);
         setBookingIdFilterTerm('');
         setShowBookingIdFilter(false);
+        // Clear date filter when changing tabs
+        setDateRange(null);
+        setIsDateFilterActive(false);
     };
 
     const handleSearchChange = (event) => {
@@ -1034,7 +1006,54 @@ const PreDefinePackages = () => {
             );
         }
 
-        return <PackagesTable data={filteredData} emptyMessage={emptyMessage} userRole={userRole} />;
+        return (
+            <Box>
+                <PackagesTable data={filteredData} emptyMessage={emptyMessage} userRole={userRole} />
+                
+                {/* Infinite Scroll Loading Indicator - Always render the element */}
+                <Box 
+                    ref={loadMoreRef}
+                    sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        mt: 3, 
+                        mb: 2,
+                        py: 2,
+                        minHeight: '60px' // Ensure it has some height for intersection observer
+                    }}
+                >
+                    {bookingListsPagination.hasMore && filteredData.length > 0 ? (
+                        isLoadingMore ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <CircularProgress size={20} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Loading more packages...
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Scroll down to load more
+                                </Typography>
+                                <Button 
+                                    variant="outlined" 
+                                    size="small"
+                                    onClick={loadMoreData}
+                                    sx={{ mt: 1 }}
+                                >
+                                    Test Load More
+                                </Button>
+                            </Box>
+                        )
+                    ) : !bookingListsPagination.hasMore && filteredData.length > 0 ? (
+                        <Typography variant="body2" sx={{ fontSize: '14px', color: 'text.secondary' }}>
+                            ✓ End of results • {filteredData.length} packages loaded
+                        </Typography>
+                    ) : null}
+                </Box>
+            </Box>
+        );
     };
 
     return (
@@ -1074,76 +1093,19 @@ const PreDefinePackages = () => {
                 >
                     <Tab
                         icon={<DonutLarge />}
-                        label={
-                            <Box sx={{ position: 'relative', pr: 3 }}>
-                                Ongoing
-                                <Badge
-                                    badgeContent={processedData.ongoing.length}
-                                    
-                                    color="primary"
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: '10px',
-                                            height: '20px',
-                                            minWidth: '20px'
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
+                        label="Ongoing"
                         iconPosition="start"
                         {...a11yProps(0)}
                     />
                     <Tab
                         icon={<Upcoming />}
-                        label={
-                            <Box sx={{ position: 'relative', pr: 3 }}>
-                                Upcoming
-                                <Badge
-                                    badgeContent={processedData.upcoming.length}
-                                
-                                    color="primary"
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: '10px',
-                                            height: '20px',
-                                            minWidth: '20px'
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
+                        label="Upcoming"
                         iconPosition="start"
                         {...a11yProps(1)}
                     />
                     <Tab
                         icon={<History />}
-                        label={
-                            <Box sx={{ position: 'relative', pr: 3 }}>
-                                Past
-                                <Badge
-                                    badgeContent={processedData.past.length}
-                                    
-                                    color="primary"
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        '& .MuiBadge-badge': {
-                                            fontSize: '10px',
-                                            height: '20px',
-                                            minWidth: '20px'
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        }
+                        label="Past"
                         iconPosition="start"
                         {...a11yProps(2)}
                     />
@@ -1163,7 +1125,6 @@ const PreDefinePackages = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <DonutLarge sx={{ mr: 1, color: '#4361ee' }} /> Currently Ongoing Packages
-                            <Chip label={`${getCurrentFilteredData().length} packages`} size="small" sx={{ ml: 2, backgroundColor: '#e3f2fd', color: '#1976d2' }} />
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {showSearchInput ? (
@@ -1297,7 +1258,6 @@ const PreDefinePackages = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <Upcoming sx={{ mr: 1, color: '#4361ee' }} /> Upcoming Packages
-                            <Chip label={`${getCurrentFilteredData().length} packages`} size="small" sx={{ ml: 2, backgroundColor: '#e8f5e9', color: '#2e7d32' }} />
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {showSearchInput ? (
@@ -1431,7 +1391,6 @@ const PreDefinePackages = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
                             <History sx={{ mr: 1, color: '#4361ee' }} /> Past Packages
-                            <Chip label={`${getCurrentFilteredData().length} packages`} size="small" sx={{ ml: 2, backgroundColor: '#f5f5f5', color: '#616161' }} />
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {showSearchInput ? (

@@ -184,12 +184,12 @@ export const statusUpdate = createAsyncThunk(
           "agent-id": AgentId,
         },
       });
-      console.log("response", response.data);
+      // console.log("response", response.data);
 
       return response.data;
     } catch (error) {
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+        // console.log("Unauthorized! Dispatching logout...");
         await dispatch(logoutUser()); // Ensure the logout process completes
       }
       return rejectWithValue(error.response?.data || error.message);
@@ -222,7 +222,7 @@ const stepsSlice = createSlice({
     // Set tour ID
     setTourId: (state, action) => {
       state.id = action.payload;
-      console.log("id", state.id);
+      //  console.log("id", state.id);
     },
     // Update the status of the current step
     updateStepStatus: (state, action) => {
@@ -262,7 +262,7 @@ const stepsSlice = createSlice({
           "restaurent",
           "travel",
         ];
-        console.log("active", active_task);
+        // console.log("active", active_task);
         const currentStepIndex = level.indexOf(active_task);
         state.active_status = active_task_status;
         state.currentStep = currentStepIndex !== -1 ? currentStepIndex : null;

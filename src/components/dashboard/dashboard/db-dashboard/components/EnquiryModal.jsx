@@ -21,6 +21,22 @@ const EnquiryModal = ({
   submitEnquiry,
   handleEnquirySubmit,
 }) => {
+  // Calculate max amount and validation
+  // Use current_price from enquiryHistory if available, otherwise use totalPrice
+  const getCurrentPrice = () => {
+    if (enquiryHistory && enquiryHistory.length > 0) {
+      // Get the latest enquiry's current_price
+      const latestEnquiry = enquiryHistory[enquiryHistory.length - 1];
+      if (latestEnquiry.current_price) {
+        return parseFloat(latestEnquiry.current_price);
+      }
+    }
+    return totalPrice || 0;
+  };
+
+  const maxAmount = getCurrentPrice();
+  const currentAmount = parseFloat(enquiryAmount) || 0;
+  const isAmountExceeded = currentAmount > maxAmount;
   return (
     <Modal
       title="Make an Enquiry"
@@ -245,47 +261,110 @@ const EnquiryModal = ({
                     >
                       SGD
                     </div>
-                    <input
-                      id="enquiryAmount"
-                      type="number"
-                      min="0"
-                      value={enquiryAmount || totalPrice}
-                      onChange={handleEnquiryAmountChange}
-                      placeholder="Enter negotiated amount"
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        border: "none",
-                        outline: "none",
-                        fontSize: "14px",
-                        // Remove increment/decrement arrows
-                        WebkitAppearance: "none",
-                        MozAppearance: "textfield",
-                      }}
-                    />
+                                         <input
+                       id="enquiryAmount"
+                       type="number"
+                       min="0"
+                       max={maxAmount}
+                       value={enquiryAmount || ""}
+                                                onChange={(e) => {
+                           const value = parseFloat(e.target.value) || 0;
+                           
+                           // Allow empty value or values up to maxAmount
+                           if (e.target.value === "" || value <= maxAmount) {
+                             handleEnquiryAmountChange(e);
+                           } else {
+                             // If value exceeds max, revert to the previous valid value
+                             e.target.value = enquiryAmount || "";
+                           }
+                         }}
+                       onBlur={(e) => {
+                         // Ensure value doesn't exceed max on blur
+                         const value = parseFloat(e.target.value) || 0;
+                         if (value > maxAmount) {
+                           const syntheticEvent = {
+                             ...e,
+                             target: {
+                               ...e.target,
+                               value: maxAmount.toString()
+                             }
+                           };
+                           handleEnquiryAmountChange(syntheticEvent);
+                         }
+                       }}
+                       onKeyDown={(e) => {
+                         // Prevent typing if it would exceed maxAmount
+                         const currentValue = parseFloat(e.target.value) || 0;
+                         const key = e.key;
+                         
+                         // Allow backspace, delete, arrow keys, etc.
+                         if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(key)) {
+                           return;
+                         }
+                         
+                         // Allow numbers and decimal point
+                         if (/^[0-9.]$/.test(key)) {
+                           const newValue = parseFloat(currentValue.toString() + key) || 0;
+                           if (newValue > maxAmount) {
+                             e.preventDefault();
+                           }
+                         } else {
+                           // Prevent other keys
+                           e.preventDefault();
+                         }
+                       }}
+                       placeholder="Enter negotiated amount"
+                       style={{
+                         flex: 1,
+                         padding: "8px 12px",
+                         border: "none",
+                         outline: "none",
+                         fontSize: "14px",
+                         // Remove increment/decrement arrows
+                         WebkitAppearance: "none",
+                         MozAppearance: "textfield",
+                         backgroundColor: isAmountExceeded ? "#ffebee" : "transparent",
+                       }}
+                     />
                   </div>
                 </div>
 
-                {/* Message showing max amount */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: "8px",
-                    padding: "6px 10px",
-                    backgroundColor: "rgba(53, 84, 209, 0.08)",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                  }}
-                >
-                  <span style={{ color: "#555" }}>
-                    The negotiated amount must be less than or equal to the base
-                    price.
-                  </span>
-                  <span style={{ fontWeight: "bold", color: "#3554D1" }}>
-                    Max: SGD {totalPrice}
-                  </span>
-                </div>
+                                 {/* Error message for exceeded amount */}
+                 {isAmountExceeded && (
+                   <div
+                     style={{
+                       marginTop: "8px",
+                       padding: "8px 12px",
+                       backgroundColor: "#ffebee",
+                       border: "1px solid #f44336",
+                       borderRadius: "4px",
+                       fontSize: "12px",
+                       color: "#d32f2f",
+                     }}
+                   >
+                     ⚠️ Negotiated amount cannot exceed the current price of SGD {maxAmount.toFixed(2)}
+                   </div>
+                 )}
+
+                                 {/* Message showing max amount */}
+                 <div
+                   style={{
+                     display: "flex",
+                     justifyContent: "space-between",
+                     marginTop: "8px",
+                     padding: "6px 10px",
+                     backgroundColor: isAmountExceeded ? "#ffebee" : "rgba(53, 84, 209, 0.08)",
+                     borderRadius: "4px",
+                     fontSize: "12px",
+                   }}
+                 >
+                   <span style={{ color: isAmountExceeded ? "#d32f2f" : "#555" }}>
+                     The negotiated amount must be less than or equal to the current price.
+                   </span>
+                   <span style={{ fontWeight: "bold", color: isAmountExceeded ? "#d32f2f" : "#3554D1" }}>
+                     Current Price: SGD {maxAmount.toFixed(2)}
+                   </span>
+                 </div>
               </div>
 
               <div
@@ -372,8 +451,10 @@ const EnquiryModal = ({
                   variant="contained"
                   color="success"
                   startIcon={<CheckCircleOutlinedIcon />}
+                  disabled={isAmountExceeded}
                   sx={{
                     fontSize: "14px",
+                    opacity: isAmountExceeded ? 0.6 : 1,
                   }}
                 >
                   Accept & Booking
@@ -383,11 +464,13 @@ const EnquiryModal = ({
                   onClick={handleEnquirySubmit}
                   variant="contained"
                   startIcon={<QuestionAnswerIcon />}
+                  disabled={isAmountExceeded}
                   sx={{
                     backgroundColor: "#3554D1",
                     "&:hover": {
                       backgroundColor: "#2a43a7",
                     },
+                    opacity: isAmountExceeded ? 0.6 : 1,
                   }}
                 >
                   Submit Enquiry

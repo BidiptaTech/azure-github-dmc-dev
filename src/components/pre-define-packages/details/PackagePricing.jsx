@@ -46,10 +46,9 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   }, [bookingSuccess, bookedData]);
 
 
-  // Calculate total price based on number of adults and children
+  // Calculate total price based on package type and number of people
   const adultPrice = parseFloat(packageData.price_adult) || 0;
   const childPrice = parseFloat(packageData.price_child) || 0;
-
 
   // Use search params for passenger counts if available, otherwise fallback to packageData
   const adultCount = searchParams?.adults ? parseInt(searchParams.adults) : 1;
@@ -57,10 +56,21 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   const maleCount = searchParams?.male_count ? parseInt(searchParams.male_count) : 0;
   const femaleCount = searchParams?.female_count ? parseInt(searchParams.female_count) : 0;
 
-
+  // Calculate total price - always per person pricing
   const totalAdultPrice = adultPrice * adultCount;
   const totalChildPrice = childPrice * childCount;
   const totalPrice = totalAdultPrice + totalChildPrice;
+  
+  // Debug logging for pricing calculation
+  console.log('Package Pricing Calculation:', {
+    adultPrice,
+    childPrice,
+    adultCount,
+    childCount,
+    totalAdultPrice,
+    totalChildPrice,
+    totalPrice
+  });
 
 
   // Check if child price is available
@@ -474,14 +484,12 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
               Adult{adultCount > 1 ? 's' : ''} ({adultCount})
             </Typography>
           </Box>
-                      <Typography variant="body1" fontWeight="bold">
-              <Box component="span" fontSize="0.7rem" mr={0.3}>
-                SGD
-              </Box>
-              {adultPrice.toFixed(2)} each
-            </Typography>
-
-
+          <Typography variant="body1" fontWeight="bold">
+            <Box component="span" fontSize="0.7rem" mr={0.3}>
+              SGD
+            </Box>
+            {adultPrice.toFixed(2)} each
+          </Typography>
         </Box>
 
 
@@ -571,6 +579,8 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
             {totalPrice.toFixed(2)}
           </Typography>
         </Box>
+        
+
 
      
 

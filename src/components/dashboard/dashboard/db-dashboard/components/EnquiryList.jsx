@@ -9,7 +9,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TablePagination,
   Chip,
   IconButton,
   CircularProgress,
@@ -34,7 +33,8 @@ import {
   Tabs,
   Tab,
   Badge,
- 
+  Alert,
+  Snackbar,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -53,6 +53,7 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   DirectionsBoat as DirectionsBoatIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 
 import dayjs from 'dayjs';
@@ -98,7 +99,8 @@ const EnquiryList = () => {
     (state) => state.bookingEnquiry
   );
   const { userRole } = useSelector((state) => state.auth);
-  console.log(enquiries, "enq");
+  const selectedAgent = useSelector((state) => state.editing.agentId);
+  // console.log(enquiries, "enq");
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -116,21 +118,76 @@ const EnquiryList = () => {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [tabValue, setTabValue] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastEnquiryCount, setLastEnquiryCount] = useState(0);
+  const [showNewEnquiryAlert, setShowNewEnquiryAlert] = useState(false);
 
-  useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchEnquiries());
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Use agent ID from Redux if available
+      if (selectedAgent) {
+        await dispatch(fetchEnquiries({ 
+          agentId: selectedAgent,
+          reset: true, 
+          start: 0, 
+          limit: 30 
+        })).unwrap();
+      } else {
+        await dispatch(fetchEnquiries({ 
+          reset: true, 
+          start: 0, 
+          limit: 30 
+        })).unwrap();
+      }
+    } catch (error) {
+      console.error('Failed to refresh enquiries:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [status, dispatch]);
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  // Initial data fetch
+  // useEffect(() => {
+  //   if (status === "idle") {
+  //     dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+  //   }
+  // }, [status, dispatch]);
+
+  // Add a separate effect to refresh enquiries periodically and on component mount
+  // useEffect(() => {
+  //   // Fetch enquiries on component mount
+  //   if (selectedAgent) {
+  //     dispatch(fetchEnquiries({ agentId: selectedAgent, reset: true, start: 0, limit: 30 }));
+  //   } else {
+  //     dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+  //   }
+    
+  //   // // Set up periodic refresh every 30 seconds
+  //   // const interval = setInterval(() => {
+  //   //   if (selectedAgent) {
+  //   //     dispatch(fetchEnquiries({ agentId: selectedAgent, reset: false, start: 0, limit: 30 }));
+  //   //   } else {
+  //   //     dispatch(fetchEnquiries({ reset: false, start: 0, limit: 30 }));
+  //   //   }
+  //   // }, 30000); // 30 seconds
+    
+  //   // // Cleanup interval on component unmount
+  //   // return () => clearInterval(interval);
+  // }, [dispatch, selectedAgent]);
+
+  // Effect to detect new enquiries
+  // useEffect(() => {
+  //   if (enquiries.length > 0 && lastEnquiryCount > 0 && enquiries.length > lastEnquiryCount) {
+  //     setShowNewEnquiryAlert(true);
+  //     // Auto-hide the alert after 5 seconds
+  //     setTimeout(() => setShowNewEnquiryAlert(false), 5000);
+  //   }
+  //   setLastEnquiryCount(enquiries.length);
+  // }, [enquiries.length, lastEnquiryCount]);
+
+
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -163,12 +220,16 @@ const EnquiryList = () => {
 
   // Custom filtering logic
   const filteredEnquiries = enquiries.filter((enquiry) => {
-    // Filter by booking ID (display_id)
-    if (
-      filters.searchId &&
-      !enquiry.display_id.toLowerCase().includes(filters.searchId.toLowerCase())
-    ) {
-      return false;
+    // Filter by booking ID (display_id) or multi_enq_id
+    if (filters.searchId) {
+      const searchTerm = filters.searchId.toLowerCase();
+      const displayId = enquiry.display_id?.toLowerCase() || '';
+      const multiEnqId = enquiry.multi_enq_id?.toLowerCase() || '';
+      
+      // Check if search term matches either display_id or multi_enq_id
+      if (!displayId.includes(searchTerm) && !multiEnqId.includes(searchTerm)) {
+        return false;
+      }
     }
 
     // Filter by country
@@ -291,6 +352,39 @@ const EnquiryList = () => {
     getComparator(order, orderBy)
   );
 
+  const totalPages = Math.ceil(sortedEnquiries.length / rowsPerPage);
+  
+  // Auto-fetch more data when reaching the last page
+  useEffect(() => {
+    if (page > 0 && sortedEnquiries.length > 0) {
+      const currentPageEnd = (page + 1) * rowsPerPage;
+      const dataAvailable = sortedEnquiries.length;
+      
+      // If we're on the last page or near the end of available data, fetch more
+      if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
+        const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
+        
+        // console.log('Auto-fetching more data in EnquiryList:', {
+        //   currentPage: page + 1,
+        //   totalPages,
+        //   dataAvailable,
+        //   nextStart
+        // });
+        
+        if (selectedAgent) {
+          dispatch(fetchEnquiries({ 
+            agentId: selectedAgent,
+            start: nextStart, 
+            limit: 30, 
+            reset: false 
+          }));
+        } else {
+          dispatch(fetchEnquiries({ start: nextStart, limit: 30, reset: false }));
+        }
+      }
+    }
+  }, [page, sortedEnquiries.length, rowsPerPage, dispatch, totalPages, selectedAgent]);
+
   const paginatedEnquiries = sortedEnquiries.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
@@ -301,30 +395,7 @@ const EnquiryList = () => {
     return dayjs(dateString).format("MMM DD, YYYY HH:mm");
   };
 
-  const getServiceStatusChip = (status) => {
-    return status ? (
-      <Chip
-        size="small"
-        color="primary"
-        label="Selected"
-        sx={{
-          bgcolor: "rgba(25, 118, 210, 0.08)",
-          color: "#1976d2",
-          fontWeight: 500,
-        }}
-      />
-    ) : (
-      <Chip
-        size="small"
-        color="default"
-        label="Not Selected"
-        sx={{
-          bgcolor: "rgba(97, 97, 97, 0.08)",
-          color: "#616161",
-        }}
-      />
-    );
-  };
+ 
 
   // Custom TableCell header with sorting
   const SortableTableCell = ({ id, label, disableSort = false }) => (
@@ -377,7 +448,7 @@ const EnquiryList = () => {
     }
   };
 
-  if (status === 'loading') {
+  if (status === 'loading' && enquiries.length === 0) {
     return (
       <Box
         sx={{
@@ -661,14 +732,32 @@ const EnquiryList = () => {
           border: `1px solid ${alpha('#1976d2', 0.1)}`
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
-          Search & Filter Enquiries
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
+            Search & Filter Enquiries
+          </Typography>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={isRefreshing || status === 'loading'}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: alpha('#1976d2', 0.08),
+              }
+            }}
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Box>
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               name="searchId"
-              label="🔍 Search by Booking ID"
+              label="🔍 Search by Booking ID or Multi-Enquiry ID"
               variant="outlined"
               fullWidth
               value={filters.searchId}
@@ -681,7 +770,7 @@ const EnquiryList = () => {
                   },
                 },
               }}
-              placeholder="Enter booking ID..."
+              placeholder="Enter booking ID or multi-enquiry ID..."
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -745,13 +834,13 @@ const EnquiryList = () => {
         {/* Search Results Info */}
         {(filters.searchId || filters.country || filters.city || filters.dateRange !== 'all') && (
           <Box sx={{ mt: 2, p: 2, bgcolor: alpha('#1976d2', 0.05), borderRadius: 1 }}>
-            <Typography variant="body2" color="primary">
-              📊 Showing {filteredEnquiries.length} of {enquiries.length} enquiries
-              {filters.searchId && ` • Searching for: "${filters.searchId}"`}
-              {filters.country && ` • Country: ${filters.country}`}
-              {filters.city && ` • City: ${filters.city}`}
-              {filters.dateRange !== 'all' && ` • Date: ${filters.dateRange}`}
-            </Typography>
+                          <Typography variant="body2" color="primary">
+                📊 Showing {filteredEnquiries.length} of {enquiries.length} enquiries
+                {filters.searchId && ` • Searching for: "${filters.searchId}" (in Booking ID or Multi-Enquiry ID)`}
+                {filters.country && ` • Country: ${filters.country}`}
+                {filters.city && ` • City: ${filters.city}`}
+                {filters.dateRange !== 'all' && ` • Date: ${filters.dateRange}`}
+              </Typography>
           </Box>
         )}
       </Paper>
@@ -762,8 +851,29 @@ const EnquiryList = () => {
         borderRadius: 3, 
         mb: 2,
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        border: `1px solid ${alpha('#1976d2', 0.1)}`
+        border: `1px solid ${alpha('#1976d2', 0.1)}`,
+        position: 'relative'
       }}>
+        {/* Loading overlay for refresh */}
+        {status === 'loading' && enquiries.length > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: 'rgba(255, 255, 255, 0.7)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1,
+              borderRadius: 3,
+            }}
+          >
+            <CircularProgress size={24} />
+          </Box>
+        )}
         <TableContainer sx={{ maxHeight: 600 }}>
           <Table stickyHeader aria-label="enquiries table">
             <TableHead>
@@ -1094,15 +1204,126 @@ const EnquiryList = () => {
             </TableBody>
           </Table>
         </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[10, 25, 50, 100]}
-          component="div"
-          count={filteredEnquiries.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "20px 0",
+            width: "100%",
+          }}
+        >
+          {/* Custom Pagination */}
+          <div className="row y-gap-10 justify-center items-center">
+            <div className="col-auto">
+              <div className="row x-gap-20 y-gap-20 items-center justify-center">
+                {/* Previous Page */}
+                <div className="col-auto">
+                  <button
+                    className="button -blue-1 size-40 rounded-full border-light"
+                    onClick={() => setPage(Math.max(0, page - 1))}
+                    disabled={page === 0}
+                    style={{ opacity: page === 0 ? 0.5 : 1 }}
+                  >
+                    <i className="icon-arrow-left text-14"></i>
+                  </button>
+                </div>
+
+                {/* Page Numbers */}
+                {(() => {
+                  const pages = [];
+                  let startPage = Math.max(1, page + 1 - 2);
+                  let endPage = Math.min(totalPages, startPage + 4);
+
+                  // Ensure we always show exactly 5 pages if possible
+                  if (endPage - startPage < 4 && totalPages > 5) {
+                    startPage = Math.max(1, endPage - 4);
+                  }
+
+                  // Add first page and ellipsis if needed
+                  if (startPage > 1) {
+                    pages.push(
+                      <div key={1} className="col-auto">
+                        <button
+                          className="size-40 flex-center rounded-full cursor-pointer"
+                          onClick={() => setPage(0)}
+                        >
+                          1
+                        </button>
+                      </div>
+                    );
+                    if (startPage > 2) {
+                      pages.push(
+                        <div key="ellipsis1" className="col-auto">
+                          <span className="size-40 flex-center rounded-full text-light-1">...</span>
+                        </div>
+                      );
+                    }
+                  }
+
+                  // Add middle pages
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <div key={i} className="col-auto">
+                        <button
+                          className={`size-40 flex-center rounded-full cursor-pointer ${
+                            page + 1 === i ? "bg-dark-1 text-white" : ""
+                          }`}
+                          onClick={() => setPage(i - 1)}
+                        >
+                          {i}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // Add last page and ellipsis if needed
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(
+                        <div key="ellipsis2" className="col-auto">
+                          <span className="size-40 flex-center rounded-full text-light-1">...</span>
+                        </div>
+                      );
+                    }
+                    pages.push(
+                      <div key={totalPages} className="col-auto">
+                        <button
+                          className="size-40 flex-center rounded-full cursor-pointer"
+                          onClick={() => setPage(totalPages - 1)}
+                        >
+                          {totalPages}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return pages;
+                })()}
+
+                {/* Next Page */}
+                <div className="col-auto">
+                  <button
+                    className="button -blue-1 size-40 rounded-full border-light"
+                    onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                    disabled={page >= totalPages - 1}
+                    style={{ opacity: page >= totalPages - 1 ? 0.5 : 1 }}
+                  >
+                    <i className="icon-arrow-right text-14"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Page Info */}
+            <div className="col-auto">
+              <div className="text-14 text-light-1">
+                Page {page + 1} of {totalPages} • Showing {Math.min(rowsPerPage, paginatedEnquiries.length)} of {sortedEnquiries.length} enquiries
+              </div>
+            </div>
+          </div>
+        </Box>
       </Paper>
 
       {/* Service Details Modal */}
@@ -1175,6 +1396,22 @@ const EnquiryList = () => {
           </Box>
         </Box>
       </Modal>
+
+      {/* New Enquiry Alert */}
+      <Snackbar
+        open={showNewEnquiryAlert}
+        autoHideDuration={5000}
+        onClose={() => setShowNewEnquiryAlert(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setShowNewEnquiryAlert(false)} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          🎉 New enquiry received! The list has been updated.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

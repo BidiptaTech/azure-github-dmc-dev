@@ -84,12 +84,11 @@ const AttractionSkeleton = () => (
   <div className="col-12">
     <div className="border-top-light pt-30">
       <div className="row x-gap-20 y-gap-20">
-        {/* Image Skeleton */}
         <div className="col-md-auto">
           <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
             <div className="cardImage__content custom_inside-slider">
-              <SkeletonBox 
-                height="200px" 
+              <SkeletonBox
+                height="200px"
                 borderRadius="8px"
                 marginBottom="0"
                 variant="image"
@@ -98,46 +97,36 @@ const AttractionSkeleton = () => (
             </div>
           </div>
         </div>
-        
-        {/* Content Skeleton */}
         <div className="col-md">
-          {/* Title */}
-          <SkeletonBox 
-            width="80%" 
-            height="24px" 
-            marginBottom="12px" 
+          <SkeletonBox
+            width="80%"
+            height="24px"
+            marginBottom="12px"
             variant="text"
             delay="0.1s"
           />
-          
-          {/* Location */}
-          <SkeletonBox 
-            width="60%" 
-            height="18px" 
-            marginBottom="8px" 
+          <SkeletonBox
+            width="60%"
+            height="18px"
+            marginBottom="8px"
             variant="text"
             delay="0.2s"
           />
-          
-          {/* Opening Times */}
-          <SkeletonBox 
-            width="50%" 
-            height="18px" 
-            marginBottom="12px" 
+          <SkeletonBox
+            width="50%"
+            height="18px"
+            marginBottom="0"
             variant="text"
             delay="0.3s"
           />
         </div>
-        
-        {/* Price and Button Skeleton */}
         <div className="col-md-auto text-right md:text-left">
           <Box sx={{ mt: 1, fontSize: "14px" }}>
-            {/* Price Card */}
-            <div className="skeleton-price-card" style={{ 
+            <div className="skeleton-price-card" style={{
               textAlign: "left",
               border: "2px solid #ccc",
-              borderRadius: "12px", 
-              padding: "16px", 
+              borderRadius: "12px",
+              padding: "16px",
               margin: "8px",
               width: "180px",
               minHeight: "180px",
@@ -148,44 +137,42 @@ const AttractionSkeleton = () => (
               flexDirection: "column",
               alignItems: "flex-start",
             }}>
-              <SkeletonBox 
-                width="100%" 
-                height="20px" 
-                marginBottom="8px" 
+              <SkeletonBox
+                width="100%"
+                height="20px"
+                marginBottom="8px"
                 variant="price"
                 delay="0.2s"
               />
-              <SkeletonBox 
-                width="70%" 
-                height="16px" 
-                marginBottom="8px" 
+              <SkeletonBox
+                width="70%"
+                height="16px"
+                marginBottom="8px"
                 variant="price"
                 delay="0.3s"
               />
-              <SkeletonBox 
-                width="60%" 
-                height="16px" 
-                marginBottom="12px" 
+              <SkeletonBox
+                width="60%"
+                height="16px"
+                marginBottom="8px"
                 variant="price"
                 delay="0.4s"
               />
-              <SkeletonBox 
-                width="100%" 
-                height="32px" 
-                borderRadius="6px" 
-                marginBottom="0" 
+              <SkeletonBox
+                width="100%"
+                height="32px"
+                borderRadius="6px"
+                marginBottom="0"
                 variant="button"
                 delay="0.5s"
               />
             </div>
           </Box>
-          
-          {/* View Detail Button */}
-          <SkeletonBox 
-            width="160px" 
-            height="40px" 
-            borderRadius="6px" 
-            marginBottom="0" 
+          <SkeletonBox
+            width="160px"
+            height="40px"
+            borderRadius="6px"
+            marginBottom="0"
             variant="button"
             delay="0.6s"
           />
@@ -202,12 +189,11 @@ const CompactAttractionSkeleton = () => (
   <div className="col-12">
     <div className="border-top-light pt-20">
       <div className="row x-gap-15 y-gap-15">
-        {/* Image Skeleton */}
         <div className="col-md-auto">
           <div className="cardImage ratio ratio-1:1 w-200 md:w-1/1 rounded-4">
             <div className="cardImage__content custom_inside-slider">
-              <SkeletonBox 
-                height="160px" 
+              <SkeletonBox
+                height="160px"
                 borderRadius="6px"
                 marginBottom="0"
                 variant="image"
@@ -216,46 +202,36 @@ const CompactAttractionSkeleton = () => (
             </div>
           </div>
         </div>
-        
-        {/* Content Skeleton */}
         <div className="col-md">
-          {/* Title */}
-          <SkeletonBox 
-            width="70%" 
-            height="20px" 
-            marginBottom="8px" 
+          <SkeletonBox
+            width="70%"
+            height="20px"
+            marginBottom="8px"
             variant="text"
             delay="0.1s"
           />
-          
-          {/* Location */}
-          <SkeletonBox 
-            width="50%" 
-            height="16px" 
-            marginBottom="6px" 
+          <SkeletonBox
+            width="50%"
+            height="16px"
+            marginBottom="6px"
             variant="text"
             delay="0.2s"
           />
-          
-          {/* Opening Times */}
-          <SkeletonBox 
-            width="40%" 
-            height="16px" 
-            marginBottom="8px" 
+          <SkeletonBox
+            width="40%"
+            height="16px"
+            marginBottom="0"
             variant="text"
             delay="0.3s"
           />
         </div>
-        
-        {/* Price and Button Skeleton */}
         <div className="col-md-auto text-right md:text-left">
           <Box sx={{ mt: 1, fontSize: "14px" }}>
-            {/* Price Card */}
-            <div className="skeleton-price-card" style={{ 
+            <div className="skeleton-price-card" style={{
               textAlign: "left",
-              border: "1px solid #ccc", 
-              borderRadius: "8px", 
-              padding: "12px", 
+              border: "1px solid #ccc",
+              borderRadius: "8px",
+              padding: "12px",
               margin: "6px",
               width: "160px",
               minHeight: "140px",
@@ -266,37 +242,35 @@ const CompactAttractionSkeleton = () => (
               flexDirection: "column",
               alignItems: "flex-start",
             }}>
-              <SkeletonBox 
-                width="100%" 
-                height="16px" 
-                marginBottom="6px" 
+              <SkeletonBox
+                width="100%"
+                height="16px"
+                marginBottom="6px"
                 variant="price"
                 delay="0.2s"
               />
-              <SkeletonBox 
-                width="60%" 
-                height="14px" 
-                marginBottom="6px" 
+              <SkeletonBox
+                width="60%"
+                height="14px"
+                marginBottom="6px"
                 variant="price"
                 delay="0.3s"
               />
-              <SkeletonBox 
-                width="100%" 
-                height="28px" 
-                borderRadius="4px" 
-                marginBottom="0" 
+              <SkeletonBox
+                width="100%"
+                height="28px"
+                borderRadius="4px"
+                marginBottom="0"
                 variant="button"
                 delay="0.4s"
               />
             </div>
           </Box>
-          
-          {/* View Detail Button */}
-          <SkeletonBox 
-            width="140px" 
-            height="36px" 
-            borderRadius="4px" 
-            marginBottom="0" 
+          <SkeletonBox
+            width="140px"
+            height="36px"
+            borderRadius="4px"
+            marginBottom="0"
             variant="button"
             delay="0.5s"
           />
@@ -765,7 +739,7 @@ const TourProperties = () => {
     dispatch(setBookingMode(currentMode));
 
     // The slice will automatically use the selected DMC ID from Redux
-    console.log('Selected mode for attraction:', currentMode);
+    // console.log('Selected mode for attraction:', currentMode);
 
     dispatch(
       fetchAttractionDetails({
@@ -855,17 +829,18 @@ const TourProperties = () => {
   }, [sortedAttractions, selectedModes, dispatch]);
 
   if (!attractions || attractions.length === 0) {
-    // Show the skeleton loader instead of the message when searching/loading
+    // Show skeleton loader instead of the message when searching/loading
     if (isLoading || attractionStatus === "loading") {
       return (
         <>
+          <style>{skeletonStyles}</style>
           <TopHeaderFilter onSort={handleSort} />
+          <br />
           <SearchLoadingSkeleton />
         </>
       );
     }
-
-    // Only show the message when not in loading state
+    
     return (
       <div
         className="no-hotels-message"
@@ -883,8 +858,8 @@ const TourProperties = () => {
           <h5 className="MuiTypography-root MuiTypography-h5 css-hu3rhi-MuiTypography-root">
             {bookingType === "enquiry"
               ? "No attractions available for enquiry. Please try a different selection."
-              : filters.searchParams?.location
-              ? `No attractions found in ${filters.searchParams.location.address}. Please try a different location.`
+              : searchParamsFromRedux?.location?.address
+              ? `No attractions found in ${searchParamsFromRedux.location.address}. Please try a different location.`
               : "Please provide attractions location and date of journey and search..."}
           </h5>
         </div>
@@ -899,7 +874,6 @@ const TourProperties = () => {
       <br />
 
       {isLoading ? (
-        // Show skeleton loading for initial load
         <InitialLoadSkeleton />
       ) : sortedAttractions.length > 0 ? (
         <>
@@ -1822,13 +1796,8 @@ const TourProperties = () => {
         </div>
       )}
 
-      {/* Infinite Scroll Loading Indicator */}
-      {isLoadingMore && (
-        <>
-          <style>{skeletonStyles}</style>
-          <LoadingMoreSkeleton />
-        </>
-      )}
+      {/* Loading more skeleton */}
+      {isLoadingMore && <LoadingMoreSkeleton />}
 
       {/* End of results indicator */}
       {!hasMore && sortedAttractions.length > 0 && (

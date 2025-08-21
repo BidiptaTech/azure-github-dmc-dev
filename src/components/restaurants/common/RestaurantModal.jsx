@@ -236,12 +236,12 @@ export default function RestaurantModal({
         
         // Debug logging for filtered bookings
         if (booking.bookingDate === date) {
-          console.log('RestaurantModal - Booking being evaluated:', {
-            booking,
-            isRestaurantBooking,
-            isAttractionBooking,
-            shouldInclude
-          });
+          // console.log('RestaurantModal - Booking being evaluated:', {
+          //   booking,
+          //   isRestaurantBooking,
+          //   isAttractionBooking,
+          //   shouldInclude
+          // });
         }
         
         return shouldInclude;

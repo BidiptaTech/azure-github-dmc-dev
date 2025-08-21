@@ -114,13 +114,13 @@ export default function Index2() {
   const attractionBookings = useSelector(
     (state) => state.attractions?.attractionBookings || []
   );
-  console.log("attractionBookings in index2:", attractionBookings);
+  // console.log("attractionBookings in index2:", attractionBookings);
   // console.log('Current bookingMode in index2:', bookingMode);
 
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails
   );
-   console.log('attractionDetails srk................................................',attractionDetails);
+   // console.log('attractionDetails srk................................................',attractionDetails);
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   // Get DMC logo and company name from DMC slice instead of auth slice
@@ -299,8 +299,8 @@ export default function Index2() {
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking",
         // Add a source flag to track which component sent the request
         requestSource: "index2",
@@ -497,8 +497,8 @@ export default function Index2() {
         ],
         tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
         type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
-        type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
+        // type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };
 

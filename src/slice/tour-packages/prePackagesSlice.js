@@ -108,18 +108,19 @@ const packageAPI = {
 // Async thunk for fetching packages
 export const fetchPackages = createAsyncThunk(
   'prePackages/fetchPackages',
-  async (searchParams, { rejectWithValue, getState }) => {
+  async ({ searchParams, start = 0, limit = 5 }, { rejectWithValue, getState }) => {
     try {
       // Get selected DMC ID from Redux state
       const state = getState();
       const selectedDmcId = selectDmcId(state);
       console.log('🎯 PrePackagesSlice - Fetching packages with DMC ID:', selectedDmcId);
-      console.log('🎯 PrePackagesSlice - Full Redux state:', state);
-      console.log('🎯 PrePackagesSlice - DMC state:', state.dmc);
+      console.log('🎯 PrePackagesSlice - Pagination params:', { start, limit });
 
-      // Add DMC ID to search parameters if available
+      // Add DMC ID and pagination parameters to search parameters
       const updatedSearchParams = {
         ...searchParams,
+        start,
+        limit,
         ...(selectedDmcId && { dmc_id: selectedDmcId })
       };
 
@@ -232,12 +233,34 @@ export const cancelPackageBooking = createAsyncThunk(
 // Async thunk for fetching package booking lists
 export const fetchPackageBookingLists = createAsyncThunk(
   'prePackages/fetchPackageBookingLists',
-  async (params, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue, getState }) => {
     try {
-      console.log("Fetching package booking lists with params:", params);
-      const response = await packageAPI.fetchPackageBookingLists(params);
+      // Get selected DMC ID from Redux state
+      const state = getState();
+      const selectedDmcId = state.dmc?.dmcId;
+      
+      // Default parameters
+      const defaultParams = {
+        start: 0,
+        limit: 10,
+        status: 'all', // 'all', 'ongoing', 'upcoming', 'past'
+        ...params
+      };
+
+      // Add DMC ID if available
+      if (selectedDmcId) {
+        defaultParams.dmc_id = selectedDmcId;
+      }
+
+      console.log("Fetching package booking lists with params:", defaultParams);
+      const response = await packageAPI.fetchPackageBookingLists(defaultParams);
       console.log("API Response for package-booking-lists:", response);
-      return response.data;
+      
+      // Return the response data along with the parameters used
+      return {
+        data: response.data,
+        params: defaultParams
+      };
     } catch (error) {
       console.error("Error fetching package booking lists:", error);
       return rejectWithValue(
@@ -263,6 +286,14 @@ const initialState = {
   bookingLists: [],
   bookingListsLoading: false,
   bookingListsError: null,
+  // Pagination and filtering state for booking lists
+  bookingListsPagination: {
+    start: 0,
+    limit: 10,
+    total: 0,
+    hasMore: true
+  },
+  bookingListsStatus: 'all', // 'all', 'ongoing', 'upcoming', 'past'
   // New state for package booking cancellation
   cancelBookingLoading: false,
   cancelBookingSuccess: false,
@@ -298,6 +329,29 @@ const prePackagesSlice = createSlice({
       state.cancelBookingSuccess = false;
       state.cancelBookingError = null;
     },
+    // New reducers for pagination and status management
+    setBookingListsStatus: (state, action) => {
+      state.bookingListsStatus = action.payload;
+      // Reset pagination when status changes
+      state.bookingListsPagination.start = 0;
+      state.bookingLists = [];
+    },
+    setBookingListsPagination: (state, action) => {
+      state.bookingListsPagination = {
+        ...state.bookingListsPagination,
+        ...action.payload
+      };
+    },
+    resetBookingListsPagination: (state) => {
+      state.bookingListsPagination = {
+        start: 0,
+        limit: 10,
+        total: 0,
+        hasMore: true
+      };
+      state.bookingListsStatus = 'all';
+      state.bookingLists = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -310,27 +364,62 @@ const prePackagesSlice = createSlice({
         console.log('🎯 PrePackagesSlice - API response payload:', action.payload);
         console.log('🎯 PrePackagesSlice - API response type:', typeof action.payload);
         
+        // Check if the response is empty or undefined
+        const isEmptyResponse = 
+          !action.payload || 
+          (Array.isArray(action.payload) && action.payload.length === 0) ||
+          (action.payload && typeof action.payload === 'object' && 
+           action.payload.packages && Array.isArray(action.payload.packages) && action.payload.packages.length === 0) ||
+          (action.payload && typeof action.payload === 'object' && 
+           action.payload.data && Array.isArray(action.payload.data) && action.payload.data.length === 0);
+        
+        if (isEmptyResponse) {
+          // If no data returned and we have existing data, don't clear it
+          // This indicates we've reached the end of available data
+          if (state.packages.length === 0) {
+            state.packages = [];
+          }
+          console.log('🎯 PrePackagesSlice - Empty response detected, keeping existing packages:', state.packages.length);
+          console.log('🎯 PrePackagesSlice - Response format:', action.payload);
+          return;
+        }
+        
         // Handle different response formats
+        let newPackages = [];
         if (action.payload && typeof action.payload === 'object') {
           if (Array.isArray(action.payload)) {
             // Direct array of packages
-            state.packages = action.payload;
-            console.log('🎯 PrePackagesSlice - Setting packages as direct array:', action.payload.length);
+            newPackages = action.payload;
+            console.log('🎯 PrePackagesSlice - Got packages as direct array:', action.payload.length);
           } else if (action.payload.packages && Array.isArray(action.payload.packages)) {
             // Object with packages property
-            state.packages = action.payload.packages;
-            console.log('🎯 PrePackagesSlice - Setting packages from packages property:', action.payload.packages.length);
+            newPackages = action.payload.packages;
+            console.log('🎯 PrePackagesSlice - Got packages from packages property:', action.payload.packages.length);
           } else if (action.payload.data && Array.isArray(action.payload.data)) {
             // Object with data property
-            state.packages = action.payload.data;
-            console.log('🎯 PrePackagesSlice - Setting packages from data property:', action.payload.data.length);
+            newPackages = action.payload.data;
+            console.log('🎯 PrePackagesSlice - Got packages from data property:', action.payload.data.length);
           } else {
             console.log('🎯 PrePackagesSlice - Unknown response format, setting empty array');
-            state.packages = [];
+            newPackages = [];
           }
         } else {
           console.log('🎯 PrePackagesSlice - No valid payload, setting empty array');
-          state.packages = [];
+          newPackages = [];
+        }
+        
+        // For infinite scroll: append new data to existing data
+        // Check if this is the first page (start = 0) or subsequent pages
+        const isFirstPage = action.meta.arg.start === 0;
+        
+        if (isFirstPage) {
+          // First page: replace existing data
+          state.packages = newPackages;
+          console.log('🎯 PrePackagesSlice - Setting packages (first page):', newPackages.length);
+        } else {
+          // Subsequent pages: append to existing data
+          state.packages = [...state.packages, ...newPackages];
+          console.log('🎯 PrePackagesSlice - Appending packages:', newPackages.length, 'Total:', state.packages.length);
         }
       })
       .addCase(fetchPackages.rejected, (state, action) => {
@@ -397,28 +486,58 @@ const prePackagesSlice = createSlice({
       .addCase(fetchPackageBookingLists.fulfilled, (state, action) => {
         state.bookingListsLoading = false;
         
-        // Check if the response contains a 'booking_lists' property
-        if (action.payload && typeof action.payload === 'object') {
-          console.log("Package booking lists response payload:", action.payload);
-          
-          // Handle different response formats
-          if (Array.isArray(action.payload)) {
+        const { data: responseData, params } = action.payload;
+        console.log("Package booking lists response payload:", responseData);
+        console.log("Request params:", params);
+        
+        // Update pagination state
+        if (params) {
+          state.bookingListsPagination.start = params.start;
+          state.bookingListsPagination.limit = params.limit;
+          state.bookingListsStatus = params.status;
+        }
+        
+        // Handle different response formats
+        let bookingData = [];
+        let totalCount = 0;
+        
+        if (responseData && typeof responseData === 'object') {
+          if (Array.isArray(responseData)) {
             console.log("Response is a direct array");
-            state.bookingLists = action.payload;
-          } else if (action.payload.booking_lists && Array.isArray(action.payload.booking_lists)) {
+            bookingData = responseData;
+            totalCount = responseData.length;
+          } else if (responseData.booking_lists && Array.isArray(responseData.booking_lists)) {
             console.log("Response contains booking_lists array");
-            state.bookingLists = action.payload.booking_lists;
-          } else if (action.payload.data && Array.isArray(action.payload.data)) {
+            bookingData = responseData.booking_lists;
+            totalCount = responseData.total || responseData.booking_lists.length;
+          } else if (responseData.data && Array.isArray(responseData.data)) {
             console.log("Response contains data array");
-            state.bookingLists = action.payload.data;
+            bookingData = responseData.data;
+            totalCount = responseData.total || responseData.data.length;
           } else {
             console.log("Response has unknown format, setting empty array");
-            state.bookingLists = [];
+            bookingData = [];
+            totalCount = 0;
           }
         } else {
           console.log("No valid payload in response");
-          state.bookingLists = [];
+          bookingData = [];
+          totalCount = 0;
         }
+        
+        // Update booking lists and pagination
+        if (params && params.start === 0) {
+          // First page or reset - replace the data
+          state.bookingLists = bookingData;
+        } else {
+          // Subsequent pages - append the data
+          state.bookingLists = [...state.bookingLists, ...bookingData];
+        }
+        
+        // Update pagination info
+        state.bookingListsPagination.total = totalCount;
+        // hasMore should be true if we received a full page of data (indicating there might be more)
+        state.bookingListsPagination.hasMore = bookingData.length === params?.limit;
       })
       .addCase(fetchPackageBookingLists.rejected, (state, action) => {
         state.bookingListsLoading = false;
@@ -435,7 +554,10 @@ export const {
   resetPackageDetails, 
   resetBookingStatus, 
   resetBookingLists,
-  resetCancelBookingStatus 
+  resetCancelBookingStatus,
+  setBookingListsStatus,
+  setBookingListsPagination,
+  resetBookingListsPagination
 } = prePackagesSlice.actions;
 
 export default prePackagesSlice.reducer;

@@ -132,6 +132,13 @@ const CuisineChip = styled(Chip)(({ theme }) => ({
   marginBottom: theme.spacing(0.5),
 }));
 
+const PriceChip = styled(Chip)(({ theme }) => ({
+  height: 22,
+  fontSize: 11,
+  backgroundColor: theme.palette.grey[100],
+  marginBottom: theme.spacing(0.5),
+}));
+
 const RestaurantDropOffSearch = ({ onSelect, value = null }) => {
   const dispatch = useDispatch();
   const [searchTerm, setSearchTerm] = useState("");
@@ -226,6 +233,11 @@ const RestaurantDropOffSearch = ({ onSelect, value = null }) => {
     if (restaurant.dinner_available) meals.push("Dinner");
     
     return meals.length > 0 ? meals.join(", ") : null;
+  };
+
+  const formatPrice = (price) => {
+    const actualPrice = parseFloat(price) || 0;
+    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
   };
 
   return (
