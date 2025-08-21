@@ -709,7 +709,7 @@
                 </li>
                 @endif -->
 
-        @if(in_array(auth()->user()->role_id, [33]))
+        @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
             <!-- Single Tour Package for DMCs -->
             <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif">
                 <a href="{{ route('single-tour-package.create') }}" class="menu-link">
@@ -721,7 +721,7 @@
 
         <!-- End Tour -->
 
-        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 20, 21, 22, 11, 33, 34, 27,54,55,56,57,58,86,95,104,113,122,36, 37, 38, 69,70,71,72,73,87,96,105,114,123,126,127,129,133,131,134,136,137,138
+        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 20, 21, 22, 11, 33, 34, 27,54,55,56,57,58,86,95,104,113,122,36, 37, 38, 69,70,71,72,73,87,96,105,114,123,126,127,128,129,133,131,134,136,137,138
         ]))
         <!-- Bookings -->
         {{-- @if(hasPermission('view booking')) --}}
@@ -1289,7 +1289,7 @@
                 @endif --}}
                 <!-- End Predefined Packages Booking List -->
             @endif
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,19,20,33,37,38]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
