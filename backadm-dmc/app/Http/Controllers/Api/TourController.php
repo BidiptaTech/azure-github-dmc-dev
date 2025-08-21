@@ -1606,7 +1606,7 @@ class TourController extends Controller
                     if ($nightHours > 0 && $night_surcharge > 0) {
                         list($surchargeAmount, $surchargeDmcId) = CommonHelper::calculateDmcModePricehotel($night_surcharge, $dmcId, $guide->name, 'guide', $guide->city);
                         $finalPrice += ($surchargeAmount * $nightHours);
-                        $priceWithoutCommission = $priceWithoutCommission + $night_surcharge;
+                        $priceWithoutCommission = $priceWithoutCommission + ($night_surcharge * $nightHours);
                     }
                 }
                 elseif($mode=="travclicks"){
