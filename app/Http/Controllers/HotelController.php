@@ -3226,23 +3226,41 @@ class HotelController extends Controller
     public function updateDmcHotels(Request $request)
     {
         $user = auth()->user();
-        if ($user->role_id != 11) {
-            abort(403, 'You do not have permission to perform this action.');
+        $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+
+        if (!in_array($user->role_id, $allowedRoles)) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 77){
+            $product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $product_head->created_by;
+        }else if($user->role_id == 84){
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $dmc_id = $product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
         $selectedHotels = $request->input('selected_hotels', []);
         
         // Reset all hotels for this DMC (remove from dmc_ids)
-        $allHotelsForUser = Hotel::whereJsonContains('dmc_id', $user->userId)->get();
+        $allHotelsForUser = Hotel::whereJsonContains('dmc_id', $dmc_id)->get();
         foreach ($allHotelsForUser as $hotel) {
-            $hotel->removeDmcId($user->userId);
+            $hotel->removeDmcId($dmc_id);
         }
         
         // Add dmc_id for selected hotels
         if (!empty($selectedHotels)) {
             $hotelsToSelect = Hotel::whereIn('hotel_unique_id', $selectedHotels)->get();
             foreach ($hotelsToSelect as $hotel) {
-                $hotel->addDmcId($user->userId);
+                $hotel->addDmcId($dmc_id);
             }
         }
 
@@ -3258,6 +3276,28 @@ class HotelController extends Controller
         try {
             $hotelId = $request->input('hotel_id');
             $user = Auth::user();
+
+            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to access this page.');
+            }
+
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+                $dmc_id = $user->created_by;
+            }else if($user->role_id == 77){
+                $product_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $product_head->created_by;
+            }else if($user->role_id == 84){
+                $product_manager = User::where('userId', $user->created_by)->first();
+                $product_head = User::where('userId', $product_manager->created_by)->first();
+                $dmc_id = $product_head->created_by;
+            }
+            else{
+                return redirect()->back()->with('error', 'You do not have permission to access this page.');
+            }
             
             // Find the hotel
             $hotel = Hotel::find($hotelId);
@@ -3269,7 +3309,7 @@ class HotelController extends Controller
             }
             
             // Add the DMC ID to the hotel's dmc_id array
-            $hotel->addDmcId($user->userId);
+            $hotel->addDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,
@@ -3294,6 +3334,28 @@ class HotelController extends Controller
         try {
             $hotelId = $request->input('hotel_id');
             $user = Auth::user();
+
+            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to access this page.');
+            }
+
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+                $dmc_id = $user->created_by;
+            }else if($user->role_id == 77){
+                $product_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $product_head->created_by;
+            }else if($user->role_id == 84){
+                $product_manager = User::where('userId', $user->created_by)->first();
+                $product_head = User::where('userId', $product_manager->created_by)->first();
+                $dmc_id = $product_head->created_by;
+            }
+            else{
+                return redirect()->back()->with('error', 'You do not have permission to access this page.');
+            }
             
             // Find the hotel
             $hotel = Hotel::find($hotelId);
@@ -3305,7 +3367,7 @@ class HotelController extends Controller
             }
             
             // Check if this DMC has selected this hotel
-            if (!$hotel->hasSelectedByDmc($user->userId)) {
+            if (!$hotel->hasSelectedByDmc($dmc_id)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Hotel not selected by you.'
@@ -3313,7 +3375,7 @@ class HotelController extends Controller
             }
             
             // Remove the DMC ID from the hotel's dmc_id array
-            $hotel->removeDmcId($user->userId);
+            $hotel->removeDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,
