@@ -580,15 +580,18 @@ class DriverController extends Controller
             switch ($pickup_type) {
                 case 'hotel':
                     $pickup = Hotel::where('hotel_unique_id', $pickup_id)->first();
-                    $from_zone_id = $pickup->zone_id ?? null;
+                    $from_zone_id = collect($pickup->zone_assignments)
+                        ->firstWhere('dmc_id', $get_dmc_id)['zone_id'] ?? null;
                     break;
                 case 'attraction':
                     $pickup = Attraction::where('attraction_id', $pickup_id)->first();
-                    $from_zone_id = $pickup->zone_id ?? null;
+                    $from_zone_id = collect($pickup->zone_assignments)
+                        ->firstWhere('dmc_id', $get_dmc_id)['zone_id'] ?? null;
                     break;
                 case 'restaurant':
                     $pickup = Restaurant::where('restaurant_id', $pickup_id)->first();
-                    $from_zone_id = $pickup->zone_id ?? null;
+                    $from_zone_id = collect($pickup->zone_assignments)
+                        ->firstWhere('dmc_id', $get_dmc_id)['zone_id'] ?? null;
                     break;
                 case 'port':
                     // port pickup uses zone id directly from pickup_id (assuming it's already a zone_id)
@@ -603,15 +606,18 @@ class DriverController extends Controller
             switch ($drop_type) {
                 case 'hotel':
                     $drop = Hotel::where('hotel_unique_id', $drop_id)->first();
-                    $to_zone_id = $drop->zone_id ?? null;
+                    $to_zone_id = collect($drop->zone_assignments)
+                        ->firstWhere('dmc_id', $get_dmc_id)['zone_id'] ?? null;
                     break;
                 case 'attraction':
                     $drop = Attraction::where('attraction_id', $drop_id)->first();
-                    $to_zone_id = $drop->zone_id ?? null;
+                    $to_zone_id = collect($drop->zone_assignments)
+                        ->firstWhere('dmc_id', $get_dmc_id)['zone_id'] ?? null;
                     break;
                 case 'restaurant':
                     $drop = Restaurant::where('restaurant_id', $drop_id)->first();
-                    $to_zone_id = $drop->zone_id ?? null;
+                    $to_zone_id = collect($drop->zone_assignments)
+                        ->firstWhere('dmc_id', $get_dmc_id)['zone_id'] ?? null;
                     break;
                 case 'port':
                     $to_zone_id = $drop_id;

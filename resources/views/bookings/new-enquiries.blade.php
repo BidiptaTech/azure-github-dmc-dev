@@ -264,7 +264,7 @@
                             @php 
                                 $enquiryComment = $enquary_comments->where('tour_id', $tour->tour_id)->first();
                             @endphp
-                                @if($enquiryComment && $tour->tour_status == "New Enquiry")
+                                @if($enquiryComment && $enquiryComment->sender_type == "agent" && $tour->tour_status == "New Enquiry")
                                     <button 
                                         type="button"
                                         class="btn btn-sm btn-warning"
@@ -277,6 +277,8 @@
                                     >
                                         Check Negotiation
                                     </button>
+                                @elseif($enquiryComment && $enquiryComment->sender_type == "OM" && $tour->tour_status == "New Enquiry")
+                                    <span class="text-muted">Waiting for agent response</span>
                                 @else
                                     <span class="text-muted">No negotiation</span>
                                 @endif

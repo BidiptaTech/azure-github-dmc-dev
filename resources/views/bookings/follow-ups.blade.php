@@ -336,18 +336,24 @@
                                 </div>
                             </td>
                             <td>
-                                <button 
-                                    type="button"
-                                    class="btn btn-sm btn-warning"
-                                    data-tour-id="{{ $tour->tour_id }}"
-                                    data-enquiry-id="{{ $tour->enquiry_id ?? '' }}"
-                                    data-price="{{ $tour->enquiry_comment_amount ?? 0 }}"
-                                    data-actual="{{ $tour->actual_amount ?? 0 }}"
-                                    data-comment="{{ $tour->enquiry_comment ?? '' }}"
-                                    onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
-                                >
-                                    Check Negotiation
-                                </button>
+                                @if($tour->enquiry_comment && $tour->enquiry_comment_sender_type == "agent")
+                                    <button 
+                                        type="button"
+                                        class="btn btn-sm btn-warning"
+                                        data-tour-id="{{ $tour->tour_id }}"
+                                        data-enquiry-id="{{ $tour->enquiry_id ?? '' }}"
+                                        data-price="{{ $tour->enquiry_comment_amount ?? 0 }}"
+                                        data-actual="{{ $tour->actual_amount ?? 0 }}"
+                                        data-comment="{{ $tour->enquiry_comment ?? '' }}"
+                                        onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
+                                    >
+                                        Check Negotiation
+                                    </button>
+                                @elseif($tour->enquiry_comment && $tour->enquiry_comment_sender_type == "OM")
+                                    <span class="badge bg-warning">Waiting for agent response</span>
+                                @else
+                                    <span class="text-muted">No negotiation</span>
+                                @endif
                             </td>
                             {{-- <td>
                                 <div class="dropdown">

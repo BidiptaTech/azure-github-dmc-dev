@@ -18,6 +18,7 @@ use App\Helpers\CommonHelper;
 use App\Models\Country;
 use App\Models\City;
 use App\Models\Order;
+use Illuminate\Support\Facades\Crypt;
 
 class RestaurantController extends Controller
 {
@@ -121,6 +122,7 @@ class RestaurantController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
 
+        $id = Crypt::decrypt($id);
         $hotels = Hotel::where('status', 1)->get();
         $mealTypes = Meal::whereIn('type', ['Breakfast', 'Lunch', 'Dinner'])
                         ->get()
@@ -176,6 +178,8 @@ class RestaurantController extends Controller
                 'closing_time_dinner' => null,
             ]);
         }
+
+        $id = Crypt::decrypt($id);
 
         $allImages = $request->all_images;
         $existingImages = $request->input('existing_images', []);
@@ -268,7 +272,8 @@ class RestaurantController extends Controller
 
     public function restaurant_create($restaurant_id)
     {
-        $restaurants = Restaurant::all();
+        $restaurant_id = Crypt::decrypt($restaurant_id);
+        $restaurants = Restaurant::where('status', 1)->get();
         $current_restaurant = Restaurant::where('restaurant_id', $restaurant_id)->first();
         $meals = Meal::where('restaurant_id', $restaurant_id)->get();
         return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant'));
@@ -528,6 +533,7 @@ class RestaurantController extends Controller
         if (!hasPermission('edit restaurant')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $hotels = Hotel::where('status', 1)->get();
         $mealTypes = Meal::whereIn('type', ['Breakfast', 'Lunch', 'Dinner'])
                         ->get()
@@ -581,6 +587,8 @@ class RestaurantController extends Controller
                 'closing_time_dinner' => null,
             ]);
         }
+
+        $id = Crypt::decrypt($id);
 
         $allImages = $request->all_images;
         $existingImages = $request->input('existing_images', []);
@@ -662,14 +670,15 @@ class RestaurantController extends Controller
         if (!hasPermission('delete restaurant')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $id = Crypt::decrypt($id);
         $isUsedInRooms = Room::where('breakfast_restaurant', $id)
         ->orWhere('lunch_restaurant', $id)
         ->orWhere('dinner_restaurant', $id)
         ->exists();
         if ($isUsedInRooms) {
-        // The restaurant is being used in the rooms table, so do not delete it
-        return redirect()->route('restaurant.index')
-        ->with('error', 'This Restaurant is in use, cannot be deleted!');
+            // The restaurant is being used in the rooms table, so do not delete it
+            return redirect()->route('restaurant.index')
+            ->with('error', 'This Restaurant is in use, cannot be deleted!');
         }
 
         // Get restaurant and delete images from Azure
@@ -699,6 +708,7 @@ class RestaurantController extends Controller
 
     public function restaurantCalendar($restaurant_id)
     {
+        $restaurant_id = Crypt::decrypt($restaurant_id);
         $restaurant = Restaurant::where('restaurant_id', $restaurant_id)->first();
         $close_days = $restaurant->close_days;
         $close_dates = $restaurant->close_dates;
@@ -726,8 +736,24 @@ class RestaurantController extends Controller
     {
         // Check if user is DMC (role_id = 11)
         $user = auth()->user();
-        if ($user->role_id != 11) {
+        $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+        if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
+        }
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 78){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }else if($user->role_id == 120){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
         // Get all available restaurants
@@ -736,13 +762,13 @@ class RestaurantController extends Controller
                                    ->get();
         
         // Filter restaurants that are selected by the current DMC
-        $selectedRestaurants = $allRestaurants->filter(function($restaurant) use ($user) {
-            return $restaurant->hasSelectedByDmc($user->userId);
+        $selectedRestaurants = $allRestaurants->filter(function($restaurant) use ($dmc_id) {
+            return $restaurant->hasSelectedByDmc($dmc_id);
         });
         
         // Get restaurants that are not selected by the current DMC
-        $availableRestaurants = $allRestaurants->filter(function($restaurant) use ($user) {
-            return !$restaurant->hasSelectedByDmc($user->userId);
+        $availableRestaurants = $allRestaurants->filter(function($restaurant) use ($dmc_id) {
+            return !$restaurant->hasSelectedByDmc($dmc_id);
         });
 
         return view('services.restaurants', compact('availableRestaurants', 'selectedRestaurants'));
@@ -755,21 +781,38 @@ class RestaurantController extends Controller
     public function updateDmcRestaurants(Request $request)
     {
         $user = auth()->user();
-        if ($user->role_id != 11) {
+        $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+        if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to perform this action.');
+        }
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 78){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }else if($user->role_id == 120){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+        }
+        else{
+            return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
         $selectedRestaurants = $request->input('selected_restaurants', []);
         
         // Remove DMC ID from all restaurants first
-        Restaurant::whereJsonContains('dmc_id', $user->userId)->get()->each(function($restaurant) use ($user) {
-            $restaurant->removeDmcId($user->userId);
+        Restaurant::whereJsonContains('dmc_id', $dmc_id)->get()->each(function($restaurant) use ($dmc_id) {
+            $restaurant->removeDmcId($dmc_id);
         });
         
         // Add DMC ID to selected restaurants
         if (!empty($selectedRestaurants)) {
-            Restaurant::whereIn('restaurant_id', $selectedRestaurants)->get()->each(function($restaurant) use ($user) {
-                $restaurant->addDmcId($user->userId);
+            Restaurant::whereIn('restaurant_id', $selectedRestaurants)->get()->each(function($restaurant) use ($dmc_id) {
+                $restaurant->addDmcId($dmc_id);
             });
         }
 
@@ -785,9 +828,30 @@ class RestaurantController extends Controller
         try {
             $restaurantId = $request->input('restaurant_id');
             $user = Auth::user();
+
+            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to perform this action.');
+            }
+
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+                $dmc_id = $user->created_by;
+            }else if($user->role_id == 78){
+                $user_product_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $user_product_head->created_by;
+            }else if($user->role_id == 120){
+                $user_product_manager = User::where('userId', $user->created_by)->first();
+                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+                $dmc_id = $user_product_head->created_by;
+            }
+            else{
+                return redirect()->back()->with('error', 'You do not have permission to access this page.');
+            }
             
             // Find the restaurant
-            $restaurant = Restaurant::find($restaurantId);
+            $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
             if (!$restaurant) {
                 return response()->json([
                     'success' => false,
@@ -796,7 +860,7 @@ class RestaurantController extends Controller
             }
             
             // Add the DMC ID to the restaurant's dmc_id array
-            $restaurant->addDmcId($user->userId);
+            $restaurant->addDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,
@@ -819,17 +883,32 @@ class RestaurantController extends Controller
     public function removeRestaurant(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'restaurant_id' => 'required',
-                'dmc_id' => 'required'
-            ]);
+            $restaurantId = $request->input('restaurant_id');
+            $user = Auth::user();
 
-            $restaurantId = $validated['restaurant_id'];
-            $dmcId = $validated['dmc_id'];
+            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+            if (!in_array($user->role_id, $allowedRoles)) {
+                abort(403, 'You do not have permission to perform this action.');
+            }
+
+            if($user->role_id == 11){
+                $dmc_id = $user->userId;
+            }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+                $dmc_id = $user->created_by;
+            }else if($user->role_id == 78){
+                $user_product_head = User::where('userId', $user->created_by)->first();
+                $dmc_id = $user_product_head->created_by;
+            }else if($user->role_id == 120){
+                $user_product_manager = User::where('userId', $user->created_by)->first();
+                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+                $dmc_id = $user_product_head->created_by;
+            }
+            else{
+                return redirect()->back()->with('error', 'You do not have permission to access this page.');
+            }
 
             // Find the restaurant
             $restaurant = Restaurant::where('restaurant_id', $restaurantId)->first();
-            
             if (!$restaurant) {
                 return response()->json([
                     'success' => false,
@@ -838,8 +917,7 @@ class RestaurantController extends Controller
             }
 
             // Remove the DMC from the restaurant's selected DMCs
-            // Assuming there's a relationship or field to manage DMC selections
-            // This would depend on your specific implementation
+            $restaurant->removeDmcId($dmc_id);
             
             return response()->json([
                 'success' => true,

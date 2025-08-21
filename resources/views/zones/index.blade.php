@@ -326,7 +326,7 @@
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                     </a>
                                     <!-- Delete -->
-                                    <form action="{{ route('zones.destroy', $zone->zone_id) }}" method="POST" class="d-inline">
+                                                                            <form action="{{ route('zones.destroy', $zone->zone_id) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" 
@@ -351,4 +351,28 @@
         </div>
     </div>
 </div>
-@endsection 
+@endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all modals
+    const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
+    
+    modalTriggers.forEach(trigger => {
+        trigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('data-bs-target');
+            const targetModal = document.querySelector(targetId);
+            
+            if (targetModal) {
+                const modal = new bootstrap.Modal(targetModal);
+                modal.show();
+            } else {
+                console.error('Modal not found:', targetId);
+            }
+        });
+    });
+});
+</script>
+@endpush 

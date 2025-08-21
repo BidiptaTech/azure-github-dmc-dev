@@ -20,6 +20,7 @@ use App\Models\Country;
 use App\Models\City;
 use App\Services\LogActivityService;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Crypt;
 
 class DriverController extends Controller
 {
@@ -527,9 +528,10 @@ class DriverController extends Controller
         if (!hasPermission('edit driver')) {
             abort(403, 'You do not have permission to access this page.');
         }
+        $driverId = Crypt::decrypt($id);
         $driverUsers = User::select('phone','name')->where('user_type', 3)->get();
         $vehicles = Vehicle::all();
-        $driver = Driver::where('driver_id',$id)->first();
+        $driver = Driver::where('driver_id',$driverId)->first();
         $countries = OperationalCountry::all();
         $country = Country::where('is_active', 1)->get();
         $city = City::where('country', $driver->country)->get();
@@ -552,7 +554,8 @@ class DriverController extends Controller
     */
     public function update(Request $request, $id)
     {
-        $driver = Driver::where('driver_id', $id)->first();
+        $driverId = Crypt::decrypt($id);
+        $driver = Driver::where('driver_id', $driverId)->first();
 
         $user = auth()->user();
         $userRoleId = $user->role_id;
@@ -650,9 +653,9 @@ class DriverController extends Controller
         if (!hasPermission('delete driver')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        
+        $driverId = Crypt::decrypt($id);
         // Get driver and delete images from Azure
-        $driver = Driver::where('driver_id', $id)->first();
+        $driver = Driver::where('driver_id', $driverId)->first();
         if($driver) {
             // Delete driver image
             if($driver->image) {
@@ -665,7 +668,7 @@ class DriverController extends Controller
             }
         }
         
-        Driver::where('driver_id', $id)->delete();
+        Driver::where('driver_id', $driverId)->delete();
         return redirect()->route('driver.index')
         ->with('success', 'Driver deleted successfully');
     

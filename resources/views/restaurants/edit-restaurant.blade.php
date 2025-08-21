@@ -83,7 +83,7 @@
     <ul class="nav nav-pills mb-4 mt-4 d-flex justify-content-center" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->routeIs('restaurant.edit') ? 'active' : '' }}" 
-                   href="{{ route('restaurant.edit', $restaurant->restaurant_id) }}" 
+                   href="{{ route('restaurant.edit', Crypt::encrypt($restaurant->restaurant_id)) }}" 
                    role="tab">
                     Restaurant
                 </a>
@@ -92,7 +92,7 @@
             <li class="nav-item" role="presentation">
                 @if(isset($restaurant) && $restaurant->restaurant_id)
                 <a class="nav-link {{ request()->routeIs('meals.restaurant_create') ? 'active' : '' }}" 
-                   href="{{ route('meals.restaurant_create', $restaurant->restaurant_id) }}" 
+                   href="{{ route('meals.restaurant_create', Crypt::encrypt($restaurant->restaurant_id)) }}" 
                    role="tab">
                     Meals
                 </a>
@@ -114,7 +114,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form id="restaurantForm" method="POST" action="{{ route('restaurant.update', $restaurant->restaurant_id) }}" enctype="multipart/form-data" class="card-body">
+            <form id="restaurantForm" method="POST" action="{{ route('restaurant.update', Crypt::encrypt($restaurant->restaurant_id)) }}" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
                 <!-- Hidden Fields -->

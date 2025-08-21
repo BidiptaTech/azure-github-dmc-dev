@@ -117,7 +117,7 @@
                             </td>
                             <td style="display: inline-block; white-space: nowrap;">
                                 <!-- Edit Button -->
-                                <a href="{{ route('attractions.edit.approval', $pendingattraction->attraction_id) }}"
+                                <a href="{{ route('attractions.edit.approval', Crypt::encrypt($pendingattraction->attraction_id)) }}"
                                     class="btn btn-primary btn-sm rounded-circle"
                                     style="min-width: 28px; min-height: 28px; padding: 0;">
                                     <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
@@ -132,7 +132,7 @@
                                     class="btn btn-danger btn-sm rounded-circle"
                                     style="min-width: 28px; min-height: 28px; padding: 0;" data-toggle="modal"
                                     data-target="#deleteModal"
-                                    onclick="setDeleteForm('{{ route('attraction.destroy', $pendingattraction->attraction_id) }}')">
+                                    onclick="setDeleteForm('{{ route('attraction.destroy', Crypt::encrypt($pendingattraction->attraction_id)) }}')">
                                     <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
                                         width="16px" fill="#ffffff">
                                         <path

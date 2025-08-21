@@ -1252,6 +1252,72 @@ class UserController extends Controller
             ->orderBy('role_id', 'asc')
             ->get();
         }
+        elseif($this->auth_user->role_id == 128){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,64,65,66,67,68])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 129){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,69,70,71,72,73])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 130){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 131){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [64,65,66,67,68,69,70,71,72,73])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 132){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [64,65,66,67,68,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 133){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [69,70,71,72,73,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 134){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,64,65,66,67,68,69,70,71,72,73])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 135){   
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,64,65,66,67,68,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 136){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,69,70,71,72,73,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 137){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 138){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [37,38,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
         else{
             $roles = Role::where('is_active', 1)
             ->where('role_id', '>', $this->auth_user->role_id)
@@ -1339,13 +1405,14 @@ class UserController extends Controller
                 return redirect()->back()->withErrors($validator)->withInput();
             }
         
-            // Step 3: Custom unique check
-            $existingUser = User::where('email', $request->email)->first();
+            // Step 3: Custom unique check (convert email to lowercase)
+            $email = strtolower(trim($request->email));
+            $existingUser = User::where('email', $email)->first();
             if ($existingUser) {
                 return redirect()->back()->withErrors(['email' => 'The email has already been taken.'])->withInput();
             }
         
-            $deletedUser = User::withTrashed()->where('email', $request->email)->first();
+            $deletedUser = User::withTrashed()->where('email', $email)->first();
             if ($deletedUser && $deletedUser->trashed()) {
                 $deletedUser->restore();
                 // Optional: Update user details after restore
@@ -1435,7 +1502,7 @@ class UserController extends Controller
             'markup_type' => 0, 
             'markup_price' => 0, // Ensure float
             'userId' => (int) $usersId, // Ensure integer
-            'email' => $request->input('email'),
+            'email' => $email, // Store email in lowercase
             'created_by' => (int) ($admin_id ?? 0), // Ensure integer
             'user_type' => (int) $user_type, // Ensure integer
             'logo' => $masterImage ?? null,

@@ -361,7 +361,6 @@ class JobSheetController extends Controller
             }
         }
 
-
         return view('jobSheet.guide-jobs', compact('dmcs', 'dmcGuides'));
     }
 
@@ -726,18 +725,18 @@ class JobSheetController extends Controller
             
             // Get user's dmcId based on role
             $dmcId = null;
-            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+            if (in_array($user->role_id, [11, 20, 34, 65, 99, 108, 128, 131, 132, 134, 135, 137, 138])) {
                 if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
+                elseif($user->role_id == 34 || in_array($user->role_id, [128, 131, 132, 134, 135, 137, 138])){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 78){
+                elseif($user->role_id == 65){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
-                elseif($user->role_id == 120){
+                elseif($user->role_id == 99){
                     $operation_manager = User::where('userId', $user->created_by)->first();
                     $operation_head = $operation_manager ? User::where('userId', $operation_manager->created_by)->first() : null;
                     $dmcId = $operation_head ? $operation_head->created_by : null;
@@ -771,6 +770,7 @@ class JobSheetController extends Controller
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                     ->get();
             }
+           
             
             return view('CreateJobSheet.create-guide-jobsheet', compact('orders', 'guides', 'dmcId'));
             
@@ -856,7 +856,7 @@ class JobSheetController extends Controller
     public function storeGuideJobsheet(Request $request)
     {
         try {
-            dd($request->all());
+            
             $validator = Validator::make($request->all(), [
                 'date' => 'required|date',
                 'dmc_id' => 'nullable|exists:users,userId'
@@ -894,7 +894,7 @@ class JobSheetController extends Controller
     public function storeDriverAssignments(Request $request)
     {
         try {
-            dd($request->all());
+            
             $validator = Validator::make($request->all(), [
                 'tourId' => 'required|exists:tours,tour_id',
                 'date' => 'required|date',
@@ -1614,18 +1614,18 @@ class JobSheetController extends Controller
             $dmcId = null;
             $type = $request->query('type', 'driver'); // Default to driver orders, can be 'guide'
             // Determine the DMC ID based on user role
-            if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
+            if (in_array($user->role_id, [11, 20, 34, 65, 66, 99, 108, 128, 131, 132, 134, 135, 137, 138])) {
                 if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
-                elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
+                elseif($user->role_id == 34 || in_array($user->role_id, [128, 131, 132, 134, 135, 137, 138])){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 78){
+                elseif($user->role_id == 65 || $user->role_id == 66){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
-                elseif($user->role_id == 120){
+                elseif($user->role_id == 99 || $user->role_id == 108){
                     $operation_manager = User::where('userId', $user->created_by)->first();
                     $operation_head = $operation_manager ? User::where('userId', $operation_manager->created_by)->first() : null;
                     $dmcId = $operation_head ? $operation_head->created_by : null;
@@ -1681,7 +1681,6 @@ class JobSheetController extends Controller
                     }
                     return $order;
                 });
-                
                 return response()->json([
                     'success' => true,
                     'data' => $orders,
@@ -1692,6 +1691,7 @@ class JobSheetController extends Controller
                     $order->driver = $order->driver_id ? Driver::find($order->driver_id) : null;
                     return $order;
                 });
+                
                 return response()->json([
                     'success' => true,
                     'data' => $orders,

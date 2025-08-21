@@ -376,6 +376,7 @@ class BookingsController extends Controller
                     'enquiry_comments.comment as enquiry_comment',
                     'enquiry_comments.amount as enquiry_comment_amount',
                     'enquiry_comments.actual_amount as actual_amount',
+                    'enquiry_comments.sender_type as enquiry_comment_sender_type',
                     'enquiry_comments.created_at as enquiry_comment_created_at',
                     'enquiry_comments.updated_at as enquiry_comment_updated_at',
                 ])

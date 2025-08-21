@@ -13,6 +13,7 @@ use App\Models\Meal;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
+use Illuminate\Support\Facades\Crypt;
 
 class MealController extends Controller
 {
@@ -67,12 +68,12 @@ class MealController extends Controller
         $auth_user = Auth::user();
         if($auth_user->role_id == 11){
             $dmc_id = $auth_user->userId;
-        }else if($auth_user->role_id == 33 || $auth_user->role_id == 128 || $auth_user->role_id == 129 || $auth_user->role_id == 130 || $auth_user->role_id == 134 || $auth_user->role_id == 135 || $auth_user->role_id == 136 || $auth_user->role_id == 138){
+        }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $auth_user->created_by;
-        }else if($auth_user->role_id == 37){
+        }else if($auth_user->role_id == 78){
             $sales_head = User::where('userId', $auth_user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($auth_user->role_id == 38){
+        }else if($auth_user->role_id == 120){
             $sales_manager = User::where('userId', $auth_user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -119,7 +120,7 @@ class MealController extends Controller
 
         $meal->save();
 
-        return redirect()->route('meals.restaurant_create', $request->restaurant_id)->with('success', 'Meal added successfully!');
+        return redirect()->route('meals.restaurant_create', Crypt::encrypt($request->restaurant_id))->with('success', 'Meal added successfully!');
     }
 
     /*
