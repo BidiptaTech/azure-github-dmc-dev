@@ -261,7 +261,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         agent_id: agentId,
         tour_id: tourId,
         data: [processedAttractionData],
-        bookingType: attractionService.bookingType || "enquiry"
+        bookingType: "enquiry"
       };
 
       // Add booking_id if it exists in the original service
@@ -538,7 +538,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           type: isPackageBooking ? "attraction_package" : "attraction",
           agent_id: agentId,
           tour_id: tourId,
-          data: [bookingData]
+          data: [bookingData],
+          bookingType: "enquiry"
         };
         
         // Add booking_id if available from original data
@@ -634,7 +635,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         type: "attraction",
         agent_id: agentId,
         tour_id: tourId,
-        data: [bookingData]
+        data: [bookingData],
+        bookingType: "enquiry"
       };
       
       // Add booking_id if available from original data
@@ -1108,7 +1110,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         type: isPackageBooking ? "attraction_package" : "attraction",
         agent_id: agentId,
         tour_id: tourId,
-        data: [attractionData]
+        data: [attractionData],
+        bookingType: "enquiry"
       };
       
       // Add booking_id if available from original data

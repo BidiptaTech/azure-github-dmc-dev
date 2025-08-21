@@ -7,14 +7,14 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import dayjs from "dayjs";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
 import AttractionsIcon from "@mui/icons-material/Attractions";
 import AttractionBookingModal from "./AttractionBookingModal";
-import { Typography, Box, Chip, Avatar, alpha, Stack, IconButton } from "@mui/material";
+import { Typography, Box, Chip, Avatar, alpha, Stack, IconButton, Snackbar, Alert } from "@mui/material";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import CardTravelIcon from "@mui/icons-material/CardTravel";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -26,6 +26,7 @@ import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import PersonIcon from "@mui/icons-material/Person";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import ElderlyIcon from "@mui/icons-material/Elderly";
+import { singleBooking } from "@/slice/common/commonSlice";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -134,12 +135,14 @@ const getSelectionStyle = (selection) => {
 };
 
 const AttractionBookingsTable = React.memo(({ onCountChange }) => {
+  const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   // Get DMC logo and company name from DMC slice instead of auth slice
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   
   // Get tax percentage from auth slice instead of attractions
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
@@ -201,9 +204,32 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
     setIsModalOpen(true);
   };
 
-  const handleCancel = (booking) => {
+  const handleCancel = async (booking) => {
     // Handle cancel action
-    console.log("Cancel booking:", booking);
+    try {
+      // For attraction booking, use the appropriate booking ID and tour ID
+      const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
+      // Get tour_id from the root bookings object since it's not in individual booking objects
+      const tourId = bookings?.tour?.tour_id;
+      
+      if (bookingId && tourId) {
+        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId}));
+        console.log("Cancel attraction booking:", { bookingId, tourId, booking });
+        
+        // Check if cancellation was successful
+        if (result.meta.requestStatus === 'fulfilled') {
+          console.log("Attraction booking cancelled successfully");
+          // Show success toaster
+          setShowSuccessToast(true);
+        } else if (result.meta.requestStatus === 'rejected') {
+          console.error("Failed to cancel attraction booking:", result.error);
+        }
+      } else {
+        console.error("Missing data for cancellation:", { bookingId, tourId, booking });
+      }
+    } catch (error) {
+      console.error("Error cancelling attraction booking:", error);
+    }
   };
 
   const handleCloseModal = () => {
@@ -671,6 +697,22 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
         onClose={handleCloseModal}
         booking={selectedBooking}
       />
+
+      {/* Success Toaster */}
+      <Snackbar
+        open={showSuccessToast}
+        autoHideDuration={3000}
+        onClose={() => setShowSuccessToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowSuccessToast(false)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Successfully Cancelled
+        </Alert>
+      </Snackbar>
     </>
   );
 });
