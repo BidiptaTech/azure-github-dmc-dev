@@ -2017,6 +2017,13 @@
                             body: formData
                         });
 
+                        if (!response.ok) {
+                            console.error('HTTP Error:', response.status, response.statusText);
+                            const errorText = await response.text();
+                            console.error('Error Response:', errorText);
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
                         const result = await response.json();
                         
                         if (result.success) {
