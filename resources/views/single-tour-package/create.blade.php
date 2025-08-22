@@ -1714,19 +1714,32 @@
 
                 // Helper function to parse guest summary text
                 function parseGuestSummary(summaryText) {
+                    console.log('Parsing guest summary:', summaryText);
+                    
                     const adultMatch = summaryText.match(/(\d+)\s+adults/);
                     const maleMatch = summaryText.match(/(\d+)\s+male/);
                     const femaleMatch = summaryText.match(/(\d+)\s+female/);
                     const childMatch = summaryText.match(/(\d+)\s+children/);
                     const infantMatch = summaryText.match(/(\d+)\s+infants/);
                     
-                    return {
-                        adults: adultMatch ? parseInt(adultMatch[1]) : 0,
+                    const adults = adultMatch ? parseInt(adultMatch[1]) : 0;
+                    
+                    // For now, assume seniors are part of adults (this can be enhanced later with age-based logic)
+                    // In a real implementation, you might want to add a senior age input field
+                    const seniors = 0; // Placeholder - can be enhanced with age-based calculation
+                    const regularAdults = adults - seniors;
+                    
+                    const result = {
+                        adults: regularAdults,
                         male: maleMatch ? parseInt(maleMatch[1]) : 0,
                         female: femaleMatch ? parseInt(femaleMatch[1]) : 0,
                         children: childMatch ? parseInt(childMatch[1]) : 0,
-                        infants: infantMatch ? parseInt(infantMatch[1]) : 0
+                        infants: infantMatch ? parseInt(infantMatch[1]) : 0,
+                        seniors: seniors
                     };
+                    
+                    console.log('Parsed guest info:', result);
+                    return result;
                 }
 
                 // Function to calculate total price for all services
@@ -4637,6 +4650,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                   </h6>
                                   <small class="text-muted">Select attractions and configure your perfect tour package</small>
                               </div>
+                              <button type="button" class="btn btn-sm btn-outline-danger" onclick="updateAllAttractionPricing()" title="Refresh All Attraction Pricing">
+                                  <i class="ri-refresh-line me-1"></i>Refresh Pricing
+                              </button>
                           </div>
                           
                           <div class="attractions-container" id="day${day}_attractions_container">
@@ -4694,9 +4710,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Ticket</label>
-                                         <select class="form-select" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket">
+                                         <select class="form-select" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
                                              <option value="">Select Ticket</option>
                                          </select>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Attraction Price Display -->
+                                 <div class="col-12 mt-3">
+                                     <div id="day${day}_attraction_1_price_display" class="alert alert-info" style="display: none;">
+                                         <div class="d-flex align-items-center justify-content-between">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                 <div>
+                                                     <strong>Attraction Pricing</strong>
+                                                     <div class="small">Select an attraction and configure guests to see pricing</div>
+                                                 </div>
+                                             </div>
+                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing">
+                                                 <i class="ri-refresh-line"></i>
+                                             </button>
+                                         </div>
                                      </div>
                                  </div>
                                  
@@ -5121,6 +5155,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.value = attraction.attraction_id;
                         option.textContent = attraction.name + (attraction.location ? ' - ' + attraction.location : '');
                         option.dataset.timeSlots = JSON.stringify(attraction.time_slots);
+                        // Set pricing data attributes
+                        option.dataset.adultPrice = attraction.adult_price || 0;
+                        option.dataset.childPrice = attraction.child_price || 0;
+                        option.dataset.seniorPrice = attraction.senior_price || 0;
                         selectElement.appendChild(option);
                     });
                 } else {
@@ -5143,6 +5181,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear time slots and tickets if no attraction selected
             document.getElementById('day' + day + '_attraction_' + index + '_time').innerHTML = '<option value="">Select Time Slot</option>';
             document.getElementById('day' + day + '_attraction_' + index + '_ticket').innerHTML = '<option value="">Select Ticket</option>';
+            // Hide price display
+            const priceDisplay = document.getElementById(`day${day}_attraction_${index}_price_display`);
+            if (priceDisplay) {
+                priceDisplay.style.display = 'none';
+            }
             return;
         }
         
@@ -5163,7 +5206,144 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Load tickets for the selected attraction
         loadTicketsForAttraction(day, attractionId, index);
+        
+        // Update attraction pricing display
+        updateAttractionPricing(day, index);
     };
+    
+    // Update attraction pricing display
+    function updateAttractionPricing(day, index = 1) {
+        console.log(`=== UPDATING ATTRACTION PRICING: Day ${day}, Index ${index} ===`);
+        
+        const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
+        const ticketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
+        const priceDisplay = document.getElementById(`day${day}_attraction_${index}_price_display`);
+        
+        console.log('Elements found:', {
+            attractionSelect: !!attractionSelect,
+            ticketSelect: !!ticketSelect,
+            priceDisplay: !!priceDisplay
+        });
+        
+        if (!attractionSelect || !priceDisplay) {
+            console.log('Required elements not found for attraction pricing update');
+            return;
+        }
+        
+        const selectedAttraction = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedTicket = ticketSelect ? ticketSelect.options[ticketSelect.selectedIndex] : null;
+        
+        console.log('Selected values:', {
+            attractionValue: selectedAttraction?.value,
+            attractionText: selectedAttraction?.text,
+            ticketValue: selectedTicket?.value,
+            ticketText: selectedTicket?.text
+        });
+        
+        if (!selectedAttraction.value) {
+            console.log('No attraction selected, hiding price display');
+            priceDisplay.style.display = 'none';
+            return;
+        }
+        
+        // Check if ticket is selected (required for pricing)
+        if (!selectedTicket || !selectedTicket.value) {
+            console.log('No ticket selected, showing info message');
+            priceDisplay.style.display = 'block';
+            priceDisplay.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Attraction Selected: ${selectedAttraction.text}</strong>
+                        <div class="small text-muted">Please select a ticket to see pricing information</div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Get pricing data from the selected ticket option
+        let adultPrice = parseFloat(selectedTicket.dataset.adultPrice) || 0;
+        let childPrice = parseFloat(selectedTicket.dataset.childPrice) || 0;
+        let seniorPrice = parseFloat(selectedTicket.dataset.seniorPrice) || 0;
+        
+        // If no pricing data in dataset, try to extract from ticket text content
+        if (adultPrice === 0 && childPrice === 0 && seniorPrice === 0) {
+            console.log('No pricing data in dataset, extracting from ticket text...');
+            const ticketText = selectedTicket.textContent;
+            
+            // Extract adult price
+            const adultMatch = ticketText.match(/Adult:\s*\$(\d+(?:\.\d+)?)/);
+            if (adultMatch) {
+                adultPrice = parseFloat(adultMatch[1]);
+                console.log('Extracted adult price from text:', adultPrice);
+            }
+            
+            // Extract child price
+            const childMatch = ticketText.match(/Child:\s*\$(\d+(?:\.\d+)?)/);
+            if (childMatch) {
+                childPrice = parseFloat(childMatch[1]);
+                console.log('Extracted child price from text:', childPrice);
+            }
+            
+            // Extract senior price
+            const seniorMatch = ticketText.match(/Senior:\s*\$(\d+(?:\.\d+)?)/);
+            if (seniorMatch) {
+                seniorPrice = parseFloat(seniorMatch[1]);
+                console.log('Extracted senior price from text:', seniorPrice);
+            }
+        }
+        
+        // Debug logging for ticket pricing
+        console.log('=== TICKET PRICING DEBUG ===');
+        console.log('Selected ticket option:', selectedTicket);
+        console.log('Ticket dataset:', selectedTicket.dataset);
+        console.log('Raw adult_price:', selectedTicket.dataset.adultPrice);
+        console.log('Raw child_price:', selectedTicket.dataset.childPrice);
+        console.log('Raw senior_price:', selectedTicket.dataset.seniorPrice);
+        console.log('Final parsed prices:', { adultPrice, childPrice, seniorPrice });
+        
+        // Get current guest counts from the guest summary
+        const guestSummaryElement = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
+        if (!guestSummaryElement) {
+            priceDisplay.style.display = 'none';
+            return;
+        }
+        
+        const guestInfo = parseGuestSummary(guestSummaryElement.textContent);
+        
+        if (guestInfo.adults === 0 && guestInfo.children === 0 && guestInfo.seniors === 0) {
+            priceDisplay.style.display = 'none';
+            return;
+        }
+        
+        // Calculate total price
+        const totalPrice = (guestInfo.adults * adultPrice) + 
+                          (guestInfo.children * childPrice) + 
+                          (guestInfo.seniors * seniorPrice);
+        
+        if (totalPrice > 0) {
+            priceDisplay.style.display = 'block';
+            priceDisplay.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Ticket Pricing: ${selectedTicket.text}</strong>
+                        <div class="small">
+                            <strong>Adult Price:</strong> $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}<br>
+                            <strong>Child Price:</strong> $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}<br>
+                            <strong>Senior Price:</strong> $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}<br>
+                            <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
+        } else {
+            priceDisplay.style.display = 'none';
+        }
+    }
     
     // Load tickets for specific attraction
     function loadTicketsForAttraction(day, attractionId, index = 1) {
@@ -5180,8 +5360,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         const option = document.createElement('option');
                         option.value = ticket.ticket_id;
                         option.textContent = ticket.name + 
-                            (ticket.price ? ' - ' + ticket.currency + ' ' + ticket.price : '') + 
-                            (ticket.ticket_type ? ' (' + ticket.ticket_type + ')' : '');
+                            (ticket.adult_price ? ' - Adult: $' + ticket.adult_price : '') + 
+                            (ticket.child_price ? ' Child: $' + ticket.child_price : '') + 
+                            (ticket.senior_adult_price ? ' Senior: $' + ticket.senior_adult_price : '');
+                        
+                        // Set pricing data attributes for the ticket
+                        option.dataset.adultPrice = ticket.adult_price || 0;
+                        option.dataset.childPrice = ticket.child_price || 0;
+                        option.dataset.seniorPrice = ticket.senior_adult_price || 0;
+                        option.dataset.description = ticket.description || '';
+                        
                         ticketSelect.appendChild(option);
                     });
                     
@@ -5192,6 +5380,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.disabled = true;
                         ticketSelect.appendChild(option);
                     }
+                    
+                    // Update pricing display after loading tickets
+                    updateAttractionPricing(day, index);
                 } else {
                     const option = document.createElement('option');
                     option.value = '';
@@ -5332,11 +5523,25 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Ticket</label>
-                            <select class="form-select" name="day${day}_attraction_${newIndex}_ticket" id="day${day}_attraction_${newIndex}_ticket">
+                            <select class="form-select" name="day${day}_attraction_${newIndex}_ticket" id="day${day}_attraction_${newIndex}_ticket" onchange="updateAttractionPricing(${day}, ${newIndex})">
                                 <option value="">Select Ticket</option>
                             </select>
                         </div>
                     </div>
+                    
+                    <!-- Attraction Price Display -->
+                    <div class="col-12 mt-3">
+                        <div id="day${day}_attraction_${newIndex}_price_display" class="alert alert-info" style="display: none;">
+                            <div class="d-flex align-items-center">
+                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                <div>
+                                    <strong>Attraction Pricing</strong>
+                                    <div class="small">Select an attraction and configure guests to see pricing</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
             </div>
         `;
@@ -7468,6 +7673,16 @@ document.addEventListener('DOMContentLoaded', function() {
          const modal = bootstrap.Modal.getInstance(document.getElementById('guestSelectorModal'));
          modal.hide();
          
+         // Update attraction pricing if this is an attraction service
+         if (serviceId.includes('attraction')) {
+             const dayMatch = serviceId.match(/day(\d+)_attraction_(\d+)/);
+             if (dayMatch) {
+                 const day = dayMatch[1];
+                 const index = dayMatch[2];
+                 updateAttractionPricing(day, index);
+             }
+         }
+         
          showNotification(`Guest selection updated: ${total} total guests`, 'success');
     };
      
@@ -7525,6 +7740,62 @@ document.addEventListener('DOMContentLoaded', function() {
             updateHotelDependentDropdowns(hotelSelect.value);
         }
     }
+    // Initialize attraction pricing for existing selections
+    function initializeAttractionPricing() {
+        // Find all attraction containers and update pricing for each
+        const attractionContainers = document.querySelectorAll('[id^="day"][id*="_attractions_container"]');
+        attractionContainers.forEach(container => {
+            const dayMatch = container.id.match(/day(\d+)_attractions_container/);
+            if (dayMatch) {
+                const day = dayMatch[1];
+                const attractionItems = container.querySelectorAll('.attraction-item');
+                attractionItems.forEach((item, index) => {
+                    const attractionIndex = index + 1;
+                    // Check if attraction and ticket are already selected
+                    const attractionSelect = item.querySelector(`select[name="day${day}_attraction_${attractionIndex}"]`);
+                    const ticketSelect = item.querySelector(`select[name="day${day}_attraction_${attractionIndex}_ticket"]`);
+                    
+                    if (attractionSelect && ticketSelect && attractionSelect.value && ticketSelect.value) {
+                        // Both are selected, update pricing
+                        setTimeout(() => {
+                            updateAttractionPricing(day, attractionIndex);
+                        }, 100); // Small delay to ensure DOM is ready
+                    }
+                });
+            }
+        });
+    }
+    
+    // Manual function to refresh all attraction pricing (useful for debugging)
+    window.refreshAttractionPricing = function() {
+        console.log('Manually refreshing attraction pricing...');
+        initializeAttractionPricing();
+    };
+    
+    // Function to force update pricing for a specific attraction
+    window.forceUpdateAttractionPricing = function(day, index) {
+        console.log(`Force updating pricing for day ${day}, index ${index}`);
+        updateAttractionPricing(day, index);
+    };
+    
+    // Function to update all attraction pricing immediately
+    window.updateAllAttractionPricing = function() {
+        console.log('Updating all attraction pricing...');
+        const attractionContainers = document.querySelectorAll('[id^="day"][id*="_attractions_container"]');
+        attractionContainers.forEach(container => {
+            const dayMatch = container.id.match(/day(\d+)_attractions_container/);
+            if (dayMatch) {
+                const day = dayMatch[1];
+                const attractionItems = container.querySelectorAll('.attraction-item');
+                attractionItems.forEach((item, index) => {
+                    const attractionIndex = index + 1;
+                    console.log(`Updating pricing for day ${day}, attraction ${attractionIndex}`);
+                    updateAttractionPricing(day, attractionIndex);
+                });
+            }
+        });
+    };
+    
     //Initialize
     updateMainGuestSummary();
     updateGuestSummary();
@@ -7537,6 +7808,13 @@ document.addEventListener('DOMContentLoaded', function() {
     setupNewTransportationHandlers();
     
     // Setup search button listeners
+    
+    // Initialize attraction pricing after page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            initializeAttractionPricing();
+        }, 500); // Delay to ensure all elements are loaded
+    });
     setupSearchButtonListeners();
  });
 

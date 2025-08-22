@@ -353,7 +353,7 @@ class SingleTourPackageController extends Controller
             // Fetch attractions where dmc_id JSON contains current DMC ID
             // Using LIKE instead of JSON_CONTAINS for better compatibility
             $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmcId)
-                        ->select('attraction_id', 'name', 'open_time', 'close_time', 'location')
+                        ->select('attraction_id', 'name', 'open_time', 'close_time', 'location', 'adult_price', 'child_price', 'senior_adult_price')
                         ->get();
 
             $attractionsData = $attractions->map(function ($attraction) {
@@ -400,7 +400,10 @@ class SingleTourPackageController extends Controller
                     'attraction_id' => $attraction->attraction_id,
                     'name' => $attraction->name,
                     'location' => $attraction->location,
-                    'time_slots' => $timeSlots
+                    'time_slots' => $timeSlots,
+                    'adult_price' => $attraction->adult_price,
+                    'child_price' => $attraction->child_price,
+                    'senior_price' => $attraction->senior_adult_price
                 ];
             });
 
@@ -437,7 +440,7 @@ class SingleTourPackageController extends Controller
             }
 
             $tickets = Ticket::where('attraction_id', $attractionId)
-                ->select('ticket_id', 'name')
+                ->select('ticket_id', 'name', 'child_price', 'adult_price', 'senior_adult_price', 'description')
                 ->get();
 
             return response()->json([
