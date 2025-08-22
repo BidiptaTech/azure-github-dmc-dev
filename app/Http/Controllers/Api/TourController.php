@@ -451,12 +451,12 @@ class TourController extends Controller
         }
         // Update expired tours to 'Closed'
         $dmc_id = $request->dmc_id;
-        if($dmc_id){
-            $tours = Tour::where('agent_id', $agent_id)->where('dmc_id', $dmc_id)->get();
-        }
-        else{
+        // if($dmc_id){
+        //     $tours = Tour::where('agent_id', $agent_id)->where('dmc_id', $dmc_id)->get();
+        // }
+        // else{
             $tours = Tour::where('agent_id', $agent_id)->get();
-        }
+        // }
         foreach ($tours as $tour) {
             if (
                 $tour->check_out_time &&
@@ -469,9 +469,14 @@ class TourController extends Controller
         }
 
         // Fetch active (not Closed) tours
+        if($dmc_id){
         $query = Tour::with(['booking']) // eager load to prevent N+1
+            ->where('agent_id', $agent_id)
+            ->where('dmc_id', $dmc_id);
+        }else{
+            $query = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id);
-            
+        }
         // Apply date filters based on type
         $today = Carbon::today();
         
@@ -2290,9 +2295,16 @@ class TourController extends Controller
                     $currentEnquiry->update(['status' => 3]);
                 }
                 if($tour){
-                    $tour = Tour::where('tour_id', $tour_id)->update([
-                        'tour_status' => "Cancel - " . $tour->tour_status,
-                    ]);
+                    if($tour->tour_status == "Definite"){
+                        $tour = Tour::where('tour_id', $tour_id)->update([
+                            'tour_status' => "Refund - Pending",
+                        ]);
+                    }
+                    else{
+                        $tour = Tour::where('tour_id', $tour_id)->update([
+                            'tour_status' => "Cancel - " . $tour->tour_status,
+                        ]);
+                    }
 
                     return response()->json([
                         'success' => true,
@@ -2425,6 +2437,7 @@ class TourController extends Controller
         if ($order) {
             $order->status = 4; //cancel booking
             $order->deleted_at = now(); //cancel booking
+            $order->cancel_reason = $request->cancel_reason;
             $order->save();
             $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$order->type);
             return response()->json([
@@ -2563,7 +2576,12 @@ class TourController extends Controller
 
         if ($tour) {
             $previous_status = $tour->tour_status;
-            $tour->tour_status = 'Cancel - ' . $previous_status;            
+            if($previous_status == "Definite"){
+                $tour->tour_status = 'Refund - Pending';
+            }
+            else{
+                $tour->tour_status = 'Cancel - ' . $previous_status;
+            }
             $tour->save();
             return response()->json([
                 'success' => true,

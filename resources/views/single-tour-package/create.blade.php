@@ -4412,6 +4412,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </select>
                                             </div>
                                         </div>
+                                        
+                                        <!-- Price Display for Entry Port -->
+                                        <div class="col-12 mt-3">
+                                            <div id="day${day}_entry_price_display" class="alert alert-success" style="display: none;">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                    <div>
+                                                        <strong>Price Information</strong>
+                                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -4579,6 +4592,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Shared">Shared</option>
                                                     <option value="Private">Private</option>
                                                 </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Price Display for Exit Port -->
+                                        <div class="col-12 mt-3">
+                                            <div id="day${day}_exit_price_display" class="alert alert-success" style="display: none;">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                    <div>
+                                                        <strong>Price Information</strong>
+                                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -5016,6 +5042,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Shared">Shared</option>
                                                     <option value="Private">Private</option>
                                                 </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Price Display for Transport -->
+                                        <div class="col-12 mt-3">
+                                            <div id="day${day}_transport_price_display" class="alert alert-success" style="display: none;">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                    <div>
+                                                        <strong>Price Information</strong>
+                                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -6854,6 +6893,17 @@ document.addEventListener('DOMContentLoaded', function() {
                              </select>
                          </div>
                          <div class="col-12 mt-3">
+                             <div id="day${day}_transport_${newIndex}_price_display" class="alert alert-success" style="display: none;">
+                                 <div class="d-flex align-items-center">
+                                     <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                     <div>
+                                         <strong>Price Information</strong>
+                                         <div class="small">Select a vehicle and service type to see pricing</div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-12 mt-3">
                              <button type="button" class="btn btn-success w-100 py-2" onclick="addMoreTransports(${day})">
                                  <i class="ri-add-line me-2"></i>Add More Vehicles
                              </button>
@@ -6959,6 +7009,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="Shared">Shared</option>
                                 <option value="Private">Private</option>
                             </select>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <div id="day${day}_entry_${newIndex}_price_display" class="alert alert-success" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Price Information</strong>
+                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -7101,6 +7162,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="Shared">Shared</option>
                                 <option value="Private">Private</option>
                             </select>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <div id="day${day}_exit_${newIndex}_price_display" class="alert alert-success" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Price Information</strong>
+                                        <div class="small">Select a vehicle and service type to see pricing</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -7724,6 +7796,13 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                      data.vehicles.forEach(vehicle => {
                          const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         
+                         // Debug logging for vehicle data
+                         console.log('=== VEHICLE DATA DEBUG ===');
+                         console.log('Vehicle:', vehicle);
+                         console.log('Private price:', vehicle.private_price);
+                         console.log('Shared price:', vehicle.shared_price);
+                         
                          vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                              data-private-price="${vehicle.private_price}" 
                              data-shared-price="${vehicle.shared_price}"
@@ -7734,9 +7813,15 @@ document.addEventListener('DOMContentLoaded', function() {
                      });
                      
                      vehicleSelect.disabled = false;
+                     
+                     // Reset service type select and price display when vehicles are loaded
+                     updateVehicleDetails(day, section);
                  } else {
                      vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
                      vehicleSelect.disabled = true;
+                     
+                     // Reset service type select and price display when no vehicles
+                     updateVehicleDetails(day, section);
                  }
              })
              .catch(error => {
@@ -7762,32 +7847,125 @@ document.addEventListener('DOMContentLoaded', function() {
  function updateVehicleDetails(day, section) {
      const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
      const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+     const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
      
      if (!vehicleSelect || !serviceTypeSelect) return;
      
      const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
      
      if (selectedOption.value) {
-         // Just enable the service type select, don't modify its content
+         // Enable the service type select
          serviceTypeSelect.disabled = false;
+         
+         // Clear any existing price display
+         if (priceDisplay) {
+             priceDisplay.style.display = 'none';
+         }
+         
+         // Reset service type selection to trigger pricing update
+         serviceTypeSelect.value = "";
      } else {
-         // Reset to default state but keep the hardcoded options
+         // Reset to default state
          serviceTypeSelect.disabled = true;
          serviceTypeSelect.value = "";
+         
+         // Hide price display
+         if (priceDisplay) {
+             priceDisplay.style.display = 'none';
+         }
      }
  }
 
  function updatePricing(day, section) {
     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
+    const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+    const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
     
-    if (serviceTypeSelect) {
-        const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
-        const price = selectedOption.getAttribute('data-price');
+    if (!serviceTypeSelect || !vehicleSelect || !priceDisplay) {
+        console.log('Required elements not found for pricing update');
+        return;
+    }
+    
+    const selectedServiceType = serviceTypeSelect.value;
+    const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+    
+    if (!selectedServiceType || !selectedVehicleOption.value) {
+        priceDisplay.style.display = 'none';
+        return;
+    }
+    
+    // Get pricing data from the selected vehicle option
+    const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
+    const sharedPrice = parseFloat(selectedVehicleOption.dataset.sharedPrice) || 0;
+    
+    // Debug logging to verify prices
+    console.log('=== PRICING DEBUG ===');
+    console.log('Selected vehicle option:', selectedVehicleOption);
+    console.log('Vehicle dataset:', selectedVehicleOption.dataset);
+    console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
+    console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
+    console.log('Parsed privatePrice:', privatePrice);
+    console.log('Parsed sharedPrice:', sharedPrice);
+    console.log('Selected service type:', selectedServiceType);
+    
+    let displayPrice = 0;
+    let priceType = '';
+    
+    if (selectedServiceType === 'Private') {
+        displayPrice = privatePrice;
+        priceType = 'Private';
+        console.log('Private service selected, price:', displayPrice);
+    } else if (selectedServiceType === 'Shared') {
+        displayPrice = sharedPrice;
+        priceType = 'Shared';
+        console.log('Shared service selected, price:', displayPrice);
+    }
+    
+    if (displayPrice > 0) {
+        // Get guest count for total price calculation
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const totalGuests = adults + children;
         
-        if (price) {
-            console.log(`Selected ${selectedOption.value} service for day ${day}: $${price}`);
-            // You can add price display or calculation logic here
+        let totalPrice = 0;
+        let pricingDescription = '';
+        
+        if (selectedServiceType === 'Private') {
+            // For private service: price is per vehicle (not per person)
+            totalPrice = displayPrice;
+            pricingDescription = `
+                <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
+            `;
+        } else if (selectedServiceType === 'Shared') {
+            // For shared service: price is per person
+            totalPrice = displayPrice * totalGuests;
+            pricingDescription = `
+                <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
+            `;
         }
+        
+        priceDisplay.style.display = 'block';
+        priceDisplay.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                <div>
+                    <strong>${priceType} Service Pricing</strong>
+                    <div class="small">
+                        ${pricingDescription}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+    } else {
+        priceDisplay.style.display = 'none';
+        console.log('No pricing information available for the selected vehicle and service type');
     }
 }
 
@@ -8078,6 +8256,13 @@ window.saveService = function(day, type) {
                      vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
                      data.vehicles.forEach(vehicle => {
                          const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         
+                         // Debug logging for vehicle data
+                         console.log('=== VEHICLE DATA DEBUG (searchVehicles) ===');
+                         console.log('Vehicle:', vehicle);
+                         console.log('Private price:', vehicle.private_price);
+                         console.log('Shared price:', vehicle.shared_price);
+                         
                          vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                              data-private-price="${vehicle.private_price || ''}" 
                              data-shared-price="${vehicle.shared_price || ''}"
@@ -8090,6 +8275,9 @@ window.saveService = function(day, type) {
                      // Enable the vehicle select
                      vehicleSelect.disabled = false;
                      console.log('Vehicle dropdown populated successfully');
+                     
+                     // Reset service type select and price display when vehicles are loaded
+                     updateVehicleDetails(day, section);
                  } else {
                      console.error('Vehicle select element not found!');
                  }

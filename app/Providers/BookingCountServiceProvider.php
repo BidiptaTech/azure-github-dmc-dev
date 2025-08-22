@@ -47,7 +47,7 @@ class BookingCountServiceProvider extends ServiceProvider
                 'definite' => $this->getTourCountWithDmcFilter('Definite', $currentMonthStart, $currentMonthEnd, $dmc_id),
                 'actual' => $this->getTourCountWithDmcFilter('Actual', $currentMonthStart, $currentMonthEnd, $dmc_id),
                 'cancelled' => $this->getCancelledTourCount($currentMonthStart, $currentMonthEnd, $dmc_id),
-                'refunds' => 0, // Placeholder since refunds section is not implemented yet
+                'refunds' => $this->getTourCountWithDmcFilter(['Refund - Pending', 'Refunded'], $currentMonthStart, $currentMonthEnd, $dmc_id),
             ];
 
             $view->with('bookingCounts', $bookingCounts);
