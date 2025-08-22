@@ -6617,13 +6617,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Calculate total prices for each package
         const packages = [
-            { value: '1_hour', label: '1 Hour Package', price: baseRate + hourlyPrice },
-            { value: '2_hour', label: '2 Hour Package', price: baseRate + twoHourPrice },
-            { value: '4_hour', label: '4 Hour Package', price: baseRate + fourHourPrice },
-            { value: '6_hour', label: '6 Hour Package', price: baseRate + sixHourPrice },
-            { value: '8_hour', label: '8 Hour Package', price: baseRate + eightHourPrice },
-            { value: '10_hour', label: '10 Hour Package', price: baseRate + tenHourPrice },
-            { value: '12_hour', label: '12 Hour Package', price: baseRate + twelveHourPrice }
+            { value: '1_hour', label: '1 Hour Package', price: baseRate + hourlyPrice, hours: 1, basePrice: hourlyPrice },
+            { value: '2_hour', label: '2 Hour Package', price: baseRate + twoHourPrice, hours: 2, basePrice: twoHourPrice },
+            { value: '4_hour', label: '4 Hour Package', price: baseRate + fourHourPrice, hours: 4, basePrice: fourHourPrice },
+            { value: '6_hour', label: '6 Hour Package', price: baseRate + sixHourPrice, hours: 6, basePrice: sixHourPrice },
+            { value: '8_hour', label: '8 Hour Package', price: baseRate + eightHourPrice, hours: 8, basePrice: eightHourPrice },
+            { value: '10_hour', label: '10 Hour Package', price: baseRate + tenHourPrice, hours: 10, basePrice: tenHourPrice },
+            { value: '12_hour', label: '12 Hour Package', price: baseRate + twelveHourPrice, hours: 12, basePrice: twelveHourPrice }
         ];
         
         // Build package options HTML
@@ -6631,12 +6631,70 @@ document.addEventListener('DOMContentLoaded', function() {
         
         packages.forEach(pkg => {
             const priceDisplay = pkg.price > 0 ? ` - ${pkg.price.toFixed(2)} SGD` : '';
-            optionsHTML += `<option value="${pkg.value}">${pkg.label}${priceDisplay}</option>`;
+            optionsHTML += `<option value="${pkg.value}" data-price="${pkg.price}" data-hours="${pkg.hours}" data-base-price="${pkg.basePrice}">${pkg.label}${priceDisplay}</option>`;
         });
         
         packageSelect.innerHTML = optionsHTML;
         
         console.log('Updated package prices:', isNightTime ? 'Night Time' : 'Day Time', packages);
+    }
+    
+    // Function to update guide pricing when package is selected
+    function updateGuidePricing(day, index) {
+        const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+        const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+        
+        if (!packageSelect || !guideSelect || !packageSelect.value) {
+            // Clear pricing if no package selected
+            document.getElementById(`day${day}_guide_${index}_base_price`).value = '0';
+            document.getElementById(`day${day}_guide_${index}_hours`).value = '0';
+            document.getElementById(`day${day}_guide_${index}_surcharge`).value = '0';
+            return;
+        }
+        
+        const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
+        const selectedGuide = guideSelect.options[guideSelect.selectedIndex];
+        
+        if (!selectedPackage || !selectedGuide) return;
+        
+        // Get package pricing data
+        const packagePrice = parseFloat(selectedPackage.dataset.price) || 0;
+        const hours = parseInt(selectedPackage.dataset.hours) || 0;
+        const basePrice = parseFloat(selectedPackage.dataset.basePrice) || 0;
+        
+        // Get guide data for surcharge calculation
+        const dayRate = parseFloat(selectedGuide.dataset.dayRate) || 0;
+        const nightSurcharge = parseFloat(selectedGuide.dataset.nightSurcharge) || 0;
+        
+        // Calculate surcharge based on pickup time
+        const pickupTime = document.getElementById(`day${day}_guide_${index}_pickup_time`)?.value || '';
+        let surcharge = 0;
+        
+        if (pickupTime) {
+            const pickupHour = parseInt(pickupTime.split(':')[0]);
+            const nightStartTime = selectedGuide.dataset.nightStartTime;
+            const nightEndTime = selectedGuide.dataset.nightEndTime;
+            
+            if (nightStartTime && nightEndTime) {
+                const nightStart = parseInt(nightStartTime.split(':')[0]);
+                const nightEnd = parseInt(nightEndTime.split(':')[0]) - 1;
+                
+                const isNightTime = isTimeInNightRange(pickupHour, nightStart, nightEnd);
+                surcharge = isNightTime ? nightSurcharge : 0;
+            }
+        }
+        
+        // Update hidden fields
+        document.getElementById(`day${day}_guide_${index}_base_price`).value = basePrice.toFixed(2);
+        document.getElementById(`day${day}_guide_${index}_hours`).value = hours.toString();
+        document.getElementById(`day${day}_guide_${index}_surcharge`).value = surcharge.toFixed(2);
+        
+        console.log(`Guide pricing updated for Day ${day}, Index ${index}:`, {
+            basePrice: basePrice.toFixed(2),
+            hours: hours,
+            surcharge: surcharge.toFixed(2),
+            totalPrice: packagePrice.toFixed(2)
+        });
     }
     
     // Load guide details and setup pickup time
@@ -6924,9 +6982,13 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Package</label>
-                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package">
+                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
                                 <option value="">Select Duration</option>
                             </select>
+                            <!-- Hidden fields for pricing -->
+                            <input type="hidden" id="day${day}_guide_${newIndex}_base_price" name="day${day}_guide_${newIndex}_base_price" value="0">
+                            <input type="hidden" id="day${day}_guide_${newIndex}_hours" name="day${day}_guide_${newIndex}_hours" value="0">
+                            <input type="hidden" id="day${day}_guide_${newIndex}_surcharge" name="day${day}_guide_${newIndex}_surcharge" value="0">
                         </div>
                     </div>
                 </div>
