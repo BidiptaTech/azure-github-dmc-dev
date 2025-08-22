@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -425,7 +426,13 @@ class HotelBookingController extends Controller
                         'transport' => $booking['transport'] ?? null,
                         'selection' => $booking['Selection'] ?? null,
                         'ticket_details' => $booking['ticket_details'] ?? [],
-                        'attraction_details' => $booking
+                        'attraction_details' => $booking,
+                        // Approval status
+                        'is_approve' => (bool)($attractionOrder->is_approve ?? false),
+                        'reference_id' => $attractionOrder->reference_id ?? null,
+                        'actual_due_date' => $attractionOrder->actual_due_date ?? null,
+                        'display_due_date' => $attractionOrder->display_due_date ?? null,
+                        'approval_file' => $attractionOrder->approval_file ?? null
                     ]
                 ]
             ]);
@@ -1152,7 +1159,13 @@ class HotelBookingController extends Controller
                         'special_requests' => $booking['specialRequests'] ?? null,
                         // Room details
                         'rooms' => $booking['rooms'] ?? [],
-                        'hotel_details' => $booking['hotelDetails'] ?? []
+                        'hotel_details' => $booking['hotelDetails'] ?? [],
+                        // Approval status
+                        'is_approve' => (bool)($hotelOrder->is_approve ?? false),
+                        'reference_id' => $hotelOrder->reference_id ?? null,
+                        'actual_due_date' => $hotelOrder->actual_due_date ?? null,
+                        'display_due_date' => $hotelOrder->display_due_date ?? null,
+                        'approval_file' => $hotelOrder->approval_file ?? null
                     ]
                 ]
             ]);
@@ -2436,6 +2449,538 @@ class HotelBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while fetching local transport booking data'
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve hotel booking and save approval data
+     * 
+     * This method saves the approval data to the orders table and sets is_approve = true
+     * for the specific hotel booking.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function approveHotelBooking(Request $request): JsonResponse
+    {
+        //dd($request->all());
+        try {
+            // Log incoming request for debugging
+            Log::info('Hotel approval request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hotel_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date|after_or_equal:today',
+                'display_due_date_days' => 'required|integer|min:1',
+                'display_due_date' => 'required|string|max:255',
+                //'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $hotelOrderIndex = $request->hotel_order_index;
+            $bookingIndex = $request->booking_index;
+            $referenceId = $request->reference_id;
+            $actualDueDate = $request->actual_due_date;
+            $displayDueDateDays = $request->display_due_date_days;
+            $displayDueDate = $request->display_due_date;
+            $referenceFile = $request->file('reference_file');
+
+            // Find the hotel order in the orders table
+            $hotelOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'hotel')
+                ->orderBy('id')
+                ->skip($hotelOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for hotel order', [
+                'tour_id' => $tourId,
+                'hotel_order_index' => $hotelOrderIndex,
+                'hotel_order_found' => !!$hotelOrder,
+                'hotel_order_id' => $hotelOrder ? $hotelOrder->id : null
+            ]);
+
+            if (!$hotelOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hotel order not found'
+                ], 404);
+            }
+
+            // Handle file upload if provided
+            // $approvalFilePath = null;
+            // if ($referenceFile) {
+            //     $fileName = time() . '_' . $referenceFile->getClientOriginalName();
+            //     // Store in storage/app/hotel_approvals directory
+            //     $filePath = $referenceFile->storeAs('hotel_approvals', $fileName);
+            //     $approvalFilePath = $filePath; // Store relative path
+            // }
+
+            $approval_file = $hotelOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Update the orders table with approval data
+            $updateData = [
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate,
+                'is_approve' => true,
+                'approval_file' => $approval_file,
+                'updated_at' => now()
+            ];
+
+            // Add file path if file was uploaded
+            // if ($approvalFilePath) {
+            //     $updateData['approval_file'] = $approvalFilePath;
+            // }
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $hotelOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update hotel approval data'
+                ], 500);
+            }
+
+            // Log successful approval
+            Log::info('Hotel booking approved successfully', [
+                'tour_id' => $tourId,
+                'hotel_order_id' => $hotelOrder->id,
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hotel booking approved successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'hotel_order_id' => $hotelOrder->id,
+                    'reference_id' => $referenceId,
+                    'actual_due_date' => $actualDueDate,
+                    'display_due_date' => $displayDueDate,
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error approving hotel booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving hotel booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject hotel booking and save rejection reason with soft delete
+     * 
+     * This method saves the rejection reason to the orders table and soft deletes the booking
+     * by setting the deleted_at timestamp.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function rejectHotelBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Hotel rejection request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hotel_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'cancel_reason' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $hotelOrderIndex = $request->hotel_order_index;
+            $bookingIndex = $request->booking_index;
+            $cancelReason = $request->cancel_reason;
+
+            // Find the hotel order in the orders table
+            $hotelOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'hotel')
+                ->whereNull('deleted_at') // Only get non-deleted orders
+                ->orderBy('id')
+                ->skip($hotelOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for hotel order for rejection', [
+                'tour_id' => $tourId,
+                'hotel_order_index' => $hotelOrderIndex,
+                'hotel_order_found' => !!$hotelOrder,
+                'hotel_order_id' => $hotelOrder ? $hotelOrder->id : null
+            ]);
+
+            if (!$hotelOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hotel order not found or already deleted'
+                ], 404);
+            }
+
+            // Check if the booking is already approved
+            if ($hotelOrder->is_approve == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved booking'
+                ], 400);
+            }
+
+            // Update the orders table with rejection data and soft delete
+            $updateData = [
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now(), // Soft delete
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $hotelOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject hotel booking'
+                ], 500);
+            }
+
+            // Log successful rejection
+            Log::info('Hotel booking rejected successfully', [
+                'tour_id' => $tourId,
+                'hotel_order_id' => $hotelOrder->id,
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hotel booking rejected successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'hotel_order_id' => $hotelOrder->id,
+                    'cancel_reason' => $cancelReason,
+                    'deleted_at' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error rejecting hotel booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting hotel booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve attraction booking and save approval data
+     * 
+     * This method saves the approval data to the orders table and sets is_approve = true
+     * for the specific attraction booking.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function approveAttractionBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Attraction approval request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'attraction_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date|after_or_equal:today',
+                'display_due_date_days' => 'required|integer|min:1',
+                'display_due_date' => 'required|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $attractionOrderIndex = $request->attraction_order_index;
+            $bookingIndex = $request->booking_index;
+            $referenceId = $request->reference_id;
+            $actualDueDate = $request->actual_due_date;
+            $displayDueDateDays = $request->display_due_date_days;
+            $displayDueDate = $request->display_due_date;
+
+            // Find the attraction order in the orders table
+            $attractionOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'attraction')
+                ->orderBy('id')
+                ->skip($attractionOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for attraction order', [
+                'tour_id' => $tourId,
+                'attraction_order_index' => $attractionOrderIndex,
+                'attraction_order_found' => !!$attractionOrder,
+                'attraction_order_id' => $attractionOrder ? $attractionOrder->id : null
+            ]);
+
+            if (!$attractionOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction order not found'
+                ], 404);
+            }
+
+            // Handle file upload if provided
+            $approval_file = $attractionOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Update the orders table with approval data
+            $updateData = [
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate,
+                'is_approve' => true,
+                'approval_file' => $approval_file,
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $attractionOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update attraction approval data'
+                ], 500);
+            }
+
+            // Log successful approval
+            Log::info('Attraction booking approved successfully', [
+                'tour_id' => $tourId,
+                'attraction_order_id' => $attractionOrder->id,
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attraction booking approved successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'attraction_order_id' => $attractionOrder->id,
+                    'reference_id' => $referenceId,
+                    'actual_due_date' => $actualDueDate,
+                    'display_due_date' => $displayDueDate,
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error approving attraction booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving attraction booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject attraction booking and save rejection reason with soft delete
+     * 
+     * This method saves the rejection reason to the orders table and soft deletes the booking
+     * by setting the deleted_at timestamp.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function rejectAttractionBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Attraction rejection request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'attraction_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'cancel_reason' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $attractionOrderIndex = $request->attraction_order_index;
+            $bookingIndex = $request->booking_index;
+            $cancelReason = $request->cancel_reason;
+
+            // Find the attraction order in the orders table
+            $attractionOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'attraction')
+                ->whereNull('deleted_at') // Only get non-deleted orders
+                ->orderBy('id')
+                ->skip($attractionOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for attraction order for rejection', [
+                'tour_id' => $tourId,
+                'attraction_order_index' => $attractionOrderIndex,
+                'attraction_order_found' => !!$attractionOrder,
+                'attraction_order_id' => $attractionOrder ? $attractionOrder->id : null
+            ]);
+
+            if (!$attractionOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction order not found or already deleted'
+                ], 404);
+            }
+
+            // Check if the booking is already approved
+            if ($attractionOrder->is_approve == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved booking'
+                ], 400);
+            }
+
+            // Update the orders table with rejection data and soft delete
+            $updateData = [
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now(), // Soft delete
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $attractionOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject attraction booking'
+                ], 500);
+            }
+
+            // Log successful rejection
+            Log::info('Attraction booking rejected successfully', [
+                'tour_id' => $tourId,
+                'attraction_order_id' => $attractionOrder->id,
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attraction booking rejected successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'attraction_order_id' => $attractionOrder->id,
+                    'cancel_reason' => $cancelReason,
+                    'deleted_at' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error rejecting attraction booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting attraction booking: ' . $e->getMessage()
             ], 500);
         }
     }
