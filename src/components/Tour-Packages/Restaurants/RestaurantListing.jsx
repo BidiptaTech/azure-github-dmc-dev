@@ -228,12 +228,36 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
   const bookingMode = useSelector((state) => state.common.bookingMode);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
   const status = useSelector((state) => state.restaurants.status);
+  const isFromMainSearch = useSelector((state) => state.restaurants.isFromMainSearch);
 
   // Debug logs
   useEffect(() => {
     console.log('RestaurantListing - Props:', { restaurants, selectedRestaurant });
     console.log('RestaurantListing - Status:', status);
   }, [restaurants, selectedRestaurant, status]);
+
+  // Don't show any restaurants if coming from MainFilterSearchBox
+  if (isFromMainSearch) {
+    return (
+      <Box sx={{ flex: 1 }}>
+        <TextField
+          label="Search Restaurant"
+          fullWidth
+          disabled
+          value=""
+          helperText="Please select a hotel first to view available restaurants"
+          sx={{
+            '& .MuiInputBase-input': {
+              fontSize: '0.8rem',
+              height: '12px',
+              paddingBottom: '10px',
+              paddingTop: '0px',
+            },
+          }}
+        />
+      </Box>
+    );
+  }
 
   // Filter restaurants that have at least one pricing mode
   const filteredRestaurants = restaurants ? restaurants.filter(restaurant => {

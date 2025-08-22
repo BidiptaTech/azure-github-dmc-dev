@@ -8,14 +8,14 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
   async (
-    { city, date, adults, children, tour_id, fromMainSearch, start = 0, limit = 5 },
+    { city, date, adults, children, tour_id, fromMainSearch, start, limit },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
       // If the search is coming from MainFilterSearchBox, return empty array
-      if (fromMainSearch) {
-        return [];
-      }
+      // if (fromMainSearch) {
+      //   return [];
+      // }
 
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
@@ -219,6 +219,7 @@ const initialState = {
   restaurantBookings: [],
   // Initialize userInfo from localStorage
   userInfo: null,
+  isFromMainSearch: false, // Add flag to track if search came from MainFilterSearchBox
 };
 
 const restaurantsSlice = createSlice({
@@ -288,6 +289,12 @@ const restaurantsSlice = createSlice({
       state.restaurants = [];
       // Don't clear searchParams as we want to keep the last search criteria
     },
+    setIsFromMainSearch: (state, action) => {
+      state.isFromMainSearch = action.payload;
+    },
+    resetIsFromMainSearch: (state) => {
+      state.isFromMainSearch = false;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -298,24 +305,36 @@ const restaurantsSlice = createSlice({
       })
       .addCase(fetchRestaurants.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Check if the response is empty or undefined
-        if (!action.payload || action.payload.length === 0) {
-          // If no data returned and we have existing data, don't clear it
-          // This indicates we've reached the end of available data
-          if (state.restaurants.length === 0) {
-            state.restaurants = [];
-          }
+        
+        // Check if this is from MainFilterSearchBox (fromMainSearch: true)
+        const isFromMainSearch = action.meta.arg.fromMainSearch;
+        
+        // If fromMainSearch is true, always clear the data
+        if (isFromMainSearch) {
+          state.restaurants = [];
+          state.isFromMainSearch = true; // Set the flag
+          return;
+        }
+        
+        // Get pagination parameters
+        const { start = 0 } = action.meta.arg;
+        const isFirstPage = start === 0;
+        
+        // Handle the response
+        if (!action.payload) {
+          // If payload is null/undefined, treat as empty array
+          action.payload = [];
+        }
+        
+        if (isFirstPage) {
+          // First page: replace existing data
+          state.restaurants = action.payload;
         } else {
-          // For infinite scroll: append new data to existing data
-          // Check if this is the first page (start = 0) or subsequent pages
-          const isFirstPage = action.meta.arg.start === 0;
-          
-          if (isFirstPage) {
-            // First page: replace existing data
-            state.restaurants = action.payload;
-          } else {
-            // Subsequent pages: append to existing data
-            state.restaurants = [...state.restaurants, ...action.payload];
+          // Subsequent pages: append to existing data
+          if (Array.isArray(action.payload)) {
+            const existingIds = new Set(state.restaurants.map(restaurant => restaurant.id));
+            const newRestaurants = action.payload.filter(restaurant => !existingIds.has(restaurant.id));
+            state.restaurants = [...state.restaurants, ...newRestaurants];
           }
         }
       })
@@ -408,6 +427,8 @@ export const {
   addRestaurantBooking,
   storeUserInfo,
   clearRestaurants,
+  setIsFromMainSearch,
+  resetIsFromMainSearch,
 } = restaurantsSlice.actions;
 
 // Selectors
