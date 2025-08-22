@@ -14,7 +14,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
 import AttractionsIcon from "@mui/icons-material/Attractions";
 import AttractionBookingModal from "./AttractionBookingModal";
-import { Typography, Box, Chip, Avatar, alpha, Stack, IconButton, Snackbar, Alert } from "@mui/material";
+import { Typography, Box, Chip, Avatar, alpha, Stack, IconButton, Snackbar, Alert, Modal, TextField, Skeleton } from "@mui/material";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import CardTravelIcon from "@mui/icons-material/CardTravel";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -27,6 +27,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import ElderlyIcon from "@mui/icons-material/Elderly";
 import { singleBooking } from "@/slice/common/commonSlice";
+import { fetchViewDetails } from "@/slice/common/ViewDetails";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -143,6 +144,9 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [bookingToCancel, setBookingToCancel] = useState(null);
   
   // Get tax percentage from auth slice instead of attractions
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
@@ -174,16 +178,143 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
   }, [totalBookingsCount, onCountChange]);
 
   if (status === "loading") return (
-    <Box sx={{ 
-      p: 4, 
-      display: 'flex', 
-      justifyContent: 'center',
-      alignItems: 'center',
-      bgcolor: alpha('#1976d2', 0.04), 
-      borderRadius: 2 
-    }}>
-      <Typography variant="body1" color="primary">Loading bookings...</Typography>
-    </Box>
+    <TableContainer
+      component={Paper}
+      elevation={1}
+      sx={{
+        borderRadius: 1,
+        overflow: "hidden",
+        mb: 3,
+        maxHeight: '70vh',
+        overflowX: 'auto',
+        overflowY: 'auto',
+        '&::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#c1c1c1',
+          borderRadius: '4px',
+          '&:hover': {
+            background: '#a8a8a8',
+          },
+        },
+      }}
+    >
+      <Table sx={{ minWidth: 1200 }}>
+        <TableHead>
+          <TableRow
+            sx={{
+              background: "linear-gradient(90deg, #00796B 0%, #009688 100%)",
+              "& .MuiTableCell-head": {
+                fontWeight: "bold",
+                py: 1.8,
+                whiteSpace: "nowrap",
+              },
+            }}
+          >
+            <TableCell sx={{ color: "#fff", width: '10%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <CalendarTodayIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Booking Date</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '15%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <AttractionsIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Attraction Name</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '8%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <AccessTimeIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Time</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '7%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <PersonIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Adults</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '7%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <ChildCareIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Children</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '7%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <ElderlyIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Seniors</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '9%' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <PriceCheckIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold" color="white">Price</Typography>
+              </Box>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '8%' }}>
+              <Typography variant="body2" fontWeight="bold" color="white">Mode</Typography>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '8%' }}>
+              <Typography variant="body2" fontWeight="bold" color="white">Status</Typography>
+            </TableCell>
+            <TableCell sx={{ color: "#fff", width: '15%' }}>
+              <Typography variant="body2" fontWeight="bold" color="white">Actions</Typography>
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {/* Generate 5 skeleton rows */}
+          {Array.from({ length: 5 }).map((_, index) => (
+            <TableRow key={index}>
+              <TableCell sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={80} height={22} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell sx={{ py: 0.75 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Skeleton variant="circular" width={24} height={24} />
+                  <Skeleton variant="rectangular" width={120} height={20} sx={{ borderRadius: 1 }} />
+                </Box>
+              </TableCell>
+              <TableCell sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell align="center" sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={40} height={20} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell align="center" sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={40} height={20} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell align="center" sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={40} height={20} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={90} height={24} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell sx={{ py: 0.75 }}>
+                <Skeleton variant="rectangular" width={80} height={24} sx={{ borderRadius: 1 }} />
+              </TableCell>
+              <TableCell sx={{ py: 0.75 }}>
+                <Box sx={{ display: "flex", gap: "4px" }}>
+                  <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                  <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                </Box>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
   
   if (status === "failed") return (
@@ -204,32 +335,56 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
     setIsModalOpen(true);
   };
 
-  const handleCancel = async (booking) => {
-    // Handle cancel action
-    try {
-      // For attraction booking, use the appropriate booking ID and tour ID
-      const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
-      // Get tour_id from the root bookings object since it's not in individual booking objects
-      const tourId = bookings?.tour?.tour_id;
-      
-      if (bookingId && tourId) {
-        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId}));
-        console.log("Cancel attraction booking:", { bookingId, tourId, booking });
+  const handleCancel = (booking) => {
+    // Show confirmation modal instead of directly cancelling
+    setBookingToCancel(booking);
+    setCancelReason("");
+    setShowCancelConfirmModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim()) {
+      // Don't proceed if reason is empty
+      return;
+    }
+
+    const booking = bookingToCancel;
+    // For attraction booking, use the appropriate booking ID and tour ID
+    const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
+    // Get tour_id from the root bookings object since it's not in individual booking objects
+    const tourId = bookings?.tour?.tour_id;
+    
+    if (bookingId && tourId) {
+      try {
+        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId, cancelReason: cancelReason}));
+        console.log("Cancel attraction booking:", { bookingId, tourId, booking, reason: cancelReason });
         
         // Check if cancellation was successful
-        if (result.meta.requestStatus === 'fulfilled') {
-          console.log("Attraction booking cancelled successfully");
-          // Show success toaster
-          setShowSuccessToast(true);
-        } else if (result.meta.requestStatus === 'rejected') {
+                 if (result.meta.requestStatus === 'fulfilled') {
+           console.log("Attraction booking cancelled successfully");
+           // Show success toaster
+           setShowSuccessToast(true);
+           // Refresh data to show updated state
+           dispatch(fetchViewDetails({ tour_id: tourId }));
+           // Close the confirmation modal
+           setShowCancelConfirmModal(false);
+           setCancelReason("");
+           setBookingToCancel(null);
+         } else if (result.meta.requestStatus === 'rejected') {
           console.error("Failed to cancel attraction booking:", result.error);
         }
-      } else {
-        console.error("Missing data for cancellation:", { bookingId, tourId, booking });
+      } catch (error) {
+        console.error("Error cancelling attraction booking:", error);
       }
-    } catch (error) {
-      console.error("Error cancelling attraction booking:", error);
+    } else {
+      console.error("Missing data for cancellation:", { bookingId, tourId, booking });
     }
+  };
+
+  const handleCancelModalClose = () => {
+    setShowCancelConfirmModal(false);
+    setCancelReason("");
+    setBookingToCancel(null);
   };
 
   const handleCloseModal = () => {
@@ -697,6 +852,104 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
         onClose={handleCloseModal}
         booking={selectedBooking}
       />
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        open={showCancelConfirmModal}
+        onClose={handleCancelModalClose}
+        aria-labelledby="cancel-confirmation-modal"
+        aria-describedby="cancel-confirmation-description"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            position: 'relative',
+            width: 400,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 4,
+            outline: 'none',
+          }}
+        >
+          {/* Header */}
+          <Box sx={{ mb: 3, textAlign: 'center' }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 600, color: '#d32f2f' }}>
+              Cancel Booking
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 1, color: 'text.secondary' }}>
+              Are you sure you want to cancel this booking?
+            </Typography>
+          </Box>
+
+          {/* Reason Input */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" component="label" sx={{ fontWeight: 500, mb: 1, display: 'block' }}>
+              Reason for Cancellation *
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              variant="outlined"
+              placeholder="Please provide a reason for cancellation..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              error={!cancelReason.trim()}
+              helperText={!cancelReason.trim() ? "Reason is required" : ""}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#d32f2f',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#d32f2f',
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancelModalClose}
+              sx={{
+                borderColor: '#757575',
+                color: '#757575',
+                '&:hover': {
+                  borderColor: '#424242',
+                  backgroundColor: 'rgba(117, 117, 117, 0.05)',
+                },
+              }}
+            >
+              No
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleConfirmCancel}
+              disabled={!cancelReason.trim()}
+              sx={{
+                backgroundColor: '#d32f2f',
+                '&:hover': {
+                  backgroundColor: '#c62828',
+                },
+                '&:disabled': {
+                  backgroundColor: '#e0e0e0',
+                  color: '#9e9e9e',
+                },
+              }}
+            >
+              Yes, Cancel
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
 
       {/* Success Toaster */}
       <Snackbar

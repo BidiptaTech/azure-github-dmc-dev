@@ -58,6 +58,7 @@ const Index2 = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { vehicles } = location.state;
+  console.log("Vehiclesexit:", vehicles);
   const id = useSelector((state) => state.hotels.id);
   // const dayprice = vehicles.prices.dmcDayPrice || vehicles.prices.travClicksDay;
   // const nightprice =
@@ -286,7 +287,7 @@ const Index2 = () => {
       Night_End_Time: vehicles.night_end_time,
       city: vehicles.city,
       country: vehicles.country,
-      seatingCapacity: seatingCapacity,
+      seatingCapacity: vehicles.seating_capacity,
       // hours: hour,
       // totalPrice: totalPrice,
     };

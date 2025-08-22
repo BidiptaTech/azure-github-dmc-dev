@@ -17,6 +17,7 @@ import {
   Tooltip,
   alpha,
   useTheme,
+  TableContainer,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -281,8 +282,28 @@ export default function PickupDropModal({
                     All Travel Bookings
                   </Typography>
                 </Box> */}
-                <Table size="small" sx={{ minWidth: 900 }}>
-                  <TableHead>
+                <TableContainer sx={{ 
+                  maxHeight: '70vh', 
+                  overflowX: 'auto', 
+                  overflowY: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                    height: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: '#f1f1f1',
+                    borderRadius: '4px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: '#c1c1c1',
+                    borderRadius: '4px',
+                  },
+                  '&::-webkit-scrollbar-thumb:hover': {
+                    background: '#a8a8a8',
+                  },
+                }}>
+                  <Table size="small" sx={{ minWidth: 900 }}>
+                    <TableHead>
                     <TableRow
                       sx={{
                         background:
@@ -979,7 +1000,8 @@ export default function PickupDropModal({
                       );
                     })}
                   </TableBody>
-                </Table>
+                    </Table>
+                  </TableContainer>
               </Paper>
             ) : (
               <Box

@@ -108,6 +108,21 @@ const PortLocation = ({
     },
     {}
   );
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        event.target.id !== "pick-up-input1" &&
+        !event.target.closest(".location-dropdown")
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className={`searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0 relative ${disabled ? "disabled-input" : ""}`}>
@@ -117,6 +132,8 @@ const PortLocation = ({
             <i className={`icon-location-2 text-20 ${disabled ? "text-gray-400" : "text-light-1"}`}></i>
             <div className="ml-5 flex-grow-1 w-full" style={{ minWidth: "160px" }}>
               <input
+              id="pick-up-input1"
+              autoComplete="off"
                 type="text"
                 placeholder={SelectedPort === "Entry Port" ? "Where is your pick up?" : "Where is your drop off"}
                 value={searchText}
@@ -139,7 +156,7 @@ const PortLocation = ({
                 disabled={disabled}
               />
               {showDropdown && !disabled && (
-                <div className="absolute bg-white border rounded shadow mt-2 max-h-60 overflow-auto z-50 w-full" style={{ minWidth: "250px" }}>
+                <div className="location-dropdown">
                   {Object.entries(filteredPorts).map(([type, ports]) => (
                     <div key={type}>
                       <div className="category-heading">
@@ -148,7 +165,7 @@ const PortLocation = ({
                       {ports.map((port) => (
                         <div
                           key={port.port_id}
-                          className="px-3 py-2 hover:bg-gray-200 cursor-pointer"
+                          className="location-item"
                           onClick={() => handleSelect(port)}
                         >
                           {port.port_name}
@@ -157,7 +174,7 @@ const PortLocation = ({
                     </div>
                   ))}
                   {Object.keys(filteredPorts).length === 0 && (
-                    <div className="px-3 py-2 text-gray-500">
+                    <div className="no-results">
                       No ports found
                     </div>
                   )}
@@ -185,6 +202,62 @@ const PortLocation = ({
         .disabled-input {
           opacity: 0.8;
           cursor: not-allowed;
+        }
+
+        /* Custom dropdown styles */
+        .location-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 100%;
+          max-height: 300px;
+          overflow-y: auto;
+          background-color: #fff;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          z-index: 10001;
+          display: block !important; /* Force display */
+        }
+
+        .location-item {
+          padding: 8px 12px;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+
+        .location-item:hover {
+          background-color: #f0f7ff;
+        }
+
+        .no-results {
+          padding: 8px 12px;
+          color: #888;
+          font-style: italic;
+        }
+
+        /* Custom scrollbar styles */
+        .location-dropdown::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .location-dropdown::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+
+        .location-dropdown::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 4px;
+        }
+
+        .location-dropdown::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+
+        .location-dropdown {
+          scrollbar-width: thin;
+          scrollbar-color: #c1c1c1 #f1f1f1;
         }
       `}</style>
     </div>
