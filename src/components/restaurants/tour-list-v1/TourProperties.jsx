@@ -4,6 +4,7 @@ import { Navigation, Pagination as SwiperPagination } from "swiper";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
+import { debounce } from "lodash";
 import {
   selectRestaurants,
   fetchRestaurants,
@@ -338,6 +339,7 @@ const TourProperties = () => {
   const filters = useSelector(selectFilters);
   const restaurants = useSelector(selectRestaurants);
   const modeMap = useSelector((state) => state.restaurants.modeMap);
+  const isFromMainSearch = useSelector((state) => state.restaurants.isFromMainSearch);
   const [sortOrder, setSortOrder] = useState("asc");
   const [sortedRestaurants, setSortedRestaurants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -371,79 +373,110 @@ const TourProperties = () => {
   
 
   // Initial load effect - only runs once on mount
-  useEffect(() => {
-    // Only fetch if we have search parameters
-    if (searchParamsFromRedux?.location?.address) {
-      dispatch(fetchRestaurants({
-        city: searchParamsFromRedux.location.address,
-        date: searchParamsFromRedux.date,
-        adults: searchParamsFromRedux.adults,
-        children: searchParamsFromRedux.children,
-        tour_id: searchParamsFromRedux.tour_id,
-        start: 0,
-        limit: 5,
-      })).then((response) => {
-        response.payload?.forEach((restaurant) => {
-          const hasValidDmcPrice = 
-            restaurant.dmc_breakfast_price > 0 || 
-            restaurant.dmc_lunch_price > 0 || 
-            restaurant.dmc_dinner_price > 0;
-          const hasValidTravClicksPrice = 
-            restaurant.travClicks_breakfast_price > 0 || 
-            restaurant.travClicks_lunch_price > 0 || 
-            restaurant.travClicks_dinner_price > 0;
+  // useEffect(() => {
+  //   // Only fetch if we have search parameters and not from main search
+  //   if (searchParamsFromRedux?.location?.address && !isFromMainSearch) {
+  //     const itemsPerPage = 5; // Define items per page constant
+      
+  //     // Show loading state
+  //     setIsLoading(true);
+      
+  //     dispatch(fetchRestaurants({
+  //       city: searchParamsFromRedux.location.address,
+  //       date: searchParamsFromRedux.date,
+  //       adults: searchParamsFromRedux.adults,
+  //       children: searchParamsFromRedux.children,
+  //       tour_id: searchParamsFromRedux.tour_id,
+  //       start: 0,
+  //       limit: itemsPerPage,
+  //     })).then((response) => {
+  //       // Check if we have more data to load
+  //       if (!response.payload || response.payload.length < itemsPerPage) {
+  //         setHasMore(false);
+  //       } else {
+  //         // If we got exactly itemsPerPage items, there might be more
+  //         setHasMore(response.payload.length === itemsPerPage);
+  //       }
+        
+  //       response.payload?.forEach((restaurant) => {
+  //         const hasValidDmcPrice = 
+  //           restaurant.dmc_breakfast_price > 0 || 
+  //           restaurant.dmc_lunch_price > 0 || 
+  //           restaurant.dmc_dinner_price > 0;
+  //         const hasValidTravClicksPrice = 
+  //           restaurant.travClicks_breakfast_price > 0 || 
+  //           restaurant.travClicks_lunch_price > 0 || 
+  //           restaurant.travClicks_dinner_price > 0;
 
-          // Set initial mode based on available prices
-          let initialMode;
-          if (hasValidDmcPrice) {
-            initialMode = "dmc";
-          } else if (hasValidTravClicksPrice) {
-            initialMode = "travclicks";
-          } else {
-            initialMode = "dmc"; // fallback
-          }
+  //         // Set initial mode based on available prices
+  //         let initialMode;
+  //         if (hasValidDmcPrice) {
+  //           initialMode = "dmc";
+  //         } else if (hasValidTravClicksPrice) {
+  //           initialMode = "travclicks";
+  //         } else {
+  //           initialMode = "dmc"; // fallback
+  //         }
 
-          // Always dispatch the updateModeMap action with the determined mode
-          dispatch(
-            updateModeMap({
-              restaurantId: restaurant.id,
-              mode: initialMode,
-              prices: {
-                breakfast: getPrice(restaurant, initialMode, "breakfast"),
-                lunch: getPrice(restaurant, initialMode, "lunch"),
-                dinner: getPrice(restaurant, initialMode, "dinner"),
-              },
-            })
-          );
-        });
-      });
-    }
-  }, [searchParamsFromRedux?.location?.address]);
+  //         // Always dispatch the updateModeMap action with the determined mode
+  //         dispatch(
+  //           updateModeMap({
+  //             restaurantId: restaurant.id,
+  //             mode: initialMode,
+  //             prices: {
+  //               breakfast: getPrice(restaurant, initialMode, "breakfast"),
+  //               lunch: getPrice(restaurant, initialMode, "lunch"),
+  //               dinner: getPrice(restaurant, initialMode, "dinner"),
+  //             },
+  //           })
+  //         );
+  //       });
+  //     }).catch((error) => {
+  //       // Handle error
+  //       console.error("Error loading restaurants:", error);
+  //       setHasMore(false);
+  //     });
+  //   }
+  // }, [searchParamsFromRedux?.location?.address, isFromMainSearch, dispatch]);
 
-  // Infinite scroll effect - load more restaurants when scrolling
+  // Infinite scroll effect - load more restaurants when scrolling with debounce
   useEffect(() => {
     const handleScroll = () => {
+      const scrollPosition = window.innerHeight + document.documentElement.scrollTop;
+      const scrollThreshold = document.documentElement.offsetHeight - 800; // Trigger earlier for better UX
+      
       if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 1000 &&
+        scrollPosition >= scrollThreshold &&
         hasMore &&
         !isLoadingMore &&
-        searchParamsFromRedux?.location?.address
+        searchParamsFromRedux?.location?.address && // Only enable infinite scroll if not from main search
+        restaurantStatus !== 'loading' // Don't trigger if already loading
       ) {
-        setIsLoadingMore(true);
+        // Log for debugging
+        const itemsPerPage = 5; // Same as defined in other effects
+        console.log(`Triggering restaurant infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
+        
+        //setIsLoadingMore(true);
         setCurrentPage(prev => prev + 1);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [hasMore, isLoadingMore, searchParamsFromRedux?.location?.address]);
+    // Debounce the scroll handler to prevent too many calls
+    const debouncedHandleScroll = debounce(handleScroll, 100);
+
+    window.addEventListener('scroll', debouncedHandleScroll);
+    return () => {
+      window.removeEventListener('scroll', debouncedHandleScroll);
+      debouncedHandleScroll.cancel(); // Clean up debounce
+    };
+  }, [hasMore, isLoadingMore, searchParamsFromRedux?.location?.address, isFromMainSearch, restaurantStatus, currentPage]);
 
   // Effect to load more restaurants when currentPage changes
   useEffect(() => {
-    if (currentPage > 1 && searchParamsFromRedux?.location?.address) {
-      const start = (currentPage - 1) * 5;
-      
+    if (currentPage > 1 && restaurants.length > 0) {
+      const itemsPerPage = 5; // Define items per page constant
+      const start = (currentPage - 1) * itemsPerPage;
+      setIsLoadingMore(true);
       dispatch(fetchRestaurants({
         city: searchParamsFromRedux.location.address,
         date: searchParamsFromRedux.date,
@@ -451,13 +484,16 @@ const TourProperties = () => {
         children: searchParamsFromRedux.children,
         tour_id: searchParamsFromRedux.tour_id,
         start: start,
-        limit: 5,
+        limit: itemsPerPage,
       })).then((response) => {
         setIsLoadingMore(false);
         
-        // If we get less than 5 items, we've reached the end
-        if (!response.payload || response.payload.length < 5) {
+        // If we get less than itemsPerPage items, we've reached the end
+        if (!response.payload || response.payload.length < itemsPerPage) {
           setHasMore(false);
+        } else {
+          // Check if we got exactly itemsPerPage items, which means there might be more
+          setHasMore(response.payload.length === itemsPerPage);
         }
         
         // Update mode map for new restaurants
@@ -492,20 +528,31 @@ const TourProperties = () => {
             })
           );
         });
+      }).catch((error) => {
+        // Handle error and reset loading state
+        console.error("Error loading more restaurants:", error);
+        setIsLoadingMore(false);
       });
     }
-  }, [currentPage, searchParamsFromRedux, dispatch]);
+  }, [currentPage, searchParamsFromRedux, dispatch, isFromMainSearch]);
 
-  // Reset pagination when restaurants array becomes empty (new search)
+  // Reset pagination when restaurants array becomes empty (new search) or when isFromMainSearch changes
   useEffect(() => {
     if (restaurants.length === 0) {
       setCurrentPage(1);
-      setHasMore(true);
+      setHasMore(true); // Only set hasMore to true if not from main search
     }
   }, [restaurants.length]);
 
   // Update the useEffect to handle search loading based on Redux state
   useEffect(() => {
+    // If from main search, don't show loading states
+    // if (isFromMainSearch) {
+    //   setIsLoading(false);
+    //   setIsSearching(false);
+    //   return;
+    // }
+
     if (restaurantStatus === 'loading') {
       // Show skeleton loader when restaurants are loading
       setIsLoading(true);
@@ -527,7 +574,7 @@ const TourProperties = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [restaurantStatus]);
+  }, [restaurantStatus, isFromMainSearch]);
 
   // Modify the useEffect for initial loading to only run once
   useEffect(() => {
@@ -785,9 +832,11 @@ const TourProperties = () => {
             />
           </div>
           <h5 className="MuiTypography-root MuiTypography-h5 css-hu3rhi-MuiTypography-root">
-            {searchParamsFromRedux?.location?.address 
-              ? `No restaurants found in ${searchParamsFromRedux.location.address}. Please try a different location.`
-              : "Please provide restaurants location and date of journey and search..."}
+            {isFromMainSearch
+              ? "Please select a hotel first to view available restaurants"
+              : searchParamsFromRedux?.location?.address 
+                ? `No restaurants found in ${searchParamsFromRedux.location.address}. Please try a different location.`
+                : "Please provide restaurants location and date of journey and search..."}
           </h5>
         </div>
       </div>

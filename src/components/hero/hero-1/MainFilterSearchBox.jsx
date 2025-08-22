@@ -30,11 +30,12 @@ import {
 import { setBookingType } from "../../../slice/common/commonSlice";
 import moment from "moment";
 import { clearUserInfo } from "../../../slice/common/customerInfo"; // Add this import
-import { clearAttractions } from "../../../slice/attractions/attractionSlice";
+import { clearAttractions, setIsFromMainSearch } from "../../../slice/attractions/attractionSlice";
 import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
 import {
   fetchRestaurants,
   clearRestaurants,
+  setIsFromMainSearch as setRestaurantFromMainSearch,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
@@ -212,12 +213,14 @@ const MainFilterSearchBox = () => {
 
     // Clear any existing attractions data
     dispatch(clearAttractions());
+    dispatch(setIsFromMainSearch(true));
     dispatch(resetguide());
     dispatch(resetVehicles());
     dispatch(resetVehicles1());
 
     // Clear any existing restaurants data
     dispatch(clearRestaurants());
+    dispatch(setRestaurantFromMainSearch(true));
 
     // Reset stepper button state for new search
     dispatch(resetAllServiceResponses());
@@ -242,16 +245,16 @@ const MainFilterSearchBox = () => {
     );
 
     // Add this line to ensure attractions aren't loaded
-    dispatch(
-      fetchAttractions({
-        city: selectedLocation,
-        adults: guestCounts.Adults,
-        children: guestCounts.Children,
-        fromMainSearch: true,
-        start: 0,
-        limit: 5,
-      })
-    );
+    // dispatch(
+    //   fetchAttractions({
+    //     city: selectedLocation,
+    //     adults: guestCounts.Adults,
+    //     children: guestCounts.Children,
+    //     fromMainSearch: true,
+    //     start: 0,
+    //     limit: 5,
+    //   })
+    // );
 
     // Add this line to ensure restaurants aren't loaded
     dispatch(

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Swiper } from "swiper/react";
 import { Navigation, Pagination as SwiperPagination } from "swiper";
 import moment from "moment";
+import { debounce } from "lodash";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
@@ -470,6 +471,9 @@ const TourProperties = () => {
 
   // Add status selector to detect when attraction data is loading
   const attractionStatus = useSelector((state) => state.attractions.status);
+  
+  // Check if search came from MainFilterSearchBox
+  const isFromMainSearch = useSelector((state) => state.attractions.isFromMainSearch);
 
   const [sortedAttractions, setSortedAttractions] = useState([]);
   const [selectedModes, setSelectedModes] = useState({});
@@ -492,27 +496,19 @@ const TourProperties = () => {
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
-  // Initial load effect
-  useEffect(() => {
-    if (currentPage === 1 && searchParamsFromRedux?.location?.address) {
-      dispatch(fetchAttractions({
-        city: searchParamsFromRedux?.location?.address,
-        date: searchParamsFromRedux?.date,
-        adults: searchParamsFromRedux?.adults,
-        children: searchParamsFromRedux?.children,
-        tour_id: searchParamsFromRedux?.tour_id,
-        selectedDate: searchParamsFromRedux?.selectedDate ? moment(searchParamsFromRedux.selectedDate) : null,
-        start: 0,
-        limit: itemsPerPage,
-      }));
-    }
-  }, [dispatch, itemsPerPage, searchParamsFromRedux]);
+  
 
   // Load more effect for infinite scroll
   useEffect(() => {
-    if (currentPage > 1 && searchParamsFromRedux?.location?.address) {
+    // Don't load attractions if search came from MainFilterSearchBox
+    // if (isFromMainSearch) {
+    //   return;
+    // }
+    
+    if (currentPage > 1 && attractions.length > 0) {
       setIsLoadingMore(true);
       const start = (currentPage - 1) * itemsPerPage;
+      
       dispatch(fetchAttractions({
         city: searchParamsFromRedux?.location?.address,
         date: searchParamsFromRedux?.date,
@@ -522,7 +518,19 @@ const TourProperties = () => {
         selectedDate: searchParamsFromRedux?.selectedDate ? moment(searchParamsFromRedux.selectedDate) : null,
         start: start,
         limit: itemsPerPage,
-      }));
+      })).then((response) => {
+        // Check if we have more data to load
+        if (!response.payload || response.payload.length < itemsPerPage) {
+          setHasMore(false);
+        } else {
+          // If we got exactly itemsPerPage items, there might be more
+          setHasMore(response.payload.length === itemsPerPage);
+        }
+      }).catch((error) => {
+        // Handle error and reset loading state
+        console.error("Error loading more attractions:", error);
+        setIsLoadingMore(false);
+      });
     }
   }, [currentPage, itemsPerPage, dispatch, searchParamsFromRedux]);
 
@@ -557,11 +565,19 @@ const TourProperties = () => {
         setIsLoadingMore(false);
         
         // Check if we've reached the end of data
-        if (attractionStatus === "succeeded" && attractions.length > 0) {
-          const lastResponseLength = attractions.length % itemsPerPage;
-          if (lastResponseLength < itemsPerPage && currentPage > 1) {
-            setHasMore(false);
+        if (attractionStatus === "succeeded") {
+          // For first page, check if there are any results
+          if (currentPage === 1) {
+            setHasMore(attractions.length >= itemsPerPage);
+          } 
+          // For subsequent pages, check if we got a full page of results
+          else {
+            const newItemsCount = attractions.length - ((currentPage - 1) * itemsPerPage);
+            setHasMore(newItemsCount >= itemsPerPage);
           }
+        } else {
+          // If the request failed, stop loading more
+          setHasMore(false);
         }
       }, 1500); // 1.5 seconds delay
 
@@ -794,24 +810,36 @@ const TourProperties = () => {
     }
   }, [attractions.length]);
 
-  // Scroll detection for infinite scroll
+  // Scroll detection for infinite scroll with debounce
   useEffect(() => {
     const handleScroll = () => {
+      const scrollPosition = window.innerHeight + document.documentElement.scrollTop;
+      const scrollThreshold = document.documentElement.offsetHeight - 800; // Trigger earlier for better UX
+      
+      // Check if we should load more data
       if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 1000 && // Load more when 1000px from bottom
+        scrollPosition >= scrollThreshold &&
         !isLoadingMore &&
         hasMore &&
         attractionStatus !== "loading" &&
-        searchParamsFromRedux?.location?.address // Only load more if we have search parameters
+        // !isFromMainSearch && // Don't load more if from main search
+        searchParamsFromRedux?.location?.address
       ) {
+        // Log for debugging
+        console.log(`Triggering infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
         setCurrentPage(prev => prev + 1);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isLoadingMore, hasMore, attractionStatus, searchParamsFromRedux]);
+    // Debounce the scroll handler to prevent too many calls
+    const debouncedHandleScroll = debounce(handleScroll, 100);
+
+    window.addEventListener('scroll', debouncedHandleScroll);
+    return () => {
+      window.removeEventListener('scroll', debouncedHandleScroll);
+      debouncedHandleScroll.cancel(); // Clean up debounce
+    };
+  }, [isLoadingMore, hasMore, attractionStatus, searchParamsFromRedux, isFromMainSearch, currentPage, itemsPerPage]);
 
   useEffect(() => {
     // Check if any attraction has been selected
