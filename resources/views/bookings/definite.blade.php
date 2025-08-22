@@ -323,6 +323,9 @@
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ $tour->adult ?? 0 }}"
                             data-child="{{ $tour->child ?? 0 }}"
+                            data-destination="{{ $tour->destination ?? '' }}"
+                            data-city="{{ $tour->city ?? '' }}"
+                            data-agent-name="{{ $tour->agent_name ?? '' }}"
                             data-execution-status="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast() ? 'Ready' : ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 ? 'Soon' : 'Definite') }}"
                         >
                             {{-- <td>
@@ -3620,6 +3623,155 @@
 @endforeach
 
 <script>
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const destinationFilter = document.getElementById('destinationFilter');
+    const agentFilter = document.getElementById('agentFilter');
+    const dateRange = document.getElementById('dateRange');
+    const dateRangeStart = document.getElementById('dateRangeStart');
+    const dateRangeEnd = document.getElementById('dateRangeEnd');
+    
+    // Add event listeners
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    if (destinationFilter) statusFilter.addEventListener('change', filterTable);
+    if (agentFilter) agentFilter.addEventListener('change', filterTable);
+    
+    // Apply initial filter on page load to show today's data
+    filterTable();
+});
+
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const dateStart = document.getElementById('dateRangeStart')?.value || '';
+    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    
+    const rows = document.querySelectorAll('#toursTable tbody tr');
+    
+    rows.forEach(row => {
+        if (row.cells.length === 1) return; // Skip empty state row
+        
+        const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
+        const destination = row.getAttribute('data-destination') || '';
+        const city = row.getAttribute('data-city') || '';
+        const agentName = row.getAttribute('data-agent-name') || '';
+        const executionStatus = row.getAttribute('data-execution-status') || '';
+        const createdAt = row.getAttribute('data-created-at');
+        
+        let show = true;
+        
+        if (searchTerm && !tourDetails.includes(searchTerm)) {
+            show = false;
+        }
+        
+        if (statusFilter && !executionStatus.includes(statusFilter.toLowerCase())) {
+            show = false;
+        }
+        
+        if (destinationFilter && destination !== destinationFilter && city !== destinationFilter) {
+            show = false;
+        }
+        
+        if (agentFilter && agentName !== agentFilter) {
+            show = false;
+        }
+        
+        // Date range filtering
+        if (dateStart && dateEnd && createdAt) {
+            const s = new Date(dateStart + 'T00:00:00');
+            const e = new Date(dateEnd + 'T23:59:59');
+            const createdDate = new Date(createdAt + 'T00:00:00');
+            
+            if (createdDate < s || createdDate > e) {
+                show = false;
+            }
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+
+    // Update header/cards counts based on visible rows
+    const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    const rangeCount = visibleRows.length;
+    
+    // Count adults and children from visible rows
+    let totalAdults = 0;
+    let totalChildren = 0;
+    
+    visibleRows.forEach(row => {
+        const adultCount = parseInt(row.getAttribute('data-adult') || 0);
+        const childCount = parseInt(row.getAttribute('data-child') || 0);
+        totalAdults += adultCount;
+        totalChildren += childCount;
+    });
+
+    // Update counts and labels
+    const countEl = document.getElementById('rangeCount');
+    const labelEl = document.getElementById('rangeLabel');
+    const statDefinite = document.getElementById('statDefiniteCount');
+    const statDefiniteLabel = document.getElementById('statDefiniteLabel');
+    const statToday = document.getElementById('statTodayCount');
+    const statTodayLabel = document.getElementById('statTodayLabel');
+    const statAdults = document.getElementById('statAdultsCount');
+    const statAdultsLabel = document.getElementById('statAdultsLabel');
+    const statChildren = document.getElementById('statChildrenCount');
+    const statChildrenLabel = document.getElementById('statChildrenLabel');
+
+    if (countEl) countEl.textContent = rangeCount;
+    if (statDefinite) statDefinite.textContent = rangeCount;
+    if (statAdults) statAdults.textContent = totalAdults;
+    if (statChildren) statChildren.textContent = totalChildren;
+
+    if (dateStart && dateEnd) {
+        const start = new Date(dateStart);
+        const end = new Date(dateEnd);
+        
+        // Format the date range label
+        let label;
+        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+            // Same month
+            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                // Full month
+                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+            } else {
+                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+            }
+        } else {
+            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        }
+        
+        if (labelEl) labelEl.textContent = label;
+        if (statDefiniteLabel) statDefiniteLabel.textContent = `Definite - ${label}`;
+        if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
+        if (statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
+    } else {
+        const month = new Date().toLocaleString('default', { month: 'long' });
+        if (labelEl) labelEl.textContent = month;
+        if (statDefiniteLabel) statDefiniteLabel.textContent = `${month} Definite`;
+        if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
+        if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
+    }
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
+    const dr = document.getElementById('dateRange');
+    const ds = document.getElementById('dateRangeStart');
+    const de = document.getElementById('dateRangeEnd');
+    if (dr) dr.value = '';
+    if (ds) ds.value = '';
+    if (de) de.value = '';
+    filterTable();
+}
+
 // Service Modal Functions
 function openServiceModal(serviceType, tourId, event) {
     console.log('Opening service modal:', serviceType, 'for tour:', tourId);
@@ -3701,3 +3853,168 @@ function closeServiceModal(serviceType, tourId) {
 </script>
 
 @endsection
+
+@section('scripts')
+<!-- Date Range Picker JS - Load after jQuery -->
+<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<script>
+    // Wait for all scripts to load before initializing
+    $(document).ready(function() {
+        // Small delay to ensure all scripts are loaded
+        setTimeout(function() {
+            initializeDateRangePicker();
+            initializeDataTable();
+        }, 200);
+    });
+    
+    function initializeDateRangePicker() {
+        // Initialize date range picker first
+        const dateRange = document.getElementById('dateRange');
+        const dateRangeStart = document.getElementById('dateRangeStart');
+        const dateRangeEnd = document.getElementById('dateRangeEnd');
+        
+        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
+            // Set default to current month
+            const startOfMonth = moment().startOf('month');
+            const endOfMonth = moment().endOf('month');
+            
+            $(dateRange).daterangepicker({
+                opens: 'left',
+                autoUpdateInput: true,
+                maxDate: moment(), // No future dates
+                startDate: startOfMonth,
+                endDate: endOfMonth,
+                locale: {
+                    cancelLabel: 'Clear',
+                    format: 'MMM DD, YYYY'
+                }
+            });
+
+            // Set initial values for current month
+            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
+            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
+            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+
+            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
+                const start = picker.startDate.clone().startOf('day');
+                const end = picker.endDate.clone().endOf('day');
+                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
+                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
+                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
+                filterTable();
+            });
+
+            $(dateRange).on('cancel.daterangepicker', function() {
+                $(this).val('');
+                if (dateRangeStart) dateRangeStart.value = '';
+                if (dateRangeEnd) dateRangeEnd.value = '';
+                filterTable();
+            });
+            
+            // Apply initial filter with current month data
+            setTimeout(function() {
+                filterTable();
+            }, 100);
+        } else {
+            console.error('Date range picker could not be initialized. Missing dependencies:', {
+                dateRange: !!dateRange,
+                moment: typeof moment !== 'undefined',
+                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
+                jquery: typeof $ !== 'undefined'
+            });
+            
+            // Fallback: still set initial date values for current month
+            if (dateRange && typeof moment !== 'undefined') {
+                const startOfMonth = moment().startOf('month');
+                const endOfMonth = moment().endOf('month');
+                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
+                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+                setTimeout(function() {
+                    filterTable();
+                }, 100);
+            }
+        }
+    }
+    
+    function initializeDataTable() {
+        // Check if DataTable is already initialized
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+        
+        // Initialize DataTable with export buttons
+        var table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print' // Keep buttons for functionality but don't show them
+            ],
+            searching: false, // Disable built-in searching since we use custom filters
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            pageLength: 25,
+            // order: [[8, 'desc']], // Sort by Created Date column (index 8) in descending order
+            columnDefs: [
+                {
+                    targets: [9], // Actions column
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [4], // Services column
+                    orderable: false
+                },
+                {
+                    targets: [6, 7], // Payment Status and Execution Status columns
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Custom export button functionality (for the dropdown)
+        $('#exportCopy').on('click', function() {
+            table.button('.buttons-copy').trigger();
+        });
+
+        $('#exportCSV').on('click', function() {
+            table.button('.buttons-csv').trigger();
+        });
+
+        $('#exportExcel').on('click', function() {
+            table.button('.buttons-excel').trigger();
+        });
+
+        $('#exportPDF').on('click', function() {
+            table.button('.buttons-pdf').trigger();
+        });
+
+        $('#exportPrint').on('click', function() {
+            table.button('.buttons-print').trigger();
+        });
+    };
+</script>
+@endsection
+
+@extends('layouts.datatablejs')

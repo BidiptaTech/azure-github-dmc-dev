@@ -1289,7 +1289,7 @@
                 @endif --}}
                 <!-- End Predefined Packages Booking List -->
             @endif
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,37,38,128, 129, 130, 134, 135, 136, 138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
@@ -1674,16 +1674,16 @@
                         <!-- List Agencies -->
                         <li class="menu-item @if(Request::is('agencies')) active @endif">
                             <a href="{{ route('agencies.index') }}" class="menu-link">
-                                <div data-i18n="List Agencies">List Agencies</div>
+                                <div data-i18n="Agencies">Agencies</div>
                             </a>
                         </li>
 
                         <!-- Create Agency -->
-                        <li class="menu-item @if(Request::is('agencies/create')) active @endif">
+                        <!-- <li class="menu-item @if(Request::is('agencies/create')) active @endif">
                             <a href="{{ route('agencies.create') }}" class="menu-link">
                                 <div data-i18n="Create Agency">Create Agency</div>
                             </a>
-                        </li>
+                        </li> -->
                     </ul>
                 </li>
                 @endif
