@@ -7,14 +7,15 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
 import HotelIcon from "@mui/icons-material/Hotel";
 import HotelBookingModal from "./HotelBookingModal";
-import { Typography, Box, Chip, Avatar, alpha } from "@mui/material";
+import { Typography, Box, Chip, Avatar, alpha, Snackbar, Alert } from "@mui/material";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
+import { singleBooking } from "@/slice/common/commonSlice";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -75,9 +76,11 @@ const getStatusStyle = (statusText) => {
 };
 
 const HotelBookingsTable = React.memo(({ onCountChange }) => {
+  const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   // Get DMC logo and company name from DMC slice instead of auth slice
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
@@ -97,9 +100,33 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
     setIsModalOpen(true);
   }, []);
 
-  const handleCancel = React.useCallback((booking) => {
-    console.log("Cancel booking:", booking);
-  }, []);
+  const handleCancel = React.useCallback(async (booking) => {
+    // Handle cancel action
+    try {
+      // For hotel booking, use the appropriate booking ID and tour ID
+      const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
+      // Get tour_id from the root bookings object since it's not in individual booking objects
+      const tourId = bookings?.tour?.tour_id;
+      
+      if (bookingId && tourId) {
+        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId}));
+        console.log("Cancel hotel booking:", { bookingId, tourId, booking });
+        
+        // Check if cancellation was successful
+        if (result.meta.requestStatus === 'fulfilled') {
+          console.log("Hotel booking cancelled successfully");
+          // Show success toaster
+          setShowSuccessToast(true);
+        } else if (result.meta.requestStatus === 'rejected') {
+          console.error("Failed to cancel hotel booking:", result.error);
+        }
+      } else {
+        console.error("Missing data for cancellation:", { bookingId, tourId, booking });
+      }
+    } catch (error) {
+      console.error("Error cancelling hotel booking:", error);
+    }
+  }, [dispatch, bookings?.tour?.tour_id]);
 
   const handleCloseModal = React.useCallback(() => {
     setIsModalOpen(false);
@@ -153,9 +180,27 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
           borderRadius: 2,
           overflow: 'hidden',
           mb: 3,
+          maxHeight: '70vh',
+          overflowX: 'auto',
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#c1c1c1',
+            borderRadius: '4px',
+            '&:hover': {
+              background: '#a8a8a8',
+            },
+          },
         }}
       >
-        <Table>
+        <Table sx={{ minWidth: 1200 }}>
           <TableHead>
             <TableRow sx={{ 
               background: "linear-gradient(90deg, #1E88E5 0%, #42A5F5 100%)",
@@ -456,6 +501,22 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
         onClose={handleCloseModal}
         booking={selectedBooking}
       />
+
+      {/* Success Toaster */}
+      <Snackbar
+        open={showSuccessToast}
+        autoHideDuration={3000}
+        onClose={() => setShowSuccessToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowSuccessToast(false)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Successfully Cancelled
+        </Alert>
+      </Snackbar>
     </>
   );
 });

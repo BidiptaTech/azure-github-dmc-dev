@@ -7,12 +7,12 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
 import LocalTransferBookingModal from "./LocalTransferBookingModal";
-import { Typography, Box, Chip, Avatar, alpha } from "@mui/material";
+import { Typography, Box, Chip, Avatar, alpha, Snackbar, Alert } from "@mui/material";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -22,6 +22,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DirectionsIcon from "@mui/icons-material/Directions";
 import AirportShuttleIcon from "@mui/icons-material/AirportShuttle";
 import PaymentsIcon from "@mui/icons-material/Payments";
+import { singleBooking } from "@/slice/common/commonSlice";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -81,11 +82,13 @@ const getStatusStyle = (statusText) => {
   }
 };
 
-const LocalTransfer = React.memo(({ onCountChange }) => {
+const LocalTransfer = React.memo(({ onCountChange}) => {
+  const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   console.log("bookings", bookings, "status", status, "error", error);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   const { DmcLogo, DmcName } = useSelector((state) => state.auth);
   const travelPointData = bookings?.travel_point || [];
   const travelHourlyData = bookings?.travel_hourly || [];
@@ -150,9 +153,32 @@ const LocalTransfer = React.memo(({ onCountChange }) => {
     setIsModalOpen(true);
   };
 
-  const handleCancel = (booking) => {
+  const handleCancel = async (booking) => {
     // Handle cancel action
-    console.log("Cancel booking:", booking);
+    try {
+      // For local transfer, use the appropriate booking ID and tour ID
+      const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
+      // Get tour_id from the root bookings object since it's not in individual booking objects
+      const tourId = bookings?.tour?.tour_id;
+      
+      if (bookingId && tourId) {
+        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId}));
+        console.log("Cancel local transfer booking:", { bookingId, tourId, booking });
+        
+        // Check if cancellation was successful
+        if (result.meta.requestStatus === 'fulfilled') {
+          console.log("Local transfer booking cancelled successfully");
+          // Show success toaster
+          setShowSuccessToast(true);
+        } else if (result.meta.requestStatus === 'rejected') {
+          console.error("Failed to cancel local transfer booking:", result.error);
+        }
+      } else {
+        console.error("Missing data for cancellation:", { bookingId, tourId, booking });
+      }
+    } catch (error) {
+      console.error("Error cancelling local transfer booking:", error);
+    }
   };
 
   const handleCloseModal = () => {
@@ -169,9 +195,27 @@ const LocalTransfer = React.memo(({ onCountChange }) => {
           borderRadius: 2,
           overflow: "hidden",
           mb: 3,
+          maxHeight: '70vh',
+          overflowX: 'auto',
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#c1c1c1',
+            borderRadius: '4px',
+            '&:hover': {
+              background: '#a8a8a8',
+            },
+          },
         }}
       >
-        <Table>
+        <Table sx={{ minWidth: 1200 }}>
           <TableHead>
             <TableRow
               sx={{
@@ -589,6 +633,22 @@ const LocalTransfer = React.memo(({ onCountChange }) => {
         onClose={handleCloseModal}
         booking={selectedBooking}
       />
+
+      {/* Success Toaster */}
+      <Snackbar
+        open={showSuccessToast}
+        autoHideDuration={3000}
+        onClose={() => setShowSuccessToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowSuccessToast(false)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Successfully Cancelled
+        </Alert>
+      </Snackbar>
     </>
   );
 });

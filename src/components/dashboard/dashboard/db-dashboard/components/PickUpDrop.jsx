@@ -7,12 +7,12 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CancelIcon from "@mui/icons-material/Cancel";
 import PickUpDropBookingModal from "./PickUpDropBookingModal";
-import { Typography, Box, Chip, Avatar, alpha } from "@mui/material";
+import { Typography, Box, Chip, Avatar, alpha, Snackbar, Alert } from "@mui/material";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
 import FlightLandIcon from "@mui/icons-material/FlightLand";
@@ -24,6 +24,7 @@ import DirectionsIcon from "@mui/icons-material/Directions";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import AirportShuttleIcon from "@mui/icons-material/AirportShuttle";
 import PaymentsIcon from "@mui/icons-material/Payments";
+import { singleBooking } from "@/slice/common/commonSlice";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -100,9 +101,12 @@ const getTypeStyle = (type) => {
   }
 };
 
-const PickUpDrop = React.memo(({ onCountChange }) => {
+const PickUpDrop = React.memo(({ onCountChange}) => {
+  const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
+  console.log("bookings", bookings);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
   const entryPortData = bookings?.entry_port || [];
@@ -168,9 +172,32 @@ const PickUpDrop = React.memo(({ onCountChange }) => {
     setIsModalOpen(true);
   };
 
-  const handleCancel = (booking) => {
+  const handleCancel = async (booking) => {
     // Handle cancel action
-    console.log("Cancel booking:", booking);
+    // For entry port: use entry_booking_id, for exit port: use exit_booking_id
+    const bookingId = booking.entry_booking_id || booking.exit_booking_id || booking.booking_id;
+    // Get tour_id from the root bookings object since it's not in individual booking objects
+    const tourId = bookings?.tour?.tour_id;
+    
+    if (bookingId && tourId) {
+      try {
+        const result = await dispatch(singleBooking({bookingId: bookingId, tourId: tourId}));
+        console.log("Cancel booking:", { bookingId, tourId, booking });
+        
+        // Check if cancellation was successful
+        if (result.meta.requestStatus === 'fulfilled') {
+          console.log("Booking cancelled successfully");
+          // Close the modal after successful cancellation
+          setShowSuccessToast(true);
+        } else if (result.meta.requestStatus === 'rejected') {
+          console.error("Failed to cancel booking:", result.error);
+        }
+      } catch (error) {
+        console.error("Error cancelling booking:", error);
+      }
+    } else {
+      console.error("Missing data for cancellation:", { bookingId, tourId, booking });
+    }
   };
 
   const handleCloseModal = () => {
@@ -187,9 +214,27 @@ const PickUpDrop = React.memo(({ onCountChange }) => {
           borderRadius: 1,
           overflow: "hidden",
           mb: 3,
+          maxHeight: '70vh',
+          overflowX: 'auto',
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#c1c1c1',
+            borderRadius: '4px',
+            '&:hover': {
+              background: '#a8a8a8',
+            },
+          },
         }}
       >
-        <Table>
+        <Table sx={{ minWidth: 1200 }}>
           <TableHead>
             <TableRow
               sx={{
@@ -633,6 +678,21 @@ const PickUpDrop = React.memo(({ onCountChange }) => {
         onClose={handleCloseModal}
         booking={selectedBooking}
       />
+       {/* Success Toaster */}
+       <Snackbar
+        open={showSuccessToast}
+        autoHideDuration={3000}
+        onClose={() => setShowSuccessToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowSuccessToast(false)}
+          severity="success"
+          sx={{ width: '100%' }}
+        >
+          Successfully Cancelled
+        </Alert>
+      </Snackbar>
     </>
   );
 });
