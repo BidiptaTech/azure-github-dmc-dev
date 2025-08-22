@@ -428,10 +428,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($restaurantData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($restaurantOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Restaurant {{ $globalRestaurantCounter }}
+                                                                    @if($restaurantOrder->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -478,10 +481,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($hotelData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($hotelOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Hotel {{ $globalHotelCounter }}
+                                                                    @if($hotelOrder->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -500,10 +506,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Attraction {{ $globalAttractionCounter }}
+                                                                    @if($order->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -6238,6 +6247,29 @@ window.calculateAttractionDisplayDueDate = function(tourId, attractionOrderIndex
     }
 }
 
+// Restaurant date calculation function (similar to attraction)
+window.calculateRestaurantDisplayDueDate = function(tourId, restaurantOrderIndex, bookingIndex) {
+    console.log('🍽️ CALCULATE DATE: Calculating restaurant display due date');
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}`).value;
+    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${restaurantOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format as dd-mm-yyyy
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        
+        displayDueDateField.value = `${day}-${month}-${year}`;
+    } else {
+        displayDueDateField.value = '';
+    }
+}
+
 // Override any previous definitions - this is the correct attraction data loading function
 window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, bookingIndex) {
     try {
@@ -7731,37 +7763,123 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                             </div>
                             <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
-                        <div class="d-flex gap-2">
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
-                            <button type="button" 
-                                    class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                    onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 25px;">
-                                <i class="ri-edit-line me-1"></i>Edit
-                            </button>
-                            <button type="button" 
-                                    class="btn btn-outline-success btn-sm px-3 py-2" 
-                                    onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 25px;">
-                                <i class="ri-check-line me-1"></i>Approve
-                            </button>
-                            @endif
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
-                            <button type="button" 
-                                    class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
-                                    style="border-radius: 25px;">
-                                <i class="ri-close-line me-1"></i>Reject
-                            </button>
-                            @endif
-                        </div>
-                        @endif
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex)}
                     </div>
                 </div>
             </div>
         </div>
     `;
+}
+
+// Generate restaurant action buttons based on approval status
+function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex) {
+    const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
+    
+    // Get user role from meta tag or global variable (assuming it's available)
+    const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
+    
+    console.log('🍽️ Generating restaurant action buttons:', {
+        isApproved,
+        userRole,
+        canEdit: [11, 34].includes(userRole),
+        canApprove: [11, 34].includes(userRole),
+        canReject: [11, 34, 33].includes(userRole)
+    });
+    
+    if (isApproved) {
+        return `
+            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                <i class="ri-check-circle-fill me-1"></i>
+                <small><strong>Approved Booking</strong></small>
+                ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+            </div>
+        `;
+    }
+    
+    if (![11, 34, 33].includes(userRole)) {
+        return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
+    }
+    
+    return `
+        <div class="d-flex gap-2">
+            ${[11, 34].includes(userRole) ? `
+                <button type="button" 
+                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                        onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        style="border-radius: 25px;">
+                    <i class="ri-edit-line me-1"></i>Edit
+                </button>
+                <button type="button" 
+                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        style="border-radius: 25px;">
+                    <i class="ri-check-line me-1"></i>Approve
+                </button>
+            ` : ''}
+            ${[11, 34, 33].includes(userRole) ? `
+                <button type="button" 
+                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        style="border-radius: 25px;">
+                    <i class="ri-close-line me-1"></i>Reject
+                </button>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Load restaurant data for approve modal (similar to attraction)
+window.loadRestaurantDataForApprove = function(tourId, restaurantOrderIndex, bookingIndex) {
+    try {
+        console.log('🍽️ APPROVE MODAL: Loading restaurant data for approve modal:', { tourId, restaurantOrderIndex, bookingIndex });
+        
+        // Check if modal elements exist
+        const restaurantImageElement = document.getElementById(`approve_restaurant_image_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+        const restaurantNameElement = document.getElementById(`approve_restaurant_name_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+        console.log('🍽️ APPROVE MODAL: Elements found - Image:', !!restaurantImageElement, 'Name:', !!restaurantNameElement);
+        
+        // Get restaurant data from the server
+        getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex)
+        .then(restaurantData => {
+            console.log('Restaurant data loaded for approve modal:', restaurantData);
+            
+            // Update restaurant name
+            const restaurantNameElement = document.getElementById(`approve_restaurant_name_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            if (restaurantNameElement) {
+                const restaurantName = restaurantData.restaurantDetails?.restaurant_name || 'Restaurant Booking';
+                restaurantNameElement.textContent = restaurantName;
+                console.log('✅ Updated restaurant name:', restaurantName);
+            }
+            
+            // Update restaurant image (if available)
+            const restaurantImageElement = document.getElementById(`approve_restaurant_image_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            if (restaurantImageElement) {
+                // For now, keep the default icon, but this could be enhanced to show actual restaurant images
+                console.log('✅ Restaurant image element found');
+            }
+        })
+        .catch(error => {
+            console.error('Failed to load restaurant data for approve modal:', error);
+            
+            const restaurantNameElement = document.getElementById(`approve_restaurant_name_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            if (restaurantNameElement) {
+                restaurantNameElement.textContent = 'Restaurant Booking (Error loading details)';
+            }
+            
+            const restaurantImageElement = document.getElementById(`approve_restaurant_image_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+            if (restaurantImageElement) {
+                restaurantImageElement.innerHTML = `
+                    <div class="bg-danger bg-opacity-10 rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-alert-line text-danger fs-2"></i>
+                    </div>
+                `;
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in loadRestaurantDataForApprove:', error);
+    }
 }
 
 // Arrival Edit Modal Functions
@@ -16764,6 +16882,18 @@ function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bo
             modalElement.remove();
         });
         
+        // Load data for approve modal
+        if (action === 'approve') {
+            setTimeout(() => {
+                console.log('🍽️ Calling loadRestaurantDataForApprove for restaurant approve modal');
+                if (window.loadRestaurantDataForApprove) {
+                    window.loadRestaurantDataForApprove(tourId, restaurantOrderIndex, bookingIndex);
+                } else {
+                    loadRestaurantDataForApprove(tourId, restaurantOrderIndex, bookingIndex);
+                }
+            }, 500);
+        }
+        
     } catch (error) {
         console.error('Error creating individual restaurant modal:', error);
         alert('Error creating modal. Please try again.');
@@ -16910,17 +17040,94 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
             <input type="hidden" name="restaurant_order_index" value="${restaurantOrderIndex}">
             <input type="hidden" name="booking_index" value="${bookingIndex}">
             
-            <div class="text-center mb-4">
-                <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                    <i class="ri-check-line text-success" style="font-size: 2.5rem;"></i>
+            <!-- Restaurant Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-restaurant-2-line me-2 text-primary"></i>Restaurant Information
+                    </h6>
                 </div>
-                <h4 class="text-success mb-2">Approve Restaurant Booking</h4>
-                <p class="text-muted">Are you sure you want to approve this restaurant booking?</p>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_restaurant_image_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-restaurant-2-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="approve_restaurant_name_${tourId}_${restaurantOrderIndex}_${bookingIndex}">Restaurant Booking</h6>
+                            <p class="text-muted mb-0 small">Order ${restaurantOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             
+            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                    <div>
+                        <strong class="text-success">Confirm Approval</strong>
+                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this individual restaurant booking?</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-3">
-                <label class="form-label fw-semibold">Approval Notes (Optional)</label>
-                <textarea class="form-control" name="approval_notes" rows="3" placeholder="Add any notes for this approval..."></textarea>
+                <label for="referenceId_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="reference_id" required 
+                       placeholder="Enter booking reference or confirmation number"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceFile_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                </label>
+                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="reference_file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                       onchange="calculateRestaurantDisplayDueDate('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Select the actual due date for this booking</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDateDays_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                </label>
+                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculateRestaurantDisplayDueDate('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                    <option value="">Select days before</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="4">4 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <div class="form-text">Select how many days before the actual due date to display</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                </label>
+                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="display_due_date" readonly 
+                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">This will be calculated automatically based on your selection above</div>
             </div>
         </form>
     `;
@@ -16933,17 +17140,24 @@ function generateRejectRestaurantForm(tourId, restaurantOrderIndex, bookingIndex
             <input type="hidden" name="restaurant_order_index" value="${restaurantOrderIndex}">
             <input type="hidden" name="booking_index" value="${bookingIndex}">
             
-            <div class="text-center mb-4">
-                <div class="bg-danger bg-opacity-10 rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                    <i class="ri-close-line text-danger" style="font-size: 2.5rem;"></i>
+            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                    <div>
+                        <strong class="text-danger">Confirm Rejection</strong>
+                        <p class="mb-0 text-muted small mt-1">This action will permanently reject and remove this restaurant booking from the tour.</p>
+                    </div>
                 </div>
-                <h4 class="text-danger mb-2">Reject Restaurant Booking</h4>
-                <p class="text-muted">Are you sure you want to reject this restaurant booking?</p>
             </div>
-            
+
             <div class="mb-3">
-                <label class="form-label fw-semibold text-danger">Rejection Reason *</label>
-                <textarea class="form-control" name="rejection_reason" rows="3" placeholder="Please provide a reason for rejection..." required></textarea>
+                <label for="rejectReason_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-message-line me-2"></i>Reason for Cancellation <span class="text-danger">*</span>
+                </label>
+                <textarea class="form-control form-control-lg" id="rejectReason_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="cancel_reason" required 
+                          rows="4" placeholder="Please provide a clear reason for rejecting this restaurant booking..."
+                          style="border-radius: 8px; border: 2px solid #e9ecef;" minlength="10" maxlength="1000"></textarea>
+                <div class="form-text">Provide a detailed explanation that will help improve future bookings (10-1000 characters)</div>
             </div>
         </form>
     `;
@@ -17120,6 +17334,9 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
                 const restaurantBooking = data.data.restaurant_booking;
                 const restaurantData = {
                     booking_id: restaurantBooking.booking_id,
+                    is_approve: restaurantBooking.is_approve || false,
+                    reference_id: restaurantBooking.reference_id || null,
+                    display_due_date: restaurantBooking.display_due_date || null,
                     restaurantDetails: {
                         restaurant_name: restaurantBooking.restaurant_name || 'Cafe Delight',
                         meal_type: restaurantBooking.meal_type || 'Dinner',
@@ -17127,7 +17344,10 @@ function getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex) {
                         adult_count: restaurantBooking.adult_count || 0,
                         child_count: restaurantBooking.child_count || 0,
                         booking_date: restaurantBooking.booking_date || null,
-                        visit_time: restaurantBooking.visit_time || null
+                        visit_time: restaurantBooking.visit_time || null,
+                        is_approve: restaurantBooking.is_approve || false,
+                        reference_id: restaurantBooking.reference_id || null,
+                        display_due_date: restaurantBooking.display_due_date || null
                     },
                     totalPrice: restaurantBooking.total_price || 0,
                     // Include the full restaurant details for complete data access
@@ -17470,6 +17690,7 @@ function confirmIndividualRestaurantApproval(tourId, restaurantOrderIndex, booki
         }
         
         const formData = new FormData(form);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
         
         // Show loading state
         const approveButton = event.target;
@@ -17477,23 +17698,46 @@ function confirmIndividualRestaurantApproval(tourId, restaurantOrderIndex, booki
         approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
         approveButton.disabled = true;
         
-        // Here you would typically send the data to the server
         console.log('Approving individual restaurant booking:', Object.fromEntries(formData.entries()));
         
-        // Simulate API call
-        setTimeout(() => {
+        // Submit to backend
+        fetch('{{ url("/booking/approve-restaurant-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': formData.get('_token'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
             // Reset button
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
             
-            // Show success message
-            alert(`Individual restaurant booking approved successfully!\\nRestaurant Order: ${restaurantOrderIndex + 1}, Booking: ${bookingIndex + 1}`);
+            if (data.success) {
+                console.log('Restaurant booking approved successfully:', data);
+                const referenceId = formData.get('reference_id');
+                const displayDueDate = formData.get('display_due_date');
+                alert(`Restaurant booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                
+                // Close modal and refresh page
+                const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_approve`;
+                closeIndividualRestaurantModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('Failed to approve restaurant booking:', data);
+                alert('Failed to approve restaurant booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
             
-            // Close modal
-            const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_approve`;
-            closeIndividualRestaurantModal(modalId);
-            
-        }, 1500);
+            console.error('Error approving restaurant booking:', error);
+            alert('Error approving restaurant booking. Please try again.');
+        });
         
     } catch (error) {
         console.error('Error approving individual restaurant booking:', error);
@@ -17516,9 +17760,11 @@ function confirmIndividualRestaurantRejection(tourId, restaurantOrderIndex, book
         }
         
         const formData = new FormData(form);
-        const rejectionReason = formData.get('rejection_reason');
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
         
-        if (!rejectionReason || rejectionReason.trim() === '') {
+        const cancelReason = formData.get('cancel_reason');
+        
+        if (!cancelReason || cancelReason.trim() === '') {
             alert('Please provide a reason for rejection');
             return;
         }
@@ -17529,23 +17775,44 @@ function confirmIndividualRestaurantRejection(tourId, restaurantOrderIndex, book
         rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
         rejectButton.disabled = true;
         
-        // Here you would typically send the data to the server
         console.log('Rejecting individual restaurant booking:', Object.fromEntries(formData.entries()));
         
-        // Simulate API call
-        setTimeout(() => {
+        // Submit to backend
+        fetch('{{ url("/booking/reject-restaurant-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': formData.get('_token'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
             // Reset button
             rejectButton.innerHTML = originalText;
             rejectButton.disabled = false;
             
-            // Show success message
-            alert(`Individual restaurant booking rejected successfully!\\nRestaurant Order: ${restaurantOrderIndex + 1}, Booking: ${bookingIndex + 1}\\nReason: ${rejectionReason}`);
+            if (data.success) {
+                console.log('Restaurant booking rejected successfully:', data);
+                alert(`Restaurant booking rejected successfully!\nRestaurant Order: ${restaurantOrderIndex + 1}, Booking: ${bookingIndex + 1}\nReason: ${cancelReason}`);
+                
+                // Close modal and refresh page
+                const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_reject`;
+                closeIndividualRestaurantModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('Failed to reject restaurant booking:', data);
+                alert('Failed to reject restaurant booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
             
-            // Close modal
-            const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_reject`;
-            closeIndividualRestaurantModal(modalId);
-            
-        }, 1500);
+            console.error('Error rejecting restaurant booking:', error);
+            alert('Error rejecting restaurant booking. Please try again.');
+        });
         
     } catch (error) {
         console.error('Error rejecting individual restaurant booking:', error);
