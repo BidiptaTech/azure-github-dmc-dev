@@ -79,12 +79,18 @@ class EnquiryListController extends Controller
                 });
             }])
             ->where('dmc_id', $dmc_id)
+            ->where('unique_tour_id', null)
             ->orderBy('enquiry_id', 'desc')
             ->get();
-        }else{
+        }
+        elseif($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $enquiries = EnquiryForm::with(['agent'])
+            ->where('unique_tour_id', null)
             ->orderBy('enquiry_id', 'desc')
             ->get();
+        }
+        else{
+            return "you are not authorized to view this page";
         }
 
         // For debugging
