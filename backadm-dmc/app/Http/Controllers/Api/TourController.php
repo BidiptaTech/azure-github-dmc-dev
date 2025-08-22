@@ -469,9 +469,14 @@ class TourController extends Controller
         }
 
         // Fetch active (not Closed) tours
+        if($dmc_id){
         $query = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id)
             ->where('dmc_id', $dmc_id);
+        }else{
+            $query = Tour::with(['booking']) // eager load to prevent N+1
+            ->where('agent_id', $agent_id);
+        }
         // Apply date filters based on type
         $today = Carbon::today();
         

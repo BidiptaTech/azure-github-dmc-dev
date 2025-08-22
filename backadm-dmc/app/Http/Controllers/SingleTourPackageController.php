@@ -961,7 +961,7 @@ class SingleTourPackageController extends Controller
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
             $fromZoneId = $request->from_zone_id;
-            $toZoneId = $request->from_zone_id;
+            $toZoneId = $request->to_zone_id;
             
             if (!$dmcId) {
                 return response()->json([
@@ -981,25 +981,65 @@ class SingleTourPackageController extends Controller
             $vehicleMappings = VehicleZoneMapping::where('from_zone_id', $fromZoneId)
                 ->where('to_zone_id', $toZoneId)
                 ->get();
+                
+            // Debug logging for zone mapping query
+            \Log::info('Zone Mapping Query Debug', [
+                'from_zone_id' => $fromZoneId,
+                'to_zone_id' => $toZoneId,
+                'query_sql' => VehicleZoneMapping::where('from_zone_id', $fromZoneId)
+                    ->where('to_zone_id', $toZoneId)
+                    ->toSql(),
+                'mappings_found' => $vehicleMappings->count(),
+                'mappings_data' => $vehicleMappings->toArray()
+            ]);
+                
             // Format the response with vehicle details and pricing
             $vehicles = $vehicleMappings->map(function ($mapping) {
-                $zone_vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type')->where('vehicle_id', $mapping->vehicle_id)->first();
+                $vehicle = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type')
+                    ->where('vehicle_id', $mapping->vehicle_id)
+                    ->first();
+                    
+                if (!$vehicle) {
+                    return null;
+                }
+                
+                // Debug logging
+                \Log::info('Vehicle Zone Mapping Debug', [
+                    'vehicle_id' => $mapping->vehicle_id,
+                    'from_zone_id' => $mapping->from_zone_id,
+                    'to_zone_id' => $mapping->to_zone_id,
+                    'mapping_private_price' => $mapping->private_price,
+                    'mapping_shared_price' => $mapping->shared_price,
+                    'vehicle_name' => $vehicle->vehicle_name ?? 'N/A'
+                ]);
+                
                 return [
-                    'vehicle_id' => $zone_vehicles->vehicle_id,
-                    'vehicle_name' => $zone_vehicles->vehicle_name,
-                    'vehicle_type' => $zone_vehicles->vehicle_type,
-                    'seating_capacity' => $zone_vehicles->seating_capacity,
-                    'vehicle_model' => $zone_vehicles->vehicle_model,
-                    'image' => $zone_vehicles->image,
-                    'private_price' => $zone_vehicles->private_price,
-                    'shared_price' => $zone_vehicles->shared_price,
-                    'service_type' => $zone_vehicles->service_type,
-                    'from_zone' => $mapping->fromZone->zone_name,
-                    'to_zone' => $mapping->toZone->zone_name,
-                    'mapping_id' => $mapping->mapping_id
+                    'vehicle_id' => $vehicle->vehicle_id,
+                    'vehicle_name' => $vehicle->vehicle_name,
+                    'vehicle_type' => $vehicle->vehicle_type,
+                    'seating_capacity' => $vehicle->seating_capacity,
+                    'vehicle_model' => $vehicle->vehicle_model,
+                    'image' => $vehicle->image,
+                    'base_price' => $vehicle->base_price,
+                    'sharable_base_price' => $vehicle->sharable_base_price,
+                    'service_type' => $vehicle->service_type,
+                    'from_zone' => $mapping->fromZone->zone_name ?? '',
+                    'to_zone' => $mapping->toZone->zone_name ?? '',
+                    'mapping_id' => $mapping->mapping_id,
+                    // Use the zone mapping prices instead of vehicle base prices
+                    'private_price' => $mapping->private_price,
+                    'shared_price' => $mapping->shared_price
                 ];
-            });
+            })->filter()->values(); // Remove null values and reindex
 
+            // Debug logging for final response
+            \Log::info('Final Vehicle Response', [
+                'from_zone_id' => $fromZoneId,
+                'to_zone_id' => $toZoneId,
+                'total_vehicles' => count($vehicles),
+                'vehicles_data' => $vehicles->toArray()
+            ]);
+            
             return response()->json([
                 'success' => true,
                 'vehicles' => $vehicles,
