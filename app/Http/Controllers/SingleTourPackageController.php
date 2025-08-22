@@ -133,7 +133,7 @@ class SingleTourPackageController extends Controller
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
             $tour->display_id = $display_id;
-            $tour->tour_status = "Pending";
+            $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->save();
