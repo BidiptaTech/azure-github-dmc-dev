@@ -75,7 +75,10 @@ Route::get('/clear', function () {
     Artisan::call('route:clear');
     return redirect()->route('dashboard');
 })->name('clear');
+
 Route::middleware(['auth'])->group(function () {
+    // Tour creation route
+    Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
     Route::get('/', function () {
         return redirect()->route('dashboard'); // Redirects root to /index
     });

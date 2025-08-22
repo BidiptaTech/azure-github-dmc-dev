@@ -2,6 +2,7 @@
 @section('title', 'EnquiryList')
 @extends('layouts.datatablecss')
 
+
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -46,25 +47,26 @@
 
         <!-- Main Data Table Card -->
         <div class="card">
-            <div class="card-datatable table-responsive">
-                <table class="datatables-basic table">
-                    <thead>
+            <div class="card-datatable">
+                <div class="table-container">
+                    <table class="datatables-basic table table-bordered collapsed" id="enquiriesTable">
+                    <thead class="table-light">
                         <tr>
-                            <th class="text-center" style="width: 50px;">
+                            <th class="text-center dtr-control" style="width: 50px;">
                                 <i class="fas fa-sort me-1"></i>#
                             </th>
-                            <th style="min-width: 140px;">Display ID</th>
-                            <th style="min-width: 200px;">Agent Details</th>
-                            <th style="min-width: 180px;">Location</th>
-                            <th class="text-center" style="width: 120px;">Pax Info</th>
-                            <th style="min-width: 200px;">Check In</th>
-                            <th style="min-width: 200px;">Check Out</th>
+                            <th>Display ID</th>
+                            <th>Agent Details</th>
+                            <th>Location</th>
+                            <th class="text-center">Pax Info</th>
+                            <th>Travel Dates</th>
+                            <th>Create Tour</th>
                         </tr>
                     </thead>
                     <tbody class="sortable">
                         @foreach($enquiries as $enquiry)
                         <tr class="draggable-row" data-id="{{ $loop->iteration }}">
-                            <td class="text-center">
+                            <td class="text-center dtr-control">
                                 <div class="d-flex align-items-center justify-content-center">
                                     <span class="drag-handle me-2"><i class="fas fa-grip-vertical text-muted"></i></span>
                                     <span class="row-number">{{ $loop->iteration }}</span>
@@ -153,45 +155,80 @@
                                 </div>
                             </td>
 
-                            <!-- Check In Column -->
+                            <!-- Travel Dates Column -->
                             <td>
-                                @if ($enquiry->check_in_time)
                                 <div class="d-flex flex-column">
-                                    <span class="fw-semibold">
-                                        <i class="fas fa-calendar-check text-success me-1"></i>
-                                        {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('D, F d, Y') }}
-                                    </span>
-                                    {{-- <span class="text-muted small">
-                                        <i class="fas fa-clock me-1"></i>
-                                        {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('h:i A') }}
-                                    </span> --}}
+                                    @if ($enquiry->check_in_time)
+                                    <div class="mb-1">
+                                        <span class="fw-semibold">
+                                            <i class="fas fa-calendar-check text-success me-1"></i>
+                                            <small class="text-muted">Check In:</small>
+                                        </span>
+                                        <br>
+                                        <span class="fw-medium">
+                                            {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('D, M d, Y') }}
+                                        </span>
+                                    </div>
+                                    @endif
+                                    
+                                    @if ($enquiry->check_out_time)
+                                    <div>
+                                        <span class="fw-semibold">
+                                            <i class="fas fa-calendar-minus text-danger me-1"></i>
+                                            <small class="text-muted">Check Out:</small>
+                                        </span>
+                                        <br>
+                                        <span class="fw-medium">
+                                            {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('D, M d, Y') }}
+                                        </span>
+                                    </div>
+                                    @endif
+                                    
+                                    @if (!$enquiry->check_in_time && !$enquiry->check_out_time)
+                                    <span class="text-muted">N/A</span>
+                                    @endif
+                                    
+                                    @if ($enquiry->check_in_time && $enquiry->check_out_time)
+                                    <div class="mt-1">
+                                        <small class="badge bg-info bg-opacity-10 text-info">
+                                            {{ \Carbon\Carbon::parse($enquiry->check_in_time)->diffInDays(\Carbon\Carbon::parse($enquiry->check_out_time)) + 1 }} days
+                                        </small>
+                                    </div>
+                                    @endif
                                 </div>
-                                @else
-                                <span class="text-muted">N/A</span>
-                                @endif
                             </td>
-
-                            <!-- Check Out Column -->
                             <td>
-                                @if ($enquiry->check_out_time)
-                                <div class="d-flex flex-column">
-                                    <span class="fw-semibold">
-                                        <i class="fas fa-calendar-minus text-danger me-1"></i>
-                                        {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('D, F d, Y') }}
-                                    </span>
-                                    {{-- <span class="text-muted small">
-                                        <i class="fas fa-clock me-1"></i>
-                                        {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('h:i A') }}
-                                    </span> --}}
-                                </div>
+                                @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 10, 11, 25, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                                <button class="btn btn-primary btn-sm create-tour-btn"
+                                    data-enquiry-id="{{ $enquiry->enquiry_id }}"
+                                    data-agent-id="{{ $enquiry->agent_id }}"
+                                    data-destination="{{ $enquiry->country }}"
+                                    data-city="{{ $enquiry->city }}"
+                                    data-adult="{{ $enquiry->adult }}"
+                                    data-child="{{ $enquiry->child }}"
+                                    data-infant="{{ $enquiry->infant }}"
+                                    data-male="{{ $enquiry->male_count }}"
+                                    data-female="{{ $enquiry->female_count }}"
+                                    data-check-in="{{ $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('d/m/Y') : '' }}"
+                                    data-check-out="{{ $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('d/m/Y') : '' }}"
+                                    data-child-ages="{{ $enquiry->child_ages }}"
+                                    data-dmc-id="{{ $enquiry->dmc_id }}"
+                                    data-multi-enq-id="{{ $enquiry->multi_enq_id }}"
+                                    data-hotel-ids="{{ $enquiry->hotel_ids }}"
+                                    data-attraction-ids="{{ $enquiry->attraction_ids }}"
+                                    data-restaurant-ids="{{ $enquiry->restaurant_ids }}"
+                                    data-guide-ids="{{ $enquiry->guide_ids }}">
+                                    <i class="fas fa-plus me-1"></i>Create
+                                </button>
                                 @else
-                                <span class="text-muted">N/A</span>
+                                <span>Not Authorized</span>
                                 @endif
                             </td>
                         </tr>
                         @endforeach
                     </tbody>
-                </table>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -257,27 +294,100 @@
     /* color: #666cff !important; */
   }
 
-    .table-responsive {
+    .card-datatable {
         padding: 1rem;
+        overflow: hidden !important;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .table-container {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    /* Force DataTable to respect container width */
+    .dataTables_wrapper {
+        width: 100% !important;
+    }
+    
+    .datatables-basic {
+        width: 100% !important;
+    }
+    
+    /* Ensure table cells don't exceed container */
+    .datatables-basic th,
+    .datatables-basic td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Allow specific columns to wrap */
+    .datatables-basic th:nth-child(2),
+    .datatables-basic td:nth-child(2),
+    .datatables-basic th:nth-child(3),
+    .datatables-basic td:nth-child(3) {
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    
+    /* DataTable responsive control button */
+    .datatables-basic td.dtr-control:before,
+    .datatables-basic th.dtr-control:before {
+        top: 50%;
+        left: 10px;
+        height: 16px;
+        width: 16px;
+        margin-top: -8px;
+        display: block;
+        position: absolute;
+        color: white;
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 3px rgba(0,0,0,0.3);
+        box-sizing: content-box;
+        text-align: center;
+        text-indent: 0 !important;
+        font-family: 'Courier New', Courier, monospace;
+        line-height: 12px;
+        content: '+';
+        background-color: #696cff;
+        cursor: pointer;
+        z-index: 10;
+    }
+    
+    .datatables-basic td.dtr-control.parent:before {
+        content: '-';
+        background-color: #dc3545;
+    }
+    
+    /* Ensure the control column has relative positioning */
+    .datatables-basic td.dtr-control,
+    .datatables-basic th.dtr-control {
+        position: relative;
+        padding-left: 35px !important;
     }
 
     /* Custom scrollbar */
-    .table-responsive::-webkit-scrollbar {
+    .card-datatable::-webkit-scrollbar {
         width: 6px;
         height: 6px;
     }
 
-    .table-responsive::-webkit-scrollbar-track {
+    .card-datatable::-webkit-scrollbar-track {
         background: #f1f1f1;
         border-radius: 3px;
     }
 
-    .table-responsive::-webkit-scrollbar-thumb {
+    .card-datatable::-webkit-scrollbar-thumb {
         background: #888;
         border-radius: 3px;
     }
 
-    .table-responsive::-webkit-scrollbar-thumb:hover {
+    .card-datatable::-webkit-scrollbar-thumb:hover {
         background: #555;
     }
 
@@ -581,192 +691,406 @@
     .table tbody td:focus {
         outline: none !important;
     }
+    
+    /* Responsive column collapse indicator */
+    .table-responsive.columns-collapsed::before {
+        content: '📱 Some columns are collapsed for mobile view';
+        display: block;
+        background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+        color: white;
+        padding: 0.5rem 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    }
+    
+    /* Enhanced responsive table styles */
+    .dtr-details {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .dtr-details dt {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .dtr-details dd {
+        margin-bottom: 0.75rem;
+        color: #6c757d;
+    }
+    
+    /* Enhanced column collapse functionality */
+    .collapsed-columns-info {
+        margin-bottom: 1rem;
+    }
+    
+    .collapsed-columns-info .alert {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    /* Responsive breakpoint enhancements */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+        
+        .datatables-basic th,
+        .datatables-basic td {
+            padding: 0.5rem 0.25rem;
+        }
+        
+        .pax-info-card .total-pax {
+            font-size: 1rem !important;
+        }
+        
+        .location-badge {
+            padding: 0.5rem !important;
+        }
+        
+        /* Enhanced mobile responsive behavior */
+        .dtr-bs-modal .modal-dialog {
+            max-width: 95vw;
+        }
+        
+        .dtr-bs-modal .modal-body {
+            padding: 1rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .table-responsive {
+            font-size: 0.8rem;
+        }
+        
+        .avatar {
+            width: 32px !important;
+            height: 32px !important;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.5rem !important;
+            font-size: 0.75rem !important;
+        }
+        
+        /* Mobile-first responsive design */
+        .table thead th {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.25rem;
+        }
+        
+        .table tbody td {
+            padding: 0.5rem 0.25rem;
+        }
+        
+        /* Force column collapsing on mobile */
+        .datatables-basic.dataTable.dtr-inline.collapsed>tbody>tr>td:first-child:before,
+        .datatables-basic.dataTable.dtr-inline.collapsed>tbody>tr>th:first-child:before {
+            top: 50%;
+            transform: translateY(-50%);
+            left: 4px;
+            height: 14px;
+            width: 14px;
+            display: block;
+            position: absolute;
+            color: white;
+            border: 2px solid white;
+            border-radius: 14px;
+            box-shadow: 0 0 3px #444;
+            box-sizing: content-box;
+            text-align: center;
+            text-indent: 0 !important;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 14px;
+            content: '+';
+            background-color: #696cff;
+        }
+    }
+    
+    /* Enhanced responsive modal for collapsed columns */
+    .dtr-bs-modal .modal-header {
+        background: linear-gradient(45deg, #696cff, #484bff);
+        color: white;
+        border-bottom: none;
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+    
+    .dtr-bs-modal .modal-title {
+        font-weight: 600;
+    }
+    
+    .dtr-bs-modal .modal-body {
+        background: #f8f9fa;
+    }
+    
+    .dtr-bs-modal .table {
+        margin-bottom: 0;
+    }
+    
+    .dtr-bs-modal .table td {
+        border: none;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .dtr-bs-modal .table td:first-child {
+        font-weight: 600;
+        color: #495057;
+        background: #e9ecef;
+    }
+    
+    /* Enhanced responsive animations */
+    .expanding {
+        animation: expandRow 0.3s ease-out;
+    }
+    
+    @keyframes expandRow {
+        0% {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    /* Mobile-specific responsive classes */
+    .mobile-xs .table-responsive {
+        font-size: 0.75rem;
+    }
+    
+    .mobile-sm .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .mobile-md .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    /* Enhanced responsive toggle button */
+    .dtr-toggle {
+        transition: all 0.3s ease;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #696cff;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .dtr-toggle:hover {
+        background: #484bff;
+        transform: scale(1.1);
+    }
+    
+    .dtr-toggle:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(105, 108, 255, 0.25);
+    }
 </style>
 @endsection
 
 @section('scripts')
-<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
 <script>
     $(document).ready(function() {
-        // Function to initialize hover effects
-        function initializeHoverEffects() {
-            $('.draggable-row').hover(
-                function() {
-                    $(this).addClass('row-hover');
-                    $(this).prev().css('transform', 'translateY(-2px)');
-                    $(this).next().css('transform', 'translateY(2px)');
-                },
-                function() {
-                    $(this).removeClass('row-hover');
-                    $(this).prev().css('transform', '');
-                    $(this).next().css('transform', '');
+        // Wait for any existing DataTable initialization to complete
+        setTimeout(function() {
+            
+            // Check if DataTable is already initialized by the layout
+            if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+                console.log('DataTable already exists, enhancing it...');
+                var table = $('.datatables-basic').DataTable();
+                
+                // Enable responsive if not already enabled
+                if (!table.responsive) {
+                    table.destroy();
+                    table = $('.datatables-basic').DataTable({
+                        responsive: true,
+                        columnDefs: [
+                            { targets: 0, className: 'dtr-control' },
+                            { responsivePriority: 1, targets: 0 }, // # - Always visible
+                            { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
+                            { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
+                            { responsivePriority: 4, targets: 3 }, // Location - Medium priority
+                            { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
+                            { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
+                            { responsivePriority: 6, targets: 6 }  // Create Tour - Medium priority
+                        ]
+                    });
                 }
-            );
+            } else {
+                console.log('Initializing new DataTable...');
+                var table = $('.datatables-basic').DataTable({
+                    responsive: true,
+                                            columnDefs: [
+                            { targets: 0, className: 'dtr-control' },
+                            { responsivePriority: 1, targets: 0 }, // # - Always visible
+                            { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
+                            { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
+                            { responsivePriority: 4, targets: 3 }, // Location - Medium priority
+                            { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
+                            { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
+                            { responsivePriority: 6, targets: 6 }  // Create Tour - Medium priority
+                        ]
+                });
+            }
 
-            // Reinitialize click effects
-            $('.draggable-row').click(function() {
-                $('.draggable-row').removeClass('selected');
-                $(this).addClass('selected');
+            // Custom export button functionality
+            $('#exportCopy').on('click', function() {
+                var currentTable = $('.datatables-basic').DataTable();
+                if (currentTable.button) {
+                    currentTable.button('.buttons-copy').trigger();
+                }
             });
-        }
 
-        // Initialize DataTable with enhanced configuration
-        const table = $('.datatables-basic').DataTable({
-            responsive: true,
-            ordering: true,
-            buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
-            ],
-            select: false,
-            language: {
-                search: "_INPUT_",
-                searchPlaceholder: "Search enquiries...",
-                lengthMenu: "Show _MENU_ entries per page",
-                info: "Showing _START_ to _END_ of _TOTAL_ entries",
-                paginate: {
-                    first: '<i class="fas fa-angle-double-left"></i>',
-                    previous: '<i class="fas fa-angle-left"></i>',
-                    next: '<i class="fas fa-angle-right"></i>',
-                    last: '<i class="fas fa-angle-double-right"></i>'
+            $('#exportCSV').on('click', function() {
+                var currentTable = $('.datatables-basic').DataTable();
+                if (currentTable.button) {
+                    currentTable.button('.buttons-csv').trigger();
                 }
-            },
-            lengthMenu: [
-                [10, 25, 50, 100],
-                ['10 rows', '25 rows', '50 rows', '100 rows']
-            ],
-            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                '<"row"<"col-sm-12"tr>>' +
-                '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            });
+
+            $('#exportExcel').on('click', function() {
+                var currentTable = $('.datatables-basic').DataTable();
+                if (currentTable.button) {
+                    currentTable.button('.buttons-excel').trigger();
+                }
+            });
+
+            $('#exportPDF').on('click', function() {
+                var currentTable = $('.datatables-basic').DataTable();
+                if (currentTable.button) {
+                    currentTable.button('.buttons-pdf').trigger();
+                }
+            });
+
+            $('#exportPrint').on('click', function() {
+                var currentTable = $('.datatables-basic').DataTable();
+                if (currentTable.button) {
+                    currentTable.button('.buttons-print').trigger();
+                }
+            });
+
+            // Handle Create Tour button click
+            $(document).on('click', '.create-tour-btn', function() {
+                var button = $(this);
+                var enquiryData = {
+                    enquiry_id: button.data('enquiry-id'),
+                    destination: button.data('destination'),
+                    city: button.data('city'),
+                    adult: button.data('adult'),
+                    child: button.data('child'),
+                    infant: button.data('infant'),
+                    male: button.data('male'),
+                    female: button.data('female'),
+                    check_in: button.data('check-in'),
+                    check_out: button.data('check-out'),
+                    children_ages: button.data('child-ages'),
+                    dmc_id: button.data('dmc-id'),
+                    hotel_ids: button.data('hotel-ids'),
+                    attraction_ids: button.data('attraction-ids'),
+                    restaurant_ids: button.data('restaurant-ids'),
+                    guide_ids: button.data('guide-ids')
+                };
+
+                // Disable button and show loading
+                button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Creating...');
+
+                // Make AJAX call
+                $.ajax({
+                    url: '{{ route("create.tour") }}',
+                    type: 'POST',
+                    data: enquiryData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                        'agent-id': button.data('agent-id')
+                    },
+                    success: function(response) {
+                        // Show success message
+                        showToast('success', 'Tour created successfully!');
+                        
+                        // Update button to show success
+                        button.removeClass('btn-primary').addClass('btn-success')
+                              .html('<i class="fas fa-check me-1"></i>Created')
+                              .prop('disabled', true);
+                        
+                        // Refresh the page after a short delay to show the success message
+                        setTimeout(function() {
+                            location.reload();
+                        }, 500);
+                    },
+                    error: function(xhr, status, error) {
+                        // Re-enable button
+                        button.prop('disabled', false).html('<i class="fas fa-plus me-1"></i>Create');
+                        
+                        // Show error message
+                        var errorMessage = 'Failed to create tour';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        showToast('error', 'Error', errorMessage);
+                        console.error('Error creating tour:', xhr.responseJSON);
+                    }
+                });
+            });
+
+            // Toast notification function
+            function showToast(type, title, message) {
+                // Create toast element
+                var toastId = 'toast-' + Date.now();
+                var iconClass = type === 'success' ? 'fas fa-check-circle text-success' : 'fas fa-exclamation-circle text-danger';
+                var bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+                
+                var toastHtml = `
+                    <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="${iconClass} me-2"></i>
+                                <strong>${title}</strong><br>
+                                ${message}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add toast container if it doesn't exist
+                if (!$('#toast-container').length) {
+                    $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>');
+                }
+                
+                // Add toast and show
+                $('#toast-container').append(toastHtml);
+                var toast = new bootstrap.Toast(document.getElementById(toastId));
+                toast.show();
+                
+                // Remove toast element after it's hidden
+                $('#' + toastId).on('hidden.bs.toast', function() {
+                    $(this).remove();
+                });
+            }
             
-            // Add drawCallback to reinitialize hover effects after pagination
-            drawCallback: function() {
-                initializeHoverEffects();
-            }
-        });
-
-        // Initialize hover effects on first load
-        initializeHoverEffects();
-
-        // Reinitialize hover effects when page length changes
-        $('.dataTables_length select').on('change', function() {
-            setTimeout(initializeHoverEffects, 100);
-        });
-
-        // Reinitialize hover effects when search is performed
-        $('.dataTables_filter input').on('keyup', function() {
-            setTimeout(initializeHoverEffects, 100);
-        });
-
-        // Handle zoom level changes
-        let lastZoom = 100;
-        
-        function handleZoom() {
-            const currentZoom = Math.round(window.devicePixelRatio * 100);
-            
-            if (currentZoom !== lastZoom) {
-                lastZoom = currentZoom;
-                adjustHoverEffects(currentZoom);
-            }
-        }
-
-        function adjustHoverEffects(zoomLevel) {
-            const scale = Math.max(1.01 - (zoomLevel - 100) * 0.0005, 1.001);
-            const yOffset = Math.max(3 - (zoomLevel - 100) * 0.02, 1);
-
-            document.documentElement.style.setProperty('--hover-scale', scale.toString());
-            document.documentElement.style.setProperty('--hover-y-offset', `-${yOffset}px`);
-        }
-
-        // Listen for zoom changes
-        window.addEventListener('resize', handleZoom);
-        
-        // Check for zoom changes periodically
-        setInterval(handleZoom, 1000);
-
-        // Export button handlers
-        $('#exportCopy').on('click', function() {
-            table.button('.buttons-copy').trigger();
-        });
-
-        $('#exportCSV').on('click', function() {
-            table.button('.buttons-csv').trigger();
-        });
-
-        $('#exportExcel').on('click', function() {
-            table.button('.buttons-excel').trigger();
-        });
-
-        $('#exportPDF').on('click', function() {
-            table.button('.buttons-pdf').trigger();
-        });
-
-        $('#exportPrint').on('click', function() {
-            table.button('.buttons-print').trigger();
-        });
-
-        // Initialize Sortable with enhanced configuration
-        new Sortable(document.querySelector('.sortable'), {
-            handle: '.drag-handle',
-            animation: 150,
-            dragClass: 'dragging',
-            ghostClass: 'drag-ghost',
-            chosenClass: 'drag-chosen',
-            onStart: function(evt) {
-                const row = evt.item;
-                row.classList.add('dragging');
-                document.querySelectorAll('.draggable-row:not(.dragging)').forEach(r => {
-                    r.style.transform = 'scale(0.98)';
-                });
-            },
-            onEnd: function(evt) {
-                const row = evt.item;
-                row.classList.remove('dragging');
-                document.querySelectorAll('.draggable-row').forEach(r => {
-                    r.style.transform = '';
-                });
-
-                const rows = Array.from(evt.to.children);
-                rows.forEach((row, index) => {
-                    const rowNumber = index + 1;
-                    const numberElement = row.querySelector('.row-number');
-                    
-                    numberElement.style.transform = 'scale(1.2)';
-                    numberElement.style.color = '#696cff';
-                    numberElement.textContent = rowNumber;
-                    
-                    row.classList.add('swap-animation');
-                    
-                    setTimeout(() => {
-                        numberElement.style.transform = '';
-                        numberElement.style.color = '';
-                        row.classList.remove('swap-animation');
-                    }, 600);
-                });
-
-                // Reinitialize hover effects after sorting
-                setTimeout(initializeHoverEffects, 100);
-            }
-        });
-
-        // Add CSS variables for dynamic hover effects
-        document.documentElement.style.setProperty('--hover-scale', '1.01');
-        document.documentElement.style.setProperty('--hover-y-offset', '-3px');
-
-        // Add these CSS rules dynamically
-        const style = document.createElement('style');
-        style.textContent = `
-            .table tbody tr:hover {
-                transform: translateY(var(--hover-y-offset)) scale(var(--hover-scale)) !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Remove any existing selection classes when clicking
-        $('.table tbody').on('click', 'tr', function() {
-            $(this).removeClass('selected');
-            $(this).find('td').removeClass('selected');
-        });
+        }, 500); // Increased delay to ensure layout scripts load first
     });
 </script>
 @endsection
+
+@extends('layouts.datatablejs')
