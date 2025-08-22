@@ -14,6 +14,7 @@ export const fetchLists = createAsyncThunk(
     const { agentId = null, start = 0, limit = 30, reset = false, type: paramType } = params;
     const stateType = getState().lists.type;
     const dmcId = getState().dmc.dmcId;
+    const userRole = getState().auth?.userRole;
     const agentId1 = getState().editing.agentId;
     const agent=agentId1 || agentId;
     // Prioritize the type from params over the state type
@@ -54,7 +55,7 @@ export const fetchLists = createAsyncThunk(
           ...(start !== undefined && { start }),
           ...(limit !== undefined && { limit }),
           ...(type !== undefined && { type }),
-          ...(dmcId !== undefined && { dmc_id: dmcId })
+          ...(dmcId !== undefined && (userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)") && { dmc_id: dmcId })
         }
       });
 
@@ -86,6 +87,12 @@ const listSlice = createSlice({
   reducers: {
     setTourType: (state, action) => {
       state.type = action.payload;
+    },
+    ClearLists: (state) => {
+      state.lists = [];
+      state.pendingTours = [];
+      state.upcomingTours = [];
+      state.completedTours = [];
     }
   },
   extraReducers: (builder) => {
@@ -197,5 +204,5 @@ const listSlice = createSlice({
       });
   },
 });
-export const { setTourType } = listSlice.actions;
+export const { setTourType, ClearLists } = listSlice.actions;
 export default listSlice.reducer;
